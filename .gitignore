@@ -1,0 +1,9 @@
+# Python
+*~
+*.log
+*.pyc
+*.pyo
+*.pyt
+*.pytc
+*.egg-info
+.*.swp

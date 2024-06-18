@@ -7,3 +7,5 @@
 *.pytc
 *.egg-info
 .*.swp
+storage
+traces.txt

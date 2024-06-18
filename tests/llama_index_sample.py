@@ -1,0 +1,100 @@
+# Copyright (C) Okahu Inc 2023-2024. All rights reserved
+
+import os
+
+import chromadb
+from llama_index.core import SimpleDirectoryReader, StorageContext, VectorStoreIndex
+from llama_index.embeddings.openai import OpenAIEmbedding
+from llama_index.llms.openai import OpenAI
+from llama_index.vector_stores.chroma import ChromaVectorStore
+from okahu_apptrace.instrumentor import setup_okahu_telemetry
+from okahu_apptrace.wrap_common import llm_wrapper
+from okahu_apptrace.wrapper import WrapperMethod
+from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
+
+# os.environ["OKAHU_API_KEY"] = ""
+# os.environ["OKAHU_INGESTION_ENDPOINT"] = ""
+# os.environ["OPENAI_API_KEY"] = ""
+
+setup_okahu_telemetry(
+    workflow_name="llama_index_1",
+    span_processors=[BatchSpanProcessor(ConsoleSpanExporter())],
+    wrapper_methods=[]
+)
+
+# Creating a Chroma client
+# EphemeralClient operates purely in-memory, PersistentClient will also save to disk
+chroma_client = chromadb.EphemeralClient()
+chroma_collection = chroma_client.create_collection("quickstart")
+
+# construct vector store
+vector_store = ChromaVectorStore(
+    chroma_collection=chroma_collection,
+)
+dir_path = os.path.dirname(os.path.realpath(__file__))
+documents = SimpleDirectoryReader(dir_path + "/data").load_data()
+
+embed_model = OpenAIEmbedding(model="text-embedding-3-large")
+storage_context = StorageContext.from_defaults(vector_store=vector_store)
+index = VectorStoreIndex.from_documents(
+    documents, storage_context=storage_context, embed_model=embed_model
+)
+
+llm = OpenAI(temperature=0.1, model="gpt-4")
+
+query_engine = index.as_query_engine(llm= llm, )
+response = query_engine.query("What did the author do growing up?")
+
+print(response)
+
+# {
+#     "trace_id": "0xbd54e5d0edcd96634fa8a02c25c27519",
+#     "start_time": "2024-04-15T23:27:54.806477Z",
+#     "end_time": "2024-04-15T23:27:57.182261Z",
+#     "duration_ms": "2376",
+#     "spans": [
+#         {
+#             "span_name": "llamaindex.retrieve",
+#             "start_time": "2024-04-15T23:27:54.806773Z",
+#             "end_time": "2024-04-15T23:27:55.732604Z",
+#             "duration_ms": "926",
+#             "span_id": "0x030cf03872d4a092",
+#             "trace_id": "0xbd54e5d0edcd96634fa8a02c25c27519",
+#             "parent_id": "0xb4b14a8f14e7e770",
+#             "attributes": {
+#                 "workflow_context_input": "What did the author do growing up?",
+#                 "workflow_context_output": "this is some sample text"
+#             },
+#             "events": []
+#         },
+#         {
+#             "span_name": "llamaindex.openai",
+#             "start_time": "2024-04-15T23:27:55.740299Z",
+#             "end_time": "2024-04-15T23:27:57.181992Z",
+#             "duration_ms": "1442",
+#             "span_id": "0x225fbfb58481e58c",
+#             "trace_id": "0xbd54e5d0edcd96634fa8a02c25c27519",
+#             "parent_id": "0xb4b14a8f14e7e770",
+#             "attributes": {},
+#             "events": []
+#         },
+#         {
+#             "span_name": "llamaindex.query",
+#             "start_time": "2024-04-15T23:27:54.806477Z",
+#             "end_time": "2024-04-15T23:27:57.182261Z",
+#             "duration_ms": "2376",
+#             "span_id": "0xb4b14a8f14e7e770",
+#             "trace_id": "0xbd54e5d0edcd96634fa8a02c25c27519",
+#             "parent_id": "None",
+#             "attributes": {
+#                 "workflow_input": "What did the author do growing up?",
+#                 "workflow_name": "llama_index_1",
+#                 "workflow_output": "The context does not provide information about what the author did while growing up.",
+#                 "workflow_type": "workflow.llamaindex"
+#             },
+#             "events": []
+#         }
+#     ]
+# }
+
+

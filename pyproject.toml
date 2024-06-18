@@ -1,0 +1,82 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "okahu-observability"
+version = "0.0.7"
+authors = [
+  { name="Okahu Inc.", email="okahu-pypi@okahu.ai" },
+]
+description = "package with okahu opentelemetry"
+readme = "README.md"
+requires-python = ">=3.8"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+   'requests',
+   'wrapt>=1.14.0',
+   'opentelemetry-api>=1.21.0',
+   'opentelemetry-sdk>=1.21.0',
+   'opentelemetry-instrumentation',
+]
+
+[tool.pytest.ini_options]
+pythonpath = [
+  "src"
+]
+
+[project.optional-dependencies]
+dev = [
+  'langchain-openai==0.1.8',
+  'langchain-chroma==0.1.1',
+  'langchain-community==0.2.5',
+  'langchain==0.2.5',
+  'haystack-ai==2.2.3',
+  'datasets==2.20.0',
+  'numpy==1.26.4',
+  'types-requests==2.31.0.20240106',
+  'InstructorEmbedding==1.0.1',
+  'sentence-transformers==2.6.1',
+  'faiss-cpu==1.8.0',
+  'pytest==8.0.0',
+  'llama-index==0.10.30',
+  'llama-index-embeddings-huggingface==0.2.0',
+  'llama-index-vector-stores-chroma==0.1.9'
+]
+
+[project.urls]
+Homepage = "https://github.com/okahu/demo-repository"
+Issues = "https://github.com/okahu/demo-repository/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/okahu_apptrace"]
+
+[tool.hatch.build.targets.sdist]
+ignore-vcs = true
+
+[tool.hatch.build]
+exclude = [
+  "/.*",
+  "*.txt",
+  "Pipfile",
+  "/data",
+  "/docs",
+  "/tests",
+  "*.yml",
+]
+
+[tool.pylint]
+max-line-length = 120
+disable = [
+    "C0103", # (invalid-name)
+    "C0114", # (missing-module-docstring)
+    "C0115", # (missing-class-docstring)
+    "C0116", # (missing-function-docstring)
+    "R0903", # (too-few-public-methods)
+    "R0913", # (too-many-arguments)
+    "W0105", # (pointless-string-statement)
+]

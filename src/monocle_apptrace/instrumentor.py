@@ -1,4 +1,4 @@
-# Copyright (C) Okahu Inc 2023-2024. All rights reserved
+
 
 import logging
 from typing import Collection,List
@@ -10,9 +10,8 @@ from opentelemetry.sdk.trace import TracerProvider, Span
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, SpanProcessor
 from opentelemetry.sdk.resources import SERVICE_NAME, Resource
 from opentelemetry import trace
-from okahu_apptrace.wrap_common import CONTEXT_PROPERTIES_KEY
-from okahu_apptrace.wrapper import INBUILT_METHODS_LIST, WrapperMethod
-from okahu_apptrace.exporter import OkahuSpanExporter 
+from monocle_apptrace.wrap_common import CONTEXT_PROPERTIES_KEY
+from monocle_apptrace.wrapper import INBUILT_METHODS_LIST, WrapperMethod
 from opentelemetry.context import get_value, attach, set_value
 
 
@@ -20,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 _instruments = ("langchain >= 0.0.346",)
 
-class OkahuInstrumentor(BaseInstrumentor):
+class MonocleInstrumentor(BaseInstrumentor):
     
     workflow_name: str = ""
     user_wrapper_methods: list[WrapperMethod] = []
@@ -87,7 +86,7 @@ class OkahuInstrumentor(BaseInstrumentor):
                              method:{wrap_method}""")
            
 
-def setup_okahu_telemetry(
+def setup_monocle_telemetry(
         workflow_name: str,
         span_processors: List[SpanProcessor] = [],
         wrapper_methods: List[WrapperMethod] = []):
@@ -95,14 +94,11 @@ def setup_okahu_telemetry(
         SERVICE_NAME: workflow_name
     })
     traceProvider = TracerProvider(resource=resource)
-    okahuProcessor = BatchSpanProcessor(OkahuSpanExporter())
-    okahuProcessor.on_start = on_processor_start
     for processor in span_processors:
         processor.on_start = on_processor_start
         traceProvider.add_span_processor(processor)
-    traceProvider.add_span_processor(okahuProcessor)
     trace.set_tracer_provider(traceProvider)
-    instrumentor = OkahuInstrumentor(user_wrapper_methods=wrapper_methods)
+    instrumentor = MonocleInstrumentor(user_wrapper_methods=wrapper_methods)
     instrumentor.app_name = workflow_name
     instrumentor.instrument()
 

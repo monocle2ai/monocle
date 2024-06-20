@@ -1,4 +1,4 @@
-# Copyright (C) Okahu Inc 2023-2024. All rights reserved
+
 
 import json
 import logging
@@ -16,24 +16,23 @@ from langchain.schema import StrOutputParser
 from langchain_community.vectorstores import faiss
 from langchain_core.messages.ai import AIMessage
 from langchain_core.runnables import RunnablePassthrough
-from okahu_apptrace.exporter import OkahuSpanExporter
-from okahu_apptrace.instrumentor import (
-    OkahuInstrumentor,
+from monocle_apptrace.instrumentor import (
+    MonocleInstrumentor,
     set_context_properties,
-    setup_okahu_telemetry,
+    setup_monocle_telemetry,
 )
-from okahu_apptrace.wrap_common import (
+from monocle_apptrace.wrap_common import (
     CONTEXT_PROPERTIES_KEY,
     PROMPT_INPUT_KEY,
     PROMPT_OUTPUT_KEY,
     update_span_from_llm_response,
 )
-from okahu_apptrace.wrapper import WrapperMethod
+from monocle_apptrace.wrapper import WrapperMethod
 from opentelemetry import trace
 from opentelemetry.instrumentation.utils import unwrap
 from opentelemetry.sdk.resources import SERVICE_NAME, Resource
 from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.trace.export import BatchSpanProcessor, SpanProcessor
+from opentelemetry.sdk.trace.export import BatchSpanProcessor, SpanProcessor, ConsoleSpanExporter
 
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
@@ -68,15 +67,15 @@ class TestHandler(unittest.TestCase):
             SERVICE_NAME: "coffee_rag_fake"
         })
         traceProvider = TracerProvider(resource=resource)
-        exporter = OkahuSpanExporter()
-        okahuProcessor = BatchSpanProcessor(exporter)
+        exporter = ConsoleSpanExporter()
+        monocleProcessor = BatchSpanProcessor(exporter)
 
-        traceProvider.add_span_processor(okahuProcessor)
+        traceProvider.add_span_processor(monocleProcessor)
         trace.set_tracer_provider(traceProvider)
-        instrumentor = OkahuInstrumentor()
+        instrumentor = MonocleInstrumentor()
         instrumentor.instrument()
         self.instrumentor = instrumentor
-        self.processor = okahuProcessor
+        self.processor = monocleProcessor
         responses=[self.ragText]
         llm = FakeListLLM(responses=responses)
 
@@ -97,8 +96,6 @@ class TestHandler(unittest.TestCase):
 
     def setUp(self):
         print("setUp")
-        os.environ["OKAHU_API_KEY"] = "key1"
-        os.environ["OKAHU_INGESTION_ENDPOINT"] = "https://localhost:3000/api/v1/traces"
 
     def tearDown(self) -> None:
         print("cleaning up with teardown")
@@ -151,7 +148,7 @@ class TestHandler(unittest.TestCase):
     def test_custom_methods(self):
         app_name = "test"
         wrap_method = MagicMock(return_value=3)
-        setup_okahu_telemetry(
+        setup_monocle_telemetry(
             workflow_name=app_name,
             span_processors=[],
             wrapper_methods=[

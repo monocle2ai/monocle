@@ -1,4 +1,4 @@
-# Copyright (C) Okahu Inc 2023-2024. All rights reserved
+
 
 import logging
 from opentelemetry import context as context_api
@@ -6,7 +6,7 @@ from opentelemetry.context import attach, set_value
 from opentelemetry.instrumentation.utils import (
     _SUPPRESS_INSTRUMENTATION_KEY,
 )
-from okahu_apptrace.wrap_common import WORKFLOW_TYPE_MAP, with_tracer_wrapper
+from monocle_apptrace.wrap_common import WORKFLOW_TYPE_MAP, with_tracer_wrapper
 
 logger = logging.getLogger(__name__)
 

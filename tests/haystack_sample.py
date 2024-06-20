@@ -1,4 +1,4 @@
-# Copyright (C) Okahu Inc 2023-2024. All rights reserved
+
 
 import os
 
@@ -16,15 +16,15 @@ from haystack.components.retrievers.in_memory.embedding_retriever import (
 )
 from haystack.document_stores.in_memory import InMemoryDocumentStore
 from haystack.utils import Secret
-from okahu_apptrace.instrumentor import setup_okahu_telemetry
-from okahu_apptrace.wrap_common import llm_wrapper
-from okahu_apptrace.wrapper import WrapperMethod
+from monocle_apptrace.instrumentor import setup_monocle_telemetry
+from monocle_apptrace.wrap_common import llm_wrapper
+from monocle_apptrace.wrapper import WrapperMethod
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
 
 
 def haystack_app():
 
-    setup_okahu_telemetry(
+    setup_monocle_telemetry(
             workflow_name="haystack_app_1",
             span_processors=[BatchSpanProcessor(ConsoleSpanExporter())],
             wrapper_methods=[

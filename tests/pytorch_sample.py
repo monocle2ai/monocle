@@ -1,4 +1,4 @@
-# Copyright (C) Okahu Inc 2023-2024. All rights reserved
+
 
 import json
 import os
@@ -9,8 +9,8 @@ from unittest.mock import ANY, patch
 
 import requests
 import torch
-from okahu_apptrace.instrumentor import setup_okahu_telemetry
-from okahu_apptrace.wrapper import WrapperMethod, llm_wrapper
+from monocle_apptrace.instrumentor import setup_monocle_telemetry
+from monocle_apptrace.wrapper import WrapperMethod, llm_wrapper
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
 from transformers import GPT2DoubleHeadsModel, GPT2Tokenizer
 
@@ -18,14 +18,12 @@ from transformers import GPT2DoubleHeadsModel, GPT2Tokenizer
 class TestHandler(unittest.TestCase):
     @patch.object(requests.Session, 'post')
     def test_pytorch(self, mock_post):
-        os.environ["OKAHU_API_KEY"] = "key1"
-        os.environ["OKAHU_INGESTION_ENDPOINT"] = "https://localhost:3000/api/v1/traces"
         os.environ["OPENAI_API_KEY"] = ""
 
         mock_post.return_value.status_code = 201
         mock_post.return_value.json.return_value = 'mock response'
 
-        setup_okahu_telemetry(
+        setup_monocle_telemetry(
             workflow_name="pytorch_1",
             span_processors=[BatchSpanProcessor(ConsoleSpanExporter())],
             wrapper_methods=[

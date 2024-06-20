@@ -1,32 +1,20 @@
-# Okahu Traces for Langchain
+# Monocle Traces for Langchain
 
 ## Installation
 
 ```shell
-pip install okahu-observability
+pip install monocle-observability
 ```
 
-## Setting up the environment
-
-The Okahu API key and the Okahu ingestion endpoint needs to be set as environment variable.
-
-
-```python
-import os
-
-os.environ["OKAHU_API_KEY"] = "YOUR_OKAHU_API_KEY"
-os.environ["OKAHU_INGESTION_ENDPOINT"] = "OKAHU_INGESTION_ENDPOINT"
-```
-
-## Using the Okahu tracing package
-The okahu trace setup needs to be imported from okahu_apptrace package.
+## Using the Monocle tracing package
+The monocle trace setup needs to be imported from monocle_apptrace package.
 The `workflow_name` is a mandatory parameter which represents your app.
 
 ```python
 
-from okahu_apptrace.instrumentor import setup_okahu_telemetry
+from monocle_apptrace.instrumentor import setup_monocle_telemetry
 
-setup_okahu_telemetry(
+setup_monocle_telemetry(
     workflow_name="langchain_app_1")
 
 ```

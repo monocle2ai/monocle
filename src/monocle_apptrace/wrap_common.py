@@ -1,10 +1,10 @@
-# Copyright (C) Okahu Inc 2023-2024. All rights reserved
+
 
 import logging
 import os
 from opentelemetry.trace import Tracer, Span
 
-from okahu_apptrace.utils import with_tracer_wrapper, resolve_from_alias
+from monocle_apptrace.utils import with_tracer_wrapper, resolve_from_alias
 
 logger = logging.getLogger(__name__)
 WORKFLOW_TYPE_KEY = "workflow_type"

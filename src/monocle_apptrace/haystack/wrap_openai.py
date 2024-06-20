@@ -1,10 +1,10 @@
-# Copyright (C) Okahu Inc 2023-2024. All rights reserved
+
 
 import logging
 from opentelemetry import context as context_api
 from opentelemetry.instrumentation.utils import _SUPPRESS_INSTRUMENTATION_KEY
-from okahu_apptrace.wrap_common import with_tracer_wrapper
-from okahu_apptrace.utils import (
+from monocle_apptrace.wrap_common import with_tracer_wrapper
+from monocle_apptrace.utils import (
     dont_throw,
     set_span_attribute
 )

@@ -1,6 +1,6 @@
-# Copyright (C) Okahu Inc 2023-2024. All rights reserved
 
-from okahu_apptrace.wrap_common import allm_wrapper, atask_wrapper, llm_wrapper, task_wrapper
+
+from monocle_apptrace.wrap_common import allm_wrapper, atask_wrapper, llm_wrapper, task_wrapper
 
 LANGCHAIN_METHODS = [
     {

@@ -3,12 +3,10 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "okahu-observability"
+name = "monocle-observability"
 version = "0.0.7"
-authors = [
-  { name="Okahu Inc.", email="okahu-pypi@okahu.ai" },
-]
-description = "package with okahu opentelemetry"
+authors = []
+description = "package with monocle opentelemetry"
 readme = "README.md"
 requires-python = ">=3.8"
 classifiers = [
@@ -49,11 +47,11 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/okahu/demo-repository"
-Issues = "https://github.com/okahu/demo-repository/issues"
+Homepage = "https://github.com/monocle2ai/monocle"
+Issues = "https://github.com/monocle2ai/monocle/issues"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/okahu_apptrace"]
+packages = ["src/monocle_apptrace"]
 
 [tool.hatch.build.targets.sdist]
 ignore-vcs = true

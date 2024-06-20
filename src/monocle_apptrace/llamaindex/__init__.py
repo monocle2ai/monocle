@@ -1,6 +1,6 @@
-# Copyright (C) Okahu Inc 2023-2024. All rights reserved
 
-from okahu_apptrace.wrap_common import allm_wrapper, atask_wrapper, llm_wrapper, task_wrapper
+
+from monocle_apptrace.wrap_common import allm_wrapper, atask_wrapper, llm_wrapper, task_wrapper
 
 def get_llm_span_name_for_openai(instance):
     if (hasattr(instance, "_is_azure_client") 

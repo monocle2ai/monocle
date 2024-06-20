@@ -1,9 +1,9 @@
-# Copyright (C) Okahu Inc 2023-2024. All rights reserved
 
-from okahu_apptrace.haystack import HAYSTACK_METHODS
-from okahu_apptrace.langchain import LANGCHAIN_METHODS
-from okahu_apptrace.llamaindex import LLAMAINDEX_METHODS
-from okahu_apptrace.wrap_common import task_wrapper
+
+from monocle_apptrace.haystack import HAYSTACK_METHODS
+from monocle_apptrace.langchain import LANGCHAIN_METHODS
+from monocle_apptrace.llamaindex import LLAMAINDEX_METHODS
+from monocle_apptrace.wrap_common import task_wrapper
 
 class WrapperMethod:
     def __init__(

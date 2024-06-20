@@ -1,4 +1,4 @@
-# Copyright (C) Okahu Inc 2023-2024. All rights reserved
+
 
 import os
 
@@ -7,16 +7,12 @@ from llama_index.core import SimpleDirectoryReader, StorageContext, VectorStoreI
 from llama_index.embeddings.openai import OpenAIEmbedding
 from llama_index.llms.openai import OpenAI
 from llama_index.vector_stores.chroma import ChromaVectorStore
-from okahu_apptrace.instrumentor import setup_okahu_telemetry
-from okahu_apptrace.wrap_common import llm_wrapper
-from okahu_apptrace.wrapper import WrapperMethod
+from monocle_apptrace.instrumentor import setup_monocle_telemetry
+from monocle_apptrace.wrap_common import llm_wrapper
+from monocle_apptrace.wrapper import WrapperMethod
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
 
-# os.environ["OKAHU_API_KEY"] = ""
-# os.environ["OKAHU_INGESTION_ENDPOINT"] = ""
-# os.environ["OPENAI_API_KEY"] = ""
-
-setup_okahu_telemetry(
+setup_monocle_telemetry(
     workflow_name="llama_index_1",
     span_processors=[BatchSpanProcessor(ConsoleSpanExporter())],
     wrapper_methods=[]

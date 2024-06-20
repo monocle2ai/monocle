@@ -1,4 +1,4 @@
-# Copyright (C) Okahu Inc 2023-2024. All rights reserved
+
 
 import json
 import logging
@@ -18,9 +18,9 @@ from llama_index.core import (
     load_index_from_storage,
 )
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
-from okahu_apptrace.instrumentor import setup_okahu_telemetry
-from okahu_apptrace.wrap_common import llm_wrapper
-from okahu_apptrace.wrapper import WrapperMethod
+from monocle_apptrace.instrumentor import setup_monocle_telemetry
+from monocle_apptrace.wrap_common import llm_wrapper
+from monocle_apptrace.wrapper import WrapperMethod
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
 
 logger = logging.getLogger(__name__)
@@ -31,13 +31,11 @@ class TestHandler(unittest.TestCase):
         Settings.embed_model = HuggingFaceEmbedding(
             model_name="BAAI/bge-small-en-v1.5"
         )
-        os.environ["OKAHU_API_KEY"] = "key1"
-        os.environ["OKAHU_INGESTION_ENDPOINT"] = "https://localhost:3000/api/v1/traces"
 
         mock_post.return_value.status_code = 201
         mock_post.return_value.json.return_value = 'mock response'
 
-        setup_okahu_telemetry(
+        setup_monocle_telemetry(
             workflow_name="llama_index_1",
             span_processors=[BatchSpanProcessor(ConsoleSpanExporter())],
             wrapper_methods=[

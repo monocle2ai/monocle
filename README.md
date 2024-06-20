@@ -1,6 +1,6 @@
-# Okahu opentelemetry 
+# monocle opentelemetry 
 
-This package provides okahu telemetry setup.
+This package provides monocle telemetry setup.
 
 ## Installing the core and dev dependencies
 ```
@@ -33,7 +33,7 @@ After setup of credentials, follow the commands below to publish the package to 
 
 ```
 > python3 -m pip install pipenv
-> pipenv install okahu-observability
+> pipenv install monocle-observability
 ```
 
 ## References
@@ -42,17 +42,14 @@ After setup of credentials, follow the commands below to publish the package to 
 
 ## Usage
 ```python
-from okahu_apptrace.instrumentor import setup_okahu_telemetry
+from monocle_apptrace.instrumentor import setup_monocle_telemetry
 from langchain.chains import LLMChain
 from langchain_openai import OpenAI
 from langchain.prompts import PromptTemplate
 
-# Set the OKAHU_API_KEY environment variable, if not set already
-os.environ["OKAHU_API_KEY"] = "okh_XXXXXXXX_XXXXXXXXXXXXXXXXXXXXXX"
-
-# Call the setup Okahu telemetry method
+# Call the setup Monocle telemetry method
 app_name = "simple_math_app"
-setup_okahu_telemetry(workflow_name=app_name)
+setup_monocle_telemetry(workflow_name=app_name)
 
 llm = OpenAI()
 prompt = PromptTemplate.from_template("1 + {number} = ")
@@ -66,15 +63,15 @@ chain.invoke({"number":2}, {"callbacks":[handler]})
     
 ```
 
-### Monitoring custom methods with Okahu
+### Monitoring custom methods with Monocle
 
 ```python
-from okahu_apptrace.wrapper import WrapperMethod,task_wrapper,atask_wrapper
+from monocle_apptrace.wrapper import WrapperMethod,task_wrapper,atask_wrapper
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
 
 # extend the default wrapped methods list as follows
 app_name = "simple_math_app"
-setup_okahu_telemetry(
+setup_monocle_telemetry(
         workflow_name=app_name,
         span_processors=[BatchSpanProcessor(ConsoleSpanExporter())],
         wrapper_methods=[

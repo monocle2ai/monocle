@@ -1,4 +1,4 @@
-# Copyright (C) Okahu Inc 2023-2024. All rights reserved
+
 
 import json
 import logging
@@ -14,8 +14,8 @@ from haystack.components.builders import DynamicChatPromptBuilder
 from haystack.components.generators.chat import OpenAIChatGenerator
 from haystack.dataclasses import ChatMessage
 from haystack.utils import Secret
-from okahu_apptrace.instrumentor import setup_okahu_telemetry
-from okahu_apptrace.wrapper import WrapperMethod
+from monocle_apptrace.instrumentor import setup_monocle_telemetry
+from monocle_apptrace.wrapper import WrapperMethod
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
 
 logger = logging.getLogger(__name__)
@@ -25,11 +25,9 @@ class TestHandler(unittest.TestCase):
     ragText = "sample_rag_text"
     @patch.object(requests.Session, 'post')
     def test_haystack(self, mock_post):
-        os.environ["OKAHU_API_KEY"] = "key1"
-        os.environ["OKAHU_INGESTION_ENDPOINT"] = "https://localhost:3000/api/v1/traces"
         api_key = os.getenv("OPENAI_API_KEY")
 
-        setup_okahu_telemetry(
+        setup_monocle_telemetry(
             workflow_name="haystack_app_1",
             span_processors=[BatchSpanProcessor(ConsoleSpanExporter())],
             wrapper_methods=[

@@ -1,4 +1,4 @@
-# monocle opentelemetry 
+# monocle genAI observability
 
 This package provides monocle telemetry setup.
 

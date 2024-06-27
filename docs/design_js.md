@@ -15,6 +15,11 @@ exports.doSomething = function()
 {
     // do work
 }
+
+exports.someClass = Class SomeClass
+{
+    // someClass
+}
 ```
 
 ## How we intercept the exported members from sample-module
@@ -52,14 +57,14 @@ const instrumentationWrapper = function(functionToBeWrapped) {
 }
 
 Module.prototype.require = function() {
-    const returnedValue = originalRequire.apply(this, arguments);
+    const returnedModule = originalRequire.apply(this, arguments);
 
     // check if this is the module that you want to instrument
     if (arguments[0] == "sample-module") {
         // overwrite the function with your instrumentation wrapper
         returnedValue.doSomething = instrumentationWrapper(returnedValue.doSomething)
     }
-    return returnedValue;
+    return returnedModule;
 };
 ```
 

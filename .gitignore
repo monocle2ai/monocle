@@ -10,3 +10,4 @@
 storage
 traces.txt
 dist
+node_modules

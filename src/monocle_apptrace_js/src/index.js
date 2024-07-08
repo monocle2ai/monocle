@@ -1,0 +1,1 @@
+exports.setupOkahu = require("./instrumentations").setupOkahu

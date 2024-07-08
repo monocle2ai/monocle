@@ -1,6 +1,18 @@
 
-const { setupMonocle } = require("./instrumentations.js")
-const exporter = setupMonocle()
+const { setupOkahu } = require("../src")
+const { BatchSpanProcessor, ConsoleSpanExporter } = require("@opentelemetry/sdk-trace-node")
+
+setupOkahu(
+  "langchain.app",
+  [
+    new BatchSpanProcessor(
+      new ConsoleSpanExporter(),
+      config = {
+        scheduledDelayMillis: 5
+      })
+  ]
+)
+
 const { ChatOpenAI, OpenAIEmbeddings } = require("@langchain/openai")
 
 const { HNSWLib } = require("@langchain/community/vectorstores/hnswlib")
@@ -11,6 +23,7 @@ const {
   RunnablePassthrough,
 } = require("@langchain/core/runnables");
 const { StringOutputParser } = require("@langchain/core/output_parsers");
+
 
 const model = new ChatOpenAI({});
 
@@ -40,6 +53,24 @@ Question: {question}`);
   chain.invoke("What is the powerhouse of the cell?").then(
     (res) => {
       console.log("result:" + res)
+      // setTimeout(() => {
+      //   console.log("shutting exporter")
+      // }, 5000);
     }
-  )
+  ).finally(() => {
+    setTimeout(() => {
+      console.log("shutting exporter")
+    }, 20);
+  })
+
+
+
+  //console.log(result);
 })
+
+
+
+
+/*
+  "The powerhouse of the cell is the mitochondria."
+*/

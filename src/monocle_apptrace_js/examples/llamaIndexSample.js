@@ -1,5 +1,17 @@
-const { setupMonocle } = require("./instrumentations.js")
-const exporter = setupMonocle()
+const { setupOkahu } = require("./instrumentations.js")
+const { BatchSpanProcessor, ConsoleSpanExporter } = require("@opentelemetry/sdk-trace-node")
+
+setupOkahu(
+  "llamaindex.app",
+  [
+    new BatchSpanProcessor(
+      new ConsoleSpanExporter(),
+      config = {
+        scheduledDelayMillis: 20
+      })
+  ]
+)
+
 const fs = require("node:fs/promises")
 
 const {
@@ -34,6 +46,7 @@ async function main() {
       console.log(
         `\n${index}: Score: ${source.score} - ${source.node.getContent(MetadataMode.NONE).substring(0, 50)}...\n`,
       );
+     
     });
   }
 

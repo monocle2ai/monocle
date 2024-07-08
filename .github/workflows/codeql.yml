@@ -13,9 +13,9 @@ name: "CodeQL"
 
 on:
   push:
-    branches: [ "kshitiz/add_sample_for_js" ]
+    branches: [ "kshitiz/prasad_setup_progress" ]
   pull_request:
-    branches: [ "kshitiz/add_sample_for_js" ]
+    branches: [ "kshitiz/prasad_setup_progress" ]
   schedule:
     - cron: '17 14 * * 3'
 

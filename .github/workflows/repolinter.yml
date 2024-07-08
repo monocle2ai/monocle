@@ -1,4 +1,13 @@
 name: "repolinter"
+
+on:
+  push:
+    branches: [ "kshitiz/prasad_setup_progress" ]
+  pull_request:
+    branches: [ "kshitiz/prasad_setup_progress" ]
+  schedule:
+    - cron: '17 14 * * 3'
+
 description: "Runs the TODO group's REPOLINTER over your repository"
 branding:
   icon: "check"

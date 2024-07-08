@@ -1,5 +1,5 @@
 # Contributing to Monocle
-Contributions to Monocle are welcome from everyone. The following are a set of guidelines for contributing to Monocle. Following these guidelines makes contributing to this project easy and transparent. These are mostly guidelines, not rules. Use your best judgment, and feel free to propose changes to this document in a pull request.
+Contributions to Monocle are welcome from everyone. The following are a set of guidelines for contributing to Monocle. Following these guidelines makes contributing to this project easy and transparent. These are mostly guidelines, not rules. Use your best judgment, and feel free to propose changes to this document in a pull request. Please refer to our code of conduct when making contributions. 
 
 ## How can you contribute?
 ### Contributing code

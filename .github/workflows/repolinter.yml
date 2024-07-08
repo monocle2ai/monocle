@@ -1,0 +1,9 @@
+name: "repolinter"
+description: "Runs the TODO group's REPOLINTER over your repository"
+branding:
+  icon: "check"
+  color: "green"
+
+runs:
+  using: "docker"
+  image: "Dockerfile"

@@ -25,8 +25,8 @@ jobs:
 
       - name: Install Repolint
         run: |
-          npm install -g repolint
+          npm install -g repolinter
 
       - name: Run ESLint
-        run: repolint lint .
+        run: repolinter lint .
         continue-on-error: true

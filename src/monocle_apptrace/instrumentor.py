@@ -94,13 +94,18 @@ def setup_monocle_telemetry(
         SERVICE_NAME: workflow_name
     })
     traceProvider = TracerProvider(resource=resource)
+    tracerProviderDefault = trace.get_tracer_provider()
+    providerType = type(tracerProviderDefault).__name__
     for processor in span_processors:
         processor.on_start = on_processor_start
+        tracerProviderDefault.add_span_processor(processor)
         traceProvider.add_span_processor(processor)
-    trace.set_tracer_provider(traceProvider)
+    if "Proxy" in providerType :
+        trace.set_tracer_provider(traceProvider)
     instrumentor = MonocleInstrumentor(user_wrapper_methods=wrapper_methods)
     instrumentor.app_name = workflow_name
-    instrumentor.instrument()
+    if not instrumentor.is_instrumented_by_opentelemetry:
+        instrumentor.instrument()
 
 
 def on_processor_start(span: Span, parent_context):

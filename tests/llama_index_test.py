@@ -23,11 +23,16 @@ from monocle_apptrace.wrap_common import llm_wrapper
 from monocle_apptrace.wrapper import WrapperMethod
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
 
+from HttpSpanExporter import HttpSpanExporter
+
 logger = logging.getLogger(__name__)
 
 class TestHandler(unittest.TestCase):
     @patch.object(requests.Session, 'post')
     def test_llama_index(self, mock_post):
+        os.environ["HTTP_API_KEY"] = "key1"
+        os.environ["HTTP_INGESTION_ENDPOINT"] = "https://localhost:3000/api/v1/traces"
+        
         Settings.embed_model = HuggingFaceEmbedding(
             model_name="BAAI/bge-small-en-v1.5"
         )
@@ -37,7 +42,9 @@ class TestHandler(unittest.TestCase):
 
         setup_monocle_telemetry(
             workflow_name="llama_index_1",
-            span_processors=[BatchSpanProcessor(ConsoleSpanExporter())],
+            span_processors=[
+                    BatchSpanProcessor(HttpSpanExporter("https://localhost:3000/api/v1/traces"))
+                ],
             wrapper_methods=[
                         WrapperMethod(
                             package="helpers",
@@ -77,7 +84,7 @@ class TestHandler(unittest.TestCase):
         query = "What did the author do growing up?"
         response = query_engine.query(query)
         time.sleep(5)
-        mock_post.assert_called_once_with(
+        mock_post.assert_called_with(
             url = 'https://localhost:3000/api/v1/traces',
             data=ANY,
             timeout=ANY
@@ -88,7 +95,7 @@ class TestHandler(unittest.TestCase):
         logger.debug(dataBodyStr)
         dataJson =  json.loads(dataBodyStr) # more asserts can be added on individual fields
 
-        root_attributes = [x for x in  dataJson["batch"] if x["parent_id"] == "None"][0]["attributes"]
+        root_attributes = [x for x in  dataJson["batch"] if(x["parent_id"] == "None" and "workflow_input" in x["attributes"])][0]["attributes"]
         assert root_attributes["workflow_input"] == query
         assert root_attributes["workflow_output"] == llm.dummy_response
 

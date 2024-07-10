@@ -33,7 +33,6 @@ dev = [
   'langchain-chroma==0.1.1',
   'langchain-community==0.2.5',
   'langchain==0.2.5',
-  'haystack-ai==2.2.3',
   'datasets==2.20.0',
   'numpy==1.26.4',
   'types-requests==2.31.0.20240106',

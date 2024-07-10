@@ -34,6 +34,8 @@ from opentelemetry.sdk.resources import SERVICE_NAME, Resource
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, SpanProcessor, ConsoleSpanExporter
 
+from http_span_exporter import HttpSpanExporter
+
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
 fileHandler = logging.FileHandler('traces.txt','w')
@@ -81,7 +83,7 @@ class TestHandler(unittest.TestCase):
 
         embeddings = HuggingFaceEmbeddings(model_id = "multi-qa-mpnet-base-dot-v1")
         my_path = os.path.abspath(os.path.dirname(__file__))
-        model_path = os.path.join(my_path, "../data/coffee_embeddings")
+        model_path = os.path.join(my_path, "./vector_data/coffee_embeddings")
         vectorstore = faiss.FAISS.load_local(model_path, embeddings, allow_dangerous_deserialization = True)
 
         retriever = vectorstore.as_retriever()
@@ -95,7 +97,8 @@ class TestHandler(unittest.TestCase):
         return rag_chain
 
     def setUp(self):
-        print("setUp")
+        os.environ["HTTP_API_KEY"] = "key1"
+        os.environ["HTTP_INGESTION_ENDPOINT"] = "https://localhost:3000/api/v1/traces"
 
     def tearDown(self) -> None:
         print("cleaning up with teardown")
@@ -114,7 +117,7 @@ class TestHandler(unittest.TestCase):
         context_key = "context_key_1"
         context_value = "context_value_1"
         set_context_properties({context_key: context_value})
-
+        
         self.chain = self.__createChain()
 
         mock_post.return_value.status_code = 201
@@ -150,14 +153,16 @@ class TestHandler(unittest.TestCase):
         wrap_method = MagicMock(return_value=3)
         setup_monocle_telemetry(
             workflow_name=app_name,
-            span_processors=[],
+            span_processors=[
+                    BatchSpanProcessor(HttpSpanExporter("https://localhost:3000/api/v1/traces"))
+                ],
             wrapper_methods=[
                 WrapperMethod(
                     package="dummy_class",
                     object="DummyClass",
-                    method="invoke",
+                    method="dummy_method",
                     span_name="langchain.workflow",
-                    wrapper=wrap_method),
+                    wrapper=wrap_method()),
 
             ])
         dummy_class_1 = DummyClass()

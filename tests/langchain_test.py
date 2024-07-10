@@ -34,7 +34,7 @@ from opentelemetry.sdk.resources import SERVICE_NAME, Resource
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, SpanProcessor, ConsoleSpanExporter
 
-from HttpSpanExporter import HttpSpanExporter
+from http_span_exporter import HttpSpanExporter
 
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)

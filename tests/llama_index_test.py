@@ -23,7 +23,7 @@ from monocle_apptrace.wrap_common import llm_wrapper
 from monocle_apptrace.wrapper import WrapperMethod
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
 
-from HttpSpanExporter import HttpSpanExporter
+from http_span_exporter import HttpSpanExporter
 
 logger = logging.getLogger(__name__)
 

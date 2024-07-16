@@ -3,10 +3,10 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "monocle-observability"
-version = "0.0.7"
+name = "monocle_apptrace"
+version = "0.0.1"
 authors = []
-description = "package with monocle opentelemetry"
+description = "package with monocle genAI tracing"
 readme = "README.md"
 requires-python = ">=3.8"
 classifiers = [

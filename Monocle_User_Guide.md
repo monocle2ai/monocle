@@ -2,25 +2,24 @@
 
 ## Monocle Concepts
 ### Traces
-Traces are the full view of a single end-to-end application KPI eg Chatbot application to provide a response to end user’s question. Traces consists of various metadata about the application run including status, start time, duration, input/outputs etc. It also includes a list of individual steps aka “spans with details about that step.
+Traces are the full view of a single end-to-end application KPI, for example Chatbot application to provide a response to end user’s question. Traces consist of various metadata about the application run including status, start time, duration, input/outputs etc. They also include a list of individual steps aka “spans with details about that step.
 It’s typically the workflow code components of an application that generate the traces for application runs. 
 ### Spans
-Spans are the individual steps executed by the application to perform a GenAI related task” eg app retrieving vectors from DB, app querying LLM for inference etc. The span includes the type of operation, start time, duration and metadata relevant to that step eg Model name, parameters and model endpoint/server for an inference request.
+Spans are the individual steps executed by the application to perform a GenAI related task”, for example app retrieving vectors from DB, app querying LLM for inference etc. The span includes the type of operation, start time, duration and metadata relevant to that step e.g., Model name, parameters and model endpoint/server for an inference request.
 It’s typically the workflow code components of an application that generate the traces for application runs.
 
 ## Setup Monocle
 - You can download Monocle library releases from Pypi
 ``` 
-    > python3 -m pip install pipenv
-    > pip install monocle-observability
+    > pip install monocle_apptrace
 ```
 - You can locally build and install Monocle library from source
 ```
 > pip install .
+```
+- Install the optional test dependencies listed against dev in pyproject.toml in editable mode
+```
 > pip install -e ".[dev]"
-
-> python3 -m pip install pipenv
-> pipenv install build
 ```
 
 ## Examples 

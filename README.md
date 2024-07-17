@@ -25,7 +25,7 @@ The traces are compatible with OpenTelemetry format. They are further enriched t
 ### Try Monocle with your python genAI application
 - Get latest Monocle python brary 
 ```
-    pip install monocle-observability
+    pip install monocle_apptrace
 ```
 - Enable Monocle tracing in your app by adding following
 ```

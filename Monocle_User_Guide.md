@@ -108,18 +108,18 @@ Monocle generates spans which adhere to [Tracing API | OpenTelemetry](https://op
 | &ensp;       "```span_id```": "0x30b13075eca52f44",||
 | &ensp;       "```trace_state```": "[]"||
 | &ensp;   },||
-|"```kind```": "SpanKind.INTERNAL",| An enum that describes what this span is about. Default value is SpanKind.INTERNAL, as current enums do not cover ML apps |
-|"```parent_id```": null,|If null, this is root span|
+|"```kind```": "SpanKind.INTERNAL",| an enum that describes what this span is about. Default value is SpanKind.INTERNAL, as current enums do not cover ML apps |
+|"```parent_id```": null,|if null, this is root span|
 |"```start_time```": "2024-07-16T17:05:15.544861Z",||
 |"```end_time```": "2024-07-16T17:05:43.502007Z",||
 |"```status```": {||
-|&ensp;  "```status_code```": "UNSET"| This to be updated to set to OK or ERROR. Default is UNSET|
+|&ensp;  "```status_code```": "UNSET"| status of span to OK or ERROR. Default is UNSET|
 |&ensp; },||
 |"```attributes```": {||
 |&ensp; "workflow_name": "ml_rag_app",|defines the name of the service being set in ```setup_okahu_telemetry(...)``` during initialization of instrumentation|
 |&ensp; "workflow_type": "workflow.langchain"|type of framework that generated this span|
 |&ensp; },||
-|"```events```": [|Captures the log records|
+|"```events```": [|captures the log records|
 |&ensp; {||
 |&ensp;&emsp;  "```name```": "input",|name of the event. If the span is about LLM, then this will be 'input'. For vector store retrieval, this would be 'context_input'|
 |&ensp;&emsp;  "```timestamp```": "2024-07-16T17:05:15.544874Z",||
@@ -136,11 +136,11 @@ Monocle generates spans which adhere to [Tracing API | OpenTelemetry](https://op
 |&emsp;&emsp;&emsp;}||
 |&emsp;&emsp;}||
 |&emsp;    ],||
-|&emsp; "```links```": [],|unpopulated and unused|
+|&emsp; "```links```": [],|unused. Ideally this links other causally-related spans,<br/> but as spans are grouped by ```trace_id```, and ```parent_id``` links to parent span, this is unused|
 |&emsp;   "```resource```": {|represents the service name or server or machine or container which generated the span|
 |&emsp;&emsp;&emsp;  "```attributes```": {||
 |&emsp;&emsp;&emsp;&emsp;  "service.name": "ml_rag_app"|only service.name is being populated and defaults to the value of 'workflow_name' |
 |&emsp;&emsp;&emsp;  },||
-|&emsp;&emsp;"```schema_url```": ""|unpopulated and unused|
+|&emsp;&emsp;"```schema_url```": ""|unused|
 |&emsp;&emsp;     }||
 |} | |

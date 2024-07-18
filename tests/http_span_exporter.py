@@ -4,11 +4,12 @@ import json
 import logging
 import os
 from typing import Optional, Sequence
+
 import requests
 from opentelemetry.sdk.trace import ReadableSpan
 from opentelemetry.sdk.trace.export import SpanExporter, SpanExportResult
 
-REQUESTS_SUCCESS_STATUS_CODES = (200, 202)
+REQUESTS_SUCCESS_STATUS_CODES = (200, 202, 201)
 
 logger = logging.getLogger(__name__)
 

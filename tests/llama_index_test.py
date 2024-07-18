@@ -10,6 +10,7 @@ from unittest.mock import ANY, patch
 
 import requests
 from helpers import OurLLM
+from http_span_exporter import HttpSpanExporter
 from llama_index.core import (
     Settings,
     SimpleDirectoryReader,
@@ -19,19 +20,30 @@ from llama_index.core import (
 )
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 from monocle_apptrace.instrumentor import setup_monocle_telemetry
-from monocle_apptrace.wrap_common import llm_wrapper
+from monocle_apptrace.wrap_common import (
+    PROMPT_INPUT_KEY,
+    PROMPT_OUTPUT_KEY,
+    QUERY,
+    RESPONSE,
+    llm_wrapper,
+)
 from monocle_apptrace.wrapper import WrapperMethod
-from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
-
-from http_span_exporter import HttpSpanExporter
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
 
 logger = logging.getLogger(__name__)
 
 class TestHandler(unittest.TestCase):
-    @patch.object(requests.Session, 'post')
-    def test_llama_index(self, mock_post):
+
+    def setUp(self):
         os.environ["HTTP_API_KEY"] = "key1"
         os.environ["HTTP_INGESTION_ENDPOINT"] = "https://localhost:3000/api/v1/traces"
+        
+
+    def tearDown(self) -> None:
+        return super().tearDown()
+
+    @patch.object(requests.Session, 'post')
+    def test_llama_index(self, mock_post):
         
         Settings.embed_model = HuggingFaceEmbedding(
             model_name="BAAI/bge-small-en-v1.5"
@@ -43,7 +55,7 @@ class TestHandler(unittest.TestCase):
         setup_monocle_telemetry(
             workflow_name="llama_index_1",
             span_processors=[
-                    BatchSpanProcessor(HttpSpanExporter("https://localhost:3000/api/v1/traces"))
+                    BatchSpanProcessor(HttpSpanExporter(os.environ["HTTP_INGESTION_ENDPOINT"]))
                 ],
             wrapper_methods=[
                         WrapperMethod(
@@ -62,7 +74,6 @@ class TestHandler(unittest.TestCase):
             )
 
         llm = OurLLM()
-
 
         # check if storage already exists
         PERSIST_DIR = "./storage"
@@ -85,7 +96,7 @@ class TestHandler(unittest.TestCase):
         response = query_engine.query(query)
         time.sleep(5)
         mock_post.assert_called_with(
-            url = 'https://localhost:3000/api/v1/traces',
+            url = os.environ["HTTP_INGESTION_ENDPOINT"],
             data=ANY,
             timeout=ANY
         )
@@ -95,14 +106,18 @@ class TestHandler(unittest.TestCase):
         logger.debug(dataBodyStr)
         dataJson =  json.loads(dataBodyStr) # more asserts can be added on individual fields
 
-        root_attributes = [x for x in  dataJson["batch"] if(x["parent_id"] == "None" and "workflow_input" in x["attributes"])][0]["attributes"]
-        assert root_attributes["workflow_input"] == query
-        assert root_attributes["workflow_output"] == llm.dummy_response
+        root_span = [x for x in  dataJson["batch"] if(x["parent_id"] == "None")][0]
+        root_span_events = root_span["events"]
 
-        assert len(dataJson['batch']) == 5
-        # llmspan = dataJson["batch"].find
+        def get_event_attributes(events, key):
+            return [event['attributes'] for event in events if event['name'] == key][0]
 
-        # assert dataJson["batch"][1]["attributes"]["workflow_type"] == "workflow.llamaindex"
+        input_event_attributes = get_event_attributes(root_span_events, PROMPT_INPUT_KEY)
+        output_event_attributes = get_event_attributes(root_span_events, PROMPT_OUTPUT_KEY)
+
+        assert input_event_attributes[QUERY] == query
+        assert output_event_attributes[RESPONSE] == llm.dummy_response
+
         span_names: List[str] = [span["name"] for span in dataJson['batch']]
         for name in ["llamaindex.retrieve", "llamaindex.query", "llamaindex.OurLLM"]:
             assert name in span_names
@@ -118,8 +133,8 @@ class TestHandler(unittest.TestCase):
                 assert span["attributes"]["openai_model_name"] == "custom"
                 model_name_found = True
 
-        assert type_found == True
-        assert model_name_found == True
+        assert type_found
+        assert model_name_found
 
 
 

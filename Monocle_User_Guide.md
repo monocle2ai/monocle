@@ -22,8 +22,13 @@ It’s typically the workflow code components of an application that generate th
 > pip install -e ".[dev]"
 ```
 
-## Examples 
-### Enable Monocle tracing in your application
+## Using Monocle with your application to generate traces
+### Enable Monocle tracing
+You need to import monocle package and invoke the API ``setup_monocle_telemetry(workflow=<workflow-name>)`` to enable the tracing. The 'workflow-name' is what you define to identify the give application workflow, for example "customer-chatbot". Monocle trace will include this name in every trace. The trace output will include a list of spans in the traces. You can print the output on the console or send it to an HTTP endpoint.
+
+### Using Monocle's out of box support of genAI technology components
+Monocle community has done the hard work of figuring out what to trace and how to extract relevant details from multiple genAI technology components. For example, if you have a python app coded using LlamaIndex and using models hostsed in OpenAI, Monocle can seamlessly trace your app. All you need to do enable Monocle tracing.
+#### Example - Enable Monocle tracing in your application
 ```python
 from monocle_apptrace.instrumentor import setup_monocle_telemetry
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
@@ -46,9 +51,25 @@ chain = LLMChain(llm=llm, prompt=prompt)
 chain.invoke({"number":2}, {"callbacks":[handler]})
     
 ```
+### Leveraging Monocle's extensibility to handle customization 
+When the out of box features from app frameworks are not sufficent, the app developers have to add custom code. For example, if you are extending a LLM class in LlamaIndex to use a model hosted in NVIDIA Triton. This new class is not know to Monocle. You can specify this new class method part of Monocle enabling API and it will be able to trace it.
 
-### Monitoring custom methods with Monocle
-
+#### Default configuration of instrumented methods in Monocle
+The following files comprise of default configuration of instrumented methods and span names corresponding to them, for each framework respectively. 
+- [src/monocle_apptrace/langchain/__init__.py](src/monocle_apptrace/langchain/__init__.py),
+- [src/monocle_apptrace/llamaindex/__init__.py](src/monocle_apptrace/llamaindex/__init__.py),
+- [src/monocle_apptrace/haystack/__init__.py](src/monocle_apptrace/haystack/__init__.py)
+Following configuration instruments  ```invoke(..)``` of ```RunnableSequence```, aka chain or worflow in Langchain parlance, to emit the span.
+```
+    {
+        "package": "langchain.schema.runnable",
+        "object": "RunnableSequence",
+        "method": "invoke",
+        "span_name": "langchain.workflow",
+        "wrapper": task_wrapper
+    }
+```
+#### Example - Monitoring custom methods with Monocle
 ```python
 from monocle_apptrace.wrapper import WrapperMethod,task_wrapper,atask_wrapper
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
@@ -75,29 +96,15 @@ setup_monocle_telemetry(
 
 ```
 
-### Default configuration of instrumented methods in Monocle
+### Going beyond supported genAI components
+- If you are using an application framework, model hosting service/infra etc. that's not currently supported by Monocle, please submit a github issue to add that support. 
+- Monocle community is working on adding an SDK to enable applications to generate their own traces.  
 
-The following files comprise of default configuration of instrumented methods and span names corresponding to them, for each framework respectively. 
+## Understanding the trace output
 
-[src/monocle_apptrace/langchain/__init__.py](src/monocle_apptrace/langchain/__init__.py),
- [src/monocle_apptrace/llamaindex/__init__.py](src/monocle_apptrace/llamaindex/__init__.py),
- [src/monocle_apptrace/haystack/__init__.py](src/monocle_apptrace/haystack/__init__.py)
+### Trace span json 
 
-Following configuration instruments  ```invoke(..)``` of ```RunnableSequence```, aka chain or worflow in Langchain parlance, to emit the span.
-
-```
-    {
-        "package": "langchain.schema.runnable",
-        "object": "RunnableSequence",
-        "method": "invoke",
-        "span_name": "langchain.workflow",
-        "wrapper": task_wrapper
-    }
-```
-
-#### span json 
-
-Monocle generates spans which adhere to [Tracing API | OpenTelemetry](https://opentelemetry.io/docs/specs/otel/trace/api/#span) format. Please note that ```trace_id``` groups related spans and is auto generated with-in Monocle. 
+Monocle generates spans which adhere to [Tracing API | OpenTelemetry](https://opentelemetry.io/docs/specs/otel/trace/api/#span) format. The trace output is an array of spans. Each trace has a unique id. Every span has in the trace has this parent ```trace_id```. Please note that ```trace_id``` groups related spans and is auto generated with-in Monocle.
 
 | Span JSON      | Description     |
 | ------------- | ------------- |

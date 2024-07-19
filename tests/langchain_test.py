@@ -10,6 +10,7 @@ from unittest.mock import ANY, MagicMock, patch
 import requests
 from dummy_class import DummyClass
 from embeddings_wrapper import HuggingFaceEmbeddings
+from http_span_exporter import HttpSpanExporter
 from langchain.llms.fake import FakeListLLM
 from langchain.prompts import PromptTemplate
 from langchain.schema import StrOutputParser
@@ -25,16 +26,15 @@ from monocle_apptrace.wrap_common import (
     CONTEXT_PROPERTIES_KEY,
     PROMPT_INPUT_KEY,
     PROMPT_OUTPUT_KEY,
+    QUERY,
+    RESPONSE,
     update_span_from_llm_response,
 )
 from monocle_apptrace.wrapper import WrapperMethod
 from opentelemetry import trace
-from opentelemetry.instrumentation.utils import unwrap
 from opentelemetry.sdk.resources import SERVICE_NAME, Resource
 from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.trace.export import BatchSpanProcessor, SpanProcessor, ConsoleSpanExporter
-
-from http_span_exporter import HttpSpanExporter
+from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
 
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
@@ -74,9 +74,8 @@ class TestHandler(unittest.TestCase):
 
         traceProvider.add_span_processor(monocleProcessor)
         trace.set_tracer_provider(traceProvider)
-        instrumentor = MonocleInstrumentor()
-        instrumentor.instrument()
-        self.instrumentor = instrumentor
+        self.instrumentor = MonocleInstrumentor()
+        self.instrumentor.instrument()
         self.processor = monocleProcessor
         responses=[self.ragText]
         llm = FakeListLLM(responses=responses)
@@ -99,14 +98,9 @@ class TestHandler(unittest.TestCase):
     def setUp(self):
         os.environ["HTTP_API_KEY"] = "key1"
         os.environ["HTTP_INGESTION_ENDPOINT"] = "https://localhost:3000/api/v1/traces"
+        
 
     def tearDown(self) -> None:
-        print("cleaning up with teardown")
-        try:
-            self.instrumentor.uninstrument()
-        except:
-            print("teardown errors")
-
         return super().tearDown()
 
     def to_json(self,obj):
@@ -114,40 +108,56 @@ class TestHandler(unittest.TestCase):
 
     @patch.object(requests.Session, 'post')
     def test_llm_chain(self, mock_post):
-        context_key = "context_key_1"
-        context_value = "context_value_1"
-        set_context_properties({context_key: context_value})
-        
-        self.chain = self.__createChain()
 
-        mock_post.return_value.status_code = 201
-        mock_post.return_value.json.return_value = 'mock response'
+        try:
+            context_key = "context_key_1"
+            context_value = "context_value_1"
+            set_context_properties({context_key: context_value})
 
-        query = "what is latte"
-        response = self.chain.invoke(query, config={})
-        assert response == self.ragText
-        time.sleep(5)
-        mock_post.assert_called_with(
-            url = 'https://localhost:3000/api/v1/traces',
-            data=ANY,
-            timeout=ANY
-        )
+            self.chain = self.__createChain()
+            mock_post.return_value.status_code = 201
+            mock_post.return_value.json.return_value = 'mock response'
 
-        '''mock_post.call_args gives the parameters used to make post call.
-           This can be used to do more asserts'''
-        dataBodyStr = mock_post.call_args.kwargs['data']
-        dataJson =  json.loads(dataBodyStr) # more asserts can be added on individual fields
-        assert len(dataJson['batch']) == 7
+            query = "what is latte"
+            response = self.chain.invoke(query, config={})
+            assert response == self.ragText
+            time.sleep(5)
+            mock_post.assert_called_with(
+                url = 'https://localhost:3000/api/v1/traces',
+                data=ANY,
+                timeout=ANY
+            )
 
+            '''mock_post.call_args gives the parameters used to make post call.
+            This can be used to do more asserts'''
+            dataBodyStr = mock_post.call_args.kwargs['data']
+            dataJson =  json.loads(dataBodyStr) # more asserts can be added on individual fields
+            assert len(dataJson['batch']) == 7
 
-        root_attributes = [x for x in  dataJson["batch"] if x["parent_id"] == "None"][0]["attributes"]
-        assert root_attributes[PROMPT_INPUT_KEY] == query
-        assert root_attributes[PROMPT_OUTPUT_KEY] == TestHandler.ragText
-        assert root_attributes[f"{CONTEXT_PROPERTIES_KEY}.{context_key}"] == context_value
+            root_span = [x for x in  dataJson["batch"] if x["parent_id"] == "None"][0]
+            root_span_attributes = root_span["attributes"]
+            root_span_events = root_span["events"]
 
-        for spanObject in dataJson['batch']:
-            assert spanObject["context"]["span_id"].startswith("0x") == False
-            assert spanObject["context"]["trace_id"].startswith("0x") == False
+            def get_event_attributes(events, key):
+                return [event['attributes'] for event in events if event['name'] == key][0]
+
+            input_event_attributes = get_event_attributes(root_span_events, PROMPT_INPUT_KEY)
+            output_event_attributes = get_event_attributes(root_span_events, PROMPT_OUTPUT_KEY)
+            
+            assert input_event_attributes[QUERY] == query
+            assert output_event_attributes[RESPONSE] == TestHandler.ragText
+            assert root_span_attributes[f"{CONTEXT_PROPERTIES_KEY}.{context_key}"] == context_value
+
+            for spanObject in dataJson['batch']:
+                assert not spanObject["context"]["span_id"].startswith("0x")
+                assert not spanObject["context"]["trace_id"].startswith("0x")
+        finally:
+            try:
+                if(self.instrumentor is not None):
+                    self.instrumentor.uninstrument()
+            except Exception as e:
+                print("Uninstrument failed:", e)
+
     def test_custom_methods(self):
         app_name = "test"
         wrap_method = MagicMock(return_value=3)
@@ -172,9 +182,7 @@ class TestHandler(unittest.TestCase):
 
     def test_llm_response(self):
         trace.set_tracer_provider(TracerProvider())
-
         tracer = trace.get_tracer(__name__)
-
         span = tracer.start_span("foo", start_time=0)
 
         message = AIMessage(
@@ -187,12 +195,6 @@ class TestHandler(unittest.TestCase):
         assert span.attributes.get("completion_tokens") == 58
         assert span.attributes.get("prompt_tokens") == 584
         assert span.attributes.get("total_tokens") == 642
-
-
-
-
-
-
 
 if __name__ == '__main__':
     unittest.main()

@@ -1,17 +1,19 @@
-
-
 import logging
 import os
-from opentelemetry.trace import Tracer, Span
 
-from monocle_apptrace.utils import with_tracer_wrapper, resolve_from_alias
+from opentelemetry.trace import Span, Tracer
+
+from monocle_apptrace.utils import resolve_from_alias, with_tracer_wrapper
 
 logger = logging.getLogger(__name__)
 WORKFLOW_TYPE_KEY = "workflow_type"
-CONTEXT_INPUT_KEY = "workflow_context_input"
-CONTEXT_OUTPUT_KEY = "workflow_context_output"
-PROMPT_INPUT_KEY = "workflow_input"
-PROMPT_OUTPUT_KEY = "workflow_output"
+CONTEXT_INPUT_KEY = "context_input"
+CONTEXT_OUTPUT_KEY = "context_output"
+PROMPT_INPUT_KEY = "input"
+PROMPT_OUTPUT_KEY = "output"
+QUERY = "question"
+RESPONSE = "response"
+TAGS = "tags"
 CONTEXT_PROPERTIES_KEY = "workflow_context_properties"
 
 
@@ -28,7 +30,7 @@ def task_wrapper(tracer: Tracer, to_wrap, wrapped, instance, args, kwargs):
     # Some Langchain objects are wrapped elsewhere, so we ignore them here
     if instance.__class__.__name__ in ("AgentExecutor"):
         return wrapped(*args, **kwargs)
-    
+
     if hasattr(instance, "name") and instance.name:
         name = f"{to_wrap.get('span_name')}.{instance.name.lower()}"
     elif to_wrap.get("span_name"):
@@ -36,11 +38,16 @@ def task_wrapper(tracer: Tracer, to_wrap, wrapped, instance, args, kwargs):
     else:
         name = f"langchain.task.{instance.__class__.__name__}"
     kind = to_wrap.get("kind")
-    
+
     with tracer.start_as_current_span(name) as span:
         if is_root_span(span):
             update_span_with_prompt_input(to_wrap=to_wrap, wrapped_args=args, span=span)
 
+        #capture the tags attribute of the instance if present, else ignore 
+        try:
+            span.set_attribute(TAGS, getattr(instance, TAGS))
+        except AttributeError:
+            pass    
         update_span_with_context_input(to_wrap=to_wrap, wrapped_args=args, span=span)
         return_value = wrapped(*args, **kwargs)
         update_span_with_context_output(to_wrap=to_wrap, return_value=return_value, span=span)
@@ -91,18 +98,18 @@ async def allm_wrapper(tracer, to_wrap, wrapped, instance, args, kwargs):
     kind = to_wrap.get("kind")
     with tracer.start_as_current_span(name) as span:
         update_llm_endpoint(curr_span= span, instance=instance)
-        
+
         return_value = await wrapped(*args, **kwargs)
 
     return return_value
 
 @with_tracer_wrapper
 def llm_wrapper(tracer: Tracer, to_wrap, wrapped, instance, args, kwargs):
-    
+
     # Some Langchain objects are wrapped elsewhere, so we ignore them here
     if instance.__class__.__name__ in ("AgentExecutor"):
         return wrapped(*args, **kwargs)
-    
+
     if callable(to_wrap.get("span_name_getter")):
         name = to_wrap.get("span_name_getter")(instance)
 
@@ -117,7 +124,7 @@ def llm_wrapper(tracer: Tracer, to_wrap, wrapped, instance, args, kwargs):
         update_llm_endpoint(curr_span= span, instance=instance)
 
         return_value = wrapped(*args, **kwargs)
-        update_span_from_llm_response(response = return_value, span = span)       
+        update_span_from_llm_response(response = return_value, span = span)
 
     return return_value
 
@@ -133,7 +140,8 @@ def update_llm_endpoint(curr_span: Span, instance):
         model_name =  resolve_from_alias(instance.__dict__ , ["model","model_name"])
         curr_span.set_attribute("openai_model_name", model_name)
         # handling AzureOpenAI deployment
-        deployment_name =  resolve_from_alias(instance.__dict__ , [ "engine", "azure_deployment", "deployment_name", "deployment_id", "deployment"])
+        deployment_name =  resolve_from_alias(instance.__dict__ , [ "engine", "azure_deployment", 
+                                                                   "deployment_name", "deployment_id", "deployment"])
         curr_span.set_attribute("az_openai_deployment", deployment_name)
         # handling the inference endpoint
         inference_ep = resolve_from_alias(instance.__dict__,["azure_endpoint","api_base"])
@@ -156,9 +164,8 @@ def update_span_from_llm_response(response, span: Span):
             span.set_attribute("completion_tokens", token_usage.get("completion_tokens"))
             span.set_attribute("prompt_tokens", token_usage.get("prompt_tokens"))
             span.set_attribute("total_tokens", token_usage.get("total_tokens"))
-    
     # extract token usage from llamaindex openai
-    if (response is not None and hasattr(response, "raw")):
+    if(response is not None and hasattr(response, "raw")):
         if response.raw is not None:
             token_usage = response.raw.get("usage")
             if token_usage is not None:
@@ -180,24 +187,28 @@ def update_span_with_context_input(to_wrap, wrapped_args ,span: Span):
     package_name: str = to_wrap.get('package')
     if("langchain_core.retrievers" in package_name):
         input_arg_text = wrapped_args[0]
-        span.set_attribute(CONTEXT_INPUT_KEY, input_arg_text)
+        span.add_event(CONTEXT_INPUT_KEY, {QUERY:input_arg_text})
     if("llama_index.core.indices.base_retriever" in package_name):
         input_arg_text = wrapped_args[0].query_str
-        span.set_attribute(CONTEXT_INPUT_KEY, input_arg_text)
+        span.add_event(CONTEXT_INPUT_KEY, {QUERY:input_arg_text})
 
 def update_span_with_context_output(to_wrap, return_value ,span: Span):
     package_name: str = to_wrap.get('package')
     if("llama_index.core.indices.base_retriever" in package_name):
         output_arg_text = return_value[0].text
-        span.set_attribute(CONTEXT_OUTPUT_KEY, output_arg_text)
+        span.add_event(CONTEXT_OUTPUT_KEY, {RESPONSE:output_arg_text})
 
 def update_span_with_prompt_input(to_wrap, wrapped_args ,span: Span):
     input_arg_text = wrapped_args[0]
-    span.set_attribute(PROMPT_INPUT_KEY, input_arg_text)
+    
+    if isinstance(input_arg_text, dict):
+        span.add_event(PROMPT_INPUT_KEY,input_arg_text)
+    else:    
+        span.add_event(PROMPT_INPUT_KEY,{QUERY:input_arg_text})
 
 def update_span_with_prompt_output(to_wrap, wrapped_args ,span: Span):
     package_name: str = to_wrap.get('package')
-    if type(wrapped_args) == str:
-        span.set_attribute(PROMPT_OUTPUT_KEY, wrapped_args)
+    if(isinstance(wrapped_args, str)):
+        span.add_event(PROMPT_OUTPUT_KEY, {RESPONSE:wrapped_args})
     if("llama_index.core.base.base_query_engine" in package_name):
-        span.set_attribute(PROMPT_OUTPUT_KEY, wrapped_args.response)
+        span.add_event(PROMPT_OUTPUT_KEY, {RESPONSE:wrapped_args.response})

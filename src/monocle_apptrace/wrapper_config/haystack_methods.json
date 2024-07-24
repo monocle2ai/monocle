@@ -1,0 +1,22 @@
+{
+   "wrapper_methods" :  [
+        {
+            "package": "haystack.components.generators.openai",
+            "object": "OpenAIGenerator",
+            "method": "run",
+            "wrapper": "haystack.wrap_openai.wrap_openai"
+        },
+        {
+            "package": "haystack.components.generators.chat.openai",
+            "object": "OpenAIChatGenerator",
+            "method": "run",
+            "wrapper": "haystack.wrap_openai.wrap_openai"
+        },
+        {
+            "package": "haystack.core.pipeline.pipeline",
+            "object": "Pipeline",
+            "method": "run",
+            "wrapper": "haystack.wrap_openai.wrap_pipeline"
+        }
+    ] 
+}

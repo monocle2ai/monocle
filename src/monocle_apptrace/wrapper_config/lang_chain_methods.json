@@ -1,0 +1,92 @@
+{ 
+"wrapper_methods" : [
+    {
+        "package": "langchain.prompts.base",
+        "object": "BasePromptTemplate",
+        "method": "invoke",
+        "wrapper": "wrap_common.task_wrapper"
+    },
+    {
+        "package": "langchain.prompts.base",
+        "object": "BasePromptTemplate",
+        "method": "ainvoke",
+        "wrapper": "wrap_common.atask_wrapper"
+    },
+    {
+        "package": "langchain.chat_models.base",
+        "object": "BaseChatModel",
+        "method": "invoke",
+        "wrapper": "wrap_common.llm_wrapper"
+    },
+    {
+        "package": "langchain.chat_models.base",
+        "object": "BaseChatModel",
+        "method": "ainvoke",
+        "wrapper": "wrap_common.allm_wrapper"
+    },
+    {
+        "package": "langchain_core.language_models.llms",
+        "object": "LLM",
+        "method": "_generate",
+        "wrapper": "wrap_common.llm_wrapper"
+    },
+    {
+        "package": "langchain_core.language_models.llms",
+        "object": "LLM",
+        "method": "_agenerate",
+        "wrapper": "wrap_common.llm_wrapper"
+    },
+    {
+        "package": "langchain_core.retrievers",
+        "object": "BaseRetriever",
+        "method": "invoke",
+        "wrapper": "wrap_common.task_wrapper"
+    },
+    {
+        "package": "langchain_core.retrievers",
+        "object": "BaseRetriever",
+        "method": "ainvoke",
+        "wrapper": "wrap_common.atask_wrapper"
+    },
+    {
+        "package": "langchain.schema",
+        "object": "BaseOutputParser",
+        "method": "invoke",
+        "wrapper": "wrap_common.task_wrapper"
+    },
+    {
+        "package": "langchain.schema",
+        "object": "BaseOutputParser",
+        "method": "ainvoke",
+        "wrapper": "wrap_common.atask_wrapper"
+    },
+    {
+        "package": "langchain.schema.runnable",
+        "object": "RunnableSequence",
+        "method": "invoke",
+        "span_name": "langchain.workflow",
+        "wrapper": "wrap_common.task_wrapper"
+    },
+    {
+        "package": "langchain.schema.runnable",
+        "object": "RunnableSequence",
+        "method": "ainvoke",
+        "span_name": "langchain.workflow",
+        "wrapper": "wrap_common.atask_wrapper"
+    },
+    {
+        "package": "langchain.schema.runnable",
+        "object": "RunnableParallel",
+        "method": "invoke",
+        "span_name": "langchain.workflow",
+        "wrapper": "wrap_common.task_wrapper"
+    },
+    {
+        "package": "langchain.schema.runnable",
+        "object": "RunnableParallel",
+        "method": "ainvoke",
+        "span_name": "langchain.workflow",
+        "wrapper": "wrap_common.atask_wrapper"
+    }
+]
+}

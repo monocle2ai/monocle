@@ -60,16 +60,13 @@ def load_wrapper_from_config(config_file_path:str, module_name:str=None):
         wrapper_methods = json_data["wrapper_methods"]
         for wrapper_method in wrapper_methods:
             wrapper_method["wrapper"] = get_wrapper_method(
-                                wrapper_method["wrapper"])
-            if "span_name_getter" in wrapper_method :
+                wrapper_method["wrapper_package"], wrapper_method["wrapper_method"])
+            if "span_name_getter_method" in wrapper_method :
                 wrapper_method["span_name_getter"] = get_wrapper_method(
-                                        wrapper_method["span_name_getter"])
+                    wrapper_method["span_name_getter_package"],
+                    wrapper_method["span_name_getter_method"])
         return wrapper_methods
 
-def get_wrapper_method(method_signature: str):
-    method_tokens = method_signature.split(".")
-    module_name = ""
-    for i in range(len(method_tokens) -1):
-        module_name += "." + method_tokens[i]
-    wrapper_module = import_module("monocle_apptrace" + module_name)
-    return getattr(wrapper_module, method_tokens[len(method_tokens)-1])
+def get_wrapper_method(package_name: str, method_name: str):
+    wrapper_module = import_module("monocle_apptrace." + package_name)
+    return getattr(wrapper_module, method_name)

@@ -87,7 +87,7 @@ print(result)
 #         "workflow_name": "langchain_app_1",
 #         "workflow_output": "Task decomposition is a technique where complex tasks are broken down into smaller and simpler steps to enhance model performance. This process allows agents to tackle difficult tasks by transforming them into more manageable components. Task decomposition can be achieved through various methods such as using prompting techniques, task-specific instructions, or human inputs.",
 #         "workflow_type": "workflow.langchain",
-#         "infra_service_name": "azure_function"
+#         "infra_service_name": "azure.func"
 #     },
 #     "events": []
 # },

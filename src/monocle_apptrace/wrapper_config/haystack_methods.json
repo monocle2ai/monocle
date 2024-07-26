@@ -16,7 +16,7 @@
             "package": "haystack.core.pipeline.pipeline",
             "object": "Pipeline",
             "method": "run",
-            "wrapper": "haystack.wrap_openai.wrap_pipeline"
+            "wrapper": "haystack.wrap_pipeline.wrap"
         }
     ] 
 }

@@ -46,6 +46,7 @@ class FileSpanExporter(SpanExporter):
         self.current_trace_id = trace_id
 
     def force_flush(self, timeout_millis: int = 30000) -> bool:
+        self.out_handle.flush()
         return True
     
     def reset_handle(self) -> None:

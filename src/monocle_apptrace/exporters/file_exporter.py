@@ -2,13 +2,14 @@ from os import linesep, path
 from io import TextIOWrapper
 from datetime import datetime
 from typing import Optional, Callable, Sequence
-from opentelemetry.sdk.trace import ReadableSpan, Span, SpanProcessor
-from opentelemetry.sdk.trace.export import SpanExporter, SpanExportResult, ConsoleSpanExporter
+from opentelemetry.sdk.trace import ReadableSpan
+from opentelemetry.sdk.trace.export import SpanExporter, SpanExportResult
 
 class FileSpanExporter(SpanExporter):
     DEFAULT_FILE_PREFIX:str = "monocle_trace_"
     DEFAULT_TIME_FORMAT:str = "%Y-%m-%d_%H.%M.%S"
     current_trace_id: int = None
+    current_file_path: str = None
 
     def __init__(
         self,
@@ -38,9 +39,10 @@ class FileSpanExporter(SpanExporter):
 
     def rotate_file(self, trace_id:int) -> None:
         self.reset_handle()
-        self.out_handle = open(path.join(self.output_path,
+        self.current_file_path = path.join(self.output_path,
                             self.file_prefix + hex(trace_id) + "_" + 
-                            datetime.now().strftime(self.time_format) + ".json"), "w")
+                            datetime.now().strftime(self.time_format) + ".json")
+        self.out_handle = open(self.current_file_path, "w")
         self.current_trace_id = trace_id
 
     def force_flush(self, timeout_millis: int = 30000) -> bool:

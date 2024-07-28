@@ -4,6 +4,7 @@ from datetime import datetime
 from typing import Optional, Callable, Sequence
 from opentelemetry.sdk.trace import ReadableSpan
 from opentelemetry.sdk.trace.export import SpanExporter, SpanExportResult
+from opentelemetry.sdk.resources import SERVICE_NAME, Resource
 
 class FileSpanExporter(SpanExporter):
     DEFAULT_FILE_PREFIX:str = "monocle_trace_"
@@ -32,16 +33,17 @@ class FileSpanExporter(SpanExporter):
     def export(self, spans: Sequence[ReadableSpan]) -> SpanExportResult:
         for span in spans:
             if span.context.trace_id != self.current_trace_id:
-                self.rotate_file(span.context.trace_id)
+                self.rotate_file(span.resource.attributes[SERVICE_NAME],
+                                span.context.trace_id)
             self.out_handle.write(self.formatter(span))
         self.out_handle.flush()
         return SpanExportResult.SUCCESS
 
-    def rotate_file(self, trace_id:int) -> None:
+    def rotate_file(self, trace_name:str, trace_id:int) -> None:
         self.reset_handle()
         self.current_file_path = path.join(self.output_path,
-                            self.file_prefix + hex(trace_id) + "_" + 
-                            datetime.now().strftime(self.time_format) + ".json")
+                        self.file_prefix + trace_name + "_" + hex(trace_id) + "_"
+                        + datetime.now().strftime(self.time_format) + ".json")
         self.out_handle = open(self.current_file_path, "w")
         self.current_trace_id = trace_id
 

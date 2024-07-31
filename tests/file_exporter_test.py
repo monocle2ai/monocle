@@ -43,13 +43,19 @@ class TestHandler(unittest.TestCase):
         span_processor.force_flush()
         span_processor.shutdown()
         trace_file_name = file_exporter.current_file_path
-        with open(trace_file_name) as f:
-            trace_data = json.load(f)
-            trace_id_from_file = trace_data["context"]["trace_id"]
-            trace_id_from_exporter = hex(file_exporter.current_trace_id)
-            assert trace_id_from_file == trace_id_from_exporter
 
-            span_name = trace_data["name"]
-            assert self.SPAN_NAME == span_name
+        try:
+            with open(trace_file_name) as f:
+                trace_data = json.load(f)
+                trace_id_from_file = trace_data["context"]["trace_id"]
+                trace_id_from_exporter = hex(file_exporter.current_trace_id)
+                assert trace_id_from_file == trace_id_from_exporter
 
-        os.remove(trace_file_name)
+                span_name = trace_data["name"]
+                assert self.SPAN_NAME == span_name
+
+            os.remove(trace_file_name)
+        except Exception as ex:
+            print("Got error " + str(ex))
+            assert false
+

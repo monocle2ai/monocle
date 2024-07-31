@@ -12,6 +12,7 @@ from opentelemetry.sdk.resources import SERVICE_NAME, Resource
 from opentelemetry import trace
 from monocle_apptrace.wrap_common import CONTEXT_PROPERTIES_KEY
 from monocle_apptrace.wrapper import INBUILT_METHODS_LIST, WrapperMethod
+from monocle_apptrace.exporters.file_exporter import FileSpanExporter
 from opentelemetry.context import get_value, attach, set_value
 
 
@@ -88,7 +89,8 @@ class MonocleInstrumentor(BaseInstrumentor):
 
 def setup_monocle_telemetry(
         workflow_name: str,
-        span_processors: List[SpanProcessor] = [],
+        span_processors: List[SpanProcessor] =
+                [BatchSpanProcessor(FileSpanExporter())],
         wrapper_methods: List[WrapperMethod] = []):
     resource = Resource(attributes={
         SERVICE_NAME: workflow_name

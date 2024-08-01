@@ -70,3 +70,9 @@ def load_wrapper_from_config(config_file_path:str, module_name:str=None):
 def get_wrapper_method(package_name: str, method_name: str):
     wrapper_module = import_module("monocle_apptrace." + package_name)
     return getattr(wrapper_module, method_name)
+
+def is_openai_endpoint(url: str):
+    return "openai.com" in url
+
+def is_azure_endpoint(url: str):
+    return "azure.com" in url

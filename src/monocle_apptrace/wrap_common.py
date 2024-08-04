@@ -180,7 +180,7 @@ def set_provider_name(curr_span, instance):
     try :
         if len(provider_url) > 0:
             parsed_provider_url = urlparse(provider_url)
-            curr_span.set_attribute("provider_name", parsed_provider_url.hostname) 
+            curr_span.set_attribute("provider_name", parsed_provider_url.hostname or provider_url) 
     except:
         pass
 

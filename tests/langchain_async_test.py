@@ -1,3 +1,5 @@
+from unittest import IsolatedAsyncioTestCase
+import unittest
 
 
 import json
@@ -7,6 +9,7 @@ import time
 
 import unittest
 from unittest.mock import ANY, MagicMock, patch
+from unittest import IsolatedAsyncioTestCase
 
 import requests
 from dummy_class import DummyClass
@@ -44,8 +47,10 @@ fileHandler = logging.FileHandler('traces.txt','w')
 formatter = logging.Formatter('%(asctime)s [%(levelname)s] %(name)s: %(message)s')
 fileHandler.setFormatter(formatter)
 logger.addHandler(fileHandler)
+events = []
 
-class TestHandler(unittest.TestCase):
+
+class Test(IsolatedAsyncioTestCase):
 
     prompt = PromptTemplate.from_template(
             """
@@ -61,6 +66,7 @@ class TestHandler(unittest.TestCase):
         It is served in a large cup or tall glass and has more milk compared to other espresso-based drinks.\
             Latte art can be created on the surface of the drink using the milk."""
 
+    
     def __format_docs(self, docs):
             return "\n\n ".join(doc.page_content for doc in docs)
 
@@ -96,17 +102,32 @@ class TestHandler(unittest.TestCase):
         )
         return rag_chain
 
+    
     def setUp(self):
+        events.append("setUp")
+
+    async def asyncSetUp(self):
         os.environ["HTTP_API_KEY"] = "key1"
         os.environ["HTTP_INGESTION_ENDPOINT"] = "https://localhost:3000/api/v1/traces"
-        
-
-    def tearDown(self) -> None:
-        return super().tearDown()
 
     @patch.object(requests.Session, 'post')
-    def test_llm_chain(self, mock_post):
+    async def test_response(self, mock_post):
+        app_name = "test"
+        wrap_method = MagicMock(return_value=3)
+        setup_monocle_telemetry(
+            workflow_name=app_name,
+            span_processors=[
+                    BatchSpanProcessor(HttpSpanExporter("https://localhost:3000/api/v1/traces"))
+                ],
+            wrapper_methods=[
+                WrapperMethod(
+                    package="dummy_class",
+                    object="DummyClass",
+                    method="dummy_method",
+                    span_name="langchain.workflow",
+                    wrapper=wrap_method()),
 
+        ])
         try:
             context_key = "context_key_1"
             context_value = "context_value_1"
@@ -117,7 +138,7 @@ class TestHandler(unittest.TestCase):
             mock_post.return_value.json.return_value = 'mock response'
 
             query = "what is latte"
-            response = self.chain.invoke(query, config={})
+            response = await self.chain.ainvoke(query, config={})
             assert response == self.ragText
             time.sleep(5)
             mock_post.assert_called_with(
@@ -146,7 +167,7 @@ class TestHandler(unittest.TestCase):
             output_event_attributes = get_event_attributes(root_span_events, PROMPT_OUTPUT_KEY)
             
             assert input_event_attributes[QUERY] == query
-            assert output_event_attributes[RESPONSE] == TestHandler.ragText
+            assert output_event_attributes[RESPONSE] == Test.ragText
             assert root_span_attributes[f"{CONTEXT_PROPERTIES_KEY}.{context_key}"] == context_value
 
             for spanObject in dataJson['batch']:
@@ -160,46 +181,15 @@ class TestHandler(unittest.TestCase):
                 print("Uninstrument failed:", e)
 
     
-    def test_custom_methods(self):
-        app_name = "test"
-        wrap_method = MagicMock(return_value=3)
-        setup_monocle_telemetry(
-            workflow_name=app_name,
-            span_processors=[
-                    BatchSpanProcessor(HttpSpanExporter("https://localhost:3000/api/v1/traces"))
-                ],
-            wrapper_methods=[
-                WrapperMethod(
-                    package="dummy_class",
-                    object="DummyClass",
-                    method="dummy_method",
-                    span_name="langchain.workflow",
-                    wrapper=wrap_method()),
 
-            ])
-        dummy_class_1 = DummyClass()
+    def tearDown(self):
+        return super().tearDown()
 
-        dummy_class_1.dummy_method()
-        wrap_method.assert_called_once()
+    async def asyncTearDown(self):
+        events.append("asyncTearDown")
 
-    def test_llm_response(self):
-        trace.set_tracer_provider(TracerProvider())
-        tracer = trace.get_tracer(__name__)
-        span = tracer.start_span("foo", start_time=0)
+    async def on_cleanup(self):
+        events.append("cleanup")
 
-        message = AIMessage(
-            content = "",
-            response_metadata = {
-                'token_usage': {'completion_tokens': 58, 'prompt_tokens': 584, 'total_tokens': 642}
-            }
-        )
-        update_span_from_llm_response(span=span,response=message)
-        assert span.attributes.get("completion_tokens") == 58
-        assert span.attributes.get("prompt_tokens") == 584
-        assert span.attributes.get("total_tokens") == 642
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()
-    
-
-

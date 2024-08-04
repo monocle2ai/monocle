@@ -1,8 +1,9 @@
 import logging
 import os
+from urllib.parse import urlparse
 
 from opentelemetry.trace import Span, Tracer
-from monocle_apptrace.utils import is_azure_endpoint, is_openai_endpoint, resolve_from_alias, with_tracer_wrapper
+from monocle_apptrace.utils import resolve_from_alias, with_tracer_wrapper
 
 logger = logging.getLogger(__name__)
 WORKFLOW_TYPE_KEY = "workflow_type"
@@ -162,19 +163,24 @@ def update_llm_endpoint(curr_span: Span, instance):
         curr_span.set_attribute("inference_endpoint",inference_ep)
 
 def set_provider_name(curr_span, instance):
+    provider_url = ""
+    
     try :
-        if is_openai_endpoint(instance.client._client.base_url.host):
-            curr_span.set_attribute("provider_name", "openai") 
-        if is_azure_endpoint(instance.client._client.base_url.host):
-            curr_span.set_attribute("provider_name", "azure")  
+        if type(instance.client._client.base_url.host) == str :
+            provider_url = instance.client._client.base_url.host
     except:
         pass
         
     try :
-        if is_openai_endpoint(instance.api_base):
-            curr_span.set_attribute("provider_name", "openai") 
-        if is_azure_endpoint(instance.api_base):
-            curr_span.set_attribute("provider_name", "azure") 
+        if type(instance.api_base) == str:
+            provider_url = instance.api_base
+    except:
+        pass
+    
+    try :
+        if len(provider_url) > 0:
+            parsed_provider_url = urlparse(provider_url)
+            curr_span.set_attribute("provider_name", parsed_provider_url.hostname) 
     except:
         pass
 

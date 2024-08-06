@@ -71,7 +71,10 @@ print(response)
 #             "span_id": "0x225fbfb58481e58c",
 #             "trace_id": "0xbd54e5d0edcd96634fa8a02c25c27519",
 #             "parent_id": "0xb4b14a8f14e7e770",
-#             "attributes": {},
+#             "attributes": {
+#                 "model_name": "gpt-3.5-turbo-0125",
+#                 "provider_name": "openai.com",
+#             },
 #             "events": []
 #         },
 #         {

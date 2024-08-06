@@ -2,8 +2,6 @@ import logging
 import json
 from importlib import import_module
 
-logger = logging.getLogger(__name__)
-
 class Config:
     exception_logger = None
 
@@ -11,8 +9,6 @@ def set_span_attribute(span, name, value):
     if value is not None:
         if value != "":
             span.set_attribute(name, value)
-    return
-
 
 def dont_throw(func):
     """
@@ -29,7 +25,7 @@ def dont_throw(func):
             return func(*args, **kwargs)
         except Exception as e:
             logger.warning("Failed to execute %s, error: %s", func.__name__, str(e))
-            if Config.exception_logger:
+            if callable(Config.exception_logger):
                 Config.exception_logger(e)
 
     return wrapper
@@ -45,12 +41,12 @@ def with_tracer_wrapper(func):
 
     return _with_tracer
 
-def resolve_from_alias(map, alias):
+def resolve_from_alias(my_map, alias):
     """Find a alias that is not none from list of aliases"""
 
     for i in alias:
-        if i in map.keys():
-            return map[i]
+        if i in my_map.keys():
+            return my_map[i]
     return None
 
 def load_wrapper_from_config(config_file_path:str, module_name:str=None):

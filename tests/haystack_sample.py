@@ -16,10 +16,10 @@ from haystack.components.retrievers.in_memory.embedding_retriever import (
 )
 from haystack.document_stores.in_memory import InMemoryDocumentStore
 from haystack.utils import Secret
+from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
 from monocle_apptrace.instrumentor import setup_monocle_telemetry
 from monocle_apptrace.wrap_common import llm_wrapper
 from monocle_apptrace.wrapper import WrapperMethod
-from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
 
 
 def haystack_app():
@@ -30,7 +30,7 @@ def haystack_app():
             wrapper_methods=[
                 WrapperMethod(
                     package="haystack.components.retrievers.in_memory",
-                    object="InMemoryEmbeddingRetriever",
+                    object_name="InMemoryEmbeddingRetriever",
                     method="run",
                     span_name="haystack.retriever",
                     wrapper=llm_wrapper),
@@ -143,7 +143,7 @@ haystack_app()
 #     },
 #     "attributes": {
 #         "llm_input": "\n    Given the following information, answer the question.\n\n    Context:\n    \n        Within it, too, are to be seen large masses of rock, by the weight of which the artist steadied it while erecting it.[22][23]\nDestruction of the remains[edit]\nThe ultimate fate of the remains of the statue is uncertain. Rhodes has two serious earthquakes per century, owing to its location on the seismically unstable Hellenic Arc.  \n    \n\n    Question: What does Rhodes Statue look like?\n    Answer:\n    ",
-#         "openai_model_name": "gpt-3.5-turbo",
+#         "model_name": "gpt-3.5-turbo",
 #         "completion_tokens": 90,
 #         "prompt_tokens": 2464,
 #         "total_tokens": 2554

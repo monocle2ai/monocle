@@ -1,4 +1,5 @@
 
+#pylint: disable=protected-access
 import os
 from monocle_apptrace.utils import load_wrapper_from_config
 

@@ -36,7 +36,7 @@ from opentelemetry.sdk.resources import SERVICE_NAME, Resource
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
 
-from tests.fake_list_llm import FakeListLLM
+from fake_list_llm import FakeListLLM
 
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)

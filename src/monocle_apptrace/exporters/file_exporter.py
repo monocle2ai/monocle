@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Optional, Callable, Sequence
 from opentelemetry.sdk.trace import ReadableSpan
 from opentelemetry.sdk.trace.export import SpanExporter, SpanExportResult
-from opentelemetry.sdk.resources import SERVICE_NAME, Resource
+from opentelemetry.sdk.resources import SERVICE_NAME
 
 class FileSpanExporter(SpanExporter):
     DEFAULT_FILE_PREFIX:str = "monocle_trace_"
@@ -50,9 +50,9 @@ class FileSpanExporter(SpanExporter):
     def force_flush(self, timeout_millis: int = 30000) -> bool:
         self.out_handle.flush()
         return True
-    
+
     def reset_handle(self) -> None:
-        if self.out_handle != None:
+        if self.out_handle is not None:
             self.out_handle.close()
             self.out_handle = None
 

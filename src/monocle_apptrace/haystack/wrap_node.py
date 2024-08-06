@@ -21,7 +21,7 @@ def wrap(tracer, to_wrap, wrapped, instance, args, kwargs):
         workflow_name = span.resource.attributes.get("service.name")
         span.set_attribute("workflow_name",workflow_name)
         span.set_attribute("workflow_type", WORKFLOW_TYPE_MAP["haystack"])
-        
+
         response = wrapped(*args, **kwargs)
 
     return response

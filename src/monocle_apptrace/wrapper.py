@@ -21,4 +21,3 @@ class WrapperMethod:
         self.wrapper = wrapper
 
 INBUILT_METHODS_LIST = LANGCHAIN_METHODS + LLAMAINDEX_METHODS + HAYSTACK_METHODS
-

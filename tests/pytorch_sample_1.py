@@ -12,13 +12,13 @@ setup_monocle_telemetry(
     wrapper_methods=[
                 WrapperMethod(
                     package="transformers",
-                    object="GPT2DoubleHeadsModel",
+                    object_name="GPT2DoubleHeadsModel",
                     method="forward",
                     span_name="pytorch.transformer.GPT2DoubleHeadsModel",
                     wrapper=task_wrapper),
                 WrapperMethod(
                     package="transformers",
-                    object="PreTrainedModel",
+                    object_name="PreTrainedModel",
                     method="from_pretrained",
                     span_name="pytorch.transformer.PreTrainedModel",
                     wrapper=task_wrapper),

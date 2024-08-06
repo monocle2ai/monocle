@@ -1,3 +1,4 @@
+#pylint: disable=protected-access
 import logging
 import os
 from urllib.parse import urlparse
@@ -146,8 +147,6 @@ def update_llm_endpoint(curr_span: Span, instance):
             curr_span.set_attribute("temperature", temp_val)
         # handling for model name
         model_name =  resolve_from_alias(instance.__dict__ , ["model","model_name"])
-        # TODO: remove openai_model_name after discussion
-        curr_span.set_attribute("openai_model_name", model_name)
         curr_span.set_attribute("model_name", model_name)
         set_provider_name(curr_span, instance)
         # handling AzureOpenAI deployment
@@ -163,7 +162,7 @@ def set_provider_name(curr_span, instance):
 
     try :
         if isinstance(instance.client._client.base_url.host, str) :
-            provider_url = instance.client._client.base_url.host
+            provider_url = instance. client._client.base_url.host
     except:
         pass
 

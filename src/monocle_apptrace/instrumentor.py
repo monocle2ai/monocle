@@ -88,24 +88,24 @@ class MonocleInstrumentor(BaseInstrumentor):
 
 def setup_monocle_telemetry(
         workflow_name: str,
-        span_processors: List[SpanProcessor] =
-                [BatchSpanProcessor(FileSpanExporter())],
+        span_processors: List[SpanProcessor] = None,
         wrapper_methods: List[WrapperMethod] = None):
     resource = Resource(attributes={
         SERVICE_NAME: workflow_name
     })
-    traceProvider = TracerProvider(resource=resource)
-    tracerProviderDefault = trace.get_tracer_provider()
-    providerType = type(tracerProviderDefault).__name__
-    isProxyProvider = "Proxy" in providerType
+    span_processors = span_processors or [BatchSpanProcessor(FileSpanExporter())]
+    trace_provider = TracerProvider(resource=resource)
+    tracer_provider_default = trace.get_tracer_provider()
+    provider_type = type(tracer_provider_default).__name__
+    is_proxy_provider = "Proxy" in provider_type
     for processor in span_processors:
         processor.on_start = on_processor_start
-        if not isProxyProvider:
-            tracerProviderDefault.add_span_processor(processor)
+        if not is_proxy_provider:
+            tracer_provider_default.add_span_processor(processor)
         else :
-            traceProvider.add_span_processor(processor)
-    if isProxyProvider :
-        trace.set_tracer_provider(traceProvider)
+            trace_provider.add_span_processor(processor)
+    if is_proxy_provider :
+        trace.set_tracer_provider(trace_provider)
     instrumentor = MonocleInstrumentor(user_wrapper_methods=wrapper_methods or [])
     # instrumentor.app_name = workflow_name
     if not instrumentor.is_instrumented_by_opentelemetry:

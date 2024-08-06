@@ -1,3 +1,5 @@
+#pylint: disable=consider-using-with
+
 from os import linesep, path
 from io import TextIOWrapper
 from datetime import datetime
@@ -6,9 +8,10 @@ from opentelemetry.sdk.trace import ReadableSpan
 from opentelemetry.sdk.trace.export import SpanExporter, SpanExportResult
 from opentelemetry.sdk.resources import SERVICE_NAME
 
+DEFAULT_FILE_PREFIX:str = "monocle_trace_"
+DEFAULT_TIME_FORMAT:str = "%Y-%m-%d_%H.%M.%S"
+
 class FileSpanExporter(SpanExporter):
-    DEFAULT_FILE_PREFIX:str = "monocle_trace_"
-    DEFAULT_TIME_FORMAT:str = "%Y-%m-%d_%H.%M.%S"
     current_trace_id: int = None
     current_file_path: str = None
 
@@ -44,7 +47,7 @@ class FileSpanExporter(SpanExporter):
         self.current_file_path = path.join(self.output_path,
                         self.file_prefix + trace_name + "_" + hex(trace_id) + "_"
                         + datetime.now().strftime(self.time_format) + ".json")
-        self.out_handle = open(self.current_file_path, "w")
+        self.out_handle = open(self.current_file_path, "w", encoding='UTF-8')
         self.current_trace_id = trace_id
 
     def force_flush(self, timeout_millis: int = 30000) -> bool:

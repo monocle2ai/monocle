@@ -1,5 +1,3 @@
-
-
 import logging
 from opentelemetry import context as context_api
 from opentelemetry.instrumentation.utils import _SUPPRESS_INSTRUMENTATION_KEY
@@ -17,9 +15,7 @@ def _set_input_attributes(span, kwargs, instance, args):
 
     if 'model' in instance.__dict__:
         model_name = instance.__dict__.get("model")
-        set_span_attribute(span, "openai_model_name", model_name)
-
-    return
+        set_span_attribute(span, "model_name", model_name)
 
 @dont_throw
 def _set_response_attributes(span, response):
@@ -39,14 +35,10 @@ def wrap_openai(tracer, to_wrap, wrapped, instance, args, kwargs):
     with tracer.start_as_current_span("haystack.openai") as span:
         if span.is_recording():
             _set_input_attributes(span, kwargs, instance, args)
-
-
-        
         response = wrapped(*args, **kwargs)
 
         if response:
             if span.is_recording():
                 _set_response_attributes(span, response)
-                
 
         return response

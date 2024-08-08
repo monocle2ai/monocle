@@ -1,0 +1,3 @@
+[MASTER]
+
+disable=unused-argument,too-many-arguments,missing-function-docstring,line-too-long,missing-module-docstring,too-many-instance-attributes,broad-exception-caught,missing-class-docstring,bare-except,logging-fstring-interpolation

@@ -1,0 +1,33 @@
+
+
+name: lint
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    # The branches below must be a subset of the branches above
+    branches: [ "main" ]
+  schedule:
+    - cron: '18 8 * * 0'
+
+jobs:
+  tox:
+    name: Run pylint
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+      actions: read # only required for a private repository by github/codeql-action/upload-sarif to get the Action run status
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install pylint
+        run: |
+          pip install .
+          pip install pylint
+
+      - name: Run pylint tests
+        run: pylint --fail-under=10 src
+        continue-on-error: true

@@ -31,7 +31,7 @@ class TestHandler(unittest.TestCase):
             wrapper_methods=[
                 WrapperMethod(
                     package="dummy_class",
-                    object="DummyClass",
+                    object_name="DummyClass",
                     method="dummy_method",
                     span_name=self.SPAN_NAME,
                     wrapper=dummy_wrapper)

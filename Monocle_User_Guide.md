@@ -95,13 +95,13 @@ setup_monocle_telemetry(
         wrapper_methods=[
             WrapperMethod(
                 package="langchain.schema.runnable",
-                object="RunnableParallel",
+                object_name="RunnableParallel",
                 method="invoke",
                 span_name="langchain.workflow",
                 wrapper=task_wrapper),
             WrapperMethod(
                 package="langchain.schema.runnable",
-                object="RunnableParallel",
+                object_name="RunnableParallel",
                 method="ainvoke",
                 span_name="langchain.workflow",
                 wrapper=atask_wrapper)

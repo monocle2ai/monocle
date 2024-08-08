@@ -60,13 +60,13 @@ class TestHandler(unittest.TestCase):
             wrapper_methods=[
                         WrapperMethod(
                             package="helpers",
-                            object="OurLLM",
+                            object_name="OurLLM",
                             method="complete",
                             span_name="llamaindex.OurLLM",
                             wrapper=llm_wrapper),
                         WrapperMethod(
                             package="llama_index.llms.openai.base",
-                            object="OpenAI",
+                            object_name="OpenAI",
                             method="chat",
                             span_name="llamaindex.openai",
                             wrapper=llm_wrapper),
@@ -129,8 +129,8 @@ class TestHandler(unittest.TestCase):
             if span["name"] == "llamaindex.query" and "workflow_type" in span["attributes"]:
                 assert span["attributes"]["workflow_type"] == "workflow.llamaindex"
                 type_found = True
-            if span["name"] == "llamaindex.OurLLM" and "openai_model_name" in span["attributes"]:
-                assert span["attributes"]["openai_model_name"] == "custom"
+            if span["name"] == "llamaindex.OurLLM" and "model_name" in span["attributes"]:
+                assert span["attributes"]["model_name"] == "custom"
                 model_name_found = True
 
         assert type_found

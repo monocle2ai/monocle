@@ -85,8 +85,8 @@ class TestHandler(unittest.TestCase):
             if span["name"] == "haystack_pipeline.workflow" and "workflow_type" in span["attributes"]:
                 assert span["attributes"]["workflow_type"] == "workflow.haystack"
                 type_found = True
-            if span["name"] == "haystack.openai" and "openai_model_name" in span["attributes"]:
-                assert span["attributes"]["openai_model_name"] == "gpt-4"
+            if span["name"] == "haystack.openai" and "model_name" in span["attributes"]:
+                assert span["attributes"]["model_name"] == "gpt-4"
                 model_name_found = True
 
         assert type_found == True

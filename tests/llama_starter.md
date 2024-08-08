@@ -21,7 +21,7 @@ setup_monocle_telemetry(
     wrapper_methods=[
         WrapperMethod(
             package="llama_index.llms.openai.base",
-            object="OpenAI",
+            object_name="OpenAI",
             method="chat",
             span_name="llamaindex.openai",
             wrapper=llm_wrapper),

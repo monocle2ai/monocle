@@ -26,7 +26,6 @@ jobs:
       - name: Install pylint
         run: |
           pip install .
-          pip install -e ".[dev]"
           pip install pylint
 
       - name: Run pylint tests

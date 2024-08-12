@@ -1,3 +1,4 @@
+#pylint: disable=protected-access
 import logging
 import os
 from urllib.parse import urlparse
@@ -39,7 +40,6 @@ def task_wrapper(tracer: Tracer, to_wrap, wrapped, instance, args, kwargs):
         name = to_wrap.get("span_name")
     else:
         name = f"langchain.task.{instance.__class__.__name__}"
-    kind = to_wrap.get("kind")
 
     with tracer.start_as_current_span(name) as span:
         pre_task_processing(to_wrap, instance, args, span)
@@ -62,11 +62,12 @@ def pre_task_processing(to_wrap, instance, args, span):
         update_span_with_prompt_input(to_wrap=to_wrap, wrapped_args=args, span=span)
 
         update_span_with_infra_name(span, INFRA_SERVICE_KEY)
-        #capture the tags attribute of the instance if present, else ignore 
+
+    #capture the tags attribute of the instance if present, else ignore
     try:
         update_tags(instance, span)
     except AttributeError:
-        pass    
+        pass
     update_span_with_context_input(to_wrap=to_wrap, wrapped_args=args, span=span)
 
 
@@ -85,7 +86,6 @@ async def atask_wrapper(tracer, to_wrap, wrapped, instance, args, kwargs):
         name = to_wrap.get("span_name")
     else:
         name = f"langchain.task.{instance.__class__.__name__}"
-    kind = to_wrap.get("kind")
     with tracer.start_as_current_span(name) as span:
         pre_task_processing(to_wrap, instance, args, span)
         return_value = await wrapped(*args, **kwargs)
@@ -108,7 +108,6 @@ async def allm_wrapper(tracer, to_wrap, wrapped, instance, args, kwargs):
         name = to_wrap.get("span_name")
     else:
         name = f"langchain.task.{instance.__class__.__name__}"
-    kind = to_wrap.get("kind")
     with tracer.start_as_current_span(name) as span:
         update_llm_endpoint(curr_span= span, instance=instance)
 
@@ -133,7 +132,6 @@ def llm_wrapper(tracer: Tracer, to_wrap, wrapped, instance, args, kwargs):
         name = to_wrap.get("span_name")
     else:
         name = f"langchain.task.{instance.__class__.__name__}"
-    kind = to_wrap.get("kind")
     with tracer.start_as_current_span(name) as span:
         update_llm_endpoint(curr_span= span, instance=instance)
 
@@ -152,12 +150,10 @@ def update_llm_endpoint(curr_span: Span, instance):
             curr_span.set_attribute("temperature", temp_val)
         # handling for model name
         model_name =  resolve_from_alias(instance.__dict__ , ["model","model_name"])
-        # TODO: remove openai_model_name after discussion
-        curr_span.set_attribute("openai_model_name", model_name)
         curr_span.set_attribute("model_name", model_name)
-        set_provider_name(curr_span, instance) 
+        set_provider_name(curr_span, instance)
         # handling AzureOpenAI deployment
-        deployment_name =  resolve_from_alias(instance.__dict__ , [ "engine", "azure_deployment", 
+        deployment_name =  resolve_from_alias(instance.__dict__ , [ "engine", "azure_deployment",
                                                                    "deployment_name", "deployment_id", "deployment"])
         curr_span.set_attribute("az_openai_deployment", deployment_name)
         # handling the inference endpoint
@@ -166,31 +162,31 @@ def update_llm_endpoint(curr_span: Span, instance):
 
 def set_provider_name(curr_span, instance):
     provider_url = ""
-    
+
     try :
-        if type(instance.client._client.base_url.host) == str :
-            provider_url = instance.client._client.base_url.host
+        if isinstance(instance.client._client.base_url.host, str) :
+            provider_url = instance. client._client.base_url.host
     except:
         pass
-        
+
     try :
-        if type(instance.api_base) == str:
+        if isinstance(instance.api_base, str):
             provider_url = instance.api_base
     except:
         pass
-    
+
     try :
         if len(provider_url) > 0:
             parsed_provider_url = urlparse(provider_url)
-            curr_span.set_attribute("provider_name", parsed_provider_url.hostname or provider_url) 
+            curr_span.set_attribute("provider_name", parsed_provider_url.hostname or provider_url)
     except:
         pass
 
 def is_root_span(curr_span: Span) -> bool:
-    return curr_span.parent == None
+    return curr_span.parent is None
 
 def get_input_from_args(chain_args):
-    if len(chain_args) > 0 and type(chain_args[0]) == str:
+    if len(chain_args) > 0 and isinstance(chain_args[0], str):
         return chain_args[0]
     return ""
 
@@ -208,11 +204,11 @@ def update_span_from_llm_response(response, span: Span):
         if response.raw is not None:
             token_usage = response.raw.get("usage")
             if token_usage is not None:
-                if(hasattr(token_usage, "completion_tokens")):
+                if hasattr(token_usage, "completion_tokens"):
                     span.set_attribute("completion_tokens", token_usage.completion_tokens)
-                if(hasattr(token_usage, "prompt_tokens")):
+                if hasattr(token_usage, "prompt_tokens"):
                     span.set_attribute("prompt_tokens", token_usage.prompt_tokens)
-                if(hasattr(token_usage, "total_tokens")):
+                if hasattr(token_usage, "total_tokens"):
                     span.set_attribute("total_tokens", token_usage.total_tokens)
 
 def update_workflow_type(to_wrap, span: Span):
@@ -224,42 +220,40 @@ def update_workflow_type(to_wrap, span: Span):
 
 def update_span_with_context_input(to_wrap, wrapped_args ,span: Span):
     package_name: str = to_wrap.get('package')
-    if("langchain_core.retrievers" in package_name):
+    if "langchain_core.retrievers" in package_name:
         input_arg_text = wrapped_args[0]
         span.add_event(CONTEXT_INPUT_KEY, {QUERY:input_arg_text})
-    if("llama_index.core.indices.base_retriever" in package_name):
+    if "llama_index.core.indices.base_retriever" in package_name:
         input_arg_text = wrapped_args[0].query_str
         span.add_event(CONTEXT_INPUT_KEY, {QUERY:input_arg_text})
 
 def update_span_with_context_output(to_wrap, return_value ,span: Span):
     package_name: str = to_wrap.get('package')
-    if("llama_index.core.indices.base_retriever" in package_name):
+    if "llama_index.core.indices.base_retriever" in package_name:
         output_arg_text = return_value[0].text
         span.add_event(CONTEXT_OUTPUT_KEY, {RESPONSE:output_arg_text})
 
 def update_span_with_prompt_input(to_wrap, wrapped_args ,span: Span):
     input_arg_text = wrapped_args[0]
-    
+
     if isinstance(input_arg_text, dict):
         span.add_event(PROMPT_INPUT_KEY,input_arg_text)
-    else:    
+    else:
         span.add_event(PROMPT_INPUT_KEY,{QUERY:input_arg_text})
 
 def update_span_with_prompt_output(to_wrap, wrapped_args ,span: Span):
     package_name: str = to_wrap.get('package')
-    if(isinstance(wrapped_args, str)):
+    if isinstance(wrapped_args, str):
         span.add_event(PROMPT_OUTPUT_KEY, {RESPONSE:wrapped_args})
-    if("llama_index.core.base.base_query_engine" in package_name):
+    if "llama_index.core.base.base_query_engine" in package_name:
         span.add_event(PROMPT_OUTPUT_KEY, {RESPONSE:wrapped_args.response})
 
 def update_tags(instance, span):
-    
     try:
         # copy tags as is from langchain
         span.set_attribute(TAGS, getattr(instance, TAGS))
     except:
         pass
-    
     try:
         # extract embed model and vector store names for llamaindex
         model_name = instance.retriever._embed_model.model_name
@@ -267,5 +261,3 @@ def update_tags(instance, span):
         span.set_attribute(TAGS, [model_name, vector_store_name])
     except:
         pass
-
-

@@ -100,7 +100,7 @@ print(result)
 #     "trace_id": "0x4d297d14b25c3891eb4dd8b28453e91a",
 #     "parent_id": "0x0c44185b267d8652",
 #     "attributes": {
-#         "openai_model_name": "gpt-3.5-turbo-0125",
+#         "model_name": "gpt-3.5-turbo-0125",
 #         "model_name": "gpt-3.5-turbo-0125",
 #         "provider_name": "openai.com",
 #     },

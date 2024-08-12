@@ -1,6 +1,9 @@
 import logging
 import json
 from importlib import import_module
+import os
+from opentelemetry.trace import Span
+from monocle_apptrace.constants import AZURE_APP_SERVICE_ENV_NAME, AZURE_APP_SERVICE_NAME, AZURE_FUNCTION_NAME, AZURE_FUNCTION_WORKER_ENV_NAME, AZURE_ML_ENDPOINT_ENV_NAME, AZURE_ML_SERVICE_NAME
 
 def set_span_attribute(span, name, value):
     if value is not None:
@@ -60,3 +63,11 @@ def load_wrapper_from_config(config_file_path: str, module_name: str = None):
 def get_wrapper_method(package_name: str, method_name: str):
     wrapper_module = import_module("monocle_apptrace." + package_name)
     return getattr(wrapper_module, method_name)
+
+def update_span_with_infra_name(span: Span, span_key: str):
+    if AZURE_FUNCTION_WORKER_ENV_NAME in os.environ:
+        span.set_attribute(span_key, AZURE_FUNCTION_NAME)
+    elif AZURE_APP_SERVICE_ENV_NAME in os.environ:
+        span.set_attribute(span_key, AZURE_APP_SERVICE_NAME)
+    elif AZURE_ML_ENDPOINT_ENV_NAME in os.environ:
+        span.set_attribute(span_key, AZURE_ML_SERVICE_NAME)

@@ -4,7 +4,7 @@ import os
 from urllib.parse import urlparse
 
 from opentelemetry.trace import Span, Tracer
-from monocle_apptrace.utils import resolve_from_alias, with_tracer_wrapper
+from monocle_apptrace.utils import resolve_from_alias, update_span_with_infra_name, with_tracer_wrapper
 
 logger = logging.getLogger(__name__)
 WORKFLOW_TYPE_KEY = "workflow_type"
@@ -16,6 +16,7 @@ QUERY = "question"
 RESPONSE = "response"
 TAGS = "tags"
 CONTEXT_PROPERTIES_KEY = "workflow_context_properties"
+INFRA_SERVICE_KEY = "infra_service_name"
 
 
 
@@ -60,7 +61,9 @@ def pre_task_processing(to_wrap, instance, args, span):
     if is_root_span(span):
         update_span_with_prompt_input(to_wrap=to_wrap, wrapped_args=args, span=span)
 
-        #capture the tags attribute of the instance if present, else ignore
+        update_span_with_infra_name(span, INFRA_SERVICE_KEY)
+
+    #capture the tags attribute of the instance if present, else ignore
     try:
         update_tags(instance, span)
     except AttributeError:

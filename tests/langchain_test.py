@@ -8,6 +8,7 @@ import time
 import unittest
 from unittest.mock import ANY, MagicMock, patch
 
+import pytest
 import requests
 from dummy_class import DummyClass
 from embeddings_wrapper import HuggingFaceEmbeddings
@@ -17,6 +18,7 @@ from langchain.schema import StrOutputParser
 from langchain_community.vectorstores import faiss
 from langchain_core.messages.ai import AIMessage
 from langchain_core.runnables import RunnablePassthrough
+from monocle_apptrace.constants import AZURE_APP_SERVICE_ENV_NAME, AZURE_APP_SERVICE_NAME, AZURE_FUNCTION_NAME, AZURE_FUNCTION_WORKER_ENV_NAME, AZURE_ML_ENDPOINT_ENV_NAME, AZURE_ML_SERVICE_NAME
 from monocle_apptrace.instrumentor import (
     MonocleInstrumentor,
     set_context_properties,
@@ -24,6 +26,7 @@ from monocle_apptrace.instrumentor import (
 )
 from monocle_apptrace.wrap_common import (
     CONTEXT_PROPERTIES_KEY,
+    INFRA_SERVICE_KEY,
     PROMPT_INPUT_KEY,
     PROMPT_OUTPUT_KEY,
     QUERY,
@@ -37,6 +40,7 @@ from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
 
 from fake_list_llm import FakeListLLM
+from parameterized import parameterized
 
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
@@ -104,10 +108,17 @@ class TestHandler(unittest.TestCase):
     def tearDown(self) -> None:
         return super().tearDown()
 
+    @parameterized.expand([
+       ("1", AZURE_ML_ENDPOINT_ENV_NAME, AZURE_ML_SERVICE_NAME),
+       ("2", AZURE_FUNCTION_WORKER_ENV_NAME, AZURE_FUNCTION_NAME),
+       ("3", AZURE_APP_SERVICE_ENV_NAME, AZURE_APP_SERVICE_NAME),
+    ])
     @patch.object(requests.Session, 'post')
-    def test_llm_chain(self, mock_post):
+    def test_llm_chain(self, test_name, test_input_infra, test_output_infra, mock_post):
 
         try:
+            
+            os.environ[test_input_infra] = "1"
             context_key = "context_key_1"
             context_value = "context_value_1"
             set_context_properties({context_key: context_value})
@@ -148,11 +159,13 @@ class TestHandler(unittest.TestCase):
             assert input_event_attributes[QUERY] == query
             assert output_event_attributes[RESPONSE] == TestHandler.ragText
             assert root_span_attributes[f"{CONTEXT_PROPERTIES_KEY}.{context_key}"] == context_value
+            assert root_span_attributes[INFRA_SERVICE_KEY] == test_output_infra
 
             for spanObject in dataJson['batch']:
                 assert not spanObject["context"]["span_id"].startswith("0x")
                 assert not spanObject["context"]["trace_id"].startswith("0x")
         finally:
+            os.environ.pop(test_input_infra)
             try:
                 if(self.instrumentor is not None):
                     self.instrumentor.uninstrument()

@@ -29,7 +29,7 @@ class TestHandler(unittest.TestCase):
             wrapper_methods=[
                         WrapperMethod(
                             package="transformers",
-                            object="GPT2DoubleHeadsModel",
+                            object_name="GPT2DoubleHeadsModel",
                             method="forward",
                             span_name="pytorch.transformer.GPT2DoubleHeadsModel",
                             wrapper=llm_wrapper),

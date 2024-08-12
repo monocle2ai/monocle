@@ -1,5 +1,3 @@
-
-
 import logging
 from opentelemetry import context as context_api
 from opentelemetry.context import attach, set_value
@@ -18,13 +16,12 @@ def wrap(tracer, to_wrap, wrapped, instance, args, kwargs):
     name = "haystack_pipeline"
     attach(set_value("workflow_name", name))
     inputs = set()
-    input = get_workflow_input(args, inputs)
+    workflow_input = get_workflow_input(args, inputs)
 
     with tracer.start_as_current_span(f"{name}.workflow") as span:
-        span.set_attribute(PROMPT_INPUT_KEY, input)
+        span.set_attribute(PROMPT_INPUT_KEY, workflow_input)
         workflow_name = span.resource.attributes.get("service.name")
         set_workflow_attributes(span, workflow_name)
-        
         response = wrapped(*args, **kwargs)
         set_workflow_output(span, response)
     return response
@@ -37,12 +34,12 @@ def get_workflow_input(args, inputs):
     for value in args[0].values():
         for text in value.values():
             inputs.add(text)
-    
-    input: str = ""
+
+    workflow_input: str = ""
 
     for input_str in inputs:
-        input = input + input_str
-    return input
+        workflow_input = workflow_input + input_str
+    return workflow_input
 
 def set_workflow_attributes(span, workflow_name):
     span.set_attribute("workflow_name",workflow_name)

@@ -122,7 +122,7 @@ class Test(IsolatedAsyncioTestCase):
             wrapper_methods=[
                 WrapperMethod(
                     package="dummy_class",
-                    object="DummyClass",
+                    object_name="DummyClass",
                     method="dummy_method",
                     span_name="langchain.workflow",
                     wrapper=wrap_method()),

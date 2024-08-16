@@ -57,5 +57,5 @@ class TestHandler(unittest.TestCase):
             os.remove(trace_file_name)
         except Exception as ex:
             print("Got error " + str(ex))
-            assert false
+            assert False
 

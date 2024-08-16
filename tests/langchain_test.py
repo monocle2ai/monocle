@@ -18,7 +18,16 @@ from langchain.schema import StrOutputParser
 from langchain_community.vectorstores import faiss
 from langchain_core.messages.ai import AIMessage
 from langchain_core.runnables import RunnablePassthrough
-from monocle_apptrace.constants import AZURE_APP_SERVICE_ENV_NAME, AZURE_APP_SERVICE_NAME, AZURE_FUNCTION_NAME, AZURE_FUNCTION_WORKER_ENV_NAME, AZURE_ML_ENDPOINT_ENV_NAME, AZURE_ML_SERVICE_NAME
+from monocle_apptrace.constants import (
+    AZURE_APP_SERVICE_ENV_NAME,
+    AZURE_APP_SERVICE_NAME,
+    AZURE_FUNCTION_NAME,
+    AZURE_FUNCTION_WORKER_ENV_NAME,
+    AZURE_ML_ENDPOINT_ENV_NAME,
+    AZURE_ML_SERVICE_NAME,
+    AWS_LAMBDA_ENV_NAME,
+    AWS_LAMBDA_SERVICE_NAME
+)
 from monocle_apptrace.instrumentor import (
     MonocleInstrumentor,
     set_context_properties,
@@ -112,6 +121,7 @@ class TestHandler(unittest.TestCase):
        ("1", AZURE_ML_ENDPOINT_ENV_NAME, AZURE_ML_SERVICE_NAME),
        ("2", AZURE_FUNCTION_WORKER_ENV_NAME, AZURE_FUNCTION_NAME),
        ("3", AZURE_APP_SERVICE_ENV_NAME, AZURE_APP_SERVICE_NAME),
+       ("4", AWS_LAMBDA_ENV_NAME, AWS_LAMBDA_SERVICE_NAME),
     ])
     @patch.object(requests.Session, 'post')
     def test_llm_chain(self, test_name, test_input_infra, test_output_infra, mock_post):

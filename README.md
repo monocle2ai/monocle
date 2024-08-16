@@ -29,7 +29,7 @@ The traces are compatible with OpenTelemetry format. They are further enriched t
 ```
 - Enable Monocle tracing in your app by adding following
 ```
-    setup_okahu_telemetry(workflow_name="your-app-name")
+    setup_monocle_telemetry(workflow_name="your-app-name")
 ```
 Please refer to [Monocle user guide](Monocle_User_Guide.md) for more details
 

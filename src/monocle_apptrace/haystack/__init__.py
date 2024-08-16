@@ -1,28 +1,9 @@
 
-
+import os
 import logging
-from monocle_apptrace.haystack.wrap_openai import wrap_openai
-from monocle_apptrace.haystack.wrap_pipeline import wrap as wrap_pipeline
+from monocle_apptrace.utils import load_wrapper_from_config
 
 logger = logging.getLogger(__name__)
-
-HAYSTACK_METHODS = [
-    {
-        "package": "haystack.components.generators.openai",
-        "object": "OpenAIGenerator",
-        "method": "run",
-        "wrapper": wrap_openai,
-    },
-    {
-        "package": "haystack.components.generators.chat.openai",
-        "object": "OpenAIChatGenerator",
-        "method": "run",
-        "wrapper": wrap_openai,
-    },
-    {
-        "package": "haystack.core.pipeline.pipeline",
-        "object": "Pipeline",
-        "method": "run",
-        "wrapper": wrap_pipeline,
-    },
-]
+parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+HAYSTACK_METHODS = load_wrapper_from_config(
+    os.path.join(parent_dir, 'wrapper_config', 'haystack_methods.json'))

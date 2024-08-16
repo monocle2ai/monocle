@@ -10,9 +10,10 @@ from opentelemetry.sdk.trace import TracerProvider, Span
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, SpanProcessor
 from opentelemetry.sdk.resources import SERVICE_NAME, Resource
 from opentelemetry import trace
+from opentelemetry.context import get_value, attach, set_value
 from monocle_apptrace.wrap_common import CONTEXT_PROPERTIES_KEY
 from monocle_apptrace.wrapper import INBUILT_METHODS_LIST, WrapperMethod
-from opentelemetry.context import get_value, attach, set_value
+from monocle_apptrace.exporters.file_exporter import FileSpanExporter
 
 
 logger = logging.getLogger(__name__)
@@ -20,15 +21,15 @@ logger = logging.getLogger(__name__)
 _instruments = ("langchain >= 0.0.346",)
 
 class MonocleInstrumentor(BaseInstrumentor):
-    
+
     workflow_name: str = ""
     user_wrapper_methods: list[WrapperMethod] = []
     instrumented_method_list: list[object] = []
-    
+
     def __init__(
             self,
-            user_wrapper_methods: list[WrapperMethod] = []) -> None:
-        self.user_wrapper_methods = user_wrapper_methods
+            user_wrapper_methods: list[WrapperMethod] = None) -> None:
+        self.user_wrapper_methods = user_wrapper_methods or []
         super().__init__()
 
     def instrumentation_dependencies(self) -> Collection[str]:
@@ -63,11 +64,11 @@ class MonocleInstrumentor(BaseInstrumentor):
                 self.instrumented_method_list.append(wrapped_method)
             except Exception as ex:
                 if wrapped_method in user_method_list:
-                    logger.error(f"""_instrument wrap Exception: {str(ex)} 
+                    logger.error(f"""_instrument wrap Exception: {str(ex)}
                                 for package: {wrap_package},
                                 object:{wrap_object},
                                 method:{wrap_method}""")
-            
+
 
     def _uninstrument(self, **kwargs):
         for wrapped_method in self.instrumented_method_list:
@@ -80,33 +81,33 @@ class MonocleInstrumentor(BaseInstrumentor):
                     wrap_method,
                 )
             except Exception as ex:
-                logger.error(f"""_instrument unwrap Exception: {str(ex)} 
+                logger.error(f"""_instrument unwrap Exception: {str(ex)}
                              for package: {wrap_package},
                              object:{wrap_object},
                              method:{wrap_method}""")
-           
 
 def setup_monocle_telemetry(
         workflow_name: str,
-        span_processors: List[SpanProcessor] = [],
-        wrapper_methods: List[WrapperMethod] = []):
+        span_processors: List[SpanProcessor] = None,
+        wrapper_methods: List[WrapperMethod] = None):
     resource = Resource(attributes={
         SERVICE_NAME: workflow_name
     })
-    traceProvider = TracerProvider(resource=resource)
-    tracerProviderDefault = trace.get_tracer_provider()
-    providerType = type(tracerProviderDefault).__name__
-    isProxyProvider = "Proxy" in providerType
+    span_processors = span_processors or [BatchSpanProcessor(FileSpanExporter())]
+    trace_provider = TracerProvider(resource=resource)
+    tracer_provider_default = trace.get_tracer_provider()
+    provider_type = type(tracer_provider_default).__name__
+    is_proxy_provider = "Proxy" in provider_type
     for processor in span_processors:
         processor.on_start = on_processor_start
-        if not isProxyProvider:
-            tracerProviderDefault.add_span_processor(processor)
+        if not is_proxy_provider:
+            tracer_provider_default.add_span_processor(processor)
         else :
-            traceProvider.add_span_processor(processor)
-    if isProxyProvider :
-        trace.set_tracer_provider(traceProvider)
-    instrumentor = MonocleInstrumentor(user_wrapper_methods=wrapper_methods)
-    instrumentor.app_name = workflow_name
+            trace_provider.add_span_processor(processor)
+    if is_proxy_provider :
+        trace.set_tracer_provider(trace_provider)
+    instrumentor = MonocleInstrumentor(user_wrapper_methods=wrapper_methods or [])
+    # instrumentor.app_name = workflow_name
     if not instrumentor.is_instrumented_by_opentelemetry:
         instrumentor.instrument()
 
@@ -117,11 +118,7 @@ def on_processor_start(span: Span, parent_context):
         for key, value in context_properties.items():
             span.set_attribute(
                 f"{CONTEXT_PROPERTIES_KEY}.{key}", value
-            )    
+            )
 
 def set_context_properties(properties: dict) -> None:
     attach(set_value(CONTEXT_PROPERTIES_KEY, properties))
-
-
-
-

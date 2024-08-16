@@ -86,7 +86,8 @@ print(result)
 #         "workflow_input": "What is Task Decomposition?",
 #         "workflow_name": "langchain_app_1",
 #         "workflow_output": "Task decomposition is a technique where complex tasks are broken down into smaller and simpler steps to enhance model performance. This process allows agents to tackle difficult tasks by transforming them into more manageable components. Task decomposition can be achieved through various methods such as using prompting techniques, task-specific instructions, or human inputs.",
-#         "workflow_type": "workflow.langchain"
+#         "workflow_type": "workflow.langchain",
+#         "infra_service_name": "azure.func"
 #     },
 #     "events": []
 # },
@@ -99,7 +100,9 @@ print(result)
 #     "trace_id": "0x4d297d14b25c3891eb4dd8b28453e91a",
 #     "parent_id": "0x0c44185b267d8652",
 #     "attributes": {
-#         "openai_model_name": "gpt-3.5-turbo-0125"
+#         "model_name": "gpt-3.5-turbo-0125",
+#         "model_name": "gpt-3.5-turbo-0125",
+#         "provider_name": "openai.com",
 #     },
 #     "events": []
 # },

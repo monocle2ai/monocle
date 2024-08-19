@@ -3,7 +3,7 @@ import json
 from importlib import import_module
 import os
 from opentelemetry.trace import Span
-from monocle_apptrace.constants import AZURE_APP_SERVICE_ENV_NAME, AZURE_APP_SERVICE_NAME, AZURE_FUNCTION_NAME, AZURE_FUNCTION_WORKER_ENV_NAME, AZURE_ML_ENDPOINT_ENV_NAME, AZURE_ML_SERVICE_NAME
+from monocle_apptrace.constants import azure_service_map, aws_service_map
 
 def set_span_attribute(span, name, value):
     if value is not None:
@@ -65,9 +65,9 @@ def get_wrapper_method(package_name: str, method_name: str):
     return getattr(wrapper_module, method_name)
 
 def update_span_with_infra_name(span: Span, span_key: str):
-    if AZURE_FUNCTION_WORKER_ENV_NAME in os.environ:
-        span.set_attribute(span_key, AZURE_FUNCTION_NAME)
-    elif AZURE_APP_SERVICE_ENV_NAME in os.environ:
-        span.set_attribute(span_key, AZURE_APP_SERVICE_NAME)
-    elif AZURE_ML_ENDPOINT_ENV_NAME in os.environ:
-        span.set_attribute(span_key, AZURE_ML_SERVICE_NAME)
+    for key,val  in azure_service_map.items():
+        if key in os.environ:
+            span.set_attribute(span_key, val)
+    for key,val  in aws_service_map.items():
+        if key in os.environ:
+            span.set_attribute(span_key, val)

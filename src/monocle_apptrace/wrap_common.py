@@ -201,18 +201,16 @@ def update_span_from_llm_response(response, span: Span):
             span.set_attribute("total_tokens", token_usage.get("total_tokens"))
     # extract token usage from llamaindex openai
     if(response is not None and hasattr(response, "raw")):
-        if isinstance(response.raw, dict):
-            try:
-                token_usage = response.raw.get("usage")
-                if token_usage is not None:
-                    if "completion_tokens" in token_usage:
-                        span.set_attribute("completion_tokens", token_usage["completion_tokens"])
-                    if "prompt_tokens" in token_usage:
-                        span.set_attribute("prompt_tokens", token_usage["prompt_tokens"])
-                    if "total_tokens" in token_usage:
-                        span.set_attribute("total_tokens", token_usage["total_tokens"])
-            except AttributeError:
-                token_usage = None
+        if response.raw is not None:
+            token_usage = response.raw.get("usage") if isinstance(response.raw, dict) else getattr(response.raw, "usage", None)
+            if token_usage is not None:
+                if getattr(token_usage, "completion_tokens", None):
+                    span.set_attribute("completion_tokens", getattr(token_usage, "completion_tokens"))
+                if getattr(token_usage, "prompt_tokens", None):
+                    span.set_attribute("prompt_tokens", getattr(token_usage, "prompt_tokens"))
+                if getattr(token_usage, "total_tokens", None):
+                    span.set_attribute("total_tokens", getattr(token_usage, "total_tokens"))
+
 
 def update_workflow_type(to_wrap, span: Span):
     package_name = to_wrap.get('package')

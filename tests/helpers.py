@@ -10,6 +10,17 @@ from llama_index.core.llms import (
 )
 from llama_index.core.llms.callbacks import llm_completion_callback
 
+class TestChatCompletion:
+    
+    def __init__(self, usage):
+        self.usage = usage 
+
+class TestCompletionUsage:
+    
+    def __init__(self, completion_tokens, prompt_tokens, total_tokens):
+        self.completion_tokens = completion_tokens
+        self.prompt_tokens = prompt_tokens 
+        self.total_tokens = total_tokens
 
 class OurLLM(CustomLLM):
     context_window: int = 3900
@@ -28,7 +39,15 @@ class OurLLM(CustomLLM):
 
     @llm_completion_callback()
     def complete(self, prompt: str, **kwargs: Any) -> CompletionResponse:
-        return CompletionResponse(text=self.dummy_response)
+        return CompletionResponse(
+            text=self.dummy_response,
+            raw= {
+                "usage": TestCompletionUsage(
+                    completion_tokens=1,
+                    prompt_tokens = 2,
+                    total_tokens=3
+                )
+            })
 
     @llm_completion_callback()
     def stream_complete(

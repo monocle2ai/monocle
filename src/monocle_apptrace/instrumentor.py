@@ -18,7 +18,7 @@ from monocle_apptrace.exporters.file_exporter import FileSpanExporter
 
 logger = logging.getLogger(__name__)
 
-_instruments = ("langchain >= 0.0.346",)
+_instruments = ()
 
 class MonocleInstrumentor(BaseInstrumentor):
 

@@ -201,7 +201,7 @@ def update_span_from_llm_response(response, span: Span):
             span.set_attribute("total_tokens", token_usage.get("total_tokens"))
     # extract token usage from llamaindex openai
     if(response is not None and hasattr(response, "raw")):
-        if type(response.raw) == dict:
+        if isinstance(response.raw, dict):
             try:
                 token_usage = response.raw.get("usage")
                 if token_usage is not None:

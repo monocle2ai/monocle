@@ -191,6 +191,7 @@ def get_input_from_args(chain_args):
     return ""
 
 def update_span_from_llm_response(response, span: Span):
+    
     # extract token uasge from langchain openai
     if (response is not None and hasattr(response, "response_metadata")):
         response_metadata = response.response_metadata
@@ -201,15 +202,19 @@ def update_span_from_llm_response(response, span: Span):
             span.set_attribute("total_tokens", token_usage.get("total_tokens"))
     # extract token usage from llamaindex openai
     if(response is not None and hasattr(response, "raw")):
-        if response.raw is not None:
-            token_usage = response.raw.get("usage")
-            if token_usage is not None:
-                if hasattr(token_usage, "completion_tokens"):
-                    span.set_attribute("completion_tokens", token_usage.completion_tokens)
-                if hasattr(token_usage, "prompt_tokens"):
-                    span.set_attribute("prompt_tokens", token_usage.prompt_tokens)
-                if hasattr(token_usage, "total_tokens"):
-                    span.set_attribute("total_tokens", token_usage.total_tokens)
+        try:
+            if response.raw is not None:
+                token_usage = response.raw.get("usage") if isinstance(response.raw, dict) else getattr(response.raw, "usage", None)
+                if token_usage is not None:
+                    if getattr(token_usage, "completion_tokens", None):
+                        span.set_attribute("completion_tokens", getattr(token_usage, "completion_tokens"))
+                    if getattr(token_usage, "prompt_tokens", None):
+                        span.set_attribute("prompt_tokens", getattr(token_usage, "prompt_tokens"))
+                    if getattr(token_usage, "total_tokens", None):
+                        span.set_attribute("total_tokens", getattr(token_usage, "total_tokens"))
+        except AttributeError:
+            token_usage = None
+
 
 def update_workflow_type(to_wrap, span: Span):
     package_name = to_wrap.get('package')

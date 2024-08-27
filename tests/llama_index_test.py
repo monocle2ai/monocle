@@ -28,7 +28,7 @@ from monocle_apptrace.wrap_common import (
     llm_wrapper,
 )
 from monocle_apptrace.wrapper import WrapperMethod
-from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
 
 logger = logging.getLogger(__name__)
 
@@ -55,7 +55,8 @@ class TestHandler(unittest.TestCase):
         setup_monocle_telemetry(
             workflow_name="llama_index_1",
             span_processors=[
-                    BatchSpanProcessor(HttpSpanExporter(os.environ["HTTP_INGESTION_ENDPOINT"]))
+                    BatchSpanProcessor(HttpSpanExporter(os.environ["HTTP_INGESTION_ENDPOINT"])),
+                    BatchSpanProcessor(ConsoleSpanExporter())
                 ],
             wrapper_methods=[
                         WrapperMethod(
@@ -119,9 +120,13 @@ class TestHandler(unittest.TestCase):
         assert output_event_attributes[RESPONSE] == llm.dummy_response
 
         span_names: List[str] = [span["name"] for span in dataJson['batch']]
+        llm_span = [x for x in  dataJson["batch"] if "llamaindex.OurLLM" in x["name"]][0]
         for name in ["llamaindex.retrieve", "llamaindex.query", "llamaindex.OurLLM"]:
             assert name in span_names
-
+        assert llm_span["attributes"]["completion_tokens"] == 1
+        assert llm_span["attributes"]["prompt_tokens"] == 2
+        assert llm_span["attributes"]["total_tokens"] == 3
+        
         type_found = False
         model_name_found = False
 

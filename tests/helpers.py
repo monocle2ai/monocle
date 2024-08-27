@@ -28,7 +28,15 @@ class OurLLM(CustomLLM):
 
     @llm_completion_callback()
     def complete(self, prompt: str, **kwargs: Any) -> CompletionResponse:
-        return CompletionResponse(text=self.dummy_response)
+        return CompletionResponse(
+            text=self.dummy_response,
+            raw= {
+                "usage": {
+                    "completion_tokens": 1,
+                    "prompt_tokens": 2,
+                    "total_tokens": 3
+                }
+            })
 
     @llm_completion_callback()
     def stream_complete(

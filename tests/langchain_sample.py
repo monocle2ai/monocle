@@ -137,7 +137,6 @@ print(result)
 #     "trace_id": "0x4d297d14b25c3891eb4dd8b28453e91a",
 #     "parent_id": "0x7f0f48ee79169b5f",
 #     "attributes": {
-#         "workflow_context_input": "What is Task Decomposition?"
 #     },
 #     "events": []
 # }

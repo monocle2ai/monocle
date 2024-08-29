@@ -58,8 +58,6 @@ print(response)
 #             "trace_id": "0xbd54e5d0edcd96634fa8a02c25c27519",
 #             "parent_id": "0xb4b14a8f14e7e770",
 #             "attributes": {
-#                 "workflow_context_input": "What did the author do growing up?",
-#                 "workflow_context_output": "this is some sample text"
 #             },
 #             "events": []
 #         },

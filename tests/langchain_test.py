@@ -34,7 +34,7 @@ from monocle_apptrace.instrumentor import (
     setup_monocle_telemetry,
 )
 from monocle_apptrace.wrap_common import (
-    CONTEXT_PROPERTIES_KEY,
+    SESSION_PROPERTIES_KEY,
     INFRA_SERVICE_KEY,
     PROMPT_INPUT_KEY,
     PROMPT_OUTPUT_KEY,
@@ -168,7 +168,7 @@ class TestHandler(unittest.TestCase):
             
             assert input_event_attributes[QUERY] == query
             assert output_event_attributes[RESPONSE] == TestHandler.ragText
-            assert root_span_attributes[f"{CONTEXT_PROPERTIES_KEY}.{context_key}"] == context_value
+            assert root_span_attributes[f"{SESSION_PROPERTIES_KEY}.{context_key}"] == context_value
             assert root_span_attributes[INFRA_SERVICE_KEY] == test_output_infra
 
             for spanObject in dataJson['batch']:

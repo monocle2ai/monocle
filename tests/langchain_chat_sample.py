@@ -154,8 +154,7 @@ print(ai_msg_2["answer"])
 #         "status_code": "UNSET"
 #     },
 #     "attributes": {
-#         "context.session_id": "0x4fa6d91d1f2a4bdbb7a1287d90ec4a16",
-#         "workflow_context_input": "What is Task Decomposition?"
+#         "session.session_id": "0x4fa6d91d1f2a4bdbb7a1287d90ec4a16"
 #     },
 #     "events": [],
 #     "links": [],
@@ -181,7 +180,7 @@ print(ai_msg_2["answer"])
 #         "status_code": "UNSET"
 #     },
 #     "attributes": {
-#         "context.session_id": "0x4fa6d91d1f2a4bdbb7a1287d90ec4a16"
+#         "session.session_id": "0x4fa6d91d1f2a4bdbb7a1287d90ec4a16"
 #     },
 #     "events": [],
 #     "links": [],
@@ -207,7 +206,7 @@ print(ai_msg_2["answer"])
 #         "status_code": "UNSET"
 #     },
 #     "attributes": {
-#         "context.session_id": "0x4fa6d91d1f2a4bdbb7a1287d90ec4a16"
+#         "session.session_id": "0x4fa6d91d1f2a4bdbb7a1287d90ec4a16"
 #     },
 #     "events": [],
 #     "links": [],
@@ -233,7 +232,7 @@ print(ai_msg_2["answer"])
 #         "status_code": "UNSET"
 #     },
 #     "attributes": {
-#         "context.session_id": "0x4fa6d91d1f2a4bdbb7a1287d90ec4a16"
+#         "session.session_id": "0x4fa6d91d1f2a4bdbb7a1287d90ec4a16"
 #     },
 #     "events": [],
 #     "links": [],
@@ -259,7 +258,7 @@ print(ai_msg_2["answer"])
 #         "status_code": "UNSET"
 #     },
 #     "attributes": {
-#         "context.session_id": "0x4fa6d91d1f2a4bdbb7a1287d90ec4a16"
+#         "session.session_id": "0x4fa6d91d1f2a4bdbb7a1287d90ec4a16"
 #     },
 #     "events": [],
 #     "links": [],
@@ -285,7 +284,7 @@ print(ai_msg_2["answer"])
 #         "status_code": "UNSET"
 #     },
 #     "attributes": {
-#         "context.session_id": "0x4fa6d91d1f2a4bdbb7a1287d90ec4a16",
+#         "session.session_id": "0x4fa6d91d1f2a4bdbb7a1287d90ec4a16",
 #         "server_url": "http://triton22.eastus.cloudapp.azure.com:8000/v2/models/flan_t5_783m/versions/1/infer",
 #         "completion_tokens": 57,
 #         "prompt_tokens": 580,
@@ -315,7 +314,7 @@ print(ai_msg_2["answer"])
 #         "status_code": "UNSET"
 #     },
 #     "attributes": {
-#         "context.session_id": "0x4fa6d91d1f2a4bdbb7a1287d90ec4a16"
+#         "session.session_id": "0x4fa6d91d1f2a4bdbb7a1287d90ec4a16"
 #     },
 #     "events": [],
 #     "links": [],
@@ -341,7 +340,7 @@ print(ai_msg_2["answer"])
 #         "status_code": "UNSET"
 #     },
 #     "attributes": {
-#         "context.session_id": "0x4fa6d91d1f2a4bdbb7a1287d90ec4a16"
+#         "session.session_id": "0x4fa6d91d1f2a4bdbb7a1287d90ec4a16"
 #     },
 #     "events": [],
 #     "links": [],
@@ -367,7 +366,7 @@ print(ai_msg_2["answer"])
 #         "status_code": "UNSET"
 #     },
 #     "attributes": {
-#         "context.session_id": "0x4fa6d91d1f2a4bdbb7a1287d90ec4a16"
+#         "session.session_id": "0x4fa6d91d1f2a4bdbb7a1287d90ec4a16"
 #     },
 #     "events": [],
 #     "links": [],
@@ -393,7 +392,7 @@ print(ai_msg_2["answer"])
 #         "status_code": "UNSET"
 #     },
 #     "attributes": {
-#         "context.session_id": "0x4fa6d91d1f2a4bdbb7a1287d90ec4a16",
+#         "session.session_id": "0x4fa6d91d1f2a4bdbb7a1287d90ec4a16",
 #         "workflow_input": "What is Task Decomposition?",
 #         "workflow_name": "langchain_app_1",
 #         "workflow_output": "Task decomposition is a technique used to break down complex tasks into smaller and more manageable steps. This process helps agents or models handle intricate tasks by dividing them into simpler subtasks. Various methods, such as Chain of Thought and Tree of Thoughts, can be employed to decompose tasks effectively.",
@@ -423,7 +422,7 @@ print(ai_msg_2["answer"])
 #         "status_code": "UNSET"
 #     },
 #     "attributes": {
-#         "context.session_id": "0x4fa6d91d1f2a4bdbb7a1287d90ec4a16"
+#         "session.session_id": "0x4fa6d91d1f2a4bdbb7a1287d90ec4a16"
 #     },
 #     "events": [],
 #     "links": [],
@@ -449,7 +448,7 @@ print(ai_msg_2["answer"])
 #         "status_code": "UNSET"
 #     },
 #     "attributes": {
-#         "context.session_id": "0x4fa6d91d1f2a4bdbb7a1287d90ec4a16",
+#         "session.session_id": "0x4fa6d91d1f2a4bdbb7a1287d90ec4a16",
 #         "server_url": "http://triton22.eastus.cloudapp.azure.com:8000/v2/models/flan_t5_783m/versions/1/infer",
 #         "completion_tokens": 10,
 #         "prompt_tokens": 140,
@@ -479,7 +478,7 @@ print(ai_msg_2["answer"])
 #         "status_code": "UNSET"
 #     },
 #     "attributes": {
-#         "context.session_id": "0x4fa6d91d1f2a4bdbb7a1287d90ec4a16"
+#         "session.session_id": "0x4fa6d91d1f2a4bdbb7a1287d90ec4a16"
 #     },
 #     "events": [],
 #     "links": [],
@@ -505,8 +504,7 @@ print(ai_msg_2["answer"])
 #         "status_code": "UNSET"
 #     },
 #     "attributes": {
-#         "context.session_id": "0x4fa6d91d1f2a4bdbb7a1287d90ec4a16",
-#         "workflow_context_input": "What are some common methods used for task decomposition?"
+#         "session.session_id": "0x4fa6d91d1f2a4bdbb7a1287d90ec4a16"
 #     },
 #     "events": [],
 #     "links": [],
@@ -532,7 +530,7 @@ print(ai_msg_2["answer"])
 #         "status_code": "UNSET"
 #     },
 #     "attributes": {
-#         "context.session_id": "0x4fa6d91d1f2a4bdbb7a1287d90ec4a16"
+#         "session.session_id": "0x4fa6d91d1f2a4bdbb7a1287d90ec4a16"
 #     },
 #     "events": [],
 #     "links": [],
@@ -558,7 +556,7 @@ print(ai_msg_2["answer"])
 #         "status_code": "UNSET"
 #     },
 #     "attributes": {
-#         "context.session_id": "0x4fa6d91d1f2a4bdbb7a1287d90ec4a16"
+#         "session.session_id": "0x4fa6d91d1f2a4bdbb7a1287d90ec4a16"
 #     },
 #     "events": [],
 #     "links": [],
@@ -584,7 +582,7 @@ print(ai_msg_2["answer"])
 #         "status_code": "UNSET"
 #     },
 #     "attributes": {
-#         "context.session_id": "0x4fa6d91d1f2a4bdbb7a1287d90ec4a16"
+#         "session.session_id": "0x4fa6d91d1f2a4bdbb7a1287d90ec4a16"
 #     },
 #     "events": [],
 #     "links": [],
@@ -610,7 +608,7 @@ print(ai_msg_2["answer"])
 #         "status_code": "UNSET"
 #     },
 #     "attributes": {
-#         "context.session_id": "0x4fa6d91d1f2a4bdbb7a1287d90ec4a16"
+#         "session.session_id": "0x4fa6d91d1f2a4bdbb7a1287d90ec4a16"
 #     },
 #     "events": [],
 #     "links": [],
@@ -636,7 +634,7 @@ print(ai_msg_2["answer"])
 #         "status_code": "UNSET"
 #     },
 #     "attributes": {
-#         "context.session_id": "0x4fa6d91d1f2a4bdbb7a1287d90ec4a16",
+#         "session.session_id": "0x4fa6d91d1f2a4bdbb7a1287d90ec4a16",
 #         "server_url": "http://triton22.eastus.cloudapp.azure.com:8000/v2/models/flan_t5_783m/versions/1/infer",
 #         "completion_tokens": 63,
 #         "prompt_tokens": 619,
@@ -666,7 +664,7 @@ print(ai_msg_2["answer"])
 #         "status_code": "UNSET"
 #     },
 #     "attributes": {
-#         "context.session_id": "0x4fa6d91d1f2a4bdbb7a1287d90ec4a16"
+#         "session.session_id": "0x4fa6d91d1f2a4bdbb7a1287d90ec4a16"
 #     },
 #     "events": [],
 #     "links": [],
@@ -692,7 +690,7 @@ print(ai_msg_2["answer"])
 #         "status_code": "UNSET"
 #     },
 #     "attributes": {
-#         "context.session_id": "0x4fa6d91d1f2a4bdbb7a1287d90ec4a16"
+#         "session.session_id": "0x4fa6d91d1f2a4bdbb7a1287d90ec4a16"
 #     },
 #     "events": [],
 #     "links": [],
@@ -718,7 +716,7 @@ print(ai_msg_2["answer"])
 #         "status_code": "UNSET"
 #     },
 #     "attributes": {
-#         "context.session_id": "0x4fa6d91d1f2a4bdbb7a1287d90ec4a16"
+#         "session.session_id": "0x4fa6d91d1f2a4bdbb7a1287d90ec4a16"
 #     },
 #     "resource": {
 #         "attributes": {
@@ -742,7 +740,7 @@ print(ai_msg_2["answer"])
 #         "status_code": "UNSET"
 #     },
 #     "attributes": {
-#         "context.session_id": "0x4fa6d91d1f2a4bdbb7a1287d90ec4a16",
+#         "session.session_id": "0x4fa6d91d1f2a4bdbb7a1287d90ec4a16",
 #         "workflow_input": "What are common ways of doing it?",
 #         "workflow_name": "langchain_app_1",
 #         "workflow_output": "Task decomposition can be achieved through methods such as using Language Model (LLM) prompting with specific instructions like \"Steps for XYZ\" or \"What are the subgoals for achieving XYZ?\", providing task-specific instructions, or incorporating human inputs. These approaches help in breaking down tasks into smaller components for easier handling and execution.",

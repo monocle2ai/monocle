@@ -11,7 +11,7 @@ from opentelemetry.sdk.trace.export import BatchSpanProcessor, SpanProcessor
 from opentelemetry.sdk.resources import SERVICE_NAME, Resource
 from opentelemetry import trace
 from opentelemetry.context import get_value, attach, set_value
-from monocle_apptrace.wrap_common import CONTEXT_PROPERTIES_KEY
+from monocle_apptrace.wrap_common import SESSION_PROPERTIES_KEY
 from monocle_apptrace.wrapper import INBUILT_METHODS_LIST, WrapperMethod
 from monocle_apptrace.exporters.file_exporter import FileSpanExporter
 
@@ -113,12 +113,12 @@ def setup_monocle_telemetry(
 
 
 def on_processor_start(span: Span, parent_context):
-    context_properties = get_value(CONTEXT_PROPERTIES_KEY)
+    context_properties = get_value(SESSION_PROPERTIES_KEY)
     if context_properties is not None:
         for key, value in context_properties.items():
             span.set_attribute(
-                f"{CONTEXT_PROPERTIES_KEY}.{key}", value
+                f"{SESSION_PROPERTIES_KEY}.{key}", value
             )
 
 def set_context_properties(properties: dict) -> None:
-    attach(set_value(CONTEXT_PROPERTIES_KEY, properties))
+    attach(set_value(SESSION_PROPERTIES_KEY, properties))

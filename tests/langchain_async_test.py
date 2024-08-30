@@ -26,7 +26,7 @@ from monocle_apptrace.instrumentor import (
     setup_monocle_telemetry,
 )
 from monocle_apptrace.wrap_common import (
-    CONTEXT_PROPERTIES_KEY,
+    SESSION_PROPERTIES_KEY,
     PROMPT_INPUT_KEY,
     PROMPT_OUTPUT_KEY,
     QUERY,
@@ -168,7 +168,7 @@ class Test(IsolatedAsyncioTestCase):
             
             assert input_event_attributes[QUERY] == query
             assert output_event_attributes[RESPONSE] == Test.ragText
-            assert root_span_attributes[f"{CONTEXT_PROPERTIES_KEY}.{context_key}"] == context_value
+            assert root_span_attributes[f"{SESSION_PROPERTIES_KEY}.{context_key}"] == context_value
 
             for spanObject in dataJson['batch']:
                 assert not spanObject["context"]["span_id"].startswith("0x")

@@ -15,7 +15,7 @@ PROMPT_OUTPUT_KEY = "output"
 QUERY = "question"
 RESPONSE = "response"
 TAGS = "tags"
-CONTEXT_PROPERTIES_KEY = "workflow_context_properties"
+SESSION_PROPERTIES_KEY = "session"
 INFRA_SERVICE_KEY = "infra_service_name"
 
 

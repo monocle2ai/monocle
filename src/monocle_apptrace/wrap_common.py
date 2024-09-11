@@ -17,7 +17,9 @@ RESPONSE = "response"
 TAGS = "tags"
 SESSION_PROPERTIES_KEY = "session"
 INFRA_SERVICE_KEY = "infra_service_name"
-
+TYPE = "type"
+PROVIDER = "provider"
+EMBEDDING_MODEL = "embedding_model"
 
 
 WORKFLOW_TYPE_MAP = {
@@ -66,6 +68,7 @@ def pre_task_processing(to_wrap, instance, args, span):
     #capture the tags attribute of the instance if present, else ignore
     try:
         update_tags(instance, span)
+        update_attributes(instance, span)
     except AttributeError:
         pass
     update_span_with_context_input(to_wrap=to_wrap, wrapped_args=args, span=span)
@@ -264,5 +267,30 @@ def update_tags(instance, span):
         model_name = instance.retriever._embed_model.model_name
         vector_store_name = type(instance.retriever._vector_store).__name__
         span.set_attribute(TAGS, [model_name, vector_store_name])
+    except:
+        pass
+
+
+def update_attributes(instance, span):
+    """
+       Updates the telemetry span attributes for vector store retrieval tasks.
+    """
+    try:
+        # Check if the span is for a vector store retriever task from langchain
+        if span.name == 'langchain.task.VectorStoreRetriever':
+            # Extract embedding model and provider from instance tags
+            embedding_model = instance.tags[0]
+            provider = instance.tags[1]
+            # Update span attributes with type, provider, and embedding model
+            span._attributes.update({TYPE: 'vector_store'})
+            span._attributes.update({PROVIDER: provider})
+            span._attributes.update({EMBEDDING_MODEL: embedding_model})
+        elif span.name == 'llamaindex.query':
+            model_name = instance.retriever._embed_model.model_name
+            vector_store_name = type(instance.retriever._vector_store).__name__
+            span._attributes.update({TYPE: 'vector_store'})
+            span._attributes.update({PROVIDER: vector_store_name})
+            span._attributes.update({EMBEDDING_MODEL: model_name})
+
     except:
         pass

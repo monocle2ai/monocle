@@ -106,27 +106,27 @@ print(ai_msg_2["answer"])
 # {
 #     "name": "haystack.tracing.auto_enable",
 #     "context": {
-#         "trace_id": "0xc76e1ca0c1023db2dd1464f6aa3c204d",
-#         "span_id": "0x6f2a59e14e1c51b4",
+#         "trace_id": "0xa6129cbc4adb0e601ad9f0569a591613",
+#         "span_id": "0x4fb64308d7261b4a",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "None",
-#     "start_time": "2024-06-10T04:38:25.377132Z",
-#     "end_time": "2024-06-10T04:38:25.381293Z",
+#     "parent_id": null,
+#     "start_time": "2024-09-13T11:53:46.324551Z",
+#     "end_time": "2024-09-13T11:53:46.325633Z",
 #     "status": {
 #         "status_code": "ERROR",
-#         "description": "ImportError: cannot import name 'Span' from partially initialized module 'haystack.tracing' (most likely due to a circular import) (/Users/kshitizvijayvargiya/anaconda3/lib/python3.11/site-packages/haystack/tracing/__init__.py)"
+#         "description": "ImportError: cannot import name 'Span' from partially initialized module 'haystack.tracing' (most likely due to a circular import) (/home/beehyv/Documents/monocle/venv/lib/python3.10/site-packages/haystack/tracing/__init__.py)"
 #     },
 #     "attributes": {},
 #     "events": [
 #         {
 #             "name": "exception",
-#             "timestamp": "2024-06-10T04:38:25.381265Z",
+#             "timestamp": "2024-09-13T11:53:46.325617Z",
 #             "attributes": {
 #                 "exception.type": "ImportError",
-#                 "exception.message": "cannot import name 'Span' from partially initialized module 'haystack.tracing' (most likely due to a circular import) (/Users/kshitizvijayvargiya/anaconda3/lib/python3.11/site-packages/haystack/tracing/__init__.py)",
-#                 "exception.stacktrace": "Traceback (most recent call last):\n  File \"/Users/kshitizvijayvargiya/anaconda3/lib/python3.11/site-packages/opentelemetry/trace/__init__.py\", line 570, in use_span\n    yield span\n  File \"/Users/kshitizvijayvargiya/anaconda3/lib/python3.11/site-packages/opentelemetry/sdk/trace/__init__.py\", line 1071, in start_as_current_span\n    yield span\n  File \"/Users/kshitizvijayvargiya/anaconda3/lib/python3.11/site-packages/haystack/tracing/tracer.py\", line 188, in _auto_configured_opentelemetry_tracer\n    from haystack.tracing.opentelemetry import OpenTelemetryTracer\n  File \"/Users/kshitizvijayvargiya/anaconda3/lib/python3.11/site-packages/haystack/tracing/opentelemetry.py\", line 5, in <module>\n    from haystack.tracing import Span, Tracer\nImportError: cannot import name 'Span' from partially initialized module 'haystack.tracing' (most likely due to a circular import) (/Users/kshitizvijayvargiya/anaconda3/lib/python3.11/site-packages/haystack/tracing/__init__.py)\n",
+#                 "exception.message": "cannot import name 'Span' from partially initialized module 'haystack.tracing' (most likely due to a circular import) (/home/beehyv/Documents/monocle/venv/lib/python3.10/site-packages/haystack/tracing/__init__.py)",
+#                 "exception.stacktrace": "Traceback (most recent call last):\n  File \"/home/beehyv/Documents/monocle/venv/lib/python3.10/site-packages/opentelemetry/trace/__init__.py\", line 590, in use_span\n    yield span\n  File \"/home/beehyv/Documents/monocle/venv/lib/python3.10/site-packages/opentelemetry/sdk/trace/__init__.py\", line 1108, in start_as_current_span\n    yield span\n  File \"/home/beehyv/Documents/monocle/venv/lib/python3.10/site-packages/haystack/tracing/tracer.py\", line 207, in _auto_configured_opentelemetry_tracer\n    from haystack.tracing.opentelemetry import OpenTelemetryTracer\n  File \"/home/beehyv/Documents/monocle/venv/lib/python3.10/site-packages/haystack/tracing/opentelemetry.py\", line 9, in <module>\n    from haystack.tracing import Span, Tracer\nImportError: cannot import name 'Span' from partially initialized module 'haystack.tracing' (most likely due to a circular import) (/home/beehyv/Documents/monocle/venv/lib/python3.10/site-packages/haystack/tracing/__init__.py)\n",
 #                 "exception.escaped": "False"
 #             }
 #         }
@@ -140,16 +140,81 @@ print(ai_msg_2["answer"])
 #     }
 # }
 # {
+#     "name": "haystack.tracing.auto_enable",
+#     "context": {
+#         "trace_id": "0xb98697469cb0b72734a2db8e3e7c8d90",
+#         "span_id": "0x65f5cb09e1240da0",
+#         "trace_state": "[]"
+#     },
+#     "kind": "SpanKind.INTERNAL",
+#     "parent_id": null,
+#     "start_time": "2024-09-13T11:53:47.765068Z",
+#     "end_time": "2024-09-13T11:53:47.765132Z",
+#     "status": {
+#         "status_code": "UNSET"
+#     },
+#     "attributes": {},
+#     "events": [],
+#     "links": [],
+#     "resource": {
+#         "attributes": {
+#             "service.name": "langchain_app_1"
+#         },
+#         "schema_url": ""
+#     }
+# }
+# {
 #     "name": "langchain.task.VectorStoreRetriever",
 #     "context": {
-#         "trace_id": "0xca3159edb8ac4ba9fd87ba54aa5df4aa",
-#         "span_id": "0x036011bfdfdcb90a",
+#         "trace_id": "0xf490e6be306375354c564c94075ed8df",
+#         "span_id": "0xb6a2ad7ab055eaa8",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0x7afa7a66a2adfb4a",
-#     "start_time": "2024-06-10T04:38:55.693625Z",
-#     "end_time": "2024-06-10T04:38:56.241083Z",
+#     "parent_id": "0x5a377a89c97b361f",
+#     "start_time": "2024-09-13T11:53:54.945261Z",
+#     "end_time": "2024-09-13T11:53:55.622886Z",
+#     "status": {
+#         "status_code": "UNSET"
+#     },
+#     "attributes": {
+#         "session.session_id": "0x4fa6d91d1f2a4bdbb7a1287d90ec4a16",
+#         "tags": [
+#             "Chroma",
+#             "OpenAIEmbeddings"
+#         ],
+#         "type": "vector_store",
+#         "provider_name": "OpenAIEmbeddings",
+#         "embedding_model": "Chroma"
+#     },
+#     "events": [
+#         {
+#             "name": "context_input",
+#             "timestamp": "2024-09-13T11:53:54.945300Z",
+#             "attributes": {
+#                 "question": "What is Task Decomposition?"
+#             }
+#         }
+#     ],
+#     "links": [],
+#     "resource": {
+#         "attributes": {
+#             "service.name": "langchain_app_1"
+#         },
+#         "schema_url": ""
+#     }
+# }
+# {
+#     "name": "langchain.workflow",
+#     "context": {
+#         "trace_id": "0xf490e6be306375354c564c94075ed8df",
+#         "span_id": "0x5a377a89c97b361f",
+#         "trace_state": "[]"
+#     },
+#     "kind": "SpanKind.INTERNAL",
+#     "parent_id": "0xd5e3bd8abd3bd3b4",
+#     "start_time": "2024-09-13T11:53:54.943933Z",
+#     "end_time": "2024-09-13T11:53:55.622959Z",
 #     "status": {
 #         "status_code": "UNSET"
 #     },
@@ -168,14 +233,14 @@ print(ai_msg_2["answer"])
 # {
 #     "name": "langchain.workflow",
 #     "context": {
-#         "trace_id": "0xca3159edb8ac4ba9fd87ba54aa5df4aa",
-#         "span_id": "0x7afa7a66a2adfb4a",
+#         "trace_id": "0xf490e6be306375354c564c94075ed8df",
+#         "span_id": "0xd5e3bd8abd3bd3b4",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0x536c28587fc639a8",
-#     "start_time": "2024-06-10T04:38:55.692022Z",
-#     "end_time": "2024-06-10T04:38:56.241167Z",
+#     "parent_id": "0x7577b1ddc83509cf",
+#     "start_time": "2024-09-13T11:53:54.938056Z",
+#     "end_time": "2024-09-13T11:53:55.623621Z",
 #     "status": {
 #         "status_code": "UNSET"
 #     },
@@ -194,40 +259,14 @@ print(ai_msg_2["answer"])
 # {
 #     "name": "langchain.workflow",
 #     "context": {
-#         "trace_id": "0xca3159edb8ac4ba9fd87ba54aa5df4aa",
-#         "span_id": "0x536c28587fc639a8",
+#         "trace_id": "0xf490e6be306375354c564c94075ed8df",
+#         "span_id": "0x31a2623e96243933",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0xf38e594bba842099",
-#     "start_time": "2024-06-10T04:38:55.686227Z",
-#     "end_time": "2024-06-10T04:38:56.241965Z",
-#     "status": {
-#         "status_code": "UNSET"
-#     },
-#     "attributes": {
-#         "session.session_id": "0x4fa6d91d1f2a4bdbb7a1287d90ec4a16"
-#     },
-#     "events": [],
-#     "links": [],
-#     "resource": {
-#         "attributes": {
-#             "service.name": "langchain_app_1"
-#         },
-#         "schema_url": ""
-#     }
-# }
-# {
-#     "name": "langchain.workflow",
-#     "context": {
-#         "trace_id": "0xca3159edb8ac4ba9fd87ba54aa5df4aa",
-#         "span_id": "0x54fa0fc40129d7c8",
-#         "trace_state": "[]"
-#     },
-#     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0xfd62c1c2c9d666ed",
-#     "start_time": "2024-06-10T04:38:56.268526Z",
-#     "end_time": "2024-06-10T04:38:56.270750Z",
+#     "parent_id": "0xce9266e22f7c05f3",
+#     "start_time": "2024-09-13T11:53:55.652987Z",
+#     "end_time": "2024-09-13T11:53:55.654604Z",
 #     "status": {
 #         "status_code": "UNSET"
 #     },
@@ -246,14 +285,14 @@ print(ai_msg_2["answer"])
 # {
 #     "name": "langchain.task.ChatPromptTemplate",
 #     "context": {
-#         "trace_id": "0xca3159edb8ac4ba9fd87ba54aa5df4aa",
-#         "span_id": "0xcc431732937f7052",
+#         "trace_id": "0xf490e6be306375354c564c94075ed8df",
+#         "span_id": "0x4aa5fd5c16119390",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0xfd62c1c2c9d666ed",
-#     "start_time": "2024-06-10T04:38:56.270832Z",
-#     "end_time": "2024-06-10T04:38:56.271675Z",
+#     "parent_id": "0xce9266e22f7c05f3",
+#     "start_time": "2024-09-13T11:53:55.654711Z",
+#     "end_time": "2024-09-13T11:53:55.655612Z",
 #     "status": {
 #         "status_code": "UNSET"
 #     },
@@ -272,23 +311,25 @@ print(ai_msg_2["answer"])
 # {
 #     "name": "langchain.task.ChatOpenAI",
 #     "context": {
-#         "trace_id": "0xca3159edb8ac4ba9fd87ba54aa5df4aa",
-#         "span_id": "0x55453deb49cda82d",
+#         "trace_id": "0xf490e6be306375354c564c94075ed8df",
+#         "span_id": "0xb1dade5154633d8a",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0xfd62c1c2c9d666ed",
-#     "start_time": "2024-06-10T04:38:56.271747Z",
-#     "end_time": "2024-06-10T04:38:57.914210Z",
+#     "parent_id": "0xce9266e22f7c05f3",
+#     "start_time": "2024-09-13T11:53:55.655688Z",
+#     "end_time": "2024-09-13T11:53:57.997859Z",
 #     "status": {
 #         "status_code": "UNSET"
 #     },
 #     "attributes": {
 #         "session.session_id": "0x4fa6d91d1f2a4bdbb7a1287d90ec4a16",
-#         "server_url": "http://triton22.eastus.cloudapp.azure.com:8000/v2/models/flan_t5_783m/versions/1/infer",
-#         "completion_tokens": 57,
+#         "temperature": 0.7,
+#         "model_name": "gpt-3.5-turbo-0125",
+#         "provider_name": "api.openai.com",
+#         "completion_tokens": 62,
 #         "prompt_tokens": 580,
-#         "total_tokens": 637
+#         "total_tokens": 642
 #     },
 #     "events": [],
 #     "links": [],
@@ -302,14 +343,14 @@ print(ai_msg_2["answer"])
 # {
 #     "name": "langchain.task.StrOutputParser",
 #     "context": {
-#         "trace_id": "0xca3159edb8ac4ba9fd87ba54aa5df4aa",
-#         "span_id": "0x32539134995fccec",
+#         "trace_id": "0xf490e6be306375354c564c94075ed8df",
+#         "span_id": "0x61ed8cef55304a27",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0xfd62c1c2c9d666ed",
-#     "start_time": "2024-06-10T04:38:57.914369Z",
-#     "end_time": "2024-06-10T04:38:57.914929Z",
+#     "parent_id": "0xce9266e22f7c05f3",
+#     "start_time": "2024-09-13T11:53:57.998110Z",
+#     "end_time": "2024-09-13T11:53:57.998636Z",
 #     "status": {
 #         "status_code": "UNSET"
 #     },
@@ -328,14 +369,14 @@ print(ai_msg_2["answer"])
 # {
 #     "name": "langchain.workflow",
 #     "context": {
-#         "trace_id": "0xca3159edb8ac4ba9fd87ba54aa5df4aa",
-#         "span_id": "0xfd62c1c2c9d666ed",
+#         "trace_id": "0xf490e6be306375354c564c94075ed8df",
+#         "span_id": "0xce9266e22f7c05f3",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0xfcc716b485539b93",
-#     "start_time": "2024-06-10T04:38:56.261349Z",
-#     "end_time": "2024-06-10T04:38:57.914961Z",
+#     "parent_id": "0x7ad3c9118ba28f72",
+#     "start_time": "2024-09-13T11:53:55.646757Z",
+#     "end_time": "2024-09-13T11:53:57.998664Z",
 #     "status": {
 #         "status_code": "UNSET"
 #     },
@@ -354,14 +395,14 @@ print(ai_msg_2["answer"])
 # {
 #     "name": "langchain.workflow",
 #     "context": {
-#         "trace_id": "0xca3159edb8ac4ba9fd87ba54aa5df4aa",
-#         "span_id": "0xfcc716b485539b93",
+#         "trace_id": "0xf490e6be306375354c564c94075ed8df",
+#         "span_id": "0x7ad3c9118ba28f72",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0xf38e594bba842099",
-#     "start_time": "2024-06-10T04:38:56.253582Z",
-#     "end_time": "2024-06-10T04:38:57.915145Z",
+#     "parent_id": "0x7577b1ddc83509cf",
+#     "start_time": "2024-09-13T11:53:55.640859Z",
+#     "end_time": "2024-09-13T11:53:57.998842Z",
 #     "status": {
 #         "status_code": "UNSET"
 #     },
@@ -380,25 +421,32 @@ print(ai_msg_2["answer"])
 # {
 #     "name": "langchain.workflow",
 #     "context": {
-#         "trace_id": "0xca3159edb8ac4ba9fd87ba54aa5df4aa",
-#         "span_id": "0xf38e594bba842099",
+#         "trace_id": "0xf490e6be306375354c564c94075ed8df",
+#         "span_id": "0x7577b1ddc83509cf",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "None",
-#     "start_time": "2024-06-10T04:38:55.640160Z",
-#     "end_time": "2024-06-10T04:38:57.915229Z",
+#     "parent_id": null,
+#     "start_time": "2024-09-13T11:53:54.892772Z",
+#     "end_time": "2024-09-13T11:53:57.998937Z",
 #     "status": {
 #         "status_code": "UNSET"
 #     },
 #     "attributes": {
 #         "session.session_id": "0x4fa6d91d1f2a4bdbb7a1287d90ec4a16",
-#         "workflow_input": "What is Task Decomposition?",
 #         "workflow_name": "langchain_app_1",
-#         "workflow_output": "Task decomposition is a technique used to break down complex tasks into smaller and more manageable steps. This process helps agents or models handle intricate tasks by dividing them into simpler subtasks. Various methods, such as Chain of Thought and Tree of Thoughts, can be employed to decompose tasks effectively.",
 #         "workflow_type": "workflow.langchain"
 #     },
-#     "events": [],
+#     "events": [
+#         {
+#             "name": "input",
+#             "timestamp": "2024-09-13T11:53:54.892847Z",
+#             "attributes": {
+#                 "input": "What is Task Decomposition?",
+#                 "chat_history": []
+#             }
+#         }
+#     ],
 #     "links": [],
 #     "resource": {
 #         "attributes": {
@@ -410,14 +458,14 @@ print(ai_msg_2["answer"])
 # {
 #     "name": "langchain.task.ChatPromptTemplate",
 #     "context": {
-#         "trace_id": "0xfcb89e0c5f4aba8a1377664f6dee7661",
-#         "span_id": "0xa3ae254e712e3f90",
+#         "trace_id": "0x460ddbe0096e740e5fce324188e8b783",
+#         "span_id": "0xd6c40115270fbe7a",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0xa9b366f5c4fb2eda",
-#     "start_time": "2024-06-10T04:38:57.941590Z",
-#     "end_time": "2024-06-10T04:38:57.942342Z",
+#     "parent_id": "0x342dd0dfd45770e4",
+#     "start_time": "2024-09-13T11:53:58.028033Z",
+#     "end_time": "2024-09-13T11:53:58.028906Z",
 #     "status": {
 #         "status_code": "UNSET"
 #     },
@@ -436,23 +484,25 @@ print(ai_msg_2["answer"])
 # {
 #     "name": "langchain.task.ChatOpenAI",
 #     "context": {
-#         "trace_id": "0xfcb89e0c5f4aba8a1377664f6dee7661",
-#         "span_id": "0x419b04f8a3eb4883",
+#         "trace_id": "0x460ddbe0096e740e5fce324188e8b783",
+#         "span_id": "0xf772bf22bc9316c6",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0xa9b366f5c4fb2eda",
-#     "start_time": "2024-06-10T04:38:57.942406Z",
-#     "end_time": "2024-06-10T04:38:59.211431Z",
+#     "parent_id": "0x342dd0dfd45770e4",
+#     "start_time": "2024-09-13T11:53:58.028981Z",
+#     "end_time": "2024-09-13T11:53:59.002471Z",
 #     "status": {
 #         "status_code": "UNSET"
 #     },
 #     "attributes": {
 #         "session.session_id": "0x4fa6d91d1f2a4bdbb7a1287d90ec4a16",
-#         "server_url": "http://triton22.eastus.cloudapp.azure.com:8000/v2/models/flan_t5_783m/versions/1/infer",
-#         "completion_tokens": 10,
-#         "prompt_tokens": 140,
-#         "total_tokens": 150
+#         "temperature": 0.7,
+#         "model_name": "gpt-3.5-turbo-0125",
+#         "provider_name": "api.openai.com",
+#         "completion_tokens": 9,
+#         "prompt_tokens": 145,
+#         "total_tokens": 154
 #     },
 #     "events": [],
 #     "links": [],
@@ -466,14 +516,14 @@ print(ai_msg_2["answer"])
 # {
 #     "name": "langchain.task.StrOutputParser",
 #     "context": {
-#         "trace_id": "0xfcb89e0c5f4aba8a1377664f6dee7661",
-#         "span_id": "0xaaa3a958fb1da0e9",
+#         "trace_id": "0x460ddbe0096e740e5fce324188e8b783",
+#         "span_id": "0xded31022b03dc5c6",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0xa9b366f5c4fb2eda",
-#     "start_time": "2024-06-10T04:38:59.211922Z",
-#     "end_time": "2024-06-10T04:38:59.213538Z",
+#     "parent_id": "0x342dd0dfd45770e4",
+#     "start_time": "2024-09-13T11:53:59.002761Z",
+#     "end_time": "2024-09-13T11:53:59.003855Z",
 #     "status": {
 #         "status_code": "UNSET"
 #     },
@@ -492,14 +542,55 @@ print(ai_msg_2["answer"])
 # {
 #     "name": "langchain.task.VectorStoreRetriever",
 #     "context": {
-#         "trace_id": "0xfcb89e0c5f4aba8a1377664f6dee7661",
-#         "span_id": "0x3e8142ee7d8d4927",
+#         "trace_id": "0x460ddbe0096e740e5fce324188e8b783",
+#         "span_id": "0x9110963dc0694b6d",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0xa9b366f5c4fb2eda",
-#     "start_time": "2024-06-10T04:38:59.213754Z",
-#     "end_time": "2024-06-10T04:38:59.699996Z",
+#     "parent_id": "0x342dd0dfd45770e4",
+#     "start_time": "2024-09-13T11:53:59.004127Z",
+#     "end_time": "2024-09-13T11:53:59.578593Z",
+#     "status": {
+#         "status_code": "UNSET"
+#     },
+#     "attributes": {
+#         "session.session_id": "0x4fa6d91d1f2a4bdbb7a1287d90ec4a16",
+#         "tags": [
+#             "Chroma",
+#             "OpenAIEmbeddings"
+#         ],
+#         "type": "vector_store",
+#         "provider_name": "OpenAIEmbeddings",
+#         "embedding_model": "Chroma"
+#     },
+#     "events": [
+#         {
+#             "name": "context_input",
+#             "timestamp": "2024-09-13T11:53:59.004235Z",
+#             "attributes": {
+#                 "question": "What are some typical methods for task decomposition?"
+#             }
+#         }
+#     ],
+#     "links": [],
+#     "resource": {
+#         "attributes": {
+#             "service.name": "langchain_app_1"
+#         },
+#         "schema_url": ""
+#     }
+# }
+# {
+#     "name": "langchain.workflow",
+#     "context": {
+#         "trace_id": "0x460ddbe0096e740e5fce324188e8b783",
+#         "span_id": "0x342dd0dfd45770e4",
+#         "trace_state": "[]"
+#     },
+#     "kind": "SpanKind.INTERNAL",
+#     "parent_id": "0x376010a99723e8f6",
+#     "start_time": "2024-09-13T11:53:58.026890Z",
+#     "end_time": "2024-09-13T11:53:59.578649Z",
 #     "status": {
 #         "status_code": "UNSET"
 #     },
@@ -518,14 +609,14 @@ print(ai_msg_2["answer"])
 # {
 #     "name": "langchain.workflow",
 #     "context": {
-#         "trace_id": "0xfcb89e0c5f4aba8a1377664f6dee7661",
-#         "span_id": "0xa9b366f5c4fb2eda",
+#         "trace_id": "0x460ddbe0096e740e5fce324188e8b783",
+#         "span_id": "0x376010a99723e8f6",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0xefdcdb61e167f73a",
-#     "start_time": "2024-06-10T04:38:57.940414Z",
-#     "end_time": "2024-06-10T04:38:59.700076Z",
+#     "parent_id": "0x6271cda8f5cf74cc",
+#     "start_time": "2024-09-13T11:53:58.020961Z",
+#     "end_time": "2024-09-13T11:53:59.579314Z",
 #     "status": {
 #         "status_code": "UNSET"
 #     },
@@ -544,40 +635,14 @@ print(ai_msg_2["answer"])
 # {
 #     "name": "langchain.workflow",
 #     "context": {
-#         "trace_id": "0xfcb89e0c5f4aba8a1377664f6dee7661",
-#         "span_id": "0xefdcdb61e167f73a",
+#         "trace_id": "0x460ddbe0096e740e5fce324188e8b783",
+#         "span_id": "0x3abe3e6f01faf7d3",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0xffdc0a0d41b85218",
-#     "start_time": "2024-06-10T04:38:57.934140Z",
-#     "end_time": "2024-06-10T04:38:59.700674Z",
-#     "status": {
-#         "status_code": "UNSET"
-#     },
-#     "attributes": {
-#         "session.session_id": "0x4fa6d91d1f2a4bdbb7a1287d90ec4a16"
-#     },
-#     "events": [],
-#     "links": [],
-#     "resource": {
-#         "attributes": {
-#             "service.name": "langchain_app_1"
-#         },
-#         "schema_url": ""
-#     }
-# }
-# {
-#     "name": "langchain.workflow",
-#     "context": {
-#         "trace_id": "0xfcb89e0c5f4aba8a1377664f6dee7661",
-#         "span_id": "0xa0b015ed781ad960",
-#         "trace_state": "[]"
-#     },
-#     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0x3711b72dfa932d3e",
-#     "start_time": "2024-06-10T04:38:59.726886Z",
-#     "end_time": "2024-06-10T04:38:59.729179Z",
+#     "parent_id": "0xe78159af24754221",
+#     "start_time": "2024-09-13T11:53:59.603308Z",
+#     "end_time": "2024-09-13T11:53:59.604992Z",
 #     "status": {
 #         "status_code": "UNSET"
 #     },
@@ -596,14 +661,14 @@ print(ai_msg_2["answer"])
 # {
 #     "name": "langchain.task.ChatPromptTemplate",
 #     "context": {
-#         "trace_id": "0xfcb89e0c5f4aba8a1377664f6dee7661",
-#         "span_id": "0x0768296ba09b7230",
+#         "trace_id": "0x460ddbe0096e740e5fce324188e8b783",
+#         "span_id": "0x932b5b9249809e07",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0x3711b72dfa932d3e",
-#     "start_time": "2024-06-10T04:38:59.729256Z",
-#     "end_time": "2024-06-10T04:38:59.730086Z",
+#     "parent_id": "0xe78159af24754221",
+#     "start_time": "2024-09-13T11:53:59.605136Z",
+#     "end_time": "2024-09-13T11:53:59.606022Z",
 #     "status": {
 #         "status_code": "UNSET"
 #     },
@@ -619,26 +684,29 @@ print(ai_msg_2["answer"])
 #         "schema_url": ""
 #     }
 # }
+# Common ways of task decomposition include using techniques like Chain of Thought (CoT) and Tree of Thoughts, which break down tasks into smaller steps for easier execution. Task decomposition can also be done through simple prompting using language models, task-specific instructions tailored to the specific task, or by incorporating human inputs to guide the decomposition process.
 # {
 #     "name": "langchain.task.ChatOpenAI",
 #     "context": {
-#         "trace_id": "0xfcb89e0c5f4aba8a1377664f6dee7661",
-#         "span_id": "0xa32f64207539d7a8",
+#         "trace_id": "0x460ddbe0096e740e5fce324188e8b783",
+#         "span_id": "0x95bb04f2be7f0ef0",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0x3711b72dfa932d3e",
-#     "start_time": "2024-06-10T04:38:59.730152Z",
-#     "end_time": "2024-06-10T04:39:01.261308Z",
+#     "parent_id": "0xe78159af24754221",
+#     "start_time": "2024-09-13T11:53:59.606117Z",
+#     "end_time": "2024-09-13T11:54:01.052883Z",
 #     "status": {
 #         "status_code": "UNSET"
 #     },
 #     "attributes": {
 #         "session.session_id": "0x4fa6d91d1f2a4bdbb7a1287d90ec4a16",
-#         "server_url": "http://triton22.eastus.cloudapp.azure.com:8000/v2/models/flan_t5_783m/versions/1/infer",
-#         "completion_tokens": 63,
-#         "prompt_tokens": 619,
-#         "total_tokens": 682
+#         "temperature": 0.7,
+#         "model_name": "gpt-3.5-turbo-0125",
+#         "provider_name": "api.openai.com",
+#         "completion_tokens": 65,
+#         "prompt_tokens": 658,
+#         "total_tokens": 723
 #     },
 #     "events": [],
 #     "links": [],
@@ -652,14 +720,14 @@ print(ai_msg_2["answer"])
 # {
 #     "name": "langchain.task.StrOutputParser",
 #     "context": {
-#         "trace_id": "0xfcb89e0c5f4aba8a1377664f6dee7661",
-#         "span_id": "0xb664f045c3716fa3",
+#         "trace_id": "0x460ddbe0096e740e5fce324188e8b783",
+#         "span_id": "0xf08d575527e91af2",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0x3711b72dfa932d3e",
-#     "start_time": "2024-06-10T04:39:01.261566Z",
-#     "end_time": "2024-06-10T04:39:01.262450Z",
+#     "parent_id": "0xe78159af24754221",
+#     "start_time": "2024-09-13T11:54:01.053197Z",
+#     "end_time": "2024-09-13T11:54:01.054195Z",
 #     "status": {
 #         "status_code": "UNSET"
 #     },
@@ -678,14 +746,14 @@ print(ai_msg_2["answer"])
 # {
 #     "name": "langchain.workflow",
 #     "context": {
-#         "trace_id": "0xfcb89e0c5f4aba8a1377664f6dee7661",
-#         "span_id": "0x3711b72dfa932d3e",
+#         "trace_id": "0x460ddbe0096e740e5fce324188e8b783",
+#         "span_id": "0xe78159af24754221",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0x0a6e7fac9826a16c",
-#     "start_time": "2024-06-10T04:38:59.719843Z",
-#     "end_time": "2024-06-10T04:39:01.262503Z",
+#     "parent_id": "0x29c21e517e9a247a",
+#     "start_time": "2024-09-13T11:53:59.597366Z",
+#     "end_time": "2024-09-13T11:54:01.054250Z",
 #     "status": {
 #         "status_code": "UNSET"
 #     },
@@ -704,20 +772,22 @@ print(ai_msg_2["answer"])
 # {
 #     "name": "langchain.workflow",
 #     "context": {
-#         "trace_id": "0xfcb89e0c5f4aba8a1377664f6dee7661",
-#         "span_id": "0x0a6e7fac9826a16c",
+#         "trace_id": "0x460ddbe0096e740e5fce324188e8b783",
+#         "span_id": "0x29c21e517e9a247a",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0xffdc0a0d41b85218",
-#     "start_time": "2024-06-10T04:38:59.712013Z",
-#     "end_time": "2024-06-10T04:39:01.262831Z",
+#     "parent_id": "0x6271cda8f5cf74cc",
+#     "start_time": "2024-09-13T11:53:59.592121Z",
+#     "end_time": "2024-09-13T11:54:01.054516Z",
 #     "status": {
 #         "status_code": "UNSET"
 #     },
 #     "attributes": {
 #         "session.session_id": "0x4fa6d91d1f2a4bdbb7a1287d90ec4a16"
 #     },
+#     "events": [],
+#     "links": [],
 #     "resource": {
 #         "attributes": {
 #             "service.name": "langchain_app_1"
@@ -728,25 +798,31 @@ print(ai_msg_2["answer"])
 # {
 #     "name": "langchain.workflow",
 #     "context": {
-#         "trace_id": "0xfcb89e0c5f4aba8a1377664f6dee7661",
-#         "span_id": "0xffdc0a0d41b85218",
+#         "trace_id": "0x460ddbe0096e740e5fce324188e8b783",
+#         "span_id": "0x6271cda8f5cf74cc",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "None",
-#     "start_time": "2024-06-10T04:38:57.915422Z",
-#     "end_time": "2024-06-10T04:39:01.262926Z",
+#     "parent_id": null,
+#     "start_time": "2024-09-13T11:53:57.999167Z",
+#     "end_time": "2024-09-13T11:54:01.054623Z",
 #     "status": {
 #         "status_code": "UNSET"
 #     },
 #     "attributes": {
 #         "session.session_id": "0x4fa6d91d1f2a4bdbb7a1287d90ec4a16",
-#         "workflow_input": "What are common ways of doing it?",
 #         "workflow_name": "langchain_app_1",
-#         "workflow_output": "Task decomposition can be achieved through methods such as using Language Model (LLM) prompting with specific instructions like \"Steps for XYZ\" or \"What are the subgoals for achieving XYZ?\", providing task-specific instructions, or incorporating human inputs. These approaches help in breaking down tasks into smaller components for easier handling and execution.",
 #         "workflow_type": "workflow.langchain"
 #     },
-#     "events": [],
+#     "events": [
+#         {
+#             "name": "input",
+#             "timestamp": "2024-09-13T11:53:57.999329Z",
+#             "attributes": {
+#                 "input": "What are common ways of doing it?"
+#             }
+#         }
+#     ],
 #     "links": [],
 #     "resource": {
 #         "attributes": {

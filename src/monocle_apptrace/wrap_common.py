@@ -4,7 +4,7 @@ import os
 from urllib.parse import urlparse
 
 from opentelemetry.trace import Span, Tracer
-from monocle_apptrace.utils import resolve_from_alias, update_span_with_infra_name, with_tracer_wrapper
+from monocle_apptrace.utils import resolve_from_alias, update_span_with_infra_name, with_tracer_wrapper, get_embedding_model
 
 logger = logging.getLogger(__name__)
 WORKFLOW_TYPE_KEY = "workflow_type"
@@ -18,7 +18,7 @@ TAGS = "tags"
 SESSION_PROPERTIES_KEY = "session"
 INFRA_SERVICE_KEY = "infra_service_name"
 TYPE = "type"
-PROVIDER = "provider"
+PROVIDER = "provider_name"
 EMBEDDING_MODEL = "embedding_model"
 
 
@@ -151,7 +151,14 @@ def update_llm_endpoint(curr_span: Span, instance):
         if 'temperature' in instance.__dict__:
             temp_val = instance.__dict__.get("temperature")
             curr_span.set_attribute("temperature", temp_val)
-        # handling for model name
+        if 'document_store' in instance.__dict__:
+            type = "vector_store"
+            document_store = instance.__dict__.get("document_store").__class__.__name__
+            embedding_model = get_embedding_model()
+            curr_span.set_attribute(TYPE, type)
+            curr_span.set_attribute(PROVIDER, document_store)
+            curr_span.set_attribute(EMBEDDING_MODEL, embedding_model)
+            # handling for model name
         model_name =  resolve_from_alias(instance.__dict__ , ["model","model_name"])
         curr_span.set_attribute("model_name", model_name)
         set_provider_name(curr_span, instance)

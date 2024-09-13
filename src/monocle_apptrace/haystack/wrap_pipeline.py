@@ -4,7 +4,7 @@ from opentelemetry.context import attach, set_value
 from opentelemetry.instrumentation.utils import (
     _SUPPRESS_INSTRUMENTATION_KEY,
 )
-from monocle_apptrace.wrap_common import PROMPT_INPUT_KEY, PROMPT_OUTPUT_KEY, WORKFLOW_TYPE_MAP, with_tracer_wrapper, EMBEDDING_MODEL
+from monocle_apptrace.wrap_common import PROMPT_INPUT_KEY, PROMPT_OUTPUT_KEY, WORKFLOW_TYPE_MAP, with_tracer_wrapper
 from monocle_apptrace.utils import set_embedding_model
 
 logger = logging.getLogger(__name__)

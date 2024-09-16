@@ -20,6 +20,7 @@ INFRA_SERVICE_KEY = "infra_service_name"
 TYPE = "type"
 PROVIDER = "provider_name"
 EMBEDDING_MODEL = "embedding_model"
+VECTOR_STORE = 'vector_store'
 
 
 WORKFLOW_TYPE_MAP = {
@@ -68,7 +69,7 @@ def pre_task_processing(to_wrap, instance, args, span):
     #capture the tags attribute of the instance if present, else ignore
     try:
         update_tags(instance, span)
-        update_attributes(instance, span)
+        update_vectorstore_attributes(to_wrap, instance, span)
     except AttributeError:
         pass
     update_span_with_context_input(to_wrap=to_wrap, wrapped_args=args, span=span)
@@ -136,6 +137,8 @@ def llm_wrapper(tracer: Tracer, to_wrap, wrapped, instance, args, kwargs):
     else:
         name = f"langchain.task.{instance.__class__.__name__}"
     with tracer.start_as_current_span(name) as span:
+        if 'haystack.components.retrievers' in to_wrap['package'] and 'haystack.retriever' in span.name:
+            update_vectorstore_attributes(to_wrap, instance, span)
         update_llm_endpoint(curr_span= span, instance=instance)
 
         return_value = wrapped(*args, **kwargs)
@@ -151,19 +154,12 @@ def update_llm_endpoint(curr_span: Span, instance):
         if 'temperature' in instance.__dict__:
             temp_val = instance.__dict__.get("temperature")
             curr_span.set_attribute("temperature", temp_val)
-        if 'document_store' in instance.__dict__:
-            type = "vector_store"
-            document_store = instance.__dict__.get("document_store").__class__.__name__
-            embedding_model = get_embedding_model()
-            curr_span.set_attribute(TYPE, type)
-            curr_span.set_attribute(PROVIDER, document_store)
-            curr_span.set_attribute(EMBEDDING_MODEL, embedding_model)
             # handling for model name
-        model_name =  resolve_from_alias(instance.__dict__ , ["model","model_name"])
+        model_name = resolve_from_alias(instance.__dict__ , ["model","model_name"])
         curr_span.set_attribute("model_name", model_name)
         set_provider_name(curr_span, instance)
         # handling AzureOpenAI deployment
-        deployment_name =  resolve_from_alias(instance.__dict__ , [ "engine", "azure_deployment",
+        deployment_name = resolve_from_alias(instance.__dict__ , [ "engine", "azure_deployment",
                                                                    "deployment_name", "deployment_id", "deployment"])
         curr_span.set_attribute("az_openai_deployment", deployment_name)
         # handling the inference endpoint
@@ -278,26 +274,33 @@ def update_tags(instance, span):
         pass
 
 
-def update_attributes(instance, span):
+def update_vectorstore_attributes(to_wrap, instance, span):
     """
        Updates the telemetry span attributes for vector store retrieval tasks.
     """
     try:
         # Check if the span is for a vector store retriever task from langchain
-        if span.name == 'langchain.task.VectorStoreRetriever':
+
+        if to_wrap['package'] == 'langchain_core.retrievers':
             # Extract embedding model and provider from instance tags
             embedding_model = instance.tags[0]
             provider = instance.tags[1]
             # Update span attributes with type, provider, and embedding model
-            span._attributes.update({TYPE: 'vector_store'})
+            span._attributes.update({TYPE: VECTOR_STORE})
             span._attributes.update({PROVIDER: provider})
             span._attributes.update({EMBEDDING_MODEL: embedding_model})
-        elif span.name == 'llamaindex.query':
+        elif to_wrap['package'] == 'llama_index.core.base.base_query_engine':
             model_name = instance.retriever._embed_model.model_name
             vector_store_name = type(instance.retriever._vector_store).__name__
-            span._attributes.update({TYPE: 'vector_store'})
+            span._attributes.update({TYPE: VECTOR_STORE})
             span._attributes.update({PROVIDER: vector_store_name})
             span._attributes.update({EMBEDDING_MODEL: model_name})
+        elif 'document_store' in instance.__dict__ and 'haystack.components.retrievers' in to_wrap['package']:
+            document_store = instance.__dict__.get("document_store").__class__.__name__
+            embedding_model = get_embedding_model()
+            span._attributes.update({TYPE: VECTOR_STORE})
+            span._attributes.update({PROVIDER: document_store})
+            span._attributes.update({EMBEDDING_MODEL: embedding_model})
 
     except:
         pass

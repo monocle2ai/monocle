@@ -44,217 +44,81 @@ response = query_engine.query("What did the author do growing up?")
 print(response)
 
 # {
-#     "name": "haystack.tracing.auto_enable",
-#     "context": {
-#         "trace_id": "0xf199d425ff9455d2fa18da30508e8120",
-#         "span_id": "0xced2da35b439e06c",
-#         "trace_state": "[]"
-#     },
-#     "kind": "SpanKind.INTERNAL",
-#     "parent_id": null,
-#     "start_time": "2024-09-13T11:37:37.143875Z",
-#     "end_time": "2024-09-13T11:37:37.144983Z",
-#     "status": {
-#         "status_code": "ERROR",
-#         "description": "ImportError: cannot import name 'Span' from partially initialized module 'haystack.tracing' (most likely due to a circular import) (/home/beehyv/Documents/monocle/venv/lib/python3.10/site-packages/haystack/tracing/__init__.py)"
-#     },
-#     "attributes": {},
-#     "events": [
+#     "trace_id": "0xbd54e5d0edcd96634fa8a02c25c27519",
+#     "start_time": "2024-04-15T23:27:54.806477Z",
+#     "end_time": "2024-04-15T23:27:57.182261Z",
+#     "duration_ms": "2376",
+#     "spans": [
 #         {
-#             "name": "exception",
-#             "timestamp": "2024-09-13T11:37:37.144968Z",
+#             "span_name": "llamaindex.retrieve",
+#             "start_time": "2024-04-15T23:27:54.806773Z",
+#             "end_time": "2024-04-15T23:27:55.732604Z",
+#             "duration_ms": "926",
+#             "span_id": "0x030cf03872d4a092",
+#             "trace_id": "0xbd54e5d0edcd96634fa8a02c25c27519",
+#             "parent_id": "0xb4b14a8f14e7e770",
 #             "attributes": {
-#                 "exception.type": "ImportError",
-#                 "exception.message": "cannot import name 'Span' from partially initialized module 'haystack.tracing' (most likely due to a circular import) (/home/beehyv/Documents/monocle/venv/lib/python3.10/site-packages/haystack/tracing/__init__.py)",
-#                 "exception.stacktrace": "Traceback (most recent call last):\n  File \"/home/beehyv/Documents/monocle/venv/lib/python3.10/site-packages/opentelemetry/trace/__init__.py\", line 590, in use_span\n    yield span\n  File \"/home/beehyv/Documents/monocle/venv/lib/python3.10/site-packages/opentelemetry/sdk/trace/__init__.py\", line 1108, in start_as_current_span\n    yield span\n  File \"/home/beehyv/Documents/monocle/venv/lib/python3.10/site-packages/haystack/tracing/tracer.py\", line 207, in _auto_configured_opentelemetry_tracer\n    from haystack.tracing.opentelemetry import OpenTelemetryTracer\n  File \"/home/beehyv/Documents/monocle/venv/lib/python3.10/site-packages/haystack/tracing/opentelemetry.py\", line 9, in <module>\n    from haystack.tracing import Span, Tracer\nImportError: cannot import name 'Span' from partially initialized module 'haystack.tracing' (most likely due to a circular import) (/home/beehyv/Documents/monocle/venv/lib/python3.10/site-packages/haystack/tracing/__init__.py)\n",
-#                 "exception.escaped": "False"
-#             }
+#             },
+#             "events": []
+#         },
+#         {
+#             "span_name": "llamaindex.openai",
+#             "start_time": "2024-04-15T23:27:55.740299Z",
+#             "end_time": "2024-04-15T23:27:57.181992Z",
+#             "duration_ms": "1442",
+#             "span_id": "0x225fbfb58481e58c",
+#             "trace_id": "0xbd54e5d0edcd96634fa8a02c25c27519",
+#             "parent_id": "0xb4b14a8f14e7e770",
+#             "attributes": {
+#                 "model_name": "gpt-3.5-turbo-0125",
+#                 "provider_name": "openai.com",
+#             },
+#             "events": []
+#         },
+#         {
+#             "span_name": "llamaindex.query",
+#             "start_time": "2024-04-15T23:27:54.806477Z",
+#             "end_time": "2024-04-15T23:27:57.182261Z",
+#             "duration_ms": "2376",
+#             "span_id": "0xb4b14a8f14e7e770",
+#             "trace_id": "0xbd54e5d0edcd96634fa8a02c25c27519",
+#             "parent_id": "None",
+#             "attributes": {
+#                    "tags": [
+#                       "text-embedding-3-large",
+#                        "ChromaVectorStore"
+#                    ],
+#                   "type": "vector_store",
+#                   "provider_name": "ChromaVectorStore",
+#                   "embedding_model": "text-embedding-3-large",
+#                   "workflow_name": "llama_index_1",
+#                   "workflow_type": "workflow.llamaindex"
+#                   },
+#           "events": [
+#               {
+#                   "name": "input",
+#                   "timestamp": "2024-09-16T10:05:44.687175Z",
+#                   "attributes": {
+#                       "question": "What did the author do growing up?"
+#                   }
+#               },
+#               {
+#                   "name": "output",
+#                   "timestamp": "2024-09-16T10:05:47.345643Z",
+#                   "attributes": {
+#                       "response": "The context does not provide information about what the author did while growing up."
+#                       }
+#                   }
+#               ],
+#           "links": [],
+#           "resource": {
+#               "attributes": {
+#                   "service.name": "llama_index_1"
+#               },
+#               "schema_url": ""
+#              }
 #         }
-#     ],
-#     "links": [],
-#     "resource": {
-#         "attributes": {
-#             "service.name": "llama_index_1"
-#         },
-#         "schema_url": ""
-#     }
-# }
-# {
-#     "name": "haystack.tracing.auto_enable",
-#     "context": {
-#         "trace_id": "0x9be2be7e2994b5f923d17defaed1c00e",
-#         "span_id": "0xc790b64df4a91ff6",
-#         "trace_state": "[]"
-#     },
-#     "kind": "SpanKind.INTERNAL",
-#     "parent_id": null,
-#     "start_time": "2024-09-13T11:37:38.692198Z",
-#     "end_time": "2024-09-13T11:37:38.692245Z",
-#     "status": {
-#         "status_code": "UNSET"
-#     },
-#     "attributes": {},
-#     "events": [],
-#     "links": [],
-#     "resource": {
-#         "attributes": {
-#             "service.name": "llama_index_1"
-#         },
-#         "schema_url": ""
-#     }
-# }
-# {
-#     "name": "llamaindex.retrieve",
-#     "context": {
-#         "trace_id": "0x79de813d316bd63f40767fec67560d0f",
-#         "span_id": "0xd9661af547dfcfc1",
-#         "trace_state": "[]"
-#     },
-#     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0xa9e16efccceb9368",
-#     "start_time": "2024-09-13T11:37:40.848528Z",
-#     "end_time": "2024-09-13T11:37:41.760007Z",
-#     "status": {
-#         "status_code": "UNSET"
-#     },
-#     "attributes": {},
-#     "events": [
-#         {
-#             "name": "context_input",
-#             "timestamp": "2024-09-13T11:37:40.848554Z",
-#             "attributes": {
-#                 "question": "What did the author do growing up?"
-#             }
-#         },
-#         {
-#             "name": "context_output",
-#             "timestamp": "2024-09-13T11:37:41.759986Z",
-#             "attributes": {
-#                 "response": "this is some sample text"
-#             }
-#         }
-#     ],
-#     "links": [],
-#     "resource": {
-#         "attributes": {
-#             "service.name": "llama_index_1"
-#         },
-#         "schema_url": ""
-#     }
-# }
-# The context does not provide information about what the author did while growing up.
-# {
-#     "name": "llamaindex.openai",
-#     "context": {
-#         "trace_id": "0x79de813d316bd63f40767fec67560d0f",
-#         "span_id": "0xf17975e22cc1f920",
-#         "trace_state": "[]"
-#     },
-#     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0x99c6a02cfdfddb24",
-#     "start_time": "2024-09-13T11:37:41.762514Z",
-#     "end_time": "2024-09-13T11:37:43.806178Z",
-#     "status": {
-#         "status_code": "UNSET"
-#     },
-#     "attributes": {
-#         "temperature": 0.1,
-#         "model_name": "gpt-4",
-#         "provider_name": "api.openai.com",
-#         "inference_endpoint": "https://api.openai.com/v1",
-#         "completion_tokens": 15,
-#         "prompt_tokens": 142,
-#         "total_tokens": 157
-#     },
-#     "events": [],
-#     "links": [],
-#     "resource": {
-#         "attributes": {
-#             "service.name": "llama_index_1"
-#         },
-#         "schema_url": ""
-#     }
-# }
-# {
-#     "name": "llamaindex.openai",
-#     "context": {
-#         "trace_id": "0x79de813d316bd63f40767fec67560d0f",
-#         "span_id": "0x99c6a02cfdfddb24",
-#         "trace_state": "[]"
-#     },
-#     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0xa9e16efccceb9368",
-#     "start_time": "2024-09-13T11:37:41.762330Z",
-#     "end_time": "2024-09-13T11:37:43.806247Z",
-#     "status": {
-#         "status_code": "UNSET"
-#     },
-#     "attributes": {
-#         "temperature": 0.1,
-#         "model_name": "gpt-4",
-#         "provider_name": "api.openai.com",
-#         "inference_endpoint": "https://api.openai.com/v1",
-#         "completion_tokens": 15,
-#         "prompt_tokens": 142,
-#         "total_tokens": 157
-#     },
-#     "events": [],
-#     "links": [],
-#     "resource": {
-#         "attributes": {
-#             "service.name": "llama_index_1"
-#         },
-#         "schema_url": ""
-#     }
-# }
-# {
-#     "name": "llamaindex.query",
-#     "context": {
-#         "trace_id": "0x79de813d316bd63f40767fec67560d0f",
-#         "span_id": "0xa9e16efccceb9368",
-#         "trace_state": "[]"
-#     },
-#     "kind": "SpanKind.INTERNAL",
-#     "parent_id": null,
-#     "start_time": "2024-09-13T11:37:40.848077Z",
-#     "end_time": "2024-09-13T11:37:43.806928Z",
-#     "status": {
-#         "status_code": "UNSET"
-#     },
-#     "attributes": {
-#         "tags": [
-#             "text-embedding-3-large",
-#             "ChromaVectorStore"
-#         ],
-#         "type": "vector_store",
-#         "provider_name": "ChromaVectorStore",
-#         "embedding_model": "text-embedding-3-large",
-#         "workflow_name": "llama_index_1",
-#         "workflow_type": "workflow.llamaindex"
-#     },
-#     "events": [
-#         {
-#             "name": "input",
-#             "timestamp": "2024-09-13T11:37:40.848123Z",
-#             "attributes": {
-#                 "question": "What did the author do growing up?"
-#             }
-#         },
-#         {
-#             "name": "output",
-#             "timestamp": "2024-09-13T11:37:43.806899Z",
-#             "attributes": {
-#                 "response": "The context does not provide information about what the author did while growing up."
-#             }
-#         }
-#     ],
-#     "links": [],
-#     "resource": {
-#         "attributes": {
-#             "service.name": "llama_index_1"
-#         },
-#         "schema_url": ""
-#     }
+#     ]
 # }
 
 

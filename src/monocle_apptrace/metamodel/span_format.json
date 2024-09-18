@@ -1,0 +1,22 @@
+{
+    "attributes": {
+        "Monocle.Entity": [
+            {
+                "name": "Entity Name 1",
+                "type": "Monocle-Entity-Type",
+                "attributes": {
+                    "entity-attribute-1": "value1"
+                }
+            }
+        ]
+    },
+    "events" : [
+        {
+            "name": "Entity Name 1",
+            "timestamp": "timestamp",
+            "attributes": {
+                "attribute-1-name": "attribute-1-value"
+            }
+        }
+    ]
+}

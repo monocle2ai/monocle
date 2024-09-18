@@ -1,0 +1,140 @@
+{
+    "name": "llamaindex.retrieve",
+    "context": {
+        "trace_id": "0x93cd0bf865b3ffcc3cf9c075dc3e3797",
+        "span_id": "0x5d3f839e900bda24",
+        "trace_state": "[]"
+    },
+    "kind": "SpanKind.INTERNAL",
+    "parent_id": "0x7a63d63e42ccac60",
+    "start_time": "2024-09-09T14:38:45.237182Z",
+    "end_time": "2024-09-09T14:38:45.620112Z",
+    "status": {
+        "status_code": "UNSET"
+    },
+    "attributes": {
+        "Monocle.Entity": [
+            {
+                "name": "ChromaVectorStore",
+                "type": "MonocleEntity.VectorDB.Chroma",
+                "attributes": {
+                    "embedding_model": "BAAI/bge-small-en-v1.5"
+                }
+            }
+        ]
+    },
+    "events": [
+        {
+            "name": "ChromaVectorStore",
+            "timestamp": "timestamp",
+            "attributes": {
+                "context_input": "question: What is an americano?",
+                "context_output": "Coffee is a hot drink made from the roasted and ground seeds (coffee beans) of a tropical shrub\nA latte consists of one or more shots of espresso, served in a glass (or sometimes a cup), into which hot steamed milk is added\nAmericano is a type of coffee drink prepared by diluting an espresso shot with hot water at a 1:3 to 1:4 ratio, resulting in a drink that retains the complex flavors of espresso, but in a lighter way"
+            }
+        }
+    ],
+    "links": [],
+    "resource": {
+        "attributes": {
+            "service.name": "coffee-bot"
+        },
+        "schema_url": ""
+    }
+}
+{
+    "name": "llamaindex.openai",
+    "context": {
+        "trace_id": "0x93cd0bf865b3ffcc3cf9c075dc3e3797",
+        "span_id": "0x8b6363e1937a4d7b",
+        "trace_state": "[]"
+    },
+    "kind": "SpanKind.INTERNAL",
+    "parent_id": "0x7a63d63e42ccac60",
+    "start_time": "2024-09-09T14:38:45.622174Z",
+    "end_time": "2024-09-09T14:38:46.514120Z",
+    "status": {
+        "status_code": "UNSET"
+    },
+    "attributes": {
+        "Monocle.Entity": [
+            {
+                "name": "AzureOpenAI",
+                "type": "MonocleEntity.Inference.Azure_OpenAI",
+                "attributes": {
+                    "temperature": 0.1,
+                    "model_name": "gpt-35-turbo",
+                    "provider_name": "api.openai.com",
+                    "az_openai_deployment": "kshitiz-gpt",
+                    "inference_endpoint": "https://okahu-openai-dev.openai.azure.com/"
+                }
+            }
+        ]
+    },
+    "events": [
+        {
+            "name": "AzureOpenAI",
+            "timestamp": "timestamp",
+            "attributes": {
+                "completion_tokens": 52,
+                "prompt_tokens": 233,
+                "total_tokens": 285
+        },
+        {
+            "name": "AzureOpenAI",
+            "timestamp": "timestamp",
+            "attributes": {
+                "name" : 52,
+                "question": "What is an americano?"
+            }
+        },
+    ],
+    "links": [],
+    "resource": {
+        "attributes": {
+            "service.name": "coffee-bot"
+        },
+        "schema_url": ""
+    }
+}
+{
+    "name": "llamaindex.query",
+    "context": {
+        "trace_id": "0x93cd0bf865b3ffcc3cf9c075dc3e3797",
+        "span_id": "0x7a63d63e42ccac60",
+        "trace_state": "[]"
+    },
+    "kind": "SpanKind.INTERNAL",
+    "parent_id": null,
+    "start_time": "2024-09-09T14:38:45.236627Z",
+    "end_time": "2024-09-09T14:38:46.514442Z",
+    "status": {
+        "status_code": "UNSET"
+    },
+    "attributes": {
+        "workflow_name": "coffee-bot",
+        "workflow_type": "MonocleEntity.Workflow.LlamaIndex"
+    },
+    "events": [
+        {
+            "name": "input",
+            "timestamp": "2024-09-09T14:38:45.236701Z",
+            "attributes": {
+                "question": "What is an americano?"
+            }
+        },
+        {
+            "name": "output",
+            "timestamp": "2024-09-09T14:38:46.514428Z",
+            "attributes": {
+                "response": "An americano is a type of coffee drink that is made by diluting an espresso shot with hot water at a 1:3 to 1:4 ratio, resulting in a drink that retains the complex flavors of espresso, but in a lighter way."
+            }
+        }
+    ],
+    "links": [],
+    "resource": {
+        "attributes": {
+            "service.name": "coffee-bot"
+        },
+        "schema_url": ""
+    }
+}

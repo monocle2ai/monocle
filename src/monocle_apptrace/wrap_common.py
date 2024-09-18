@@ -29,6 +29,25 @@ WORKFLOW_TYPE_MAP = {
     "haystack": "workflow.haystack"
 }
 
+frameworks_mapping = {
+    'langchain_core.retrievers': lambda instance: {
+        'provider': instance.tags[1],
+        'embedding_model': instance.tags[0],
+        'type': VECTOR_STORE,
+    },
+    'llama_index.core.base.base_query_engine': lambda instance: {
+        'provider': type(instance.retriever._vector_store).__name__,
+        'embedding_model': instance.retriever._embed_model.model_name,
+        'type': VECTOR_STORE,
+    },
+    'haystack.components.retrievers': lambda instance: {
+        'provider': instance.__dict__.get("document_store").__class__.__name__,
+        'embedding_model': get_embedding_model(),
+        'type': VECTOR_STORE,
+    },
+    # Add more frameworks here as needed
+}
+
 @with_tracer_wrapper
 def task_wrapper(tracer: Tracer, to_wrap, wrapped, instance, args, kwargs):
     """Instruments and calls every function defined in TO_WRAP."""
@@ -279,28 +298,21 @@ def update_vectorstore_attributes(to_wrap, instance, span):
        Updates the telemetry span attributes for vector store retrieval tasks.
     """
     try:
-        # Check if the span is for a vector store retriever task from langchain
+        package = to_wrap.get('package')
 
-        if to_wrap['package'] == 'langchain_core.retrievers':
-            # Extract embedding model and provider from instance tags
-            embedding_model = instance.tags[0]
-            provider = instance.tags[1]
-            # Update span attributes with type, provider, and embedding model
-            span._attributes.update({TYPE: VECTOR_STORE})
-            span._attributes.update({PROVIDER: provider})
-            span._attributes.update({EMBEDDING_MODEL: embedding_model})
-        elif to_wrap['package'] == 'llama_index.core.base.base_query_engine':
-            model_name = instance.retriever._embed_model.model_name
-            vector_store_name = type(instance.retriever._vector_store).__name__
-            span._attributes.update({TYPE: VECTOR_STORE})
-            span._attributes.update({PROVIDER: vector_store_name})
-            span._attributes.update({EMBEDDING_MODEL: model_name})
-        elif 'document_store' in instance.__dict__ and 'haystack.components.retrievers' in to_wrap['package']:
-            document_store = instance.__dict__.get("document_store").__class__.__name__
-            embedding_model = get_embedding_model()
-            span._attributes.update({TYPE: VECTOR_STORE})
-            span._attributes.update({PROVIDER: document_store})
-            span._attributes.update({EMBEDDING_MODEL: embedding_model})
+        # Check if the package exists in the framework mapping
+        if package in frameworks_mapping:
+            # Extract attributes based on the configured function for the package
+            attributes = frameworks_mapping[package](instance)
+            # Update span attributes with extracted values
+            span._attributes.update({
+                TYPE: attributes['type'],
+                PROVIDER: attributes['provider'],
+                EMBEDDING_MODEL: attributes['embedding_model']
+            })
+        else:
+            # Handle unknown package logic (optional logging or default behavior)
+            print(f"Package '{package}' not recognized for vector store telemetry.")
 
-    except:
-        pass
+    except Exception as e:
+        print(f"Error updating span attributes: {e}")

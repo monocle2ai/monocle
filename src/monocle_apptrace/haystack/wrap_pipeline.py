@@ -58,3 +58,5 @@ def get_embedding_model(instance):
                 return text_embedder.model
     except:
         pass
+
+    return None

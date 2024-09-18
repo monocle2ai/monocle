@@ -35,9 +35,9 @@ frameworks_mapping = {
         'embedding_model': instance.tags[0],
         'type': VECTOR_STORE,
     },
-    'llama_index.core.base.base_query_engine': lambda instance: {
-        'provider': type(instance.retriever._vector_store).__name__,
-        'embedding_model': instance.retriever._embed_model.model_name,
+    'llama_index.core.indices.base_retriever': lambda instance: {
+        'provider': type(instance._vector_store).__name__,
+        'embedding_model': instance._embed_model.model_name,
         'type': VECTOR_STORE,
     },
     'haystack.components.retrievers': lambda instance: {
@@ -215,7 +215,6 @@ def get_input_from_args(chain_args):
     return ""
 
 def update_span_from_llm_response(response, span: Span):
-    
     # extract token uasge from langchain openai
     if (response is not None and hasattr(response, "response_metadata")):
         response_metadata = response.response_metadata
@@ -306,7 +305,7 @@ def update_vectorstore_attributes(to_wrap, instance, span):
                 EMBEDDING_MODEL: attributes['embedding_model']
             })
         else:
-            print(f"Package '{package}' not recognized for vector store telemetry.")
+            logger.warning(f"Package '{package}' not recognized for vector store telemetry.")
 
     except Exception as e:
-        print(f"Error updating span attributes: {e}")
+        logger.error(f"Error updating span attributes: {e}")

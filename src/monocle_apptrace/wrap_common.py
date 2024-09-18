@@ -45,7 +45,6 @@ frameworks_mapping = {
         'embedding_model': get_embedding_model(),
         'type': VECTOR_STORE,
     },
-    # Add more frameworks here as needed
 }
 
 @with_tracer_wrapper
@@ -299,19 +298,14 @@ def update_vectorstore_attributes(to_wrap, instance, span):
     """
     try:
         package = to_wrap.get('package')
-
-        # Check if the package exists in the framework mapping
         if package in frameworks_mapping:
-            # Extract attributes based on the configured function for the package
             attributes = frameworks_mapping[package](instance)
-            # Update span attributes with extracted values
             span._attributes.update({
                 TYPE: attributes['type'],
                 PROVIDER: attributes['provider'],
                 EMBEDDING_MODEL: attributes['embedding_model']
             })
         else:
-            # Handle unknown package logic (optional logging or default behavior)
             print(f"Package '{package}' not recognized for vector store telemetry.")
 
     except Exception as e:

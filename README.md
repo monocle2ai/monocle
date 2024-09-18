@@ -27,6 +27,10 @@ The traces are compatible with OpenTelemetry format. They are further enriched t
 ```
     pip install monocle_apptrace
 ```
+- Import monocle package in your app
+```
+    from monocle_apptrace.instrumentor import setup_monocle_telemetry
+```
 - Enable Monocle tracing in your app by adding following
 ```
     setup_monocle_telemetry(workflow_name="your-app-name")

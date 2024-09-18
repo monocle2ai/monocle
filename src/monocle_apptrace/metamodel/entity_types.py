@@ -53,3 +53,7 @@ class MonocleEntity(enum):
         HuggingFace = 6
         Cohere = 7
         vLLM = 8
+
+    class Classification(enum):
+        Metadata = 0
+        Data = 1

@@ -1,1 +1,0 @@
-Monocle metamodel is the way to manage standardization across all supported GenAI component stack. It includes the list of components that Monocle can identify and extract metadata. It also describes the format of traces and span that Monocle builds on on top of Open Telemetry format (https://opentelemetry.io/docs/concepts/signals/traces/).

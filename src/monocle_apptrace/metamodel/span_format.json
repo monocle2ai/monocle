@@ -1,22 +1,155 @@
 {
+    "name": "span-name",
+    "context": {
+        "trace_id": "trace-id",
+        "span_id": "span-id",
+        "trace_state": "[]"
+    },
+    "kind": "SpanKind.CLIENT",
+    "parent_id": "parent-id or None (for root span)",
+    "start_time": "UTC timestamp",
+    "end_time": "UTC timestamp",
+    "status": {
+        "status_code": "OK or Error"
+    },
     "attributes": {
-        "Monocle.Entity": [
+        "description": "List of AI component entities used in this span, eg Model, Inference hosting service. Needs to be one of the supported entity types.",
+        "Monocle.Entities": [
             {
-                "name": "Entity Name 1",
+                "name": "Monocle Entity Name",
                 "type": "Monocle-Entity-Type",
                 "attributes": {
-                    "entity-attribute-1": "value1"
+                    "description": "Metadata passed to this span eg. model name",
+                    "optional-attrubute": "value"
+                }
+            },
+            {
+                "name": "Workflow Entity Name",
+                "type": "MonocleEntity.Workflow.<workflow-type>",
+                "attributes": {
+                    "optional-attrubute": "value"
+                }
+            },
+            {
+                "name": "Model Entity Name",
+                "type": "MonocleEntity.Model.<model-type>",
+                "attributes": {
+                    "model_name": "Name of model",
+                    "optional-attrubute": "value"
+                }
+            },
+            {
+                "name": "VectorDB Entity Name",
+                "type": "MonocleEntity.VectorDB.<vectordb-type>",
+                "attributes": {
+                    "embedding-model-name": "value",
+                    "optional-attrubute": "value"
+                }
+            },
+            {
+                "name": "AppHosting Entity Name",
+                "type": "MonocleEntity.AppHosting.<apphosting-type>",
+                "attributes": {
+                    "optional-attrubute": "value"
+                }
+            },
+            {
+                "name": "Inference Entity Name",
+                "type": "MonocleEntity.Inference.<apphosting-type>",
+                "attributes": {
+                    "model_name": "value",
+                    "optional-attrubute": "value"
                 }
             }
         ]
     },
     "events" : [
         {
-            "name": "Entity Name 1",
-            "timestamp": "timestamp",
+            "name": "Monocle Entity Name",
+            "timestamp": "UTC timestamp",
             "attributes": {
-                "attribute-1-name": "attribute-1-value"
+                "data": {
+                    "description": "Data generated in this span eg inference response",
+                    "optional-attrubute": "value"
+                },
+                "metadata": {
+                    "description": "Metadata generated in this span eg token count",
+                    "optional-attrubute": "value"
+                }
+            }
+        },
+        {
+            "name": "Workflow Entity Name",
+            "timestamp": "UTC timestamp",
+            "attributes": {
+                "data": {
+                    "optional-attrubute": "value"
+                },
+                "metadata": {
+                    "optional-attrubute": "value"
+                }
+            }
+        },
+        {
+            "name": "Model Entity Name",
+            "timestamp": "UTC timestamp",
+            "attributes": {
+                "data": {
+                    "input": {
+                        "optional-inputs-to-model": "values"
+                    },
+                    "output": {
+                        "optional-outputs-from-model": "values"
+                    },
+                    "optional-attrubute": "value"
+                },
+                "metadata": {
+                    "optional-attrubute": "value"
+                }
+            }
+        },
+        {
+            "name": "VectorDB Entity Name",
+            "timestamp": "UTC timestamp",
+            "attributes": {
+                "data": {
+                    "optional-attrubute": "value"
+                },
+                "metadata": {
+                    "optional-attrubute": "value"
+                }
+            }
+        },
+        {
+            "name": "AppHosting Entity Name",
+            "timestamp": "UTC timestamp",
+            "attributes": {
+                "data": {
+                    "optional-attrubute": "value"
+                },
+                "metadata": {
+                    "optional-attrubute": "value"
+                }
+            }
+        },
+        {
+            "name": "Inference Entity Name",
+            "timestamp": "UTC timestamp",
+            "attributes": {
+                "data": {
+                    "optional-attrubute": "value"
+                },
+                "metadata": {
+                    "optional-attrubute": "value"
+                }
             }
         }
-    ]
+    ],
+    "links": [],
+    "resource": {
+        "attributes": {
+            "service.name": "top-workflow-name"
+        },
+        "schema_url": ""
+    }
 }

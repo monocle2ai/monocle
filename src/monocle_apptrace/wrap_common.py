@@ -29,7 +29,7 @@ WORKFLOW_TYPE_MAP = {
     "haystack": "workflow.haystack"
 }
 
-frameworks_mapping = {
+framework_vector_store_mapping = {
     'langchain_core.retrievers': lambda instance: {
         'provider': instance.tags[1],
         'embedding_model': instance.tags[0],
@@ -297,8 +297,8 @@ def update_vectorstore_attributes(to_wrap, instance, span):
     """
     try:
         package = to_wrap.get('package')
-        if package in frameworks_mapping:
-            attributes = frameworks_mapping[package](instance)
+        if package in framework_vector_store_mapping:
+            attributes = framework_vector_store_mapping[package](instance)
             span._attributes.update({
                 TYPE: attributes['type'],
                 PROVIDER: attributes['provider'],

@@ -24,13 +24,13 @@ logger = logging.getLogger(__name__)
 
 
 class S3SpanExporter(SpanExporter):
-    def __init__(self, aws_access_key_id=None, aws_secret_access_key=None, bucket_name=None, region_name="us-east-1"):
+    def __init__(self, bucket_name=None, region_name="us-east-1"):
         # Use environment variables if credentials are not provided
         self.s3_client = boto3.client(
             's3',
-            aws_access_key_id=aws_access_key_id or os.getenv('AWS_ACCESS_KEY_ID'),
-            aws_secret_access_key=aws_secret_access_key or os.getenv('AWS_SECRET_ACCESS_KEY'),
-            region_name=region_name
+            aws_access_key_id= os.getenv('AWS_ACCESS_KEY_ID'),
+            aws_secret_access_key= os.getenv('AWS_SECRET_ACCESS_KEY'),
+            region_name=region_name,
         )
         self.bucket_name = bucket_name or os.getenv('AWS_S3_BUCKET_NAME', 'default-bucket')
         self.file_prefix = DEFAULT_FILE_PREFIX

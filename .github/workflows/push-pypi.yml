@@ -12,7 +12,7 @@ jobs :
       - name: Checkout repository
         uses: actions/checkout@v4
       - name: Make the script files executable
-        run: chmod +x ./scripts/push-pypi.sh
+        run: chmod +x ./.github/scripts/push-pypi.sh
       - name: Run a script
         env:
           PYPI_USERNAME: __token__

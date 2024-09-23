@@ -31,8 +31,8 @@ WORKFLOW_TYPE_MAP = {
 
 framework_vector_store_mapping = {
     'langchain_core.retrievers': lambda instance: {
-        'provider': instance.tags[1],
-        'embedding_model': instance.tags[0],
+        'provider': instance.tags[0],
+        'embedding_model': instance.tags[1],
         'type': VECTOR_STORE,
     },
     'llama_index.core.indices.base_retriever': lambda instance: {

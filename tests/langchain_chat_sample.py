@@ -124,8 +124,8 @@ print(ai_msg_2["answer"])
 #             "OpenAIEmbeddings"
 #         ],
 #         "type": "vector_store",
-#         "provider_name": "OpenAIEmbeddings",
-#         "embedding_model": "Chroma"
+#         "provider_name": "Chroma",
+#         "embedding_model": "OpenAIEmbeddings"
 #     },
 #     "events": [
 #         {

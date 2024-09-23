@@ -14,54 +14,27 @@
     },
     "attributes": {
         "description": "List of AI component entities used in this span, eg Model, Inference hosting service. Needs to be one of the supported entity types.",
-        "Monocle.Entities": [
-            {
-                "name": "Monocle Entity Name",
-                "type": "Monocle-Entity-Type",
-                "attributes": {
-                    "description": "Metadata passed to this span eg. model name",
-                    "optional-attrubute": "value"
-                }
-            },
-            {
-                "name": "Workflow Entity Name",
-                "type": "MonocleEntity.Workflow.<workflow-type>",
-                "attributes": {
-                    "optional-attrubute": "value"
-                }
-            },
-            {
-                "name": "Model Entity Name",
-                "type": "MonocleEntity.Model.<model-type>",
-                "attributes": {
-                    "model_name": "Name of model",
-                    "optional-attrubute": "value"
-                }
-            },
-            {
-                "name": "VectorDB Entity Name",
-                "type": "MonocleEntity.VectorDB.<vectordb-type>",
-                "attributes": {
-                    "embedding-model-name": "value",
-                    "optional-attrubute": "value"
-                }
-            },
-            {
-                "name": "AppHosting Entity Name",
-                "type": "MonocleEntity.AppHosting.<apphosting-type>",
-                "attributes": {
-                    "optional-attrubute": "value"
-                }
-            },
-            {
-                "name": "Inference Entity Name",
-                "type": "MonocleEntity.Inference.<apphosting-type>",
-                "attributes": {
-                    "model_name": "value",
-                    "optional-attrubute": "value"
-                }
-            }
-        ]
+        "Monocle.Entities.list": ["Entity-name-1", "Entity-name-2"],
+        "Monocle.Entity.<name>.type": "Monocle-Entity-Type",
+        "Monocle.Entity.<name>.attribute": "Value",
+
+        "Monocle.Entity.<workflow>.type": "MonocleEntity.Workflow.<workflow-type>",
+        "Monocle.Entity.<workflow>.attribute": "Value",
+
+        "Monocle.Entity.<model>.type": "MonocleEntity.Model.<model-type>",
+        "Monocle.Entity.<model>.model_name": "Name of model",
+        "Monocle.Entity.<model>.attribute": "Value",
+
+        "Monocle.Entity.<vectorDb>.type": "MonocleEntity.VectorDB.<vectordb-type>",
+        "Monocle.Entity.<vectorDb>.embedding-model-name": "Name of model",
+        "Monocle.Entity.<vectorDb>.attribute": "Value",
+
+        "Monocle.Entity.<appHosting>.type": "MonocleEntity.AppHosting.<apphosting-type>",
+        "Monocle.Entity.<appHosting>.attribute": "Value",
+        
+        "Monocle.Entity.<inference>.type": "MonocleEntity.Inference.<apphosting-type>",
+        "Monocle.Entity.<inference>.model_name": "Name of model",
+        "Monocle.Entity.<inference>.attribute": "Value"
     },
     "events" : [
         {
@@ -69,12 +42,12 @@
             "timestamp": "UTC timestamp",
             "attributes": {
                 "data": {
-                    "description": "Data generated in this span eg inference response",
-                    "optional-attrubute": "value"
+                    "data.description": "Data generated in this span eg inference response",
+                    "data.optional-attrubute": "value"
                 },
                 "metadata": {
-                    "description": "Metadata generated in this span eg token count",
-                    "optional-attrubute": "value"
+                    "metadata.description": "Metadata generated in this span eg token count",
+                    "metadata.optional-attrubute": "value"
                 }
             }
         },
@@ -82,66 +55,40 @@
             "name": "Workflow Entity Name",
             "timestamp": "UTC timestamp",
             "attributes": {
-                "data": {
-                    "optional-attrubute": "value"
-                },
-                "metadata": {
-                    "optional-attrubute": "value"
-                }
+                "data.optional-attrubute": "value",
+                "metadata.optional-attrubute": "value"
             }
         },
         {
             "name": "Model Entity Name",
             "timestamp": "UTC timestamp",
             "attributes": {
-                "data": {
-                    "input": {
-                        "optional-inputs-to-model": "values"
-                    },
-                    "output": {
-                        "optional-outputs-from-model": "values"
-                    },
-                    "optional-attrubute": "value"
-                },
-                "metadata": {
-                    "optional-attrubute": "value"
-                }
+                "data.optional-attrubute": "value",
+                "metadata.optional-attrubute": "value"
             }
         },
         {
             "name": "VectorDB Entity Name",
             "timestamp": "UTC timestamp",
             "attributes": {
-                "data": {
-                    "optional-attrubute": "value"
-                },
-                "metadata": {
-                    "optional-attrubute": "value"
-                }
+                "data.optional-attrubute": "value",
+                "metadata.optional-attrubute": "value"
             }
         },
         {
             "name": "AppHosting Entity Name",
             "timestamp": "UTC timestamp",
             "attributes": {
-                "data": {
-                    "optional-attrubute": "value"
-                },
-                "metadata": {
-                    "optional-attrubute": "value"
-                }
+                "data.optional-attrubute": "value",
+                "metadata.optional-attrubute": "value"
             }
         },
         {
             "name": "Inference Entity Name",
             "timestamp": "UTC timestamp",
             "attributes": {
-                "data": {
-                    "optional-attrubute": "value"
-                },
-                "metadata": {
-                    "optional-attrubute": "value"
-                }
+                "data.optional-attrubute": "value",
+                "metadata.optional-attrubute": "value"
             }
         }
     ],

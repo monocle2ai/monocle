@@ -141,7 +141,7 @@ class TestHandler(unittest.TestCase):
             if span["name"] == "llamaindex.OurLLM" and "model_name" in span["attributes"]:
                 assert span["attributes"]["model_name"] == "custom"
                 model_name_found = True
-            if span["name"] == "llamaindex.query" and "type" in span["attributes"]:
+            if span["name"] == "llamaindex.retrieve" and "type" in span["attributes"]:
                 assert span["attributes"]["provider_name"] == "SimpleVectorStore"
                 vectorstore_provider = True
         assert type_found

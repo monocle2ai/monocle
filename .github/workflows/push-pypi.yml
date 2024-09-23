@@ -16,7 +16,7 @@ jobs :
       - name: Run a script
         env:
           PYPI_USERNAME: __token__
-          PYPI_PASSWORD: ${{ inputs.PYPI_REPO == 'pypi' && secrets.PYPI_TOKEN || secrets.TEST_PYPI_TOKEN }}
+          PYPI_PASSWORD: ${{ secrets.TEST_PYPI_TOKEN }}
           PYPI_REPO: ${{ inputs.PYPI_REPO || 'testpypi'}}
         run: ./.github/scripts/push-pypi.sh
 

@@ -17,9 +17,9 @@ jobs :
         run: chmod +x ./scripts/push-pypi.sh
       - name: Run a script
         env:
-          PYPI_USERNAME: ${{ secrets.PYPI_USERNAME }}
-          PYPI_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
-          PYPI_REPO: ${{ inputs.PYPI_REPO || 'testpypi'}}
+          PYPI_USERNAME: __token__
+          PYPI_PASSWORD: ${{ inputs.PYPI_REPO == 'pypi' && secrets.PYPI_TOKEN || secrets.TEST_PYPI_TOKEN }}
+          PYPI_REPO: ${{ inputs.PYPI_REPO }}
         run: ./push-pypi.sh
 
           

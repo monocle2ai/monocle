@@ -17,6 +17,9 @@ jobs :
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12' 
       - name: Make the script files executable
         run: chmod +x ./.github/scripts/push-pypi.sh
       - name: Run a script

@@ -44,54 +44,125 @@ response = query_engine.query("What did the author do growing up?")
 print(response)
 
 # {
-#     "trace_id": "0xbd54e5d0edcd96634fa8a02c25c27519",
-#     "start_time": "2024-04-15T23:27:54.806477Z",
-#     "end_time": "2024-04-15T23:27:57.182261Z",
-#     "duration_ms": "2376",
-#     "spans": [
+#     "name": "llamaindex.retrieve",
+#     "context": {
+#         "trace_id": "0x939aa2e13c3ce5b37c74b63dc7cfb163",
+#         "span_id": "0x4249f1d3557d62db",
+#         "trace_state": "[]"
+#     },
+#     "kind": "SpanKind.INTERNAL",
+#     "parent_id": "0x15eb14200cf48548",
+#     "start_time": "2024-09-18T09:11:10.380222Z",
+#     "end_time": "2024-09-18T09:11:11.159369Z",
+#     "status": {
+#         "status_code": "UNSET"
+#     },
+#     "attributes": {
+#         "type": "vector_store",
+#         "provider_name": "ChromaVectorStore",
+#         "embedding_model": "text-embedding-3-large"
+#     },
+#     "events": [
 #         {
-#             "span_name": "llamaindex.retrieve",
-#             "start_time": "2024-04-15T23:27:54.806773Z",
-#             "end_time": "2024-04-15T23:27:55.732604Z",
-#             "duration_ms": "926",
-#             "span_id": "0x030cf03872d4a092",
-#             "trace_id": "0xbd54e5d0edcd96634fa8a02c25c27519",
-#             "parent_id": "0xb4b14a8f14e7e770",
+#             "name": "context_input",
+#             "timestamp": "2024-09-18T09:11:10.380249Z",
 #             "attributes": {
-#             },
-#             "events": []
+#                 "question": "What did the author do growing up?"
+#             }
 #         },
 #         {
-#             "span_name": "llamaindex.openai",
-#             "start_time": "2024-04-15T23:27:55.740299Z",
-#             "end_time": "2024-04-15T23:27:57.181992Z",
-#             "duration_ms": "1442",
-#             "span_id": "0x225fbfb58481e58c",
-#             "trace_id": "0xbd54e5d0edcd96634fa8a02c25c27519",
-#             "parent_id": "0xb4b14a8f14e7e770",
+#             "name": "context_output",
+#             "timestamp": "2024-09-18T09:11:11.159351Z",
 #             "attributes": {
-#                 "model_name": "gpt-3.5-turbo-0125",
-#                 "provider_name": "openai.com",
-#             },
-#             "events": []
-#         },
-#         {
-#             "span_name": "llamaindex.query",
-#             "start_time": "2024-04-15T23:27:54.806477Z",
-#             "end_time": "2024-04-15T23:27:57.182261Z",
-#             "duration_ms": "2376",
-#             "span_id": "0xb4b14a8f14e7e770",
-#             "trace_id": "0xbd54e5d0edcd96634fa8a02c25c27519",
-#             "parent_id": "None",
-#             "attributes": {
-#                 "workflow_input": "What did the author do growing up?",
-#                 "workflow_name": "llama_index_1",
-#                 "workflow_output": "The context does not provide information about what the author did while growing up.",
-#                 "workflow_type": "workflow.llamaindex"
-#             },
-#             "events": []
+#                 "response": "this is some sample text"
+#             }
 #         }
-#     ]
+#     ],
+#     "links": [],
+#     "resource": {
+#         "attributes": {
+#             "service.name": "llama_index_1"
+#         },
+#         "schema_url": ""
+#     }
+# },
+# {
+#     "name": "llamaindex.openai",
+#     "context": {
+#         "trace_id": "0x939aa2e13c3ce5b37c74b63dc7cfb163",
+#         "span_id": "0x32754f3f46059db0",
+#         "trace_state": "[]"
+#     },
+#     "kind": "SpanKind.INTERNAL",
+#     "parent_id": "0x15eb14200cf48548",
+#     "start_time": "2024-09-18T09:11:11.161538Z",
+#     "end_time": "2024-09-18T09:11:12.893143Z",
+#     "status": {
+#         "status_code": "UNSET"
+#     },
+#     "attributes": {
+#         "temperature": 0.1,
+#         "model_name": "gpt-4",
+#         "provider_name": "api.openai.com",
+#         "inference_endpoint": "https://api.openai.com/v1",
+#         "completion_tokens": 15,
+#         "prompt_tokens": 142,
+#         "total_tokens": 157
+#     },
+#     "events": [],
+#     "links": [],
+#     "resource": {
+#         "attributes": {
+#             "service.name": "llama_index_1"
+#         },
+#         "schema_url": ""
+#     }
+# },
+# {
+#     "name": "llamaindex.query",
+#     "context": {
+#         "trace_id": "0x939aa2e13c3ce5b37c74b63dc7cfb163",
+#         "span_id": "0x15eb14200cf48548",
+#         "trace_state": "[]"
+#     },
+#     "kind": "SpanKind.INTERNAL",
+#     "parent_id": null,
+#     "start_time": "2024-09-18T09:11:10.379910Z",
+#     "end_time": "2024-09-18T09:11:12.894191Z",
+#     "status": {
+#         "status_code": "UNSET"
+#     },
+#     "attributes": {
+#         "tags": [
+#             "text-embedding-3-large",
+#             "ChromaVectorStore"
+#         ],
+#         "workflow_name": "llama_index_1",
+#         "workflow_type": "workflow.llamaindex"
+#     },
+#     "events": [
+#         {
+#             "name": "input",
+#             "timestamp": "2024-09-18T09:11:10.379937Z",
+#             "attributes": {
+#                 "question": "What did the author do growing up?"
+#             }
+#         },
+#         {
+#             "name": "output",
+#             "timestamp": "2024-09-18T09:11:12.894146Z",
+#             "attributes": {
+#                 "response": "The context does not provide information about what the author did while growing up."
+#             }
+#         }
+#     ],
+#     "links": [],
+#     "resource": {
+#         "attributes": {
+#             "service.name": "llama_index_1"
+#         },
+#         "schema_url": ""
+#     }
 # }
 
 

@@ -151,14 +151,17 @@ class TestHandler(unittest.TestCase):
             This can be used to do more asserts'''
             dataBodyStr = mock_post.call_args.kwargs['data']
             dataJson =  json.loads(dataBodyStr) # more asserts can be added on individual fields
-            # assert len(dataJson['batch']) == 7
+            # assert len(dataJson['batch']) == 75 = {dict: 11} {'attributes': {'session.context_key_1': 'context_value_1'}, 'context': {'span_id': '18a8d75ec4c94523', 'trace_id': '4fedeffc8d9a4ec8b3029a437b667e15', 'trace_state': '[]'}, 'end_time': '2024-09-17T07:30:36.830264Z', 'events': [], 'kind': 'SpanKind.INTERNAL', 'links': [], 'name': 'langchain.task.StrOutputParser', 'parent_id': 'f371def04dfa963d', 'resource': {'attributes': {'service.name': 'test'}, 'schema_url': ''}, 'start_time': '2024-09-17T07:30:36.829211Z', 'status': {'status_code': 'UNSET'}}... View
 
-            root_span = [x for x in  dataJson["batch"] if x["parent_id"] == "None"][0]
-            llm_span = [x for x in  dataJson["batch"] if "FakeListLLM" in x["name"]][0]
+            root_span = [x for x in dataJson["batch"] if x["parent_id"] == "None"][0]
+            llm_span = [x for x in dataJson["batch"] if "FakeListLLM" in x["name"]][0]
+            llm_vector_store_retriever_span = [x for x in dataJson["batch"] if 'langchain.task.VectorStoreRetriever' in x["name"]][0]
             root_span_attributes = root_span["attributes"]
             root_span_events = root_span["events"]
             
             assert llm_span["attributes"]["provider_name"] == "example.com"
+            assert llm_vector_store_retriever_span["attributes"]["embedding_model"] == "FAISS"
+            assert llm_vector_store_retriever_span["attributes"]["provider_name"] == "HuggingFaceEmbeddings"
 
             def get_event_attributes(events, key):
                 return [event['attributes'] for event in events if event['name'] == key][0]

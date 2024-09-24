@@ -1,5 +1,4 @@
 
-
 import json
 import logging
 import os
@@ -17,6 +16,8 @@ from haystack.utils import Secret
 from monocle_apptrace.instrumentor import setup_monocle_telemetry
 from monocle_apptrace.wrapper import WrapperMethod
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
+from haystack.components.retrievers import InMemoryBM25Retriever
+from haystack.document_stores.in_memory import InMemoryDocumentStore
 
 logger = logging.getLogger(__name__)
 
@@ -36,10 +37,14 @@ class TestHandler(unittest.TestCase):
             )
         prompt_builder = DynamicChatPromptBuilder()
         llm = OpenAIChatGenerator(api_key=Secret.from_token(api_key), model="gpt-4")
+        document_store = InMemoryDocumentStore()
+        retriever = InMemoryBM25Retriever(document_store=document_store)
 
         pipe = Pipeline()
+        pipe.add_component("retriever", retriever)
         pipe.add_component("prompt_builder", prompt_builder)
         pipe.add_component("llm", llm)
+        pipe.connect("retriever", "prompt_builder.template_variables")
         pipe.connect("prompt_builder.prompt", "llm.messages")
         query = "OpenTelemetry"
         messages = [ChatMessage.from_user("Tell me a joke about {{query}}")]
@@ -62,9 +67,9 @@ class TestHandler(unittest.TestCase):
         This can be used to do more asserts'''
         dataBodyStr = mock_post.call_args.kwargs['data']
         logger.debug(dataBodyStr)
-        dataJson =  json.loads(dataBodyStr) # more asserts can be added on individual fields
+        dataJson = json.loads(dataBodyStr) # more asserts can be added on individual fields
 
-        root_attributes = [x for x in  dataJson["batch"] if x["parent_id"] == "None"][0]["attributes"]
+        root_attributes = [x for x in dataJson["batch"] if x["parent_id"] == "None"][0]["attributes"]
         # assert root_attributes["workflow_input"] == query
         # assert root_attributes["workflow_output"] == llm.dummy_response
 
@@ -78,6 +83,7 @@ class TestHandler(unittest.TestCase):
 
         type_found = False
         model_name_found = False
+        provider_found = False
         assert root_attributes["workflow_input"] == query
         assert root_attributes["workflow_output"] == TestHandler.ragText
 
@@ -88,9 +94,13 @@ class TestHandler(unittest.TestCase):
             if span["name"] == "haystack.openai" and "model_name" in span["attributes"]:
                 assert span["attributes"]["model_name"] == "gpt-4"
                 model_name_found = True
+            if span["name"] == "haystack.retriever" and "type" in span["attributes"]:
+                assert span["attributes"]["provider_name"] == "InMemoryDocumentStore"
+                provider_found = True
 
-        assert type_found == True
-        assert model_name_found == True
+        assert type_found
+        assert model_name_found
+        assert provider_found
 
 if __name__ == '__main__':
     unittest.main()

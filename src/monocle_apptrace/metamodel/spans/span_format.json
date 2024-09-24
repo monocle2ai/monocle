@@ -14,42 +14,45 @@
     },
     "attributes": {
         "description": "List of AI component entities used in this span, eg Model, Inference hosting service. Needs to be one of the supported entity types.",
-        "Monocle.Entities.list": ["Entity-name-1", "Entity-name-2"],
-        "Monocle.Entity.<name>.type": "Monocle-Entity-Type",
-        "Monocle.Entity.<name>.attribute": "Value",
+        "monocle.entity.count": "count-of-entities",
+    
+        "monocle.entity.<index>.name": "Monocle-Entity-name",
+        "monocle.entity.<index>.type": "Monocle-Entity-Type",
+        "monocle.entity.<index>.attribute": "Value",
 
-        "Monocle.Entity.<workflow>.type": "MonocleEntity.Workflow.<workflow-type>",
-        "Monocle.Entity.<workflow>.attribute": "Value",
+        "monocle.entity.<workflow-index>.name": "Workflow-Name",
+        "monocle.entity.<workflow-index>.type": "MonocleEntity.Workflow.<workflow-type>",
+        "monocle.entity.<workflow-index>.attribute": "Value",
 
-        "Monocle.Entity.<model>.type": "MonocleEntity.Model.<model-type>",
-        "Monocle.Entity.<model>.model_name": "Name of model",
-        "Monocle.Entity.<model>.attribute": "Value",
+        "monocle.entity.<model-index>.name": "Model-entity-name",
+        "monocle.entity.<model-index>.type": "MonocleEntity.Model.<model-type>",
+        "monocle.entity.<model-index>.model_name": "Name of model",
+        "monocle.entity.<model-index>.attribute": "Value",
 
-        "Monocle.Entity.<vectorDb>.type": "MonocleEntity.VectorDB.<vectordb-type>",
-        "Monocle.Entity.<vectorDb>.embedding-model-name": "Name of model",
-        "Monocle.Entity.<vectorDb>.attribute": "Value",
+        "monocle.entity.<vectorDb-index>.name": "VectorDB-entity-name",
+        "monocle.entity.<vectorDb-index>.type": "MonocleEntity.VectorDB.<vectordb-type>",
+        "monocle.entity.<vectorDb-index>.embedding-model-name": "Name of model",
+        "monocle.entity.<vectorDb-index>.attribute": "Value",
 
-        "Monocle.Entity.<appHosting>.type": "MonocleEntity.AppHosting.<apphosting-type>",
-        "Monocle.Entity.<appHosting>.attribute": "Value",
+        "monocle.entity.<appHosting-index>.name": "Apphosting-entity-name",
+        "monocle.entity.<appHosting-index>.type": "MonocleEntity.AppHosting.<apphosting-type>",
+        "monocle.entity.<appHosting-index>.attribute": "Value",
         
-        "Monocle.Entity.<inference>.type": "MonocleEntity.Inference.<apphosting-type>",
-        "Monocle.Entity.<inference>.model_name": "Name of model",
-        "Monocle.Entity.<inference>.attribute": "Value"
+        "monocle.entity.<inference-index>.name": "Inference-entity-name",
+        "monocle.entity.<inference-index>.type": "MonocleEntity.Inference.<apphosting-type>",
+        "monocle.entity.<inference-index>.model_name": "Name of model",
+        "monocle.entity.<inference-index>.attribute": "Value"
     },
     "events" : [
         {
             "name": "Monocle Entity Name",
             "timestamp": "UTC timestamp",
             "attributes": {
-                "data": {
-                    "data.description": "Data generated in this span eg inference response",
-                    "data.optional-attrubute": "value"
-                },
-                "metadata": {
-                    "metadata.description": "Metadata generated in this span eg token count",
-                    "metadata.optional-attrubute": "value"
-                }
-            }
+                "data.description": "Data generated in this span eg inference response",
+                "data.optional-attrubute": "value",
+                "metadata.description": "Metadata generated in this span eg token count",
+                "metadata.optional-attrubute": "value"
+           }
         },
         {
             "name": "Workflow Entity Name",

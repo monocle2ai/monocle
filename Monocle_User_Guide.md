@@ -17,10 +17,7 @@ It’s typically the workflow code components of an application that generate th
 ```
     > pip install monocle_apptrace[aws]
 ```
-- For Azure support (to upload traces to Azure), install with the azure extra:
-```
-    > pip install monocle_apptrace[azure]
-```
+
 - You can locally build and install Monocle library from source
 ```
     > pip install .
@@ -75,8 +72,6 @@ To print the trace on the console, use ```ConsoleSpanExporter()``` instead of ``
 For AWS:
     Install the AWS support as shown in the setup section, then use  ```S3SpanExporter()``` to upload the traces to an S3 bucket.
  
-For Azure:
-    Install the Azure support as shown in the setup section, then use  ```AzureBlobSpanExporter()``` to upload the traces to Azure. 
 ### Leveraging Monocle's extensibility to handle customization 
 When the out of box features from app frameworks are not sufficent, the app developers have to add custom code. For example, if you are extending a LLM class in LlamaIndex to use a model hosted in NVIDIA Triton. This new class is not know to Monocle. You can specify this new class method part of Monocle enabling API and it will be able to trace it.
 

@@ -48,9 +48,7 @@ dev = [
 aws = [
     'boto3==1.35.19',
 ]
-azure = [
-    'azure-storage-blob==12.22.0',
-]
+
 [project.urls]
 Homepage = "https://github.com/monocle2ai/monocle"
 Issues = "https://github.com/monocle2ai/monocle/issues"

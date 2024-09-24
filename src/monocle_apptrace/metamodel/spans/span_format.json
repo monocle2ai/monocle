@@ -31,7 +31,7 @@
 
         "monocle.entity.<vectorDb-index>.name": "VectorDB-entity-name",
         "monocle.entity.<vectorDb-index>.type": "MonocleEntity.VectorDB.<vectordb-type>",
-        "monocle.entity.<vectorDb-index>.embedding-model-name": "Name of model",
+        "monocle.entity.<vectorDb-index>.embedding_model_name": "Name of model",
         "monocle.entity.<vectorDb-index>.attribute": "Value",
 
         "monocle.entity.<appHosting-index>.name": "Apphosting-entity-name",
@@ -49,49 +49,49 @@
             "timestamp": "UTC timestamp",
             "attributes": {
                 "data.description": "Data generated in this span eg inference response",
-                "data.optional-attrubute": "value",
+                "data.optional_attribute.entity": "value",
                 "metadata.description": "Metadata generated in this span eg token count",
-                "metadata.optional-attrubute": "value"
+                "metadata.optional_attribute.entity": "value"
            }
         },
         {
             "name": "Workflow Entity Name",
             "timestamp": "UTC timestamp",
             "attributes": {
-                "data.optional-attrubute": "value",
-                "metadata.optional-attrubute": "value"
+                "data.optional_attribute.entity": "value",
+                "metadata.optional_attribute.entity": "value"
             }
         },
         {
             "name": "Model Entity Name",
             "timestamp": "UTC timestamp",
             "attributes": {
-                "data.optional-attrubute": "value",
-                "metadata.optional-attrubute": "value"
+                "data.optional_attribute.entity": "value",
+                "metadata.optional_attribute.entity": "value"
             }
         },
         {
             "name": "VectorDB Entity Name",
             "timestamp": "UTC timestamp",
             "attributes": {
-                "data.optional-attrubute": "value",
-                "metadata.optional-attrubute": "value"
+                "data.optional_attribute.entity": "value",
+                "metadata.optional_attribute.entity": "value"
             }
         },
         {
             "name": "AppHosting Entity Name",
             "timestamp": "UTC timestamp",
             "attributes": {
-                "data.optional-attrubute": "value",
-                "metadata.optional-attrubute": "value"
+                "data.optional_attribute.entity": "value",
+                "metadata.optional_attribute.entity": "value"
             }
         },
         {
             "name": "Inference Entity Name",
             "timestamp": "UTC timestamp",
             "attributes": {
-                "data.optional-attrubute": "value",
-                "metadata.optional-attrubute": "value"
+                "data.optional_attribute.entity": "value",
+                "metadata.optional_attribute.entity": "value"
             }
         }
     ],

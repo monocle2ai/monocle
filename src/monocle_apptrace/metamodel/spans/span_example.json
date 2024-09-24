@@ -28,7 +28,7 @@
             "attributes": {
                 "data.context_input": "question: What is an americano?",
                 "data.context_output": "Coffee is a hot drink made from the roasted and ground seeds (coffee beans) of a tropical shrub\nA latte consists of one or more shots of espresso, served in a glass (or sometimes a cup), into which hot steamed milk is added\nAmericano is a type of coffee drink prepared by diluting an espresso shot with hot water at a 1:3 to 1:4 ratio, resulting in a drink that retains the complex flavors of espresso, but in a lighter way",
-                "metadata": {}
+                "metadata": ""
             }
         }
     ],
@@ -58,9 +58,8 @@
         "monocle.entity.count": 2,
         "monocle.entity.1.name": "AzureOpenAI",
         "monocle.entity.1.type": "MonocleEntity.Inference.Azure_OpenAI",
-        "monocle.entity.1.model_name": "gpt-35-turbo",
-        "monocle.entity.1.provider_name": "api.openai.com",
-        "monocle.entity.1.az_openai_deployment": "kshitiz-gpt",
+        "monocle.entity.1.provider_name": "openai.azure.com",
+        "monocle.entity.1.deployment": "kshitiz-gpt",
         "monocle.entity.1.inference_endpoint": "https://okahu-openai-dev.openai.azure.com/",
 
         "monocle.entity.2.name": "gpt-35-turbo",
@@ -73,11 +72,11 @@
             "name": "gpt-35-turbo",
             "timestamp": "timestamp",
             "attributes": {
-                "data.input.question": "What is an americano?",
-                "data.output.response": "An americano is a type of coffee drink that is made by diluting an espresso shot with hot water at a 1:3 to 1:4 ratio, resulting in a drink that retains the complex flavors of espresso, but in a lighter way.",
-                    "metadata.completion_tokens": 52,
-                    "metadata.prompt_tokens": 233,
-                    "metadata.total_tokens": 285
+                "data.input": "question: What is an americano?",
+                "data.output": "response: An americano is a type of coffee drink that is made by diluting an espresso shot with hot water at a 1:3 to 1:4 ratio, resulting in a drink that retains the complex flavors of espresso, but in a lighter way.",
+                "metadata.completion_tokens": 52,
+                "metadata.prompt_tokens": 233,
+                "metadata.total_tokens": 285
             }
         }
     ],

@@ -13,7 +13,7 @@ The Monocle metamodel comprises of three things,
 The entity type defines the type of GenAI component that Monocle understand. The monocle instrumentation can extract the relevenat information for this entity. There are a fixed set of [entity types](./entity_types.py) that are defined by Monocle out of the box, eg workflow, model etc. As the GenAI landscape evolves, the Monocle community will introduce a new entity type if the current entities won't represent a new technology component.
 Each entity types has number of supported technology components that Monocle handles out of the box, eg. LlamaIndex is a supported workflow. Monocle community will continue to expand the breadth of the project by adding more components.
 
-### Consisten trace format
+### Consistent trace format
 Monocle generates [traces](../../../Monocle_User_Guide.md#traces) which comprises of [spans](../../../Monocle_User_Guide.md#spans). Note that Monocle trace is [OpenTelemetry format](https://opentelemetry.io/docs/concepts/signals/traces/) compatible. Each span is essentially a step in the execution that interacts with one of more GenAI technology components. The please refer to the [full spec of the json format](./span_format.json) and a detailed [example](./span_example.json). 
 The ```attribute``` section of the span includes a list of such entities that are used in that span.
 ```json

@@ -45,9 +45,6 @@ dev = [
   'llama-index-vector-stores-chroma==0.1.9',
   'parameterized==0.9.0'
 ]
-aws = [
-    'boto3==1.35.19',
-]
 azure = [
     'azure-storage-blob==12.22.0',
 ]

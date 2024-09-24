@@ -72,9 +72,6 @@ setup_monocle_telemetry(workflow_name = "simple_math_app",
 ```
 To print the trace on the console, use ```ConsoleSpanExporter()``` instead of ```FileSpanExporter()```
 
-For AWS:
-    Install the AWS support as shown in the setup section, then use  ```S3SpanExporter()``` to upload the traces to an S3 bucket.
- 
 For Azure:
     Install the Azure support as shown in the setup section, then use  ```AzureBlobSpanExporter()``` to upload the traces to Azure. 
 ### Leveraging Monocle's extensibility to handle customization 

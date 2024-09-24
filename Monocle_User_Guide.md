@@ -13,10 +13,6 @@ It’s typically the workflow code components of an application that generate th
 ``` 
     > pip install monocle_apptrace
 ```
-- For AWS support (to upload traces to AWS), install with the aws extra:
-```
-    > pip install monocle_apptrace[aws]
-```
 - For Azure support (to upload traces to Azure), install with the azure extra:
 ```
     > pip install monocle_apptrace[azure]

@@ -6,9 +6,6 @@ on:
       PYPI_REPO: 
         default: 'testpypi'
         type: string
-  push:
-    branches:
-      - kshitiz/add_workflow_pypi_monocle
 
 jobs :
   push-monocle-pypi:

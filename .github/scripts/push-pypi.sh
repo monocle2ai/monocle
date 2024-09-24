@@ -1,4 +1,5 @@
 python -m pip install pipenv
+pipenv --python 3.12
 pipenv install build
 pipenv install twine
 source $(pipenv --venv)/bin/activate

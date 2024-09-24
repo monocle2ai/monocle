@@ -6,6 +6,9 @@ on:
       PYPI_REPO: 
         default: 'testpypi'
         type: string
+  push:
+    branches:
+      - kshitiz/add_workflow_pypi_monocle
 
 jobs :
   push-monocle-pypi:
@@ -20,7 +23,7 @@ jobs :
         env:
           PYPI_USERNAME: __token__
           PYPI_PASSWORD: ${{ inputs.PYPI_REPO == 'pypi' && secrets.PYPI_TOKEN || secrets.TEST_PYPI_TOKEN }}
-          PYPI_REPO: ${{ inputs.PYPI_REPO }}
+          PYPI_REPO: ${{ inputs.PYPI_REPO || 'testpypi'}}
         run: ./.github/scripts/push-pypi.sh
 
           

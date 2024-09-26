@@ -16,7 +16,7 @@
         "span.type": "Retrieval", 
         "entity.count": 2,
         "entity.1.name": "ChromaVectorStore",
-        "entity.1.type": "VectorDB.Chroma",
+        "entity.1.type": "VectorStore.Chroma",
         "entity.1.embedding-model-name": "BAAI/bge-small-en-v1.5",
         "entity.2.name": "BAAI/bge-small-en-v1.5",
         "entity.2.type": "Model.embedding",
@@ -72,8 +72,7 @@
 
         "entity.2.name": "gpt-35-turbo",
         "entity.2.type": "Model.LLM",
-        "entity.2.model_name": "gpt-35-turbo",
-        "entity.2.temperature": 0.1
+        "entity.2.model_name": "gpt-35-turbo"
     },
     "events": [
         {
@@ -94,6 +93,7 @@
             "name": "metadata",
             "timestamp": "timestamp",
             "attributes": {
+                "temperature": 0.1,
                 "completion_tokens": 52,
                 "prompt_tokens": 233,
                 "total_tokens": 285

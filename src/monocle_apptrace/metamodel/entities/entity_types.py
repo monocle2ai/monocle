@@ -18,7 +18,7 @@ class MonocleEntity(enum):
         Embedding = 2
 
     # Support Vector databases
-    class VectorDB(enum):
+    class VectorStore(enum):
         Generic = 0
         Chroma = 1
         AWS_es = 2

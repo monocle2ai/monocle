@@ -34,7 +34,7 @@ The model hosting infrastructure services. Supported types are -
 - AWS_bedrock
 - HuggingFace
 
-### MonocleEntity.VectorDB
+### MonocleEntity.VectorStore
 Vector search data stores. Supported types are -
 - Generic
 - Chroma

@@ -65,7 +65,7 @@
         "span.type": "Inference",
         "entity.count": 2,
         "entity.1.name": "AzureOpenAI",
-        "entity.1.type": "Inference.Azure_OpenAI",
+        "entity.1.type": "Inference.Azure_oai",
         "entity.1.provider_name": "openai.azure.com",
         "entity.1.deployment": "kshitiz-gpt",
         "entity.1.inference_endpoint": "https://okahu-openai-dev.openai.azure.com/",

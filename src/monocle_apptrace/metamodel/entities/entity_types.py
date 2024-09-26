@@ -18,45 +18,31 @@ class MonocleEntity(enum):
         Embedding = 2
 
     # Support Vector databases
-    class Model(enum):
+    class VectorDB(enum):
         Generic = 0
-        Milvus = 1
-        Chroma = 2
-        Vespa = 3
-        LanceDB = 4
-        Pinecone = 5
-        Viviate = 6
-        PostgreS = 7
-        Openstore = 8
-        Clickhouse = 9
-        ElasticSearch = 10
-        SingleStore = 11
-        CouchDB = 12
+        Chroma = 1
+        AWS_es = 2
+        Milvus = 3
+        Pinecone = 4
 
     # Support application hosting frameworks
     class AppHosting(enum):
         Generic = 0
-        AWS_Lambda = 1
-        AWS_Sagemaker = 2
-        Azure_Function = 3
-        Github_Codespace = 4
-        Azure_ML = 5
+        AWS_lambda = 1
+        AWS_sagemaker = 2
+        Azure_func = 3
+        Github_codespace = 4
+        Azure_mlw = 5
 
     # Supported inference infra/services
     class Inference(enum):
         Generic = 0
-        NVIDIA_Triton = 1
+        NVIDIA_triton = 1
         OpenAI = 2
-        Azure_OpenAI = 3
-        AWS_Sagemaker = 4
-        AWS_Bedrock = 5
+        Azure_oai = 3
+        AWS_sagemaker = 4
+        AWS_bedrock = 5
         HuggingFace = 6
-        Cohere = 7
-        vLLM = 8
-
-    class Classification(enum):
-        Metadata = 0
-        Data = 1
 
 class SpanType(enum):
     Internal = 0

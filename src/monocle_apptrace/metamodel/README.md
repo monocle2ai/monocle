@@ -14,59 +14,14 @@ The entity type defines the type of GenAI component that Monocle understand. The
 Each entity types has number of supported technology components that Monocle handles out of the box, eg. LlamaIndex is a supported workflow. Monocle community will continue to expand the breadth of the project by adding more components.
 
 ### Span types
-The GenAI application have specific types of spans where diffrent entities integrate. Monocle metamodel defines these types and specifies format for tracing data and metadata generated in such spans. 
+The GenAI application have specific [types of spans](./spans/README.md#span-types-and-events) where diffrent entities integrate. Monocle metamodel defines these types and specifies format for tracing data and metadata generated in such spans. 
 
 ### Consistent trace format
 Monocle generates [traces](../../../Monocle_User_Guide.md#traces) which comprises of [spans](../../../Monocle_User_Guide.md#spans). Note that Monocle trace is [OpenTelemetry format](https://opentelemetry.io/docs/concepts/signals/traces/) compatible. Each span is essentially a step in the execution that interacts with one of more GenAI technology components. The please refer to the [full spec of the json format](./span_format.json) and a detailed [example](./span_example.json). 
 The ```attribute``` section of the span includes a list of such entities that are used in that span.
-```json
-    "attributes": {
-        "Monocle.Entity": [
-            {
-                "name": "AzureOpenAI",
-                "type": "MonocleEntity.Inference.Azure_OpenAI",
-                "attributes": {
-                    "model_name": "gpt-35-turbo",
-                    "provider_name": "api.openai.com",
-                    "az_openai_deployment": "chatbot-gpt-3.5",
-                    "inference_endpoint": "https://mybot-openai-dev.openai.azure.com/"
-                }
-            },
-            {
-                "name": "gpt-35-turbo",
-                "type": "MonocleEntity.Model.LLM",
-                "attributes": {
-                    "model_name": "gpt-35-turbo",
-                    "temperature": 0.1,
-                }
-            }
-        ]
-    }
-```
-The runtime data and metadata collected during the execution of that span are included in the ```events``` section of the trace (as per the Otel spec). Each entry in the event corrosponds to the entity involved in that trace execution if it has produced any runtime outputs. The event information is divided in two sections, ``data`` and ``metadata``. The data protion contains any user data that part of input or output of the span phase, eg model prompt or inference response. The ``metadata`` section includes other attributes that are runtime input or output, eg token count.
-```json
- "events": [
-        {
-            "name": "gpt-35-turbo",
-            "timestamp": "timestamp",
-            "attributes": {
-                "data": {
-                    "input": {
-                        "question": "What is an americano?"
-                    },
-                    "output": {
-                        "response": "An americano is a type of coffee drink that is made by diluting an espresso shot with hot water at a 1:3 to 1:4 ratio, resulting in a drink that retains the complex flavors of espresso, but in a lighter way."
-                    }    
-                },
-                "metadata": {
-                    "completion_tokens": 52,
-                    "prompt_tokens": 233,
-                    "total_tokens": 285
-                }
-            }
-        }
-    ]
-```
+The runtime data and metadata collected during the execution of that span are included in the ```events``` section of the trace (as per the Otel spec). Each entry in the event corrosponds to the entity involved in that trace execution if it has produced any runtime outputs. 
+Please see the [span format](./spans/README.md) for details.
+
 ### Instrumentation method map
 The map dectates what Monocle tracing method is relevant for the a given GenAI tech component method/API. It also specifies the name for that span to set in the trace output.
 ```python

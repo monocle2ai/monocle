@@ -18,7 +18,7 @@ class MonocleEntity(enum):
         Embedding = 2
 
     # Support Vector databases
-    class VectorDB(enum):
+    class Model(enum):
         Generic = 0
         Milvus = 1
         Chroma = 2
@@ -57,3 +57,9 @@ class MonocleEntity(enum):
     class Classification(enum):
         Metadata = 0
         Data = 1
+
+class SpanType(enum):
+    Internal = 0
+    Retrieval = 2
+    Inference = 3
+    Workflow = 4

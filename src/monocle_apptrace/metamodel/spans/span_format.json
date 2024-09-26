@@ -14,84 +14,34 @@
     },
     "attributes": {
         "description": "List of AI component entities used in this span, eg Model, Inference hosting service. Needs to be one of the supported entity types.",
-        "monocle.entity.count": "count-of-entities",
     
-        "monocle.entity.<index>.name": "Monocle-Entity-name",
-        "monocle.entity.<index>.type": "Monocle-Entity-Type",
-        "monocle.entity.<index>.attribute": "Value",
-
-        "monocle.entity.<workflow-index>.name": "Workflow-Name",
-        "monocle.entity.<workflow-index>.type": "MonocleEntity.Workflow.<workflow-type>",
-        "monocle.entity.<workflow-index>.attribute": "Value",
-
-        "monocle.entity.<model-index>.name": "Model-entity-name",
-        "monocle.entity.<model-index>.type": "MonocleEntity.Model.<model-type>",
-        "monocle.entity.<model-index>.model_name": "Name of model",
-        "monocle.entity.<model-index>.attribute": "Value",
-
-        "monocle.entity.<vectorDb-index>.name": "VectorDB-entity-name",
-        "monocle.entity.<vectorDb-index>.type": "MonocleEntity.VectorDB.<vectordb-type>",
-        "monocle.entity.<vectorDb-index>.embedding_model_name": "Name of model",
-        "monocle.entity.<vectorDb-index>.attribute": "Value",
-
-        "monocle.entity.<appHosting-index>.name": "Apphosting-entity-name",
-        "monocle.entity.<appHosting-index>.type": "MonocleEntity.AppHosting.<apphosting-type>",
-        "monocle.entity.<appHosting-index>.attribute": "Value",
-        
-        "monocle.entity.<inference-index>.name": "Inference-entity-name",
-        "monocle.entity.<inference-index>.type": "MonocleEntity.Inference.<apphosting-type>",
-        "monocle.entity.<inference-index>.model_name": "Name of model",
-        "monocle.entity.<inference-index>.attribute": "Value"
+        "span.type": "Monocle-span-type",
+        "entity.count": "count-of-entities",
+    
+        "entity.<index>.name": "Monocle-Entity-name",
+        "entity.<index>.type": "Monocle-Entity-Type",
+        "entity.<index>.<attribute>": "Value"
     },
     "events" : [
         {
-            "name": "Monocle Entity Name",
+            "name": "data.input",
             "timestamp": "UTC timestamp",
             "attributes": {
-                "data.description": "Data generated in this span eg inference response",
-                "data.optional_attribute.entity": "value",
-                "metadata.description": "Metadata generated in this span eg token count",
-                "metadata.optional_attribute.entity": "value"
+                "input_attribute": "value"
            }
         },
         {
-            "name": "Workflow Entity Name",
+            "name": "data.output",
             "timestamp": "UTC timestamp",
             "attributes": {
-                "data.optional_attribute.entity": "value",
-                "metadata.optional_attribute.entity": "value"
+                "output_attribute": "value"
             }
         },
         {
-            "name": "Model Entity Name",
+            "name": "metadata",
             "timestamp": "UTC timestamp",
             "attributes": {
-                "data.optional_attribute.entity": "value",
-                "metadata.optional_attribute.entity": "value"
-            }
-        },
-        {
-            "name": "VectorDB Entity Name",
-            "timestamp": "UTC timestamp",
-            "attributes": {
-                "data.optional_attribute.entity": "value",
-                "metadata.optional_attribute.entity": "value"
-            }
-        },
-        {
-            "name": "AppHosting Entity Name",
-            "timestamp": "UTC timestamp",
-            "attributes": {
-                "data.optional_attribute.entity": "value",
-                "metadata.optional_attribute.entity": "value"
-            }
-        },
-        {
-            "name": "Inference Entity Name",
-            "timestamp": "UTC timestamp",
-            "attributes": {
-                "data.optional_attribute.entity": "value",
-                "metadata.optional_attribute.entity": "value"
+                "metadata_attribute": "value"
             }
         }
     ],

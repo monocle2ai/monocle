@@ -16,10 +16,10 @@
         "span.type": "Retrieval", 
         "entity.count": 2,
         "entity.1.name": "ChromaVectorStore",
-        "entity.1.type": "VectorStore.Chroma",
+        "entity.1.type": "vectorstore.chroma",
         "entity.1.embedding-model-name": "BAAI/bge-small-en-v1.5",
         "entity.2.name": "BAAI/bge-small-en-v1.5",
-        "entity.2.type": "Model.embedding",
+        "entity.2.type": "model.embedding",
         "entity.2.model_name": "BAAI/bge-small-en-v1.5"
     },
     "events": [
@@ -62,16 +62,16 @@
         "status_code": "OK"
     },
     "attributes": {
-        "span.type": "Inference",
+        "span.type": "inference",
         "entity.count": 2,
         "entity.1.name": "AzureOpenAI",
-        "entity.1.type": "Inference.Azure_oai",
+        "entity.1.type": "inference.azure_oai",
         "entity.1.provider_name": "openai.azure.com",
         "entity.1.deployment": "kshitiz-gpt",
         "entity.1.inference_endpoint": "https://okahu-openai-dev.openai.azure.com/",
 
         "entity.2.name": "gpt-35-turbo",
-        "entity.2.type": "Model.LLM",
+        "entity.2.type": "model.llm",
         "entity.2.model_name": "gpt-35-turbo"
     },
     "events": [
@@ -123,10 +123,10 @@
         "status_code": "OK"
     },
     "attributes": {
-        "span.type": "Workflow",
+        "span.type": "workflow",
         "entity.count": 1,
         "entity.1.name": "coffee-bot",
-        "entity.1.type": "Workflow.LlamaIndex"
+        "entity.1.type": "workflow.llama_index"
     },
     "events": [
     ],

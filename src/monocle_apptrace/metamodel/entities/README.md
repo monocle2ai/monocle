@@ -4,40 +4,40 @@ The entity type defines the type of GenAI component that Monocle understand. The
 ## Entity Types
 ### MonocleEntity.Workflow
 Workflow ie the core application code. Supported types are -
-- Generic
-- Langchain
-- LlamaIndex
-- Haystack
+- generic
+- langchain
+- llama_i_ndex
+- haystack
 
 ### MonocleEntity.Model
 GenAI models. Supported types are -
-- Generic
-- LLM
-- Embedding
+- generic
+- llm
+- embedding
 
 ### MonocleEntity.AppHosting
 Application host services where the workflow code is run. Supported types are -
-- Generic
-- AWS_lambda
-- AWS_sagemaker
-- Azure_func
-- Github_codespace
-- Azure_mlw
+- generic
+- aws_lambda
+- aws_sagemaker
+- azure_func
+- github_codespace
+- azure_mlw
 
 ### MonocleEntity.Inference
 The model hosting infrastructure services. Supported types are -
-- Generic
-- NVIDIA_triton
-- OpenAI
-- Azure_oai
-- AWS_sagemaker
-- AWS_bedrock
-- HuggingFace
+- generic
+- nvidia_triton
+- openai
+- azure_oai
+- aws_sagemaker
+- aws_bedrock
+- hugging_face
 
 ### MonocleEntity.VectorStore
 Vector search data stores. Supported types are -
-- Generic
-- Chroma
-- AWS_es
-- Milvus
-- Pinecone
+- generic
+- chroma
+- aws_es
+- milvus
+- pinecone

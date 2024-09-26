@@ -6,46 +6,46 @@ import enum
 class MonocleEntity(enum):
     # Supported Workflow/language frameworks
     class Workflow(enum):
-        Generic = 0
-        Langchain = 1
-        LlamaIndex = 2
-        Haystack = 3
+        generic = 0
+        langchain = 1
+        llama_index = 2
+        haystack = 3
 
     # Supported model types
     class Model(enum):
-        Generic = 0
-        LLM = 1
-        Embedding = 2
+        generic = 0
+        llm = 1
+        embedding = 2
 
     # Support Vector databases
     class VectorStore(enum):
-        Generic = 0
-        Chroma = 1
-        AWS_es = 2
+        generic = 0
+        chroma = 1
+        aws_es = 2
         Milvus = 3
         Pinecone = 4
 
     # Support application hosting frameworks
     class AppHosting(enum):
-        Generic = 0
-        AWS_lambda = 1
-        AWS_sagemaker = 2
-        Azure_func = 3
-        Github_codespace = 4
-        Azure_mlw = 5
+        generic = 0
+        aws_lambda = 1
+        aws_sagemaker = 2
+        azure_func = 3
+        github_codespace = 4
+        azure_mlw = 5
 
     # Supported inference infra/services
     class Inference(enum):
-        Generic = 0
-        NVIDIA_triton = 1
-        OpenAI = 2
-        Azure_oai = 3
-        AWS_sagemaker = 4
-        AWS_bedrock = 5
-        HuggingFace = 6
+        generic = 0
+        nvidia_triton = 1
+        openai = 2
+        azure_oai = 3
+        aws_sagemaker = 4
+        aws_bedrock = 5
+        hugging_face = 6
 
 class SpanType(enum):
-    Internal = 0
-    Retrieval = 2
-    Inference = 3
-    Workflow = 4
+    internal = 0
+    retrieval = 2
+    inference = 3
+    workflow = 4

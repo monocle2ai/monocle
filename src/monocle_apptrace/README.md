@@ -52,6 +52,8 @@ prompt = PromptTemplate.from_template("1 + {number} = ")
 chain = LLMChain(llm=llm, prompt=prompt)
 chain.invoke({"number":2})
 
+# Trace is generated when invoke() method is called
+
 ```
 
 ### apps with custom methods
@@ -81,5 +83,7 @@ setup_monocle_telemetry(
                 span_name="langchain.workflow",
                 wrapper=atask_wrapper)
         ])
+
+# Trace is generated when the invoke() method is called in langchain.schema.runnable package
 
 ```

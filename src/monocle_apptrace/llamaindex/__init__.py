@@ -12,4 +12,4 @@ def get_llm_span_name_for_openai(instance):
 
 parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 LLAMAINDEX_METHODS = load_wrapper_from_config(
-    os.path.join(parent_dir, 'wrapper_config', 'llama_index_methods.json'))
+    os.path.join(parent_dir, 'metamodel', 'maps', 'llama_index_methods.json'))

@@ -4,7 +4,7 @@ import os
 from urllib.parse import urlparse
 
 from opentelemetry.trace import Span, Tracer
-from monocle_apptrace.utils import resolve_from_alias, update_span_with_infra_name, with_tracer_wrapper
+from monocle_apptrace.utils import resolve_from_alias, update_span_with_infra_name, with_tracer_wrapper, get_embedding_model
 
 logger = logging.getLogger(__name__)
 WORKFLOW_TYPE_KEY = "workflow_type"
@@ -17,13 +17,34 @@ RESPONSE = "response"
 TAGS = "tags"
 SESSION_PROPERTIES_KEY = "session"
 INFRA_SERVICE_KEY = "infra_service_name"
-
+TYPE = "type"
+PROVIDER = "provider_name"
+EMBEDDING_MODEL = "embedding_model"
+VECTOR_STORE = 'vector_store'
 
 
 WORKFLOW_TYPE_MAP = {
     "llama_index": "workflow.llamaindex",
     "langchain": "workflow.langchain",
     "haystack": "workflow.haystack"
+}
+
+framework_vector_store_mapping = {
+    'langchain_core.retrievers': lambda instance: {
+        'provider': instance.tags[0],
+        'embedding_model': instance.tags[1],
+        'type': VECTOR_STORE,
+    },
+    'llama_index.core.indices.base_retriever': lambda instance: {
+        'provider': type(instance._vector_store).__name__,
+        'embedding_model': instance._embed_model.model_name,
+        'type': VECTOR_STORE,
+    },
+    'haystack.components.retrievers': lambda instance: {
+        'provider': instance.__dict__.get("document_store").__class__.__name__,
+        'embedding_model': get_embedding_model(),
+        'type': VECTOR_STORE,
+    },
 }
 
 @with_tracer_wrapper
@@ -66,6 +87,7 @@ def pre_task_processing(to_wrap, instance, args, span):
     #capture the tags attribute of the instance if present, else ignore
     try:
         update_tags(instance, span)
+        update_vectorstore_attributes(to_wrap, instance, span)
     except AttributeError:
         pass
     update_span_with_context_input(to_wrap=to_wrap, wrapped_args=args, span=span)
@@ -133,6 +155,8 @@ def llm_wrapper(tracer: Tracer, to_wrap, wrapped, instance, args, kwargs):
     else:
         name = f"langchain.task.{instance.__class__.__name__}"
     with tracer.start_as_current_span(name) as span:
+        if 'haystack.components.retrievers' in to_wrap['package'] and 'haystack.retriever' in span.name:
+            update_vectorstore_attributes(to_wrap, instance, span)
         update_llm_endpoint(curr_span= span, instance=instance)
 
         return_value = wrapped(*args, **kwargs)
@@ -148,12 +172,12 @@ def update_llm_endpoint(curr_span: Span, instance):
         if 'temperature' in instance.__dict__:
             temp_val = instance.__dict__.get("temperature")
             curr_span.set_attribute("temperature", temp_val)
-        # handling for model name
-        model_name =  resolve_from_alias(instance.__dict__ , ["model","model_name"])
+            # handling for model name
+        model_name = resolve_from_alias(instance.__dict__ , ["model","model_name"])
         curr_span.set_attribute("model_name", model_name)
         set_provider_name(curr_span, instance)
         # handling AzureOpenAI deployment
-        deployment_name =  resolve_from_alias(instance.__dict__ , [ "engine", "azure_deployment",
+        deployment_name = resolve_from_alias(instance.__dict__ , [ "engine", "azure_deployment",
                                                                    "deployment_name", "deployment_id", "deployment"])
         curr_span.set_attribute("az_openai_deployment", deployment_name)
         # handling the inference endpoint
@@ -191,7 +215,6 @@ def get_input_from_args(chain_args):
     return ""
 
 def update_span_from_llm_response(response, span: Span):
-    
     # extract token uasge from langchain openai
     if (response is not None and hasattr(response, "response_metadata")):
         response_metadata = response.response_metadata
@@ -266,3 +289,23 @@ def update_tags(instance, span):
         span.set_attribute(TAGS, [model_name, vector_store_name])
     except:
         pass
+
+
+def update_vectorstore_attributes(to_wrap, instance, span):
+    """
+       Updates the telemetry span attributes for vector store retrieval tasks.
+    """
+    try:
+        package = to_wrap.get('package')
+        if package in framework_vector_store_mapping:
+            attributes = framework_vector_store_mapping[package](instance)
+            span._attributes.update({
+                TYPE: attributes['type'],
+                PROVIDER: attributes['provider'],
+                EMBEDDING_MODEL: attributes['embedding_model']
+            })
+        else:
+            logger.warning(f"Package '{package}' not recognized for vector store telemetry.")
+
+    except Exception as e:
+        logger.error(f"Error updating span attributes: {e}")

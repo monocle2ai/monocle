@@ -5,6 +5,8 @@ import os
 from opentelemetry.trace import Span
 from monocle_apptrace.constants import azure_service_map, aws_service_map
 
+embedding_model_context = {}
+
 def set_span_attribute(span, name, value):
     if value is not None:
         if value != "":
@@ -71,3 +73,21 @@ def update_span_with_infra_name(span: Span, span_key: str):
     for key,val  in aws_service_map.items():
         if key in os.environ:
             span.set_attribute(span_key, val)
+
+
+def set_embedding_model(model_name: str):
+    """
+    Sets the embedding model in the global context.
+
+    @param model_name: The name of the embedding model to set
+    """
+    embedding_model_context['embedding_model'] = model_name
+
+
+def get_embedding_model() -> str:
+    """
+    Retrieves the embedding model from the global context.
+
+    @return: The name of the embedding model, or 'unknown' if not set
+    """
+    return embedding_model_context.get('embedding_model', 'unknown')

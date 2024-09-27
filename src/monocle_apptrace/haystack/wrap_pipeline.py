@@ -5,6 +5,7 @@ from opentelemetry.instrumentation.utils import (
     _SUPPRESS_INSTRUMENTATION_KEY,
 )
 from monocle_apptrace.wrap_common import PROMPT_INPUT_KEY, PROMPT_OUTPUT_KEY, WORKFLOW_TYPE_MAP, with_tracer_wrapper
+from monocle_apptrace.utils import set_embedding_model
 
 logger = logging.getLogger(__name__)
 
@@ -17,6 +18,9 @@ def wrap(tracer, to_wrap, wrapped, instance, args, kwargs):
     attach(set_value("workflow_name", name))
     inputs = set()
     workflow_input = get_workflow_input(args, inputs)
+    embedding_model = get_embedding_model(instance)
+    set_embedding_model(embedding_model)
+
 
     with tracer.start_as_current_span(f"{name}.workflow") as span:
         span.set_attribute(PROMPT_INPUT_KEY, workflow_input)
@@ -44,3 +48,15 @@ def get_workflow_input(args, inputs):
 def set_workflow_attributes(span, workflow_name):
     span.set_attribute("workflow_name",workflow_name)
     span.set_attribute("workflow_type", WORKFLOW_TYPE_MAP["haystack"])
+
+def get_embedding_model(instance):
+    try:
+        if hasattr(instance, 'get_component'):
+            text_embedder = instance.get_component('text_embedder')
+            if text_embedder and hasattr(text_embedder, 'model'):
+                # Set the embedding model attribute
+                return text_embedder.model
+    except:
+        pass
+
+    return None

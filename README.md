@@ -1,41 +1,71 @@
-# monocle genAI observability
-### Background
-Generative AI (GenAI) is the type of AI used to create content such as conversations, images, or video based on prior learning from existing content. GenAI relies on foundational models, which are exceptionally large ML models trained on vast amounts of generalized and unlabeled data to perform variety of general tasks such as understanding language and generating new text, audio or images from user provided prompts in a human language. Foundational models (FM) work by using learned patterns and relationships from the training data to predict the next item in a sequence given a prompt. It is cheaper and faster for data scientists to use foundational models as starting points rather than building models from scratch to build ML apps.  
-Large Language Models (LLMs) are a class of foundational models trained on text data used to perform a variety of tasks such as understanding language, reasoning over text, and generating new text based on user prompts in a human language. Examples of LLMs include ChatGPT, Llama, and Claude. 
-LLM-based AI apps leverage understanding language, reasoning & text generation to augment or automate complex tasks that typically require human intervention such as summarizing legal documents, triaging customer support tickets, or more.  
-Typically, AI developers build LLM-based AI apps that automate complex workflows by combining multiple LLMs and components such as prompts, vectors, or agents that each solve a discrete task that are connected by chains or pipelines in different ways using LLM (Large Language Model) orchestration frameworks.  
-When deployed to production, different parts of multi-component distributed LLM-based AI apps run on a combination of different kinds of AI infrastructure such as LLM-as-a-Service, GPU (graphics processing units) clouds, managed services from cloud, or custom-engineered AI stack. Typically, these systems are managed in production by IT DevOps engineers.  
-AI developers code, monitor, debug and optimize the resources in an LLM-based AI application. IT DevOps engineers monitor, troubleshoot, and optimize the services in the AI infra that the LLM-based AI application runs on. 
+# Monocle for tracing GenAI app code
 
-## Introducing “Monocle – An eye for A.I.”
-The goal of project Monocle is to help GenAI developer to trace their applications. A typical GenAI application comprises of several technology components like application code/workflow, models, inferences services, vector databases etc. Understanding the dependencies and tracking application quickly becomes a difficult task. Monocle can be integrated into application code with very little to no code changes. Monocle supports tracing all GenAI technology components, application frameworks, LLM hosting services. We do all the hard work of finding what needs to be instrumented and how to instrument it. This enables the enlightened applications to generate detailed traces without any additional efforts from the developers.
-The traces are compatible with OpenTelemetry format. They are further enriched to contain lot more attribute relevant to GenAI applications like prompts. The project will have out of box support to store the traces locally and a extensibility for a third party store which can be implemented by end user or a supplied by third party vendors.    
+**Monocle** helps developers and platform engineers building or managing GenAI apps monitor these in prod by making it easy to instrument their code to capture traces that are compliant with open-source cloud-native observability ecosystem. 
 
-## Monocle integration
-### genAI Appliation frameworks
-- Langchain
-- LlamaIndex
-- Haystack
-### LLMs
-- OpenAI
-- Azure OpenAI
-- NVIDIA Triton
+**Monocle** is a community-driven OSS framework for tracing GenAI app code governed as a [Linux Foundation AI & Data project](https://lfaidata.foundation/projects/monocle/). 
 
-## Getting started
-### Try Monocle with your python genAI application
-- Get latest Monocle python brary 
+## Why Monocle
+
+Monocle is built for: 
+- **app developers** to trace their app code in any environment without writing code for every function 
+- **platform engineers** to instrument apps in prod through wrapping instead of asking app devs to recode
+- **GenAI component providers** to add observability features to their products 
+- **enterprises** with existing open source observability stacks to consume traces from GenAI apps
+
+Benefits:
+- Monocle provides an implementation with packages that you can use right away, not just a specification
+   - You don't have to learn the OpenTelemetry specification
+   - You don't have to do bespoke implementation of that specification
+   - You don't have to write lots of last-mile GenAI domain specific code to instrument your app
+- Monocle provides consistency across components and environments 
+   - You can connect traces across app code executions, model inference or data retrievals
+   - You don't have to transform or cleanse telemetry data to add consistency across GenAI component providers
+   - You use it in your personal lab development or organizational cloud production environments the same way
+   - You can easily configure where the traces are sent to fit your scale, budget and observability stack
+- Monocle is fully open source and community driven which means
+   - no vendor lock-in
+   - implementation is transparent
+   - you can freely customize or add to it to fit your needs 
+
+## What Monocle provides
+
+- One-line code instrumentation 
+- OpenTelemetry compatible format for traces
+- Community-curated meta-model for tracing GenAI components
+- Export to cloud storage  
+
+## Use Monocle
+
+- Get the Monocle package
+  
 ```
-    pip install monocle_apptrace
+    pip install monocle_apptrace 
 ```
-- Import monocle package in your app
-```
-    from monocle_apptrace.instrumentor import setup_monocle_telemetry
-```
-- Enable Monocle tracing in your app by adding following
-```
-    setup_monocle_telemetry(workflow_name="your-app-name")
-```
-Please refer to [Monocle user guide](Monocle_User_Guide.md) for more details
+- Instrument your app code
+     - Import the Monocle package
+       ```
+          from monocle_apptrace.instrumentor import setup_monocle_telemetry
+       ```
+     - Setup instrumentation in your ```main()``` function  
+       ``` 
+          setup_monocle_telemetry(workflow_name="your-app-name")
+       ```         
+- (Optionally) Modify config to alter where traces are sent
+
+See [Monocle user guide](Monocle_User_Guide.md) for more details.
+  
+
+## Roadmap 
+
+Goal of Monocle is to support tracing for apps written in *any language* with *any LLM orchestration or agentic framework* and built using models, vectors, agents or other components served up by *any cloud or model inference provider*. 
+
+Current version supports: 
+- Language: (🟢) Python , (🔜) [Typescript](https://github.com/monocle2ai/monocle-typescript) 
+- LLM-frameworks: (🟢) Langchain, (🟢) Llamaindex, (🟢) Haystack, (🔜) Flask
+- LLM inference providers: (🟢) OpenAI, (🟢) Azure OpenAI, (🟢) Nvidia Triton, (🔜) AWS Bedrock, (🔜) Google Vertex, (🔜) Azure ML, (🔜) Hugging Face
+- Vector stores: (🟢) FAISS, (🔜) OpenSearch, (🔜) Milvus
+- Exporter: (🟢) stdout, (🟢) file, (🔜) Azure Blob Storage, (🔜) AWS S3, (🔜) Google Cloud Storage
+
 
 ## Get involved
 ### Provide feedback

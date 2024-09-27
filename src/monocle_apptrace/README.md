@@ -12,6 +12,18 @@ Spans are the individual steps executed by the application to perform a GenAI re
 
 Examples of spans include app retrieving vectors from DB, app querying LLM for inference etc. The span includes the type of operation, start time, duration and metadata relevant to that step eg Model name, parameters and model endpoint/server for an inference request.
 
+## Contribute to Monocle 
+
+Monocle includes:
+- Methods for instrumentation of app code 
+    -- Base code for wrapping methods of interest in included in current folder
+    -- Framework specific code is organized in a folder with the framework name
+- Metamodel for how attributes and events for GenAI components are represented in OpenTelemety format
+    -- See [metamodel](./metamodel/README.md) for supported GenAI entities, how functions operating on those entities map to spans and format of spans 
+- Exporters to send trace data to various locations. See [exporters](./exporters)
+
+See [Monocle committer guide](Monocle_committer_guide.md). 
+
 ## Get Monocle
 
 Option 1 - Download released packages from Pypi

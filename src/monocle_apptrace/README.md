@@ -1,9 +1,9 @@
 ## Monocle Concepts
 
 ### Traces
-Traces are the full view of a single end-to-end application KPI eg Chatbot application to provide a response to end user’s question. 
+Traces are the full view of a single end-to-end application execution. 
 
-Traces consists of various metadata about the application run including status, start time, duration, input/outputs etc. It also includes a list of individual steps aka “spans with details about that step.It’s typically the workflow code components of an application that generate the traces for application runs. 
+Examples of traces include one response to end user’s question by a chatbot app. Traces consists of various metadata about the application run including status, start time, duration, input/outputs etc. It also includes a list of individual steps aka “spans with details about that step.It’s typically the workflow code components of an application that generate the traces for application runs. 
 
 Traces are collections of spans. 
 
@@ -16,13 +16,13 @@ Examples of spans include app retrieving vectors from DB, app querying LLM for i
 
 Monocle includes:
 - Methods for instrumentation of app code 
-    -- Base code for wrapping methods of interest in included in current folder
-    -- Framework specific code is organized in a folder with the framework name
+  - Base code for wrapping methods of interest in included in current folder
+  - Framework specific code is organized in a folder with the framework name
 - Metamodel for how attributes and events for GenAI components are represented in OpenTelemety format
-    -- See [metamodel](./metamodel/README.md) for supported GenAI entities, how functions operating on those entities map to spans and format of spans 
+  - See [metamodel](./metamodel/README.md) for supported GenAI entities, how functions operating on those entities map to spans and format of spans 
 - Exporters to send trace data to various locations. See [exporters](./exporters)
 
-See [Monocle committer guide](Monocle_committer_guide.md). 
+See [Monocle committer guide](/Monocle_committer_guide.md). 
 
 ## Get Monocle
 

@@ -34,11 +34,13 @@ Option 2 - Build and install locally from source
 ### apps written using LLM orchestration frameworks 
 
 ```python
-from monocle_apptrace.instrumentor import setup_monocle_telemetry
-from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
 from langchain.chains import LLMChain
 from langchain_openai import OpenAI
 from langchain.prompts import PromptTemplate
+
+# Import the monocle_apptrace instrumentation method 
+from monocle_apptrace.instrumentor import setup_monocle_telemetry
+from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
 
 # Call the setup Monocle telemetry method
 setup_monocle_telemetry(workflow_name = "simple_math_app",
@@ -56,6 +58,7 @@ chain.invoke({"number":2})
 
 ```python
 
+# Import the monocle_apptrace instrumentation method
 from monocle_apptrace.wrapper import WrapperMethod,task_wrapper,atask_wrapper
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
 

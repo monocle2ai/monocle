@@ -2,7 +2,7 @@
 import logging
 import os
 from urllib.parse import urlparse
-
+from langchain_community.embeddings import SagemakerEndpointEmbeddings
 from opentelemetry.trace import Span, Tracer
 from monocle_apptrace.utils import resolve_from_alias, update_span_with_infra_name, with_tracer_wrapper, get_embedding_model
 
@@ -29,20 +29,45 @@ WORKFLOW_TYPE_MAP = {
     "haystack": "workflow.haystack"
 }
 
+
+def get_embedding_model_for_vectorstore(instance):
+    # Handle Langchain or other frameworks where vectorstore exists
+    if hasattr(instance, 'vectorstore'):
+        vectorstore_dict = instance.vectorstore.__dict__
+
+        # Check if SagemakerEndpointEmbeddings is present
+        if 'embedding_function' in vectorstore_dict and isinstance(vectorstore_dict['embedding_function'], SagemakerEndpointEmbeddings):
+            sagemaker_emb = vectorstore_dict['embedding_function']
+
+            # Set embedding_model as endpoint_name if it's Sagemaker
+            if hasattr(sagemaker_emb, 'endpoint_name'):
+                return sagemaker_emb.endpoint_name
+
+        # Default to the regular embedding model if not Sagemaker
+        return instance.vectorstore.embeddings.model
+
+    # Handle llama_index where _embed_model is present
+    if hasattr(instance, '_embed_model') and hasattr(instance._embed_model, 'model_name'):
+        return instance._embed_model.model_name
+
+    # Fallback if no specific model is found
+    return "Unknown Embedding Model"
+
+
 framework_vector_store_mapping = {
     'langchain_core.retrievers': lambda instance: {
-        'provider': instance.tags[0],
-        'embedding_model': instance.tags[1],
+        'provider': type(instance.vectorstore).__name__,
+        'embedding_model': get_embedding_model_for_vectorstore(instance),
         'type': VECTOR_STORE,
     },
     'llama_index.core.indices.base_retriever': lambda instance: {
         'provider': type(instance._vector_store).__name__,
-        'embedding_model': instance._embed_model.model_name,
+        'embedding_model': get_embedding_model_for_vectorstore(instance),  # Now calls the updated function
         'type': VECTOR_STORE,
     },
     'haystack.components.retrievers': lambda instance: {
         'provider': instance.__dict__.get("document_store").__class__.__name__,
-        'embedding_model': get_embedding_model(),
+        'embedding_model': get_embedding_model(),  # Call your custom embedding model logic here
         'type': VECTOR_STORE,
     },
 }
@@ -305,7 +330,7 @@ def update_vectorstore_attributes(to_wrap, instance, span):
                 EMBEDDING_MODEL: attributes['embedding_model']
             })
         else:
-            logger.warning(f"Package '{package}' not recognized for vector store telemetry.")
+            pass
 
     except Exception as e:
         logger.error(f"Error updating span attributes: {e}")

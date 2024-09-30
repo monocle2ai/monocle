@@ -3,15 +3,19 @@ import logging
 import os
 from urllib.parse import urlparse
 
+
 from opentelemetry.trace import Span, Tracer
 from monocle_apptrace.utils import resolve_from_alias, update_span_with_infra_name, with_tracer_wrapper, get_embedding_model
 
+from src.monocle_apptrace.metamodel.inference_base import Inference
+from src.monocle_apptrace.metamodel.retreival import Retreival
+
 logger = logging.getLogger(__name__)
 WORKFLOW_TYPE_KEY = "workflow_type"
-CONTEXT_INPUT_KEY = "context_input"
-CONTEXT_OUTPUT_KEY = "context_output"
-PROMPT_INPUT_KEY = "input"
-PROMPT_OUTPUT_KEY = "output"
+CONTEXT_INPUT_KEY = "data.input"
+CONTEXT_OUTPUT_KEY = "data.output"
+PROMPT_INPUT_KEY = "data.input"
+PROMPT_OUTPUT_KEY = "data.output"
 QUERY = "question"
 RESPONSE = "response"
 TAGS = "tags"
@@ -21,7 +25,7 @@ TYPE = "type"
 PROVIDER = "provider_name"
 EMBEDDING_MODEL = "embedding_model"
 VECTOR_STORE = 'vector_store'
-
+META_DATA="meta_data"
 
 WORKFLOW_TYPE_MAP = {
     "llama_index": "workflow.llamaindex",
@@ -85,9 +89,15 @@ def pre_task_processing(to_wrap, instance, args, span):
         update_span_with_infra_name(span, INFRA_SERVICE_KEY)
 
     #capture the tags attribute of the instance if present, else ignore
+    retreival = Retreival(instance)
+    try:
+        retreival.add_attributes(span,to_wrap)
+    except AttributeError:
+        pass
+
     try:
         update_tags(instance, span)
-        update_vectorstore_attributes(to_wrap, instance, span)
+        #update_vectorstore_attributes(to_wrap, instance, span)
     except AttributeError:
         pass
     update_span_with_context_input(to_wrap=to_wrap, wrapped_args=args, span=span)
@@ -134,7 +144,7 @@ async def allm_wrapper(tracer, to_wrap, wrapped, instance, args, kwargs):
         update_llm_endpoint(curr_span= span, instance=instance)
 
         return_value = await wrapped(*args, **kwargs)
-        update_span_from_llm_response(response = return_value, span = span)
+        update_span_from_llm_response(response = return_value, span = span,instance=instance)
 
     return return_value
 
@@ -154,13 +164,16 @@ def llm_wrapper(tracer: Tracer, to_wrap, wrapped, instance, args, kwargs):
         name = to_wrap.get("span_name")
     else:
         name = f"langchain.task.{instance.__class__.__name__}"
+    retreival = Retreival(instance)
     with tracer.start_as_current_span(name) as span:
         if 'haystack.components.retrievers' in to_wrap['package'] and 'haystack.retriever' in span.name:
-            update_vectorstore_attributes(to_wrap, instance, span)
-        update_llm_endpoint(curr_span= span, instance=instance)
-
+            #update_vectorstore_attributes(to_wrap, instance, span)
+            retreival.add_attributes(span,to_wrap)
+        #update_llm_endpoint(curr_span= span, instance=instance)
+        inference = Inference(instance)
+        inference.add_entities(span)
         return_value = wrapped(*args, **kwargs)
-        update_span_from_llm_response(response = return_value, span = span)
+        update_span_from_llm_response(response = return_value, span = span,instance=instance)
 
     return return_value
 
@@ -214,27 +227,35 @@ def get_input_from_args(chain_args):
         return chain_args[0]
     return ""
 
-def update_span_from_llm_response(response, span: Span):
+def update_span_from_llm_response(response, span: Span,instance):
     # extract token uasge from langchain openai
     if (response is not None and hasattr(response, "response_metadata")):
         response_metadata = response.response_metadata
         token_usage = response_metadata.get("token_usage")
+        d = {}
         if token_usage is not None:
-            span.set_attribute("completion_tokens", token_usage.get("completion_tokens"))
-            span.set_attribute("prompt_tokens", token_usage.get("prompt_tokens"))
-            span.set_attribute("total_tokens", token_usage.get("total_tokens"))
+            temperature = instance.__dict__.get("temperature", None)
+            d.update({"temperature":temperature})
+            d.update({"completion_tokens": token_usage.get("completion_tokens")})
+            d.update({"prompt_tokens": token_usage.get("prompt_tokens")})
+            d.update({"total_tokens": token_usage.get("total_tokens")})
+            span.add_event(META_DATA,d)
     # extract token usage from llamaindex openai
     if(response is not None and hasattr(response, "raw")):
         try:
+            d = {}
             if response.raw is not None:
                 token_usage = response.raw.get("usage") if isinstance(response.raw, dict) else getattr(response.raw, "usage", None)
                 if token_usage is not None:
+                    temperature = instance.__dict__.get("temperature", None)
+                    d.update({"temperature": temperature})
                     if getattr(token_usage, "completion_tokens", None):
-                        span.set_attribute("completion_tokens", getattr(token_usage, "completion_tokens"))
+                        d.update({"completion_tokens": getattr(token_usage, "completion_tokens")})
                     if getattr(token_usage, "prompt_tokens", None):
-                        span.set_attribute("prompt_tokens", getattr(token_usage, "prompt_tokens"))
+                        d.update({"prompt_tokens": getattr(token_usage, "prompt_tokens")})
                     if getattr(token_usage, "total_tokens", None):
-                        span.set_attribute("total_tokens", getattr(token_usage, "total_tokens"))
+                        d.update({"total_tokens": getattr(token_usage, "total_tokens")})
+                    span.add_event(META_DATA, d)
         except AttributeError:
             token_usage = None
 

@@ -62,12 +62,12 @@ framework_vector_store_mapping = {
     },
     'llama_index.core.indices.base_retriever': lambda instance: {
         'provider': type(instance._vector_store).__name__,
-        'embedding_model': get_embedding_model_for_vectorstore(instance),  # Now calls the updated function
+        'embedding_model': get_embedding_model_for_vectorstore(instance),
         'type': VECTOR_STORE,
     },
     'haystack.components.retrievers': lambda instance: {
         'provider': instance.__dict__.get("document_store").__class__.__name__,
-        'embedding_model': get_embedding_model(),  # Call your custom embedding model logic here
+        'embedding_model': get_embedding_model(),
         'type': VECTOR_STORE,
     },
 }
@@ -282,6 +282,12 @@ def update_span_with_context_input(to_wrap, wrapped_args ,span: Span):
 
 def update_span_with_context_output(to_wrap, return_value ,span: Span):
     package_name: str = to_wrap.get('package')
+    if "langchain_core.retrievers" in package_name:
+        combined_output = " ".join([doc.page_content for doc in return_value if hasattr(doc, 'page_content')])
+        if len(combined_output) > 100:
+            combined_output = combined_output[:100] + "..."
+
+        span.add_event(CONTEXT_OUTPUT_KEY, {RESPONSE: combined_output})
     if "llama_index.core.indices.base_retriever" in package_name:
         output_arg_text = return_value[0].text
         span.add_event(CONTEXT_OUTPUT_KEY, {RESPONSE:output_arg_text})

@@ -36,8 +36,8 @@ def get_embedding_model_for_vectorstore(instance):
         vectorstore_dict = instance.vectorstore.__dict__
 
         # Check if SagemakerEndpointEmbeddings is present
-        if 'embedding_function' in vectorstore_dict and isinstance(vectorstore_dict['embedding_function'], SagemakerEndpointEmbeddings):
-            sagemaker_emb = vectorstore_dict['embedding_function']
+        if 'embedding_func' in vectorstore_dict and isinstance(vectorstore_dict['embedding_func'], SagemakerEndpointEmbeddings):
+            sagemaker_emb = vectorstore_dict['embedding_func']
 
             # Set embedding_model as endpoint_name if it's Sagemaker
             if hasattr(sagemaker_emb, 'endpoint_name'):

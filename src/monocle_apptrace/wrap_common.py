@@ -86,7 +86,7 @@ def pre_task_processing(to_wrap, instance, args, span):
 
     #capture the tags attribute of the instance if present, else ignore
     try:
-        update_tags(instance, span)
+        update_tags(to_wrap, instance, span)
         update_vectorstore_attributes(to_wrap, instance, span)
     except AttributeError:
         pass
@@ -172,17 +172,20 @@ def update_llm_endpoint(curr_span: Span, instance):
         if 'temperature' in instance.__dict__:
             temp_val = instance.__dict__.get("temperature")
             curr_span.set_attribute("temperature", temp_val)
-            # handling for model name
-        model_name = resolve_from_alias(instance.__dict__ , ["model","model_name"])
-        curr_span.set_attribute("model_name", model_name)
+        # handling for model name
+        model_name = resolve_from_alias(instance.__dict__, ["model", "model_name"])
+        if model_name:
+            curr_span.set_attribute("model_name", model_name)
         set_provider_name(curr_span, instance)
         # handling AzureOpenAI deployment
-        deployment_name = resolve_from_alias(instance.__dict__ , [ "engine", "azure_deployment",
-                                                                   "deployment_name", "deployment_id", "deployment"])
-        curr_span.set_attribute("az_openai_deployment", deployment_name)
+        deployment_name = resolve_from_alias(instance.__dict__, ["engine", "azure_deployment",
+                                                                 "deployment_name", "deployment_id", "deployment"])
+        if deployment_name:
+            curr_span.set_attribute("az_openai_deployment", deployment_name)
         # handling the inference endpoint
-        inference_ep = resolve_from_alias(instance.__dict__,["azure_endpoint","api_base"])
-        curr_span.set_attribute("inference_endpoint",inference_ep)
+        inference_ep = resolve_from_alias(instance.__dict__, ["azure_endpoint", "api_base"])
+        if inference_ep:
+            curr_span.set_attribute("inference_endpoint", inference_ep)
 
 def set_provider_name(curr_span, instance):
     provider_url = ""
@@ -276,17 +279,22 @@ def update_span_with_prompt_output(to_wrap, wrapped_args ,span: Span):
     if "llama_index.core.base.base_query_engine" in package_name:
         span.add_event(PROMPT_OUTPUT_KEY, {RESPONSE:wrapped_args.response})
 
-def update_tags(instance, span):
+def update_tags(to_wrap, instance, span):
     try:
         # copy tags as is from langchain
-        span.set_attribute(TAGS, getattr(instance, TAGS))
+        if hasattr(instance, TAGS):
+            tags_value = getattr(instance, TAGS)
+            if tags_value is not None:
+                span.set_attribute(TAGS, getattr(instance, TAGS))
     except:
         pass
     try:
         # extract embed model and vector store names for llamaindex
-        model_name = instance.retriever._embed_model.model_name
-        vector_store_name = type(instance.retriever._vector_store).__name__
-        span.set_attribute(TAGS, [model_name, vector_store_name])
+        package_name: str = to_wrap.get('package')
+        if "llama_index.core.indices.base_retriever" in package_name:
+            model_name = instance.retriever._embed_model.model_name
+            vector_store_name = type(instance.retriever._vector_store).__name__
+            span.set_attribute(TAGS, [model_name, vector_store_name])
     except:
         pass
 

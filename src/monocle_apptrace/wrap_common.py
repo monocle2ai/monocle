@@ -40,7 +40,7 @@ framework_vector_store_mapping = {
         'embedding_model': instance._embed_model.model_name,
         'type': VECTOR_STORE,
     },
-    'haystack.components.retrievers': lambda instance: {
+    'haystack.components.retrievers.in_memory': lambda instance: {
         'provider': instance.__dict__.get("document_store").__class__.__name__,
         'embedding_model': get_embedding_model(),
         'type': VECTOR_STORE,

@@ -165,27 +165,35 @@ def llm_wrapper(tracer: Tracer, to_wrap, wrapped, instance, args, kwargs):
     return return_value
 
 def update_llm_endpoint(curr_span: Span, instance):
+    # Lambda to set attributes if values are not None
+    __set_span_attribute_if_not_none = lambda span, **kwargs: [
+        span.set_attribute(k, v) for k, v in kwargs.items() if v is not None
+    ]
+
     triton_llm_endpoint = os.environ.get("TRITON_LLM_ENDPOINT")
     if triton_llm_endpoint is not None and len(triton_llm_endpoint) > 0:
         curr_span.set_attribute("server_url", triton_llm_endpoint)
     else:
-        if 'temperature' in instance.__dict__:
-            temp_val = instance.__dict__.get("temperature")
-            curr_span.set_attribute("temperature", temp_val)
-        # handling for model name
+        # Get temperature if present
+        temp_val = instance.__dict__.get("temperature")
+
+        # Resolve values for model name, deployment, and inference endpoint
         model_name = resolve_from_alias(instance.__dict__, ["model", "model_name"])
-        if model_name:
-            curr_span.set_attribute("model_name", model_name)
-        set_provider_name(curr_span, instance)
-        # handling AzureOpenAI deployment
-        deployment_name = resolve_from_alias(instance.__dict__, ["engine", "azure_deployment",
-                                                                 "deployment_name", "deployment_id", "deployment"])
-        if deployment_name:
-            curr_span.set_attribute("az_openai_deployment", deployment_name)
-        # handling the inference endpoint
+        deployment_name = resolve_from_alias(instance.__dict__,
+                                             ["engine", "azure_deployment", "deployment_name", "deployment_id",
+                                              "deployment"])
         inference_ep = resolve_from_alias(instance.__dict__, ["azure_endpoint", "api_base"])
-        if inference_ep:
-            curr_span.set_attribute("inference_endpoint", inference_ep)
+
+        # Use the lambda to set attributes conditionally
+        __set_span_attribute_if_not_none(
+            curr_span,
+            temperature=temp_val,
+            model_name=model_name,
+            az_openai_deployment=deployment_name,
+            inference_endpoint=inference_ep
+        )
+
+        set_provider_name(curr_span, instance)
 
 def set_provider_name(curr_span, instance):
     provider_url = ""

@@ -1,47 +1,41 @@
 import os
-from opentelemetry.sdk.trace import ReadableSpan
-from opentelemetry.sdk.trace.export import SpanExporter, SpanExportResult
-from azure.storage.blob import BlobServiceClient, BlobClient, ContainerClient
-from azure.core.exceptions import ResourceNotFoundError, ClientAuthenticationError, ServiceRequestError
-import datetime
-from typing import Sequence
-import logging
 import time
 import random
+import datetime
+import logging
+import asyncio
+from azure.storage.blob import BlobServiceClient, BlobClient, ContainerClient  # AIO version for async
+from azure.core.exceptions import ResourceNotFoundError, ClientAuthenticationError, ServiceRequestError
+from opentelemetry.sdk.trace import ReadableSpan
+from opentelemetry.sdk.trace.export import SpanExporter, SpanExportResult
+from typing import Sequence
+from monocle_apptrace.exporters.span_exporter_base import SpanExporterBase
 
-# Configuration
-DEFAULT_FILE_PREFIX = "monocle_trace_"
-DEFAULT_TIME_FORMAT = "%Y-%m-%d_%H.%M.%S"
-MAX_BATCH_SIZE = 500  # Max number of spans per batch
-MAX_QUEUE_SIZE = 10000  # Max number of spans in the queue
-EXPORT_INTERVAL = 1  # Maximum interval (in seconds) to wait before exporting spans
-BACKOFF_FACTOR = 2
-MAX_RETRIES = 10
-
-# Set up logging
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-class AzureBlobSpanExporter(SpanExporter):
+class AzureBlobSpanExporter(SpanExporterBase):
     def __init__(self, connection_string=None, container_name=None):
+        super().__init__()
+        DEFAULT_FILE_PREFIX = "monocle_trace_"
+        DEFAULT_TIME_FORMAT = "%Y-%m-%d_%H.%M.%S"
+        self.max_batch_size = 500
+        self.export_interval = 1
         # Use default values if none are provided
-        if connection_string is None:
+        if not connection_string:
             connection_string = os.getenv('AZURE_STORAGE_CONNECTION_STRING')
-            if connection_string is None:
+            if not connection_string:
                 raise ValueError("Azure Storage connection string is not provided or set in environment variables.")
 
-        if container_name is None:
-            container_name = os.getenv('AZURE_STORAGE_CONTAINER_NAME','default-container')  # Use default container name if not provided
+        if not container_name:
+            container_name = os.getenv('AZURE_STORAGE_CONTAINER_NAME', 'default-container')
 
         self.blob_service_client = BlobServiceClient.from_connection_string(connection_string)
         self.container_name = container_name
         self.file_prefix = DEFAULT_FILE_PREFIX
         self.time_format = DEFAULT_TIME_FORMAT
-        self.export_queue = []
-        self.last_export_time = time.time()
 
         # Check if container exists or create it
-        if not self._container_exists(container_name):
+        if not self.__container_exists(container_name):
             try:
                 self.blob_service_client.create_container(container_name)
                 logger.info(f"Container {container_name} created successfully.")
@@ -49,7 +43,7 @@ class AzureBlobSpanExporter(SpanExporter):
                 logger.error(f"Error creating container {container_name}: {e}")
                 raise e
 
-    def _container_exists(self, container_name):
+    def __container_exists(self, container_name):
         try:
             container_client = self.blob_service_client.get_container_client(container_name)
             container_client.get_container_properties()
@@ -61,82 +55,65 @@ class AzureBlobSpanExporter(SpanExporter):
             return False
 
     def export(self, spans: Sequence[ReadableSpan]) -> SpanExportResult:
+        """Synchronous export method that internally handles async logic."""
         try:
-            # Add spans to the export queue
-            for span in spans:
-                self.export_queue.append(span)
-                # If the queue reaches MAX_BATCH_SIZE, export the spans
-                if len(self.export_queue) >= MAX_BATCH_SIZE:
-                    self._export_spans()
-
-            # Check if it's time to force a flush
-            current_time = time.time()
-            if current_time - self.last_export_time >= EXPORT_INTERVAL:
-                self._export_spans()  # Export spans if time interval has passed
-                self.last_export_time = current_time  # Reset the last export time
-
+            # Run the asynchronous export logic in an event loop
+            asyncio.run(self._export_async(spans))
             return SpanExportResult.SUCCESS
         except Exception as e:
             logger.error(f"Error exporting spans: {e}")
             return SpanExportResult.FAILURE
 
-    def _serialize_spans(self, spans: Sequence[ReadableSpan]) -> str:
+    async def _export_async(self, spans: Sequence[ReadableSpan]):
+        """The actual async export logic is run here."""
+        # Add spans to the export queue
+        for span in spans:
+            self.export_queue.append(span)
+            if len(self.export_queue) >= self.max_batch_size:
+                await self.__export_spans()
+
+        # Force a flush if the interval has passed
+        current_time = time.time()
+        if current_time - self.last_export_time >= self.export_interval:
+            await self.__export_spans()
+            self.last_export_time = current_time
+
+    def __serialize_spans(self, spans: Sequence[ReadableSpan]) -> str:
         try:
-            # Serialize spans to JSON or any other format you prefer
             span_data_list = [span.to_json() for span in spans]
             return "[" + ", ".join(span_data_list) + "]"
         except Exception as e:
             logger.error(f"Error serializing spans: {e}")
             raise
 
-    def _export_spans(self):
+    async def __export_spans(self):
         if len(self.export_queue) == 0:
             return  # Nothing to export
 
-        # Take a batch of spans from the queue
-        batch_to_export = self.export_queue[:MAX_BATCH_SIZE]
-        serialized_data = self._serialize_spans(batch_to_export)
-        self.export_queue = self.export_queue[MAX_BATCH_SIZE:]  # Remove exported spans from the queue
-
+        batch_to_export = self.export_queue[:self.max_batch_size]
+        serialized_data = self.__serialize_spans(batch_to_export)
+        self.export_queue = self.export_queue[self.max_batch_size:]
         try:
-            self._upload_to_blob_with_retry(serialized_data)
+            if asyncio.get_event_loop().is_running():
+                # Run asynchronously without closing the event loop
+                task = asyncio.create_task(self._retry_with_backoff(self.__upload_to_blob, serialized_data))
+                await task
+            else:
+                # If not in an event loop, use asyncio.run()
+                await self._retry_with_backoff(self.__upload_to_blob, serialized_data)
         except Exception as e:
             logger.error(f"Failed to upload span batch: {e}")
 
-    def _upload_to_blob_with_retry(self, span_data_batch: str):
+    def __upload_to_blob(self, span_data_batch: str):
         current_time = datetime.datetime.now().strftime(self.time_format)
         file_name = f"{self.file_prefix}{current_time}.json"
-        attempt = 0
+        blob_client = self.blob_service_client.get_blob_client(container=self.container_name, blob=file_name)
+        blob_client.upload_blob(span_data_batch, overwrite=True)  # Make sure this is an async call
+        logger.info(f"Span batch uploaded to Azure Blob Storage as {file_name}.")
 
-        while attempt < MAX_RETRIES:
-            try:
-                blob_client = self.blob_service_client.get_blob_client(container=self.container_name, blob=file_name)
-                blob_client.upload_blob(span_data_batch, overwrite=True)
-                logger.info(f"Span batch uploaded to Azure Blob Storage as {file_name}.")
-                return
-            except ServiceRequestError as e:
-                logger.warning(f"Network connectivity error: {e}. Retrying in {BACKOFF_FACTOR ** attempt} seconds...")
-                sleep_time = BACKOFF_FACTOR * (2 ** attempt) + random.uniform(0, 1)
-                time.sleep(sleep_time)
-                attempt += 1
-            except ClientAuthenticationError as e:
-                logger.error(f"Failed to authenticate with Azure Blob Storage: {str(e)}")
-                break  # Authentication errors should not be retried
-            except Exception as e:
-                logger.warning(f"Retry {attempt}/{MAX_RETRIES} failed due to: {str(e)}")
-                sleep_time = BACKOFF_FACTOR * (2 ** attempt) + random.uniform(0, 1)
-                logger.info(f"Waiting for {sleep_time:.2f} seconds before retrying...")
-                time.sleep(sleep_time)
-                attempt += 1
-
-        logger.error("Max retries exceeded. Failed to upload spans to Azure Blob Storage.")
-        raise ServiceRequestError(message="Azure Blob Upload Endpoint")
-
-    def force_flush(self, timeout_millis: int = 30000) -> bool:
-        self._export_spans()  # Export any remaining spans in the queue
+    async def force_flush(self, timeout_millis: int = 30000) -> bool:
+        await self.__export_spans()
         return True
 
     def shutdown(self) -> None:
         logger.info("AzureBlobSpanExporter has been shut down.")
-
-

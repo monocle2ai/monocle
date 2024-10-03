@@ -279,6 +279,9 @@ def update_span_with_context_input(to_wrap, wrapped_args ,span: Span):
     if "llama_index.core.indices.base_retriever" in package_name:
         input_arg_text = wrapped_args[0].query_str
         span.add_event(CONTEXT_INPUT_KEY, {QUERY:input_arg_text})
+    if "haystack.components.retrievers.in_memory" in package_name:
+        input_arg_text = wrapped_args[0]
+        span.add_event(CONTEXT_INPUT_KEY, {QUERY: input_arg_text})
 
 def update_span_with_context_output(to_wrap, return_value ,span: Span):
     package_name: str = to_wrap.get('package')
@@ -291,6 +294,12 @@ def update_span_with_context_output(to_wrap, return_value ,span: Span):
     if "llama_index.core.indices.base_retriever" in package_name:
         output_arg_text = return_value[0].text
         span.add_event(CONTEXT_OUTPUT_KEY, {RESPONSE:output_arg_text})
+
+    if "haystack.components.retrievers.in_memory" in package_name:
+        combined_output = " ".join([doc.content for doc in return_value['documents']])
+        if len(combined_output) > 100:
+            combined_output = combined_output[:100] + "..."
+        span.add_event(CONTEXT_OUTPUT_KEY, {RESPONSE: combined_output})
 
 def update_span_with_prompt_input(to_wrap, wrapped_args ,span: Span):
     input_arg_text = wrapped_args[0]

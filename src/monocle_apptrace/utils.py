@@ -3,8 +3,9 @@ import json
 from importlib import import_module
 import os
 from opentelemetry.trace import Span
-from monocle_apptrace.constants import azure_service_map, aws_service_map
 from opentelemetry.context import attach, set_value, get_value
+from monocle_apptrace.constants import azure_service_map, aws_service_map
+
 embedding_model_context = {}
 
 def set_span_attribute(span, name, value):
@@ -93,10 +94,10 @@ def get_embedding_model() -> str:
     return embedding_model_context.get('embedding_model', 'unknown')
 
 
-def set_context_input(input: str, CONTEXT_INPUT_KEY):
+def set_context_input(inputs: str, input_key: str):
     # Set the workflow input in the global context
-    attach(set_value(CONTEXT_INPUT_KEY, input))
+    attach(set_value(input_key, inputs))
 
-def get_context_input(CONTEXT_INPUT_KEY) -> str:
+def get_context_input(input_key: str) -> str:
     # Retrieve the workflow input from the global context
-    return get_value(CONTEXT_INPUT_KEY)
+    return get_value(input_key)

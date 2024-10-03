@@ -125,19 +125,19 @@ print(ai_msg_2["answer"])
 #         ],
 #         "type": "vector_store",
 #         "provider_name": "Chroma",
-#         "embedding_model": "OpenAIEmbeddings"
+#         "embedding_model": "text-embedding-ada-002"
 #     },
 #     "events": [
 #         {
 #             "name": "context_input",
-#             "timestamp": "2024-09-30T09:49:04.602503Z",
+#             "timestamp": "2024-10-03T12:16:32.316725Z",
 #             "attributes": {
 #                 "question": "What is Task Decomposition?"
 #             }
 #         },
 #         {
 #             "name": "context_output",
-#             "timestamp": "2024-09-30T09:49:05.131481Z",
+#             "timestamp": "2024-10-03T12:16:32.781861Z",
 #             "attributes": {
 #                 "response": "Fig. 1. Overview of a LLM-powered autonomous agent system.\nComponent One: Planning#\nA complicated ta..."
 #             }

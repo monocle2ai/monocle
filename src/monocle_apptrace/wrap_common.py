@@ -40,7 +40,7 @@ framework_vector_store_mapping = {
         'embedding_model': instance._embed_model.model_name,
         'type': VECTOR_STORE,
     },
-    'haystack.components.retrievers': lambda instance: {
+    'haystack.components.retrievers.in_memory': lambda instance: {
         'provider': instance.__dict__.get("document_store").__class__.__name__,
         'embedding_model': get_embedding_model(),
         'type': VECTOR_STORE,
@@ -86,7 +86,7 @@ def pre_task_processing(to_wrap, instance, args, span):
 
     #capture the tags attribute of the instance if present, else ignore
     try:
-        update_tags(instance, span)
+        update_tags(to_wrap, instance, span)
         update_vectorstore_attributes(to_wrap, instance, span)
     except AttributeError:
         pass
@@ -165,24 +165,35 @@ def llm_wrapper(tracer: Tracer, to_wrap, wrapped, instance, args, kwargs):
     return return_value
 
 def update_llm_endpoint(curr_span: Span, instance):
+    # Lambda to set attributes if values are not None
+    __set_span_attribute_if_not_none = lambda span, **kwargs: [
+        span.set_attribute(k, v) for k, v in kwargs.items() if v is not None
+    ]
+
     triton_llm_endpoint = os.environ.get("TRITON_LLM_ENDPOINT")
     if triton_llm_endpoint is not None and len(triton_llm_endpoint) > 0:
         curr_span.set_attribute("server_url", triton_llm_endpoint)
     else:
-        if 'temperature' in instance.__dict__:
-            temp_val = instance.__dict__.get("temperature")
-            curr_span.set_attribute("temperature", temp_val)
-            # handling for model name
-        model_name = resolve_from_alias(instance.__dict__ , ["model","model_name"])
-        curr_span.set_attribute("model_name", model_name)
+        # Get temperature if present
+        temp_val = instance.__dict__.get("temperature")
+
+        # Resolve values for model name, deployment, and inference endpoint
+        model_name = resolve_from_alias(instance.__dict__, ["model", "model_name"])
+        deployment_name = resolve_from_alias(instance.__dict__,
+                                             ["engine", "azure_deployment", "deployment_name", "deployment_id",
+                                              "deployment"])
+        inference_ep = resolve_from_alias(instance.__dict__, ["azure_endpoint", "api_base"])
+
+        # Use the lambda to set attributes conditionally
+        __set_span_attribute_if_not_none(
+            curr_span,
+            temperature=temp_val,
+            model_name=model_name,
+            az_openai_deployment=deployment_name,
+            inference_endpoint=inference_ep
+        )
+
         set_provider_name(curr_span, instance)
-        # handling AzureOpenAI deployment
-        deployment_name = resolve_from_alias(instance.__dict__ , [ "engine", "azure_deployment",
-                                                                   "deployment_name", "deployment_id", "deployment"])
-        curr_span.set_attribute("az_openai_deployment", deployment_name)
-        # handling the inference endpoint
-        inference_ep = resolve_from_alias(instance.__dict__,["azure_endpoint","api_base"])
-        curr_span.set_attribute("inference_endpoint",inference_ep)
 
 def set_provider_name(curr_span, instance):
     provider_url = ""
@@ -276,17 +287,22 @@ def update_span_with_prompt_output(to_wrap, wrapped_args ,span: Span):
     if "llama_index.core.base.base_query_engine" in package_name:
         span.add_event(PROMPT_OUTPUT_KEY, {RESPONSE:wrapped_args.response})
 
-def update_tags(instance, span):
+def update_tags(to_wrap, instance, span):
     try:
         # copy tags as is from langchain
-        span.set_attribute(TAGS, getattr(instance, TAGS))
+        if hasattr(instance, TAGS):
+            tags_value = getattr(instance, TAGS)
+            if tags_value is not None:
+                span.set_attribute(TAGS, getattr(instance, TAGS))
     except:
         pass
     try:
         # extract embed model and vector store names for llamaindex
-        model_name = instance.retriever._embed_model.model_name
-        vector_store_name = type(instance.retriever._vector_store).__name__
-        span.set_attribute(TAGS, [model_name, vector_store_name])
+        package_name: str = to_wrap.get('package')
+        if "llama_index.core.indices.base_retriever" in package_name:
+            model_name = instance.retriever._embed_model.model_name
+            vector_store_name = type(instance.retriever._vector_store).__name__
+            span.set_attribute(TAGS, [model_name, vector_store_name])
     except:
         pass
 

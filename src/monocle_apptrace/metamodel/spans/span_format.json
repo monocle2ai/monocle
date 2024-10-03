@@ -1,0 +1,55 @@
+{
+    "name": "span-name",
+    "context": {
+        "trace_id": "trace-id",
+        "span_id": "span-id",
+        "trace_state": "[]"
+    },
+    "kind": "SpanKind.CLIENT",
+    "parent_id": "parent-id or None (for root span)",
+    "start_time": "UTC timestamp",
+    "end_time": "UTC timestamp",
+    "status": {
+        "status_code": "OK or Error"
+    },
+    "attributes": {
+        "description": "List of AI component entities used in this span, eg Model, Inference hosting service. Needs to be one of the supported entity types.",
+    
+        "span.type": "Monocle-span-type",
+        "entity.count": "count-of-entities",
+    
+        "entity.<index>.name": "Monocle-Entity-name",
+        "entity.<index>.type": "Monocle-Entity-Type",
+        "entity.<index>.<attribute>": "Value"
+    },
+    "events" : [
+        {
+            "name": "data.input",
+            "timestamp": "UTC timestamp",
+            "attributes": {
+                "input_attribute": "value"
+           }
+        },
+        {
+            "name": "data.output",
+            "timestamp": "UTC timestamp",
+            "attributes": {
+                "output_attribute": "value"
+            }
+        },
+        {
+            "name": "metadata",
+            "timestamp": "UTC timestamp",
+            "attributes": {
+                "metadata_attribute": "value"
+            }
+        }
+    ],
+    "links": [],
+    "resource": {
+        "attributes": {
+            "service.name": "top-workflow-name"
+        },
+        "schema_url": ""
+    }
+}

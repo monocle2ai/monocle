@@ -1,8 +1,8 @@
 #pylint: disable=protected-access
 import logging
 import os
+import inspect
 from urllib.parse import urlparse
-from langchain_community.embeddings import SagemakerEndpointEmbeddings
 from opentelemetry.trace import Span, Tracer
 from monocle_apptrace.utils import resolve_from_alias, update_span_with_infra_name, with_tracer_wrapper, get_embedding_model, get_context_input
 
@@ -35,13 +35,17 @@ def get_embedding_model_for_vectorstore(instance):
     if hasattr(instance, 'vectorstore'):
         vectorstore_dict = instance.vectorstore.__dict__
 
-        # Check if SagemakerEndpointEmbeddings is present
-        if 'embedding_func' in vectorstore_dict and isinstance(vectorstore_dict['embedding_func'], SagemakerEndpointEmbeddings):
-            sagemaker_emb = vectorstore_dict['embedding_func']
+        # Use inspect to check if the embedding function is from Sagemaker
+        if 'embedding_func' in vectorstore_dict:
+            embedding_func = vectorstore_dict['embedding_func']
+            class_name = embedding_func.__class__.__name__
+            file_location = inspect.getfile(embedding_func.__class__)
 
-            # Set embedding_model as endpoint_name if it's Sagemaker
-            if hasattr(sagemaker_emb, 'endpoint_name'):
-                return sagemaker_emb.endpoint_name
+            # Check if the class is SagemakerEndpointEmbeddings
+            if class_name == 'SagemakerEndpointEmbeddings' and 'langchain_community' in file_location:
+                # Set embedding_model as endpoint_name if it's Sagemaker
+                if hasattr(embedding_func, 'endpoint_name'):
+                    return embedding_func.endpoint_name
 
         # Default to the regular embedding model if not Sagemaker
         return instance.vectorstore.embeddings.model

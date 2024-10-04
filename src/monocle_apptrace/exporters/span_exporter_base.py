@@ -10,7 +10,6 @@ import asyncio
 
 logger = logging.getLogger(__name__)
 
-# Abstract Base Class for Span Exporters
 class SpanExporterBase(ABC):
     def __init__(self):
         self.backoff_factor = 2
@@ -35,7 +34,7 @@ class SpanExporterBase(ABC):
         attempt = 0
         while attempt < self.max_retries:
             try:
-                return func(*args, **kwargs)  # Ensure func is an async function
+                return func(*args, **kwargs)
             except ServiceRequestError as e:
                 logger.warning(f"Network connectivity error: {e}. Retrying in {self.backoff_factor ** attempt} seconds...")
                 sleep_time = self.backoff_factor * (2 ** attempt) + random.uniform(0, 1)
@@ -48,7 +47,7 @@ class SpanExporterBase(ABC):
                 logger.warning(f"Retry {attempt}/{self.max_retries} failed due to: {str(e)}")
                 sleep_time = self.backoff_factor * (2 ** attempt) + random.uniform(0, 1)
                 logger.info(f"Waiting for {sleep_time:.2f} seconds before retrying...")
-                await asyncio.sleep(sleep_time)  # Use asyncio.sleep() here as well
+                await asyncio.sleep(sleep_time)
                 attempt += 1
 
         logger.error("Max retries exceeded.")

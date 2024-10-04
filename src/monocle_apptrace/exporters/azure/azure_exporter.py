@@ -88,18 +88,16 @@ class AzureBlobSpanExporter(SpanExporterBase):
 
     async def __export_spans(self):
         if len(self.export_queue) == 0:
-            return  # Nothing to export
+            return
 
         batch_to_export = self.export_queue[:self.max_batch_size]
         serialized_data = self.__serialize_spans(batch_to_export)
         self.export_queue = self.export_queue[self.max_batch_size:]
         try:
             if asyncio.get_event_loop().is_running():
-                # Run asynchronously without closing the event loop
                 task = asyncio.create_task(self._retry_with_backoff(self.__upload_to_blob, serialized_data))
                 await task
             else:
-                # If not in an event loop, use asyncio.run()
                 await self._retry_with_backoff(self.__upload_to_blob, serialized_data)
         except Exception as e:
             logger.error(f"Failed to upload span batch: {e}")
@@ -108,7 +106,7 @@ class AzureBlobSpanExporter(SpanExporterBase):
         current_time = datetime.datetime.now().strftime(self.time_format)
         file_name = f"{self.file_prefix}{current_time}.json"
         blob_client = self.blob_service_client.get_blob_client(container=self.container_name, blob=file_name)
-        blob_client.upload_blob(span_data_batch, overwrite=True)  # Make sure this is an async call
+        blob_client.upload_blob(span_data_batch, overwrite=True)
         logger.info(f"Span batch uploaded to Azure Blob Storage as {file_name}.")
 
     async def force_flush(self, timeout_millis: int = 30000) -> bool:

@@ -1,0 +1,29 @@
+name: Push monocle to pypi
+
+on:
+  workflow_dispatch:
+    inputs:
+      PYPI_REPO: 
+        default: 'testpypi'
+        type: string
+
+jobs :
+  push-monocle-pypi:
+    environment: ArtifactPublish
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12' 
+      - name: Make the script files executable
+        run: chmod +x ./.github/scripts/push-pypi.sh
+      - name: Run a script
+        env:
+          PYPI_USERNAME: __token__
+          PYPI_PASSWORD: ${{ inputs.PYPI_REPO == 'pypi' && secrets.PYPI_TOKEN || secrets.TEST_PYPI_TOKEN }}
+          PYPI_REPO: ${{ inputs.PYPI_REPO || 'testpypi'}}
+        run: ./.github/scripts/push-pypi.sh
+
+          

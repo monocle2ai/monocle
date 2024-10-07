@@ -94,10 +94,25 @@ def get_embedding_model() -> str:
     return embedding_model_context.get('embedding_model', 'unknown')
 
 
-def set_context_input(inputs: str, input_key: str):
-    # Set the workflow input in the global context
-    attach(set_value(input_key, inputs))
+def set_context_attribute(key: str, value: str):
+    """
+    Set a value in the global context for a given key.
 
-def get_context_input(input_key: str) -> str:
-    # Retrieve the workflow input from the global context
-    return get_value(input_key)
+    Args:
+        key: The key for the context value to set.
+        value: The value to set for the given key.
+    """
+    attach(set_value(key, value))
+
+
+def get_context_attribute(key: str) -> str:
+    """
+    Retrieve a value from the global context for a given key.
+
+    Args:
+        key: The key for the context value to retrieve.
+
+    Returns:
+        The value associated with the given key.
+    """
+    return get_value(key)

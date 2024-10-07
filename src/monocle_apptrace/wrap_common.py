@@ -4,7 +4,7 @@ import os
 import inspect
 from urllib.parse import urlparse
 from opentelemetry.trace import Span, Tracer
-from monocle_apptrace.utils import resolve_from_alias, update_span_with_infra_name, with_tracer_wrapper, get_embedding_model, get_context_input
+from monocle_apptrace.utils import resolve_from_alias, update_span_with_infra_name, with_tracer_wrapper, get_embedding_model, get_context_attribute
 
 logger = logging.getLogger(__name__)
 WORKFLOW_TYPE_KEY = "workflow_type"
@@ -187,7 +187,7 @@ def llm_wrapper(tracer: Tracer, to_wrap, wrapped, instance, args, kwargs):
         if 'haystack.components.retrievers' in to_wrap['package'] and 'haystack.retriever' in span.name:
             update_tags(to_wrap, instance, span)
             update_vectorstore_attributes(to_wrap, instance, span)
-            input_arg_text = get_context_input(CONTEXT_INPUT_KEY)
+            input_arg_text = get_context_attribute(CONTEXT_INPUT_KEY)
             span.add_event(CONTEXT_INPUT_KEY, {QUERY: input_arg_text})
         update_llm_endpoint(curr_span= span, instance=instance)
 

@@ -94,7 +94,7 @@ def get_embedding_model() -> str:
     return embedding_model_context.get('embedding_model', 'unknown')
 
 
-def set_context_attribute(key: str, value: str):
+def set_attribute(key: str, value: str):
     """
     Set a value in the global context for a given key.
 
@@ -105,7 +105,7 @@ def set_context_attribute(key: str, value: str):
     attach(set_value(key, value))
 
 
-def get_context_attribute(key: str) -> str:
+def get_attribute(key: str) -> str:
     """
     Retrieve a value from the global context for a given key.
 

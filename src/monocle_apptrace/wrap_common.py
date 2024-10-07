@@ -4,7 +4,7 @@ import os
 import inspect
 from urllib.parse import urlparse
 from opentelemetry.trace import Span, Tracer
-from monocle_apptrace.utils import resolve_from_alias, update_span_with_infra_name, with_tracer_wrapper, get_embedding_model, get_context_attribute
+from monocle_apptrace.utils import resolve_from_alias, update_span_with_infra_name, with_tracer_wrapper, get_embedding_model, get_attribute
 
 logger = logging.getLogger(__name__)
 WORKFLOW_TYPE_KEY = "workflow_type"
@@ -187,7 +187,7 @@ def llm_wrapper(tracer: Tracer, to_wrap, wrapped, instance, args, kwargs):
         if 'haystack.components.retrievers' in to_wrap['package'] and 'haystack.retriever' in span.name:
             update_tags(to_wrap, instance, span)
             update_vectorstore_attributes(to_wrap, instance, span)
-            input_arg_text = get_context_attribute(CONTEXT_INPUT_KEY)
+            input_arg_text = get_attribute(CONTEXT_INPUT_KEY)
             span.add_event(CONTEXT_INPUT_KEY, {QUERY: input_arg_text})
         update_llm_endpoint(curr_span= span, instance=instance)
 
@@ -299,7 +299,7 @@ def update_span_with_context_input(to_wrap, wrapped_args ,span: Span):
     if "llama_index.core.indices.base_retriever" in package_name:
         input_arg_text += wrapped_args[0].query_str
     if "haystack.components.retrievers.in_memory" in package_name:
-        input_arg_text += get_context_attribute(CONTEXT_INPUT_KEY)
+        input_arg_text += get_attribute(CONTEXT_INPUT_KEY)
     span.add_event(CONTEXT_INPUT_KEY, {QUERY: input_arg_text})
 
 def update_span_with_context_output(to_wrap, return_value ,span: Span):

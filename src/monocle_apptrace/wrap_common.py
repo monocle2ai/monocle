@@ -119,7 +119,7 @@ def pre_task_processing(to_wrap, instance, args, span):
         update_vectorstore_attributes(to_wrap, instance, span)
     except AttributeError:
         pass
-    update_span_with_context_input(to_wrap=to_wrap, wrapped_args=args, instance=instance, span=span)
+    update_span_with_context_input(to_wrap=to_wrap, wrapped_args=args, span=span)
 
 
 

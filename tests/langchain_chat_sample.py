@@ -125,14 +125,21 @@ print(ai_msg_2["answer"])
 #         ],
 #         "type": "vector_store",
 #         "provider_name": "Chroma",
-#         "embedding_model": "OpenAIEmbeddings"
+#         "embedding_model": "text-embedding-ada-002"
 #     },
 #     "events": [
 #         {
 #             "name": "context_input",
-#             "timestamp": "2024-09-16T09:48:53.462202Z",
+#             "timestamp": "2024-10-03T12:16:32.316725Z",
 #             "attributes": {
 #                 "question": "What is Task Decomposition?"
+#             }
+#         },
+#         {
+#             "name": "context_output",
+#             "timestamp": "2024-10-03T12:16:32.781861Z",
+#             "attributes": {
+#                 "response": "Fig. 1. Overview of a LLM-powered autonomous agent system.\nComponent One: Planning#\nA complicated ta..."
 #             }
 #         }
 #     ],
@@ -495,9 +502,16 @@ print(ai_msg_2["answer"])
 #     "events": [
 #         {
 #             "name": "context_input",
-#             "timestamp": "2024-09-16T09:48:56.731819Z",
+#             "timestamp": "2024-09-30T09:49:07.279965Z",
 #             "attributes": {
-#                 "question": "What are some typical methods for task decomposition?"
+#                 "question": "What are typical methods used for task decomposition?"
+#             }
+#         },
+#         {
+#             "name": "context_output",
+#             "timestamp": "2024-09-30T09:49:07.809575Z",
+#             "attributes": {
+#                 "response": "Tree of Thoughts (Yao et al. 2023) extends CoT by exploring multiple reasoning possibilities at each..."
 #             }
 #         }
 #     ],

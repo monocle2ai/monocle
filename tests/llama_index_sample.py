@@ -58,6 +58,10 @@ print(response)
 #         "status_code": "UNSET"
 #     },
 #     "attributes": {
+#         "tags": [
+#             "OpenAIEmbedding",
+#             "ChromaVectorStore"
+#         ],
 #         "type": "vector_store",
 #         "provider_name": "ChromaVectorStore",
 #         "embedding_model": "text-embedding-3-large"
@@ -65,14 +69,14 @@ print(response)
 #     "events": [
 #         {
 #             "name": "context_input",
-#             "timestamp": "2024-09-18T09:11:10.380249Z",
+#             "timestamp": "2024-10-03T12:17:37.780668Z",
 #             "attributes": {
 #                 "question": "What did the author do growing up?"
 #             }
 #         },
 #         {
 #             "name": "context_output",
-#             "timestamp": "2024-09-18T09:11:11.159351Z",
+#             "timestamp": "2024-10-03T12:17:38.509564Z",
 #             "attributes": {
 #                 "response": "this is some sample text"
 #             }

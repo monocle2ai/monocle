@@ -1,10 +1,10 @@
 #pylint: disable=protected-access
 import logging
 import os
+import inspect
 from urllib.parse import urlparse
-
 from opentelemetry.trace import Span, Tracer
-from monocle_apptrace.utils import resolve_from_alias, update_span_with_infra_name, with_tracer_wrapper, get_embedding_model
+from monocle_apptrace.utils import resolve_from_alias, update_span_with_infra_name, with_tracer_wrapper, get_embedding_model, get_attribute
 
 logger = logging.getLogger(__name__)
 WORKFLOW_TYPE_KEY = "workflow_type"
@@ -29,15 +29,44 @@ WORKFLOW_TYPE_MAP = {
     "haystack": "workflow.haystack"
 }
 
+
+def get_embedding_model_for_vectorstore(instance):
+    # Handle Langchain or other frameworks where vectorstore exists
+    if hasattr(instance, 'vectorstore'):
+        vectorstore_dict = instance.vectorstore.__dict__
+
+        # Use inspect to check if the embedding function is from Sagemaker
+        if 'embedding_func' in vectorstore_dict:
+            embedding_func = vectorstore_dict['embedding_func']
+            class_name = embedding_func.__class__.__name__
+            file_location = inspect.getfile(embedding_func.__class__)
+
+            # Check if the class is SagemakerEndpointEmbeddings
+            if class_name == 'SagemakerEndpointEmbeddings' and 'langchain_community' in file_location:
+                # Set embedding_model as endpoint_name if it's Sagemaker
+                if hasattr(embedding_func, 'endpoint_name'):
+                    return embedding_func.endpoint_name
+
+        # Default to the regular embedding model if not Sagemaker
+        return instance.vectorstore.embeddings.model
+
+    # Handle llama_index where _embed_model is present
+    if hasattr(instance, '_embed_model') and hasattr(instance._embed_model, 'model_name'):
+        return instance._embed_model.model_name
+
+    # Fallback if no specific model is found
+    return "Unknown Embedding Model"
+
+
 framework_vector_store_mapping = {
     'langchain_core.retrievers': lambda instance: {
-        'provider': instance.tags[0],
-        'embedding_model': instance.tags[1],
+        'provider': type(instance.vectorstore).__name__,
+        'embedding_model': get_embedding_model_for_vectorstore(instance),
         'type': VECTOR_STORE,
     },
     'llama_index.core.indices.base_retriever': lambda instance: {
         'provider': type(instance._vector_store).__name__,
-        'embedding_model': instance._embed_model.model_name,
+        'embedding_model': get_embedding_model_for_vectorstore(instance),
         'type': VECTOR_STORE,
     },
     'haystack.components.retrievers.in_memory': lambda instance: {
@@ -156,10 +185,15 @@ def llm_wrapper(tracer: Tracer, to_wrap, wrapped, instance, args, kwargs):
         name = f"langchain.task.{instance.__class__.__name__}"
     with tracer.start_as_current_span(name) as span:
         if 'haystack.components.retrievers' in to_wrap['package'] and 'haystack.retriever' in span.name:
+            update_tags(to_wrap, instance, span)
             update_vectorstore_attributes(to_wrap, instance, span)
+            input_arg_text = get_attribute(CONTEXT_INPUT_KEY)
+            span.add_event(CONTEXT_INPUT_KEY, {QUERY: input_arg_text})
         update_llm_endpoint(curr_span= span, instance=instance)
 
         return_value = wrapped(*args, **kwargs)
+        if 'haystack.components.retrievers' in to_wrap['package'] and 'haystack.retriever' in span.name:
+            update_span_with_context_output(to_wrap=to_wrap, return_value=return_value, span=span)
         update_span_from_llm_response(response = return_value, span = span)
 
     return return_value
@@ -259,18 +293,29 @@ def update_workflow_type(to_wrap, span: Span):
 
 def update_span_with_context_input(to_wrap, wrapped_args ,span: Span):
     package_name: str = to_wrap.get('package')
+    input_arg_text = ""
     if "langchain_core.retrievers" in package_name:
-        input_arg_text = wrapped_args[0]
-        span.add_event(CONTEXT_INPUT_KEY, {QUERY:input_arg_text})
+        input_arg_text += wrapped_args[0]
     if "llama_index.core.indices.base_retriever" in package_name:
-        input_arg_text = wrapped_args[0].query_str
-        span.add_event(CONTEXT_INPUT_KEY, {QUERY:input_arg_text})
+        input_arg_text += wrapped_args[0].query_str
+    if "haystack.components.retrievers.in_memory" in package_name:
+        input_arg_text += get_attribute(CONTEXT_INPUT_KEY)
+    span.add_event(CONTEXT_INPUT_KEY, {QUERY: input_arg_text})
 
 def update_span_with_context_output(to_wrap, return_value ,span: Span):
     package_name: str = to_wrap.get('package')
+    output_arg_text = ""
+    if "langchain_core.retrievers" in package_name:
+        output_arg_text += " ".join([doc.page_content for doc in return_value if hasattr(doc, 'page_content')])
+        if len(output_arg_text) > 100:
+            output_arg_text = output_arg_text[:100] + "..."
     if "llama_index.core.indices.base_retriever" in package_name:
-        output_arg_text = return_value[0].text
-        span.add_event(CONTEXT_OUTPUT_KEY, {RESPONSE:output_arg_text})
+        output_arg_text += return_value[0].text
+    if "haystack.components.retrievers.in_memory" in package_name:
+        output_arg_text += " ".join([doc.content for doc in return_value['documents']])
+        if len(output_arg_text) > 100:
+            output_arg_text = output_arg_text[:100] + "..."
+    span.add_event(CONTEXT_OUTPUT_KEY, {RESPONSE: output_arg_text})
 
 def update_span_with_prompt_input(to_wrap, wrapped_args ,span: Span):
     input_arg_text = wrapped_args[0]
@@ -300,8 +345,12 @@ def update_tags(to_wrap, instance, span):
         # extract embed model and vector store names for llamaindex
         package_name: str = to_wrap.get('package')
         if "llama_index.core.indices.base_retriever" in package_name:
-            model_name = instance.retriever._embed_model.model_name
-            vector_store_name = type(instance.retriever._vector_store).__name__
+            model_name = instance._embed_model.__class__.__name__
+            vector_store_name = type(instance._vector_store).__name__
+            span.set_attribute(TAGS, [model_name, vector_store_name])
+        if "haystack.components.retrievers.in_memory" in package_name:
+            model_name = instance.__dict__.get('__haystack_added_to_pipeline__').get_component('text_embedder').__class__.__name__
+            vector_store_name = instance.__dict__.get("document_store").__class__.__name__
             span.set_attribute(TAGS, [model_name, vector_store_name])
     except:
         pass
@@ -321,7 +370,7 @@ def update_vectorstore_attributes(to_wrap, instance, span):
                 EMBEDDING_MODEL: attributes['embedding_model']
             })
         else:
-            logger.warning(f"Package '{package}' not recognized for vector store telemetry.")
+            pass
 
     except Exception as e:
         logger.error(f"Error updating span attributes: {e}")

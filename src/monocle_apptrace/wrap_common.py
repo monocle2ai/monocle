@@ -293,33 +293,29 @@ def update_workflow_type(to_wrap, span: Span):
 
 def update_span_with_context_input(to_wrap, wrapped_args ,span: Span):
     package_name: str = to_wrap.get('package')
+    input_arg_text = ""
     if "langchain_core.retrievers" in package_name:
-        input_arg_text = wrapped_args[0]
-        span.add_event(CONTEXT_INPUT_KEY, {QUERY:input_arg_text})
+        input_arg_text += wrapped_args[0]
     if "llama_index.core.indices.base_retriever" in package_name:
-        input_arg_text = wrapped_args[0].query_str
-        span.add_event(CONTEXT_INPUT_KEY, {QUERY:input_arg_text})
+        input_arg_text += wrapped_args[0].query_str
     if "haystack.components.retrievers.in_memory" in package_name:
-        input_arg_text = get_context_attribute(CONTEXT_INPUT_KEY)
-        span.add_event(CONTEXT_INPUT_KEY, {QUERY:input_arg_text})
+        input_arg_text += get_context_attribute(CONTEXT_INPUT_KEY)
+    span.add_event(CONTEXT_INPUT_KEY, {QUERY: input_arg_text})
 
 def update_span_with_context_output(to_wrap, return_value ,span: Span):
     package_name: str = to_wrap.get('package')
+    output_arg_text = ""
     if "langchain_core.retrievers" in package_name:
-        combined_output = " ".join([doc.page_content for doc in return_value if hasattr(doc, 'page_content')])
-        if len(combined_output) > 100:
-            combined_output = combined_output[:100] + "..."
-
-        span.add_event(CONTEXT_OUTPUT_KEY, {RESPONSE: combined_output})
+        output_arg_text += " ".join([doc.page_content for doc in return_value if hasattr(doc, 'page_content')])
+        if len(output_arg_text) > 100:
+            output_arg_text = output_arg_text[:100] + "..."
     if "llama_index.core.indices.base_retriever" in package_name:
-        output_arg_text = return_value[0].text
-        span.add_event(CONTEXT_OUTPUT_KEY, {RESPONSE:output_arg_text})
-
+        output_arg_text += return_value[0].text
     if "haystack.components.retrievers.in_memory" in package_name:
-        combined_output = " ".join([doc.content for doc in return_value['documents']])
-        if len(combined_output) > 100:
-            combined_output = combined_output[:100] + "..."
-        span.add_event(CONTEXT_OUTPUT_KEY, {RESPONSE: combined_output})
+        output_arg_text += " ".join([doc.content for doc in return_value['documents']])
+        if len(output_arg_text) > 100:
+            output_arg_text = output_arg_text[:100] + "..."
+    span.add_event(CONTEXT_OUTPUT_KEY, {RESPONSE: output_arg_text})
 
 def update_span_with_prompt_input(to_wrap, wrapped_args ,span: Span):
     input_arg_text = wrapped_args[0]

@@ -291,7 +291,7 @@ def update_workflow_type(to_wrap, span: Span):
         if(package_name is not None and package in package_name):
             span.set_attribute(WORKFLOW_TYPE_KEY, workflow_type)
 
-def update_span_with_context_input(to_wrap, wrapped_args, instance ,span: Span):
+def update_span_with_context_input(to_wrap, wrapped_args ,span: Span):
     package_name: str = to_wrap.get('package')
     if "langchain_core.retrievers" in package_name:
         input_arg_text = wrapped_args[0]
@@ -300,7 +300,7 @@ def update_span_with_context_input(to_wrap, wrapped_args, instance ,span: Span):
         input_arg_text = wrapped_args[0].query_str
         span.add_event(CONTEXT_INPUT_KEY, {QUERY:input_arg_text})
     if "haystack.components.retrievers.in_memory" in package_name:
-        input_arg_text = get_context_input(CONTEXT_INPUT_KEY)
+        input_arg_text = get_context_attribute(CONTEXT_INPUT_KEY)
         span.add_event(CONTEXT_INPUT_KEY, {QUERY:input_arg_text})
 
 def update_span_with_context_output(to_wrap, return_value ,span: Span):

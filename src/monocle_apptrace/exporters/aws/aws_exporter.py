@@ -27,7 +27,7 @@ class S3SpanExporter(SpanExporterBase):
             aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY'),
             region_name=region_name,
         )
-        self.bucket_name = bucket_name or os.getenv('AWS_S3_BUCKET_NAME', 'default-bucket')
+        self.bucket_name = bucket_name or os.getenv('AWS_S3_BUCKET_NAME')
         self.file_prefix = DEFAULT_FILE_PREFIX
         self.time_format = DEFAULT_TIME_FORMAT
         self.export_queue = []
@@ -36,10 +36,13 @@ class S3SpanExporter(SpanExporterBase):
         # Check if bucket exists or create it
         if not self.__bucket_exists(self.bucket_name):
             try:
-                self.s3_client.create_bucket(
+                if region_name == "us-east-1":
+                    self.s3_client.create_bucket(Bucket=self.bucket_name)
+                else:
+                    self.s3_client.create_bucket(
                     Bucket=self.bucket_name,
                     CreateBucketConfiguration={'LocationConstraint': region_name}
-                )
+                     )
                 logger.info(f"Bucket {self.bucket_name} created successfully.")
             except ClientError as e:
                 logger.error(f"Error creating bucket {self.bucket_name}: {e}")
@@ -47,13 +50,31 @@ class S3SpanExporter(SpanExporterBase):
 
     def __bucket_exists(self, bucket_name):
         try:
+            # Check if the bucket exists by calling head_bucket
             self.s3_client.head_bucket(Bucket=bucket_name)
             return True
-        except self.s3_client.exceptions.NoSuchBucket:
-            return False
-        except Exception as e:
-            logger.error(f"Error checking if bucket {bucket_name} exists: {e}")
-            return False
+        except ClientError as e:
+            error_code = e.response['Error']['Code']
+            if error_code == '404':
+                # Bucket not found
+                logger.error(f"Bucket {bucket_name} does not exist (404).")
+                return False
+            elif error_code == '403':
+                # Permission denied
+                logger.error(f"Access to bucket {bucket_name} is forbidden (403).")
+                raise PermissionError(f"Access to bucket {bucket_name} is forbidden.")
+            elif error_code == '400':
+                # Bad request or malformed input
+                logger.error(f"Bad request for bucket {bucket_name} (400).")
+                raise ValueError(f"Bad request for bucket {bucket_name}.")
+            else:
+                # Other client errors
+                logger.error(f"Unexpected error when accessing bucket {bucket_name}: {e}")
+                raise e
+        except TypeError as e:
+            # Handle TypeError separately
+            logger.error(f"Type error while checking bucket existence: {e}")
+            raise e
 
     def export(self, spans: Sequence[ReadableSpan]) -> SpanExportResult:
         """Synchronous export method that internally handles async logic."""

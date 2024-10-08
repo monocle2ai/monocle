@@ -25,7 +25,6 @@ class SpanExporterBase(ABC):
     async def force_flush(self, timeout_millis: int = 30000) -> bool:
         pass
 
-
     def shutdown(self) -> None:
         pass
 
@@ -38,17 +37,11 @@ class SpanExporterBase(ABC):
             except ServiceRequestError as e:
                 logger.warning(f"Network connectivity error: {e}. Retrying in {self.backoff_factor ** attempt} seconds...")
                 sleep_time = self.backoff_factor * (2 ** attempt) + random.uniform(0, 1)
-                await asyncio.sleep(sleep_time)  # Use asyncio.sleep() instead of time.sleep()
+                await asyncio.sleep(sleep_time)
                 attempt += 1
             except ClientAuthenticationError as e:
                 logger.error(f"Failed to authenticate: {str(e)}")
-                break  # Authentication errors should not be retried
-            except Exception as e:
-                logger.warning(f"Retry {attempt}/{self.max_retries} failed due to: {str(e)}")
-                sleep_time = self.backoff_factor * (2 ** attempt) + random.uniform(0, 1)
-                logger.info(f"Waiting for {sleep_time:.2f} seconds before retrying...")
-                await asyncio.sleep(sleep_time)
-                attempt += 1
+                break
 
         logger.error("Max retries exceeded.")
         raise ServiceRequestError(message="Max retries exceeded.")

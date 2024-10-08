@@ -4,7 +4,7 @@ import random
 import datetime
 import logging
 import asyncio
-from azure.storage.blob import BlobServiceClient, BlobClient, ContainerClient  # AIO version for async
+from azure.storage.blob import BlobServiceClient, BlobClient, ContainerClient
 from azure.core.exceptions import ResourceNotFoundError, ClientAuthenticationError, ServiceRequestError
 from opentelemetry.sdk.trace import ReadableSpan
 from opentelemetry.sdk.trace.export import SpanExporter, SpanExportResult

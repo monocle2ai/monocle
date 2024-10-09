@@ -1,4 +1,4 @@
-
+from multiprocessing.forkserver import connect_to_new_process
 
 import bs4
 from langchain import hub
@@ -15,13 +15,22 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from monocle_apptrace.instrumentor import set_context_properties, setup_monocle_telemetry
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
 from langhchain_patch import create_history_aware_retriever
+from monocle_apptrace.exporters.azure.blob_exporter import AzureBlobSpanExporter
+import os
+import time
+from dotenv import load_dotenv, dotenv_values
+import logging
+logging.basicConfig(level=logging.INFO)
+load_dotenv()
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
+exporter = AzureBlobSpanExporter()
 setup_monocle_telemetry(
             workflow_name="langchain_app_1",
-            span_processors=[BatchSpanProcessor(ConsoleSpanExporter())],
+            span_processors=[BatchSpanProcessor(exporter)],
             wrapper_methods=[])
 
-llm = ChatOpenAI(model="gpt-3.5-turbo-0125")
+llm = ChatOpenAI(model="gpt-3.5-turbo-0125",openai_api_key=OPENAI_API_KEY)
 
 # Load, chunk and index the contents of the blog.
 loader = WebBaseLoader(
@@ -36,7 +45,7 @@ docs = loader.load()
 
 text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
 splits = text_splitter.split_documents(docs)
-vectorstore = Chroma.from_documents(documents=splits, embedding=OpenAIEmbeddings())
+vectorstore = Chroma.from_documents(documents=splits, embedding=OpenAIEmbeddings(openai_api_key=OPENAI_API_KEY))
 
 # Retrieve and generate using the relevant snippets of the blog.
 retriever = vectorstore.as_retriever()

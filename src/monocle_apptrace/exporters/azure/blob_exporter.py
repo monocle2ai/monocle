@@ -9,7 +9,7 @@ from azure.core.exceptions import ResourceNotFoundError, ClientAuthenticationErr
 from opentelemetry.sdk.trace import ReadableSpan
 from opentelemetry.sdk.trace.export import SpanExporter, SpanExportResult
 from typing import Sequence
-from monocle_apptrace.exporters.span_exporter_base import SpanExporterBase
+from monocle_apptrace.exporters.base_exporter import SpanExporterBase
 
 logger = logging.getLogger(__name__)
 
@@ -22,12 +22,12 @@ class AzureBlobSpanExporter(SpanExporterBase):
         self.export_interval = 1
         # Use default values if none are provided
         if not connection_string:
-            connection_string = os.getenv('AZURE_STORAGE_CONNECTION_STRING')
+            connection_string = os.getenv('CONNECTION_STRING')
             if not connection_string:
                 raise ValueError("Azure Storage connection string is not provided or set in environment variables.")
 
         if not container_name:
-            container_name = os.getenv('AZURE_STORAGE_CONTAINER_NAME', 'default-container')
+            container_name = os.getenv('CONTAINER_NAME', 'default-container')
 
         self.blob_service_client = BlobServiceClient.from_connection_string(connection_string)
         self.container_name = container_name
@@ -49,10 +49,14 @@ class AzureBlobSpanExporter(SpanExporterBase):
             container_client.get_container_properties()
             return True
         except ResourceNotFoundError:
+            logger.error(f"Container {container_name} not found (404).")
             return False
+        except ClientAuthenticationError:
+            logger.error(f"Access to container {container_name} is forbidden (403).")
+            raise PermissionError(f"Access to container {container_name} is forbidden.")
         except Exception as e:
-            logger.error(f"Error checking if container {container_name} exists: {e}")
-            return False
+            logger.error(f"Unexpected error when checking if container {container_name} exists: {e}")
+            raise e
 
     def export(self, spans: Sequence[ReadableSpan]) -> SpanExportResult:
         """Synchronous export method that internally handles async logic."""

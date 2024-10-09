@@ -8,7 +8,7 @@ import boto3
 from botocore.exceptions import ClientError
 from opentelemetry.sdk.trace import ReadableSpan
 from opentelemetry.sdk.trace.export import SpanExporter, SpanExportResult
-from monocle_apptrace.exporters.span_exporter_base import SpanExporterBase
+from monocle_apptrace.exporters.base_exporter import SpanExporterBase
 from typing import Sequence
 
 logger = logging.getLogger(__name__)
@@ -27,7 +27,7 @@ class S3SpanExporter(SpanExporterBase):
             aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY'),
             region_name=region_name,
         )
-        self.bucket_name = bucket_name or os.getenv('AWS_S3_BUCKET_NAME')
+        self.bucket_name = bucket_name or os.getenv('AWS_S3_BUCKET_NAME','default-bucket')
         self.file_prefix = DEFAULT_FILE_PREFIX
         self.time_format = DEFAULT_TIME_FORMAT
         self.export_queue = []

@@ -1,0 +1,39 @@
+{
+    "type": "Inference",
+    "attributes": [
+        [
+        {
+            "_comment": "provider type ,name , deployment , inference_endpoint",
+            "attribute_name": "type",
+            "getter": "lambda instance,args:'inference.azure_oai'"
+        },
+        {
+            "attribute_name": "provider_name",
+            "getter": "lambda instance,args:args['provider_name']"
+        },
+        {
+            "attribute_name": "deployment",
+            "getter": "lambda instance,args: resolve_from_alias(instance.__dict__, ['engine', 'azure_deployment', 'deployment_name', 'deployment_id', 'deployment'])"
+        },
+        {
+            "attribute_name": "inference_endpoint",
+            "getter": "lambda instance,args: resolve_from_alias(instance.__dict__, ['azure_endpoint', 'api_base'])"
+        }
+        ],
+        [
+        {
+            "_comment": "LLM Model",
+            "attribute_name": "name",
+            "getter": "lambda instance,args: resolve_from_alias(instance.__dict__, ['model', 'model_name'])"
+        },
+        {
+            "attribute_name": "type",
+            "getter": "lambda instance,args: 'model.llm'"
+        },
+        {
+            "attribute_name": "model_name",
+            "getter": "lambda instance,args: resolve_from_alias(instance.__dict__, ['model', 'model_name'])"
+        }
+        ]
+    ]
+}

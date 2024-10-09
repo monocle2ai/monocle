@@ -5,6 +5,7 @@ import inspect
 from urllib.parse import urlparse
 from opentelemetry.trace import Span, Tracer
 from monocle_apptrace.utils import resolve_from_alias, update_span_with_infra_name, with_tracer_wrapper, get_embedding_model, get_attribute
+from src.monocle_apptrace.utils import set_attribute
 
 logger = logging.getLogger(__name__)
 WORKFLOW_TYPE_KEY = "workflow_type"
@@ -92,11 +93,27 @@ def task_wrapper(tracer: Tracer, to_wrap, wrapped, instance, args, kwargs):
         name = f"langchain.task.{instance.__class__.__name__}"
 
     with tracer.start_as_current_span(name) as span:
+        if "output_processor" in to_wrap:
+            process_span(to_wrap["output_processor"],span,instance,args)
         pre_task_processing(to_wrap, instance, args, span)
         return_value = wrapped(*args, **kwargs)
         post_task_processing(to_wrap, span, return_value)
 
     return return_value
+
+def process_span(output_processor,span,instance,args):
+    span.set_attribute("span.type",output_processor['type'])
+    cnt=len(output_processor["attributes"])
+    span.set_attribute("span.count", cnt)
+    i=0
+    for processors in output_processor["attributes"]:
+        for processor in processors:
+            attribute_name=f'entity.{i}.{processor['attribute_name']}'
+            #attribute_name=processor['attribute_name']
+            result=eval(processor['getter'])(instance,args)
+            span.set_attribute(attribute_name,result)
+        i+=1
+
 
 def post_task_processing(to_wrap, span, return_value):
     update_span_with_context_output(to_wrap=to_wrap, return_value=return_value, span=span)
@@ -183,12 +200,17 @@ def llm_wrapper(tracer: Tracer, to_wrap, wrapped, instance, args, kwargs):
         name = to_wrap.get("span_name")
     else:
         name = f"langchain.task.{instance.__class__.__name__}"
+
     with tracer.start_as_current_span(name) as span:
         if 'haystack.components.retrievers' in to_wrap['package'] and 'haystack.retriever' in span.name:
             update_tags(to_wrap, instance, span)
             update_vectorstore_attributes(to_wrap, instance, span)
             input_arg_text = get_attribute(CONTEXT_INPUT_KEY)
             span.add_event(CONTEXT_INPUT_KEY, {QUERY: input_arg_text})
+        provider_name = set_provider_name(instance)
+        args = {"provider_name": provider_name}
+        if 'output_processor' in to_wrap:
+            process_span(to_wrap['output_processor'], span, instance, args)
         update_llm_endpoint(curr_span= span, instance=instance)
 
         return_value = wrapped(*args, **kwargs)
@@ -227,9 +249,9 @@ def update_llm_endpoint(curr_span: Span, instance):
             inference_endpoint=inference_ep
         )
 
-        set_provider_name(curr_span, instance)
 
-def set_provider_name(curr_span, instance):
+
+def set_provider_name(instance):
     provider_url = ""
 
     try :
@@ -247,9 +269,10 @@ def set_provider_name(curr_span, instance):
     try :
         if len(provider_url) > 0:
             parsed_provider_url = urlparse(provider_url)
-            curr_span.set_attribute("provider_name", parsed_provider_url.hostname or provider_url)
+            #curr_span.set_attribute("provider_name", parsed_provider_url.hostname or provider_url)
     except:
         pass
+    return parsed_provider_url.hostname or provider_url
 
 def is_root_span(curr_span: Span) -> bool:
     return curr_span.parent is None

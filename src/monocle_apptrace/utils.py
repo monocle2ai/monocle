@@ -61,6 +61,12 @@ def load_wrapper_from_config(config_file_path: str, module_name: str = None):
                 wrapper_method["span_name_getter"] = get_wrapper_method(
                     wrapper_method["span_name_getter_package"],
                     wrapper_method["span_name_getter_method"])
+            if "output_processor" in wrapper_method:
+                if type(wrapper_method["output_processor"]) is list:
+                    output_processor_file_path = wrapper_method["output_processor"][0]
+                    if isinstance(output_processor_file_path, str):
+                        with open(output_processor_file_path, encoding='UTF-8') as op_file:
+                            wrapper_method["output_processor"] = json.load(op_file)
         return wrapper_methods
 
 def get_wrapper_method(package_name: str, method_name: str):

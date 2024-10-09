@@ -1,4 +1,4 @@
-{ 
+{
 "wrapper_methods" : [
     {
         "package": "langchain.prompts.base",
@@ -47,7 +47,9 @@
         "object": "BaseRetriever",
         "method": "invoke",
         "wrapper_package": "wrap_common",
-        "wrapper_method": "task_wrapper"
+        "wrapper_method": "task_wrapper",
+        "output_processor": "C:\\Users\\BHLP0106\\Desktop\\clone\\monocle\\src\\monocle_apptrace\\metamodel\\maps\\attributes\\retrieval\\lang_chain_attribute.json"
+
     },
     {
         "package": "langchain_core.retrievers",

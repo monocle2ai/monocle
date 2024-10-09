@@ -46,6 +46,7 @@ class MonocleInstrumentor(BaseInstrumentor):
                 "method": method.method,
                 "span_name": method.span_name,
                 "wrapper": method.wrapper,
+                "output_processor":method.output_processor
             } for method in self.user_wrapper_methods]
 
         final_method_list = user_method_list + INBUILT_METHODS_LIST

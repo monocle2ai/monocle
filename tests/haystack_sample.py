@@ -116,10 +116,6 @@ haystack_app()
 #         "status_code": "UNSET"
 #     },
 #      "attributes": {
-#         "tags": [
-#             "SentenceTransformersTextEmbedder",
-#             "InMemoryDocumentStore"
-#         ],
 #         "type": "vector_store",
 #         "provider_name": "InMemoryDocumentStore",
 #         "embedding_model": "sentence-transformers/all-MiniLM-L6-v2"
@@ -193,10 +189,8 @@ haystack_app()
 #         "status_code": "UNSET"
 #     },
 #     "attributes": {
-#         "input": "What does Rhodes Statue look like?",
 #         "workflow_name": "haystack_app_1",
 #         "workflow_type": "workflow.haystack",
-#         "output": "The Rhodes Statue, also known as the Colossus of Rhodes, depicted the Greek sun-god Helios. It was a bronze statue standing approximately 33 meters (108 feet) tall with a standard rendering of the head and face, featuring curly hair with evenly spaced spikes of bronze or silver flame radiating. The actual appearance of the rest of the statue remains unknown, but it was considered the tallest statue in the ancient world."
 #     },
 #     "events": [],
 #     "links": [],

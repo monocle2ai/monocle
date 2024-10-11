@@ -4,7 +4,8 @@ import os
 import inspect
 from urllib.parse import urlparse
 from opentelemetry.trace import Span, Tracer
-from monocle_apptrace.utils import resolve_from_alias, update_span_with_infra_name, with_tracer_wrapper, get_embedding_model, get_attribute
+from opentelemetry.context import get_value
+from monocle_apptrace.utils import resolve_from_alias, update_span_with_infra_name, with_tracer_wrapper
 
 logger = logging.getLogger(__name__)
 WORKFLOW_TYPE_KEY = "workflow_type"
@@ -71,7 +72,7 @@ framework_vector_store_mapping = {
     },
     'haystack.components.retrievers.in_memory': lambda instance: {
         'provider': instance.__dict__.get("document_store").__class__.__name__,
-        'embedding_model': get_embedding_model(),
+        'embedding_model': get_value(EMBEDDING_MODEL),
         'type': VECTOR_STORE,
     },
 }
@@ -115,7 +116,6 @@ def pre_task_processing(to_wrap, instance, args, span):
 
     #capture the tags attribute of the instance if present, else ignore
     try:
-        update_tags(to_wrap, instance, span)
         update_vectorstore_attributes(to_wrap, instance, span)
     except AttributeError:
         pass
@@ -185,9 +185,8 @@ def llm_wrapper(tracer: Tracer, to_wrap, wrapped, instance, args, kwargs):
         name = f"langchain.task.{instance.__class__.__name__}"
     with tracer.start_as_current_span(name) as span:
         if 'haystack.components.retrievers' in to_wrap['package'] and 'haystack.retriever' in span.name:
-            update_tags(to_wrap, instance, span)
             update_vectorstore_attributes(to_wrap, instance, span)
-            input_arg_text = get_attribute(CONTEXT_INPUT_KEY)
+            input_arg_text = get_value(CONTEXT_INPUT_KEY)
             span.add_event(CONTEXT_INPUT_KEY, {QUERY: input_arg_text})
         update_llm_endpoint(curr_span= span, instance=instance)
 
@@ -293,29 +292,31 @@ def update_workflow_type(to_wrap, span: Span):
 
 def update_span_with_context_input(to_wrap, wrapped_args ,span: Span):
     package_name: str = to_wrap.get('package')
-    input_arg_text = ""
     if "langchain_core.retrievers" in package_name:
-        input_arg_text += wrapped_args[0]
+        input_arg_text = wrapped_args[0]
+        span.add_event(CONTEXT_INPUT_KEY, {QUERY: input_arg_text})
     if "llama_index.core.indices.base_retriever" in package_name:
-        input_arg_text += wrapped_args[0].query_str
+        input_arg_text = wrapped_args[0].query_str
+        span.add_event(CONTEXT_INPUT_KEY, {QUERY: input_arg_text})
     if "haystack.components.retrievers.in_memory" in package_name:
-        input_arg_text += get_attribute(CONTEXT_INPUT_KEY)
-    span.add_event(CONTEXT_INPUT_KEY, {QUERY: input_arg_text})
+        input_arg_text = get_value(CONTEXT_INPUT_KEY)
+        span.add_event(CONTEXT_INPUT_KEY, {QUERY: input_arg_text})
 
 def update_span_with_context_output(to_wrap, return_value ,span: Span):
     package_name: str = to_wrap.get('package')
-    output_arg_text = ""
     if "langchain_core.retrievers" in package_name:
-        output_arg_text += " ".join([doc.page_content for doc in return_value if hasattr(doc, 'page_content')])
+        output_arg_text = " ".join([doc.page_content for doc in return_value if hasattr(doc, 'page_content')])
         if len(output_arg_text) > 100:
             output_arg_text = output_arg_text[:100] + "..."
+        span.add_event(CONTEXT_OUTPUT_KEY, {RESPONSE: output_arg_text})
     if "llama_index.core.indices.base_retriever" in package_name:
-        output_arg_text += return_value[0].text
+        output_arg_text = return_value[0].text
+        span.add_event(CONTEXT_OUTPUT_KEY, {RESPONSE: output_arg_text})
     if "haystack.components.retrievers.in_memory" in package_name:
-        output_arg_text += " ".join([doc.content for doc in return_value['documents']])
+        output_arg_text = " ".join([doc.content for doc in return_value['documents']])
         if len(output_arg_text) > 100:
             output_arg_text = output_arg_text[:100] + "..."
-    span.add_event(CONTEXT_OUTPUT_KEY, {RESPONSE: output_arg_text})
+        span.add_event(CONTEXT_OUTPUT_KEY, {RESPONSE: output_arg_text})
 
 def update_span_with_prompt_input(to_wrap, wrapped_args ,span: Span):
     input_arg_text = wrapped_args[0]
@@ -329,31 +330,10 @@ def update_span_with_prompt_output(to_wrap, wrapped_args ,span: Span):
     package_name: str = to_wrap.get('package')
     if isinstance(wrapped_args, str):
         span.add_event(PROMPT_OUTPUT_KEY, {RESPONSE:wrapped_args})
+    if isinstance(wrapped_args, dict):
+        span.add_event(PROMPT_OUTPUT_KEY, {RESPONSE:wrapped_args['answer']})
     if "llama_index.core.base.base_query_engine" in package_name:
         span.add_event(PROMPT_OUTPUT_KEY, {RESPONSE:wrapped_args.response})
-
-def update_tags(to_wrap, instance, span):
-    try:
-        # copy tags as is from langchain
-        if hasattr(instance, TAGS):
-            tags_value = getattr(instance, TAGS)
-            if tags_value is not None:
-                span.set_attribute(TAGS, getattr(instance, TAGS))
-    except:
-        pass
-    try:
-        # extract embed model and vector store names for llamaindex
-        package_name: str = to_wrap.get('package')
-        if "llama_index.core.indices.base_retriever" in package_name:
-            model_name = instance._embed_model.__class__.__name__
-            vector_store_name = type(instance._vector_store).__name__
-            span.set_attribute(TAGS, [model_name, vector_store_name])
-        if "haystack.components.retrievers.in_memory" in package_name:
-            model_name = instance.__dict__.get('__haystack_added_to_pipeline__').get_component('text_embedder').__class__.__name__
-            vector_store_name = instance.__dict__.get("document_store").__class__.__name__
-            span.set_attribute(TAGS, [model_name, vector_store_name])
-    except:
-        pass
 
 
 def update_vectorstore_attributes(to_wrap, instance, span):

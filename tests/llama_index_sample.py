@@ -58,10 +58,6 @@ print(response)
 #         "status_code": "UNSET"
 #     },
 #     "attributes": {
-#         "tags": [
-#             "OpenAIEmbedding",
-#             "ChromaVectorStore"
-#         ],
 #         "type": "vector_store",
 #         "provider_name": "ChromaVectorStore",
 #         "embedding_model": "text-embedding-3-large"
@@ -137,10 +133,6 @@ print(response)
 #         "status_code": "UNSET"
 #     },
 #     "attributes": {
-#         "tags": [
-#             "text-embedding-3-large",
-#             "ChromaVectorStore"
-#         ],
 #         "workflow_name": "llama_index_1",
 #         "workflow_type": "workflow.llamaindex"
 #     },

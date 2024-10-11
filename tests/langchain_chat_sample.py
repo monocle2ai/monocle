@@ -119,10 +119,6 @@ print(ai_msg_2["answer"])
 #     },
 #     "attributes": {
 #         "session.session_id": "0x4fa6d91d1f2a4bdbb7a1287d90ec4a16",
-#         "tags": [
-#             "Chroma",
-#             "OpenAIEmbeddings"
-#         ],
 #         "type": "vector_store",
 #         "provider_name": "Chroma",
 #         "embedding_model": "text-embedding-ada-002"
@@ -271,10 +267,12 @@ print(ai_msg_2["answer"])
 #     },
 #     "attributes": {
 #         "session.session_id": "0x4fa6d91d1f2a4bdbb7a1287d90ec4a16",
-#         "server_url": "http://triton22.eastus.cloudapp.azure.com:8000/v2/models/flan_t5_783m/versions/1/infer",
-#         "completion_tokens": 57,
+#         "temperature": 0.7,
+#         "model_name": "gpt-3.5-turbo-0125",
+#         "provider_name": "api.openai.com",
+#         "completion_tokens": 72,
 #         "prompt_tokens": 580,
-#         "total_tokens": 637
+#         "total_tokens": 652
 #     },
 #     "events": [],
 #     "links": [],
@@ -379,12 +377,26 @@ print(ai_msg_2["answer"])
 #     },
 #     "attributes": {
 #         "session.session_id": "0x4fa6d91d1f2a4bdbb7a1287d90ec4a16",
-#         "workflow_input": "What is Task Decomposition?",
 #         "workflow_name": "langchain_app_1",
-#         "workflow_output": "Task decomposition is a technique used to break down complex tasks into smaller and more manageable steps. This process helps agents or models handle intricate tasks by dividing them into simpler subtasks. Various methods, such as Chain of Thought and Tree of Thoughts, can be employed to decompose tasks effectively.",
 #         "workflow_type": "workflow.langchain"
 #     },
-#     "events": [],
+#     "events": [
+#         {
+#             "name": "input",
+#             "timestamp": "2024-10-11T12:03:26.486278Z",
+#             "attributes": {
+#                 "input": "What is Task Decomposition?",
+#                 "chat_history": []
+#             }
+#         },
+#         {
+#             "name": "output",
+#             "timestamp": "2024-10-11T12:03:28.959909Z",
+#             "attributes": {
+#                 "response": "Task decomposition involves breaking down a complex task into smaller and simpler steps to make it more manageable for an agent or model. Techniques like Chain of Thought and Tree of Thoughts help in decomposing hard tasks into smaller components, allowing for a step-by-step approach to problem-solving. Task decomposition can be facilitated by using simple prompting, task-specific instructions, or human inputs."
+#             }
+#         }
+#     ],
 #     "links": [],
 #     "resource": {
 #         "attributes": {

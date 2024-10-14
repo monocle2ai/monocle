@@ -1,4 +1,4 @@
-#pylint: disable=protected-access
+# pylint: disable=protected-access
 import logging
 import os
 import inspect
@@ -17,18 +17,17 @@ RESPONSE = "response"
 TAGS = "tags"
 SESSION_PROPERTIES_KEY = "session"
 INFRA_SERVICE_KEY = "infra_service_name"
+
 TYPE = "type"
 PROVIDER = "provider_name"
 EMBEDDING_MODEL = "embedding_model"
 VECTOR_STORE = 'vector_store'
-
 
 WORKFLOW_TYPE_MAP = {
     "llama_index": "workflow.llamaindex",
     "langchain": "workflow.langchain",
     "haystack": "workflow.haystack"
 }
-
 
 def get_embedding_model_for_vectorstore(instance):
     # Handle Langchain or other frameworks where vectorstore exists
@@ -103,7 +102,7 @@ def post_task_processing(to_wrap, span, return_value):
 
     if is_root_span(span):
         workflow_name = span.resource.attributes.get("service.name")
-        span.set_attribute("workflow_name",workflow_name)
+        span.set_attribute("workflow_name", workflow_name)
         update_span_with_prompt_output(to_wrap=to_wrap, wrapped_args=return_value, span=span)
         update_workflow_type(to_wrap, span)
 
@@ -113,15 +112,13 @@ def pre_task_processing(to_wrap, instance, args, span):
 
         update_span_with_infra_name(span, INFRA_SERVICE_KEY)
 
-    #capture the tags attribute of the instance if present, else ignore
+    # capture the tags attribute of the instance if present, else ignore
     try:
         update_tags(to_wrap, instance, span)
         update_vectorstore_attributes(to_wrap, instance, span)
     except AttributeError:
         pass
     update_span_with_context_input(to_wrap=to_wrap, wrapped_args=args, span=span)
-
-
 
 @with_tracer_wrapper
 async def atask_wrapper(tracer, to_wrap, wrapped, instance, args, kwargs):
@@ -144,6 +141,7 @@ async def atask_wrapper(tracer, to_wrap, wrapped, instance, args, kwargs):
 
     return return_value
 
+
 @with_tracer_wrapper
 async def allm_wrapper(tracer, to_wrap, wrapped, instance, args, kwargs):
     # Some Langchain objects are wrapped elsewhere, so we ignore them here
@@ -160,16 +158,16 @@ async def allm_wrapper(tracer, to_wrap, wrapped, instance, args, kwargs):
     else:
         name = f"langchain.task.{instance.__class__.__name__}"
     with tracer.start_as_current_span(name) as span:
-        update_llm_endpoint(curr_span= span, instance=instance)
+        update_llm_endpoint(curr_span=span, instance=instance)
 
         return_value = await wrapped(*args, **kwargs)
-        update_span_from_llm_response(response = return_value, span = span)
+        update_span_from_llm_response(response=return_value, span=span)
 
     return return_value
 
+
 @with_tracer_wrapper
 def llm_wrapper(tracer: Tracer, to_wrap, wrapped, instance, args, kwargs):
-
     # Some Langchain objects are wrapped elsewhere, so we ignore them here
     if instance.__class__.__name__ in ("AgentExecutor"):
         return wrapped(*args, **kwargs)
@@ -197,6 +195,7 @@ def llm_wrapper(tracer: Tracer, to_wrap, wrapped, instance, args, kwargs):
         update_span_from_llm_response(response = return_value, span = span)
 
     return return_value
+
 
 def update_llm_endpoint(curr_span: Span, instance):
     # Lambda to set attributes if values are not None
@@ -232,32 +231,35 @@ def update_llm_endpoint(curr_span: Span, instance):
 def set_provider_name(curr_span, instance):
     provider_url = ""
 
-    try :
-        if isinstance(instance.client._client.base_url.host, str) :
-            provider_url = instance. client._client.base_url.host
+    try:
+        if isinstance(instance.client._client.base_url.host, str):
+            provider_url = instance.client._client.base_url.host
     except:
         pass
 
-    try :
+    try:
         if isinstance(instance.api_base, str):
             provider_url = instance.api_base
     except:
         pass
 
-    try :
+    try:
         if len(provider_url) > 0:
             parsed_provider_url = urlparse(provider_url)
             curr_span.set_attribute("provider_name", parsed_provider_url.hostname or provider_url)
     except:
         pass
 
+
 def is_root_span(curr_span: Span) -> bool:
     return curr_span.parent is None
+
 
 def get_input_from_args(chain_args):
     if len(chain_args) > 0 and isinstance(chain_args[0], str):
         return chain_args[0]
     return ""
+
 
 def update_span_from_llm_response(response, span: Span):
     # extract token uasge from langchain openai
@@ -269,10 +271,11 @@ def update_span_from_llm_response(response, span: Span):
             span.set_attribute("prompt_tokens", token_usage.get("prompt_tokens"))
             span.set_attribute("total_tokens", token_usage.get("total_tokens"))
     # extract token usage from llamaindex openai
-    if(response is not None and hasattr(response, "raw")):
+    if (response is not None and hasattr(response, "raw")):
         try:
             if response.raw is not None:
-                token_usage = response.raw.get("usage") if isinstance(response.raw, dict) else getattr(response.raw, "usage", None)
+                token_usage = response.raw.get("usage") if isinstance(response.raw, dict) else getattr(response.raw,
+                                                                                                       "usage", None)
                 if token_usage is not None:
                     if getattr(token_usage, "completion_tokens", None):
                         span.set_attribute("completion_tokens", getattr(token_usage, "completion_tokens"))
@@ -288,10 +291,11 @@ def update_workflow_type(to_wrap, span: Span):
     package_name = to_wrap.get('package')
 
     for (package, workflow_type) in WORKFLOW_TYPE_MAP.items():
-        if(package_name is not None and package in package_name):
+        if (package_name is not None and package in package_name):
             span.set_attribute(WORKFLOW_TYPE_KEY, workflow_type)
 
-def update_span_with_context_input(to_wrap, wrapped_args ,span: Span):
+
+def update_span_with_context_input(to_wrap, wrapped_args, span: Span):
     package_name: str = to_wrap.get('package')
     input_arg_text = ""
     if "langchain_core.retrievers" in package_name:
@@ -302,7 +306,7 @@ def update_span_with_context_input(to_wrap, wrapped_args ,span: Span):
         input_arg_text += get_attribute(CONTEXT_INPUT_KEY)
     span.add_event(CONTEXT_INPUT_KEY, {QUERY: input_arg_text})
 
-def update_span_with_context_output(to_wrap, return_value ,span: Span):
+def update_span_with_context_output(to_wrap, return_value, span: Span):
     package_name: str = to_wrap.get('package')
     output_arg_text = ""
     if "langchain_core.retrievers" in package_name:
@@ -317,20 +321,20 @@ def update_span_with_context_output(to_wrap, return_value ,span: Span):
             output_arg_text = output_arg_text[:100] + "..."
     span.add_event(CONTEXT_OUTPUT_KEY, {RESPONSE: output_arg_text})
 
-def update_span_with_prompt_input(to_wrap, wrapped_args ,span: Span):
+def update_span_with_prompt_input(to_wrap, wrapped_args, span: Span):
     input_arg_text = wrapped_args[0]
 
     if isinstance(input_arg_text, dict):
-        span.add_event(PROMPT_INPUT_KEY,input_arg_text)
+        span.add_event(PROMPT_INPUT_KEY, input_arg_text)
     else:
-        span.add_event(PROMPT_INPUT_KEY,{QUERY:input_arg_text})
+        span.add_event(PROMPT_INPUT_KEY, {QUERY: input_arg_text})
 
-def update_span_with_prompt_output(to_wrap, wrapped_args ,span: Span):
+def update_span_with_prompt_output(to_wrap, wrapped_args, span: Span):
     package_name: str = to_wrap.get('package')
     if isinstance(wrapped_args, str):
-        span.add_event(PROMPT_OUTPUT_KEY, {RESPONSE:wrapped_args})
+        span.add_event(PROMPT_OUTPUT_KEY, {RESPONSE: wrapped_args})
     if "llama_index.core.base.base_query_engine" in package_name:
-        span.add_event(PROMPT_OUTPUT_KEY, {RESPONSE:wrapped_args.response})
+        span.add_event(PROMPT_OUTPUT_KEY, {RESPONSE: wrapped_args.response})
 
 def update_tags(to_wrap, instance, span):
     try:
@@ -354,7 +358,6 @@ def update_tags(to_wrap, instance, span):
             span.set_attribute(TAGS, [model_name, vector_store_name])
     except:
         pass
-
 
 def update_vectorstore_attributes(to_wrap, instance, span):
     """

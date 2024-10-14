@@ -13,6 +13,12 @@ It’s typically the workflow code components of an application that generate th
 ``` 
     > pip install monocle_apptrace
 ```
+
+- For Azure support (to upload traces to Azure), install with the azure extra:
+```
+    > pip install monocle_apptrace[azure]
+```
+
 - For AWS support (to upload traces to AWS), install with the aws extra:
 ```
     > pip install monocle_apptrace[aws]
@@ -68,6 +74,9 @@ setup_monocle_telemetry(workflow_name = "simple_math_app",
     ])
 ```
 To print the trace on the console, use ```ConsoleSpanExporter()``` instead of ```FileSpanExporter()```
+
+For Azure:
+    Install the Azure support as shown in the setup section, then use  ```AzureBlobSpanExporter()``` to upload the traces to Azure. 
 
 For AWS:
     Install the AWS support as shown in the setup section, then use  ```S3SpanExporter()``` to upload the traces to an S3 bucket.

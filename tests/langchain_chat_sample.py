@@ -1,4 +1,4 @@
-
+from multiprocessing.forkserver import connect_to_new_process
 
 import bs4
 from langchain import hub
@@ -27,12 +27,15 @@ exporter = S3SpanExporter(
     region_name='us-east-1',
     bucket_name='sachin-dev'
 )
+
 setup_monocle_telemetry(
             workflow_name="langchain_app_1",
             span_processors=[BatchSpanProcessor(exporter)],
             wrapper_methods=[])
 
+
 llm = ChatOpenAI(model="gpt-3.5-turbo-0125",api_key=OPENAI_API_KEY)
+
 
 # Load, chunk and index the contents of the blog.
 loader = WebBaseLoader(

@@ -121,14 +121,18 @@ class TestHandler(unittest.TestCase):
 
         span_names: List[str] = [span["name"] for span in dataJson['batch']]
         llm_span = [x for x in  dataJson["batch"] if "llamaindex.OurLLM" in x["name"]][0]
+        llm_retriever_span = [x for x in  dataJson["batch"] if "llamaindex.query" in x["name"]][0]
         for name in ["llamaindex.retrieve", "llamaindex.query", "llamaindex.OurLLM"]:
             assert name in span_names
         assert llm_span["attributes"]["completion_tokens"] == 1
         assert llm_span["attributes"]["prompt_tokens"] == 2
         assert llm_span["attributes"]["total_tokens"] == 3
-        
+        assert llm_retriever_span["attributes"]["embedding_model"] == "BAAI/bge-small-en-v1.5"
+        assert llm_retriever_span["attributes"]["provider_name"] == "SimpleVectorStore"
+
         type_found = False
         model_name_found = False
+        vectorstore_provider = False
 
         for span in dataJson["batch"]:
             if span["name"] == "llamaindex.query" and "workflow_type" in span["attributes"]:
@@ -137,9 +141,12 @@ class TestHandler(unittest.TestCase):
             if span["name"] == "llamaindex.OurLLM" and "model_name" in span["attributes"]:
                 assert span["attributes"]["model_name"] == "custom"
                 model_name_found = True
-
+            if span["name"] == "llamaindex.retrieve" and "type" in span["attributes"]:
+                assert span["attributes"]["provider_name"] == "SimpleVectorStore"
+                vectorstore_provider = True
         assert type_found
         assert model_name_found
+        assert vectorstore_provider
 
 
 

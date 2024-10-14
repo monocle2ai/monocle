@@ -115,42 +115,6 @@ print(ai_msg_2["answer"])
 
 
 # {
-#     "name": "haystack.tracing.auto_enable",
-#     "context": {
-#         "trace_id": "0xc76e1ca0c1023db2dd1464f6aa3c204d",
-#         "span_id": "0x6f2a59e14e1c51b4",
-#         "trace_state": "[]"
-#     },
-#     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "None",
-#     "start_time": "2024-06-10T04:38:25.377132Z",
-#     "end_time": "2024-06-10T04:38:25.381293Z",
-#     "status": {
-#         "status_code": "ERROR",
-#         "description": "ImportError: cannot import name 'Span' from partially initialized module 'haystack.tracing' (most likely due to a circular import) (/Users/kshitizvijayvargiya/anaconda3/lib/python3.11/site-packages/haystack/tracing/__init__.py)"
-#     },
-#     "attributes": {},
-#     "events": [
-#         {
-#             "name": "exception",
-#             "timestamp": "2024-06-10T04:38:25.381265Z",
-#             "attributes": {
-#                 "exception.type": "ImportError",
-#                 "exception.message": "cannot import name 'Span' from partially initialized module 'haystack.tracing' (most likely due to a circular import) (/Users/kshitizvijayvargiya/anaconda3/lib/python3.11/site-packages/haystack/tracing/__init__.py)",
-#                 "exception.stacktrace": "Traceback (most recent call last):\n  File \"/Users/kshitizvijayvargiya/anaconda3/lib/python3.11/site-packages/opentelemetry/trace/__init__.py\", line 570, in use_span\n    yield span\n  File \"/Users/kshitizvijayvargiya/anaconda3/lib/python3.11/site-packages/opentelemetry/sdk/trace/__init__.py\", line 1071, in start_as_current_span\n    yield span\n  File \"/Users/kshitizvijayvargiya/anaconda3/lib/python3.11/site-packages/haystack/tracing/tracer.py\", line 188, in _auto_configured_opentelemetry_tracer\n    from haystack.tracing.opentelemetry import OpenTelemetryTracer\n  File \"/Users/kshitizvijayvargiya/anaconda3/lib/python3.11/site-packages/haystack/tracing/opentelemetry.py\", line 5, in <module>\n    from haystack.tracing import Span, Tracer\nImportError: cannot import name 'Span' from partially initialized module 'haystack.tracing' (most likely due to a circular import) (/Users/kshitizvijayvargiya/anaconda3/lib/python3.11/site-packages/haystack/tracing/__init__.py)\n",
-#                 "exception.escaped": "False"
-#             }
-#         }
-#     ],
-#     "links": [],
-#     "resource": {
-#         "attributes": {
-#             "service.name": "langchain_app_1"
-#         },
-#         "schema_url": ""
-#     }
-# }
-# {
 #     "name": "langchain.task.VectorStoreRetriever",
 #     "context": {
 #         "trace_id": "0xca3159edb8ac4ba9fd87ba54aa5df4aa",
@@ -165,9 +129,31 @@ print(ai_msg_2["answer"])
 #         "status_code": "UNSET"
 #     },
 #     "attributes": {
-#         "session.session_id": "0x4fa6d91d1f2a4bdbb7a1287d90ec4a16"
+#         "session.session_id": "0x4fa6d91d1f2a4bdbb7a1287d90ec4a16",
+#         "tags": [
+#             "Chroma",
+#             "OpenAIEmbeddings"
+#         ],
+#         "type": "vector_store",
+#         "provider_name": "Chroma",
+#         "embedding_model": "text-embedding-ada-002"
 #     },
-#     "events": [],
+#     "events": [
+#         {
+#             "name": "context_input",
+#             "timestamp": "2024-10-03T12:16:32.316725Z",
+#             "attributes": {
+#                 "question": "What is Task Decomposition?"
+#             }
+#         },
+#         {
+#             "name": "context_output",
+#             "timestamp": "2024-10-03T12:16:32.781861Z",
+#             "attributes": {
+#                 "response": "Fig. 1. Overview of a LLM-powered autonomous agent system.\nComponent One: Planning#\nA complicated ta..."
+#             }
+#         }
+#     ],
 #     "links": [],
 #     "resource": {
 #         "attributes": {
@@ -175,7 +161,7 @@ print(ai_msg_2["answer"])
 #         },
 #         "schema_url": ""
 #     }
-# }
+# },
 # {
 #     "name": "langchain.workflow",
 #     "context": {
@@ -201,7 +187,7 @@ print(ai_msg_2["answer"])
 #         },
 #         "schema_url": ""
 #     }
-# }
+# },
 # {
 #     "name": "langchain.workflow",
 #     "context": {
@@ -227,7 +213,7 @@ print(ai_msg_2["answer"])
 #         },
 #         "schema_url": ""
 #     }
-# }
+# },
 # {
 #     "name": "langchain.workflow",
 #     "context": {
@@ -253,7 +239,7 @@ print(ai_msg_2["answer"])
 #         },
 #         "schema_url": ""
 #     }
-# }
+# },
 # {
 #     "name": "langchain.task.ChatPromptTemplate",
 #     "context": {
@@ -279,7 +265,7 @@ print(ai_msg_2["answer"])
 #         },
 #         "schema_url": ""
 #     }
-# }
+# },
 # {
 #     "name": "langchain.task.ChatOpenAI",
 #     "context": {
@@ -309,7 +295,7 @@ print(ai_msg_2["answer"])
 #         },
 #         "schema_url": ""
 #     }
-# }
+# },
 # {
 #     "name": "langchain.task.StrOutputParser",
 #     "context": {
@@ -335,7 +321,7 @@ print(ai_msg_2["answer"])
 #         },
 #         "schema_url": ""
 #     }
-# }
+# },
 # {
 #     "name": "langchain.workflow",
 #     "context": {
@@ -361,7 +347,7 @@ print(ai_msg_2["answer"])
 #         },
 #         "schema_url": ""
 #     }
-# }
+# },
 # {
 #     "name": "langchain.workflow",
 #     "context": {
@@ -387,7 +373,7 @@ print(ai_msg_2["answer"])
 #         },
 #         "schema_url": ""
 #     }
-# }
+# },
 # {
 #     "name": "langchain.workflow",
 #     "context": {
@@ -417,7 +403,7 @@ print(ai_msg_2["answer"])
 #         },
 #         "schema_url": ""
 #     }
-# }
+# },
 # {
 #     "name": "langchain.task.ChatPromptTemplate",
 #     "context": {
@@ -443,7 +429,7 @@ print(ai_msg_2["answer"])
 #         },
 #         "schema_url": ""
 #     }
-# }
+# },
 # {
 #     "name": "langchain.task.ChatOpenAI",
 #     "context": {
@@ -473,7 +459,7 @@ print(ai_msg_2["answer"])
 #         },
 #         "schema_url": ""
 #     }
-# }
+# },
 # {
 #     "name": "langchain.task.StrOutputParser",
 #     "context": {
@@ -499,7 +485,7 @@ print(ai_msg_2["answer"])
 #         },
 #         "schema_url": ""
 #     }
-# }
+# },
 # {
 #     "name": "langchain.task.VectorStoreRetriever",
 #     "context": {
@@ -515,9 +501,31 @@ print(ai_msg_2["answer"])
 #         "status_code": "UNSET"
 #     },
 #     "attributes": {
-#         "session.session_id": "0x4fa6d91d1f2a4bdbb7a1287d90ec4a16"
+#         "session.session_id": "0x4fa6d91d1f2a4bdbb7a1287d90ec4a16",
+#         "tags": [
+#             "Chroma",
+#             "OpenAIEmbeddings"
+#         ],
+#         "type": "vector_store",
+#         "provider_name": "OpenAIEmbeddings",
+#         "embedding_model": "Chroma"
 #     },
-#     "events": [],
+#     "events": [
+#         {
+#             "name": "context_input",
+#             "timestamp": "2024-09-30T09:49:07.279965Z",
+#             "attributes": {
+#                 "question": "What are typical methods used for task decomposition?"
+#             }
+#         },
+#         {
+#             "name": "context_output",
+#             "timestamp": "2024-09-30T09:49:07.809575Z",
+#             "attributes": {
+#                 "response": "Tree of Thoughts (Yao et al. 2023) extends CoT by exploring multiple reasoning possibilities at each..."
+#             }
+#         }
+#     ],
 #     "links": [],
 #     "resource": {
 #         "attributes": {
@@ -525,7 +533,7 @@ print(ai_msg_2["answer"])
 #         },
 #         "schema_url": ""
 #     }
-# }
+# },
 # {
 #     "name": "langchain.workflow",
 #     "context": {
@@ -551,7 +559,7 @@ print(ai_msg_2["answer"])
 #         },
 #         "schema_url": ""
 #     }
-# }
+# },
 # {
 #     "name": "langchain.workflow",
 #     "context": {
@@ -577,7 +585,7 @@ print(ai_msg_2["answer"])
 #         },
 #         "schema_url": ""
 #     }
-# }
+# },
 # {
 #     "name": "langchain.workflow",
 #     "context": {
@@ -603,7 +611,7 @@ print(ai_msg_2["answer"])
 #         },
 #         "schema_url": ""
 #     }
-# }
+# },
 # {
 #     "name": "langchain.task.ChatPromptTemplate",
 #     "context": {
@@ -629,7 +637,7 @@ print(ai_msg_2["answer"])
 #         },
 #         "schema_url": ""
 #     }
-# }
+# },
 # {
 #     "name": "langchain.task.ChatOpenAI",
 #     "context": {
@@ -659,7 +667,7 @@ print(ai_msg_2["answer"])
 #         },
 #         "schema_url": ""
 #     }
-# }
+# },
 # {
 #     "name": "langchain.task.StrOutputParser",
 #     "context": {
@@ -685,7 +693,7 @@ print(ai_msg_2["answer"])
 #         },
 #         "schema_url": ""
 #     }
-# }
+# },
 # {
 #     "name": "langchain.workflow",
 #     "context": {
@@ -711,7 +719,7 @@ print(ai_msg_2["answer"])
 #         },
 #         "schema_url": ""
 #     }
-# }
+# },
 # {
 #     "name": "langchain.workflow",
 #     "context": {
@@ -735,7 +743,7 @@ print(ai_msg_2["answer"])
 #         },
 #         "schema_url": ""
 #     }
-# }
+# },
 # {
 #     "name": "langchain.workflow",
 #     "context": {

@@ -18,7 +18,7 @@ from haystack.document_stores.in_memory import InMemoryDocumentStore
 from haystack.utils import Secret
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
 from monocle_apptrace.instrumentor import setup_monocle_telemetry
-from monocle_apptrace.wrap_common import llm_wrapper
+from monocle_apptrace.wrap_common import llm_wrapper, task_wrapper
 from monocle_apptrace.wrapper import WrapperMethod
 
 
@@ -96,12 +96,12 @@ def haystack_app():
         {"text_embedder": {"text": question}, "prompt_builder": {"question": question}}
     )
 
-    print(response["llm"]["replies"][0])
+    # print(response["llm"]["replies"][0])
 
 
 haystack_app()
 
-# {
+#{
 #     "name": "haystack.retriever",
 #     "context": {
 #         "trace_id": "0x1db120b68e3a759882ac457b07af344f",
@@ -115,10 +115,31 @@ haystack_app()
 #     "status": {
 #         "status_code": "UNSET"
 #     },
-#     "attributes": {
-#         "server_url": "20.237.77.237:8001"
+#      "attributes": {
+#         "tags": [
+#             "SentenceTransformersTextEmbedder",
+#             "InMemoryDocumentStore"
+#         ],
+#         "type": "vector_store",
+#         "provider_name": "InMemoryDocumentStore",
+#         "embedding_model": "sentence-transformers/all-MiniLM-L6-v2"
 #     },
-#     "events": [],
+#     "events": [
+#         {
+#             "name": "context_input",
+#             "timestamp": "2024-10-03T12:15:44.709938Z",
+#             "attributes": {
+#                 "question": "What does Rhodes Statue look like?"
+#             }
+#         },
+#         {
+#             "name": "context_output",
+#             "timestamp": "2024-10-03T12:15:44.720922Z",
+#             "attributes": {
+#                 "response": "Within it, too, are to be seen large masses of rock, by the weight of which the artist steadied it w..."
+#             }
+#         }
+#     ],
 #     "links": [],
 #     "resource": {
 #         "attributes": {
@@ -172,8 +193,10 @@ haystack_app()
 #         "status_code": "UNSET"
 #     },
 #     "attributes": {
+#         "input": "What does Rhodes Statue look like?",
 #         "workflow_name": "haystack_app_1",
-#         "workflow_type": "workflow.haystack"
+#         "workflow_type": "workflow.haystack",
+#         "output": "The Rhodes Statue, also known as the Colossus of Rhodes, depicted the Greek sun-god Helios. It was a bronze statue standing approximately 33 meters (108 feet) tall with a standard rendering of the head and face, featuring curly hair with evenly spaced spikes of bronze or silver flame radiating. The actual appearance of the rest of the statue remains unknown, but it was considered the tallest statue in the ancient world."
 #     },
 #     "events": [],
 #     "links": [],

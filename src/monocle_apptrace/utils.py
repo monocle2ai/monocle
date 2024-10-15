@@ -64,8 +64,10 @@ def load_wrapper_from_config(config_file_path: str, module_name: str = None):
             if "output_processor" in wrapper_method:
                 if type(wrapper_method["output_processor"]) is list:
                     output_processor_file_path = wrapper_method["output_processor"][0]
+                    current_dir = os.path.dirname(os.path.abspath(__file__))
+                    absolute_file_path = os.path.join(current_dir,output_processor_file_path)
                     if isinstance(output_processor_file_path, str):
-                        with open(output_processor_file_path, encoding='UTF-8') as op_file:
+                        with open(absolute_file_path, encoding='UTF-8') as op_file:
                             wrapper_method["output_processor"] = json.load(op_file)
         return wrapper_methods
 

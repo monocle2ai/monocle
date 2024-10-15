@@ -19,7 +19,8 @@
         "object": "BaseChatModel",
         "method": "invoke",
         "wrapper_package": "wrap_common",
-        "wrapper_method": "llm_wrapper"
+        "wrapper_method": "llm_wrapper",
+        "output_processor": ["metamodel/maps/attributes/inference/lang_chain_entities.json"]
     },
     {
         "package": "langchain.chat_models.base",
@@ -48,7 +49,7 @@
         "method": "invoke",
         "wrapper_package": "wrap_common",
         "wrapper_method": "task_wrapper",
-        "output_processor": "C:\\Users\\BHLP0106\\Desktop\\clone\\monocle\\src\\monocle_apptrace\\metamodel\\maps\\attributes\\retrieval\\lang_chain_attribute.json"
+        "output_processor": ["metamodel/maps/attributes/retrieval/lang_chain_entities.json"]
 
     },
     {

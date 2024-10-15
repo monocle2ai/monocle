@@ -9,10 +9,10 @@ from src.monocle_apptrace.utils import set_attribute
 
 logger = logging.getLogger(__name__)
 WORKFLOW_TYPE_KEY = "workflow_type"
-CONTEXT_INPUT_KEY = "context_input"
-CONTEXT_OUTPUT_KEY = "context_output"
-PROMPT_INPUT_KEY = "input"
-PROMPT_OUTPUT_KEY = "output"
+CONTEXT_INPUT_KEY = "data.input"
+CONTEXT_OUTPUT_KEY = "data.output"
+PROMPT_INPUT_KEY = "data.input"
+PROMPT_OUTPUT_KEY = "data.output"
 QUERY = "question"
 RESPONSE = "response"
 TAGS = "tags"
@@ -22,7 +22,7 @@ TYPE = "type"
 PROVIDER = "provider_name"
 EMBEDDING_MODEL = "embedding_model"
 VECTOR_STORE = 'vector_store'
-
+META_DATA = 'metadata'
 
 WORKFLOW_TYPE_MAP = {
     "llama_index": "workflow.llamaindex",
@@ -105,12 +105,12 @@ def process_span(output_processor,span,instance,args):
     span.set_attribute("span.type",output_processor['type'])
     cnt=len(output_processor["attributes"])
     span.set_attribute("span.count", cnt)
-    i=0
+    i=1
     for processors in output_processor["attributes"]:
         for processor in processors:
-            attribute_name=f'entity.{i}.{processor['attribute_name']}'
+            attribute_name=f'entity.{i}.{processor['attribute']}'
             #attribute_name=processor['attribute_name']
-            result=eval(processor['getter'])(instance,args)
+            result=eval(processor['accessor'])(instance,args)
             span.set_attribute(attribute_name,result)
         i+=1
 
@@ -130,12 +130,6 @@ def pre_task_processing(to_wrap, instance, args, span):
 
         update_span_with_infra_name(span, INFRA_SERVICE_KEY)
 
-    #capture the tags attribute of the instance if present, else ignore
-    try:
-        update_tags(to_wrap, instance, span)
-        update_vectorstore_attributes(to_wrap, instance, span)
-    except AttributeError:
-        pass
     update_span_with_context_input(to_wrap=to_wrap, wrapped_args=args, span=span)
 
 
@@ -180,7 +174,7 @@ async def allm_wrapper(tracer, to_wrap, wrapped, instance, args, kwargs):
         update_llm_endpoint(curr_span= span, instance=instance)
 
         return_value = await wrapped(*args, **kwargs)
-        update_span_from_llm_response(response = return_value, span = span)
+        update_span_from_llm_response(response = return_value, span = span, instance=instance)
 
     return return_value
 
@@ -208,15 +202,14 @@ def llm_wrapper(tracer: Tracer, to_wrap, wrapped, instance, args, kwargs):
             input_arg_text = get_attribute(CONTEXT_INPUT_KEY)
             span.add_event(CONTEXT_INPUT_KEY, {QUERY: input_arg_text})
         provider_name = set_provider_name(instance)
-        args = {"provider_name": provider_name}
+        instance_args = {"provider_name": provider_name}
         if 'output_processor' in to_wrap:
-            process_span(to_wrap['output_processor'], span, instance, args)
-        update_llm_endpoint(curr_span= span, instance=instance)
+            process_span(to_wrap['output_processor'], span, instance, instance_args)
 
         return_value = wrapped(*args, **kwargs)
         if 'haystack.components.retrievers' in to_wrap['package'] and 'haystack.retriever' in span.name:
             update_span_with_context_output(to_wrap=to_wrap, return_value=return_value, span=span)
-        update_span_from_llm_response(response = return_value, span = span)
+        update_span_from_llm_response(response = return_value, span = span,instance=instance)
 
     return return_value
 
@@ -249,8 +242,6 @@ def update_llm_endpoint(curr_span: Span, instance):
             inference_endpoint=inference_ep
         )
 
-
-
 def set_provider_name(instance):
     provider_url = ""
 
@@ -269,7 +260,6 @@ def set_provider_name(instance):
     try :
         if len(provider_url) > 0:
             parsed_provider_url = urlparse(provider_url)
-            #curr_span.set_attribute("provider_name", parsed_provider_url.hostname or provider_url)
     except:
         pass
     return parsed_provider_url.hostname or provider_url
@@ -282,30 +272,38 @@ def get_input_from_args(chain_args):
         return chain_args[0]
     return ""
 
-def update_span_from_llm_response(response, span: Span):
+def update_span_from_llm_response(response, span: Span ,instance):
     # extract token uasge from langchain openai
     if (response is not None and hasattr(response, "response_metadata")):
         response_metadata = response.response_metadata
         token_usage = response_metadata.get("token_usage")
+        meta_dict = {}
         if token_usage is not None:
-            span.set_attribute("completion_tokens", token_usage.get("completion_tokens"))
-            span.set_attribute("prompt_tokens", token_usage.get("prompt_tokens"))
-            span.set_attribute("total_tokens", token_usage.get("total_tokens"))
+            temperature = instance.__dict__.get("temperature", None)
+            meta_dict.update({"temperature": temperature})
+            meta_dict.update({"completion_tokens": token_usage.get("completion_tokens")})
+            meta_dict.update({"prompt_tokens": token_usage.get("prompt_tokens")})
+            meta_dict.update({"total_tokens": token_usage.get("total_tokens")})
+            span.add_event(META_DATA, meta_dict)
     # extract token usage from llamaindex openai
-    if(response is not None and hasattr(response, "raw")):
+    if (response is not None and hasattr(response, "raw")):
         try:
+            meta_dict = {}
             if response.raw is not None:
-                token_usage = response.raw.get("usage") if isinstance(response.raw, dict) else getattr(response.raw, "usage", None)
+                token_usage = response.raw.get("usage") if isinstance(response.raw, dict) else getattr(response.raw,
+                                                                                                       "usage", None)
                 if token_usage is not None:
+                    temperature = instance.__dict__.get("temperature", None)
+                    meta_dict.update({"temperature": temperature})
                     if getattr(token_usage, "completion_tokens", None):
-                        span.set_attribute("completion_tokens", getattr(token_usage, "completion_tokens"))
+                        meta_dict.update({"completion_tokens": getattr(token_usage, "completion_tokens")})
                     if getattr(token_usage, "prompt_tokens", None):
-                        span.set_attribute("prompt_tokens", getattr(token_usage, "prompt_tokens"))
+                        meta_dict.update({"prompt_tokens": getattr(token_usage, "prompt_tokens")})
                     if getattr(token_usage, "total_tokens", None):
-                        span.set_attribute("total_tokens", getattr(token_usage, "total_tokens"))
+                        meta_dict.update({"total_tokens": getattr(token_usage, "total_tokens")})
+                    span.add_event(META_DATA, meta_dict)
         except AttributeError:
             token_usage = None
-
 
 def update_workflow_type(to_wrap, span: Span):
     package_name = to_wrap.get('package')

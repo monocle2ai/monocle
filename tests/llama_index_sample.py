@@ -46,37 +46,38 @@ print(response)
 # {
 #     "name": "llamaindex.retrieve",
 #     "context": {
-#         "trace_id": "0x939aa2e13c3ce5b37c74b63dc7cfb163",
-#         "span_id": "0x4249f1d3557d62db",
+#         "trace_id": "0xfa96372d5aba7c70704ac50bc2b51176",
+#         "span_id": "0xa7552dd6063f2733",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0x15eb14200cf48548",
-#     "start_time": "2024-09-18T09:11:10.380222Z",
-#     "end_time": "2024-09-18T09:11:11.159369Z",
+#     "parent_id": "0xf55279e34c4d3983",
+#     "start_time": "2024-10-16T09:55:40.468963Z",
+#     "end_time": "2024-10-16T09:55:40.980743Z",
 #     "status": {
 #         "status_code": "UNSET"
 #     },
 #     "attributes": {
-#         "tags": [
-#             "OpenAIEmbedding",
-#             "ChromaVectorStore"
-#         ],
-#         "type": "vector_store",
-#         "provider_name": "ChromaVectorStore",
-#         "embedding_model": "text-embedding-3-large"
+#         "span.type": "retrieval",
+#         "span.count": 2,
+#         "entity.1.name": "ChromaVectorStore",
+#         "entity.1.type": "vectorstore.ChromaVectorStore",
+#         "entity.1.embedding_model_name": "text-embedding-3-large",
+#         "entity.2.name": "text-embedding-3-large",
+#         "entity.2.type": "model.embedding",
+#         "entity.2.model_name": "text-embedding-3-large"
 #     },
 #     "events": [
 #         {
-#             "name": "context_input",
-#             "timestamp": "2024-10-03T12:17:37.780668Z",
+#             "name": "data.input",
+#             "timestamp": "2024-10-16T09:55:40.469979Z",
 #             "attributes": {
 #                 "question": "What did the author do growing up?"
 #             }
 #         },
 #         {
-#             "name": "context_output",
-#             "timestamp": "2024-10-03T12:17:38.509564Z",
+#             "name": "data.output",
+#             "timestamp": "2024-10-16T09:55:40.980743Z",
 #             "attributes": {
 #                 "response": "this is some sample text"
 #             }
@@ -89,31 +90,43 @@ print(response)
 #         },
 #         "schema_url": ""
 #     }
-# },
+# }
 # {
 #     "name": "llamaindex.openai",
 #     "context": {
-#         "trace_id": "0x939aa2e13c3ce5b37c74b63dc7cfb163",
-#         "span_id": "0x32754f3f46059db0",
+#         "trace_id": "0xfa96372d5aba7c70704ac50bc2b51176",
+#         "span_id": "0xd3eb98ed7e430de7",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0x15eb14200cf48548",
-#     "start_time": "2024-09-18T09:11:11.161538Z",
-#     "end_time": "2024-09-18T09:11:12.893143Z",
+#     "parent_id": "0xf55279e34c4d3983",
+#     "start_time": "2024-10-16T09:55:40.982255Z",
+#     "end_time": "2024-10-16T09:55:42.403410Z",
 #     "status": {
 #         "status_code": "UNSET"
 #     },
 #     "attributes": {
-#         "temperature": 0.1,
-#         "model_name": "gpt-4",
-#         "provider_name": "api.openai.com",
-#         "inference_endpoint": "https://api.openai.com/v1",
-#         "completion_tokens": 15,
-#         "prompt_tokens": 142,
-#         "total_tokens": 157
+#         "span.type": "inference",
+#         "span.count": 2,
+#         "entity.1.type": "inference.azure_oai",
+#         "entity.1.provider_name": "api.openai.com",
+#         "entity.1.inference_endpoint": "https://api.openai.com/v1",
+#         "entity.2.name": "gpt-4",
+#         "entity.2.type": "model.llm",
+#         "entity.2.model_name": "gpt-4"
 #     },
-#     "events": [],
+#     "events": [
+#         {
+#             "name": "metadata",
+#             "timestamp": "2024-10-16T09:55:42.403410Z",
+#             "attributes": {
+#                 "temperature": 0.1,
+#                 "completion_tokens": 15,
+#                 "prompt_tokens": 149,
+#                 "total_tokens": 164
+#             }
+#         }
+#     ],
 #     "links": [],
 #     "resource": {
 #         "attributes": {
@@ -121,40 +134,50 @@ print(response)
 #         },
 #         "schema_url": ""
 #     }
-# },
+# }
 # {
 #     "name": "llamaindex.query",
 #     "context": {
-#         "trace_id": "0x939aa2e13c3ce5b37c74b63dc7cfb163",
-#         "span_id": "0x15eb14200cf48548",
+#         "trace_id": "0xfa96372d5aba7c70704ac50bc2b51176",
+#         "span_id": "0xf55279e34c4d3983",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
 #     "parent_id": null,
-#     "start_time": "2024-09-18T09:11:10.379910Z",
-#     "end_time": "2024-09-18T09:11:12.894191Z",
+#     "start_time": "2024-10-16T09:55:40.468963Z",
+#     "end_time": "2024-10-16T09:55:42.404421Z",
 #     "status": {
 #         "status_code": "UNSET"
 #     },
 #     "attributes": {
-#         "tags": [
-#             "text-embedding-3-large",
-#             "ChromaVectorStore"
-#         ],
 #         "workflow_name": "llama_index_1",
 #         "workflow_type": "workflow.llamaindex"
 #     },
 #     "events": [
 #         {
-#             "name": "input",
-#             "timestamp": "2024-09-18T09:11:10.379937Z",
+#             "name": "data.input",
+#             "timestamp": "2024-10-16T09:55:40.468963Z",
 #             "attributes": {
 #                 "question": "What did the author do growing up?"
 #             }
 #         },
 #         {
-#             "name": "output",
-#             "timestamp": "2024-09-18T09:11:12.894146Z",
+#             "name": "data.input",
+#             "timestamp": "2024-10-16T09:55:40.468963Z",
+#             "attributes": {
+#                 "question": ""
+#             }
+#         },
+#         {
+#             "name": "data.output",
+#             "timestamp": "2024-10-16T09:55:42.404421Z",
+#             "attributes": {
+#                 "response": ""
+#             }
+#         },
+#         {
+#             "name": "data.output",
+#             "timestamp": "2024-10-16T09:55:42.404421Z",
 #             "attributes": {
 #                 "response": "The context does not provide information about what the author did while growing up."
 #             }
@@ -168,5 +191,3 @@ print(response)
 #         "schema_url": ""
 #     }
 # }
-
-

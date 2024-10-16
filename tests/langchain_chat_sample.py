@@ -102,42 +102,42 @@ ai_msg_2 = rag_chain.invoke({"input": second_question, "chat_history": chat_hist
 print(ai_msg_2["answer"])
 
 
-
 # {
 #     "name": "langchain.task.VectorStoreRetriever",
 #     "context": {
-#         "trace_id": "0xca3159edb8ac4ba9fd87ba54aa5df4aa",
-#         "span_id": "0x036011bfdfdcb90a",
+#         "trace_id": "0x292eea442b46a8111db11587596730b9",
+#         "span_id": "0x2b791bda34bde4fb",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0x7afa7a66a2adfb4a",
-#     "start_time": "2024-06-10T04:38:55.693625Z",
-#     "end_time": "2024-06-10T04:38:56.241083Z",
+#     "parent_id": "0x65b3e191154a7aac",
+#     "start_time": "2024-10-16T09:52:29.394788Z",
+#     "end_time": "2024-10-16T09:52:29.856904Z",
 #     "status": {
 #         "status_code": "UNSET"
 #     },
 #     "attributes": {
 #         "session.session_id": "0x4fa6d91d1f2a4bdbb7a1287d90ec4a16",
-#         "tags": [
-#             "Chroma",
-#             "OpenAIEmbeddings"
-#         ],
-#         "type": "vector_store",
-#         "provider_name": "Chroma",
-#         "embedding_model": "text-embedding-ada-002"
+#         "span.type": "retrieval",
+#         "span.count": 2,
+#         "entity.1.name": "Chroma",
+#         "entity.1.type": "vectorstore.Chroma",
+#         "entity.1.embedding_model_name": "text-embedding-ada-002",
+#         "entity.2.name": "text-embedding-ada-002",
+#         "entity.2.type": "model.embedding",
+#         "entity.2.model_name": "text-embedding-ada-002"
 #     },
 #     "events": [
 #         {
-#             "name": "context_input",
-#             "timestamp": "2024-10-03T12:16:32.316725Z",
+#             "name": "data.input",
+#             "timestamp": "2024-10-16T09:52:29.395788Z",
 #             "attributes": {
 #                 "question": "What is Task Decomposition?"
 #             }
 #         },
 #         {
-#             "name": "context_output",
-#             "timestamp": "2024-10-03T12:16:32.781861Z",
+#             "name": "data.output",
+#             "timestamp": "2024-10-16T09:52:29.856904Z",
 #             "attributes": {
 #                 "response": "Fig. 1. Overview of a LLM-powered autonomous agent system.\nComponent One: Planning#\nA complicated ta..."
 #             }
@@ -150,366 +150,551 @@ print(ai_msg_2["answer"])
 #         },
 #         "schema_url": ""
 #     }
-# },
+# }
 # {
 #     "name": "langchain.workflow",
 #     "context": {
-#         "trace_id": "0xca3159edb8ac4ba9fd87ba54aa5df4aa",
-#         "span_id": "0x7afa7a66a2adfb4a",
+#         "trace_id": "0x292eea442b46a8111db11587596730b9",
+#         "span_id": "0x65b3e191154a7aac",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0x536c28587fc639a8",
-#     "start_time": "2024-06-10T04:38:55.692022Z",
-#     "end_time": "2024-06-10T04:38:56.241167Z",
+#     "parent_id": "0x028750bf9dd63df9",
+#     "start_time": "2024-10-16T09:52:29.393785Z",
+#     "end_time": "2024-10-16T09:52:29.856904Z",
 #     "status": {
 #         "status_code": "UNSET"
 #     },
 #     "attributes": {
 #         "session.session_id": "0x4fa6d91d1f2a4bdbb7a1287d90ec4a16"
-#     },
-#     "events": [],
-#     "links": [],
-#     "resource": {
-#         "attributes": {
-#             "service.name": "langchain_app_1"
-#         },
-#         "schema_url": ""
-#     }
-# },
-# {
-#     "name": "langchain.workflow",
-#     "context": {
-#         "trace_id": "0xca3159edb8ac4ba9fd87ba54aa5df4aa",
-#         "span_id": "0x536c28587fc639a8",
-#         "trace_state": "[]"
-#     },
-#     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0xf38e594bba842099",
-#     "start_time": "2024-06-10T04:38:55.686227Z",
-#     "end_time": "2024-06-10T04:38:56.241965Z",
-#     "status": {
-#         "status_code": "UNSET"
-#     },
-#     "attributes": {
-#         "session.session_id": "0x4fa6d91d1f2a4bdbb7a1287d90ec4a16"
-#     },
-#     "events": [],
-#     "links": [],
-#     "resource": {
-#         "attributes": {
-#             "service.name": "langchain_app_1"
-#         },
-#         "schema_url": ""
-#     }
-# },
-# {
-#     "name": "langchain.workflow",
-#     "context": {
-#         "trace_id": "0xca3159edb8ac4ba9fd87ba54aa5df4aa",
-#         "span_id": "0x54fa0fc40129d7c8",
-#         "trace_state": "[]"
-#     },
-#     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0xfd62c1c2c9d666ed",
-#     "start_time": "2024-06-10T04:38:56.268526Z",
-#     "end_time": "2024-06-10T04:38:56.270750Z",
-#     "status": {
-#         "status_code": "UNSET"
-#     },
-#     "attributes": {
-#         "session.session_id": "0x4fa6d91d1f2a4bdbb7a1287d90ec4a16"
-#     },
-#     "events": [],
-#     "links": [],
-#     "resource": {
-#         "attributes": {
-#             "service.name": "langchain_app_1"
-#         },
-#         "schema_url": ""
-#     }
-# },
-# {
-#     "name": "langchain.task.ChatPromptTemplate",
-#     "context": {
-#         "trace_id": "0xca3159edb8ac4ba9fd87ba54aa5df4aa",
-#         "span_id": "0xcc431732937f7052",
-#         "trace_state": "[]"
-#     },
-#     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0xfd62c1c2c9d666ed",
-#     "start_time": "2024-06-10T04:38:56.270832Z",
-#     "end_time": "2024-06-10T04:38:56.271675Z",
-#     "status": {
-#         "status_code": "UNSET"
-#     },
-#     "attributes": {
-#         "session.session_id": "0x4fa6d91d1f2a4bdbb7a1287d90ec4a16"
-#     },
-#     "events": [],
-#     "links": [],
-#     "resource": {
-#         "attributes": {
-#             "service.name": "langchain_app_1"
-#         },
-#         "schema_url": ""
-#     }
-# },
-# {
-#     "name": "langchain.task.ChatOpenAI",
-#     "context": {
-#         "trace_id": "0xca3159edb8ac4ba9fd87ba54aa5df4aa",
-#         "span_id": "0x55453deb49cda82d",
-#         "trace_state": "[]"
-#     },
-#     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0xfd62c1c2c9d666ed",
-#     "start_time": "2024-06-10T04:38:56.271747Z",
-#     "end_time": "2024-06-10T04:38:57.914210Z",
-#     "status": {
-#         "status_code": "UNSET"
-#     },
-#     "attributes": {
-#         "session.session_id": "0x4fa6d91d1f2a4bdbb7a1287d90ec4a16",
-#         "server_url": "http://triton22.eastus.cloudapp.azure.com:8000/v2/models/flan_t5_783m/versions/1/infer",
-#         "completion_tokens": 57,
-#         "prompt_tokens": 580,
-#         "total_tokens": 637
-#     },
-#     "events": [],
-#     "links": [],
-#     "resource": {
-#         "attributes": {
-#             "service.name": "langchain_app_1"
-#         },
-#         "schema_url": ""
-#     }
-# },
-# {
-#     "name": "langchain.task.StrOutputParser",
-#     "context": {
-#         "trace_id": "0xca3159edb8ac4ba9fd87ba54aa5df4aa",
-#         "span_id": "0x32539134995fccec",
-#         "trace_state": "[]"
-#     },
-#     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0xfd62c1c2c9d666ed",
-#     "start_time": "2024-06-10T04:38:57.914369Z",
-#     "end_time": "2024-06-10T04:38:57.914929Z",
-#     "status": {
-#         "status_code": "UNSET"
-#     },
-#     "attributes": {
-#         "session.session_id": "0x4fa6d91d1f2a4bdbb7a1287d90ec4a16"
-#     },
-#     "events": [],
-#     "links": [],
-#     "resource": {
-#         "attributes": {
-#             "service.name": "langchain_app_1"
-#         },
-#         "schema_url": ""
-#     }
-# },
-# {
-#     "name": "langchain.workflow",
-#     "context": {
-#         "trace_id": "0xca3159edb8ac4ba9fd87ba54aa5df4aa",
-#         "span_id": "0xfd62c1c2c9d666ed",
-#         "trace_state": "[]"
-#     },
-#     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0xfcc716b485539b93",
-#     "start_time": "2024-06-10T04:38:56.261349Z",
-#     "end_time": "2024-06-10T04:38:57.914961Z",
-#     "status": {
-#         "status_code": "UNSET"
-#     },
-#     "attributes": {
-#         "session.session_id": "0x4fa6d91d1f2a4bdbb7a1287d90ec4a16"
-#     },
-#     "events": [],
-#     "links": [],
-#     "resource": {
-#         "attributes": {
-#             "service.name": "langchain_app_1"
-#         },
-#         "schema_url": ""
-#     }
-# },
-# {
-#     "name": "langchain.workflow",
-#     "context": {
-#         "trace_id": "0xca3159edb8ac4ba9fd87ba54aa5df4aa",
-#         "span_id": "0xfcc716b485539b93",
-#         "trace_state": "[]"
-#     },
-#     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0xf38e594bba842099",
-#     "start_time": "2024-06-10T04:38:56.253582Z",
-#     "end_time": "2024-06-10T04:38:57.915145Z",
-#     "status": {
-#         "status_code": "UNSET"
-#     },
-#     "attributes": {
-#         "session.session_id": "0x4fa6d91d1f2a4bdbb7a1287d90ec4a16"
-#     },
-#     "events": [],
-#     "links": [],
-#     "resource": {
-#         "attributes": {
-#             "service.name": "langchain_app_1"
-#         },
-#         "schema_url": ""
-#     }
-# },
-# {
-#     "name": "langchain.workflow",
-#     "context": {
-#         "trace_id": "0xca3159edb8ac4ba9fd87ba54aa5df4aa",
-#         "span_id": "0xf38e594bba842099",
-#         "trace_state": "[]"
-#     },
-#     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "None",
-#     "start_time": "2024-06-10T04:38:55.640160Z",
-#     "end_time": "2024-06-10T04:38:57.915229Z",
-#     "status": {
-#         "status_code": "UNSET"
-#     },
-#     "attributes": {
-#         "session.session_id": "0x4fa6d91d1f2a4bdbb7a1287d90ec4a16",
-#         "workflow_input": "What is Task Decomposition?",
-#         "workflow_name": "langchain_app_1",
-#         "workflow_output": "Task decomposition is a technique used to break down complex tasks into smaller and more manageable steps. This process helps agents or models handle intricate tasks by dividing them into simpler subtasks. Various methods, such as Chain of Thought and Tree of Thoughts, can be employed to decompose tasks effectively.",
-#         "workflow_type": "workflow.langchain"
-#     },
-#     "events": [],
-#     "links": [],
-#     "resource": {
-#         "attributes": {
-#             "service.name": "langchain_app_1"
-#         },
-#         "schema_url": ""
-#     }
-# },
-# {
-#     "name": "langchain.task.ChatPromptTemplate",
-#     "context": {
-#         "trace_id": "0xfcb89e0c5f4aba8a1377664f6dee7661",
-#         "span_id": "0xa3ae254e712e3f90",
-#         "trace_state": "[]"
-#     },
-#     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0xa9b366f5c4fb2eda",
-#     "start_time": "2024-06-10T04:38:57.941590Z",
-#     "end_time": "2024-06-10T04:38:57.942342Z",
-#     "status": {
-#         "status_code": "UNSET"
-#     },
-#     "attributes": {
-#         "session.session_id": "0x4fa6d91d1f2a4bdbb7a1287d90ec4a16"
-#     },
-#     "events": [],
-#     "links": [],
-#     "resource": {
-#         "attributes": {
-#             "service.name": "langchain_app_1"
-#         },
-#         "schema_url": ""
-#     }
-# },
-# {
-#     "name": "langchain.task.ChatOpenAI",
-#     "context": {
-#         "trace_id": "0xfcb89e0c5f4aba8a1377664f6dee7661",
-#         "span_id": "0x419b04f8a3eb4883",
-#         "trace_state": "[]"
-#     },
-#     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0xa9b366f5c4fb2eda",
-#     "start_time": "2024-06-10T04:38:57.942406Z",
-#     "end_time": "2024-06-10T04:38:59.211431Z",
-#     "status": {
-#         "status_code": "UNSET"
-#     },
-#     "attributes": {
-#         "session.session_id": "0x4fa6d91d1f2a4bdbb7a1287d90ec4a16",
-#         "server_url": "http://triton22.eastus.cloudapp.azure.com:8000/v2/models/flan_t5_783m/versions/1/infer",
-#         "completion_tokens": 10,
-#         "prompt_tokens": 140,
-#         "total_tokens": 150
-#     },
-#     "events": [],
-#     "links": [],
-#     "resource": {
-#         "attributes": {
-#             "service.name": "langchain_app_1"
-#         },
-#         "schema_url": ""
-#     }
-# },
-# {
-#     "name": "langchain.task.StrOutputParser",
-#     "context": {
-#         "trace_id": "0xfcb89e0c5f4aba8a1377664f6dee7661",
-#         "span_id": "0xaaa3a958fb1da0e9",
-#         "trace_state": "[]"
-#     },
-#     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0xa9b366f5c4fb2eda",
-#     "start_time": "2024-06-10T04:38:59.211922Z",
-#     "end_time": "2024-06-10T04:38:59.213538Z",
-#     "status": {
-#         "status_code": "UNSET"
-#     },
-#     "attributes": {
-#         "session.session_id": "0x4fa6d91d1f2a4bdbb7a1287d90ec4a16"
-#     },
-#     "events": [],
-#     "links": [],
-#     "resource": {
-#         "attributes": {
-#             "service.name": "langchain_app_1"
-#         },
-#         "schema_url": ""
-#     }
-# },
-# {
-#     "name": "langchain.task.VectorStoreRetriever",
-#     "context": {
-#         "trace_id": "0xfcb89e0c5f4aba8a1377664f6dee7661",
-#         "span_id": "0x3e8142ee7d8d4927",
-#         "trace_state": "[]"
-#     },
-#     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0xa9b366f5c4fb2eda",
-#     "start_time": "2024-06-10T04:38:59.213754Z",
-#     "end_time": "2024-06-10T04:38:59.699996Z",
-#     "status": {
-#         "status_code": "UNSET"
-#     },
-#     "attributes": {
-#         "session.session_id": "0x4fa6d91d1f2a4bdbb7a1287d90ec4a16",
-#         "tags": [
-#             "Chroma",
-#             "OpenAIEmbeddings"
-#         ],
-#         "type": "vector_store",
-#         "provider_name": "OpenAIEmbeddings",
-#         "embedding_model": "Chroma"
 #     },
 #     "events": [
 #         {
-#             "name": "context_input",
-#             "timestamp": "2024-09-30T09:49:07.279965Z",
+#             "name": "data.input",
+#             "timestamp": "2024-10-16T09:52:29.393785Z",
 #             "attributes": {
-#                 "question": "What are typical methods used for task decomposition?"
+#                 "question": ""
 #             }
 #         },
 #         {
-#             "name": "context_output",
-#             "timestamp": "2024-09-30T09:49:07.809575Z",
+#             "name": "data.output",
+#             "timestamp": "2024-10-16T09:52:29.856904Z",
+#             "attributes": {
+#                 "response": ""
+#             }
+#         }
+#     ],
+#     "links": [],
+#     "resource": {
+#         "attributes": {
+#             "service.name": "langchain_app_1"
+#         },
+#         "schema_url": ""
+#     }
+# }
+# {
+#     "name": "langchain.workflow",
+#     "context": {
+#         "trace_id": "0x292eea442b46a8111db11587596730b9",
+#         "span_id": "0x028750bf9dd63df9",
+#         "trace_state": "[]"
+#     },
+#     "kind": "SpanKind.INTERNAL",
+#     "parent_id": "0xcf200fa4155404d0",
+#     "start_time": "2024-10-16T09:52:29.387789Z",
+#     "end_time": "2024-10-16T09:52:29.857409Z",
+#     "status": {
+#         "status_code": "UNSET"
+#     },
+#     "attributes": {
+#         "session.session_id": "0x4fa6d91d1f2a4bdbb7a1287d90ec4a16"
+#     },
+#     "events": [
+#         {
+#             "name": "data.input",
+#             "timestamp": "2024-10-16T09:52:29.387789Z",
+#             "attributes": {
+#                 "question": ""
+#             }
+#         },
+#         {
+#             "name": "data.output",
+#             "timestamp": "2024-10-16T09:52:29.857409Z",
+#             "attributes": {
+#                 "response": ""
+#             }
+#         }
+#     ],
+#     "links": [],
+#     "resource": {
+#         "attributes": {
+#             "service.name": "langchain_app_1"
+#         },
+#         "schema_url": ""
+#     }
+# }
+# {
+#     "name": "langchain.workflow",
+#     "context": {
+#         "trace_id": "0x292eea442b46a8111db11587596730b9",
+#         "span_id": "0x5f541e14a45742da",
+#         "trace_state": "[]"
+#     },
+#     "kind": "SpanKind.INTERNAL",
+#     "parent_id": "0x0947546349d0dacd",
+#     "start_time": "2024-10-16T09:52:29.875515Z",
+#     "end_time": "2024-10-16T09:52:29.877144Z",
+#     "status": {
+#         "status_code": "UNSET"
+#     },
+#     "attributes": {
+#         "session.session_id": "0x4fa6d91d1f2a4bdbb7a1287d90ec4a16"
+#     },
+#     "events": [
+#         {
+#             "name": "data.input",
+#             "timestamp": "2024-10-16T09:52:29.875515Z",
+#             "attributes": {
+#                 "question": ""
+#             }
+#         },
+#         {
+#             "name": "data.output",
+#             "timestamp": "2024-10-16T09:52:29.877144Z",
+#             "attributes": {
+#                 "response": ""
+#             }
+#         }
+#     ],
+#     "links": [],
+#     "resource": {
+#         "attributes": {
+#             "service.name": "langchain_app_1"
+#         },
+#         "schema_url": ""
+#     }
+# }
+# {
+#     "name": "langchain.task.ChatPromptTemplate",
+#     "context": {
+#         "trace_id": "0x292eea442b46a8111db11587596730b9",
+#         "span_id": "0x7ac47a211284068a",
+#         "trace_state": "[]"
+#     },
+#     "kind": "SpanKind.INTERNAL",
+#     "parent_id": "0x0947546349d0dacd",
+#     "start_time": "2024-10-16T09:52:29.877144Z",
+#     "end_time": "2024-10-16T09:52:29.878151Z",
+#     "status": {
+#         "status_code": "UNSET"
+#     },
+#     "attributes": {
+#         "session.session_id": "0x4fa6d91d1f2a4bdbb7a1287d90ec4a16"
+#     },
+#     "events": [
+#         {
+#             "name": "data.input",
+#             "timestamp": "2024-10-16T09:52:29.877144Z",
+#             "attributes": {
+#                 "question": ""
+#             }
+#         },
+#         {
+#             "name": "data.output",
+#             "timestamp": "2024-10-16T09:52:29.878151Z",
+#             "attributes": {
+#                 "response": ""
+#             }
+#         }
+#     ],
+#     "links": [],
+#     "resource": {
+#         "attributes": {
+#             "service.name": "langchain_app_1"
+#         },
+#         "schema_url": ""
+#     }
+# }
+# {
+#     "name": "langchain.task.ChatOpenAI",
+#     "context": {
+#         "trace_id": "0x292eea442b46a8111db11587596730b9",
+#         "span_id": "0xad677c3ce14fa738",
+#         "trace_state": "[]"
+#     },
+#     "kind": "SpanKind.INTERNAL",
+#     "parent_id": "0x0947546349d0dacd",
+#     "start_time": "2024-10-16T09:52:29.878151Z",
+#     "end_time": "2024-10-16T09:52:31.792647Z",
+#     "status": {
+#         "status_code": "UNSET"
+#     },
+#     "attributes": {
+#         "session.session_id": "0x4fa6d91d1f2a4bdbb7a1287d90ec4a16",
+#         "span.type": "inference",
+#         "span.count": 2,
+#         "entity.1.type": "inference.azure_oai",
+#         "entity.1.provider_name": "api.openai.com",
+#         "entity.2.name": "gpt-3.5-turbo-0125",
+#         "entity.2.type": "model.llm",
+#         "entity.2.model_name": "gpt-3.5-turbo-0125"
+#     },
+#     "events": [
+#         {
+#             "name": "metadata",
+#             "timestamp": "2024-10-16T09:52:31.792647Z",
+#             "attributes": {
+#                 "temperature": 0.7,
+#                 "completion_tokens": 71,
+#                 "prompt_tokens": 580,
+#                 "total_tokens": 651
+#             }
+#         }
+#     ],
+#     "links": [],
+#     "resource": {
+#         "attributes": {
+#             "service.name": "langchain_app_1"
+#         },
+#         "schema_url": ""
+#     }
+# }
+# {
+#     "name": "langchain.task.StrOutputParser",
+#     "context": {
+#         "trace_id": "0x292eea442b46a8111db11587596730b9",
+#         "span_id": "0x8ef54d48120b59c3",
+#         "trace_state": "[]"
+#     },
+#     "kind": "SpanKind.INTERNAL",
+#     "parent_id": "0x0947546349d0dacd",
+#     "start_time": "2024-10-16T09:52:31.792647Z",
+#     "end_time": "2024-10-16T09:52:31.792647Z",
+#     "status": {
+#         "status_code": "UNSET"
+#     },
+#     "attributes": {
+#         "session.session_id": "0x4fa6d91d1f2a4bdbb7a1287d90ec4a16"
+#     },
+#     "events": [
+#         {
+#             "name": "data.input",
+#             "timestamp": "2024-10-16T09:52:31.792647Z",
+#             "attributes": {
+#                 "question": ""
+#             }
+#         },
+#         {
+#             "name": "data.output",
+#             "timestamp": "2024-10-16T09:52:31.792647Z",
+#             "attributes": {
+#                 "response": ""
+#             }
+#         }
+#     ],
+#     "links": [],
+#     "resource": {
+#         "attributes": {
+#             "service.name": "langchain_app_1"
+#         },
+#         "schema_url": ""
+#     }
+# }
+# {
+#     "name": "langchain.workflow",
+#     "context": {
+#         "trace_id": "0x292eea442b46a8111db11587596730b9",
+#         "span_id": "0x0947546349d0dacd",
+#         "trace_state": "[]"
+#     },
+#     "kind": "SpanKind.INTERNAL",
+#     "parent_id": "0x70fb9c42ebbff906",
+#     "start_time": "2024-10-16T09:52:29.870485Z",
+#     "end_time": "2024-10-16T09:52:31.792647Z",
+#     "status": {
+#         "status_code": "UNSET"
+#     },
+#     "attributes": {
+#         "session.session_id": "0x4fa6d91d1f2a4bdbb7a1287d90ec4a16"
+#     },
+#     "events": [
+#         {
+#             "name": "data.input",
+#             "timestamp": "2024-10-16T09:52:29.870485Z",
+#             "attributes": {
+#                 "question": ""
+#             }
+#         },
+#         {
+#             "name": "data.output",
+#             "timestamp": "2024-10-16T09:52:31.792647Z",
+#             "attributes": {
+#                 "response": ""
+#             }
+#         }
+#     ],
+#     "links": [],
+#     "resource": {
+#         "attributes": {
+#             "service.name": "langchain_app_1"
+#         },
+#         "schema_url": ""
+#     }
+# }
+# {
+#     "name": "langchain.workflow",
+#     "context": {
+#         "trace_id": "0x292eea442b46a8111db11587596730b9",
+#         "span_id": "0x70fb9c42ebbff906",
+#         "trace_state": "[]"
+#     },
+#     "kind": "SpanKind.INTERNAL",
+#     "parent_id": "0xcf200fa4155404d0",
+#     "start_time": "2024-10-16T09:52:29.864458Z",
+#     "end_time": "2024-10-16T09:52:31.792647Z",
+#     "status": {
+#         "status_code": "UNSET"
+#     },
+#     "attributes": {
+#         "session.session_id": "0x4fa6d91d1f2a4bdbb7a1287d90ec4a16"
+#     },
+#     "events": [
+#         {
+#             "name": "data.input",
+#             "timestamp": "2024-10-16T09:52:29.864458Z",
+#             "attributes": {
+#                 "question": ""
+#             }
+#         },
+#         {
+#             "name": "data.output",
+#             "timestamp": "2024-10-16T09:52:31.792647Z",
+#             "attributes": {
+#                 "response": ""
+#             }
+#         }
+#     ],
+#     "links": [],
+#     "resource": {
+#         "attributes": {
+#             "service.name": "langchain_app_1"
+#         },
+#         "schema_url": ""
+#     }
+# }
+# {
+#     "name": "langchain.workflow",
+#     "context": {
+#         "trace_id": "0x292eea442b46a8111db11587596730b9",
+#         "span_id": "0xcf200fa4155404d0",
+#         "trace_state": "[]"
+#     },
+#     "kind": "SpanKind.INTERNAL",
+#     "parent_id": null,
+#     "start_time": "2024-10-16T09:52:29.353788Z",
+#     "end_time": "2024-10-16T09:52:31.792647Z",
+#     "status": {
+#         "status_code": "UNSET"
+#     },
+#     "attributes": {
+#         "session.session_id": "0x4fa6d91d1f2a4bdbb7a1287d90ec4a16",
+#         "workflow_name": "langchain_app_1",
+#         "workflow_type": "workflow.langchain"
+#     },
+#     "events": [
+#         {
+#             "name": "data.input",
+#             "timestamp": "2024-10-16T09:52:29.353788Z",
+#             "attributes": {
+#                 "input": "What is Task Decomposition?",
+#                 "chat_history": []
+#             }
+#         },
+#         {
+#             "name": "data.input",
+#             "timestamp": "2024-10-16T09:52:29.353788Z",
+#             "attributes": {
+#                 "question": ""
+#             }
+#         },
+#         {
+#             "name": "data.output",
+#             "timestamp": "2024-10-16T09:52:31.792647Z",
+#             "attributes": {
+#                 "response": ""
+#             }
+#         }
+#     ],
+#     "links": [],
+#     "resource": {
+#         "attributes": {
+#             "service.name": "langchain_app_1"
+#         },
+#         "schema_url": ""
+#     }
+# }
+# {
+#     "name": "langchain.task.ChatPromptTemplate",
+#     "context": {
+#         "trace_id": "0x37f4ce7086c0b2421336a2cb539d76bf",
+#         "span_id": "0xd5f82f027d485a00",
+#         "trace_state": "[]"
+#     },
+#     "kind": "SpanKind.INTERNAL",
+#     "parent_id": "0x49ae78030a0665ef",
+#     "start_time": "2024-10-16T09:52:31.815371Z",
+#     "end_time": "2024-10-16T09:52:31.816378Z",
+#     "status": {
+#         "status_code": "UNSET"
+#     },
+#     "attributes": {
+#         "session.session_id": "0x4fa6d91d1f2a4bdbb7a1287d90ec4a16"
+#     },
+#     "events": [
+#         {
+#             "name": "data.input",
+#             "timestamp": "2024-10-16T09:52:31.815371Z",
+#             "attributes": {
+#                 "question": ""
+#             }
+#         },
+#         {
+#             "name": "data.output",
+#             "timestamp": "2024-10-16T09:52:31.816378Z",
+#             "attributes": {
+#                 "response": ""
+#             }
+#         }
+#     ],
+#     "links": [],
+#     "resource": {
+#         "attributes": {
+#             "service.name": "langchain_app_1"
+#         },
+#         "schema_url": ""
+#     }
+# }
+# {
+#     "name": "langchain.task.ChatOpenAI",
+#     "context": {
+#         "trace_id": "0x37f4ce7086c0b2421336a2cb539d76bf",
+#         "span_id": "0xe470831f25e4b9be",
+#         "trace_state": "[]"
+#     },
+#     "kind": "SpanKind.INTERNAL",
+#     "parent_id": "0x49ae78030a0665ef",
+#     "start_time": "2024-10-16T09:52:31.816378Z",
+#     "end_time": "2024-10-16T09:52:32.455731Z",
+#     "status": {
+#         "status_code": "UNSET"
+#     },
+#     "attributes": {
+#         "session.session_id": "0x4fa6d91d1f2a4bdbb7a1287d90ec4a16",
+#         "span.type": "inference",
+#         "span.count": 2,
+#         "entity.1.type": "inference.azure_oai",
+#         "entity.1.provider_name": "api.openai.com",
+#         "entity.2.name": "gpt-3.5-turbo-0125",
+#         "entity.2.type": "model.llm",
+#         "entity.2.model_name": "gpt-3.5-turbo-0125"
+#     },
+#     "events": [
+#         {
+#             "name": "metadata",
+#             "timestamp": "2024-10-16T09:52:32.455731Z",
+#             "attributes": {
+#                 "temperature": 0.7,
+#                 "completion_tokens": 10,
+#                 "prompt_tokens": 154,
+#                 "total_tokens": 164
+#             }
+#         }
+#     ],
+#     "links": [],
+#     "resource": {
+#         "attributes": {
+#             "service.name": "langchain_app_1"
+#         },
+#         "schema_url": ""
+#     }
+# }
+# {
+#     "name": "langchain.task.StrOutputParser",
+#     "context": {
+#         "trace_id": "0x37f4ce7086c0b2421336a2cb539d76bf",
+#         "span_id": "0x8227a5cfac917068",
+#         "trace_state": "[]"
+#     },
+#     "kind": "SpanKind.INTERNAL",
+#     "parent_id": "0x49ae78030a0665ef",
+#     "start_time": "2024-10-16T09:52:32.455731Z",
+#     "end_time": "2024-10-16T09:52:32.455731Z",
+#     "status": {
+#         "status_code": "UNSET"
+#     },
+#     "attributes": {
+#         "session.session_id": "0x4fa6d91d1f2a4bdbb7a1287d90ec4a16"
+#     },
+#     "events": [
+#         {
+#             "name": "data.input",
+#             "timestamp": "2024-10-16T09:52:32.455731Z",
+#             "attributes": {
+#                 "question": ""
+#             }
+#         },
+#         {
+#             "name": "data.output",
+#             "timestamp": "2024-10-16T09:52:32.455731Z",
+#             "attributes": {
+#                 "response": ""
+#             }
+#         }
+#     ],
+#     "links": [],
+#     "resource": {
+#         "attributes": {
+#             "service.name": "langchain_app_1"
+#         },
+#         "schema_url": ""
+#     }
+# }
+# {
+#     "name": "langchain.task.VectorStoreRetriever",
+#     "context": {
+#         "trace_id": "0x37f4ce7086c0b2421336a2cb539d76bf",
+#         "span_id": "0x0e49e61326dace1d",
+#         "trace_state": "[]"
+#     },
+#     "kind": "SpanKind.INTERNAL",
+#     "parent_id": "0x49ae78030a0665ef",
+#     "start_time": "2024-10-16T09:52:32.455731Z",
+#     "end_time": "2024-10-16T09:52:33.048101Z",
+#     "status": {
+#         "status_code": "UNSET"
+#     },
+#     "attributes": {
+#         "session.session_id": "0x4fa6d91d1f2a4bdbb7a1287d90ec4a16",
+#         "span.type": "retrieval",
+#         "span.count": 2,
+#         "entity.1.name": "Chroma",
+#         "entity.1.type": "vectorstore.Chroma",
+#         "entity.1.embedding_model_name": "text-embedding-ada-002",
+#         "entity.2.name": "text-embedding-ada-002",
+#         "entity.2.type": "model.embedding",
+#         "entity.2.model_name": "text-embedding-ada-002"
+#     },
+#     "events": [
+#         {
+#             "name": "data.input",
+#             "timestamp": "2024-10-16T09:52:32.456731Z",
+#             "attributes": {
+#                 "question": "What are some typical methods used for task decomposition?"
+#             }
+#         },
+#         {
+#             "name": "data.output",
+#             "timestamp": "2024-10-16T09:52:33.048101Z",
 #             "attributes": {
 #                 "response": "Tree of Thoughts (Yao et al. 2023) extends CoT by exploring multiple reasoning possibilities at each..."
 #             }
@@ -522,25 +707,40 @@ print(ai_msg_2["answer"])
 #         },
 #         "schema_url": ""
 #     }
-# },
+# }
 # {
 #     "name": "langchain.workflow",
 #     "context": {
-#         "trace_id": "0xfcb89e0c5f4aba8a1377664f6dee7661",
-#         "span_id": "0xa9b366f5c4fb2eda",
+#         "trace_id": "0x37f4ce7086c0b2421336a2cb539d76bf",
+#         "span_id": "0x49ae78030a0665ef",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0xefdcdb61e167f73a",
-#     "start_time": "2024-06-10T04:38:57.940414Z",
-#     "end_time": "2024-06-10T04:38:59.700076Z",
+#     "parent_id": "0x0d35c2c23c97b93a",
+#     "start_time": "2024-10-16T09:52:31.814367Z",
+#     "end_time": "2024-10-16T09:52:33.048101Z",
 #     "status": {
 #         "status_code": "UNSET"
 #     },
 #     "attributes": {
 #         "session.session_id": "0x4fa6d91d1f2a4bdbb7a1287d90ec4a16"
 #     },
-#     "events": [],
+#     "events": [
+#         {
+#             "name": "data.input",
+#             "timestamp": "2024-10-16T09:52:31.814367Z",
+#             "attributes": {
+#                 "question": ""
+#             }
+#         },
+#         {
+#             "name": "data.output",
+#             "timestamp": "2024-10-16T09:52:33.048101Z",
+#             "attributes": {
+#                 "response": ""
+#             }
+#         }
+#     ],
 #     "links": [],
 #     "resource": {
 #         "attributes": {
@@ -548,25 +748,40 @@ print(ai_msg_2["answer"])
 #         },
 #         "schema_url": ""
 #     }
-# },
+# }
 # {
 #     "name": "langchain.workflow",
 #     "context": {
-#         "trace_id": "0xfcb89e0c5f4aba8a1377664f6dee7661",
-#         "span_id": "0xefdcdb61e167f73a",
+#         "trace_id": "0x37f4ce7086c0b2421336a2cb539d76bf",
+#         "span_id": "0x0d35c2c23c97b93a",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0xffdc0a0d41b85218",
-#     "start_time": "2024-06-10T04:38:57.934140Z",
-#     "end_time": "2024-06-10T04:38:59.700674Z",
+#     "parent_id": "0x34efaf1bc7bb171b",
+#     "start_time": "2024-10-16T09:52:31.807851Z",
+#     "end_time": "2024-10-16T09:52:33.048101Z",
 #     "status": {
 #         "status_code": "UNSET"
 #     },
 #     "attributes": {
 #         "session.session_id": "0x4fa6d91d1f2a4bdbb7a1287d90ec4a16"
 #     },
-#     "events": [],
+#     "events": [
+#         {
+#             "name": "data.input",
+#             "timestamp": "2024-10-16T09:52:31.807851Z",
+#             "attributes": {
+#                 "question": ""
+#             }
+#         },
+#         {
+#             "name": "data.output",
+#             "timestamp": "2024-10-16T09:52:33.048101Z",
+#             "attributes": {
+#                 "response": ""
+#             }
+#         }
+#     ],
 #     "links": [],
 #     "resource": {
 #         "attributes": {
@@ -574,25 +789,40 @@ print(ai_msg_2["answer"])
 #         },
 #         "schema_url": ""
 #     }
-# },
+# }
 # {
 #     "name": "langchain.workflow",
 #     "context": {
-#         "trace_id": "0xfcb89e0c5f4aba8a1377664f6dee7661",
-#         "span_id": "0xa0b015ed781ad960",
+#         "trace_id": "0x37f4ce7086c0b2421336a2cb539d76bf",
+#         "span_id": "0xeaae95537c371f3c",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0x3711b72dfa932d3e",
-#     "start_time": "2024-06-10T04:38:59.726886Z",
-#     "end_time": "2024-06-10T04:38:59.729179Z",
+#     "parent_id": "0xedcc85d7c7369c38",
+#     "start_time": "2024-10-16T09:52:33.066993Z",
+#     "end_time": "2024-10-16T09:52:33.067997Z",
 #     "status": {
 #         "status_code": "UNSET"
 #     },
 #     "attributes": {
 #         "session.session_id": "0x4fa6d91d1f2a4bdbb7a1287d90ec4a16"
 #     },
-#     "events": [],
+#     "events": [
+#         {
+#             "name": "data.input",
+#             "timestamp": "2024-10-16T09:52:33.066993Z",
+#             "attributes": {
+#                 "question": ""
+#             }
+#         },
+#         {
+#             "name": "data.output",
+#             "timestamp": "2024-10-16T09:52:33.067997Z",
+#             "attributes": {
+#                 "response": ""
+#             }
+#         }
+#     ],
 #     "links": [],
 #     "resource": {
 #         "attributes": {
@@ -600,25 +830,40 @@ print(ai_msg_2["answer"])
 #         },
 #         "schema_url": ""
 #     }
-# },
+# }
 # {
 #     "name": "langchain.task.ChatPromptTemplate",
 #     "context": {
-#         "trace_id": "0xfcb89e0c5f4aba8a1377664f6dee7661",
-#         "span_id": "0x0768296ba09b7230",
+#         "trace_id": "0x37f4ce7086c0b2421336a2cb539d76bf",
+#         "span_id": "0x0f749358be3cda29",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0x3711b72dfa932d3e",
-#     "start_time": "2024-06-10T04:38:59.729256Z",
-#     "end_time": "2024-06-10T04:38:59.730086Z",
+#     "parent_id": "0xedcc85d7c7369c38",
+#     "start_time": "2024-10-16T09:52:33.067997Z",
+#     "end_time": "2024-10-16T09:52:33.068997Z",
 #     "status": {
 #         "status_code": "UNSET"
 #     },
 #     "attributes": {
 #         "session.session_id": "0x4fa6d91d1f2a4bdbb7a1287d90ec4a16"
 #     },
-#     "events": [],
+#     "events": [
+#         {
+#             "name": "data.input",
+#             "timestamp": "2024-10-16T09:52:33.067997Z",
+#             "attributes": {
+#                 "question": ""
+#             }
+#         },
+#         {
+#             "name": "data.output",
+#             "timestamp": "2024-10-16T09:52:33.068997Z",
+#             "attributes": {
+#                 "response": ""
+#             }
+#         }
+#     ],
 #     "links": [],
 #     "resource": {
 #         "attributes": {
@@ -626,29 +871,43 @@ print(ai_msg_2["answer"])
 #         },
 #         "schema_url": ""
 #     }
-# },
+# }
 # {
 #     "name": "langchain.task.ChatOpenAI",
 #     "context": {
-#         "trace_id": "0xfcb89e0c5f4aba8a1377664f6dee7661",
-#         "span_id": "0xa32f64207539d7a8",
+#         "trace_id": "0x37f4ce7086c0b2421336a2cb539d76bf",
+#         "span_id": "0x9c68fd7162d94b46",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0x3711b72dfa932d3e",
-#     "start_time": "2024-06-10T04:38:59.730152Z",
-#     "end_time": "2024-06-10T04:39:01.261308Z",
+#     "parent_id": "0xedcc85d7c7369c38",
+#     "start_time": "2024-10-16T09:52:33.068997Z",
+#     "end_time": "2024-10-16T09:52:34.802116Z",
 #     "status": {
 #         "status_code": "UNSET"
 #     },
 #     "attributes": {
 #         "session.session_id": "0x4fa6d91d1f2a4bdbb7a1287d90ec4a16",
-#         "server_url": "http://triton22.eastus.cloudapp.azure.com:8000/v2/models/flan_t5_783m/versions/1/infer",
-#         "completion_tokens": 63,
-#         "prompt_tokens": 619,
-#         "total_tokens": 682
+#         "span.type": "inference",
+#         "span.count": 2,
+#         "entity.1.type": "inference.azure_oai",
+#         "entity.1.provider_name": "api.openai.com",
+#         "entity.2.name": "gpt-3.5-turbo-0125",
+#         "entity.2.type": "model.llm",
+#         "entity.2.model_name": "gpt-3.5-turbo-0125"
 #     },
-#     "events": [],
+#     "events": [
+#         {
+#             "name": "metadata",
+#             "timestamp": "2024-10-16T09:52:34.802116Z",
+#             "attributes": {
+#                 "temperature": 0.7,
+#                 "completion_tokens": 84,
+#                 "prompt_tokens": 633,
+#                 "total_tokens": 717
+#             }
+#         }
+#     ],
 #     "links": [],
 #     "resource": {
 #         "attributes": {
@@ -656,25 +915,40 @@ print(ai_msg_2["answer"])
 #         },
 #         "schema_url": ""
 #     }
-# },
+# }
 # {
 #     "name": "langchain.task.StrOutputParser",
 #     "context": {
-#         "trace_id": "0xfcb89e0c5f4aba8a1377664f6dee7661",
-#         "span_id": "0xb664f045c3716fa3",
+#         "trace_id": "0x37f4ce7086c0b2421336a2cb539d76bf",
+#         "span_id": "0x1233710876b3375d",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0x3711b72dfa932d3e",
-#     "start_time": "2024-06-10T04:39:01.261566Z",
-#     "end_time": "2024-06-10T04:39:01.262450Z",
+#     "parent_id": "0xedcc85d7c7369c38",
+#     "start_time": "2024-10-16T09:52:34.802116Z",
+#     "end_time": "2024-10-16T09:52:34.803127Z",
 #     "status": {
 #         "status_code": "UNSET"
 #     },
 #     "attributes": {
 #         "session.session_id": "0x4fa6d91d1f2a4bdbb7a1287d90ec4a16"
 #     },
-#     "events": [],
+#     "events": [
+#         {
+#             "name": "data.input",
+#             "timestamp": "2024-10-16T09:52:34.802116Z",
+#             "attributes": {
+#                 "question": ""
+#             }
+#         },
+#         {
+#             "name": "data.output",
+#             "timestamp": "2024-10-16T09:52:34.803127Z",
+#             "attributes": {
+#                 "response": ""
+#             }
+#         }
+#     ],
 #     "links": [],
 #     "resource": {
 #         "attributes": {
@@ -682,25 +956,40 @@ print(ai_msg_2["answer"])
 #         },
 #         "schema_url": ""
 #     }
-# },
+# }
 # {
 #     "name": "langchain.workflow",
 #     "context": {
-#         "trace_id": "0xfcb89e0c5f4aba8a1377664f6dee7661",
-#         "span_id": "0x3711b72dfa932d3e",
+#         "trace_id": "0x37f4ce7086c0b2421336a2cb539d76bf",
+#         "span_id": "0xedcc85d7c7369c38",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0x0a6e7fac9826a16c",
-#     "start_time": "2024-06-10T04:38:59.719843Z",
-#     "end_time": "2024-06-10T04:39:01.262503Z",
+#     "parent_id": "0xb0719037837a35e4",
+#     "start_time": "2024-10-16T09:52:33.061831Z",
+#     "end_time": "2024-10-16T09:52:34.803127Z",
 #     "status": {
 #         "status_code": "UNSET"
 #     },
 #     "attributes": {
 #         "session.session_id": "0x4fa6d91d1f2a4bdbb7a1287d90ec4a16"
 #     },
-#     "events": [],
+#     "events": [
+#         {
+#             "name": "data.input",
+#             "timestamp": "2024-10-16T09:52:33.061831Z",
+#             "attributes": {
+#                 "question": ""
+#             }
+#         },
+#         {
+#             "name": "data.output",
+#             "timestamp": "2024-10-16T09:52:34.803127Z",
+#             "attributes": {
+#                 "response": ""
+#             }
+#         }
+#     ],
 #     "links": [],
 #     "resource": {
 #         "attributes": {
@@ -708,53 +997,90 @@ print(ai_msg_2["answer"])
 #         },
 #         "schema_url": ""
 #     }
-# },
+# }
 # {
 #     "name": "langchain.workflow",
 #     "context": {
-#         "trace_id": "0xfcb89e0c5f4aba8a1377664f6dee7661",
-#         "span_id": "0x0a6e7fac9826a16c",
+#         "trace_id": "0x37f4ce7086c0b2421336a2cb539d76bf",
+#         "span_id": "0xb0719037837a35e4",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0xffdc0a0d41b85218",
-#     "start_time": "2024-06-10T04:38:59.712013Z",
-#     "end_time": "2024-06-10T04:39:01.262831Z",
+#     "parent_id": "0x34efaf1bc7bb171b",
+#     "start_time": "2024-10-16T09:52:33.055769Z",
+#     "end_time": "2024-10-16T09:52:34.803127Z",
 #     "status": {
 #         "status_code": "UNSET"
 #     },
 #     "attributes": {
 #         "session.session_id": "0x4fa6d91d1f2a4bdbb7a1287d90ec4a16"
 #     },
+#     "events": [
+#         {
+#             "name": "data.input",
+#             "timestamp": "2024-10-16T09:52:33.055769Z",
+#             "attributes": {
+#                 "question": ""
+#             }
+#         },
+#         {
+#             "name": "data.output",
+#             "timestamp": "2024-10-16T09:52:34.803127Z",
+#             "attributes": {
+#                 "response": ""
+#             }
+#         }
+#     ],
+#     "links": [],
 #     "resource": {
 #         "attributes": {
 #             "service.name": "langchain_app_1"
 #         },
 #         "schema_url": ""
 #     }
-# },
+# }
 # {
 #     "name": "langchain.workflow",
 #     "context": {
-#         "trace_id": "0xfcb89e0c5f4aba8a1377664f6dee7661",
-#         "span_id": "0xffdc0a0d41b85218",
+#         "trace_id": "0x37f4ce7086c0b2421336a2cb539d76bf",
+#         "span_id": "0x34efaf1bc7bb171b",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "None",
-#     "start_time": "2024-06-10T04:38:57.915422Z",
-#     "end_time": "2024-06-10T04:39:01.262926Z",
+#     "parent_id": null,
+#     "start_time": "2024-10-16T09:52:31.793647Z",
+#     "end_time": "2024-10-16T09:52:34.803127Z",
 #     "status": {
 #         "status_code": "UNSET"
 #     },
 #     "attributes": {
 #         "session.session_id": "0x4fa6d91d1f2a4bdbb7a1287d90ec4a16",
-#         "workflow_input": "What are common ways of doing it?",
 #         "workflow_name": "langchain_app_1",
-#         "workflow_output": "Task decomposition can be achieved through methods such as using Language Model (LLM) prompting with specific instructions like \"Steps for XYZ\" or \"What are the subgoals for achieving XYZ?\", providing task-specific instructions, or incorporating human inputs. These approaches help in breaking down tasks into smaller components for easier handling and execution.",
 #         "workflow_type": "workflow.langchain"
 #     },
-#     "events": [],
+#     "events": [
+#         {
+#             "name": "data.input",
+#             "timestamp": "2024-10-16T09:52:31.793647Z",
+#             "attributes": {
+#                 "input": "What are common ways of doing it?"
+#             }
+#         },
+#         {
+#             "name": "data.input",
+#             "timestamp": "2024-10-16T09:52:31.793647Z",
+#             "attributes": {
+#                 "question": ""
+#             }
+#         },
+#         {
+#             "name": "data.output",
+#             "timestamp": "2024-10-16T09:52:34.803127Z",
+#             "attributes": {
+#                 "response": ""
+#             }
+#         }
+#     ],
 #     "links": [],
 #     "resource": {
 #         "attributes": {

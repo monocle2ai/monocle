@@ -5,17 +5,16 @@ import inspect
 from urllib.parse import urlparse
 from opentelemetry.trace import Span, Tracer
 from monocle_apptrace.utils import resolve_from_alias, update_span_with_infra_name, with_tracer_wrapper, get_embedding_model, get_attribute
-from src.monocle_apptrace.utils import set_attribute
+from monocle_apptrace.utils import set_attribute
 
 logger = logging.getLogger(__name__)
 WORKFLOW_TYPE_KEY = "workflow_type"
-CONTEXT_INPUT_KEY = "data.input"
-CONTEXT_OUTPUT_KEY = "data.output"
+DATA_INPUT_KEY = "data.input"
+DATA_OUTPUT_KEY = "data.output"
 PROMPT_INPUT_KEY = "data.input"
 PROMPT_OUTPUT_KEY = "data.output"
 QUERY = "question"
 RESPONSE = "response"
-TAGS = "tags"
 SESSION_PROPERTIES_KEY = "session"
 INFRA_SERVICE_KEY = "infra_service_name"
 TYPE = "type"
@@ -102,17 +101,32 @@ def task_wrapper(tracer: Tracer, to_wrap, wrapped, instance, args, kwargs):
     return return_value
 
 def process_span(output_processor,span,instance,args):
-    span.set_attribute("span.type",output_processor['type'])
-    cnt=len(output_processor["attributes"])
-    span.set_attribute("span.count", cnt)
-    i=1
-    for processors in output_processor["attributes"]:
-        for processor in processors:
-            attribute_name=f'entity.{i}.{processor['attribute']}'
-            #attribute_name=processor['attribute_name']
-            result=eval(processor['accessor'])(instance,args)
-            span.set_attribute(attribute_name,result)
-        i+=1
+        # Check if the output_processor is a valid JSON (in Python, that means it's a dictionary)
+        if isinstance(output_processor, dict) and len(output_processor)>0:
+            if 'type' in output_processor:
+                span.set_attribute("span.type", output_processor['type'])
+            else:
+                logger.warning("type of span not found or incorrect written in entity json")
+            count=0
+            if 'attributes' in output_processor:
+                count = len(output_processor["attributes"])
+                span.set_attribute("span.count", count)
+                span_index = 1
+                for processors in output_processor["attributes"]:
+                    for processor in processors:
+                        if 'attribute' in processor and 'accessor' in processor:
+                            attribute_name = f"entity.{span_index}.{processor['attribute']}"
+                            result = eval(processor['accessor'])(instance, args)
+                            span.set_attribute(attribute_name, result)
+                        else:
+                            logger.warning("attribute or accessor not found or incorrect written in entity json")
+                    span_index += 1
+            else:
+                logger.warning("attributes not found or incorrect written in entity json")
+                span.set_attribute("span.count", count)
+
+        else:
+            logger.warning("entities json is not in correct format")
 
 
 def post_task_processing(to_wrap, span, return_value):
@@ -197,10 +211,8 @@ def llm_wrapper(tracer: Tracer, to_wrap, wrapped, instance, args, kwargs):
 
     with tracer.start_as_current_span(name) as span:
         if 'haystack.components.retrievers' in to_wrap['package'] and 'haystack.retriever' in span.name:
-            update_tags(to_wrap, instance, span)
-            update_vectorstore_attributes(to_wrap, instance, span)
-            input_arg_text = get_attribute(CONTEXT_INPUT_KEY)
-            span.add_event(CONTEXT_INPUT_KEY, {QUERY: input_arg_text})
+            input_arg_text = get_attribute(DATA_INPUT_KEY)
+            span.add_event(DATA_INPUT_KEY, {QUERY: input_arg_text})
         provider_name = set_provider_name(instance)
         instance_args = {"provider_name": provider_name}
         if 'output_processor' in to_wrap:
@@ -320,8 +332,8 @@ def update_span_with_context_input(to_wrap, wrapped_args ,span: Span):
     if "llama_index.core.indices.base_retriever" in package_name:
         input_arg_text += wrapped_args[0].query_str
     if "haystack.components.retrievers.in_memory" in package_name:
-        input_arg_text += get_attribute(CONTEXT_INPUT_KEY)
-    span.add_event(CONTEXT_INPUT_KEY, {QUERY: input_arg_text})
+        input_arg_text += get_attribute(DATA_INPUT_KEY)
+    span.add_event(DATA_INPUT_KEY, {QUERY: input_arg_text})
 
 def update_span_with_context_output(to_wrap, return_value ,span: Span):
     package_name: str = to_wrap.get('package')
@@ -336,7 +348,7 @@ def update_span_with_context_output(to_wrap, return_value ,span: Span):
         output_arg_text += " ".join([doc.content for doc in return_value['documents']])
         if len(output_arg_text) > 100:
             output_arg_text = output_arg_text[:100] + "..."
-    span.add_event(CONTEXT_OUTPUT_KEY, {RESPONSE: output_arg_text})
+    span.add_event(DATA_OUTPUT_KEY, {RESPONSE: output_arg_text})
 
 def update_span_with_prompt_input(to_wrap, wrapped_args ,span: Span):
     input_arg_text = wrapped_args[0]
@@ -352,46 +364,3 @@ def update_span_with_prompt_output(to_wrap, wrapped_args ,span: Span):
         span.add_event(PROMPT_OUTPUT_KEY, {RESPONSE:wrapped_args})
     if "llama_index.core.base.base_query_engine" in package_name:
         span.add_event(PROMPT_OUTPUT_KEY, {RESPONSE:wrapped_args.response})
-
-def update_tags(to_wrap, instance, span):
-    try:
-        # copy tags as is from langchain
-        if hasattr(instance, TAGS):
-            tags_value = getattr(instance, TAGS)
-            if tags_value is not None:
-                span.set_attribute(TAGS, getattr(instance, TAGS))
-    except:
-        pass
-    try:
-        # extract embed model and vector store names for llamaindex
-        package_name: str = to_wrap.get('package')
-        if "llama_index.core.indices.base_retriever" in package_name:
-            model_name = instance._embed_model.__class__.__name__
-            vector_store_name = type(instance._vector_store).__name__
-            span.set_attribute(TAGS, [model_name, vector_store_name])
-        if "haystack.components.retrievers.in_memory" in package_name:
-            model_name = instance.__dict__.get('__haystack_added_to_pipeline__').get_component('text_embedder').__class__.__name__
-            vector_store_name = instance.__dict__.get("document_store").__class__.__name__
-            span.set_attribute(TAGS, [model_name, vector_store_name])
-    except:
-        pass
-
-
-def update_vectorstore_attributes(to_wrap, instance, span):
-    """
-       Updates the telemetry span attributes for vector store retrieval tasks.
-    """
-    try:
-        package = to_wrap.get('package')
-        if package in framework_vector_store_mapping:
-            attributes = framework_vector_store_mapping[package](instance)
-            span._attributes.update({
-                TYPE: attributes['type'],
-                PROVIDER: attributes['provider'],
-                EMBEDDING_MODEL: attributes['embedding_model']
-            })
-        else:
-            pass
-
-    except Exception as e:
-        logger.error(f"Error updating span attributes: {e}")

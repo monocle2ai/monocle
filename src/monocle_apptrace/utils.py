@@ -5,7 +5,7 @@ import os
 from opentelemetry.trace import Span
 from opentelemetry.context import attach, set_value, get_value
 from monocle_apptrace.constants import azure_service_map, aws_service_map
-
+from json.decoder import JSONDecodeError
 embedding_model_context = {}
 
 def set_span_attribute(span, name, value):
@@ -48,6 +48,28 @@ def resolve_from_alias(my_map, alias):
         if i in my_map.keys():
             return my_map[i]
     return None
+def load_output_processor(wrapper_method):
+    """Load the output processor from a file if the file path is provided and valid."""
+    logger = logging.getLogger()
+    output_processor_file_path = wrapper_method["output_processor"][0]
+    logger.info(f'Output processor file path is: {output_processor_file_path}')
+
+    if isinstance(output_processor_file_path, str) and output_processor_file_path:  # Combined condition
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        absolute_file_path = os.path.join(current_dir,output_processor_file_path)
+        logger.info(f'Absolute file path is: {absolute_file_path}')
+        try:
+            with open(absolute_file_path, encoding='UTF-8') as op_file:
+                wrapper_method["output_processor"] = json.load(op_file)
+                logger.info('Output processor loaded successfully.')
+        except FileNotFoundError:
+            logger.error(f"Error: File not found at {absolute_file_path}.")
+        except JSONDecodeError:
+            logger.error(f"Error: Invalid JSON content in the file {absolute_file_path}.")
+        except Exception as e:
+            logger.error(f"Error: An unexpected error occurred: {e}")
+    else:
+        logger.error("Invalid or missing output processor file path.")
 
 def load_wrapper_from_config(config_file_path: str, module_name: str = None):
     wrapper_methods = []
@@ -62,13 +84,8 @@ def load_wrapper_from_config(config_file_path: str, module_name: str = None):
                     wrapper_method["span_name_getter_package"],
                     wrapper_method["span_name_getter_method"])
             if "output_processor" in wrapper_method:
-                if type(wrapper_method["output_processor"]) is list:
-                    output_processor_file_path = wrapper_method["output_processor"][0]
-                    current_dir = os.path.dirname(os.path.abspath(__file__))
-                    absolute_file_path = os.path.join(current_dir,output_processor_file_path)
-                    if isinstance(output_processor_file_path, str):
-                        with open(absolute_file_path, encoding='UTF-8') as op_file:
-                            wrapper_method["output_processor"] = json.load(op_file)
+                load_output_processor(wrapper_method)
+
         return wrapper_methods
 
 def get_wrapper_method(package_name: str, method_name: str):

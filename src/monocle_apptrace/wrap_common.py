@@ -337,7 +337,8 @@ def update_span_with_context_input(to_wrap, wrapped_args, span: Span):
         input_arg_text += wrapped_args[0].query_str
     if "haystack.components.retrievers.in_memory" in package_name:
         input_arg_text += get_attribute(DATA_INPUT_KEY)
-    span.add_event(DATA_INPUT_KEY, {QUERY: input_arg_text})
+    if input_arg_text:
+        span.add_event(DATA_INPUT_KEY, {QUERY: input_arg_text})
 
 def update_span_with_context_output(to_wrap, return_value, span: Span):
     package_name: str = to_wrap.get('package')
@@ -352,7 +353,8 @@ def update_span_with_context_output(to_wrap, return_value, span: Span):
         output_arg_text += " ".join([doc.content for doc in return_value['documents']])
         if len(output_arg_text) > 100:
             output_arg_text = output_arg_text[:100] + "..."
-    span.add_event(DATA_OUTPUT_KEY, {RESPONSE: output_arg_text})
+    if output_arg_text:
+        span.add_event(DATA_OUTPUT_KEY, {RESPONSE: output_arg_text})
 
 def update_span_with_prompt_input(to_wrap, wrapped_args, span: Span):
     input_arg_text = wrapped_args[0]
@@ -366,6 +368,8 @@ def update_span_with_prompt_output(to_wrap, wrapped_args, span: Span):
     package_name: str = to_wrap.get('package')
     if isinstance(wrapped_args, str):
         span.add_event(PROMPT_OUTPUT_KEY, {RESPONSE: wrapped_args})
+    if isinstance(wrapped_args, dict):
+        span.add_event(PROMPT_OUTPUT_KEY, wrapped_args)
     if "llama_index.core.base.base_query_engine" in package_name:
         span.add_event(PROMPT_OUTPUT_KEY, {RESPONSE:wrapped_args.response})
         

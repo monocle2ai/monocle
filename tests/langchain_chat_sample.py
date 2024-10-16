@@ -105,21 +105,21 @@ print(ai_msg_2["answer"])
 # {
 #     "name": "langchain.task.VectorStoreRetriever",
 #     "context": {
-#         "trace_id": "0x292eea442b46a8111db11587596730b9",
-#         "span_id": "0x2b791bda34bde4fb",
+#         "trace_id": "0xc5d7ac68a3fc32b683e99dcef160422c",
+#         "span_id": "0x6dcf740981b328cd",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0x65b3e191154a7aac",
-#     "start_time": "2024-10-16T09:52:29.394788Z",
-#     "end_time": "2024-10-16T09:52:29.856904Z",
+#     "parent_id": "0xf22bb6b24a47d08e",
+#     "start_time": "2024-10-16T13:04:59.514226Z",
+#     "end_time": "2024-10-16T13:04:59.796746Z",
 #     "status": {
 #         "status_code": "UNSET"
 #     },
 #     "attributes": {
 #         "session.session_id": "0x4fa6d91d1f2a4bdbb7a1287d90ec4a16",
 #         "span.type": "retrieval",
-#         "span.count": 2,
+#         "entity.count": 2,
 #         "entity.1.name": "Chroma",
 #         "entity.1.type": "vectorstore.Chroma",
 #         "entity.1.embedding_model_name": "text-embedding-ada-002",
@@ -130,14 +130,14 @@ print(ai_msg_2["answer"])
 #     "events": [
 #         {
 #             "name": "data.input",
-#             "timestamp": "2024-10-16T09:52:29.395788Z",
+#             "timestamp": "2024-10-16T13:04:59.514226Z",
 #             "attributes": {
 #                 "question": "What is Task Decomposition?"
 #             }
 #         },
 #         {
 #             "name": "data.output",
-#             "timestamp": "2024-10-16T09:52:29.856904Z",
+#             "timestamp": "2024-10-16T13:04:59.796746Z",
 #             "attributes": {
 #                 "response": "Fig. 1. Overview of a LLM-powered autonomous agent system.\nComponent One: Planning#\nA complicated ta..."
 #             }
@@ -154,14 +154,14 @@ print(ai_msg_2["answer"])
 # {
 #     "name": "langchain.workflow",
 #     "context": {
-#         "trace_id": "0x292eea442b46a8111db11587596730b9",
-#         "span_id": "0x65b3e191154a7aac",
+#         "trace_id": "0xc5d7ac68a3fc32b683e99dcef160422c",
+#         "span_id": "0xf22bb6b24a47d08e",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0x028750bf9dd63df9",
-#     "start_time": "2024-10-16T09:52:29.393785Z",
-#     "end_time": "2024-10-16T09:52:29.856904Z",
+#     "parent_id": "0x6928e06fd862a88c",
+#     "start_time": "2024-10-16T13:04:59.512690Z",
+#     "end_time": "2024-10-16T13:04:59.797735Z",
 #     "status": {
 #         "status_code": "UNSET"
 #     },
@@ -171,14 +171,14 @@ print(ai_msg_2["answer"])
 #     "events": [
 #         {
 #             "name": "data.input",
-#             "timestamp": "2024-10-16T09:52:29.393785Z",
+#             "timestamp": "2024-10-16T13:04:59.512690Z",
 #             "attributes": {
 #                 "question": ""
 #             }
 #         },
 #         {
 #             "name": "data.output",
-#             "timestamp": "2024-10-16T09:52:29.856904Z",
+#             "timestamp": "2024-10-16T13:04:59.797735Z",
 #             "attributes": {
 #                 "response": ""
 #             }
@@ -195,14 +195,14 @@ print(ai_msg_2["answer"])
 # {
 #     "name": "langchain.workflow",
 #     "context": {
-#         "trace_id": "0x292eea442b46a8111db11587596730b9",
-#         "span_id": "0x028750bf9dd63df9",
+#         "trace_id": "0xc5d7ac68a3fc32b683e99dcef160422c",
+#         "span_id": "0x6928e06fd862a88c",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0xcf200fa4155404d0",
-#     "start_time": "2024-10-16T09:52:29.387789Z",
-#     "end_time": "2024-10-16T09:52:29.857409Z",
+#     "parent_id": "0xf49c89a3b7695614",
+#     "start_time": "2024-10-16T13:04:59.506152Z",
+#     "end_time": "2024-10-16T13:04:59.797735Z",
 #     "status": {
 #         "status_code": "UNSET"
 #     },
@@ -212,14 +212,14 @@ print(ai_msg_2["answer"])
 #     "events": [
 #         {
 #             "name": "data.input",
-#             "timestamp": "2024-10-16T09:52:29.387789Z",
+#             "timestamp": "2024-10-16T13:04:59.506152Z",
 #             "attributes": {
 #                 "question": ""
 #             }
 #         },
 #         {
 #             "name": "data.output",
-#             "timestamp": "2024-10-16T09:52:29.857409Z",
+#             "timestamp": "2024-10-16T13:04:59.797735Z",
 #             "attributes": {
 #                 "response": ""
 #             }
@@ -236,14 +236,14 @@ print(ai_msg_2["answer"])
 # {
 #     "name": "langchain.workflow",
 #     "context": {
-#         "trace_id": "0x292eea442b46a8111db11587596730b9",
-#         "span_id": "0x5f541e14a45742da",
+#         "trace_id": "0xc5d7ac68a3fc32b683e99dcef160422c",
+#         "span_id": "0x8675ff5d6a848584",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0x0947546349d0dacd",
-#     "start_time": "2024-10-16T09:52:29.875515Z",
-#     "end_time": "2024-10-16T09:52:29.877144Z",
+#     "parent_id": "0x3a5ee2ec45670a01",
+#     "start_time": "2024-10-16T13:04:59.814139Z",
+#     "end_time": "2024-10-16T13:04:59.816139Z",
 #     "status": {
 #         "status_code": "UNSET"
 #     },
@@ -253,14 +253,14 @@ print(ai_msg_2["answer"])
 #     "events": [
 #         {
 #             "name": "data.input",
-#             "timestamp": "2024-10-16T09:52:29.875515Z",
+#             "timestamp": "2024-10-16T13:04:59.814139Z",
 #             "attributes": {
 #                 "question": ""
 #             }
 #         },
 #         {
 #             "name": "data.output",
-#             "timestamp": "2024-10-16T09:52:29.877144Z",
+#             "timestamp": "2024-10-16T13:04:59.816139Z",
 #             "attributes": {
 #                 "response": ""
 #             }
@@ -277,14 +277,14 @@ print(ai_msg_2["answer"])
 # {
 #     "name": "langchain.task.ChatPromptTemplate",
 #     "context": {
-#         "trace_id": "0x292eea442b46a8111db11587596730b9",
-#         "span_id": "0x7ac47a211284068a",
+#         "trace_id": "0xc5d7ac68a3fc32b683e99dcef160422c",
+#         "span_id": "0x8bdd4d1e36a685c3",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0x0947546349d0dacd",
-#     "start_time": "2024-10-16T09:52:29.877144Z",
-#     "end_time": "2024-10-16T09:52:29.878151Z",
+#     "parent_id": "0x3a5ee2ec45670a01",
+#     "start_time": "2024-10-16T13:04:59.816139Z",
+#     "end_time": "2024-10-16T13:04:59.817139Z",
 #     "status": {
 #         "status_code": "UNSET"
 #     },
@@ -294,14 +294,14 @@ print(ai_msg_2["answer"])
 #     "events": [
 #         {
 #             "name": "data.input",
-#             "timestamp": "2024-10-16T09:52:29.877144Z",
+#             "timestamp": "2024-10-16T13:04:59.816139Z",
 #             "attributes": {
 #                 "question": ""
 #             }
 #         },
 #         {
 #             "name": "data.output",
-#             "timestamp": "2024-10-16T09:52:29.878151Z",
+#             "timestamp": "2024-10-16T13:04:59.817139Z",
 #             "attributes": {
 #                 "response": ""
 #             }
@@ -318,21 +318,21 @@ print(ai_msg_2["answer"])
 # {
 #     "name": "langchain.task.ChatOpenAI",
 #     "context": {
-#         "trace_id": "0x292eea442b46a8111db11587596730b9",
-#         "span_id": "0xad677c3ce14fa738",
+#         "trace_id": "0xc5d7ac68a3fc32b683e99dcef160422c",
+#         "span_id": "0x01e1e2cbc5188165",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0x0947546349d0dacd",
-#     "start_time": "2024-10-16T09:52:29.878151Z",
-#     "end_time": "2024-10-16T09:52:31.792647Z",
+#     "parent_id": "0x3a5ee2ec45670a01",
+#     "start_time": "2024-10-16T13:04:59.817139Z",
+#     "end_time": "2024-10-16T13:05:01.503201Z",
 #     "status": {
 #         "status_code": "UNSET"
 #     },
 #     "attributes": {
 #         "session.session_id": "0x4fa6d91d1f2a4bdbb7a1287d90ec4a16",
 #         "span.type": "inference",
-#         "span.count": 2,
+#         "entity.count": 2,
 #         "entity.1.type": "inference.azure_oai",
 #         "entity.1.provider_name": "api.openai.com",
 #         "entity.2.name": "gpt-3.5-turbo-0125",
@@ -342,12 +342,12 @@ print(ai_msg_2["answer"])
 #     "events": [
 #         {
 #             "name": "metadata",
-#             "timestamp": "2024-10-16T09:52:31.792647Z",
+#             "timestamp": "2024-10-16T13:05:01.503201Z",
 #             "attributes": {
 #                 "temperature": 0.7,
-#                 "completion_tokens": 71,
+#                 "completion_tokens": 70,
 #                 "prompt_tokens": 580,
-#                 "total_tokens": 651
+#                 "total_tokens": 650
 #             }
 #         }
 #     ],
@@ -362,14 +362,14 @@ print(ai_msg_2["answer"])
 # {
 #     "name": "langchain.task.StrOutputParser",
 #     "context": {
-#         "trace_id": "0x292eea442b46a8111db11587596730b9",
-#         "span_id": "0x8ef54d48120b59c3",
+#         "trace_id": "0xc5d7ac68a3fc32b683e99dcef160422c",
+#         "span_id": "0x5b214f3b234786a2",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0x0947546349d0dacd",
-#     "start_time": "2024-10-16T09:52:31.792647Z",
-#     "end_time": "2024-10-16T09:52:31.792647Z",
+#     "parent_id": "0x3a5ee2ec45670a01",
+#     "start_time": "2024-10-16T13:05:01.504201Z",
+#     "end_time": "2024-10-16T13:05:01.504201Z",
 #     "status": {
 #         "status_code": "UNSET"
 #     },
@@ -379,14 +379,14 @@ print(ai_msg_2["answer"])
 #     "events": [
 #         {
 #             "name": "data.input",
-#             "timestamp": "2024-10-16T09:52:31.792647Z",
+#             "timestamp": "2024-10-16T13:05:01.504201Z",
 #             "attributes": {
 #                 "question": ""
 #             }
 #         },
 #         {
 #             "name": "data.output",
-#             "timestamp": "2024-10-16T09:52:31.792647Z",
+#             "timestamp": "2024-10-16T13:05:01.504201Z",
 #             "attributes": {
 #                 "response": ""
 #             }
@@ -403,14 +403,14 @@ print(ai_msg_2["answer"])
 # {
 #     "name": "langchain.workflow",
 #     "context": {
-#         "trace_id": "0x292eea442b46a8111db11587596730b9",
-#         "span_id": "0x0947546349d0dacd",
+#         "trace_id": "0xc5d7ac68a3fc32b683e99dcef160422c",
+#         "span_id": "0x3a5ee2ec45670a01",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0x70fb9c42ebbff906",
-#     "start_time": "2024-10-16T09:52:29.870485Z",
-#     "end_time": "2024-10-16T09:52:31.792647Z",
+#     "parent_id": "0xe5805ed622d8c943",
+#     "start_time": "2024-10-16T13:04:59.809103Z",
+#     "end_time": "2024-10-16T13:05:01.504201Z",
 #     "status": {
 #         "status_code": "UNSET"
 #     },
@@ -420,14 +420,14 @@ print(ai_msg_2["answer"])
 #     "events": [
 #         {
 #             "name": "data.input",
-#             "timestamp": "2024-10-16T09:52:29.870485Z",
+#             "timestamp": "2024-10-16T13:04:59.809103Z",
 #             "attributes": {
 #                 "question": ""
 #             }
 #         },
 #         {
 #             "name": "data.output",
-#             "timestamp": "2024-10-16T09:52:31.792647Z",
+#             "timestamp": "2024-10-16T13:05:01.504201Z",
 #             "attributes": {
 #                 "response": ""
 #             }
@@ -444,14 +444,14 @@ print(ai_msg_2["answer"])
 # {
 #     "name": "langchain.workflow",
 #     "context": {
-#         "trace_id": "0x292eea442b46a8111db11587596730b9",
-#         "span_id": "0x70fb9c42ebbff906",
+#         "trace_id": "0xc5d7ac68a3fc32b683e99dcef160422c",
+#         "span_id": "0xe5805ed622d8c943",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0xcf200fa4155404d0",
-#     "start_time": "2024-10-16T09:52:29.864458Z",
-#     "end_time": "2024-10-16T09:52:31.792647Z",
+#     "parent_id": "0xf49c89a3b7695614",
+#     "start_time": "2024-10-16T13:04:59.804001Z",
+#     "end_time": "2024-10-16T13:05:01.504201Z",
 #     "status": {
 #         "status_code": "UNSET"
 #     },
@@ -461,14 +461,14 @@ print(ai_msg_2["answer"])
 #     "events": [
 #         {
 #             "name": "data.input",
-#             "timestamp": "2024-10-16T09:52:29.864458Z",
+#             "timestamp": "2024-10-16T13:04:59.804001Z",
 #             "attributes": {
 #                 "question": ""
 #             }
 #         },
 #         {
 #             "name": "data.output",
-#             "timestamp": "2024-10-16T09:52:31.792647Z",
+#             "timestamp": "2024-10-16T13:05:01.504201Z",
 #             "attributes": {
 #                 "response": ""
 #             }
@@ -485,14 +485,14 @@ print(ai_msg_2["answer"])
 # {
 #     "name": "langchain.workflow",
 #     "context": {
-#         "trace_id": "0x292eea442b46a8111db11587596730b9",
-#         "span_id": "0xcf200fa4155404d0",
+#         "trace_id": "0xc5d7ac68a3fc32b683e99dcef160422c",
+#         "span_id": "0xf49c89a3b7695614",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
 #     "parent_id": null,
-#     "start_time": "2024-10-16T09:52:29.353788Z",
-#     "end_time": "2024-10-16T09:52:31.792647Z",
+#     "start_time": "2024-10-16T13:04:59.468714Z",
+#     "end_time": "2024-10-16T13:05:01.504201Z",
 #     "status": {
 #         "status_code": "UNSET"
 #     },
@@ -504,7 +504,7 @@ print(ai_msg_2["answer"])
 #     "events": [
 #         {
 #             "name": "data.input",
-#             "timestamp": "2024-10-16T09:52:29.353788Z",
+#             "timestamp": "2024-10-16T13:04:59.468714Z",
 #             "attributes": {
 #                 "input": "What is Task Decomposition?",
 #                 "chat_history": []
@@ -512,14 +512,14 @@ print(ai_msg_2["answer"])
 #         },
 #         {
 #             "name": "data.input",
-#             "timestamp": "2024-10-16T09:52:29.353788Z",
+#             "timestamp": "2024-10-16T13:04:59.468714Z",
 #             "attributes": {
 #                 "question": ""
 #             }
 #         },
 #         {
 #             "name": "data.output",
-#             "timestamp": "2024-10-16T09:52:31.792647Z",
+#             "timestamp": "2024-10-16T13:05:01.504201Z",
 #             "attributes": {
 #                 "response": ""
 #             }
@@ -536,14 +536,14 @@ print(ai_msg_2["answer"])
 # {
 #     "name": "langchain.task.ChatPromptTemplate",
 #     "context": {
-#         "trace_id": "0x37f4ce7086c0b2421336a2cb539d76bf",
-#         "span_id": "0xd5f82f027d485a00",
+#         "trace_id": "0x9b427909ca38b77658b50203f15ad504",
+#         "span_id": "0x9d525c40f8695ad6",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0x49ae78030a0665ef",
-#     "start_time": "2024-10-16T09:52:31.815371Z",
-#     "end_time": "2024-10-16T09:52:31.816378Z",
+#     "parent_id": "0xf69e3b9a83bf6bfb",
+#     "start_time": "2024-10-16T13:05:01.525708Z",
+#     "end_time": "2024-10-16T13:05:01.526707Z",
 #     "status": {
 #         "status_code": "UNSET"
 #     },
@@ -553,14 +553,14 @@ print(ai_msg_2["answer"])
 #     "events": [
 #         {
 #             "name": "data.input",
-#             "timestamp": "2024-10-16T09:52:31.815371Z",
+#             "timestamp": "2024-10-16T13:05:01.525708Z",
 #             "attributes": {
 #                 "question": ""
 #             }
 #         },
 #         {
 #             "name": "data.output",
-#             "timestamp": "2024-10-16T09:52:31.816378Z",
+#             "timestamp": "2024-10-16T13:05:01.526707Z",
 #             "attributes": {
 #                 "response": ""
 #             }
@@ -577,21 +577,21 @@ print(ai_msg_2["answer"])
 # {
 #     "name": "langchain.task.ChatOpenAI",
 #     "context": {
-#         "trace_id": "0x37f4ce7086c0b2421336a2cb539d76bf",
-#         "span_id": "0xe470831f25e4b9be",
+#         "trace_id": "0x9b427909ca38b77658b50203f15ad504",
+#         "span_id": "0x593db8e5ccea9036",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0x49ae78030a0665ef",
-#     "start_time": "2024-10-16T09:52:31.816378Z",
-#     "end_time": "2024-10-16T09:52:32.455731Z",
+#     "parent_id": "0xf69e3b9a83bf6bfb",
+#     "start_time": "2024-10-16T13:05:01.526707Z",
+#     "end_time": "2024-10-16T13:05:02.501735Z",
 #     "status": {
 #         "status_code": "UNSET"
 #     },
 #     "attributes": {
 #         "session.session_id": "0x4fa6d91d1f2a4bdbb7a1287d90ec4a16",
 #         "span.type": "inference",
-#         "span.count": 2,
+#         "entity.count": 2,
 #         "entity.1.type": "inference.azure_oai",
 #         "entity.1.provider_name": "api.openai.com",
 #         "entity.2.name": "gpt-3.5-turbo-0125",
@@ -601,12 +601,12 @@ print(ai_msg_2["answer"])
 #     "events": [
 #         {
 #             "name": "metadata",
-#             "timestamp": "2024-10-16T09:52:32.455731Z",
+#             "timestamp": "2024-10-16T13:05:02.501735Z",
 #             "attributes": {
 #                 "temperature": 0.7,
-#                 "completion_tokens": 10,
-#                 "prompt_tokens": 154,
-#                 "total_tokens": 164
+#                 "completion_tokens": 9,
+#                 "prompt_tokens": 153,
+#                 "total_tokens": 162
 #             }
 #         }
 #     ],
@@ -621,14 +621,14 @@ print(ai_msg_2["answer"])
 # {
 #     "name": "langchain.task.StrOutputParser",
 #     "context": {
-#         "trace_id": "0x37f4ce7086c0b2421336a2cb539d76bf",
-#         "span_id": "0x8227a5cfac917068",
+#         "trace_id": "0x9b427909ca38b77658b50203f15ad504",
+#         "span_id": "0xa78f5110f8f45dc1",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0x49ae78030a0665ef",
-#     "start_time": "2024-10-16T09:52:32.455731Z",
-#     "end_time": "2024-10-16T09:52:32.455731Z",
+#     "parent_id": "0xf69e3b9a83bf6bfb",
+#     "start_time": "2024-10-16T13:05:02.501735Z",
+#     "end_time": "2024-10-16T13:05:02.501735Z",
 #     "status": {
 #         "status_code": "UNSET"
 #     },
@@ -638,14 +638,14 @@ print(ai_msg_2["answer"])
 #     "events": [
 #         {
 #             "name": "data.input",
-#             "timestamp": "2024-10-16T09:52:32.455731Z",
+#             "timestamp": "2024-10-16T13:05:02.501735Z",
 #             "attributes": {
 #                 "question": ""
 #             }
 #         },
 #         {
 #             "name": "data.output",
-#             "timestamp": "2024-10-16T09:52:32.455731Z",
+#             "timestamp": "2024-10-16T13:05:02.501735Z",
 #             "attributes": {
 #                 "response": ""
 #             }
@@ -662,21 +662,21 @@ print(ai_msg_2["answer"])
 # {
 #     "name": "langchain.task.VectorStoreRetriever",
 #     "context": {
-#         "trace_id": "0x37f4ce7086c0b2421336a2cb539d76bf",
-#         "span_id": "0x0e49e61326dace1d",
+#         "trace_id": "0x9b427909ca38b77658b50203f15ad504",
+#         "span_id": "0xdd83fe45fe1175ac",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0x49ae78030a0665ef",
-#     "start_time": "2024-10-16T09:52:32.455731Z",
-#     "end_time": "2024-10-16T09:52:33.048101Z",
+#     "parent_id": "0xf69e3b9a83bf6bfb",
+#     "start_time": "2024-10-16T13:05:02.501735Z",
+#     "end_time": "2024-10-16T13:05:03.342518Z",
 #     "status": {
 #         "status_code": "UNSET"
 #     },
 #     "attributes": {
 #         "session.session_id": "0x4fa6d91d1f2a4bdbb7a1287d90ec4a16",
 #         "span.type": "retrieval",
-#         "span.count": 2,
+#         "entity.count": 2,
 #         "entity.1.name": "Chroma",
 #         "entity.1.type": "vectorstore.Chroma",
 #         "entity.1.embedding_model_name": "text-embedding-ada-002",
@@ -687,16 +687,16 @@ print(ai_msg_2["answer"])
 #     "events": [
 #         {
 #             "name": "data.input",
-#             "timestamp": "2024-10-16T09:52:32.456731Z",
+#             "timestamp": "2024-10-16T13:05:02.502740Z",
 #             "attributes": {
-#                 "question": "What are some typical methods used for task decomposition?"
+#                 "question": "What are typical methods used for task decomposition?"
 #             }
 #         },
 #         {
 #             "name": "data.output",
-#             "timestamp": "2024-10-16T09:52:33.048101Z",
+#             "timestamp": "2024-10-16T13:05:03.342518Z",
 #             "attributes": {
-#                 "response": "Tree of Thoughts (Yao et al. 2023) extends CoT by exploring multiple reasoning possibilities at each..."
+#                 "response": "Fig. 1. Overview of a LLM-powered autonomous agent system.\nComponent One: Planning#\nA complicated ta..."
 #             }
 #         }
 #     ],
@@ -711,14 +711,14 @@ print(ai_msg_2["answer"])
 # {
 #     "name": "langchain.workflow",
 #     "context": {
-#         "trace_id": "0x37f4ce7086c0b2421336a2cb539d76bf",
-#         "span_id": "0x49ae78030a0665ef",
+#         "trace_id": "0x9b427909ca38b77658b50203f15ad504",
+#         "span_id": "0xf69e3b9a83bf6bfb",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0x0d35c2c23c97b93a",
-#     "start_time": "2024-10-16T09:52:31.814367Z",
-#     "end_time": "2024-10-16T09:52:33.048101Z",
+#     "parent_id": "0xb89428628256a7c3",
+#     "start_time": "2024-10-16T13:05:01.524703Z",
+#     "end_time": "2024-10-16T13:05:03.342518Z",
 #     "status": {
 #         "status_code": "UNSET"
 #     },
@@ -728,14 +728,14 @@ print(ai_msg_2["answer"])
 #     "events": [
 #         {
 #             "name": "data.input",
-#             "timestamp": "2024-10-16T09:52:31.814367Z",
+#             "timestamp": "2024-10-16T13:05:01.524703Z",
 #             "attributes": {
 #                 "question": ""
 #             }
 #         },
 #         {
 #             "name": "data.output",
-#             "timestamp": "2024-10-16T09:52:33.048101Z",
+#             "timestamp": "2024-10-16T13:05:03.342518Z",
 #             "attributes": {
 #                 "response": ""
 #             }
@@ -752,14 +752,14 @@ print(ai_msg_2["answer"])
 # {
 #     "name": "langchain.workflow",
 #     "context": {
-#         "trace_id": "0x37f4ce7086c0b2421336a2cb539d76bf",
-#         "span_id": "0x0d35c2c23c97b93a",
+#         "trace_id": "0x9b427909ca38b77658b50203f15ad504",
+#         "span_id": "0xb89428628256a7c3",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0x34efaf1bc7bb171b",
-#     "start_time": "2024-10-16T09:52:31.807851Z",
-#     "end_time": "2024-10-16T09:52:33.048101Z",
+#     "parent_id": "0x1821460947bc7307",
+#     "start_time": "2024-10-16T13:05:01.519200Z",
+#     "end_time": "2024-10-16T13:05:03.342518Z",
 #     "status": {
 #         "status_code": "UNSET"
 #     },
@@ -769,14 +769,14 @@ print(ai_msg_2["answer"])
 #     "events": [
 #         {
 #             "name": "data.input",
-#             "timestamp": "2024-10-16T09:52:31.807851Z",
+#             "timestamp": "2024-10-16T13:05:01.519200Z",
 #             "attributes": {
 #                 "question": ""
 #             }
 #         },
 #         {
 #             "name": "data.output",
-#             "timestamp": "2024-10-16T09:52:33.048101Z",
+#             "timestamp": "2024-10-16T13:05:03.342518Z",
 #             "attributes": {
 #                 "response": ""
 #             }
@@ -793,14 +793,14 @@ print(ai_msg_2["answer"])
 # {
 #     "name": "langchain.workflow",
 #     "context": {
-#         "trace_id": "0x37f4ce7086c0b2421336a2cb539d76bf",
-#         "span_id": "0xeaae95537c371f3c",
+#         "trace_id": "0x9b427909ca38b77658b50203f15ad504",
+#         "span_id": "0x22058cc71848b370",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0xedcc85d7c7369c38",
-#     "start_time": "2024-10-16T09:52:33.066993Z",
-#     "end_time": "2024-10-16T09:52:33.067997Z",
+#     "parent_id": "0x9659d5f599e478bd",
+#     "start_time": "2024-10-16T13:05:03.361811Z",
+#     "end_time": "2024-10-16T13:05:03.363820Z",
 #     "status": {
 #         "status_code": "UNSET"
 #     },
@@ -810,14 +810,14 @@ print(ai_msg_2["answer"])
 #     "events": [
 #         {
 #             "name": "data.input",
-#             "timestamp": "2024-10-16T09:52:33.066993Z",
+#             "timestamp": "2024-10-16T13:05:03.361811Z",
 #             "attributes": {
 #                 "question": ""
 #             }
 #         },
 #         {
 #             "name": "data.output",
-#             "timestamp": "2024-10-16T09:52:33.067997Z",
+#             "timestamp": "2024-10-16T13:05:03.363820Z",
 #             "attributes": {
 #                 "response": ""
 #             }
@@ -834,14 +834,14 @@ print(ai_msg_2["answer"])
 # {
 #     "name": "langchain.task.ChatPromptTemplate",
 #     "context": {
-#         "trace_id": "0x37f4ce7086c0b2421336a2cb539d76bf",
-#         "span_id": "0x0f749358be3cda29",
+#         "trace_id": "0x9b427909ca38b77658b50203f15ad504",
+#         "span_id": "0x01910424c6317fe1",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0xedcc85d7c7369c38",
-#     "start_time": "2024-10-16T09:52:33.067997Z",
-#     "end_time": "2024-10-16T09:52:33.068997Z",
+#     "parent_id": "0x9659d5f599e478bd",
+#     "start_time": "2024-10-16T13:05:03.363820Z",
+#     "end_time": "2024-10-16T13:05:03.364824Z",
 #     "status": {
 #         "status_code": "UNSET"
 #     },
@@ -851,14 +851,14 @@ print(ai_msg_2["answer"])
 #     "events": [
 #         {
 #             "name": "data.input",
-#             "timestamp": "2024-10-16T09:52:33.067997Z",
+#             "timestamp": "2024-10-16T13:05:03.363820Z",
 #             "attributes": {
 #                 "question": ""
 #             }
 #         },
 #         {
 #             "name": "data.output",
-#             "timestamp": "2024-10-16T09:52:33.068997Z",
+#             "timestamp": "2024-10-16T13:05:03.364824Z",
 #             "attributes": {
 #                 "response": ""
 #             }
@@ -875,21 +875,21 @@ print(ai_msg_2["answer"])
 # {
 #     "name": "langchain.task.ChatOpenAI",
 #     "context": {
-#         "trace_id": "0x37f4ce7086c0b2421336a2cb539d76bf",
-#         "span_id": "0x9c68fd7162d94b46",
+#         "trace_id": "0x9b427909ca38b77658b50203f15ad504",
+#         "span_id": "0x74680f0beb17cf6f",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0xedcc85d7c7369c38",
-#     "start_time": "2024-10-16T09:52:33.068997Z",
-#     "end_time": "2024-10-16T09:52:34.802116Z",
+#     "parent_id": "0x9659d5f599e478bd",
+#     "start_time": "2024-10-16T13:05:03.364824Z",
+#     "end_time": "2024-10-16T13:05:04.699369Z",
 #     "status": {
 #         "status_code": "UNSET"
 #     },
 #     "attributes": {
 #         "session.session_id": "0x4fa6d91d1f2a4bdbb7a1287d90ec4a16",
 #         "span.type": "inference",
-#         "span.count": 2,
+#         "entity.count": 2,
 #         "entity.1.type": "inference.azure_oai",
 #         "entity.1.provider_name": "api.openai.com",
 #         "entity.2.name": "gpt-3.5-turbo-0125",
@@ -899,12 +899,12 @@ print(ai_msg_2["answer"])
 #     "events": [
 #         {
 #             "name": "metadata",
-#             "timestamp": "2024-10-16T09:52:34.802116Z",
+#             "timestamp": "2024-10-16T13:05:04.699369Z",
 #             "attributes": {
 #                 "temperature": 0.7,
-#                 "completion_tokens": 84,
-#                 "prompt_tokens": 633,
-#                 "total_tokens": 717
+#                 "completion_tokens": 64,
+#                 "prompt_tokens": 614,
+#                 "total_tokens": 678
 #             }
 #         }
 #     ],
@@ -919,14 +919,14 @@ print(ai_msg_2["answer"])
 # {
 #     "name": "langchain.task.StrOutputParser",
 #     "context": {
-#         "trace_id": "0x37f4ce7086c0b2421336a2cb539d76bf",
-#         "span_id": "0x1233710876b3375d",
+#         "trace_id": "0x9b427909ca38b77658b50203f15ad504",
+#         "span_id": "0x038dc53c9c12bd26",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0xedcc85d7c7369c38",
-#     "start_time": "2024-10-16T09:52:34.802116Z",
-#     "end_time": "2024-10-16T09:52:34.803127Z",
+#     "parent_id": "0x9659d5f599e478bd",
+#     "start_time": "2024-10-16T13:05:04.699369Z",
+#     "end_time": "2024-10-16T13:05:04.699369Z",
 #     "status": {
 #         "status_code": "UNSET"
 #     },
@@ -936,14 +936,14 @@ print(ai_msg_2["answer"])
 #     "events": [
 #         {
 #             "name": "data.input",
-#             "timestamp": "2024-10-16T09:52:34.802116Z",
+#             "timestamp": "2024-10-16T13:05:04.699369Z",
 #             "attributes": {
 #                 "question": ""
 #             }
 #         },
 #         {
 #             "name": "data.output",
-#             "timestamp": "2024-10-16T09:52:34.803127Z",
+#             "timestamp": "2024-10-16T13:05:04.699369Z",
 #             "attributes": {
 #                 "response": ""
 #             }
@@ -960,14 +960,14 @@ print(ai_msg_2["answer"])
 # {
 #     "name": "langchain.workflow",
 #     "context": {
-#         "trace_id": "0x37f4ce7086c0b2421336a2cb539d76bf",
-#         "span_id": "0xedcc85d7c7369c38",
+#         "trace_id": "0x9b427909ca38b77658b50203f15ad504",
+#         "span_id": "0x9659d5f599e478bd",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0xb0719037837a35e4",
-#     "start_time": "2024-10-16T09:52:33.061831Z",
-#     "end_time": "2024-10-16T09:52:34.803127Z",
+#     "parent_id": "0x74ca7c24b2a6ff00",
+#     "start_time": "2024-10-16T13:05:03.357043Z",
+#     "end_time": "2024-10-16T13:05:04.699369Z",
 #     "status": {
 #         "status_code": "UNSET"
 #     },
@@ -977,14 +977,14 @@ print(ai_msg_2["answer"])
 #     "events": [
 #         {
 #             "name": "data.input",
-#             "timestamp": "2024-10-16T09:52:33.061831Z",
+#             "timestamp": "2024-10-16T13:05:03.357043Z",
 #             "attributes": {
 #                 "question": ""
 #             }
 #         },
 #         {
 #             "name": "data.output",
-#             "timestamp": "2024-10-16T09:52:34.803127Z",
+#             "timestamp": "2024-10-16T13:05:04.699369Z",
 #             "attributes": {
 #                 "response": ""
 #             }
@@ -1001,14 +1001,14 @@ print(ai_msg_2["answer"])
 # {
 #     "name": "langchain.workflow",
 #     "context": {
-#         "trace_id": "0x37f4ce7086c0b2421336a2cb539d76bf",
-#         "span_id": "0xb0719037837a35e4",
+#         "trace_id": "0x9b427909ca38b77658b50203f15ad504",
+#         "span_id": "0x74ca7c24b2a6ff00",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0x34efaf1bc7bb171b",
-#     "start_time": "2024-10-16T09:52:33.055769Z",
-#     "end_time": "2024-10-16T09:52:34.803127Z",
+#     "parent_id": "0x1821460947bc7307",
+#     "start_time": "2024-10-16T13:05:03.350522Z",
+#     "end_time": "2024-10-16T13:05:04.699369Z",
 #     "status": {
 #         "status_code": "UNSET"
 #     },
@@ -1018,14 +1018,14 @@ print(ai_msg_2["answer"])
 #     "events": [
 #         {
 #             "name": "data.input",
-#             "timestamp": "2024-10-16T09:52:33.055769Z",
+#             "timestamp": "2024-10-16T13:05:03.350522Z",
 #             "attributes": {
 #                 "question": ""
 #             }
 #         },
 #         {
 #             "name": "data.output",
-#             "timestamp": "2024-10-16T09:52:34.803127Z",
+#             "timestamp": "2024-10-16T13:05:04.699369Z",
 #             "attributes": {
 #                 "response": ""
 #             }
@@ -1042,14 +1042,14 @@ print(ai_msg_2["answer"])
 # {
 #     "name": "langchain.workflow",
 #     "context": {
-#         "trace_id": "0x37f4ce7086c0b2421336a2cb539d76bf",
-#         "span_id": "0x34efaf1bc7bb171b",
+#         "trace_id": "0x9b427909ca38b77658b50203f15ad504",
+#         "span_id": "0x1821460947bc7307",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
 #     "parent_id": null,
-#     "start_time": "2024-10-16T09:52:31.793647Z",
-#     "end_time": "2024-10-16T09:52:34.803127Z",
+#     "start_time": "2024-10-16T13:05:01.504201Z",
+#     "end_time": "2024-10-16T13:05:04.699369Z",
 #     "status": {
 #         "status_code": "UNSET"
 #     },
@@ -1061,21 +1061,21 @@ print(ai_msg_2["answer"])
 #     "events": [
 #         {
 #             "name": "data.input",
-#             "timestamp": "2024-10-16T09:52:31.793647Z",
+#             "timestamp": "2024-10-16T13:05:01.505201Z",
 #             "attributes": {
 #                 "input": "What are common ways of doing it?"
 #             }
 #         },
 #         {
 #             "name": "data.input",
-#             "timestamp": "2024-10-16T09:52:31.793647Z",
+#             "timestamp": "2024-10-16T13:05:01.505201Z",
 #             "attributes": {
 #                 "question": ""
 #             }
 #         },
 #         {
 #             "name": "data.output",
-#             "timestamp": "2024-10-16T09:52:34.803127Z",
+#             "timestamp": "2024-10-16T13:05:04.699369Z",
 #             "attributes": {
 #                 "response": ""
 #             }

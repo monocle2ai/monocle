@@ -110,7 +110,7 @@ def process_span(output_processor,span,instance,args):
             count=0
             if 'attributes' in output_processor:
                 count = len(output_processor["attributes"])
-                span.set_attribute("span.count", count)
+                span.set_attribute("entity.count", count)
                 span_index = 1
                 for processors in output_processor["attributes"]:
                     for processor in processors:
@@ -126,7 +126,7 @@ def process_span(output_processor,span,instance,args):
                 span.set_attribute("span.count", count)
 
         else:
-            logger.warning("entities json is not in correct format")
+            logger.warning("empty or entities json is not in correct format")
 
 
 def post_task_processing(to_wrap, span, return_value):

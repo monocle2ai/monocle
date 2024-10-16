@@ -46,20 +46,20 @@ print(response)
 # {
 #     "name": "llamaindex.retrieve",
 #     "context": {
-#         "trace_id": "0xfa96372d5aba7c70704ac50bc2b51176",
-#         "span_id": "0xa7552dd6063f2733",
+#         "trace_id": "0x9b384dc0255183ffacee26e2da0d8655",
+#         "span_id": "0x8974f60f72d5d0ad",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0xf55279e34c4d3983",
-#     "start_time": "2024-10-16T09:55:40.468963Z",
-#     "end_time": "2024-10-16T09:55:40.980743Z",
+#     "parent_id": "0x0f469ddf63b1b514",
+#     "start_time": "2024-10-16T13:08:17.828595Z",
+#     "end_time": "2024-10-16T13:08:18.411710Z",
 #     "status": {
 #         "status_code": "UNSET"
 #     },
 #     "attributes": {
 #         "span.type": "retrieval",
-#         "span.count": 2,
+#         "entity.count": 2,
 #         "entity.1.name": "ChromaVectorStore",
 #         "entity.1.type": "vectorstore.ChromaVectorStore",
 #         "entity.1.embedding_model_name": "text-embedding-3-large",
@@ -70,14 +70,14 @@ print(response)
 #     "events": [
 #         {
 #             "name": "data.input",
-#             "timestamp": "2024-10-16T09:55:40.469979Z",
+#             "timestamp": "2024-10-16T13:08:17.829609Z",
 #             "attributes": {
 #                 "question": "What did the author do growing up?"
 #             }
 #         },
 #         {
 #             "name": "data.output",
-#             "timestamp": "2024-10-16T09:55:40.980743Z",
+#             "timestamp": "2024-10-16T13:08:18.411710Z",
 #             "attributes": {
 #                 "response": "this is some sample text"
 #             }
@@ -94,20 +94,20 @@ print(response)
 # {
 #     "name": "llamaindex.openai",
 #     "context": {
-#         "trace_id": "0xfa96372d5aba7c70704ac50bc2b51176",
-#         "span_id": "0xd3eb98ed7e430de7",
+#         "trace_id": "0x9b384dc0255183ffacee26e2da0d8655",
+#         "span_id": "0x9c6d57bb612795db",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0xf55279e34c4d3983",
-#     "start_time": "2024-10-16T09:55:40.982255Z",
-#     "end_time": "2024-10-16T09:55:42.403410Z",
+#     "parent_id": "0x0f469ddf63b1b514",
+#     "start_time": "2024-10-16T13:08:18.412710Z",
+#     "end_time": "2024-10-16T13:08:19.842145Z",
 #     "status": {
 #         "status_code": "UNSET"
 #     },
 #     "attributes": {
 #         "span.type": "inference",
-#         "span.count": 2,
+#         "entity.count": 2,
 #         "entity.1.type": "inference.azure_oai",
 #         "entity.1.provider_name": "api.openai.com",
 #         "entity.1.inference_endpoint": "https://api.openai.com/v1",
@@ -118,7 +118,7 @@ print(response)
 #     "events": [
 #         {
 #             "name": "metadata",
-#             "timestamp": "2024-10-16T09:55:42.403410Z",
+#             "timestamp": "2024-10-16T13:08:19.842145Z",
 #             "attributes": {
 #                 "temperature": 0.1,
 #                 "completion_tokens": 15,
@@ -138,14 +138,14 @@ print(response)
 # {
 #     "name": "llamaindex.query",
 #     "context": {
-#         "trace_id": "0xfa96372d5aba7c70704ac50bc2b51176",
-#         "span_id": "0xf55279e34c4d3983",
+#         "trace_id": "0x9b384dc0255183ffacee26e2da0d8655",
+#         "span_id": "0x0f469ddf63b1b514",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
 #     "parent_id": null,
-#     "start_time": "2024-10-16T09:55:40.468963Z",
-#     "end_time": "2024-10-16T09:55:42.404421Z",
+#     "start_time": "2024-10-16T13:08:17.828595Z",
+#     "end_time": "2024-10-16T13:08:19.842145Z",
 #     "status": {
 #         "status_code": "UNSET"
 #     },
@@ -156,28 +156,28 @@ print(response)
 #     "events": [
 #         {
 #             "name": "data.input",
-#             "timestamp": "2024-10-16T09:55:40.468963Z",
+#             "timestamp": "2024-10-16T13:08:17.828595Z",
 #             "attributes": {
 #                 "question": "What did the author do growing up?"
 #             }
 #         },
 #         {
 #             "name": "data.input",
-#             "timestamp": "2024-10-16T09:55:40.468963Z",
+#             "timestamp": "2024-10-16T13:08:17.828595Z",
 #             "attributes": {
 #                 "question": ""
 #             }
 #         },
 #         {
 #             "name": "data.output",
-#             "timestamp": "2024-10-16T09:55:42.404421Z",
+#             "timestamp": "2024-10-16T13:08:19.842145Z",
 #             "attributes": {
 #                 "response": ""
 #             }
 #         },
 #         {
 #             "name": "data.output",
-#             "timestamp": "2024-10-16T09:55:42.404421Z",
+#             "timestamp": "2024-10-16T13:08:19.842145Z",
 #             "attributes": {
 #                 "response": "The context does not provide information about what the author did while growing up."
 #             }

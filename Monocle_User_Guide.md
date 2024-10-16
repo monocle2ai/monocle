@@ -1,4 +1,4 @@
-#Monocle User Guide
+# Monocle User Guide
 
 ## Monocle Concepts
 ### Traces
@@ -13,14 +13,26 @@ It’s typically the workflow code components of an application that generate th
 ``` 
     > pip install monocle_apptrace
 ```
+
+- For Azure support (to upload traces to Azure), install with the azure extra:
+```
+    > pip install monocle_apptrace[azure]
+```
+
+- For AWS support (to upload traces to AWS), install with the aws extra:
+```
+    > pip install monocle_apptrace[aws]
+```
+
 - You can locally build and install Monocle library from source
 ```
-> pip install .
+    > pip install .
 ```
 - Install the optional test dependencies listed against dev in pyproject.toml in editable mode
 ```
-> pip install -e ".[dev]"
+    > pip install -e ".[dev]"
 ```
+
 
 ## Using Monocle with your application to generate traces
 ### Enable Monocle tracing
@@ -48,7 +60,7 @@ chain.invoke({"number":2})
 # Request callbacks: Finally, let's use the request `callbacks` to achieve the same result
 chain = LLMChain(llm=llm, prompt=prompt)
 chain.invoke({"number":2}, {"callbacks":[handler]})
-    
+
 ```
 
 ### Accessing monocle trace
@@ -63,6 +75,12 @@ setup_monocle_telemetry(workflow_name = "simple_math_app",
 ```
 To print the trace on the console, use ```ConsoleSpanExporter()``` instead of ```FileSpanExporter()```
 
+For Azure:
+    Install the Azure support as shown in the setup section, then use  ```AzureBlobSpanExporter()``` to upload the traces to Azure. 
+
+For AWS:
+    Install the AWS support as shown in the setup section, then use  ```S3SpanExporter()``` to upload the traces to an S3 bucket.
+ 
 ### Leveraging Monocle's extensibility to handle customization 
 When the out of box features from app frameworks are not sufficent, the app developers have to add custom code. For example, if you are extending a LLM class in LlamaIndex to use a model hosted in NVIDIA Triton. This new class is not know to Monocle. You can specify this new class method part of Monocle enabling API and it will be able to trace it.
 

@@ -1,4 +1,4 @@
-{ 
+{
 "wrapper_methods" : [
     {
         "package": "langchain.prompts.base",
@@ -19,7 +19,8 @@
         "object": "BaseChatModel",
         "method": "invoke",
         "wrapper_package": "wrap_common",
-        "wrapper_method": "llm_wrapper"
+        "wrapper_method": "llm_wrapper",
+        "output_processor": ["metamodel/maps/attributes/inference/langchain_entities.json"]
     },
     {
         "package": "langchain.chat_models.base",
@@ -47,7 +48,9 @@
         "object": "BaseRetriever",
         "method": "invoke",
         "wrapper_package": "wrap_common",
-        "wrapper_method": "task_wrapper"
+        "wrapper_method": "task_wrapper",
+        "output_processor": ["metamodel/maps/attributes/retrieval/langchain_entities.json"]
+
     },
     {
         "package": "langchain_core.retrievers",

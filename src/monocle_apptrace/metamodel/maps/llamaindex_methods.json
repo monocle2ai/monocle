@@ -6,7 +6,8 @@
         "method": "retrieve",
         "span_name": "llamaindex.retrieve",
         "wrapper_package": "wrap_common",
-        "wrapper_method": "task_wrapper"
+        "wrapper_method": "task_wrapper",
+        "output_processor": ["metamodel/maps/attributes/retrieval/llamaindex_entities.json"]
     },
     {
         "package": "llama_index.core.indices.base_retriever",
@@ -55,8 +56,7 @@
         "span_name": "llamaindex.openai",
         "wrapper_package": "wrap_common",
         "wrapper_method": "llm_wrapper",
-        "span_name_getter_package" : "llamaindex",
-        "span_name_getter_mothod" : "get_llm_span_name_for_openai"
+        "output_processor": ["metamodel/maps/attributes/inference/llamaindex_entities.json"]
     },
     {
         "package": "llama_index.llms.openai.base",

@@ -1,0 +1,35 @@
+{
+  "type": "retrieval",
+  "attributes": [
+    [
+      {
+        "_comment": "vector store name and type",
+        "attribute": "name",
+        "accessor": "lambda instance,args: type(instance.vectorstore).__name__"
+      },
+      {
+        "attribute": "type",
+        "accessor": "lambda instance,args: 'vectorstore.'+type(instance.vectorstore).__name__"
+      },
+      {
+        "attribute": "embedding_model_name",
+        "accessor": "lambda instance,args: instance.vectorstore.embeddings.model"
+      }
+    ],
+    [
+      {
+        "_comment": "embedding model name and type",
+        "attribute": "name",
+        "accessor": "lambda instance,args: instance.vectorstore.embeddings.model"
+      },
+      {
+        "attribute": "type",
+        "accessor": "lambda instance ,args: 'model.embedding'"
+      },
+      {
+        "attribute": "model_name",
+        "accessor": "lambda instance,args: instance.vectorstore.embeddings.model"
+      }
+    ]
+  ]
+}

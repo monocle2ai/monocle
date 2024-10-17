@@ -1,0 +1,49 @@
+{
+    "description": "Monocle entities represents kinds GenAI technology components and their implementations supported by Monocle",
+    "monocle_entities": [
+        {
+            "name": "workflow",
+            "attributes" : [],
+            "categories": []
+        },
+        {
+            "name": "model",
+            "attributes" : [
+                {
+                    "attribute_name": "model_name",
+                    "attribute_description": "Model name",
+                    "required": true
+                }
+            ],
+            "categories": [
+                {
+                    "name": "llm",
+                    "attributes" : []
+                },
+                {
+                    "name": "embedding",
+                    "attributes" : []
+                },
+                {
+                    "name": "generic",
+                    "attributes" : []
+                }
+            ]
+        },
+        {
+            "name": "vector_store",
+            "attributes" : [],
+            "categories": []
+        },
+        {
+            "name": "app_hosting",
+            "attributes" : [],
+            "categories": []
+        },
+        {
+            "name": "inference",
+            "attributes" : [],
+            "categories": []
+        }
+    ]
+}

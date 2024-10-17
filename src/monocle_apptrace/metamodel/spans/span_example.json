@@ -13,7 +13,7 @@
         "status_code": "OK"
     },
     "attributes": {
-        "span.type": "Retrieval", 
+        "span.type": "retrieval", 
         "entity.count": 2,
         "entity.1.name": "ChromaVectorStore",
         "entity.1.type": "vectorstore.chroma",

@@ -1,0 +1,22 @@
+{
+    "entity" : "workflow",
+    "types": [
+        {
+            "name": "llama_index",
+            "attributes" : []
+        },
+        {
+            "name": "langchain",
+            "attributes" : []
+        },
+        {
+            "name": "haystack",
+            "attributes" : []
+        },
+        {
+            "name": "generic",
+            "attributes" : []
+        }
+
+    ]
+}

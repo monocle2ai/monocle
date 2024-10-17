@@ -4,7 +4,7 @@ from opentelemetry.context import attach, set_value
 from opentelemetry.instrumentation.utils import (
     _SUPPRESS_INSTRUMENTATION_KEY,
 )
-from monocle_apptrace.wrap_common import PROMPT_INPUT_KEY, PROMPT_OUTPUT_KEY, WORKFLOW_TYPE_MAP, with_tracer_wrapper, CONTEXT_INPUT_KEY
+from monocle_apptrace.wrap_common import PROMPT_INPUT_KEY, PROMPT_OUTPUT_KEY, WORKFLOW_TYPE_MAP, with_tracer_wrapper, DATA_INPUT_KEY
 from monocle_apptrace.utils import set_embedding_model, set_attribute
 
 logger = logging.getLogger(__name__)
@@ -20,7 +20,7 @@ def wrap(tracer, to_wrap, wrapped, instance, args, kwargs):
     workflow_input = get_workflow_input(args, inputs)
     embedding_model = get_embedding_model(instance)
     set_embedding_model(embedding_model)
-    set_attribute(CONTEXT_INPUT_KEY, workflow_input)
+    set_attribute(DATA_INPUT_KEY, workflow_input)
 
 
     with tracer.start_as_current_span(f"{name}.workflow") as span:

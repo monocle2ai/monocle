@@ -1,0 +1,41 @@
+{
+    "entity" : "model",
+    "types": [
+        {
+            "name": "gpt3",
+            "attributes" : []
+        },
+        {
+            "name": "gpt-3.5",
+            "attributes" : []
+        },
+        {
+            "name": "gpt-3.5-turbo",
+            "attributes" : []
+        },
+        {
+            "name": "gpt-3.5",
+            "attributes" : []
+        },
+        {
+            "name": "gpt4",
+            "attributes" : []
+        },
+        {
+            "name": "gpt4o",
+            "attributes" : []
+        },
+        {
+            "name": "gpt4o-mini",
+            "attributes" : []
+        },
+        {
+            "name": "ollama",
+            "attributes" : []
+        },
+        {
+            "name": "generic",
+            "attributes" : []
+        }
+    ]
+}

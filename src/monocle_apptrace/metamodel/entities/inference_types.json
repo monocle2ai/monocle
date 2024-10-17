@@ -1,0 +1,33 @@
+{
+    "entity" : "vector_store",
+    "types": [
+        {
+            "name": "aws_sagemaker",
+            "attributes" : []
+        },
+        {
+            "name": "aws_bedrock",
+            "attributes" : []
+        },
+        {
+            "name": "azure_oai",
+            "attributes" : []
+        },
+        {
+            "name": "openai",
+            "attributes" : []
+        },
+        {
+            "name": "nvidia_triton",
+            "attributes" : []
+        },
+        {
+            "name": "hugging_face",
+            "attributes" : []
+        },
+        {
+            "name": "generic",
+            "attributes" : []
+        }
+    ]
+}

@@ -130,21 +130,27 @@ def process_span(output_processor,span,instance,args):
 
 
 def post_task_processing(to_wrap, span, return_value):
-    update_span_with_context_output(to_wrap=to_wrap, return_value=return_value, span=span)
+    try:
+        update_span_with_context_output(to_wrap=to_wrap, return_value=return_value, span=span)
 
-    if is_root_span(span):
-        workflow_name = span.resource.attributes.get("service.name")
-        span.set_attribute("workflow_name", workflow_name)
-        update_span_with_prompt_output(to_wrap=to_wrap, wrapped_args=return_value, span=span)
-        update_workflow_type(to_wrap, span)
+        if is_root_span(span):
+            update_span_with_prompt_output(to_wrap=to_wrap, wrapped_args=return_value, span=span)
+    except:
+        logger.exception("exception in post_task_processing")
 
 def pre_task_processing(to_wrap, instance, args, span):
-    if is_root_span(span):
-        update_span_with_prompt_input(to_wrap=to_wrap, wrapped_args=args, span=span)
+    try:
+        if is_root_span(span):
+            workflow_name = span.resource.attributes.get("service.name")
+            span.set_attribute("workflow_name", workflow_name)
+            update_workflow_type(to_wrap, span)
+            update_span_with_prompt_input(to_wrap=to_wrap, wrapped_args=args, span=span)
+            update_span_with_infra_name(span, INFRA_SERVICE_KEY)
 
-        update_span_with_infra_name(span, INFRA_SERVICE_KEY)
-
-    update_span_with_context_input(to_wrap=to_wrap, wrapped_args=args, span=span)
+        update_span_with_context_input(to_wrap=to_wrap, wrapped_args=args, span=span)
+    except:
+        logger.exception("exception in pre_task_processing")
+    
 
 @with_tracer_wrapper
 async def atask_wrapper(tracer, to_wrap, wrapped, instance, args, kwargs):

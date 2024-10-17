@@ -13,7 +13,7 @@ Workflow ie the core application code.
 #### Workflow types
 - generic
 - langchain
-- llama_index
+- llamaindex
 - haystack
 
 ### MonocleEntity.Model

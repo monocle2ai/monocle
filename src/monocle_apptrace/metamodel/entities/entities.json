@@ -4,7 +4,7 @@
         {
             "name": "workflow",
             "attributes" : [],
-            "categorie": []
+            "categories": []
         },
         {
             "name": "model",
@@ -15,7 +15,7 @@
                     "required": true
                 }
             ],
-            "categorie": [
+            "categories": [
                 {
                     "name": "llm",
                     "attributes" : []
@@ -33,17 +33,17 @@
         {
             "name": "vector_store",
             "attributes" : [],
-            "categorie": []
+            "categories": []
         },
         {
             "name": "app_hosting",
             "attributes" : [],
-            "categorie": []
+            "categories": []
         },
         {
             "name": "inference",
             "attributes" : [],
-            "categorie": []
+            "categories": []
         }
     ]
 }

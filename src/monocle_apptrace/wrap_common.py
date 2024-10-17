@@ -130,21 +130,27 @@ def process_span(output_processor,span,instance,args):
 
 
 def post_task_processing(to_wrap, span, return_value):
-    update_span_with_context_output(to_wrap=to_wrap, return_value=return_value, span=span)
+    try:
+        update_span_with_context_output(to_wrap=to_wrap, return_value=return_value, span=span)
 
-    if is_root_span(span):
-        workflow_name = span.resource.attributes.get("service.name")
-        span.set_attribute("workflow_name", workflow_name)
-        update_span_with_prompt_output(to_wrap=to_wrap, wrapped_args=return_value, span=span)
-        update_workflow_type(to_wrap, span)
+        if is_root_span(span):
+            update_span_with_prompt_output(to_wrap=to_wrap, wrapped_args=return_value, span=span)
+    except:
+        logger.exception("exception in post_task_processing")
 
 def pre_task_processing(to_wrap, instance, args, span):
-    if is_root_span(span):
-        update_span_with_prompt_input(to_wrap=to_wrap, wrapped_args=args, span=span)
+    try:
+        if is_root_span(span):
+            workflow_name = span.resource.attributes.get("service.name")
+            span.set_attribute("workflow_name", workflow_name)
+            update_workflow_type(to_wrap, span)
+            update_span_with_prompt_input(to_wrap=to_wrap, wrapped_args=args, span=span)
+            update_span_with_infra_name(span, INFRA_SERVICE_KEY)
 
-        update_span_with_infra_name(span, INFRA_SERVICE_KEY)
-
-    update_span_with_context_input(to_wrap=to_wrap, wrapped_args=args, span=span)
+        update_span_with_context_input(to_wrap=to_wrap, wrapped_args=args, span=span)
+    except:
+        logger.exception("exception in pre_task_processing")
+    
 
 @with_tracer_wrapper
 async def atask_wrapper(tracer, to_wrap, wrapped, instance, args, kwargs):
@@ -331,9 +337,9 @@ def update_workflow_type(to_wrap, span: Span):
 def update_span_with_context_input(to_wrap, wrapped_args, span: Span):
     package_name: str = to_wrap.get('package')
     input_arg_text = ""
-    if "langchain_core.retrievers" in package_name:
+    if "langchain_core.retrievers" in package_name and len(wrapped_args) > 0:
         input_arg_text += wrapped_args[0]
-    if "llama_index.core.indices.base_retriever" in package_name:
+    if "llama_index.core.indices.base_retriever" in package_name and len(wrapped_args) > 0:
         input_arg_text += wrapped_args[0].query_str
     if "haystack.components.retrievers.in_memory" in package_name:
         input_arg_text += get_attribute(DATA_INPUT_KEY)
@@ -347,7 +353,7 @@ def update_span_with_context_output(to_wrap, return_value, span: Span):
         output_arg_text += " ".join([doc.page_content for doc in return_value if hasattr(doc, 'page_content')])
         if len(output_arg_text) > 100:
             output_arg_text = output_arg_text[:100] + "..."
-    if "llama_index.core.indices.base_retriever" in package_name:
+    if "llama_index.core.indices.base_retriever" in package_name and len(return_value) > 0:
         output_arg_text += return_value[0].text
     if "haystack.components.retrievers.in_memory" in package_name:
         output_arg_text += " ".join([doc.content for doc in return_value['documents']])

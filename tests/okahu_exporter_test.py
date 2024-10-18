@@ -1,13 +1,13 @@
 import unittest
-from unittest.mock import patch, MagicMock, call
-from monocle_apptrace.exporters.okahu.exporter import OkahuSpanExporter, remove_0x_from_start
+from unittest.mock import patch, MagicMock
+from monocle_apptrace.exporters.okahu.exporter import OkahuSpanExporter
 from opentelemetry.sdk.trace.export import ConsoleSpanExporter, SpanExportResult
 from requests.exceptions import ReadTimeout
 from opentelemetry.sdk.trace import ReadableSpan
 import json
 class TestOkahuSpanExporter(unittest.TestCase):
 
-    @patch.dict('os.environ', {}, clear=True)  # Simulate environment without API key
+    @patch.dict('os.environ', {}, clear=True)
     def test_default_to_console_exporter(self):
         """Test that it defaults to ConsoleSpanExporter when no API key is set."""
         exporter = OkahuSpanExporter()

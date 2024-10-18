@@ -1,6 +1,6 @@
 import unittest
 from unittest.mock import patch, MagicMock
-from monocle_apptrace.exporters.okahu.exporter import OkahuSpanExporter
+from monocle_apptrace.exporters.okahu.okahu_exporter import OkahuSpanExporter
 from opentelemetry.sdk.trace.export import ConsoleSpanExporter, SpanExportResult
 from requests.exceptions import ReadTimeout
 from opentelemetry.sdk.trace import ReadableSpan

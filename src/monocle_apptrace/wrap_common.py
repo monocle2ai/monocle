@@ -117,7 +117,8 @@ def process_span(output_processor,span,instance,args):
                         if 'attribute' in processor and 'accessor' in processor:
                             attribute_name = f"entity.{span_index}.{processor['attribute']}"
                             result = eval(processor['accessor'])(instance, args)
-                            span.set_attribute(attribute_name, result)
+                            if result:
+                                span.set_attribute(attribute_name, result)
                         else:
                             logger.warning("attribute or accessor not found or incorrect written in entity json")
                     span_index += 1
@@ -161,6 +162,8 @@ async def atask_wrapper(tracer, to_wrap, wrapped, instance, args, kwargs):
     else:
         name = f"langchain.task.{instance.__class__.__name__}"
     with tracer.start_as_current_span(name) as span:
+        if "output_processor" in to_wrap:
+            process_span(to_wrap["output_processor"],span,instance,args)
         pre_task_processing(to_wrap, instance, args, span)
         return_value = await wrapped(*args, **kwargs)
         post_task_processing(to_wrap, span, return_value)
@@ -184,11 +187,18 @@ async def allm_wrapper(tracer, to_wrap, wrapped, instance, args, kwargs):
     else:
         name = f"langchain.task.{instance.__class__.__name__}"
     with tracer.start_as_current_span(name) as span:
-        update_llm_endpoint(curr_span=span, instance=instance)
+        if 'haystack.components.retrievers' in to_wrap['package'] and 'haystack.retriever' in span.name:
+            input_arg_text = get_attribute(DATA_INPUT_KEY)
+            span.add_event(DATA_INPUT_KEY, {QUERY: input_arg_text})
+        provider_name = set_provider_name(instance)
+        instance_args = {"provider_name": provider_name}
+        if 'output_processor' in to_wrap:
+            process_span(to_wrap['output_processor'], span, instance, instance_args)
 
         return_value = await wrapped(*args, **kwargs)
-        
-        update_span_from_llm_response(response = return_value, span = span, instance=instance)
+        if 'haystack.components.retrievers' in to_wrap['package'] and 'haystack.retriever' in span.name:
+            update_span_with_context_output(to_wrap=to_wrap, return_value=return_value, span=span)
+        update_span_from_llm_response(response=return_value, span=span, instance=instance)
 
     return return_value
 

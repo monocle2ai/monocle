@@ -59,7 +59,10 @@ def load_output_processor(wrapper_method, attributes_config_base_path):
     logger.info(f'Output processor file path is: {output_processor_file_path}')
 
     if isinstance(output_processor_file_path, str) and output_processor_file_path:  # Combined condition
-        absolute_file_path = os.path.join(attributes_config_base_path, output_processor_file_path)
+        if not attributes_config_base_path:
+            absolute_file_path = os.path.abspath(output_processor_file_path)
+        else:
+            absolute_file_path = os.path.join(attributes_config_base_path, output_processor_file_path)
 
         logger.info(f'Absolute file path is: {absolute_file_path}')
         try:
@@ -107,7 +110,7 @@ def process_wrapper_method_config(
                 wrapper_method["span_name_getter"] = get_wrapper_method(
                     wrapper_method["span_name_getter_package"],
                     wrapper_method["span_name_getter_method"])
-        if "output_processor" in wrapper_method:
+        if "output_processor" in wrapper_method and wrapper_method["output_processor"]:
             load_output_processor(wrapper_method, attributes_config_base_path)
 
 def get_wrapper_method(package_name: str, method_name: str):

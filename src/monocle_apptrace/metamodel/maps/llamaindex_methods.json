@@ -15,7 +15,8 @@
         "method": "aretrieve",
         "span_name": "llamaindex.retrieve",
         "wrapper_package": "wrap_common",
-        "wrapper_method": "atask_wrapper"
+        "wrapper_method": "atask_wrapper",
+        "output_processor": ["metamodel/maps/attributes/retrieval/llamaindex_entities.json"]
     },
     {
         "package": "llama_index.core.base.base_query_engine",
@@ -39,7 +40,8 @@
         "method": "chat",
         "span_name": "llamaindex.llmchat",
         "wrapper_package": "wrap_common",
-        "wrapper_method": "task_wrapper"
+        "wrapper_method": "task_wrapper",
+        "output_processor": ["metamodel/maps/attributes/inference/llamaindex_entities.json"]
     },
     {
         "package": "llama_index.core.llms.custom",
@@ -47,7 +49,8 @@
         "method": "achat",
         "span_name": "llamaindex.llmchat",
         "wrapper_package": "wrap_common",
-        "wrapper_method": "atask_wrapper"
+        "wrapper_method": "atask_wrapper",
+        "output_processor": ["metamodel/maps/attributes/inference/llamaindex_entities.json"]
     },
     {
         "package": "llama_index.llms.openai.base",
@@ -64,7 +67,8 @@
         "method": "achat",
         "span_name": "llamaindex.openai",
         "wrapper_package": "wrap_common",
-        "wrapper_method": "allm_wrapper"
+        "wrapper_method": "allm_wrapper",
+        "output_processor": ["metamodel/maps/attributes/inference/llamaindex_entities.json"]
     }
 ]
 }

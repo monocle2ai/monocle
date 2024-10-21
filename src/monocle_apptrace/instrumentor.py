@@ -92,6 +92,7 @@ def setup_monocle_telemetry(
     })
     span_processors = span_processors or [BatchSpanProcessor(FileSpanExporter())]
     trace_provider = TracerProvider(resource=resource)
+    attach(set_value("workflow_name", workflow_name))
     tracer_provider_default = trace.get_tracer_provider()
     provider_type = type(tracer_provider_default).__name__
     is_proxy_provider = "Proxy" in provider_type

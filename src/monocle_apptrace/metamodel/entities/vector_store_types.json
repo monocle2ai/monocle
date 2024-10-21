@@ -1,0 +1,25 @@
+{
+    "entity" : "vector_store",
+    "types": [
+        {
+            "name": "chroma",
+            "attributes" : []
+        },
+        {
+            "name": "aws_es",
+            "attributes" : []
+        },
+        {
+            "name": "milvus",
+            "attributes" : []
+        },
+        {
+            "name": "pinecone",
+            "attributes" : []
+        },
+        {
+            "name": "generic",
+            "attributes" : []
+        }
+    ]
+}

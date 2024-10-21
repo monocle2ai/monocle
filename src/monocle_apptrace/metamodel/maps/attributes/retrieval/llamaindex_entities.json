@@ -10,10 +10,6 @@
       {
         "attribute": "type",
         "accessor": "lambda instance,args: 'vectorstore.'+type(instance._vector_store).__name__"
-      },
-      {
-        "attribute": "embedding_model_name",
-        "accessor": "lambda instance,args: instance._embed_model.model_name"
       }
     ],
     [
@@ -24,11 +20,7 @@
       },
       {
         "attribute": "type",
-        "accessor": "lambda instance ,args: 'model.embedding'"
-      },
-      {
-        "attribute": "model_name",
-        "accessor": "lambda instance,args: instance._embed_model.model_name"
+        "accessor": "lambda instance ,args: 'model.embedding.'+instance._embed_model.model_name"
       }
     ]
   ]

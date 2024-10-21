@@ -27,21 +27,24 @@
         "object": "BaseChatModel",
         "method": "ainvoke",
         "wrapper_package": "wrap_common",
-        "wrapper_method": "allm_wrapper"
+        "wrapper_method": "allm_wrapper",
+        "output_processor": ["metamodel/maps/attributes/inference/langchain_entities.json"]
     },
     {
         "package": "langchain_core.language_models.llms",
         "object": "LLM",
         "method": "_generate",
         "wrapper_package": "wrap_common",
-        "wrapper_method": "llm_wrapper"
+        "wrapper_method": "llm_wrapper",
+        "output_processor": ["metamodel/maps/attributes/inference/langchain_entities.json"]
     },
     {
         "package": "langchain_core.language_models.llms",
         "object": "LLM",
         "method": "_agenerate",
         "wrapper_package": "wrap_common",
-        "wrapper_method": "llm_wrapper"
+        "wrapper_method": "allm_wrapper",
+        "output_processor": ["metamodel/maps/attributes/inference/langchain_entities.json"]
     },
     {
         "package": "langchain_core.retrievers",
@@ -57,7 +60,8 @@
         "object": "BaseRetriever",
         "method": "ainvoke",
         "wrapper_package": "wrap_common",
-        "wrapper_method": "atask_wrapper"
+        "wrapper_method": "atask_wrapper",
+        "output_processor": ["metamodel/maps/attributes/retrieval/langchain_entities.json"]
     },
     {
         "package": "langchain.schema",

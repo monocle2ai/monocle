@@ -118,9 +118,13 @@ def process_span(output_processor, span, instance, args):
                 for processor in processors:
                     if 'attribute' in processor and 'accessor' in processor:
                         attribute_name = f"entity.{span_index}.{processor['attribute']}"
-                        result = eval(processor['accessor'])(instance, args)
-                        if result:
-                            span.set_attribute(attribute_name, result)
+                        try:
+                            result = eval(processor['accessor'])(instance, args)
+                            if result and isinstance(result, str):
+                                span.set_attribute(attribute_name, result)
+                        except Exception as e:
+                            pass
+
                     else:
                         logger.warning("attribute or accessor not found or incorrect written in entity json")
                 span_index += 1

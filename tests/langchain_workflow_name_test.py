@@ -59,7 +59,7 @@ formatter = logging.Formatter('%(asctime)s [%(levelname)s] %(name)s: %(message)s
 fileHandler.setFormatter(formatter)
 logger.addHandler(fileHandler)
 
-class TestHandler(unittest.TestCase):
+class TestWorkflowEntityProperties(unittest.TestCase):
 
     prompt = PromptTemplate.from_template(
         """

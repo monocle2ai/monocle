@@ -150,7 +150,10 @@ class TestHandler(unittest.TestCase):
             '''mock_post.call_args gives the parameters used to make post call.
             This can be used to do more asserts'''
             dataBodyStr = mock_post.call_args.kwargs['data']
-            print(dataJson)
+            print("dataBodyStr")
+            logging.info("dataBodyStr")
+            print(dataBodyStr)
+            logging.info(dataBodyStr)
             dataJson =  json.loads(dataBodyStr) # more asserts can be added on individual fields
             # assert len(dataJson['batch']) == 75 = {dict: 11} {'attributes': {'session.context_key_1': 'context_value_1'}, 'context': {'span_id': '18a8d75ec4c94523', 'trace_id': '4fedeffc8d9a4ec8b3029a437b667e15', 'trace_state': '[]'}, 'end_time': '2024-09-17T07:30:36.830264Z', 'events': [], 'kind': 'SpanKind.INTERNAL', 'links': [], 'name': 'langchain.task.StrOutputParser', 'parent_id': 'f371def04dfa963d', 'resource': {'attributes': {'service.name': 'test'}, 'schema_url': ''}, 'start_time': '2024-09-17T07:30:36.829211Z', 'status': {'status_code': 'UNSET'}}... View
 

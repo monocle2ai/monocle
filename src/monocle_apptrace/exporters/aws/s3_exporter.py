@@ -10,7 +10,7 @@ from opentelemetry.sdk.trace import ReadableSpan
 from opentelemetry.sdk.trace.export import SpanExporter, SpanExportResult
 from monocle_apptrace.exporters.base_exporter import SpanExporterBase
 from typing import Sequence
-
+import json
 logger = logging.getLogger(__name__)
 
 class S3SpanExporter(SpanExporterBase):
@@ -110,7 +110,16 @@ class S3SpanExporter(SpanExporterBase):
         try:
             # Serialize spans to JSON or any other format you prefer
             span_data_list = [span.to_json() for span in spans]
-            return "[" + ", ".join(span_data_list) + "]"
+            valid_json_list = []
+            for span_data in span_data_list:
+                try:
+                    json_object = json.loads(span_data)
+                    valid_json_list.append(json.dumps(json_object))
+                except json.JSONDecodeError as e:
+                    logger.error(f"Invalid JSON format in span data: {span_data}. Error: {e}")
+                    continue
+            ndjson_data = "\n".join(valid_json_list) + "\n"
+            return ndjson_data
         except Exception as e:
             logger.error(f"Error serializing spans: {e}")
             raise
@@ -135,7 +144,7 @@ class S3SpanExporter(SpanExporterBase):
 
     def __upload_to_s3(self, span_data_batch: str):
         current_time = datetime.datetime.now().strftime(self.time_format)
-        file_name = f"{self.file_prefix}{current_time}.json"
+        file_name = f"{self.file_prefix}{current_time}.ndjson"
         self.s3_client.put_object(
             Bucket=self.bucket_name,
             Key=file_name,

@@ -1,10 +1,10 @@
 import json
 import logging
 import os
-from typing import Callable, Optional, Sequence
+from typing import Optional, Sequence
 import requests
 from opentelemetry.sdk.trace import ReadableSpan
-from opentelemetry.sdk.trace.export import SpanExporter, SpanExportResult, ConsoleSpanExporter
+from opentelemetry.sdk.trace.export import SpanExporter, SpanExportResult
 from requests.exceptions import ReadTimeout
 
 from monocle_apptrace.exporters.exporter_processor import ExportTaskProcessor

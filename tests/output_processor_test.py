@@ -6,7 +6,6 @@ import unittest
 from unittest.mock import Mock
 import logging
 import os
-from src.monocle_apptrace.wrapper import WrapperMethod
 
 # Initialize the logger for testing
 logging.basicConfig(level=logging.WARNING)

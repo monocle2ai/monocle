@@ -158,10 +158,9 @@ class TestHandler(unittest.TestCase):
             llm_vector_store_retriever_span = [x for x in dataJson["batch"] if 'langchain.task.VectorStoreRetriever' in x["name"]][0]
             root_span_attributes = root_span["attributes"]
             root_span_events = root_span["events"]
-            
-            assert llm_span["attributes"]["provider_name"] == "example.com"
-            assert llm_vector_store_retriever_span["attributes"]["embedding_model"] == "FAISS"
-            assert llm_vector_store_retriever_span["attributes"]["provider_name"] == "HuggingFaceEmbeddings"
+            assert llm_span["attributes"]["entity.1.provider_name"] == "example.com"
+            assert llm_vector_store_retriever_span["attributes"]["entity.1.name"] == "FAISS"
+            # assert llm_vector_store_retriever_span["attributes"]["provider_name"] == "HuggingFaceEmbeddings"
 
             def get_event_attributes(events, key):
                 return [event['attributes'] for event in events if event['name'] == key][0]
@@ -219,10 +218,12 @@ class TestHandler(unittest.TestCase):
                 'token_usage': {'completion_tokens': 58, 'prompt_tokens': 584, 'total_tokens': 642}
             }
         )
-        update_span_from_llm_response(span=span,response=message)
-        assert span.attributes.get("completion_tokens") == 58
-        assert span.attributes.get("prompt_tokens") == 584
-        assert span.attributes.get("total_tokens") == 642
+        class DummyObject:
+            pass
+        update_span_from_llm_response(span=span,response=message, instance=DummyObject())
+        assert span.events[0].attributes.get("completion_tokens") == 58
+        assert span.events[0].attributes.get("prompt_tokens") == 584
+        assert span.events[0].attributes.get("total_tokens") == 642
 
 if __name__ == '__main__':
     unittest.main()

@@ -4,12 +4,10 @@ name: Tox
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "main", "kshitiz/update_test" ]
   pull_request:
     # The branches below must be a subset of the branches above
     branches: [ "main" ]
-  schedule:
-    - cron: '18 8 * * 0'
 
 jobs:
   tox:
@@ -29,4 +27,3 @@ jobs:
 
       - name: Run tox tests
         run: python -m tox -c tox.ini
-        continue-on-error: true

@@ -1,0 +1,16 @@
+{
+    "span_types" : [
+        {
+            "type": "inference",
+            "description": "Model inference span"
+        },
+        {
+            "type": "retrieval",
+            "description": "vector embedding retrieval"
+        },
+        {
+            "type": "workflow",
+            "description": "workflow orchetraction at top level"
+        }
+    ]
+}

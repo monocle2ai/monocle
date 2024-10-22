@@ -1,4 +1,4 @@
-import logging
+import logging, os
 from typing import Collection, List
 from wrapt import wrap_function_wrapper
 from opentelemetry.trace import get_tracer
@@ -12,7 +12,7 @@ from opentelemetry.context import get_value, attach, set_value
 from monocle_apptrace.utils import process_wrapper_method_config
 from monocle_apptrace.wrap_common import SESSION_PROPERTIES_KEY
 from monocle_apptrace.wrapper import INBUILT_METHODS_LIST, WrapperMethod
-from monocle_apptrace.exporters.file_exporter import FileSpanExporter
+from monocle_apptrace.exporters.monocle_exporters import get_monocle_exporter
 
 logger = logging.getLogger(__name__)
 
@@ -90,7 +90,7 @@ def setup_monocle_telemetry(
     resource = Resource(attributes={
         SERVICE_NAME: workflow_name
     })
-    span_processors = span_processors or [BatchSpanProcessor(FileSpanExporter())]
+    span_processors = span_processors or [BatchSpanProcessor(get_monocle_exporter())]
     trace_provider = TracerProvider(resource=resource)
     attach(set_value("workflow_name", workflow_name))
     tracer_provider_default = trace.get_tracer_provider()

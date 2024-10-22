@@ -50,7 +50,7 @@ from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExport
 from fake_list_llm import FakeListLLM
 from parameterized import parameterized
 
-from monocle_apptrace.wrap_common import task_wrapper
+from src.monocle_apptrace.wrap_common import task_wrapper
 
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
@@ -59,7 +59,7 @@ formatter = logging.Formatter('%(asctime)s [%(levelname)s] %(name)s: %(message)s
 fileHandler.setFormatter(formatter)
 logger.addHandler(fileHandler)
 
-class TestHandler(unittest.TestCase):
+class TestWorkflowEntityProperties(unittest.TestCase):
 
     prompt = PromptTemplate.from_template(
         """
@@ -133,16 +133,7 @@ class TestHandler(unittest.TestCase):
             span_processors=[
                 BatchSpanProcessor(HttpSpanExporter("https://localhost:3000/api/v1/traces"))
             ],
-            wrapper_methods=[
-                WrapperMethod(
-                    package="langchain_core.retrievers",
-                    object_name="BaseRetriever",
-                    method="invoke",
-                    wrapper=task_wrapper,
-                    output_processor=["entities.json"]
-                ),
-
-            ])
+            wrapper_methods=[])
         try:
 
             os.environ[test_input_infra] = "1"
@@ -169,11 +160,12 @@ class TestHandler(unittest.TestCase):
             dataBodyStr = mock_post.call_args.kwargs['data']
             dataJson =  json.loads(dataBodyStr) # more asserts can be added on individual fields
 
-            llm_vector_store_retriever_span = [x for x in dataJson["batch"] if 'langchain.task.VectorStoreRetriever' in x["name"]][0]
+            root_span = [x for x in dataJson["batch"] if x["parent_id"] == "None"][0]
 
-            assert llm_vector_store_retriever_span["attributes"]["span.type"] == "retrieval"
-            assert llm_vector_store_retriever_span["attributes"]["entity.1.name"] == "FAISS"
-            assert llm_vector_store_retriever_span["attributes"]["entity.1.type"] == "vectorstore.FAISS"
+            # workflow_name and workflow_type in new format entity.{index}.name and entity.{index}.type
+
+            assert root_span["attributes"]["entity.1.name"] == "test"
+            assert root_span["attributes"]["entity.1.type"] == "workflow.langchain"
 
         finally:
             os.environ.pop(test_input_infra)

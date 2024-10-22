@@ -128,19 +128,19 @@ def process_span(to_wrap, span, instance, args):
                 span_index = 1
                 for processors in output_processor["attributes"]:
                     for processor in processors:
-                        if 'attribute' in processor:
-                            if 'accessor' in processor:
-                                attribute_name = f"entity.{span_index}.{processor['attribute']}"
-                                try:
-                                    result = eval(processor['accessor'])(instance, args)
-                                    if result and isinstance(result, str):
-                                        span.set_attribute(attribute_name, result)
-                                except Exception as e:
-                                    pass
-                            else:
-                                logger.warning("accessor not found or incorrect written in entity json")
+                        attribute = processor.get('attribute')
+                        accessor = processor.get('accessor')
+
+                        if attribute and accessor:
+                            attribute_name = f"entity.{span_index}.{attribute}"
+                            try:
+                                result = eval(accessor)(instance, args)
+                                if result and isinstance(result, str):
+                                    span.set_attribute(attribute_name, result)
+                            except Exception as e:
+                                logger.error(f"Error processing accessor: {e}")
                         else:
-                            logger.warning("attribute not found or incorrect written in entity json")
+                            logger.warning(f"{' and '.join([key for key in ['attribute', 'accessor'] if not processor.get(key)])} not found or incorrect in entity JSON")
                     span_index += 1
             else:
                 logger.warning("attributes not found or incorrect written in entity json")

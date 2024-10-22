@@ -128,17 +128,19 @@ def process_span(to_wrap, span, instance, args):
                 span_index = 1
                 for processors in output_processor["attributes"]:
                     for processor in processors:
-                        if 'attribute' in processor and 'accessor' in processor:
-                            attribute_name = f"entity.{span_index}.{processor['attribute']}"
-                            try:
-                                result = eval(processor['accessor'])(instance, args)
-                                if result and isinstance(result, str):
-                                    span.set_attribute(attribute_name, result)
-                            except Exception as e:
-                                pass
-
+                        if 'attribute' in processor:
+                            if 'accessor' in processor:
+                                attribute_name = f"entity.{span_index}.{processor['attribute']}"
+                                try:
+                                    result = eval(processor['accessor'])(instance, args)
+                                    if result and isinstance(result, str):
+                                        span.set_attribute(attribute_name, result)
+                                except Exception as e:
+                                    pass
+                            else:
+                                logger.warning("accessor not found or incorrect written in entity json")
                         else:
-                            logger.warning("attribute or accessor not found or incorrect written in entity json")
+                            logger.warning("attribute not found or incorrect written in entity json")
                     span_index += 1
             else:
                 logger.warning("attributes not found or incorrect written in entity json")
@@ -214,7 +216,7 @@ async def allm_wrapper(tracer, to_wrap, wrapped, instance, args, kwargs):
         provider_name = set_provider_name(instance)
         instance_args = {"provider_name": provider_name}
 
-        process_span(to_wrap['output_processor'], span, instance, instance_args)
+        process_span(to_wrap, span, instance, instance_args)
 
         return_value = await wrapped(*args, **kwargs)
         if 'haystack.components.retrievers' in to_wrap['package'] and 'haystack.retriever' in span.name:
@@ -247,7 +249,7 @@ def llm_wrapper(tracer: Tracer, to_wrap, wrapped, instance, args, kwargs):
         provider_name = set_provider_name(instance)
         instance_args = {"provider_name": provider_name}
 
-        process_span(to_wrap['output_processor'], span, instance, instance_args)
+        process_span(to_wrap, span, instance, instance_args)
 
         return_value = wrapped(*args, **kwargs)
         if 'haystack.components.retrievers' in to_wrap['package'] and 'haystack.retriever' in span.name:

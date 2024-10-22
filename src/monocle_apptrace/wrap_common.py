@@ -186,7 +186,7 @@ async def atask_wrapper(tracer, to_wrap, wrapped, instance, args, kwargs):
     else:
         name = f"langchain.task.{instance.__class__.__name__}"
     with tracer.start_as_current_span(name) as span:
-        process_span(to_wrap["output_processor"], span, instance, args)
+        process_span(to_wrap, span, instance, args)
         pre_task_processing(to_wrap, instance, args, span)
         return_value = await wrapped(*args, **kwargs)
         post_task_processing(to_wrap, span, return_value)

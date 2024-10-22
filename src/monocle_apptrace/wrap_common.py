@@ -107,12 +107,12 @@ def process_span(to_wrap, span, instance, args):
     if is_root_span(span):
         workflow_name = get_value("workflow_name")
         if workflow_name:
-            span.set_attribute(f"entities.{span_index}.name", workflow_name)
+            span.set_attribute(f"entity.{span_index}.name", workflow_name)
         # workflow type
         package_name = to_wrap.get('package')
         for (package, workflow_type) in WORKFLOW_TYPE_MAP.items():
             if (package_name is not None and package in package_name):
-                span.set_attribute(f"entities.{span_index}.type", workflow_type)
+                span.set_attribute(f"entity.{span_index}.type", workflow_type)
         span_index += 1
     if 'output_processor' in to_wrap:
         output_processor=to_wrap['output_processor']

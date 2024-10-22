@@ -22,15 +22,16 @@ from dotenv import load_dotenv, dotenv_values
 import logging
 logging.basicConfig(level=logging.INFO)
 load_dotenv()
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-
+os.environ["OPENAI_API_KEY"] = " "
+os.environ['CONNECTION_STRING'] = ""
+os.environ['CONTAINER_NAME'] = ""
 exporter = AzureBlobSpanExporter()
 setup_monocle_telemetry(
             workflow_name="langchain_app_1",
             span_processors=[BatchSpanProcessor(exporter)],
             wrapper_methods=[])
 
-llm = ChatOpenAI(model="gpt-3.5-turbo-0125",openai_api_key=OPENAI_API_KEY)
+llm = ChatOpenAI(model="gpt-3.5-turbo-0125")
 
 # Load, chunk and index the contents of the blog.
 loader = WebBaseLoader(
@@ -45,7 +46,7 @@ docs = loader.load()
 
 text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
 splits = text_splitter.split_documents(docs)
-vectorstore = Chroma.from_documents(documents=splits, embedding=OpenAIEmbeddings(openai_api_key=OPENAI_API_KEY))
+vectorstore = Chroma.from_documents(documents=splits, embedding=OpenAIEmbeddings())
 
 # Retrieve and generate using the relevant snippets of the blog.
 retriever = vectorstore.as_retriever()
@@ -102,9 +103,15 @@ set_context_properties({"session_id": "0x4fa6d91d1f2a4bdbb7a1287d90ec4a16"})
 question = "What is Task Decomposition?"
 ai_msg_1 = rag_chain.invoke({"input": question, "chat_history": chat_history})
 print(ai_msg_1["answer"])
-chat_history.extend([HumanMessage(content=question), ai_msg_1["answer"]])
+# chat_history.extend([HumanMessage(content=question), ai_msg_1["answer"]])
+#
+# second_question = "What are common ways of doing it?"
+# ai_msg_2 = rag_chain.invoke({"input": second_question, "chat_history": chat_history})
+#
+# print(ai_msg_2["answer"])
 
-second_question = "What are common ways of doing it?"
-ai_msg_2 = rag_chain.invoke({"input": second_question, "chat_history": chat_history})
+#ndjson format stored on blob
 
-print(ai_msg_2["answer"])
+# {"name": "langchain.task.VectorStoreRetriever", "context": {"trace_id": "0x94f6a3d96b14ec831b7f9a3545130fe5", "span_id": "0x447091e285b1da17", "trace_state": "[]"}, "kind": "SpanKind.INTERNAL", "parent_id": "0xa6807c63a68b1cbd", "start_time": "2024-10-22T06:35:07.925768Z", "end_time": "2024-10-22T06:35:08.610434Z", "status": {"status_code": "UNSET"}, "attributes": {"session.session_id": "0x4fa6d91d1f2a4bdbb7a1287d90ec4a16", "span.type": "retrieval", "entity.count": 2, "entity.1.name": "Chroma", "entity.1.type": "vectorstore.Chroma", "entity.2.name": "text-embedding-ada-002", "entity.2.type": "model.embedding.text-embedding-ada-002"}, "events": [{"name": "data.input", "timestamp": "2024-10-22T06:35:07.925905Z", "attributes": {"question": "What is Task Decomposition?"}}, {"name": "data.output", "timestamp": "2024-10-22T06:35:08.610419Z", "attributes": {"response": "Fig. 1. Overview of a LLM-powered autonomous agent system.\nComponent One: Planning#\nA complicated ta..."}}], "links": [], "resource": {"attributes": {"service.name": "langchain_app_1"}, "schema_url": ""}}
+# {"name": "langchain.workflow", "context": {"trace_id": "0x94f6a3d96b14ec831b7f9a3545130fe5", "span_id": "0xa6807c63a68b1cbd", "trace_state": "[]"}, "kind": "SpanKind.INTERNAL", "parent_id": "0x23eea25b1a5abbd5", "start_time": "2024-10-22T06:35:07.925206Z", "end_time": "2024-10-22T06:35:08.610466Z", "status": {"status_code": "UNSET"}, "attributes": {"session.session_id": "0x4fa6d91d1f2a4bdbb7a1287d90ec4a16"}, "events": [], "links": [], "resource": {"attributes": {"service.name": "langchain_app_1"}, "schema_url": ""}}
+#

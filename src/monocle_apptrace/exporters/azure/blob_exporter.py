@@ -10,7 +10,7 @@ from opentelemetry.sdk.trace import ReadableSpan
 from opentelemetry.sdk.trace.export import SpanExporter, SpanExportResult
 from typing import Sequence
 from monocle_apptrace.exporters.base_exporter import SpanExporterBase
-
+import json
 logger = logging.getLogger(__name__)
 
 class AzureBlobSpanExporter(SpanExporterBase):
@@ -84,11 +84,18 @@ class AzureBlobSpanExporter(SpanExporterBase):
 
     def __serialize_spans(self, spans: Sequence[ReadableSpan]) -> str:
         try:
-            span_data_list = [span.to_json() for span in spans]
-            return "[" + ", ".join(span_data_list) + "]"
+            valid_json_list = []
+            for span in spans:
+                try:
+                    valid_json_list.append(span.to_json(indent=0).replace("\n", ""))
+                except json.JSONDecodeError as e:
+                    logger.warning(f"Invalid JSON format in span data: {span.context.span_id}. Error: {e}")
+                    continue
+
+            ndjson_data = "\n".join(valid_json_list) + "\n"
+            return ndjson_data
         except Exception as e:
-            logger.error(f"Error serializing spans: {e}")
-            raise
+            logger.warning(f"Error serializing spans: {e}")
 
     async def __export_spans(self):
         if len(self.export_queue) == 0:
@@ -108,7 +115,7 @@ class AzureBlobSpanExporter(SpanExporterBase):
 
     def __upload_to_blob(self, span_data_batch: str):
         current_time = datetime.datetime.now().strftime(self.time_format)
-        file_name = f"{self.file_prefix}{current_time}.json"
+        file_name = f"{self.file_prefix}{current_time}.ndjson"
         blob_client = self.blob_service_client.get_blob_client(container=self.container_name, blob=file_name)
         blob_client.upload_blob(span_data_batch, overwrite=True)
         logger.info(f"Span batch uploaded to Azure Blob Storage as {file_name}.")

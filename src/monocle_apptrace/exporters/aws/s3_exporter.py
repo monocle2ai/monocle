@@ -109,20 +109,18 @@ class S3SpanExporter(SpanExporterBase):
     def __serialize_spans(self, spans: Sequence[ReadableSpan]) -> str:
         try:
             # Serialize spans to JSON or any other format you prefer
-            span_data_list = [span.to_json() for span in spans]
             valid_json_list = []
-            for span_data in span_data_list:
+            for span in spans:
                 try:
-                    json_object = json.loads(span_data)
-                    valid_json_list.append(json.dumps(json_object))
+                    valid_json_list.append(span.to_json(indent=0).replace("\n", ""))
                 except json.JSONDecodeError as e:
-                    logger.error(f"Invalid JSON format in span data: {span_data}. Error: {e}")
+                    logger.warning(f"Invalid JSON format in span data: {span.context.span_id}. Error: {e}")
                     continue
             ndjson_data = "\n".join(valid_json_list) + "\n"
             return ndjson_data
         except Exception as e:
-            logger.error(f"Error serializing spans: {e}")
-            raise
+            logger.warning(f"Error serializing spans: {e}")
+
 
     async def __export_spans(self):
         if len(self.export_queue) == 0:

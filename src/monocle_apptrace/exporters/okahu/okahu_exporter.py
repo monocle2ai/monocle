@@ -29,9 +29,7 @@ class OkahuSpanExporter(SpanExporter):
         api_key: str = os.environ.get("OKAHU_API_KEY")
         self._closed = False
         if not api_key:
-            logger.warning("OKAHU_API_KEY not set. Using ConsoleSpanExporter instead.")
-            self.exporter = ConsoleSpanExporter()
-            return
+            raise ValueError("OKAHU_API_KEY not set.")
         self.timeout = timeout or 15
         self.session = session or requests.Session()
         self.session.headers.update(

@@ -137,8 +137,8 @@ class TestHandler(unittest.TestCase):
         vectorstore_provider = False
 
         for span in dataJson["batch"]:
-            if span["name"] == "llamaindex.query" and "workflow_type" in span["attributes"]:
-                assert span["attributes"]["workflow_type"] == "workflow.llamaindex"
+            if span["name"] == "llamaindex.query" and "entity.1.type" in span["attributes"]:
+                assert span["attributes"]["entity.1.type"] == "workflow.llamaindex"
                 type_found = True
             # if span["name"] == "llamaindex.OurLLM" and "model_name" in span["attributes"]:
             #     assert span["attributes"]["model_name"] == "custom"

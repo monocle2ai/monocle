@@ -21,24 +21,25 @@ class TestProcessSpan(unittest.TestCase):
 
     def test_valid_output_processor(self):
         """Test case for valid output processor with type and attributes."""
-        output_processor =  {
-            "type": "inference",
-            "attributes": [
-                [
-                    {
-                        "attribute": "provider_name",
-                        "accessor": "lambda instance, args: 'example.com'"
-                    },
-                    {
-                        "attribute": "inference_endpoint",
-                        "accessor": "lambda instance, args: 'https://example.com/'"
-                    }
+        to_wrap ={
+            "output_processor" :  {
+                "type": "inference",
+                "attributes": [
+                    [
+                        {
+                            "attribute": "provider_name",
+                            "accessor": "lambda instance, args: 'example.com'"
+                        },
+                        {
+                            "attribute": "inference_endpoint",
+                            "accessor": "lambda instance, args: 'https://example.com/'"
+                        }
+                    ]
                 ]
-            ]
+            }
         }
 
-
-        process_span(output_processor, self.mock_span, self.mock_instance, self.mock_args)
+        process_span(to_wrap, self.mock_span, self.mock_instance, self.mock_args)
 
         self.mock_span.set_attribute.assert_any_call("span.type", "inference")
         self.mock_span.set_attribute.assert_any_call("entity.count", 1)
@@ -48,21 +49,23 @@ class TestProcessSpan(unittest.TestCase):
 
     def test_output_processor_missing_span_type(self):
         """Test case when type is missing from output processor."""
-        output_processor = {
-            "attributes": [
-                [
-                    {
-                        "attribute": "provider_name",
-                        "accessor": "lambda instance, args: 'example.com'"
-                    },
-                    {
-                        "attribute": "inference_endpoint",
-                        "accessor": "lambda instance, args: 'https://example.com/'"
-                    }
+        to_wrap ={
+                "output_processor" : {
+                "attributes": [
+                    [
+                        {
+                            "attribute": "provider_name",
+                            "accessor": "lambda instance, args: 'example.com'"
+                        },
+                        {
+                            "attribute": "inference_endpoint",
+                            "accessor": "lambda instance, args: 'https://example.com/'"
+                        }
+                    ]
                 ]
-            ]
-        }
-        process_span(output_processor, self.mock_span, self.mock_instance, self.mock_args)
+            }
+         }
+        process_span(to_wrap, self.mock_span, self.mock_instance, self.mock_args)
 
         self.mock_span.set_attribute.assert_any_call("entity.count", 1)
         self.mock_span.set_attribute.assert_any_call("entity.1.provider_name", "example.com")
@@ -70,23 +73,28 @@ class TestProcessSpan(unittest.TestCase):
 
     def test_output_processor_missing_attributes(self):
         """Test case when attributes are missing from output processor."""
-        output_processor = {
+        to_wrap ={
+                    "output_processor" :
+                    {
                            "type": "inference",
                             "attributes":[]
-        }
-        process_span(output_processor, self.mock_span, self.mock_instance, self.mock_args)
+                    }
+                }
+        process_span(to_wrap, self.mock_span, self.mock_instance, self.mock_args)
 
         self.mock_span.set_attribute.assert_any_call("span.type", "inference")
         self.mock_span.set_attribute.assert_any_call("entity.count", 0)
 
     def test_empty_output_processor(self):
         """Test case for an empty output processor."""
-        output_processor = {}
-        process_span(output_processor, self.mock_span, self.mock_instance, self.mock_args)
+        to_wrap={
+            "output_processor":{}
+        }
+        process_span(to_wrap, self.mock_span, self.mock_instance, self.mock_args)
 
         # Log warning expected for incorrect format
         with self.assertLogs(level='WARNING') as log:
-            process_span(output_processor, self.mock_span, self.mock_instance, self.mock_args)
+            process_span(to_wrap, self.mock_span, self.mock_instance, self.mock_args)
 
         # Check if the correct log message is in the captured logs
         self.assertIn("empty or entities json is not in correct format", log.output[0])

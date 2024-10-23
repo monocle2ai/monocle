@@ -50,7 +50,7 @@ from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExport
 from fake_list_llm import FakeListLLM
 from parameterized import parameterized
 
-from src.monocle_apptrace.wrap_common import task_wrapper
+from monocle_apptrace.wrap_common import task_wrapper
 
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)

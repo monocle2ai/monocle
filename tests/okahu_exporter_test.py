@@ -8,14 +8,20 @@ import json
 class TestOkahuSpanExporter(unittest.TestCase):
 
     @patch.dict('os.environ', {}, clear=True)
-    def test_default_to_console_exporter(self):
-        """Test that it defaults to ConsoleSpanExporter when no API key is set."""
-        exporter = OkahuSpanExporter()
-        self.assertIsInstance(exporter.exporter, ConsoleSpanExporter)
-        self.assertEqual(exporter.endpoint, "https://ingest.okahu.co/api/v1/trace/ingest")
+    def test_default_to_exception(self):
+        """Test that it defaults to exception when no API key is set."""
+        exceptionRaised = False
+        try:
+            exporter = OkahuSpanExporter()
+        except Exception as e:
+            self.assertIsInstance(e, ValueError)
+            exceptionRaised = True
+        
+        self.assertTrue(exceptionRaised)
+                 
 
     @patch.dict('os.environ', {'OKAHU_API_KEY': 'test-api-key'})
-    @patch('monocle_apptrace.exporters.okahu.exporter.requests.Session')
+    @patch('monocle_apptrace.exporters.okahu.okahu_exporter.requests.Session')
     def test_okahu_exporter_with_api_key(self, mock_session):
         """Test that OkahuSpanExporter is used when an API key is set."""
         mock_session_instance = MagicMock()
@@ -37,7 +43,7 @@ class TestOkahuSpanExporter(unittest.TestCase):
         mock_post.assert_called_once()
 
     @patch.dict('os.environ', {'OKAHU_API_KEY': 'test-api-key'})
-    @patch('monocle_apptrace.exporters.okahu.exporter.requests.Session')
+    @patch('monocle_apptrace.exporters.okahu.okahu_exporter.requests.Session')
     def test_export_success(self, mock_session):
         mock_session_instance = MagicMock()
         mock_session.return_value = mock_session_instance
@@ -56,7 +62,7 @@ class TestOkahuSpanExporter(unittest.TestCase):
         )
 
     @patch.dict('os.environ', {'OKAHU_API_KEY': 'test-api-key'})
-    @patch('monocle_apptrace.exporters.okahu.exporter.requests.Session')
+    @patch('monocle_apptrace.exporters.okahu.okahu_exporter.requests.Session')
     def test_export_failure(self, mock_session):
         """Test exporting spans with an error response from Okahu."""
         mock_session_instance = MagicMock()
@@ -71,7 +77,7 @@ class TestOkahuSpanExporter(unittest.TestCase):
         self.assertEqual(result, SpanExportResult.FAILURE)
 
     @patch.dict('os.environ', {'OKAHU_API_KEY': 'test-api-key'})
-    @patch('monocle_apptrace.exporters.okahu.exporter.requests.Session')
+    @patch('monocle_apptrace.exporters.okahu.okahu_exporter.requests.Session')
     def test_export_timeout(self, mock_session):
         """Test exporting spans with a timeout."""
         mock_session_instance = MagicMock()

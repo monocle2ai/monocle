@@ -2,11 +2,12 @@
 import logging
 import os
 import inspect
+from importlib.metadata import version
 from urllib.parse import urlparse
 from opentelemetry.trace import Span, Tracer
 from monocle_apptrace.utils import resolve_from_alias, update_span_with_infra_name, with_tracer_wrapper, get_embedding_model, get_attribute
-from monocle_apptrace.utils import set_attribute
-from opentelemetry.context import get_value, attach, set_value
+from opentelemetry.context import get_value
+
 logger = logging.getLogger(__name__)
 WORKFLOW_TYPE_KEY = "workflow_type"
 DATA_INPUT_KEY = "data.input"
@@ -163,6 +164,14 @@ def post_task_processing(to_wrap, span, return_value):
 def pre_task_processing(to_wrap, instance, args, span):
     try:
         if is_root_span(span):
+            workflow_name = span.resource.attributes.get("service.name")
+            span.set_attribute("workflow_name", workflow_name)
+            
+            try:
+                sdk_version = version("monocle_apptrace")
+                span.set_attribute("monocle_sdk_version",sdk_version)
+            except:
+                logger.exception(f"Exception finding monocle_apptrace version.")
             update_span_with_prompt_input(to_wrap=to_wrap, wrapped_args=args, span=span)
             update_span_with_infra_name(span, INFRA_SERVICE_KEY)
 
@@ -303,13 +312,13 @@ def set_provider_name(instance):
             provider_url = instance.api_base
     except:
         pass
-
+    parsed_provider_url = ""
     try:
         if len(provider_url) > 0:
-            parsed_provider_url = urlparse(provider_url)
+            parsed_provider_url = urlparse(provider_url).hostname
     except:
         pass
-    return parsed_provider_url.hostname or provider_url
+    return parsed_provider_url or provider_url
 
 
 def is_root_span(curr_span: Span) -> bool:

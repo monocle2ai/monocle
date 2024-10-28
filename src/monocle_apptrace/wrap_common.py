@@ -213,8 +213,8 @@ async def allm_wrapper(tracer, to_wrap, wrapped, instance, args, kwargs):
         if 'haystack.components.retrievers' in to_wrap['package'] and 'haystack.retriever' in span.name:
             input_arg_text = get_attribute(DATA_INPUT_KEY)
             span.add_event(DATA_INPUT_KEY, {QUERY: input_arg_text})
-        provider_name = set_provider_name(instance)
-        instance_args = {"provider_name": provider_name}
+        provider_name, inference_endpoint = set_provider_name(instance)
+        instance_args = {"provider_name": provider_name, "inference_endpoint": inference_endpoint}
 
         process_span(to_wrap, span, instance, instance_args)
 
@@ -246,8 +246,8 @@ def llm_wrapper(tracer: Tracer, to_wrap, wrapped, instance, args, kwargs):
         if 'haystack.components.retrievers' in to_wrap['package'] and 'haystack.retriever' in span.name:
             input_arg_text = get_attribute(DATA_INPUT_KEY)
             span.add_event(DATA_INPUT_KEY, {QUERY: input_arg_text})
-        provider_name = set_provider_name(instance)
-        instance_args = {"provider_name": provider_name}
+        provider_name, inference_endpoint = set_provider_name(instance)
+        instance_args = {"provider_name": provider_name, "inference_endpoint": inference_endpoint}
 
         process_span(to_wrap, span, instance, instance_args)
 
@@ -291,10 +291,11 @@ def update_llm_endpoint(curr_span: Span, instance):
 
 def set_provider_name(instance):
     provider_url = ""
-
+    inference_endpoint = ""
     try:
         if isinstance(instance.client._client.base_url.host, str):
             provider_url = instance.client._client.base_url.host
+            inference_endpoint = str(instance.client._client.base_url)
     except:
         pass
 
@@ -309,7 +310,7 @@ def set_provider_name(instance):
             parsed_provider_url = urlparse(provider_url)
     except:
         pass
-    return parsed_provider_url.hostname or provider_url
+    return parsed_provider_url.hostname or provider_url,inference_endpoint
 
 
 def is_root_span(curr_span: Span) -> bool:

@@ -213,7 +213,7 @@ async def allm_wrapper(tracer, to_wrap, wrapped, instance, args, kwargs):
         if 'haystack.components.retrievers' in to_wrap['package'] and 'haystack.retriever' in span.name:
             input_arg_text = get_attribute(DATA_INPUT_KEY)
             span.add_event(DATA_INPUT_KEY, {QUERY: input_arg_text})
-        provider_name, inference_endpoint = set_provider_name(instance)
+        provider_name, inference_endpoint = get_provider_name(instance)
         instance_args = {"provider_name": provider_name, "inference_endpoint": inference_endpoint}
 
         process_span(to_wrap, span, instance, instance_args)
@@ -246,7 +246,7 @@ def llm_wrapper(tracer: Tracer, to_wrap, wrapped, instance, args, kwargs):
         if 'haystack.components.retrievers' in to_wrap['package'] and 'haystack.retriever' in span.name:
             input_arg_text = get_attribute(DATA_INPUT_KEY)
             span.add_event(DATA_INPUT_KEY, {QUERY: input_arg_text})
-        provider_name, inference_endpoint = set_provider_name(instance)
+        provider_name, inference_endpoint = get_provider_name(instance)
         instance_args = {"provider_name": provider_name, "inference_endpoint": inference_endpoint}
 
         process_span(to_wrap, span, instance, instance_args)
@@ -289,12 +289,15 @@ def update_llm_endpoint(curr_span: Span, instance):
         )
 
 
-def set_provider_name(instance):
+def get_provider_name(instance):
     provider_url = ""
     inference_endpoint = ""
     try:
         if isinstance(instance.client._client.base_url.host, str):
             provider_url = instance.client._client.base_url.host
+        if isinstance(instance.client._client.base_url, str):
+            inference_endpoint = instance.client._client.base_url
+        else:
             inference_endpoint = str(instance.client._client.base_url)
     except:
         pass

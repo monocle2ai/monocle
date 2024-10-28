@@ -27,7 +27,7 @@ class S3SpanExporter(SpanExporterBase):
             aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY'),
             region_name=region_name,
         )
-        self.bucket_name = bucket_name or os.getenv('AWS_S3_BUCKET_NAME','default-bucket')
+        self.bucket_name = bucket_name or os.getenv('MONOCLE_S3_BUCKET_NAME','default-bucket')
         self.file_prefix = DEFAULT_FILE_PREFIX
         self.time_format = DEFAULT_TIME_FORMAT
         self.export_queue = []

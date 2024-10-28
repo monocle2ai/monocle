@@ -23,8 +23,8 @@ import logging
 logging.basicConfig(level=logging.INFO)
 load_dotenv()
 os.environ["OPENAI_API_KEY"] = " "
-os.environ['CONNECTION_STRING'] = ""
-os.environ['CONTAINER_NAME'] = ""
+os.environ['MONOCLE_BLOB_CONNECTION_STRING'] = ""
+os.environ['MONOCLE_BLOB_CONTAINER_NAME'] = ""
 exporter = AzureBlobSpanExporter()
 setup_monocle_telemetry(
             workflow_name="langchain_app_1",

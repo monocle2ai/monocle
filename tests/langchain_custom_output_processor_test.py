@@ -170,10 +170,12 @@ class TestHandler(unittest.TestCase):
             dataJson =  json.loads(dataBodyStr) # more asserts can be added on individual fields
 
             llm_vector_store_retriever_span = [x for x in dataJson["batch"] if 'langchain.task.VectorStoreRetriever' in x["name"]][0]
+            inference_span = [x for x in dataJson["batch"] if 'langchain.task.FakeListLLM' in x["name"]][0]
 
             assert llm_vector_store_retriever_span["attributes"]["span.type"] == "retrieval"
             assert llm_vector_store_retriever_span["attributes"]["entity.1.name"] == "FAISS"
             assert llm_vector_store_retriever_span["attributes"]["entity.1.type"] == "vectorstore.FAISS"
+            assert inference_span['attributes']["entity.1.inference_endpoint"] == "https://example.com/"
 
         finally:
             os.environ.pop(test_input_infra)

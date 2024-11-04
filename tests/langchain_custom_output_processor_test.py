@@ -18,6 +18,7 @@ from langchain.schema import StrOutputParser
 from langchain_community.vectorstores import faiss
 from langchain_core.messages.ai import AIMessage
 from langchain_core.runnables import RunnablePassthrough
+from monocle_apptrace.wrap_common import WORKFLOW_TYPE_MAP
 from monocle_apptrace.constants import (
     AZURE_APP_SERVICE_ENV_NAME,
     AZURE_APP_SERVICE_NAME,
@@ -175,6 +176,9 @@ class TestHandler(unittest.TestCase):
             This can be used to do more asserts'''
             dataBodyStr = mock_post.call_args.kwargs['data']
             dataJson =  json.loads(dataBodyStr) # more asserts can be added on individual fields
+            root_attributes = [x for x in dataJson["batch"] if x["parent_id"] == "None"][0]["attributes"]
+            assert root_attributes["entity.1.name"] == app_name
+            assert root_attributes["entity.1.type"] == WORKFLOW_TYPE_MAP['langchain']
             if llm_type == "FakeListLLM":
                 llm_vector_store_retriever_span = [x for x in dataJson["batch"] if 'langchain.task.VectorStoreRetriever' in x["name"]][0]
                 inference_span = [x for x in dataJson["batch"] if 'langchain.task.FakeListLLM' in x["name"]][0]

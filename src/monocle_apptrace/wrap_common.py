@@ -444,6 +444,8 @@ def update_span_with_prompt_input(to_wrap, wrapped_args, span: Span):
     if prompt_inputs is not None:  # haystack
         input_arg_text = flatten_dict(prompt_inputs)
         span.add_event(PROMPT_INPUT_KEY, input_arg_text)
+    elif isinstance(input_arg_text, dict):
+        span.add_event(PROMPT_INPUT_KEY, input_arg_text)
     else:
         span.add_event(PROMPT_INPUT_KEY, {QUERY: input_arg_text})
 

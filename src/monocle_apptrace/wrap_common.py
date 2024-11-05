@@ -4,7 +4,7 @@ import os
 import inspect
 from urllib.parse import urlparse
 from opentelemetry.trace import Span, Tracer
-from monocle_apptrace.utils import resolve_from_alias, update_span_with_infra_name, with_tracer_wrapper, get_embedding_model, get_attribute
+from monocle_apptrace.utils import resolve_from_alias, update_span_with_infra_name, with_tracer_wrapper, get_embedding_model, get_attribute, get_workflow_name
 from monocle_apptrace.utils import set_attribute
 from opentelemetry.context import get_value, attach, set_value
 logger = logging.getLogger(__name__)
@@ -105,7 +105,7 @@ def process_span(to_wrap, span, instance, args):
     # Check if the output_processor is a valid JSON (in Python, that means it's a dictionary)
     span_index = 1
     if is_root_span(span):
-        workflow_name = get_value("workflow_name")
+        workflow_name = get_workflow_name(span)
         if workflow_name:
             span.set_attribute(f"entity.{span_index}.name", workflow_name)
         # workflow type

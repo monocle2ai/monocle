@@ -217,9 +217,15 @@ async def atask_wrapper(tracer, to_wrap, wrapped, instance, args, kwargs):
         name = to_wrap.get("span_name")
     else:
         name = get_fully_qualified_class_name(instance)
-    embedding_model = get_embedding_model_haystack(instance)
-    set_embedding_model(embedding_model)
-    instance_args = {"embedding_model": embedding_model}
+    if 'haystack.core.pipeline.pipeline' in to_wrap['package']:
+        embedding_model = get_embedding_model_haystack(instance)
+        set_embedding_model(embedding_model)
+        inputs = set()
+        workflow_input = get_workflow_input(args, inputs)
+        set_attribute(DATA_INPUT_KEY, workflow_input)
+    instance_args = {}
+    if 'haystack.components.retrievers.in_memory' in to_wrap['package']:
+        instance_args = {"embedding_model": get_embedding_model()}
     with tracer.start_as_current_span(name) as span:
         process_span(to_wrap, span, instance, instance_args)
         pre_task_processing(to_wrap, instance, args, span)

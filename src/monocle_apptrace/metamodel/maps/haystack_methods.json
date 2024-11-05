@@ -22,7 +22,8 @@
         "object": "OpenAIChatGenerator",
         "method": "run",
         "wrapper_package": "wrap_common",
-        "wrapper_method": "llm_wrapper"
+        "wrapper_method": "llm_wrapper",
+        "output_processor": ["metamodel/maps/attributes/inference/haystack_entities.json"]
     },
     {
         "package": "haystack.core.pipeline.pipeline",

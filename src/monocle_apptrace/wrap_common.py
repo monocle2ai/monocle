@@ -452,13 +452,14 @@ def update_span_with_prompt_input(to_wrap, wrapped_args, span: Span):
 
 def update_span_with_prompt_output(to_wrap, wrapped_args, span: Span):
     package_name: str = to_wrap.get('package')
-    if isinstance(wrapped_args, str):
-        span.add_event(PROMPT_OUTPUT_KEY, {RESPONSE: wrapped_args})
-    if isinstance(wrapped_args, dict):
-        span.add_event(PROMPT_OUTPUT_KEY, {RESPONSE: wrapped_args['answer']})
+
     if "llama_index.core.base.base_query_engine" in package_name:
         span.add_event(PROMPT_OUTPUT_KEY, {RESPONSE: wrapped_args.response})
-    if "haystack.core.pipeline.pipeline" in package_name:
+    elif "haystack.core.pipeline.pipeline" in package_name:
         resp = get_nested_value(wrapped_args, ['llm', 'replies'])
         if resp is not None:
             span.add_event(PROMPT_OUTPUT_KEY, {RESPONSE: resp})
+    elif isinstance(wrapped_args, str):
+        span.add_event(PROMPT_OUTPUT_KEY, {RESPONSE: wrapped_args})
+    elif isinstance(wrapped_args, dict):
+        span.add_event(PROMPT_OUTPUT_KEY,  wrapped_args)

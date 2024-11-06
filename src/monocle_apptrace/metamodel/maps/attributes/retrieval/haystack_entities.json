@@ -16,11 +16,11 @@
       {
         "_comment": "embedding model name and type",
         "attribute": "name",
-        "accessor": "lambda instance,args: args['embedding_model']"
+        "accessor": "lambda instance,args: get_embedding_model()"
       },
       {
         "attribute": "type",
-        "accessor": "lambda instance ,args: 'model.embedding.'+args['embedding_model']"
+        "accessor": "lambda instance ,args: 'model.embedding.'+get_embedding_model()"
       }
     ]
   ]

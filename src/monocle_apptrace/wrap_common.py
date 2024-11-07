@@ -4,7 +4,7 @@ import os
 import inspect
 from urllib.parse import urlparse
 from opentelemetry.trace import Span, Tracer
-from monocle_apptrace.utils import resolve_from_alias, update_span_with_infra_name, with_tracer_wrapper, get_embedding_model, get_attribute, set_embedding_model
+from monocle_apptrace.utils import resolve_from_alias, update_span_with_infra_name, with_tracer_wrapper, get_embedding_model, get_attribute, get_workflow_name, set_embedding_model
 from monocle_apptrace.utils import set_attribute
 from monocle_apptrace.utils import get_fully_qualified_class_name, flatten_dict, get_nested_value
 from opentelemetry.context import get_value, attach, set_value
@@ -135,7 +135,7 @@ def process_span(to_wrap, span, instance, args):
     # Check if the output_processor is a valid JSON (in Python, that means it's a dictionary)
     span_index = 1
     if is_root_span(span):
-        workflow_name = get_value("workflow_name")
+        workflow_name = get_workflow_name(span)
         if workflow_name:
             span.set_attribute(f"entity.{span_index}.name", workflow_name)
         # workflow type
@@ -247,8 +247,8 @@ async def allm_wrapper(tracer, to_wrap, wrapped, instance, args, kwargs):
     else:
         name =  get_fully_qualified_class_name(instance)
     with tracer.start_as_current_span(name) as span:
-        provider_name = set_provider_name(instance)
-        instance_args = {"provider_name": provider_name}
+        provider_name, inference_endpoint = get_provider_name(instance)
+        instance_args = {"provider_name": provider_name, "inference_endpoint": inference_endpoint}
         process_span(to_wrap, span, instance, instance_args)
         return_value = await wrapped(*args, **kwargs)
         update_span_from_llm_response(response=return_value, span=span, instance=instance)
@@ -273,8 +273,8 @@ def llm_wrapper(tracer: Tracer, to_wrap, wrapped, instance, args, kwargs):
         name =  get_fully_qualified_class_name(instance)
 
     with tracer.start_as_current_span(name) as span:
-        provider_name = set_provider_name(instance)
-        instance_args = {"provider_name": provider_name}
+        provider_name, inference_endpoint = get_provider_name(instance)
+        instance_args = {"provider_name": provider_name, "inference_endpoint": inference_endpoint}
         process_span(to_wrap, span, instance, instance_args)
         return_value = wrapped(*args, **kwargs)
         update_span_from_llm_response(response=return_value, span=span, instance=instance)
@@ -312,12 +312,16 @@ def update_llm_endpoint(curr_span: Span, instance):
         )
 
 
-def set_provider_name(instance):
+def get_provider_name(instance):
     provider_url = ""
-
+    inference_endpoint = ""
     try:
         if isinstance(instance.client._client.base_url.host, str):
             provider_url = instance.client._client.base_url.host
+        if isinstance(instance.client._client.base_url, str):
+            inference_endpoint = instance.client._client.base_url
+        else:
+            inference_endpoint = str(instance.client._client.base_url)
     except:
         pass
 
@@ -332,7 +336,7 @@ def set_provider_name(instance):
             parsed_provider_url = urlparse(provider_url)
     except:
         pass
-    return parsed_provider_url.hostname or provider_url
+    return parsed_provider_url.hostname or provider_url,inference_endpoint
 
 
 def is_root_span(curr_span: Span) -> bool:

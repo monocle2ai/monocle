@@ -346,21 +346,15 @@ def get_input_from_args(chain_args):
 
 
 def update_span_from_llm_response(response, span: Span, instance):
+    if (response is not None and isinstance(response, dict) and "meta" in response) or (response is not None and hasattr(response, "response_metadata")):
+        token_usage = None
+        if (response is not None and isinstance(response, dict) and "meta" in response):  # haystack
+            token_usage = response["meta"][0]["usage"]
 
-    if (response is not None and isinstance(response, dict) and "meta" in response):  # haystack
-        token_usage = response["meta"][0]["usage"]
-        meta_dict={}
-        temperature = instance.__dict__.get("temperature", None)
-        meta_dict.update({"temperature": temperature})
-        meta_dict.update({"completion_tokens": token_usage.get("completion_tokens")})
-        meta_dict.update({"prompt_tokens": token_usage.get("prompt_tokens")})
-        meta_dict.update({"total_tokens": token_usage.get("total_tokens")})
-        span.add_event(META_DATA, meta_dict)
+        if (response is not None and hasattr(response, "response_metadata")):
+            response_metadata = response.response_metadata
+            token_usage = response_metadata.get("token_usage")
 
-    # extract token uasge from langchain openai
-    if (response is not None and hasattr(response, "response_metadata")):
-        response_metadata = response.response_metadata
-        token_usage = response_metadata.get("token_usage")
         meta_dict = {}
         if token_usage is not None:
             temperature = instance.__dict__.get("temperature", None)

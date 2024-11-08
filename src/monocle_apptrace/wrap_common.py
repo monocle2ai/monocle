@@ -4,8 +4,9 @@ import os
 import inspect
 from urllib.parse import urlparse
 from opentelemetry.trace import Span, Tracer
-from monocle_apptrace.utils import resolve_from_alias, update_span_with_infra_name, with_tracer_wrapper, get_embedding_model, get_attribute, get_workflow_name
+from monocle_apptrace.utils import resolve_from_alias, update_span_with_infra_name, with_tracer_wrapper, get_embedding_model, get_attribute, get_workflow_name, set_embedding_model
 from monocle_apptrace.utils import set_attribute
+from monocle_apptrace.utils import get_fully_qualified_class_name, flatten_dict, get_nested_value
 from opentelemetry.context import get_value, attach, set_value
 logger = logging.getLogger(__name__)
 WORKFLOW_TYPE_KEY = "workflow_type"
@@ -75,7 +76,17 @@ framework_vector_store_mapping = {
         'type': VECTOR_STORE,
     },
 }
+def get_embedding_model_haystack(instance):
+    try:
+        if hasattr(instance, 'get_component'):
+            text_embedder = instance.get_component('text_embedder')
+            if text_embedder and hasattr(text_embedder, 'model'):
+                # Set the embedding model attribute
+                return text_embedder.model
+    except:
+        pass
 
+    return None
 
 @with_tracer_wrapper
 def task_wrapper(tracer: Tracer, to_wrap, wrapped, instance, args, kwargs):
@@ -90,7 +101,15 @@ def task_wrapper(tracer: Tracer, to_wrap, wrapped, instance, args, kwargs):
     elif to_wrap.get("span_name"):
         name = to_wrap.get("span_name")
     else:
-        name = f"langchain.task.{instance.__class__.__name__}"
+        name = get_fully_qualified_class_name(instance)
+
+    if 'haystack.core.pipeline.pipeline' in to_wrap['package']:
+        embedding_model = get_embedding_model_haystack(instance)
+        set_embedding_model(embedding_model)
+        inputs = set()
+        workflow_input = get_workflow_input(args, inputs)
+        set_attribute(DATA_INPUT_KEY, workflow_input)
+
 
     with tracer.start_as_current_span(name) as span:
         process_span(to_wrap, span, instance, args)
@@ -100,7 +119,18 @@ def task_wrapper(tracer: Tracer, to_wrap, wrapped, instance, args, kwargs):
 
     return return_value
 
+def get_workflow_input(args, inputs):
+    if args is not None and len(args) > 0:
+        for value in args[0].values():
+            for text in value.values():
+                inputs.add(text)
 
+    workflow_input: str = ""
+
+    if inputs is not None and len(inputs) > 0:
+        for input_str in inputs:
+            workflow_input = workflow_input + input_str
+    return workflow_input
 def process_span(to_wrap, span, instance, args):
     # Check if the output_processor is a valid JSON (in Python, that means it's a dictionary)
     span_index = 1
@@ -184,7 +214,14 @@ async def atask_wrapper(tracer, to_wrap, wrapped, instance, args, kwargs):
     elif to_wrap.get("span_name"):
         name = to_wrap.get("span_name")
     else:
-        name = f"langchain.task.{instance.__class__.__name__}"
+        name = get_fully_qualified_class_name(instance)
+    if 'haystack.core.pipeline.pipeline' in to_wrap['package']:
+        embedding_model = get_embedding_model_haystack(instance)
+        set_embedding_model(embedding_model)
+        inputs = set()
+        workflow_input = get_workflow_input(args, inputs)
+        set_attribute(DATA_INPUT_KEY, workflow_input)
+
     with tracer.start_as_current_span(name) as span:
         process_span(to_wrap, span, instance, args)
         pre_task_processing(to_wrap, instance, args, span)
@@ -208,19 +245,12 @@ async def allm_wrapper(tracer, to_wrap, wrapped, instance, args, kwargs):
     elif to_wrap.get("span_name"):
         name = to_wrap.get("span_name")
     else:
-        name = f"langchain.task.{instance.__class__.__name__}"
+        name =  get_fully_qualified_class_name(instance)
     with tracer.start_as_current_span(name) as span:
-        if 'haystack.components.retrievers' in to_wrap['package'] and 'haystack.retriever' in span.name:
-            input_arg_text = get_attribute(DATA_INPUT_KEY)
-            span.add_event(DATA_INPUT_KEY, {QUERY: input_arg_text})
         provider_name, inference_endpoint = get_provider_name(instance)
         instance_args = {"provider_name": provider_name, "inference_endpoint": inference_endpoint}
-
         process_span(to_wrap, span, instance, instance_args)
-
         return_value = await wrapped(*args, **kwargs)
-        if 'haystack.components.retrievers' in to_wrap['package'] and 'haystack.retriever' in span.name:
-            update_span_with_context_output(to_wrap=to_wrap, return_value=return_value, span=span)
         update_span_from_llm_response(response=return_value, span=span, instance=instance)
 
     return return_value
@@ -240,20 +270,13 @@ def llm_wrapper(tracer: Tracer, to_wrap, wrapped, instance, args, kwargs):
     elif to_wrap.get("span_name"):
         name = to_wrap.get("span_name")
     else:
-        name = f"langchain.task.{instance.__class__.__name__}"
+        name =  get_fully_qualified_class_name(instance)
 
     with tracer.start_as_current_span(name) as span:
-        if 'haystack.components.retrievers' in to_wrap['package'] and 'haystack.retriever' in span.name:
-            input_arg_text = get_attribute(DATA_INPUT_KEY)
-            span.add_event(DATA_INPUT_KEY, {QUERY: input_arg_text})
         provider_name, inference_endpoint = get_provider_name(instance)
         instance_args = {"provider_name": provider_name, "inference_endpoint": inference_endpoint}
-
         process_span(to_wrap, span, instance, instance_args)
-
         return_value = wrapped(*args, **kwargs)
-        if 'haystack.components.retrievers' in to_wrap['package'] and 'haystack.retriever' in span.name:
-            update_span_with_context_output(to_wrap=to_wrap, return_value=return_value, span=span)
         update_span_from_llm_response(response=return_value, span=span, instance=instance)
 
     return return_value
@@ -327,10 +350,15 @@ def get_input_from_args(chain_args):
 
 
 def update_span_from_llm_response(response, span: Span, instance):
-    # extract token uasge from langchain openai
-    if (response is not None and hasattr(response, "response_metadata")):
-        response_metadata = response.response_metadata
-        token_usage = response_metadata.get("token_usage")
+    if (response is not None and isinstance(response, dict) and "meta" in response) or (response is not None and hasattr(response, "response_metadata")):
+        token_usage = None
+        if (response is not None and isinstance(response, dict) and "meta" in response):  # haystack
+            token_usage = response["meta"][0]["usage"]
+
+        if (response is not None and hasattr(response, "response_metadata")):
+            response_metadata = response.response_metadata
+            token_usage = response_metadata.get("token_usage")
+
         meta_dict = {}
         if token_usage is not None:
             temperature = instance.__dict__.get("temperature", None)
@@ -401,7 +429,11 @@ def update_span_with_context_output(to_wrap, return_value, span: Span):
 def update_span_with_prompt_input(to_wrap, wrapped_args, span: Span):
     input_arg_text = wrapped_args[0]
 
-    if isinstance(input_arg_text, dict):
+    prompt_inputs = get_nested_value(input_arg_text, ['prompt_builder'])
+    if prompt_inputs is not None:  # haystack
+        input_arg_text = flatten_dict(prompt_inputs)
+        span.add_event(PROMPT_INPUT_KEY, input_arg_text)
+    elif isinstance(input_arg_text, dict):
         span.add_event(PROMPT_INPUT_KEY, input_arg_text)
     else:
         span.add_event(PROMPT_INPUT_KEY, {QUERY: input_arg_text})
@@ -409,9 +441,14 @@ def update_span_with_prompt_input(to_wrap, wrapped_args, span: Span):
 
 def update_span_with_prompt_output(to_wrap, wrapped_args, span: Span):
     package_name: str = to_wrap.get('package')
-    if isinstance(wrapped_args, str):
-        span.add_event(PROMPT_OUTPUT_KEY, {RESPONSE: wrapped_args})
-    if isinstance(wrapped_args, dict):
-        span.add_event(PROMPT_OUTPUT_KEY, wrapped_args)
+
     if "llama_index.core.base.base_query_engine" in package_name:
         span.add_event(PROMPT_OUTPUT_KEY, {RESPONSE: wrapped_args.response})
+    elif "haystack.core.pipeline.pipeline" in package_name:
+        resp = get_nested_value(wrapped_args, ['llm', 'replies'])
+        if resp is not None:
+            span.add_event(PROMPT_OUTPUT_KEY, {RESPONSE: resp})
+    elif isinstance(wrapped_args, str):
+        span.add_event(PROMPT_OUTPUT_KEY, {RESPONSE: wrapped_args})
+    elif isinstance(wrapped_args, dict):
+        span.add_event(PROMPT_OUTPUT_KEY,  wrapped_args)

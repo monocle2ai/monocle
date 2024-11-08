@@ -22,12 +22,12 @@ class AzureBlobSpanExporter(SpanExporterBase):
         self.export_interval = 1
         # Use default values if none are provided
         if not connection_string:
-            connection_string = os.getenv('CONNECTION_STRING')
+            connection_string = os.getenv('MONOCLE_BLOB_CONNECTION_STRING')
             if not connection_string:
                 raise ValueError("Azure Storage connection string is not provided or set in environment variables.")
 
         if not container_name:
-            container_name = os.getenv('CONTAINER_NAME', 'default-container')
+            container_name = os.getenv('MONOCLE_BLOB_CONTAINER_NAME', 'default-container')
 
         self.blob_service_client = BlobServiceClient.from_connection_string(connection_string)
         self.container_name = container_name

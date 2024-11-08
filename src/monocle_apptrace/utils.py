@@ -6,6 +6,7 @@ from opentelemetry.trace import Span
 from opentelemetry.context import attach, set_value, get_value
 from monocle_apptrace.constants import azure_service_map, aws_service_map
 from json.decoder import JSONDecodeError
+logger = logging.getLogger(__name__)
 
 embedding_model_context = {}
 
@@ -162,3 +163,35 @@ def get_attribute(key: str) -> str:
         The value associated with the given key.
     """
     return get_value(key)
+
+def flatten_dict(d, parent_key='', sep='_'):
+    items = []
+    for k, v in d.items():
+        new_key = f"{parent_key}{sep}{k}" if parent_key else k
+        if isinstance(v, dict):
+            items.extend(flatten_dict(v, new_key, sep=sep).items())
+        else:
+            items.append((new_key, v))
+    return dict(items)
+
+def get_fully_qualified_class_name(instance):
+    if instance is None:
+        return None
+    module_name = instance.__class__.__module__
+    qualname = instance.__class__.__qualname__
+    return f"{module_name}.{qualname}"
+
+# returns json path like key probe in a dictionary
+def get_nested_value(data, keys):
+    for key in keys:
+        if not isinstance(data, dict) or key not in data:
+            return None
+        data = data[key]
+    return data
+
+def get_workflow_name(span: Span) -> str:
+    try:
+        return get_value("workflow_name") or span.resource.attributes.get("service.name")
+    except Exception as e:
+        logger.exception(f"Error getting workflow name: {e}")
+        return None

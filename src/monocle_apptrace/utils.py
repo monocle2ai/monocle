@@ -195,3 +195,19 @@ def get_workflow_name(span: Span) -> str:
     except Exception as e:
         logger.exception(f"Error getting workflow name: {e}")
         return None
+
+def get_vectorstore_deployment(my_map):
+    for keys in my_map.keys():
+        if keys == '_client_settings':
+            client=my_map['_client_settings'].__dict__
+            host = [value for key, value in client.items() if "host" in key and value is not None]
+            port = [value for key, value in client.items() if "port" in key and value is not None]
+            if host is not None and port is not None:
+                return host[0]+":"+str(port[0])
+        if keys == 'index':
+            return type(my_map[keys]).__name__
+
+    host = [value for key, value in my_map.items() if "host" in key and value is not None]
+    port = [value for key, value in my_map.items() if "port" in key and value is not None]
+    if host is not None and port is not None:
+        return host[0] + ":" + str(port[0])

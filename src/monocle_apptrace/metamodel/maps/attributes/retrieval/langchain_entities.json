@@ -10,6 +10,10 @@
       {
         "attribute": "type",
         "accessor": "lambda instance,args: 'vectorstore.'+type(instance.vectorstore).__name__"
+      },
+      {
+        "attribute": "deployment",
+        "accessor": "lambda instance,args: get_vectorstore_deployment(instance.vectorstore.__dict__)"
       }
     ],
     [

@@ -5,7 +5,7 @@ import inspect
 from urllib.parse import urlparse
 from opentelemetry.trace import Span, Tracer
 from monocle_apptrace.utils import resolve_from_alias, update_span_with_infra_name, with_tracer_wrapper, get_embedding_model, get_attribute, get_workflow_name, set_embedding_model
-from monocle_apptrace.utils import set_attribute
+from monocle_apptrace.utils import set_attribute, get_vectorstore_deployment
 from monocle_apptrace.utils import get_fully_qualified_class_name, flatten_dict, get_nested_value
 from opentelemetry.context import get_value, attach, set_value
 logger = logging.getLogger(__name__)

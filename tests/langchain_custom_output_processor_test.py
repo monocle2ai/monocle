@@ -180,15 +180,15 @@ class TestHandler(unittest.TestCase):
             assert root_attributes["entity.1.name"] == app_name
             assert root_attributes["entity.1.type"] == WORKFLOW_TYPE_MAP['langchain']
             if llm_type == "FakeListLLM":
-                llm_vector_store_retriever_span = [x for x in dataJson["batch"] if 'langchain.task.VectorStoreRetriever' in x["name"]][0]
-                inference_span = [x for x in dataJson["batch"] if 'langchain.task.FakeListLLM' in x["name"]][0]
+                llm_vector_store_retriever_span = [x for x in dataJson["batch"] if 'langchain_core.vectorstores.base.VectorStoreRetriever' in x["name"]][0]
+                inference_span = [x for x in dataJson["batch"] if 'fake_list_llm.FakeListLLM' in x["name"]][0]
 
                 assert llm_vector_store_retriever_span["attributes"]["span.type"] == "retrieval"
                 assert llm_vector_store_retriever_span["attributes"]["entity.1.name"] == "FAISS"
                 assert llm_vector_store_retriever_span["attributes"]["entity.1.type"] == "vectorstore.FAISS"
                 assert inference_span['attributes']["entity.1.inference_endpoint"] == "https://example.com/"
             else:
-                llm_azure_openai_span = [x for x in dataJson["batch"] if 'langchain.task.AzureOpenAI' in x["name"]][0]
+                llm_azure_openai_span = [x for x in dataJson["batch"] if 'langchain_openai.llms.azure.AzureOpenAI' in x["name"]][0]
                 assert llm_azure_openai_span["attributes"]["span.type"] == "inference"
                 assert llm_azure_openai_span["attributes"]["entity.1.type"] == "inference.azure_oai"
                 assert llm_azure_openai_span["attributes"]["entity.1.provider_name"] == urlparse(os.environ.get("AZURE_OPENAI_ENDPOINT")).hostname

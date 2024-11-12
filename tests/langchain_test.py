@@ -155,13 +155,13 @@ class TestHandler(unittest.TestCase):
 
             root_span = [x for x in dataJson["batch"] if x["parent_id"] == "None"][0]
             llm_span = [x for x in dataJson["batch"] if "FakeListLLM" in x["name"]][0]
-            llm_vector_store_retriever_span = [x for x in dataJson["batch"] if 'langchain.task.VectorStoreRetriever' in x["name"]][0]
+            llm_vector_store_retriever_span = [x for x in dataJson["batch"] if 'langchain_core.vectorstores.base.VectorStoreRetriever' in x["name"]][0]
             root_span_attributes = root_span["attributes"]
             root_span_events = root_span["events"]
             
-            assert llm_span["attributes"]["provider_name"] == "example.com"
-            assert llm_vector_store_retriever_span["attributes"]["embedding_model"] == "FAISS"
-            assert llm_vector_store_retriever_span["attributes"]["provider_name"] == "HuggingFaceEmbeddings"
+            assert llm_span["attributes"]['entity.1.provider_name'] == "example.com"
+            assert llm_vector_store_retriever_span["attributes"]['entity.1.name'] == "FAISS"
+            assert llm_vector_store_retriever_span["attributes"]["entity.1.type"] == "vectorstore.FAISS"
 
             def get_event_attributes(events, key):
                 return [event['attributes'] for event in events if event['name'] == key][0]
@@ -219,10 +219,17 @@ class TestHandler(unittest.TestCase):
                 'token_usage': {'completion_tokens': 58, 'prompt_tokens': 584, 'total_tokens': 642}
             }
         )
-        update_span_from_llm_response(span=span,response=message)
-        assert span.attributes.get("completion_tokens") == 58
-        assert span.attributes.get("prompt_tokens") == 584
-        assert span.attributes.get("total_tokens") == 642
+        instance = MagicMock()
+        update_span_from_llm_response(span=span, response=message, instance=instance)
+        event_found = False
+        for event in span.events:
+            if event.name == "metadata":
+                attributes = event.attributes
+                assert attributes["completion_tokens"] == 58
+                assert attributes["prompt_tokens"] == 584
+                assert attributes["total_tokens"] == 642
+                event_found = True
+        assert event_found, "META_DATA event with token usage was not found"
 
 if __name__ == '__main__':
     unittest.main()

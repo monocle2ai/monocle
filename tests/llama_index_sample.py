@@ -62,10 +62,8 @@ print(response)
 #         "entity.count": 2,
 #         "entity.1.name": "ChromaVectorStore",
 #         "entity.1.type": "vectorstore.ChromaVectorStore",
-#         "entity.1.embedding_model_name": "text-embedding-3-large",
 #         "entity.2.name": "text-embedding-3-large",
-#         "entity.2.type": "model.embedding",
-#         "entity.2.model_name": "text-embedding-3-large"
+#         "entity.2.type": "model.embedding.text-embedding-3-large"
 #     },
 #     "events": [
 #         {
@@ -112,8 +110,7 @@ print(response)
 #         "entity.1.provider_name": "api.openai.com",
 #         "entity.1.inference_endpoint": "https://api.openai.com/v1",
 #         "entity.2.name": "gpt-4",
-#         "entity.2.type": "model.llm",
-#         "entity.2.model_name": "gpt-4"
+#         "entity.2.type": "model.llm.gpt-4"
 #     },
 #     "events": [
 #         {
@@ -150,34 +147,20 @@ print(response)
 #         "status_code": "UNSET"
 #     },
 #     "attributes": {
-#         "workflow_name": "llama_index_1",
-#         "workflow_type": "workflow.llamaindex"
+#         "entity.1.name": "llama_index_1",
+#         "entity.1.type": "workflow.llamaindex"
 #     },
 #     "events": [
 #         {
 #             "name": "data.input",
-#             "timestamp": "2024-10-16T13:08:17.828595Z",
+#             "timestamp": "2024-11-12T18:29:56.241695Z",
 #             "attributes": {
 #                 "question": "What did the author do growing up?"
 #             }
 #         },
 #         {
-#             "name": "data.input",
-#             "timestamp": "2024-10-16T13:08:17.828595Z",
-#             "attributes": {
-#                 "question": ""
-#             }
-#         },
-#         {
 #             "name": "data.output",
-#             "timestamp": "2024-10-16T13:08:19.842145Z",
-#             "attributes": {
-#                 "response": ""
-#             }
-#         },
-#         {
-#             "name": "data.output",
-#             "timestamp": "2024-10-16T13:08:19.842145Z",
+#             "timestamp": "2024-11-12T18:29:58.734403Z",
 #             "attributes": {
 #                 "response": "The context does not provide information about what the author did while growing up."
 #             }

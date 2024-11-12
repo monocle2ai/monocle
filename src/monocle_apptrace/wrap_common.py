@@ -271,7 +271,7 @@ def llm_wrapper(tracer: Tracer, to_wrap, wrapped, instance, args, kwargs):
     elif to_wrap.get("span_name"):
         name = to_wrap.get("span_name")
     else:
-        name =  get_fully_qualified_class_name(instance)
+        name = get_fully_qualified_class_name(instance)
 
     with tracer.start_as_current_span(name) as span:
         provider_name, inference_endpoint = get_provider_name(instance)
@@ -316,6 +316,7 @@ def update_llm_endpoint(curr_span: Span, instance):
 def get_provider_name(instance):
     provider_url = ""
     inference_endpoint = ""
+    parsed_provider_url = None
     try:
         if isinstance(instance.client._client.base_url.host, str):
             provider_url = instance.client._client.base_url.host
@@ -337,7 +338,7 @@ def get_provider_name(instance):
             parsed_provider_url = urlparse(provider_url)
     except:
         pass
-    return parsed_provider_url.hostname or provider_url,inference_endpoint
+    return (parsed_provider_url.hostname if parsed_provider_url else provider_url), inference_endpoint
 
 
 def is_root_span(curr_span: Span) -> bool:

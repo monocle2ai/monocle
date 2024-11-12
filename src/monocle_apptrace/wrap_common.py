@@ -112,7 +112,6 @@ def task_wrapper(tracer: Tracer, to_wrap, wrapped, instance, args, kwargs):
 
 
     with tracer.start_as_current_span(name) as span:
-
         pre_task_processing(to_wrap, instance, args, span)
         return_value = wrapped(*args, **kwargs)
         process_span(to_wrap, span, instance, args, kwargs, return_value)
@@ -249,7 +248,6 @@ async def allm_wrapper(tracer, to_wrap, wrapped, instance, args, kwargs):
         name =  get_fully_qualified_class_name(instance)
     with tracer.start_as_current_span(name) as span:
         provider_name, inference_endpoint = get_provider_name(instance)
-        #instance_args = {"provider_name": provider_name, "inference_endpoint": inference_endpoint}
         return_value = await wrapped(*args, **kwargs)
         kwargs.update({"provider_name": provider_name, "inference_endpoint": inference_endpoint})
         process_span(to_wrap, span, instance, args, kwargs, return_value)
@@ -276,7 +274,6 @@ def llm_wrapper(tracer: Tracer, to_wrap, wrapped, instance, args, kwargs):
 
     with tracer.start_as_current_span(name) as span:
         provider_name, inference_endpoint = get_provider_name(instance)
-        #instance_args = {"provider_name": provider_name, "inference_endpoint": inference_endpoint}
         return_value = wrapped(*args, **kwargs)
         kwargs.update({"provider_name": provider_name, "inference_endpoint": inference_endpoint})
         process_span(to_wrap, span, instance, args, kwargs, return_value)

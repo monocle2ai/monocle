@@ -164,7 +164,7 @@ def process_span(to_wrap, span, instance, args, kwargs, return_value):
                         if attribute and accessor:
                             attribute_name = f"entity.{span_index}.{attribute}"
                             try:
-                                arguments = {"instance":instance, "args":args, "kwargs":kwargs, "return_value":return_value}
+                                arguments = {"instance":instance, "args":args, "kwargs":kwargs, "output":return_value}
                                 result = eval(accessor)(arguments)
                                 if result and isinstance(result, str):
                                     span.set_attribute(attribute_name, result)

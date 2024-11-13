@@ -26,7 +26,10 @@ from monocle_apptrace.constants import (
     AZURE_ML_ENDPOINT_ENV_NAME,
     AZURE_ML_SERVICE_NAME,
     AWS_LAMBDA_ENV_NAME,
-    AWS_LAMBDA_SERVICE_NAME
+    AWS_LAMBDA_SERVICE_NAME,
+    AWS_LAMBDA_FUNCTION_IDENTIFIER_ENV_NAME,
+    AZURE_APP_SERVICE_IDENTIFIER_ENV_NAME,
+    AZURE_FUNCTION_IDENTIFIER_ENV_NAME
 )
 from monocle_apptrace.instrumentor import (
     MonocleInstrumentor,
@@ -118,17 +121,18 @@ class TestHandler(unittest.TestCase):
         return super().tearDown()
 
     @parameterized.expand([
-       ("1", AZURE_ML_ENDPOINT_ENV_NAME, AZURE_ML_SERVICE_NAME),
-       ("2", AZURE_FUNCTION_WORKER_ENV_NAME, AZURE_FUNCTION_NAME),
-       ("3", AZURE_APP_SERVICE_ENV_NAME, AZURE_APP_SERVICE_NAME),
-       ("4", AWS_LAMBDA_ENV_NAME, AWS_LAMBDA_SERVICE_NAME),
+        ("1", AZURE_ML_ENDPOINT_ENV_NAME, AZURE_ML_SERVICE_NAME, AZURE_ML_ENDPOINT_ENV_NAME),
+        ("2", AZURE_FUNCTION_WORKER_ENV_NAME, AZURE_FUNCTION_NAME, AZURE_FUNCTION_IDENTIFIER_ENV_NAME),
+        ("3", AZURE_APP_SERVICE_ENV_NAME, AZURE_APP_SERVICE_NAME, AZURE_APP_SERVICE_IDENTIFIER_ENV_NAME),
+        ("4", AWS_LAMBDA_ENV_NAME, AWS_LAMBDA_SERVICE_NAME, AWS_LAMBDA_FUNCTION_IDENTIFIER_ENV_NAME),
     ])
     @patch.object(requests.Session, 'post')
-    def test_llm_chain(self, test_name, test_input_infra, test_output_infra, mock_post):
+    def test_llm_chain(self, test_name, test_input_infra, test_output_infra, test_input_infra_identifier, mock_post):
 
         try:
             
             os.environ[test_input_infra] = "1"
+            os.environ[test_input_infra_identifier] = "my-infra-name"
             context_key = "context_key_1"
             context_value = "context_value_1"
             set_context_properties({context_key: context_value})
@@ -172,7 +176,8 @@ class TestHandler(unittest.TestCase):
             assert input_event_attributes[QUERY] == query
             assert output_event_attributes[RESPONSE] == TestHandler.ragText
             assert root_span_attributes[f"{SESSION_PROPERTIES_KEY}.{context_key}"] == context_value
-            assert root_span_attributes[INFRA_SERVICE_KEY] == test_output_infra
+            assert root_span_attributes["entity.2.type"] == "app_hosting." + test_output_infra
+            assert root_span_attributes["entity.2.name"] == "my-infra-name"
 
             for spanObject in dataJson['batch']:
                 assert not spanObject["context"]["span_id"].startswith("0x")

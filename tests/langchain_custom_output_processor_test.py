@@ -36,7 +36,6 @@ from monocle_apptrace.instrumentor import (
 )
 from monocle_apptrace.wrap_common import (
     SESSION_PROPERTIES_KEY,
-    INFRA_SERVICE_KEY,
     PROMPT_INPUT_KEY,
     PROMPT_OUTPUT_KEY,
     QUERY,
@@ -180,8 +179,8 @@ class TestHandler(unittest.TestCase):
             assert root_attributes["entity.1.name"] == app_name
             assert root_attributes["entity.1.type"] == WORKFLOW_TYPE_MAP['langchain']
             if llm_type == "FakeListLLM":
-                llm_vector_store_retriever_span = [x for x in dataJson["batch"] if 'langchain.task.VectorStoreRetriever' in x["name"]][0]
-                inference_span = [x for x in dataJson["batch"] if 'langchain.task.FakeListLLM' in x["name"]][0]
+                llm_vector_store_retriever_span = [x for x in dataJson["batch"] if 'langchain_core.vectorstores.base.VectorStoreRetriever' in x["name"]][0]
+                inference_span = [x for x in dataJson["batch"] if 'fake_list_llm.FakeListLLM' in x["name"]][0]
 
                 assert llm_vector_store_retriever_span["attributes"]["span.type"] == "retrieval"
                 assert llm_vector_store_retriever_span["attributes"]["entity.1.name"] == "FAISS"

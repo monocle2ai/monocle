@@ -35,7 +35,6 @@ from monocle_apptrace.instrumentor import (
 )
 from monocle_apptrace.wrap_common import (
     SESSION_PROPERTIES_KEY,
-    INFRA_SERVICE_KEY,
     PROMPT_INPUT_KEY,
     PROMPT_OUTPUT_KEY,
     QUERY,
@@ -159,7 +158,7 @@ class TestHandler(unittest.TestCase):
 
             root_span = [x for x in dataJson["batch"] if x["parent_id"] == "None"][0]
             llm_span = [x for x in dataJson["batch"] if "FakeListLLM" in x["name"]][0]
-            llm_vector_store_retriever_span = [x for x in dataJson["batch"] if 'langchain.task.VectorStoreRetriever' in x["name"]][0]
+            llm_vector_store_retriever_span = [x for x in dataJson["batch"] if 'langchain_core.vectorstores.base.VectorStoreRetriever' in x["name"]][0]
             root_span_attributes = root_span["attributes"]
             root_span_events = root_span["events"]
             assert llm_span["attributes"]["entity.1.provider_name"] == "example.com"
@@ -175,7 +174,6 @@ class TestHandler(unittest.TestCase):
             assert input_event_attributes[QUERY] == query
             assert output_event_attributes[RESPONSE] == TestHandler.ragText
             assert root_span_attributes[f"{SESSION_PROPERTIES_KEY}.{context_key}"] == context_value
-            assert root_span_attributes[INFRA_SERVICE_KEY] == test_output_infra
 
             for spanObject in dataJson['batch']:
                 assert not spanObject["context"]["span_id"].startswith("0x")

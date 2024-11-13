@@ -1,13 +1,12 @@
 # pylint: disable=protected-access
+from functools import reduce
 import logging
 import os
 import inspect
 from importlib.metadata import version
 from urllib.parse import urlparse
 from opentelemetry.trace import Span, Tracer
-from monocle_apptrace.utils import resolve_from_alias, update_span_with_infra_name, with_tracer_wrapper, get_embedding_model, get_attribute, get_workflow_name, set_embedding_model
-from monocle_apptrace.utils import set_attribute
-from monocle_apptrace.utils import get_fully_qualified_class_name, flatten_dict, get_nested_value
+from monocle_apptrace.utils import resolve_from_alias, with_tracer_wrapper, set_embedding_model, get_embedding_model, get_attribute, get_workflow_name, get_fully_qualified_class_name, flatten_dict, get_nested_value, set_attribute, set_app_hosting_identifier_attribute
 
 logger = logging.getLogger(__name__)
 WORKFLOW_TYPE_KEY = "workflow_type"
@@ -18,12 +17,8 @@ PROMPT_OUTPUT_KEY = "data.output"
 QUERY = "question"
 RESPONSE = "response"
 SESSION_PROPERTIES_KEY = "session"
-INFRA_SERVICE_KEY = "infra_service_name"
-
 TYPE = "type"
 PROVIDER = "provider_name"
-EMBEDDING_MODEL = "embedding_model"
-VECTOR_STORE = 'vector_store'
 META_DATA = 'metadata'
 
 WORKFLOW_TYPE_MAP = {
@@ -32,50 +27,15 @@ WORKFLOW_TYPE_MAP = {
     "haystack": "workflow.haystack"
 }
 
-def get_embedding_model_for_vectorstore(instance):
-    # Handle Langchain or other frameworks where vectorstore exists
-    if hasattr(instance, 'vectorstore'):
-        vectorstore_dict = instance.vectorstore.__dict__
-
-        # Use inspect to check if the embedding function is from Sagemaker
-        if 'embedding_func' in vectorstore_dict:
-            embedding_func = vectorstore_dict['embedding_func']
-            class_name = embedding_func.__class__.__name__
-            file_location = inspect.getfile(embedding_func.__class__)
-
-            # Check if the class is SagemakerEndpointEmbeddings
-            if class_name == 'SagemakerEndpointEmbeddings' and 'langchain_community' in file_location:
-                # Set embedding_model as endpoint_name if it's Sagemaker
-                if hasattr(embedding_func, 'endpoint_name'):
-                    return embedding_func.endpoint_name
-
-        # Default to the regular embedding model if not Sagemaker
-        return instance.vectorstore.embeddings.model
-
-    # Handle llama_index where _embed_model is present
-    if hasattr(instance, '_embed_model') and hasattr(instance._embed_model, 'model_name'):
-        return instance._embed_model.model_name
-
-    # Fallback if no specific model is found
-    return "Unknown Embedding Model"
-
-
-framework_vector_store_mapping = {
-    'langchain_core.retrievers': lambda instance: {
-        'provider': type(instance.vectorstore).__name__,
-        'embedding_model': get_embedding_model_for_vectorstore(instance),
-        'type': VECTOR_STORE,
-    },
-    'llama_index.core.indices.base_retriever': lambda instance: {
-        'provider': type(instance._vector_store).__name__,
-        'embedding_model': get_embedding_model_for_vectorstore(instance),
-        'type': VECTOR_STORE,
-    },
-    'haystack.components.retrievers.in_memory': lambda instance: {
-        'provider': instance.__dict__.get("document_store").__class__.__name__,
-        'embedding_model': get_embedding_model(),
-        'type': VECTOR_STORE,
-    },
+llm_type_map = {
+    "sagemakerendpoint": "aws_sagemaker",
+    "azureopenai": "azure_openai",
+    "openai": "openai",
+    "chatopenai": "openai",
+    "azurechatopenai": "azure_openai",
+    "bedrock": "aws_bedrock",
+    "sagemakerllm": "aws_sagemaker",
+    "chatbedrock": "aws_bedrock",
 }
 def get_embedding_model_haystack(instance):
     try:
@@ -88,6 +48,13 @@ def get_embedding_model_haystack(instance):
         pass
 
     return None
+    
+
+def get_nested_attribute_using(path: str, my_object: object, default=None):
+    try:
+        return reduce(getattr, path.split("."), my_object)
+    except AttributeError:
+        return default
 
 @with_tracer_wrapper
 def task_wrapper(tracer: Tracer, to_wrap, wrapped, instance, args, kwargs):
@@ -113,7 +80,7 @@ def task_wrapper(tracer: Tracer, to_wrap, wrapped, instance, args, kwargs):
 
 
     with tracer.start_as_current_span(name) as span:
-        process_span(to_wrap, span, instance, args)
+        process_span(to_wrap, span, instance)
         pre_task_processing(to_wrap, instance, args, span)
         return_value = wrapped(*args, **kwargs)
         post_task_processing(to_wrap, span, return_value)
@@ -132,19 +99,16 @@ def get_workflow_input(args, inputs):
         for input_str in inputs:
             workflow_input = workflow_input + input_str
     return workflow_input
-def process_span(to_wrap, span, instance, args):
+
     # Check if the output_processor is a valid JSON (in Python, that means it's a dictionary)
+def process_span(to_wrap, span: Span, instance):
+    instance_args = {}
+    set_provider_name(instance, instance_args)
     span_index = 1
+    
     if is_root_span(span):
-        workflow_name = get_workflow_name(span)
-        if workflow_name:
-            span.set_attribute(f"entity.{span_index}.name", workflow_name)
-        # workflow type
-        package_name = to_wrap.get('package')
-        for (package, workflow_type) in WORKFLOW_TYPE_MAP.items():
-            if (package_name is not None and package in package_name):
-                span.set_attribute(f"entity.{span_index}.type", workflow_type)
-        span_index += 1
+        span_index += set_workflow_attributes(to_wrap, span, span_index)
+        span_index += set_app_hosting_identifier_attribute(span, span_index)
     if 'output_processor' in to_wrap:
         output_processor=to_wrap['output_processor']
         if isinstance(output_processor, dict) and len(output_processor) > 0:
@@ -156,7 +120,6 @@ def process_span(to_wrap, span, instance, args):
             if 'attributes' in output_processor:
                 count = len(output_processor["attributes"])
                 span.set_attribute("entity.count", count)
-                span_index = 1
                 for processors in output_processor["attributes"]:
                     for processor in processors:
                         attribute = processor.get('attribute')
@@ -165,7 +128,7 @@ def process_span(to_wrap, span, instance, args):
                         if attribute and accessor:
                             attribute_name = f"entity.{span_index}.{attribute}"
                             try:
-                                result = eval(accessor)(instance, args)
+                                result = eval(accessor)(instance, instance_args)
                                 if result and isinstance(result, str):
                                     span.set_attribute(attribute_name, result)
                             except Exception as e:
@@ -179,6 +142,26 @@ def process_span(to_wrap, span, instance, args):
 
         else:
             logger.warning("empty or entities json is not in correct format")
+    else:
+        if span_index > 1:
+            span.set_attribute("entity.count", span_index-1)
+
+def set_workflow_attributes(to_wrap, span: Span, span_index):
+    return_value = 1
+    workflow_name = get_workflow_name(span=span)
+    if workflow_name:
+        span.set_attribute("span.type", "workflow")
+        span.set_attribute(f"entity.{span_index}.name", workflow_name)
+        # workflow type
+    package_name = to_wrap.get('package')
+    workflow_type_set = False
+    for (package, workflow_type) in WORKFLOW_TYPE_MAP.items():
+        if (package_name is not None and package in package_name):
+            span.set_attribute(f"entity.{span_index}.type", workflow_type)
+            workflow_type_set = True
+    if not workflow_type_set:
+        span.set_attribute(f"entity.{span_index}.type", "workflow.generic")
+    return return_value
 
 
 def post_task_processing(to_wrap, span, return_value):
@@ -194,16 +177,12 @@ def post_task_processing(to_wrap, span, return_value):
 def pre_task_processing(to_wrap, instance, args, span):
     try:
         if is_root_span(span):
-            workflow_name = span.resource.attributes.get("service.name")
-            span.set_attribute("workflow_name", workflow_name)
-            
             try:
-                sdk_version = version("monocle_apptrace")
-                span.set_attribute("monocle_sdk_version",sdk_version)
+                sdk_version = version("monocle-apptrace")
+                span.set_attribute("monocle-sdk.version",sdk_version)
             except:
-                logger.exception(f"Exception finding monocle_apptrace version.")
+                logger.warning(f"Exception finding monocle_apptrace version.")
             update_span_with_prompt_input(to_wrap=to_wrap, wrapped_args=args, span=span)
-            update_span_with_infra_name(span, INFRA_SERVICE_KEY)
 
         update_span_with_context_input(to_wrap=to_wrap, wrapped_args=args, span=span)
     except:
@@ -211,7 +190,7 @@ def pre_task_processing(to_wrap, instance, args, span):
 
 
 @with_tracer_wrapper
-async def atask_wrapper(tracer, to_wrap, wrapped, instance, args, kwargs):
+async def atask_wrapper(tracer: Tracer, to_wrap, wrapped, instance, args, kwargs):
     """Instruments and calls every function defined in TO_WRAP."""
 
     # Some Langchain objects are wrapped elsewhere, so we ignore them here
@@ -232,7 +211,7 @@ async def atask_wrapper(tracer, to_wrap, wrapped, instance, args, kwargs):
         set_attribute(DATA_INPUT_KEY, workflow_input)
 
     with tracer.start_as_current_span(name) as span:
-        process_span(to_wrap, span, instance, args)
+        process_span(to_wrap, span, instance)
         pre_task_processing(to_wrap, instance, args, span)
         return_value = await wrapped(*args, **kwargs)
         post_task_processing(to_wrap, span, return_value)
@@ -256,10 +235,10 @@ async def allm_wrapper(tracer, to_wrap, wrapped, instance, args, kwargs):
     else:
         name =  get_fully_qualified_class_name(instance)
     with tracer.start_as_current_span(name) as span:
-        provider_name, inference_endpoint = get_provider_name(instance)
-        instance_args = {"provider_name": provider_name, "inference_endpoint": inference_endpoint}
-        process_span(to_wrap, span, instance, instance_args)
+        process_span(to_wrap, span, instance)
+        pre_task_processing(to_wrap, instance, args, span)
         return_value = await wrapped(*args, **kwargs)
+        post_task_processing(to_wrap, span, return_value)
         update_span_from_llm_response(response=return_value, span=span, instance=instance)
 
     return return_value
@@ -282,55 +261,20 @@ def llm_wrapper(tracer: Tracer, to_wrap, wrapped, instance, args, kwargs):
         name =  get_fully_qualified_class_name(instance)
 
     with tracer.start_as_current_span(name) as span:
-        provider_name, inference_endpoint = get_provider_name(instance)
-        instance_args = {"provider_name": provider_name, "inference_endpoint": inference_endpoint}
-        process_span(to_wrap, span, instance, instance_args)
+        process_span(to_wrap, span, instance)
+        pre_task_processing(to_wrap, instance, args, span)
         return_value = wrapped(*args, **kwargs)
+        post_task_processing(to_wrap, span, return_value)
         update_span_from_llm_response(response=return_value, span=span, instance=instance)
 
     return return_value
 
-
-def update_llm_endpoint(curr_span: Span, instance):
-    # Lambda to set attributes if values are not None
-    __set_span_attribute_if_not_none = lambda span, **kwargs: [
-        span.set_attribute(k, v) for k, v in kwargs.items() if v is not None
-    ]
-
-    triton_llm_endpoint = os.environ.get("TRITON_LLM_ENDPOINT")
-    if triton_llm_endpoint is not None and len(triton_llm_endpoint) > 0:
-        curr_span.set_attribute("server_url", triton_llm_endpoint)
-    else:
-        # Get temperature if present
-        temp_val = instance.__dict__.get("temperature")
-
-        # Resolve values for model name, deployment, and inference endpoint
-        model_name = resolve_from_alias(instance.__dict__, ["model", "model_name"])
-        deployment_name = resolve_from_alias(instance.__dict__,
-                                             ["engine", "azure_deployment", "deployment_name", "deployment_id",
-                                              "deployment"])
-        inference_ep = resolve_from_alias(instance.__dict__, ["azure_endpoint", "api_base"])
-
-        # Use the lambda to set attributes conditionally
-        __set_span_attribute_if_not_none(
-            curr_span,
-            temperature=temp_val,
-            model_name=model_name,
-            az_openai_deployment=deployment_name,
-            inference_endpoint=inference_ep
-        )
-
-
-def get_provider_name(instance):
+def set_provider_name(instance, instance_args: dict):
     provider_url = ""
-    inference_endpoint = ""
+
     try:
         if isinstance(instance.client._client.base_url.host, str):
             provider_url = instance.client._client.base_url.host
-        if isinstance(instance.client._client.base_url, str):
-            inference_endpoint = instance.client._client.base_url
-        else:
-            inference_endpoint = str(instance.client._client.base_url)
     except:
         pass
 
@@ -345,11 +289,19 @@ def get_provider_name(instance):
             parsed_provider_url = urlparse(provider_url).hostname
     except:
         pass
-    return parsed_provider_url.hostname or provider_url,inference_endpoint
+    if parsed_provider_url or provider_url:
+        instance_args[PROVIDER] = parsed_provider_url or provider_url
+    try:
+        llm_type = llm_type_map.get(type(instance).__name__.lower())
+        instance_args["llm_type"] = llm_type
+    except:
+        pass
 
 
 def is_root_span(curr_span: Span) -> bool:
-    return curr_span.parent is None
+    if (curr_span is not None and hasattr(curr_span, "parent")):
+        return curr_span.parent is None
+    return False
 
 
 def get_input_from_args(chain_args):
@@ -406,58 +358,70 @@ def update_workflow_type(to_wrap, span: Span):
 
 
 def update_span_with_context_input(to_wrap, wrapped_args, span: Span):
-    package_name: str = to_wrap.get('package')
-    input_arg_text = ""
-    if "langchain_core.retrievers" in package_name and len(wrapped_args) > 0:
-        input_arg_text += wrapped_args[0]
-    if "llama_index.core.indices.base_retriever" in package_name and len(wrapped_args) > 0:
-        input_arg_text += wrapped_args[0].query_str
-    if "haystack.components.retrievers.in_memory" in package_name:
-        input_arg_text += get_attribute(DATA_INPUT_KEY)
-    if input_arg_text:
-        span.add_event(DATA_INPUT_KEY, {QUERY: input_arg_text})
+    try:
+        package_name: str = to_wrap.get('package')
+        input_arg_text = ""
+        if "langchain_core.retrievers" in package_name and len(wrapped_args) > 0:
+            input_arg_text += wrapped_args[0]
+        if "llama_index.core.indices.base_retriever" in package_name and len(wrapped_args) > 0:
+            input_arg_text += wrapped_args[0].query_str
+        if "haystack.components.retrievers.in_memory" in package_name:
+            input_arg_text += get_attribute(DATA_INPUT_KEY)
+        if input_arg_text:
+            span.add_event(DATA_INPUT_KEY, {QUERY: input_arg_text})
+    except Exception as e:
+        logger.warning(f"Error updating span with context input {e}")
 
 
 def update_span_with_context_output(to_wrap, return_value, span: Span):
-    package_name: str = to_wrap.get('package')
-    output_arg_text = ""
-    if "langchain_core.retrievers" in package_name:
-        output_arg_text += " ".join([doc.page_content for doc in return_value if hasattr(doc, 'page_content')])
-        if len(output_arg_text) > 100:
-            output_arg_text = output_arg_text[:100] + "..."
-    if "llama_index.core.indices.base_retriever" in package_name and len(return_value) > 0:
-        output_arg_text += return_value[0].text
-    if "haystack.components.retrievers.in_memory" in package_name:
-        output_arg_text += " ".join([doc.content for doc in return_value['documents']])
-        if len(output_arg_text) > 100:
-            output_arg_text = output_arg_text[:100] + "..."
-    if output_arg_text:
-        span.add_event(DATA_OUTPUT_KEY, {RESPONSE: output_arg_text})
+    try:
+        package_name: str = to_wrap.get('package')
+        output_arg_text = ""
+        if "langchain_core.retrievers" in package_name:
+            output_arg_text += " ".join([doc.page_content for doc in return_value if hasattr(doc, 'page_content')])
+            if len(output_arg_text) > 100:
+                output_arg_text = output_arg_text[:100] + "..."
+        if "llama_index.core.indices.base_retriever" in package_name and len(return_value) > 0:
+            output_arg_text += return_value[0].text
+        if "haystack.components.retrievers.in_memory" in package_name:
+            output_arg_text += " ".join([doc.content for doc in return_value['documents']])
+            if len(output_arg_text) > 100:
+                output_arg_text = output_arg_text[:100] + "..."
+        if output_arg_text:
+            span.add_event(DATA_OUTPUT_KEY, {RESPONSE: output_arg_text})
+    except Exception as e:
+        logger.warning(f"Error updating span with context output {e}")
 
 
 def update_span_with_prompt_input(to_wrap, wrapped_args, span: Span):
-    input_arg_text = wrapped_args[0]
+    try:
+        input_arg_text = wrapped_args[0]
 
-    prompt_inputs = get_nested_value(input_arg_text, ['prompt_builder'])
-    if prompt_inputs is not None:  # haystack
-        input_arg_text = flatten_dict(prompt_inputs)
-        span.add_event(PROMPT_INPUT_KEY, input_arg_text)
-    elif isinstance(input_arg_text, dict):
-        span.add_event(PROMPT_INPUT_KEY, input_arg_text)
-    else:
-        span.add_event(PROMPT_INPUT_KEY, {QUERY: input_arg_text})
+        prompt_inputs = get_nested_value(input_arg_text, ['prompt_builder'])
+        if prompt_inputs is not None:  # haystack
+            input_arg_text = flatten_dict(prompt_inputs)
+            span.add_event(PROMPT_INPUT_KEY, input_arg_text)
+        elif isinstance(input_arg_text, dict):
+            span.add_event(PROMPT_INPUT_KEY, input_arg_text)
+        else:
+            span.add_event(PROMPT_INPUT_KEY, {QUERY: input_arg_text})
+    except Exception as e:
+        logger.warning(f"Error updating span with prompt input {e}")
 
 
 def update_span_with_prompt_output(to_wrap, wrapped_args, span: Span):
-    package_name: str = to_wrap.get('package')
+    try:
+        package_name: str = to_wrap.get('package')
 
-    if "llama_index.core.base.base_query_engine" in package_name:
-        span.add_event(PROMPT_OUTPUT_KEY, {RESPONSE: wrapped_args.response})
-    elif "haystack.core.pipeline.pipeline" in package_name:
-        resp = get_nested_value(wrapped_args, ['llm', 'replies'])
-        if resp is not None:
-            span.add_event(PROMPT_OUTPUT_KEY, {RESPONSE: resp})
-    elif isinstance(wrapped_args, str):
-        span.add_event(PROMPT_OUTPUT_KEY, {RESPONSE: wrapped_args})
-    elif isinstance(wrapped_args, dict):
-        span.add_event(PROMPT_OUTPUT_KEY,  wrapped_args)
+        if "llama_index.core.base.base_query_engine" in package_name:
+            span.add_event(PROMPT_OUTPUT_KEY, {RESPONSE: wrapped_args.response})
+        elif "haystack.core.pipeline.pipeline" in package_name:
+            resp = get_nested_value(wrapped_args, ['llm', 'replies'])
+            if resp is not None:
+                span.add_event(PROMPT_OUTPUT_KEY, {RESPONSE: resp})
+        elif isinstance(wrapped_args, str):
+            span.add_event(PROMPT_OUTPUT_KEY, {RESPONSE: wrapped_args})
+        elif isinstance(wrapped_args, dict):
+            span.add_event(PROMPT_OUTPUT_KEY,  wrapped_args)
+    except Exception as e:
+        logger.warning(f"Error updating span with prompt output {e}")

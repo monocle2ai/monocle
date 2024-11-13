@@ -34,7 +34,6 @@ from monocle_apptrace.instrumentor import (
 )
 from monocle_apptrace.wrap_common import (
     SESSION_PROPERTIES_KEY,
-    INFRA_SERVICE_KEY,
     PROMPT_INPUT_KEY,
     PROMPT_OUTPUT_KEY,
     QUERY,

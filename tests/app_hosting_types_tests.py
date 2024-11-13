@@ -1,8 +1,6 @@
 import os
 import unittest
-from unittest.mock import ANY, MagicMock, patch
 from monocle_apptrace.wrapper import WrapperMethod
-from opentelemetry import trace
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, SimpleSpanProcessor
 from monocle_apptrace.instrumentor import setup_monocle_telemetry
 from monocle_apptrace.wrap_common import task_wrapper

@@ -5,22 +5,22 @@
       {
         "_comment": "vector store name and type",
         "attribute": "name",
-        "accessor": "lambda instance,args,kwargs,return_value: type(instance.vectorstore).__name__"
+        "accessor": "lambda arguments: type(arguments['instance'].vectorstore).__name__"
       },
       {
         "attribute": "type",
-        "accessor": "lambda instance,args,kwargs,return_value: 'vectorstore.'+type(instance.vectorstore).__name__"
+        "accessor": "lambda arguments: 'vectorstore.'+type(arguments['instance'].vectorstore).__name__"
       }
     ],
     [
       {
         "_comment": "embedding model name and type",
         "attribute": "name",
-        "accessor": "lambda instance,args,kwargs,return_value: instance.vectorstore.embeddings.model"
+        "accessor": "lambda arguments: arguments['instance'].vectorstore.embeddings.model"
       },
       {
         "attribute": "type",
-        "accessor": "lambda instance,args,kwargs,return_value: 'model.embedding.'+instance.vectorstore.embeddings.model"
+        "accessor": "lambda arguments: 'model.embedding.'+arguments['instance'].vectorstore.embeddings.model"
       }
     ]
   ]

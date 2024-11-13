@@ -26,7 +26,10 @@ from monocle_apptrace.constants import (
     AZURE_ML_ENDPOINT_ENV_NAME,
     AZURE_ML_SERVICE_NAME,
     AWS_LAMBDA_ENV_NAME,
-    AWS_LAMBDA_SERVICE_NAME
+    AWS_LAMBDA_SERVICE_NAME,
+    AWS_LAMBDA_FUNCTION_IDENTIFIER_ENV_NAME,
+    AZURE_APP_SERVICE_IDENTIFIER_ENV_NAME,
+    AZURE_FUNCTION_IDENTIFIER_ENV_NAME
 )
 from monocle_apptrace.instrumentor import (
     MonocleInstrumentor,
@@ -118,17 +121,18 @@ class TestHandler(unittest.TestCase):
         return super().tearDown()
 
     @parameterized.expand([
-       ("1", AZURE_ML_ENDPOINT_ENV_NAME, AZURE_ML_SERVICE_NAME),
-       ("2", AZURE_FUNCTION_WORKER_ENV_NAME, AZURE_FUNCTION_NAME),
-       ("3", AZURE_APP_SERVICE_ENV_NAME, AZURE_APP_SERVICE_NAME),
-       ("4", AWS_LAMBDA_ENV_NAME, AWS_LAMBDA_SERVICE_NAME),
+        ("1", AZURE_ML_ENDPOINT_ENV_NAME, AZURE_ML_SERVICE_NAME, AZURE_ML_ENDPOINT_ENV_NAME),
+        ("2", AZURE_FUNCTION_WORKER_ENV_NAME, AZURE_FUNCTION_NAME, AZURE_FUNCTION_IDENTIFIER_ENV_NAME),
+        ("3", AZURE_APP_SERVICE_ENV_NAME, AZURE_APP_SERVICE_NAME, AZURE_APP_SERVICE_IDENTIFIER_ENV_NAME),
+        ("4", AWS_LAMBDA_ENV_NAME, AWS_LAMBDA_SERVICE_NAME, AWS_LAMBDA_FUNCTION_IDENTIFIER_ENV_NAME),
     ])
     @patch.object(requests.Session, 'post')
-    def test_llm_chain(self, test_name, test_input_infra, test_output_infra, mock_post):
+    def test_llm_chain(self, test_name, test_input_infra, test_output_infra, test_input_infra_identifier, mock_post):
 
         try:
             
             os.environ[test_input_infra] = "1"
+            os.environ[test_input_infra_identifier] = "my-infra-name"
             context_key = "context_key_1"
             context_value = "context_value_1"
             set_context_properties({context_key: context_value})
@@ -155,13 +159,13 @@ class TestHandler(unittest.TestCase):
 
             root_span = [x for x in dataJson["batch"] if x["parent_id"] == "None"][0]
             llm_span = [x for x in dataJson["batch"] if "FakeListLLM" in x["name"]][0]
-            llm_vector_store_retriever_span = [x for x in dataJson["batch"] if 'langchain.task.VectorStoreRetriever' in x["name"]][0]
+            llm_vector_store_retriever_span = [x for x in dataJson["batch"] if 'langchain_core.vectorstores.base.VectorStoreRetriever' in x["name"]][0]
             root_span_attributes = root_span["attributes"]
             root_span_events = root_span["events"]
             
-            assert llm_span["attributes"]["provider_name"] == "example.com"
-            assert llm_vector_store_retriever_span["attributes"]["embedding_model"] == "FAISS"
-            assert llm_vector_store_retriever_span["attributes"]["provider_name"] == "HuggingFaceEmbeddings"
+            assert llm_span["attributes"]['entity.1.provider_name'] == "example.com"
+            assert llm_vector_store_retriever_span["attributes"]['entity.1.name'] == "FAISS"
+            assert llm_vector_store_retriever_span["attributes"]["entity.1.type"] == "vectorstore.FAISS"
 
             def get_event_attributes(events, key):
                 return [event['attributes'] for event in events if event['name'] == key][0]
@@ -172,7 +176,8 @@ class TestHandler(unittest.TestCase):
             assert input_event_attributes[QUERY] == query
             assert output_event_attributes[RESPONSE] == TestHandler.ragText
             assert root_span_attributes[f"{SESSION_PROPERTIES_KEY}.{context_key}"] == context_value
-            assert root_span_attributes[INFRA_SERVICE_KEY] == test_output_infra
+            assert root_span_attributes["entity.2.type"] == "app_hosting." + test_output_infra
+            assert root_span_attributes["entity.2.name"] == "my-infra-name"
 
             for spanObject in dataJson['batch']:
                 assert not spanObject["context"]["span_id"].startswith("0x")
@@ -219,10 +224,17 @@ class TestHandler(unittest.TestCase):
                 'token_usage': {'completion_tokens': 58, 'prompt_tokens': 584, 'total_tokens': 642}
             }
         )
-        update_span_from_llm_response(span=span,response=message)
-        assert span.attributes.get("completion_tokens") == 58
-        assert span.attributes.get("prompt_tokens") == 584
-        assert span.attributes.get("total_tokens") == 642
+        instance = MagicMock()
+        update_span_from_llm_response(span=span, response=message, instance=instance)
+        event_found = False
+        for event in span.events:
+            if event.name == "metadata":
+                attributes = event.attributes
+                assert attributes["completion_tokens"] == 58
+                assert attributes["prompt_tokens"] == 584
+                assert attributes["total_tokens"] == 642
+                event_found = True
+        assert event_found, "META_DATA event with token usage was not found"
 
 if __name__ == '__main__':
     unittest.main()

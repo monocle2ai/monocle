@@ -33,8 +33,8 @@ class MonocleInstrumentor(BaseInstrumentor):
         return _instruments
 
     def _instrument(self, **kwargs):
-        tracer_provider = kwargs.get("tracer_provider")
-        tracer = get_tracer(instrumenting_module_name=__name__, tracer_provider=tracer_provider)
+        tracer_provider: TracerProvider = kwargs.get("tracer_provider")
+        tracer = get_tracer(instrumenting_module_name="monocle_apptrace", tracer_provider=tracer_provider)
 
         user_method_list = [
             {
@@ -107,7 +107,7 @@ def setup_monocle_telemetry(
     instrumentor = MonocleInstrumentor(user_wrapper_methods=wrapper_methods or [])
     # instrumentor.app_name = workflow_name
     if not instrumentor.is_instrumented_by_opentelemetry:
-        instrumentor.instrument()
+        instrumentor.instrument(trace_provider=trace_provider)
 
 def on_processor_start(span: Span, parent_context):
     context_properties = get_value(SESSION_PROPERTIES_KEY)

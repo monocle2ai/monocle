@@ -138,14 +138,16 @@ def get_wrapper_method(package_name: str, method_name: str):
     wrapper_module = import_module("monocle_apptrace." + package_name)
     return getattr(wrapper_module, method_name)
 
-
-def update_span_with_infra_name(span: Span, span_key: str):
-    for key, val in service_type_map.items():
-        if key in os.environ:
-            span.set_attribute(span_key, val)
-    for key, val in service_name_map.items():
-        if key in os.environ:
-            span.set_attribute(span_key, val)
+def set_app_hosting_identifier_attribute(span, span_index):
+    return_value = 0
+    # Search env to indentify the infra service type, if found check env for service name if possible
+    for type_env, type_name in service_type_map.items():
+        if type_env in os.environ:
+            return_value = 1
+            span.set_attribute(f"entity.{span_index}.type", f"app_hosting.{type_name}")
+            entity_name_env = service_name_map.get(type_name, "unknown")
+            span.set_attribute(f"entity.{span_index}.name", os.environ.get(entity_name_env, "generic"))
+    return return_value
 
 def set_embedding_model(model_name: str):
     """

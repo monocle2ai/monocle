@@ -2,13 +2,13 @@
 import logging
 import os
 import inspect
+from importlib.metadata import version
 from urllib.parse import urlparse
 from opentelemetry.trace import Tracer
 from opentelemetry.sdk.trace import Span
-from monocle_apptrace.utils import resolve_from_alias, update_span_with_infra_name, with_tracer_wrapper, get_embedding_model, get_attribute, get_workflow_name, set_embedding_model
+from monocle_apptrace.utils import resolve_from_alias, with_tracer_wrapper, get_embedding_model, get_attribute, get_workflow_name, set_embedding_model, set_app_hosting_identifier_attribute
 from monocle_apptrace.utils import set_attribute
 from monocle_apptrace.utils import get_fully_qualified_class_name, flatten_dict, get_nested_value
-from opentelemetry.context import get_value, attach, set_value
 logger = logging.getLogger(__name__)
 WORKFLOW_TYPE_KEY = "workflow_type"
 DATA_INPUT_KEY = "data.input"
@@ -132,19 +132,15 @@ def get_workflow_input(args, inputs):
         for input_str in inputs:
             workflow_input = workflow_input + input_str
     return workflow_input
+
 def process_span(to_wrap, span, instance, args):
     # Check if the output_processor is a valid JSON (in Python, that means it's a dictionary)
+    instance_args = {}
+    set_provider_name(instance, instance_args)
     span_index = 1
     if is_root_span(span):
-        workflow_name = get_workflow_name(span)
-        if workflow_name:
-            span.set_attribute(f"entity.{span_index}.name", workflow_name)
-        # workflow type
-        package_name = to_wrap.get('package')
-        for (package, workflow_type) in WORKFLOW_TYPE_MAP.items():
-            if (package_name is not None and package in package_name):
-                span.set_attribute(f"entity.{span_index}.type", workflow_type)
-        span_index += 1
+        span_index += set_workflow_attributes(to_wrap, span, span_index)
+        span_index += set_app_hosting_identifier_attribute(span, span_index)
     if 'output_processor' in to_wrap:
         output_processor=to_wrap['output_processor']
         if isinstance(output_processor, dict) and len(output_processor) > 0:
@@ -180,6 +176,22 @@ def process_span(to_wrap, span, instance, args):
         else:
             logger.warning("empty or entities json is not in correct format")
 
+def set_workflow_attributes(to_wrap, span: Span, span_index):
+    return_value = 1
+    workflow_name = get_workflow_name(span=span)
+    if workflow_name:
+        span.set_attribute("span.type", "workflow")
+        span.set_attribute(f"entity.{span_index}.name", workflow_name)
+        # workflow type
+    package_name = to_wrap.get('package')
+    workflow_type_set = False
+    for (package, workflow_type) in WORKFLOW_TYPE_MAP.items():
+        if (package_name is not None and package in package_name):
+            span.set_attribute(f"entity.{span_index}.type", workflow_type)
+            workflow_type_set = True
+    if not workflow_type_set:
+        span.set_attribute(f"entity.{span_index}.type", "workflow.generic")
+    return return_value
 
 def post_task_processing(to_wrap, span, return_value):
     try:
@@ -194,9 +206,12 @@ def post_task_processing(to_wrap, span, return_value):
 def pre_task_processing(to_wrap, instance, args, span):
     try:
         if is_root_span(span):
+            try:
+                sdk_version = version("monocle_apptrace")
+                span.set_attribute("monocle_apptrace.version", sdk_version)
+            except:
+                logger.warning(f"Exception finding okahu-observability version.")
             update_span_with_prompt_input(to_wrap=to_wrap, wrapped_args=args, span=span)
-            update_span_with_infra_name(span, INFRA_SERVICE_KEY)
-
         update_span_with_context_input(to_wrap=to_wrap, wrapped_args=args, span=span)
     except:
         logger.exception("exception in pre_task_processing")
@@ -340,6 +355,27 @@ def get_provider_name(instance):
         pass
     return (parsed_provider_url.hostname if parsed_provider_url else provider_url), inference_endpoint
 
+def set_provider_name(instance, instance_args: dict):
+    provider_url = ""
+    parsed_provider_url = ""
+    try:
+        if isinstance(instance.client._client.base_url.host, str):
+            provider_url = instance.client._client.base_url.host
+    except:
+        pass
+
+    try:
+        if isinstance(instance.api_base, str):
+            provider_url = instance.api_base
+    except:
+        pass
+    try:
+        if len(provider_url) > 0:
+            parsed_provider_url = urlparse(provider_url).hostname
+    except:
+        pass
+    if parsed_provider_url or provider_url:
+        instance_args[PROVIDER] = parsed_provider_url or provider_url
 
 def is_root_span(curr_span: Span) -> bool:
     return curr_span.parent is None

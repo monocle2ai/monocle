@@ -1,16 +1,16 @@
 name: Prepare release branch
 on:
-  push:
-    branches: [ "kshitiz/release_branch_test" ]
-    inputs:
-      prerelease_version:
-        description: "Pre-release version number"
-        default: "1.29.0b1"
-  # workflow_dispatch:
+  # push:
+  #   branches: [ "kshitiz/release_branch_test" ]
   #   inputs:
   #     prerelease_version:
   #       description: "Pre-release version number"
-  #       required: True
+  #       default: "1.29.0b1"
+  workflow_dispatch:
+    inputs:
+      prerelease_version:
+        description: "Pre-release version number"
+        required: True
 
 jobs:
   prereqs:

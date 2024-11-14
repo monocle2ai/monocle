@@ -96,7 +96,7 @@ jobs:
           PRERELEASE_VERSION: ${{ github.event.inputs.prerelease_version }}
           USER_EMAIL: ${{ secrets.GIT_USER_EMAIL }}
           USER_NAME: ${{ secrets.GIT_USER_NAME }}
-          GITHUB_TOKEN: ${{ secrets.TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           message="Prepare release ${STABLE_VERSION}/${UNSTABLE_VERSION}"
           branch="monocle/prepare-release-${STABLE_VERSION}-${UNSTABLE_VERSION}"
@@ -175,7 +175,7 @@ jobs:
           PRERELEASE_VERSION: ${{ github.event.inputs.prerelease_version }}
           USER_EMAIL: ${{ secrets.GIT_USER_EMAIL }}
           USER_NAME: ${{ secrets.GIT_USER_NAME }}
-          GITHUB_TOKEN: ${{ secrets.TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           message="Update version to ${STABLE_NEXT_VERSION}/${UNSTABLE_NEXT_VERSION}"
           body="Update version to \${STABLE_NEXT_VERSION}/${UNSTABLE_NEXT_VERSION}\."

@@ -394,8 +394,10 @@ print(ai_msg_2["answer"])
 #     },
 #     "attributes": {
 #         "session.session_id": "0x4fa6d91d1f2a4bdbb7a1287d90ec4a16",
+#         "span.type": "workflow",
 #         "entity.1.name": "langchain_app_1",
-#         "entity.1.type": "workflow.langchain"
+#         "entity.1.type": "workflow.langchain",
+#         "monocle_apptrace.version": "0.2.0"
 #     },
 #     "events": [
 #         {
@@ -809,8 +811,10 @@ print(ai_msg_2["answer"])
 #     },
 #     "attributes": {
 #         "session.session_id": "0x4fa6d91d1f2a4bdbb7a1287d90ec4a16",
+#         "span.type": "workflow",
 #         "entity.1.name": "langchain_app_1",
-#         "entity.1.type": "workflow.langchain"
+#         "entity.1.type": "workflow.langchain",
+#         "monocle_apptrace.version": "0.2.0"
 #     },
 #     "events": [
 #         {

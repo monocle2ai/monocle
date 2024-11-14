@@ -147,20 +147,22 @@ print(response)
 #         "status_code": "UNSET"
 #     },
 #     "attributes": {
+#         "span.type": "workflow",
 #         "entity.1.name": "llama_index_1",
-#         "entity.1.type": "workflow.llamaindex"
+#         "entity.1.type": "workflow.llamaindex",
+#         "monocle_apptrace.version": "0.2.0"
 #     },
 #     "events": [
 #         {
 #             "name": "data.input",
-#             "timestamp": "2024-11-12T11:28:35.242345Z",
+#             "timestamp": "2024-11-12T18:29:56.241695Z",
 #             "attributes": {
 #                 "question": "What did the author do growing up?"
 #             }
 #         },
 #         {
 #             "name": "data.output",
-#             "timestamp": "2024-11-12T11:28:37.999529Z",
+#             "timestamp": "2024-11-12T18:29:58.734403Z",
 #             "attributes": {
 #                 "response": "The context does not provide information about what the author did while growing up."
 #             }

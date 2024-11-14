@@ -100,8 +100,8 @@ jobs:
         run: |
           message="Prepare release ${STABLE_VERSION}/${UNSTABLE_VERSION}"
           branch="monocle/prepare-release-${STABLE_VERSION}-${UNSTABLE_VERSION}"
-          git config --global user.email "$USER_EMAIL"
-          git config --global user.name "$USER_NAME"
+          git config --global user.email "abc@example.com"
+          git config --global user.name "abc"
           git commit -a -m "$message"
           git push origin HEAD:$branch
           gh pr create --title "[$RELEASE_BRANCH_NAME] $message" \

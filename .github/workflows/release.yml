@@ -9,7 +9,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - run: |
-          if [[ $GITHUB_REF_NAME != release/* ]]; then
+          if [[ $GITHUB_REF_NAME != kshitiz/release* ]]; then
             echo this workflow should only be run against release branches
             exit 1
           fi

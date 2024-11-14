@@ -5,30 +5,30 @@
       {
         "_comment": "provider type ,name , deployment , inference_endpoint",
         "attribute": "type",
-        "accessor": "lambda instance,args:'inference.azure_oai'"
+        "accessor": "lambda arguments:'inference.azure_oai'"
       },
       {
         "attribute": "provider_name",
-        "accessor": "lambda instance,args:args['provider_name']"
+        "accessor": "lambda arguments:arguments['kwargs']['provider_name']"
       },
       {
         "attribute": "deployment",
-        "accessor": "lambda instance,args: resolve_from_alias(instance.__dict__, ['engine', 'azure_deployment', 'deployment_name', 'deployment_id', 'deployment'])"
+        "accessor": "lambda arguments: resolve_from_alias(arguments['instance'].__dict__, ['engine', 'azure_deployment', 'deployment_name', 'deployment_id', 'deployment'])"
       },
       {
         "attribute": "inference_endpoint",
-        "accessor": "lambda instance,args: resolve_from_alias(instance.__dict__, ['azure_endpoint', 'api_base']) or args['inference_endpoint']"
+        "accessor": "lambda arguments: resolve_from_alias(arguments['instance'].__dict__, ['azure_endpoint', 'api_base']) or arguments['kwargs']['inference_endpoint']"
       }
     ],
     [
       {
         "_comment": "LLM Model",
         "attribute": "name",
-        "accessor": "lambda instance,args: resolve_from_alias(instance.__dict__, ['model', 'model_name'])"
+        "accessor": "lambda arguments: resolve_from_alias(arguments['instance'].__dict__, ['model', 'model_name'])"
       },
       {
         "attribute": "type",
-        "accessor": "lambda instance,args: 'model.llm.'+resolve_from_alias(instance.__dict__, ['model', 'model_name'])"
+        "accessor": "lambda arguments: 'model.llm.'+resolve_from_alias(arguments['instance'].__dict__, ['model', 'model_name'])"
       }
     ]
   ]

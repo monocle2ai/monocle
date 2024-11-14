@@ -113,9 +113,9 @@ def task_wrapper(tracer: Tracer, to_wrap, wrapped, instance, args, kwargs):
 
 
     with tracer.start_as_current_span(name) as span:
-        process_span(to_wrap, span, instance, args)
         pre_task_processing(to_wrap, instance, args, span)
         return_value = wrapped(*args, **kwargs)
+        process_span(to_wrap, span, instance, args, kwargs, return_value)
         post_task_processing(to_wrap, span, return_value)
 
     return return_value
@@ -133,7 +133,7 @@ def get_workflow_input(args, inputs):
             workflow_input = workflow_input + input_str
     return workflow_input
 
-def process_span(to_wrap, span, instance, args):
+def process_span(to_wrap, span, instance, args, kwargs, return_value):
     # Check if the output_processor is a valid JSON (in Python, that means it's a dictionary)
     instance_args = {}
     set_provider_name(instance, instance_args)
@@ -161,7 +161,8 @@ def process_span(to_wrap, span, instance, args):
                         if attribute and accessor:
                             attribute_name = f"entity.{span_index}.{attribute}"
                             try:
-                                result = eval(accessor)(instance, args)
+                                arguments = {"instance":instance, "args":args, "kwargs":kwargs, "output":return_value}
+                                result = eval(accessor)(arguments)
                                 if result and isinstance(result, str):
                                     span.set_attribute(attribute_name, result)
                             except Exception as e:
@@ -239,9 +240,9 @@ async def atask_wrapper(tracer, to_wrap, wrapped, instance, args, kwargs):
         set_attribute(DATA_INPUT_KEY, workflow_input)
 
     with tracer.start_as_current_span(name) as span:
-        process_span(to_wrap, span, instance, args)
         pre_task_processing(to_wrap, instance, args, span)
         return_value = await wrapped(*args, **kwargs)
+        process_span(to_wrap, span, instance, args,kwargs, return_value)
         post_task_processing(to_wrap, span, return_value)
 
     return return_value
@@ -264,9 +265,9 @@ async def allm_wrapper(tracer, to_wrap, wrapped, instance, args, kwargs):
         name =  get_fully_qualified_class_name(instance)
     with tracer.start_as_current_span(name) as span:
         provider_name, inference_endpoint = get_provider_name(instance)
-        instance_args = {"provider_name": provider_name, "inference_endpoint": inference_endpoint}
-        process_span(to_wrap, span, instance, instance_args)
         return_value = await wrapped(*args, **kwargs)
+        kwargs.update({"provider_name": provider_name, "inference_endpoint": inference_endpoint})
+        process_span(to_wrap, span, instance, args, kwargs, return_value)
         update_span_from_llm_response(response=return_value, span=span, instance=instance)
 
     return return_value
@@ -290,9 +291,9 @@ def llm_wrapper(tracer: Tracer, to_wrap, wrapped, instance, args, kwargs):
 
     with tracer.start_as_current_span(name) as span:
         provider_name, inference_endpoint = get_provider_name(instance)
-        instance_args = {"provider_name": provider_name, "inference_endpoint": inference_endpoint}
-        process_span(to_wrap, span, instance, instance_args)
         return_value = wrapped(*args, **kwargs)
+        kwargs.update({"provider_name": provider_name, "inference_endpoint": inference_endpoint})
+        process_span(to_wrap, span, instance, args, kwargs, return_value)
         update_span_from_llm_response(response=return_value, span=span, instance=instance)
 
     return return_value

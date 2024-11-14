@@ -5,22 +5,22 @@
       {
         "_comment": "vector store name and type",
         "attribute": "name",
-        "accessor": "lambda instance,args: instance.__dict__.get(\"document_store\").__class__.__name__"
+        "accessor": "lambda arguments: arguments['instance'].__dict__.get(\"document_store\").__class__.__name__"
       },
       {
         "attribute": "type",
-        "accessor": "lambda instance,args: 'vectorstore.'+instance.__dict__.get(\"document_store\").__class__.__name__"
+        "accessor": "lambda arguments: 'vectorstore.'+arguments['instance'].__dict__.get(\"document_store\").__class__.__name__"
       }
     ],
     [
       {
         "_comment": "embedding model name and type",
         "attribute": "name",
-        "accessor": "lambda instance,args: get_embedding_model()"
+        "accessor": "lambda arguments: get_embedding_model()"
       },
       {
         "attribute": "type",
-        "accessor": "lambda instance ,args: 'model.embedding.'+get_embedding_model()"
+        "accessor": "lambda arguments: 'model.embedding.'+get_embedding_model()"
       }
     ]
   ]

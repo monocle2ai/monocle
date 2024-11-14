@@ -46,14 +46,14 @@ print(response)
 # {
 #     "name": "llamaindex.retrieve",
 #     "context": {
-#         "trace_id": "0x9b384dc0255183ffacee26e2da0d8655",
-#         "span_id": "0x8974f60f72d5d0ad",
+#         "trace_id": "0x3d7d2ae55d97a559242748747f4a43e6",
+#         "span_id": "0x275af74b6830184d",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0x0f469ddf63b1b514",
-#     "start_time": "2024-10-16T13:08:17.828595Z",
-#     "end_time": "2024-10-16T13:08:18.411710Z",
+#     "parent_id": "0x3ed7bbf9219a0a04",
+#     "start_time": "2024-11-12T11:28:35.243346Z",
+#     "end_time": "2024-11-12T11:28:36.080680Z",
 #     "status": {
 #         "status_code": "UNSET"
 #     },
@@ -68,14 +68,14 @@ print(response)
 #     "events": [
 #         {
 #             "name": "data.input",
-#             "timestamp": "2024-10-16T13:08:17.829609Z",
+#             "timestamp": "2024-11-12T11:28:35.243346Z",
 #             "attributes": {
 #                 "question": "What did the author do growing up?"
 #             }
 #         },
 #         {
 #             "name": "data.output",
-#             "timestamp": "2024-10-16T13:08:18.411710Z",
+#             "timestamp": "2024-11-12T11:28:36.080680Z",
 #             "attributes": {
 #                 "response": "this is some sample text"
 #             }
@@ -92,14 +92,14 @@ print(response)
 # {
 #     "name": "llamaindex.openai",
 #     "context": {
-#         "trace_id": "0x9b384dc0255183ffacee26e2da0d8655",
-#         "span_id": "0x9c6d57bb612795db",
+#         "trace_id": "0x3d7d2ae55d97a559242748747f4a43e6",
+#         "span_id": "0xde43691c9c4aa1c7",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0x0f469ddf63b1b514",
-#     "start_time": "2024-10-16T13:08:18.412710Z",
-#     "end_time": "2024-10-16T13:08:19.842145Z",
+#     "parent_id": "0x3ed7bbf9219a0a04",
+#     "start_time": "2024-11-12T11:28:36.082708Z",
+#     "end_time": "2024-11-12T11:28:37.999529Z",
 #     "status": {
 #         "status_code": "UNSET"
 #     },
@@ -115,7 +115,7 @@ print(response)
 #     "events": [
 #         {
 #             "name": "metadata",
-#             "timestamp": "2024-10-16T13:08:19.842145Z",
+#             "timestamp": "2024-11-12T11:28:37.999529Z",
 #             "attributes": {
 #                 "temperature": 0.1,
 #                 "completion_tokens": 15,
@@ -135,14 +135,14 @@ print(response)
 # {
 #     "name": "llamaindex.query",
 #     "context": {
-#         "trace_id": "0x9b384dc0255183ffacee26e2da0d8655",
-#         "span_id": "0x0f469ddf63b1b514",
+#         "trace_id": "0x3d7d2ae55d97a559242748747f4a43e6",
+#         "span_id": "0x3ed7bbf9219a0a04",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
 #     "parent_id": null,
-#     "start_time": "2024-10-16T13:08:17.828595Z",
-#     "end_time": "2024-10-16T13:08:19.842145Z",
+#     "start_time": "2024-11-12T11:28:35.242345Z",
+#     "end_time": "2024-11-12T11:28:37.999529Z",
 #     "status": {
 #         "status_code": "UNSET"
 #     },

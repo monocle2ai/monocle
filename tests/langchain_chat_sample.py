@@ -14,8 +14,15 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from monocle_apptrace.instrumentor import set_context_properties, setup_monocle_telemetry
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
 from langhchain_patch import create_history_aware_retriever
-import logging
-logging.basicConfig(level=logging.INFO)
+from monocle_apptrace.exporters.base_logexporter import logger
+# from monocle_apptrace.exporters.logger.s3_logexporter import S3LogExporter
+
+# example usage of log exporter for cloud
+# exporter = S3LogExporter("sachin-dev")
+# setup_monocle_telemetry(
+#             workflow_name="langchain_app_1",
+#             span_processors=[BatchSpanProcessor(exporter)],
+#             wrapper_methods=[])
 
 setup_monocle_telemetry(
             workflow_name="langchain_app_1",

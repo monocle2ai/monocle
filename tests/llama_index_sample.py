@@ -1,7 +1,4 @@
-
-
 import os
-
 import chromadb
 from llama_index.core import SimpleDirectoryReader, StorageContext, VectorStoreIndex
 from llama_index.embeddings.openai import OpenAIEmbedding
@@ -11,6 +8,7 @@ from monocle_apptrace.instrumentor import setup_monocle_telemetry
 from monocle_apptrace.wrap_common import llm_wrapper
 from monocle_apptrace.wrapper import WrapperMethod
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
+from monocle_apptrace.exporters.base_logexporter import logger
 
 setup_monocle_telemetry(
     workflow_name="llama_index_1",

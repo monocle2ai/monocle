@@ -41,7 +41,7 @@ You need to import monocle package and invoke the API ``setup_monocle_telemetry(
 ### Using Monocle's out of box support of genAI technology components
 Monocle community has done the hard work of figuring out what to trace and how to extract relevant details from multiple genAI technology components. For example, if you have a python app coded using LlamaIndex and using models hostsed in OpenAI, Monocle can seamlessly trace your app. All you need to do enable Monocle tracing.
 
-### Using Monocle's User Support for Adding Custom Attributes
+### Using Monocle's Support for Adding Custom Attributes
 Monocle provides users with the ability to add custom attributes to various spans, such as inference and retrieval spans, by utilizing the output processor within its metamodel. This feature allows for dynamic attribute assignment through lambda functions, which operate on an arguments dictionary.
 The arguments dictionary contains key-value pairs that can be used to compute custom attributes. The dictionary includes the following components: 
 ```python

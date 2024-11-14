@@ -51,7 +51,7 @@ The wrapper then performs the following tasks:
 - extracts the llm response from the **llm_response** value returned.
 
 
-## How to user add custom attributes in monocle's
+## How user can add custom attributes in Monocle
 Monocle provides users with the ability to add custom attributes to various spans, such as inference and retrieval spans, by utilizing the output processor within its metamodel. This feature allows for dynamic attribute assignment through lambda functions, which operate on an arguments dictionary.
 The arguments dictionary contains key-value pairs that can be used to compute custom attributes. The dictionary includes the following components: 
 ```python

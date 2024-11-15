@@ -1,8 +1,7 @@
 name: Release
 on:
   push:
-    branches: [ "kshitiz/release_branch_test" ]
-  # workflow_dispatch:
+  workflow_dispatch:
 
 jobs:
   release:

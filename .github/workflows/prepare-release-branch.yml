@@ -1,11 +1,5 @@
 name: Prepare release branch
 on:
-  # push:
-  #   branches: [ "kshitiz/release_branch_test" ]
-  #   inputs:
-  #     prerelease_version:
-  #       description: "Pre-release version number"
-  #       default: "1.29.0b1"
   workflow_dispatch:
     inputs:
       prerelease_version:
@@ -26,7 +20,7 @@ jobs:
         env:
           PRERELEASE_VERSION: ${{ github.event.inputs.prerelease_version }}
         run: |
-          if [[ $GITHUB_REF_NAME != kshitiz/release_branch_test ]]; then
+          if [[ $GITHUB_REF_NAME != main ]]; then
             echo this workflow should only be run against main
             exit 1
           fi
@@ -100,8 +94,8 @@ jobs:
         run: |
           message="Prepare release ${STABLE_VERSION}/${UNSTABLE_VERSION}"
           branch="monocle/prepare-release-${STABLE_VERSION}-${UNSTABLE_VERSION}"
-          git config --global user.email "abc@example.com"
-          git config --global user.name "abc"
+          git config --global user.email "$USER_EMAIL"
+          git config --global user.name "$USER_NAME"
           git commit -a -m "$message"
           git push origin HEAD:$branch
           gh pr create --title "[$RELEASE_BRANCH_NAME] $message" \
@@ -180,8 +174,8 @@ jobs:
           message="Update version to ${STABLE_NEXT_VERSION}/${UNSTABLE_NEXT_VERSION}"
           body="Update version to \${STABLE_NEXT_VERSION}/${UNSTABLE_NEXT_VERSION}\."
           branch="monocle/update-version-to-${STABLE_NEXT_VERSION}-${UNSTABLE_NEXT_VERSION}"
-          git config --global user.email "abc@example.com"
-          git config --global user.name "abc"
+          git config --global user.email "$USER_EMAIL"
+          git config --global user.name "$USER_NAME"
           git commit -a -m "$message"
           git push origin HEAD:$branch
           gh pr create --title "$message" \

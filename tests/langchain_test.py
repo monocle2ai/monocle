@@ -44,6 +44,7 @@ from monocle_apptrace.wrap_common import (
     QUERY,
     RESPONSE,
     update_span_from_llm_response,
+    update_events_for_inference_span,
 )
 from monocle_apptrace.wrapper import WrapperMethod
 from opentelemetry import trace
@@ -225,7 +226,8 @@ class TestHandler(unittest.TestCase):
             }
         )
         instance = MagicMock()
-        update_span_from_llm_response(span=span, response=message, instance=instance)
+        args = MagicMock()
+        update_span_from_llm_response(span=span, response=message, instance=instance, args=args)
         event_found = False
         for event in span.events:
             if event.name == "metadata":
@@ -235,6 +237,44 @@ class TestHandler(unittest.TestCase):
                 assert attributes["total_tokens"] == 642
                 event_found = True
         assert event_found, "META_DATA event with token usage was not found"
+
+    def test_update_events_for_inference_span(self):
+        span = MagicMock()
+        span.attributes = {"span.type": "inference"}
+        span.events = []
+
+        def add_event(name, attributes):
+            span.events.append({"name": name, "attributes": attributes})
+
+        span.add_event.side_effect = add_event
+
+        mock_message_system = MagicMock()
+        mock_message_system.type = "system"
+        mock_message_system.content = "System message"
+
+        mock_message_user = MagicMock()
+        mock_message_user.type = "user"
+        mock_message_user.content = "User input message"
+
+        args = (MagicMock(messages=[mock_message_system, mock_message_user]),)
+        response = MagicMock()
+        response.content = "Assistant response message"
+
+        update_events_for_inference_span(response, span, args)
+
+        event_names = [event["name"] for event in span.events]
+        self.assertIn("data.input", event_names, "data.input event not found")
+        self.assertIn("data.output", event_names, "data.output event not found")
+
+        # Validate attributes for "data.input"
+        input_event = next(event for event in span.events if event["name"] == "data.input")
+        self.assertEqual(input_event["attributes"]["system"], "System message")
+        self.assertEqual(input_event["attributes"]["user"], "User input message")
+
+        # Validate attributes for "data.output"
+        output_event = next(event for event in span.events if event["name"] == "data.output")
+        self.assertEqual(output_event["attributes"]["assistant"], "Assistant response message")
+
 
 if __name__ == '__main__':
     unittest.main()

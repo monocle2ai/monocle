@@ -242,7 +242,7 @@ async def atask_wrapper(tracer, to_wrap, wrapped, instance, args, kwargs):
     with tracer.start_as_current_span(name) as span:
         pre_task_processing(to_wrap, instance, args, span)
         return_value = await wrapped(*args, **kwargs)
-        process_span(to_wrap, span, instance, args,kwargs, return_value)
+        process_span(to_wrap, span, instance, args, kwargs, return_value)
         post_task_processing(to_wrap, span, return_value)
 
     return return_value
@@ -262,13 +262,13 @@ async def allm_wrapper(tracer, to_wrap, wrapped, instance, args, kwargs):
     elif to_wrap.get("span_name"):
         name = to_wrap.get("span_name")
     else:
-        name =  get_fully_qualified_class_name(instance)
+        name = get_fully_qualified_class_name(instance)
     with tracer.start_as_current_span(name) as span:
         provider_name, inference_endpoint = get_provider_name(instance)
         return_value = await wrapped(*args, **kwargs)
         kwargs.update({"provider_name": provider_name, "inference_endpoint": inference_endpoint})
         process_span(to_wrap, span, instance, args, kwargs, return_value)
-        update_span_from_llm_response(response=return_value, span=span, instance=instance)
+        update_span_from_llm_response(response=return_value, span=span, instance=instance, args=args)
 
     return return_value
 
@@ -294,7 +294,7 @@ def llm_wrapper(tracer: Tracer, to_wrap, wrapped, instance, args, kwargs):
         return_value = wrapped(*args, **kwargs)
         kwargs.update({"provider_name": provider_name, "inference_endpoint": inference_endpoint})
         process_span(to_wrap, span, instance, args, kwargs, return_value)
-        update_span_from_llm_response(response=return_value, span=span, instance=instance)
+        update_span_from_llm_response(response=return_value, span=span, instance=instance, args=args)
 
     return return_value
 
@@ -378,6 +378,7 @@ def set_provider_name(instance, instance_args: dict):
     if parsed_provider_url or provider_url:
         instance_args[PROVIDER] = parsed_provider_url or provider_url
 
+
 def is_root_span(curr_span: Span) -> bool:
     return curr_span.parent is None
 
@@ -388,8 +389,10 @@ def get_input_from_args(chain_args):
     return ""
 
 
-def update_span_from_llm_response(response, span: Span, instance):
-    if (response is not None and isinstance(response, dict) and "meta" in response) or (response is not None and hasattr(response, "response_metadata")):
+def update_span_from_llm_response(response, span: Span, instance, args):
+    update_events_for_inference_span(response=response, span=span, args=args)
+    if (response is not None and isinstance(response, dict) and "meta" in response) or (
+            response is not None and hasattr(response, "response_metadata")):
         token_usage = None
         if (response is not None and isinstance(response, dict) and "meta" in response):  # haystack
             token_usage = response["meta"][0]["usage"]
@@ -425,6 +428,63 @@ def update_span_from_llm_response(response, span: Span, instance):
                     span.add_event(META_DATA, meta_dict)
         except AttributeError:
             token_usage = None
+
+
+def update_events_for_inference_span(response, span, args):
+    if getattr(span, "attributes", {}).get("span.type") == "inference":
+        system_message = ""
+        user_message = ""
+        if span.name == 'haystack.components.generators.openai.OpenAIGenerator':
+            args_input = get_attribute(DATA_INPUT_KEY)
+            span.add_event(name="data.input", attributes={"input": args_input}, )
+            span.add_event(name="data.output", attributes={"output": response['replies'][0]}, )
+        if args and isinstance(args, tuple) and len(args) > 0:
+            if hasattr(args[0], "messages") and isinstance(args[0].messages, list):
+                for msg in args[0].messages:
+                    if hasattr(msg, 'content') and hasattr(msg, 'type'):
+                        if hasattr(msg, "content") and hasattr(msg, "type"):
+                            if msg.type == "system":
+                                system_message = msg.content
+                            elif msg.type in ["user", "human"]:
+                                user_message = msg.content
+            if span.name == 'llamaindex.openai':
+                if args and isinstance(args, tuple):
+                    chat_messages = args[0]
+                    if isinstance(chat_messages, list):
+                        for msg in chat_messages:
+                            if hasattr(msg, "content") and hasattr(msg, "role"):
+                                if msg.role == "system":
+                                    system_message = msg.content
+                                elif msg.role in ["user", "human"]:
+                                    user_message = extract_query_from_content(msg.content)
+            if system_message:
+                span.add_event(name="data.input", attributes={"system": system_message, "user": user_message, }, )
+            else:
+                span.add_event(name="data.input", attributes={"input": user_message, }, )
+
+            assistant_message = ""
+            if isinstance(response, str):
+                assistant_message = response
+            if hasattr(response, "content") or hasattr(response, "message"):
+                assistant_message = getattr(response, "content", "") or response.message.content
+            if assistant_message:
+                span.add_event(name="data.output", attributes={"assistant" if system_message else "output": assistant_message}, )
+
+
+def extract_query_from_content(content):
+    query_prefix = "Query:"
+    answer_prefix = "Answer:"
+    query_start = content.find(query_prefix)
+    if query_start == -1:
+        return None
+
+    query_start += len(query_prefix)
+    answer_start = content.find(answer_prefix, query_start)
+    if answer_start == -1:
+        query = content[query_start:].strip()
+    else:
+        query = content[query_start:answer_start].strip()
+    return query
 
 
 def update_workflow_type(to_wrap, span: Span):
@@ -490,4 +550,4 @@ def update_span_with_prompt_output(to_wrap, wrapped_args, span: Span):
     elif isinstance(wrapped_args, str):
         span.add_event(PROMPT_OUTPUT_KEY, {RESPONSE: wrapped_args})
     elif isinstance(wrapped_args, dict):
-        span.add_event(PROMPT_OUTPUT_KEY,  wrapped_args)
+        span.add_event(PROMPT_OUTPUT_KEY, wrapped_args)

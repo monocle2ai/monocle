@@ -7,7 +7,7 @@ import time
 import unittest
 from typing import List
 from unittest.mock import ANY, patch
-
+from unittest.mock import MagicMock
 import requests
 from helpers import OurLLM
 from http_span_exporter import HttpSpanExporter
@@ -26,6 +26,7 @@ from monocle_apptrace.wrap_common import (
     QUERY,
     RESPONSE,
     llm_wrapper,
+    update_events_for_inference_span,
 )
 from monocle_apptrace.wrapper import WrapperMethod
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
@@ -146,6 +147,42 @@ class TestHandler(unittest.TestCase):
         assert type_found
         assert vectorstore_provider
 
+        span = MagicMock()
+        span.attributes = {"span.type": "inference"}
+        span.name = "llamaindex.openai"
+        span.events = []
+
+        def add_event(name, attributes):
+            span.events.append({"name": name, "attributes": attributes})
+
+        span.add_event.side_effect = add_event
+        mock_message_system = MagicMock()
+        mock_message_system.role = "system"
+        mock_message_system.content = "System message"
+
+        mock_message_user = MagicMock()
+        mock_message_user.role = "user"
+        mock_message_user.content = "Query:User input message, Answer:"
+
+        args = ([mock_message_system, mock_message_user],)
+        response = MagicMock()
+        response.content = "Assistant response message"
+
+        update_events_for_inference_span(response, span, args)
+        span.add_event.assert_any_call(
+            name="data.input",
+            attributes={
+                "system": "System message",
+                "user": "User input message,",
+            }
+        )
+
+        span.add_event.assert_any_call(
+            name="data.output",
+            attributes={
+                "assistant": "Assistant response message"
+            }
+        )
 
 
 if __name__ == '__main__':

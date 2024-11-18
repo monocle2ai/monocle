@@ -164,6 +164,20 @@ haystack_app()
 #     },
 #     "events": [
 #         {
+#             "name": "data.input",
+#             "timestamp": "2024-11-18T14:01:02.490594Z",
+#             "attributes": {
+#                 "input": "What does Rhodes Statue look like?"
+#             }
+#         },
+#         {
+#             "name": "data.output",
+#             "timestamp": "2024-11-18T14:01:02.490618Z",
+#             "attributes": {
+#                 "output": "The Rhodes Statue was a statue of the Greek sun-god Helios, erected in the city of Rhodes. It stood approximately 70 cubits (33 meters, 108 feet) tall and was made of bronze with iron tie bars and brass plates forming the skin. The head and face of the statue had curly hair with evenly spaced spikes of bronze or silver flame radiating. It collapsed during an earthquake in 226 BC, but parts of it were preserved. Its exact appearance is not known, but it was described as being very impressive even in its broken state."
+#             }
+#         },
+#         {
 #             "name": "metadata",
 #             "timestamp": "2024-11-12T11:33:16.594534Z",
 #             "attributes": {

@@ -121,31 +121,29 @@ class TestHandler(unittest.TestCase):
 
         span_names: List[str] = [span["name"] for span in dataJson['batch']]
         llm_span = [x for x in  dataJson["batch"] if "llamaindex.OurLLM" in x["name"]][0]
-        llm_retriever_span = [x for x in  dataJson["batch"] if "llamaindex.query" in x["name"]][0]
+        vectorstore_retriever_span = [x for x in  dataJson["batch"] if "llamaindex.retrieve" in x["name"]][0]
         for name in ["llamaindex.retrieve", "llamaindex.query", "llamaindex.OurLLM"]:
             assert name in span_names
-        assert llm_span["attributes"]["completion_tokens"] == 1
-        assert llm_span["attributes"]["prompt_tokens"] == 2
-        assert llm_span["attributes"]["total_tokens"] == 3
-        assert llm_retriever_span["attributes"]["embedding_model"] == "BAAI/bge-small-en-v1.5"
-        assert llm_retriever_span["attributes"]["provider_name"] == "SimpleVectorStore"
+        assert llm_span['events'][0]["attributes"]["completion_tokens"] == 1
+        assert llm_span['events'][0]["attributes"]["prompt_tokens"] == 2
+        assert llm_span['events'][0]["attributes"]["total_tokens"] == 3
+        assert vectorstore_retriever_span["attributes"]['entity.1.name'] == "SimpleVectorStore"
+        assert vectorstore_retriever_span["attributes"]['entity.1.type'] == 'vectorstore.SimpleVectorStore'
+        assert vectorstore_retriever_span["attributes"]['entity.2.name'] == "BAAI/bge-small-en-v1.5"
+        assert vectorstore_retriever_span["attributes"]['entity.2.type'] == 'model.embedding.BAAI/bge-small-en-v1.5'
+
 
         type_found = False
-        model_name_found = False
         vectorstore_provider = False
 
         for span in dataJson["batch"]:
-            if span["name"] == "llamaindex.query" and "workflow_type" in span["attributes"]:
-                assert span["attributes"]["workflow_type"] == "workflow.llamaindex"
+            if span["name"] == "llamaindex.query":
+                assert span["attributes"]["entity.1.type"] == "workflow.llamaindex"
                 type_found = True
-            if span["name"] == "llamaindex.OurLLM" and "model_name" in span["attributes"]:
-                assert span["attributes"]["model_name"] == "custom"
-                model_name_found = True
-            if span["name"] == "llamaindex.retrieve" and "type" in span["attributes"]:
-                assert span["attributes"]["provider_name"] == "SimpleVectorStore"
+            if span["name"] == "llamaindex.retrieve":
+                assert span["attributes"]['entity.1.name'] == "SimpleVectorStore"
                 vectorstore_provider = True
         assert type_found
-        assert model_name_found
         assert vectorstore_provider
 
 

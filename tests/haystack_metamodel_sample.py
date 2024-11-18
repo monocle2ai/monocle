@@ -96,14 +96,14 @@ haystack_app()
 # {
 #     "name": "haystack.retriever",
 #     "context": {
-#         "trace_id": "0x861990e49bc807a4dc25957c1e2ce781",
-#         "span_id": "0x429243e6e3150e2a",
+#         "trace_id": "0x5d8f46197016361b84ee878741643afa",
+#         "span_id": "0xb2bf64db3ad475ca",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0x32fba333d655a245",
-#     "start_time": "2024-11-04T12:30:46.831752Z",
-#     "end_time": "2024-11-04T12:30:46.842765Z",
+#     "parent_id": "0x9ecc03623e083280",
+#     "start_time": "2024-11-12T11:33:14.515261Z",
+#     "end_time": "2024-11-12T11:33:14.522977Z",
 #     "status": {
 #         "status_code": "UNSET"
 #     },
@@ -118,14 +118,14 @@ haystack_app()
 #     "events": [
 #         {
 #             "name": "data.input",
-#             "timestamp": "2024-11-04T12:30:46.832763Z",
+#             "timestamp": "2024-11-12T11:33:14.515261Z",
 #             "attributes": {
 #                 "question": "What does Rhodes Statue look like?"
 #             }
 #         },
 #         {
 #             "name": "data.output",
-#             "timestamp": "2024-11-04T12:30:46.842765Z",
+#             "timestamp": "2024-11-12T11:33:14.522977Z",
 #             "attributes": {
 #                 "response": "Within it, too, are to be seen large masses of rock, by the weight of which the artist steadied it w..."
 #             }
@@ -142,14 +142,14 @@ haystack_app()
 # {
 #     "name": "haystack.components.generators.openai.OpenAIGenerator",
 #     "context": {
-#         "trace_id": "0x861990e49bc807a4dc25957c1e2ce781",
-#         "span_id": "0xb6f92118d6c60d98",
+#         "trace_id": "0x5d8f46197016361b84ee878741643afa",
+#         "span_id": "0x7cd9a8a7bf047c83",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0x32fba333d655a245",
-#     "start_time": "2024-11-04T12:30:46.844761Z",
-#     "end_time": "2024-11-04T12:30:48.821773Z",
+#     "parent_id": "0x9ecc03623e083280",
+#     "start_time": "2024-11-12T11:33:14.523980Z",
+#     "end_time": "2024-11-12T11:33:16.594534Z",
 #     "status": {
 #         "status_code": "UNSET"
 #     },
@@ -158,17 +158,18 @@ haystack_app()
 #         "entity.count": 2,
 #         "entity.1.type": "inference.azure_oai",
 #         "entity.1.provider_name": "api.openai.com",
+#         "entity.1.inference_endpoint": "https://api.openai.com/v1/",
 #         "entity.2.name": "gpt-3.5-turbo",
 #         "entity.2.type": "model.llm.gpt-3.5-turbo"
 #     },
 #     "events": [
 #         {
 #             "name": "metadata",
-#             "timestamp": "2024-11-04T12:30:48.821773Z",
+#             "timestamp": "2024-11-12T11:33:16.594534Z",
 #             "attributes": {
-#                 "completion_tokens": 110,
+#                 "completion_tokens": 114,
 #                 "prompt_tokens": 2464,
-#                 "total_tokens": 2574
+#                 "total_tokens": 2578
 #             }
 #         }
 #     ],
@@ -183,14 +184,14 @@ haystack_app()
 # {
 #     "name": "haystack.core.pipeline.pipeline.Pipeline",
 #     "context": {
-#         "trace_id": "0x861990e49bc807a4dc25957c1e2ce781",
-#         "span_id": "0x32fba333d655a245",
+#         "trace_id": "0x5d8f46197016361b84ee878741643afa",
+#         "span_id": "0x9ecc03623e083280",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
 #     "parent_id": null,
-#     "start_time": "2024-11-04T12:30:46.711534Z",
-#     "end_time": "2024-11-04T12:30:48.821773Z",
+#     "start_time": "2024-11-12T11:33:14.482166Z",
+#     "end_time": "2024-11-12T11:33:16.594534Z",
 #     "status": {
 #         "status_code": "UNSET"
 #     },
@@ -201,17 +202,17 @@ haystack_app()
 #     "events": [
 #         {
 #             "name": "data.input",
-#             "timestamp": "2024-11-04T12:30:46.711534Z",
+#             "timestamp": "2024-11-12T11:33:14.482166Z",
 #             "attributes": {
 #                 "question": "What does Rhodes Statue look like?"
 #             }
 #         },
 #         {
 #             "name": "data.output",
-#             "timestamp": "2024-11-04T12:30:48.821773Z",
+#             "timestamp": "2024-11-12T11:33:16.594534Z",
 #             "attributes": {
 #                 "response": [
-#                     "The Rhodes Statue of the Colossus of Rhodes was a massive bronze statue of the Greek sun-god Helios, standing approximately 33 meters (108 feet) high. It had curly hair with spikes of bronze or silver flame radiating from the head. While the exact appearance of the entire statue is unknown, it was described to have a standard rendering of the time, similar to the images found on contemporary Rhodian coins. The statue depicted Helios holding a torch of freedom, standing with one hand shielding his eyes, looking towards the sun."
+#                     "The Rhodes Statue, also known as the Colossus of Rhodes, was a massive statue of the Greek sun-god Helios. It stood approximately 33 meters (108 feet) tall, with a head that had curly hair with spikes of bronze or silver flame radiating. The statue was constructed with iron tie bars, brass plates, and filled with stone blocks. Despite not knowing exactly what the full statue looked like, scholars have a good idea of the head and face due to standard renderings of the time, similar to images found on contemporary Rhodian coins."
 #                 ]
 #             }
 #         }

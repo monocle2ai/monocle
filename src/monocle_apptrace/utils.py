@@ -2,10 +2,13 @@ import logging
 import json
 from importlib import import_module
 import os
-from opentelemetry.trace import Span
+from opentelemetry.trace import NonRecordingSpan,Span
+from opentelemetry.trace.propagation import _SPAN_KEY
+from opentelemetry.context import (attach, detach,get_current)
 from opentelemetry.context import attach, set_value, get_value
-from monocle_apptrace.constants import azure_service_map, aws_service_map
+from monocle_apptrace.constants import service_name_map, service_type_map
 from json.decoder import JSONDecodeError
+
 logger = logging.getLogger(__name__)
 
 embedding_model_context = {}
@@ -39,8 +42,25 @@ def with_tracer_wrapper(func):
 
     def _with_tracer(tracer, to_wrap):
         def wrapper(wrapped, instance, args, kwargs):
-            return func(tracer, to_wrap, wrapped, instance, args, kwargs)
+            token = None
+            try:
+                _parent_span_context = get_current()
+                if _parent_span_context is not None and _parent_span_context.get(_SPAN_KEY, None):
+                    parent_span: Span = _parent_span_context.get(_SPAN_KEY, None)
+                    is_invalid_span = isinstance(parent_span, NonRecordingSpan)
+                    if is_invalid_span:
+                        token = attach(context={})
+            except Exception as e:
+                logger.error("Exception in attaching parent context: %s", e)
 
+            val = func(tracer, to_wrap, wrapped, instance, args, kwargs)
+            # Detach the token if it was set
+            if token:
+                try:
+                    detach(token=token)
+                except Exception as e:
+                    logger.error("Exception in detaching parent context: %s", e)
+            return val
         return wrapper
 
     return _with_tracer
@@ -118,13 +138,16 @@ def get_wrapper_method(package_name: str, method_name: str):
     wrapper_module = import_module("monocle_apptrace." + package_name)
     return getattr(wrapper_module, method_name)
 
-def update_span_with_infra_name(span: Span, span_key: str):
-    for key, val in azure_service_map.items():
-        if key in os.environ:
-            span.set_attribute(span_key, val)
-    for key, val in aws_service_map.items():
-        if key in os.environ:
-            span.set_attribute(span_key, val)
+def set_app_hosting_identifier_attribute(span, span_index):
+    return_value = 0
+    # Search env to indentify the infra service type, if found check env for service name if possible
+    for type_env, type_name in service_type_map.items():
+        if type_env in os.environ:
+            return_value = 1
+            span.set_attribute(f"entity.{span_index}.type", f"app_hosting.{type_name}")
+            entity_name_env = service_name_map.get(type_name, "unknown")
+            span.set_attribute(f"entity.{span_index}.name", os.environ.get(entity_name_env, "generic"))
+    return return_value
 
 def set_embedding_model(model_name: str):
     """

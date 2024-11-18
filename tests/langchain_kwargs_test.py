@@ -80,7 +80,7 @@ class TestHandler(unittest.TestCase):
     def __format_docs(self, docs):
         return "\n\n ".join(doc.page_content for doc in docs)
 
-    def __createChain(self, llm_type):
+    def __createChain(self):
 
         resource = Resource(attributes={
             SERVICE_NAME: "coffee_rag_fake"
@@ -94,21 +94,11 @@ class TestHandler(unittest.TestCase):
         self.instrumentor = MonocleInstrumentor()
         self.instrumentor.instrument()
         self.processor = monocleProcessor
-        responses =[self.ragText]
-        if llm_type == "FakeListLLM":
-            responses = [self.ragText]
-            llm = FakeListLLM(responses=responses)
-            llm.api_base = "https://example.com/"
-        else:
-            llm = AzureOpenAI(
-                azure_deployment=os.environ.get("AZURE_OPENAI_API_DEPLOYMENT"),
-                api_key=os.environ.get("AZURE_OPENAI_API_KEY"),
-                api_version=os.environ.get("AZURE_OPENAI_API_VERSION"),
-                azure_endpoint=os.environ.get("AZURE_OPENAI_ENDPOINT"),
-                temperature=0.1,
-                model="gpt-3.5-turbo-0125"
-            )
-            llm.azure_endpoint = "https://example.com/"
+
+        responses = [self.ragText]
+        llm = FakeListLLM(responses=responses)
+        llm.api_base = "https://example.com/"
+
         embeddings = HuggingFaceEmbeddings(model_id = "multi-qa-mpnet-base-dot-v1")
         my_path = os.path.abspath(os.path.dirname(__file__))
         model_path = os.path.join(my_path, "./vector_data/coffee_embeddings")
@@ -125,10 +115,7 @@ class TestHandler(unittest.TestCase):
         return rag_chain
 
     def setUp(self):
-        os.environ["AZURE_OPENAI_API_DEPLOYMENT"] = "AZURE_OPENAI_API_DEPLOYMENT"
-        os.environ["AZURE_OPENAI_API_KEY"] = "AZURE_OPENAI_API_KEY"
-        os.environ["AZURE_OPENAI_ENDPOINT"] = "AZURE_OPENAI_ENDPOINT"
-        os.environ["AZURE_OPENAI_API_VERSION"] = "2024-02-01"
+
         os.environ["HTTP_API_KEY"] = "key1"
         os.environ["HTTP_INGESTION_ENDPOINT"] = "https://localhost:3000/api/v1/traces"
 
@@ -137,9 +124,12 @@ class TestHandler(unittest.TestCase):
         return super().tearDown()
 
     @parameterized.expand([
-        ("AzureOpenAI", AZURE_ML_ENDPOINT_ENV_NAME, "AzureOpenAI"),
-        ("FakeListLLM", AZURE_ML_ENDPOINT_ENV_NAME, "FakeListLLM"),
+        ("1", AZURE_ML_ENDPOINT_ENV_NAME, AZURE_ML_SERVICE_NAME),
+        ("2", AZURE_FUNCTION_WORKER_ENV_NAME, AZURE_FUNCTION_NAME),
+        ("3", AZURE_APP_SERVICE_ENV_NAME, AZURE_APP_SERVICE_NAME),
+        ("4", AWS_LAMBDA_ENV_NAME, AWS_LAMBDA_SERVICE_NAME),
     ])
+
     @patch.object(requests.Session, 'post')
     def test_llm_chain(self, test_name, test_input_infra, llm_type, mock_post):
         app_name = "test"
@@ -158,7 +148,7 @@ class TestHandler(unittest.TestCase):
             context_value = "context_value_1"
             set_context_properties({context_key: context_value})
 
-            self.chain = self.__createChain(llm_type)
+            self.chain = self.__createChain()
             mock_post.return_value.status_code = 201
             mock_post.return_value.json.return_value = 'mock response'
 
@@ -179,22 +169,17 @@ class TestHandler(unittest.TestCase):
             root_attributes = [x for x in dataJson["batch"] if x["parent_id"] == "None"][0]["attributes"]
             assert root_attributes["entity.1.name"] == app_name
             assert root_attributes["entity.1.type"] == WORKFLOW_TYPE_MAP['langchain']
-            if llm_type == "FakeListLLM":
-                llm_vector_store_retriever_span = [x for x in dataJson["batch"] if 'langchain_core.vectorstores.base.VectorStoreRetriever' in x["name"]][0]
-                inference_span = [x for x in dataJson["batch"] if 'fake_list_llm.FakeListLLM' in x["name"]][0]
 
-                assert llm_vector_store_retriever_span["attributes"]["span.type"] == "retrieval"
-                assert llm_vector_store_retriever_span["attributes"]["entity.1.name"] == "FAISS"
-                assert llm_vector_store_retriever_span["attributes"]["entity.1.type"] == "vectorstore.FAISS"
-                assert inference_span['attributes']["entity.1.inference_endpoint"] == "https://example.com/"
-            else:
-                llm_azure_openai_span = [x for x in dataJson["batch"] if 'langchain_openai.llms.azure.AzureOpenAI' in x["name"]][0]
-                assert llm_azure_openai_span["attributes"]["span.type"] == "inference"
-                assert llm_azure_openai_span["attributes"]["entity.1.type"] == "inference.azure_oai"
-                assert llm_azure_openai_span["attributes"]["entity.1.provider_name"] == urlparse(os.environ.get("AZURE_OPENAI_ENDPOINT")).hostname
-                assert llm_azure_openai_span["attributes"]["entity.1.deployment"] == os.environ.get("AZURE_OPENAI_API_DEPLOYMENT")
-                assert llm_azure_openai_span["attributes"]["entity.1.inference_endpoint"] == "https://example.com/"
-                assert llm_azure_openai_span["attributes"]["entity.2.type"] == "model.llm.gpt-3.5-turbo-0125"
+            llm_vector_store_retriever_span = [x for x in dataJson["batch"] if 'langchain_core.vectorstores.base.VectorStoreRetriever' in x["name"]][0]
+            inference_span = [x for x in dataJson["batch"] if 'FakeListLLM' in x["name"]][0]
+
+            assert llm_vector_store_retriever_span['attributes']['entity.1.name'] == "FAISS"
+            assert llm_vector_store_retriever_span['attributes']['entity.1.type'] == "vectorstore.FAISS"
+
+            # using kwargs for provider name and inference endpoint in metamodel
+            assert inference_span['attributes']['entity.1.provider_name'] == "example.com"
+            assert inference_span['attributes']["entity.1.inference_endpoint"] == "https://example.com/"
+
 
         finally:
             os.environ.pop(test_input_infra)

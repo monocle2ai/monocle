@@ -13,7 +13,7 @@
       },
       {
         "attribute": "deployment",
-        "accessor": "lambda instance,args: get_vectorstore_deployment(instance._vector_store.__dict__)"
+        "accessor": "lambda instance,args: get_vectorstore_deployment(instance._vector_store)"
       }
     ],
     [

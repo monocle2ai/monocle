@@ -105,14 +105,11 @@ class AzureBlobSpanExporter(SpanExporterBase):
         serialized_data = self.__serialize_spans(batch_to_export)
         self.export_queue = self.export_queue[self.max_batch_size:]
         try:
-            if asyncio.get_event_loop().is_running():
-                task = asyncio.create_task(self._retry_with_backoff(self.__upload_to_blob, serialized_data))
-                await task
-            else:
-                await self._retry_with_backoff(self.__upload_to_blob, serialized_data)
+            self.__upload_to_blob(serialized_data)
         except Exception as e:
             logger.error(f"Failed to upload span batch: {e}")
 
+    @SpanExporterBase.retry_with_backoff(exceptions=(ResourceNotFoundError, ClientAuthenticationError, ServiceRequestError))
     def __upload_to_blob(self, span_data_batch: str):
         current_time = datetime.datetime.now().strftime(self.time_format)
         file_name = f"{self.file_prefix}{current_time}.ndjson"

@@ -17,7 +17,7 @@
       },
       {
         "attribute": "inference_endpoint",
-        "accessor": "lambda arguments: resolve_from_alias(arguments['instance'].__dict__, ['azure_endpoint', 'api_base'])"
+        "accessor": "lambda arguments: resolve_from_alias(arguments['instance'].__dict__, ['azure_endpoint', 'api_base']) or arguments['kwargs']['inference_endpoint']"
       }
     ],
     [

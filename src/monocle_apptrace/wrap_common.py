@@ -334,27 +334,31 @@ def get_provider_name(instance):
     inference_endpoint = ""
     parsed_provider_url = None
     try:
-        if isinstance(instance.client._client.base_url.host, str):
-            provider_url = instance.client._client.base_url.host
-        if isinstance(instance.client._client.base_url, str):
-            inference_endpoint = instance.client._client.base_url
-        else:
-            inference_endpoint = str(instance.client._client.base_url)
+        base_url = getattr(instance.client._client, "base_url", None)
+        if base_url:
+            if isinstance(getattr(base_url, "host", None), str):
+                provider_url = base_url.host
+            inference_endpoint = base_url if isinstance(base_url, str) else str(base_url)
     except:
         pass
 
-    try:
-        if isinstance(instance.api_base, str):
-            provider_url = instance.api_base
-    except:
-        pass
+    api_base = getattr(instance, "api_base", None)
+    if isinstance(api_base, str):
+        provider_url = api_base
 
-    try:
-        if len(provider_url) > 0:
+    # Handle inference endpoint for Mistral AI (llamaindex)
+    sdk_config = getattr(instance, "_client", None)
+    if sdk_config and hasattr(sdk_config, "sdk_configuration"):
+        inference_endpoint = getattr(sdk_config.sdk_configuration, "server_url", inference_endpoint)
+
+    if provider_url:
+        try:
             parsed_provider_url = urlparse(provider_url)
-    except:
-        pass
-    return (parsed_provider_url.hostname if parsed_provider_url else provider_url), inference_endpoint
+        except:
+            pass
+
+    return parsed_provider_url.hostname if parsed_provider_url else provider_url, inference_endpoint
+
 
 def set_provider_name(instance, instance_args: dict):
     provider_url = ""
@@ -434,10 +438,10 @@ def update_events_for_inference_span(response, span, args):
     if getattr(span, "attributes", {}).get("span.type") == "inference":
         system_message = ""
         user_message = ""
-        if span.name == 'haystack.components.generators.openai.OpenAIGenerator':
+        if span.name in ['haystack.components.generators.openai.OpenAIGenerator', 'haystack_integrations.components.generators.mistral.chat.chat_generator.MistralChatGenerator'] :
             args_input = get_attribute(DATA_INPUT_KEY)
             span.add_event(name="data.input", attributes={"input": args_input}, )
-            span.add_event(name="data.output", attributes={"response": response['replies'][0]}, )
+            span.add_event(name="data.output", attributes={"response": response['replies'][0].content if hasattr(response['replies'][0],'content') else response['replies'][0]}, )
         if args and isinstance(args, tuple) and len(args) > 0:
             if hasattr(args[0], "messages") and isinstance(args[0].messages, list):
                 for msg in args[0].messages:
@@ -534,10 +538,9 @@ def update_span_with_context_output(to_wrap, return_value, span: Span):
 def update_span_with_prompt_input(to_wrap, wrapped_args, span: Span):
     input_arg_text = wrapped_args[0]
 
-    prompt_inputs = get_nested_value(input_arg_text, ['prompt_builder'])
+    prompt_inputs = get_nested_value(input_arg_text, ['prompt_builder', 'question'])
     if prompt_inputs is not None:  # haystack
-        input_arg_text = flatten_dict(prompt_inputs)
-        span.add_event(PROMPT_INPUT_KEY, input_arg_text)
+        span.add_event(PROMPT_INPUT_KEY, {QUERY: prompt_inputs})
     elif isinstance(input_arg_text, dict):
         span.add_event(PROMPT_INPUT_KEY, {QUERY: input_arg_text['input']})
     else:
@@ -552,7 +555,10 @@ def update_span_with_prompt_output(to_wrap, wrapped_args, span: Span):
     elif "haystack.core.pipeline.pipeline" in package_name:
         resp = get_nested_value(wrapped_args, ['llm', 'replies'])
         if resp is not None:
-            span.add_event(PROMPT_OUTPUT_KEY, {RESPONSE: resp})
+            if isinstance(resp, list) and hasattr(resp[0], 'content'):
+                span.add_event(PROMPT_OUTPUT_KEY, {RESPONSE: resp[0].content})
+            else:
+                span.add_event(PROMPT_OUTPUT_KEY, {RESPONSE: resp})
     elif isinstance(wrapped_args, str):
         span.add_event(PROMPT_OUTPUT_KEY, {RESPONSE: wrapped_args})
     elif isinstance(wrapped_args, dict):

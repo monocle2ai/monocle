@@ -14,8 +14,14 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from monocle_apptrace.instrumentor import set_context_properties, setup_monocle_telemetry
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
 from langhchain_patch import create_history_aware_retriever
-
-
+from langchain_mistralai import ChatMistralAI
+import os
+os.environ["AZURE_OPENAI_API_DEPLOYMENT"] = ""
+os.environ["AZURE_OPENAI_API_KEY"] = ""
+os.environ["AZURE_OPENAI_API_VERSION"] = ""
+os.environ["AZURE_OPENAI_ENDPOINT"] = ""
+os.environ["OPENAI_API_KEY"] = ""
+os.environ["MISTRAL_API_KEY"] = ""
 setup_monocle_telemetry(
             workflow_name="langchain_app_1",
             span_processors=[BatchSpanProcessor(ConsoleSpanExporter())],
@@ -430,19 +436,16 @@ ai_msg_2 = rag_chain.invoke({"input": second_question, "chat_history": chat_hist
 #     "events": [
 #         {
 #             "name": "data.input",
-#             "timestamp": "2024-11-12T11:30:11.003578Z",
+#             "timestamp": "2024-11-21T10:18:06.470347Z",
 #             "attributes": {
-#                 "input": "What is Task Decomposition?",
-#                 "chat_history": []
+#                 "input": "What is Task Decomposition?"
 #             }
 #         },
 #         {
 #             "name": "data.output",
-#             "timestamp": "2024-11-12T11:30:12.815228Z",
+#             "timestamp": "2024-11-21T10:18:11.275431Z",
 #             "attributes": {
-#                 "input": "What is Task Decomposition?",
-#                 "chat_history": [],
-#                 "answer": "Task decomposition is a technique used to break down complex tasks into smaller and simpler steps, making them more manageable for agents or models to handle. This process involves transforming big tasks into multiple smaller tasks to enhance performance and simplify the overall task execution. Task decomposition can be achieved through various methods such as prompting with specific instructions, utilizing human inputs, or leveraging language models with appropriate prompts."
+#                 "response": "Task Decomposition is a strategy used to break down complex tasks into smaller, manageable steps. This can be achieved using techniques like Chain of Thought (CoT), which instructs the model to \"think step by step,\" or Tree of Thoughts, which explores multiple reasoning possibilities at each step. Task decomposition can be performed by a Large Language Model (LLM) with simple prompting, task-specific instructions, or human inputs."
 #             }
 #         }
 #     ],
@@ -591,14 +594,14 @@ ai_msg_2 = rag_chain.invoke({"input": second_question, "chat_history": chat_hist
 #     "events": [
 #         {
 #             "name": "data.input",
-#             "timestamp": "2024-11-12T11:30:13.756930Z",
+#             "timestamp": "2024-11-21T10:18:12.096133Z",
 #             "attributes": {
-#                 "question": "What are some common methods for task decomposition?"
+#                 "input": "What are common ways of doing Task Decomposition?"
 #             }
 #         },
 #         {
 #             "name": "data.output",
-#             "timestamp": "2024-11-12T11:30:14.121735Z",
+#             "timestamp": "2024-11-21T10:18:12.917233Z",
 #             "attributes": {
 #                 "response": "Tree of Thoughts (Yao et al. 2023) extends CoT by exploring multiple reasoning possibilities at each..."
 #             }
@@ -877,17 +880,16 @@ ai_msg_2 = rag_chain.invoke({"input": second_question, "chat_history": chat_hist
 #     "events": [
 #         {
 #             "name": "data.input",
-#             "timestamp": "2024-11-12T11:30:12.815228Z",
+#             "timestamp": "2024-11-21T10:18:11.276295Z",
 #             "attributes": {
 #                 "input": "What are common ways of doing it?"
 #             }
 #         },
 #         {
 #             "name": "data.output",
-#             "timestamp": "2024-11-12T11:30:15.526970Z",
+#             "timestamp": "2024-11-21T10:18:16.354855Z",
 #             "attributes": {
-#                 "input": "What are common ways of doing it?",
-#                 "answer": "Task decomposition can be commonly done through prompting with language models using simple instructions like \"Steps for XYZ\" or \"What are the subgoals for achieving XYZ?\" Another method is to provide task-specific instructions tailored to the nature of the task, such as \"Write a story outline\" for novel writing. Additionally, task decomposition can involve human inputs to break down complex tasks into more manageable components."
+#                 "response": "Common ways of doing task decomposition include using techniques like Chain of Thought (CoT), which instructs the model to \"think step by step,\" and Tree of Thoughts, which explores multiple reasoning possibilities at each step. These methods can be initiated by a Large Language Model (LLM) using simple prompting, such as \"Steps for XYZ.\\n1.\", task-specific instructions like \"Write a story outline.\" for a novel, or with human inputs."
 #             }
 #         }
 #     ],

@@ -20,8 +20,12 @@ from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExport
 from monocle_apptrace.instrumentor import setup_monocle_telemetry
 from monocle_apptrace.wrap_common import llm_wrapper, task_wrapper
 from monocle_apptrace.wrapper import WrapperMethod
-
-
+from haystack_integrations.components.generators.mistral import MistralChatGenerator
+from haystack.dataclasses import ChatMessage
+from haystack.core.component import Component
+from haystack.components.builders import ChatPromptBuilder
+os.environ["OPENAI_API_KEY"] = ""
+os.environ["MISTRAL_API_KEY"] = ""
 def haystack_app():
 
     setup_monocle_telemetry(
@@ -32,10 +36,13 @@ def haystack_app():
             ])
 
     # initialize
+
     api_key = os.getenv("OPENAI_API_KEY")
     generator = OpenAIGenerator(
         api_key=Secret.from_token(api_key), model="gpt-3.5-turbo"
     )
+    # api_key = os.getenv("MISTRAL_API_KEY")
+    # generator = MistralChatGenerator(api_key=Secret.from_token(api_key), model="mistral-small")
 
     # initialize document store, load data and store in document store
     document_store = InMemoryDocumentStore()
@@ -71,6 +78,8 @@ def haystack_app():
     """
 
     prompt_builder = PromptBuilder(template=template)
+    # template = [ChatMessage.from_user(template)]
+    # prompt_builder = ChatPromptBuilder(template=template)
 
     basic_rag_pipeline = Pipeline()
     # Add components to your pipeline
@@ -219,17 +228,17 @@ haystack_app()
 #     "events": [
 #         {
 #             "name": "data.input",
-#             "timestamp": "2024-11-18T14:03:03.195902Z",
+#             "timestamp": "2024-11-21T10:33:48.075641Z",
 #             "attributes": {
-#                 "question": "What does Rhodes Statue look like?"
+#                 "input": "What does Rhodes Statue look like?"
 #             }
 #         },
 #         {
 #             "name": "data.output",
-#             "timestamp": "2024-11-18T14:03:05.124261Z",
+#             "timestamp": "2024-11-21T10:33:50.200564Z",
 #             "attributes": {
 #                 "response": [
-#                     "The Rhodes Statue was a statue of the Greek sun-god Helios. It was described as approximately 70 cubits or 33 meters (108 feet) tall, making it the tallest statue in the ancient world. The head was thought to have had curly hair with evenly spaced spikes of bronze or silver flame radiating. The statue was constructed with iron tie bars, brass plates, and filled with stone blocks. Despite the lack of exact visual representation, it is believed that the statue was similar in appearance to contemporary Rhodian coins depicting Helios."
+#                     "The Rhodes Statue was a statue of the Greek sun-god Helios, standing approximately 33 meters (108 feet) tall. While scholars do not know exactly what the statue looked like, they do have a good idea of what the head and face looked like. The head would have had curly hair with evenly spaced spikes of bronze or silver flame radiating, similar to the images found on contemporary Rhodian coins."
 #                 ]
 #             }
 #         }

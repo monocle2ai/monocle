@@ -10,6 +10,8 @@ from langchain_openai import ChatOpenAI, OpenAIEmbeddings, AzureChatOpenAI, Azur
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from monocle_apptrace.instrumentor import setup_monocle_telemetry
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
+from langchain_mistralai import ChatMistralAI
+
 import os
 os.environ["AZURE_OPENAI_API_DEPLOYMENT"] = ""
 os.environ["AZURE_OPENAI_API_KEY"] = ""
@@ -21,17 +23,23 @@ setup_monocle_telemetry(
             span_processors=[BatchSpanProcessor(ConsoleSpanExporter())],
             wrapper_methods=[])
 
-# llm = OpenAI(model="gpt-3.5-turbo-instruct")
-llm = AzureOpenAI(
-    # engine=os.environ.get("AZURE_OPENAI_API_DEPLOYMENT"),
-    azure_deployment=os.environ.get("AZURE_OPENAI_API_DEPLOYMENT"),
-    api_key=os.environ.get("AZURE_OPENAI_API_KEY"),
-    api_version=os.environ.get("AZURE_OPENAI_API_VERSION"),
-    azure_endpoint=os.environ.get("AZURE_OPENAI_ENDPOINT"),
-    temperature=0.1,
-    # model="gpt-4",
 
-    model="gpt-3.5-turbo-0125")
+llm = ChatMistralAI(
+    model="mistral-large-latest",
+    temperature=0.7,
+)
+
+# llm = OpenAI(model="gpt-3.5-turbo-instruct")
+# llm = AzureOpenAI(
+#     # engine=os.environ.get("AZURE_OPENAI_API_DEPLOYMENT"),
+#     azure_deployment=os.environ.get("AZURE_OPENAI_API_DEPLOYMENT"),
+#     api_key=os.environ.get("AZURE_OPENAI_API_KEY"),
+#     api_version=os.environ.get("AZURE_OPENAI_API_VERSION"),
+#     azure_endpoint=os.environ.get("AZURE_OPENAI_ENDPOINT"),
+#     temperature=0.1,
+#     # model="gpt-4",
+#
+#     model="gpt-3.5-turbo-0125")
 # Load, chunk and index the contents of the blog.
 loader = WebBaseLoader(
     web_paths=("https://lilianweng.github.io/posts/2023-06-23-agent/",),

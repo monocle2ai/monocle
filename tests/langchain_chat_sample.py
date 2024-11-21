@@ -23,16 +23,22 @@ setup_monocle_telemetry(
 
 
 # llm = ChatOpenAI(model="gpt-3.5-turbo-0125")
-llm = OpenAI(model="gpt-3.5-turbo-instruct")
-# llm = AzureOpenAI(
-#     # engine=os.environ.get("AZURE_OPENAI_API_DEPLOYMENT"),
-#     azure_deployment=os.environ.get("AZURE_OPENAI_API_DEPLOYMENT"),
-#     api_key=os.environ.get("AZURE_OPENAI_API_KEY"),
-#     api_version=os.environ.get("AZURE_OPENAI_API_VERSION"),
-#     azure_endpoint=os.environ.get("AZURE_OPENAI_ENDPOINT"),
-#     temperature=0.1,
-#     # model="gpt-4",
-#     model="gpt-3.5-turbo-0125")
+# llm = OpenAI(model="gpt-3.5-turbo-instruct")
+llm = AzureChatOpenAI(
+    # engine=os.environ.get("AZURE_OPENAI_API_DEPLOYMENT"),
+    azure_deployment=os.environ.get("AZURE_OPENAI_API_DEPLOYMENT"),
+    api_key=os.environ.get("AZURE_OPENAI_API_KEY"),
+    api_version=os.environ.get("AZURE_OPENAI_API_VERSION"),
+    azure_endpoint=os.environ.get("AZURE_OPENAI_ENDPOINT"),
+    temperature=0.7,
+    # model="gpt-4",
+    model="gpt-3.5-turbo-0125"
+    )
+
+# llm = ChatMistralAI(
+#     model="mistral-large-latest",
+#     temperature=0.7,
+# )
 
 # Load, chunk and index the contents of the blog.
 loader = WebBaseLoader(
@@ -56,12 +62,12 @@ prompt = hub.pull("rlm/rag-prompt")
 def format_docs(docs):
     return "\n\n".join(doc.page_content for doc in docs)
 
-rag_chain = (
-    {"context": retriever | format_docs, "question": RunnablePassthrough()}
-    | prompt
-    | llm
-    | StrOutputParser()
-)
+# rag_chain = (
+#     {"context": retriever | format_docs, "question": RunnablePassthrough()}
+#     | prompt
+#     | llm
+#     | StrOutputParser()
+# )
 
 
 contextualize_q_system_prompt = """Given a chat history and the latest user question \
@@ -104,13 +110,13 @@ set_context_properties({"session_id": "0x4fa6d91d1f2a4bdbb7a1287d90ec4a16"})
 
 question = "What is Task Decomposition?"
 ai_msg_1 = rag_chain.invoke({"input": question, "chat_history": chat_history})
-print(ai_msg_1["answer"])
+# print(ai_msg_1["answer"])
 chat_history.extend([HumanMessage(content=question), ai_msg_1["answer"]])
 
 second_question = "What are common ways of doing it?"
 ai_msg_2 = rag_chain.invoke({"input": second_question, "chat_history": chat_history})
 
-print(ai_msg_2["answer"])
+# print(ai_msg_2["answer"])
 
 
 # {

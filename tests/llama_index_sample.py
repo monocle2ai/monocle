@@ -12,13 +12,19 @@ from monocle_apptrace.instrumentor import setup_monocle_telemetry
 from monocle_apptrace.wrap_common import llm_wrapper
 from monocle_apptrace.wrapper import WrapperMethod
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
-
+from llama_index.llms.mistralai import MistralAI
+os.environ["AZURE_OPENAI_API_DEPLOYMENT"] = ""
+os.environ["AZURE_OPENAI_API_KEY"] = ""
+os.environ["AZURE_OPENAI_API_VERSION"] = ""
+os.environ["AZURE_OPENAI_ENDPOINT"] = ""
+os.environ["OPENAI_API_KEY"] = ""
+os.environ["MISTRAL_API_KEY"] = ""
 setup_monocle_telemetry(
     workflow_name="llama_index_1",
     span_processors=[BatchSpanProcessor(ConsoleSpanExporter())],
     wrapper_methods=[]
 )
-
+api_key_string = "jkfXbZDj7QrBHlBbBBYmEWZAJa2kk1Gd"
 # Creating a Chroma client
 # EphemeralClient operates purely in-memory, PersistentClient will also save to disk
 chroma_client = chromadb.EphemeralClient()
@@ -37,7 +43,7 @@ index = VectorStoreIndex.from_documents(
     documents, storage_context=storage_context, embed_model=embed_model
 )
 
-llm = OpenAI(temperature=0.1, model="gpt-4")
+# llm = OpenAI(temperature=0.8, model="gpt-4")
 # llm = AzureOpenAI(
 #     engine=os.environ.get("AZURE_OPENAI_API_DEPLOYMENT"),
 #     azure_deployment=os.environ.get("AZURE_OPENAI_API_DEPLOYMENT"),
@@ -48,6 +54,8 @@ llm = OpenAI(temperature=0.1, model="gpt-4")
 #     # model="gpt-4",
 #
 #     model="gpt-3.5-turbo-0125")
+
+llm = MistralAI(api_key=os.getenv("MISTRAL_API_KEY"))
 
 query_engine = index.as_query_engine(llm= llm, )
 response = query_engine.query("What did the author do growing up?")

@@ -15,7 +15,7 @@ DATA_INPUT_KEY = "data.input"
 DATA_OUTPUT_KEY = "data.output"
 PROMPT_INPUT_KEY = "data.input"
 PROMPT_OUTPUT_KEY = "data.output"
-QUERY = "question"
+QUERY = "input"
 RESPONSE = "response"
 SESSION_PROPERTIES_KEY = "session"
 INFRA_SERVICE_KEY = "infra_service_name"
@@ -211,7 +211,7 @@ def pre_task_processing(to_wrap, instance, args, span):
                 sdk_version = version("monocle_apptrace")
                 span.set_attribute("monocle_apptrace.version", sdk_version)
             except:
-                logger.warning(f"Exception finding okahu-observability version.")
+                logger.warning(f"Exception finding monocle-apptrace version.")
             update_span_with_prompt_input(to_wrap=to_wrap, wrapped_args=args, span=span)
         update_span_with_context_input(to_wrap=to_wrap, wrapped_args=args, span=span)
     except:
@@ -266,7 +266,7 @@ async def allm_wrapper(tracer, to_wrap, wrapped, instance, args, kwargs):
     with tracer.start_as_current_span(name) as span:
         provider_name, inference_endpoint = get_provider_name(instance)
         return_value = await wrapped(*args, **kwargs)
-        kwargs.update({"provider_name": provider_name, "inference_endpoint": inference_endpoint})
+        kwargs.update({"provider_name": provider_name, "inference_endpoint": inference_endpoint or getattr(instance, 'endpoint', None)})
         process_span(to_wrap, span, instance, args, kwargs, return_value)
         update_span_from_llm_response(response=return_value, span=span, instance=instance, args=args)
 
@@ -292,7 +292,7 @@ def llm_wrapper(tracer: Tracer, to_wrap, wrapped, instance, args, kwargs):
     with tracer.start_as_current_span(name) as span:
         provider_name, inference_endpoint = get_provider_name(instance)
         return_value = wrapped(*args, **kwargs)
-        kwargs.update({"provider_name": provider_name, "inference_endpoint": inference_endpoint})
+        kwargs.update({"provider_name": provider_name, "inference_endpoint": inference_endpoint or getattr(instance, 'endpoint', None)})
         process_span(to_wrap, span, instance, args, kwargs, return_value)
         update_span_from_llm_response(response=return_value, span=span, instance=instance, args=args)
 
@@ -437,16 +437,22 @@ def update_events_for_inference_span(response, span, args):
         if span.name == 'haystack.components.generators.openai.OpenAIGenerator':
             args_input = get_attribute(DATA_INPUT_KEY)
             span.add_event(name="data.input", attributes={"input": args_input}, )
-            span.add_event(name="data.output", attributes={"output": response['replies'][0]}, )
+            span.add_event(name="data.output", attributes={"response": response['replies'][0]}, )
         if args and isinstance(args, tuple) and len(args) > 0:
             if hasattr(args[0], "messages") and isinstance(args[0].messages, list):
                 for msg in args[0].messages:
                     if hasattr(msg, 'content') and hasattr(msg, 'type'):
-                        if hasattr(msg, "content") and hasattr(msg, "type"):
-                            if msg.type == "system":
-                                system_message = msg.content
-                            elif msg.type in ["user", "human"]:
-                                user_message = msg.content
+                        if msg.type == "system":
+                            system_message = msg.content
+                        elif msg.type in ["user", "human"]:
+                            user_message = msg.content
+            if isinstance(args[0], list):
+                for msg in args[0]:
+                    if hasattr(msg, 'content') and hasattr(msg, 'role'):
+                        if msg.role == "system":
+                            system_message = msg.content
+                        elif msg.role in ["user", "human"]:
+                            user_message = extract_query_from_content(msg.content)
             if span.name == 'llamaindex.openai':
                 if args and isinstance(args, tuple):
                     chat_messages = args[0]
@@ -468,7 +474,7 @@ def update_events_for_inference_span(response, span, args):
             if hasattr(response, "content") or hasattr(response, "message"):
                 assistant_message = getattr(response, "content", "") or response.message.content
             if assistant_message:
-                span.add_event(name="data.output", attributes={"assistant" if system_message else "output": assistant_message}, )
+                span.add_event(name="data.output", attributes={"assistant" if system_message else "response": assistant_message}, )
 
 
 def extract_query_from_content(content):
@@ -533,7 +539,7 @@ def update_span_with_prompt_input(to_wrap, wrapped_args, span: Span):
         input_arg_text = flatten_dict(prompt_inputs)
         span.add_event(PROMPT_INPUT_KEY, input_arg_text)
     elif isinstance(input_arg_text, dict):
-        span.add_event(PROMPT_INPUT_KEY, input_arg_text)
+        span.add_event(PROMPT_INPUT_KEY, {QUERY: input_arg_text['input']})
     else:
         span.add_event(PROMPT_INPUT_KEY, {QUERY: input_arg_text})
 
@@ -550,4 +556,7 @@ def update_span_with_prompt_output(to_wrap, wrapped_args, span: Span):
     elif isinstance(wrapped_args, str):
         span.add_event(PROMPT_OUTPUT_KEY, {RESPONSE: wrapped_args})
     elif isinstance(wrapped_args, dict):
-        span.add_event(PROMPT_OUTPUT_KEY, wrapped_args)
+        if "langchain.schema.runnable" in package_name:
+            span.add_event(PROMPT_OUTPUT_KEY, {RESPONSE: wrapped_args['answer']})
+        else:
+            span.add_event(PROMPT_OUTPUT_KEY, wrapped_args)

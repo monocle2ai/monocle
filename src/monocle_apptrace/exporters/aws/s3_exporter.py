@@ -6,6 +6,13 @@ import logging
 import asyncio
 import boto3
 from botocore.exceptions import ClientError
+from botocore.exceptions import (
+    BotoCoreError,
+    ConnectionClosedError,
+    ConnectTimeoutError,
+    EndpointConnectionError,
+    ReadTimeoutError,
+)
 from opentelemetry.sdk.trace import ReadableSpan
 from opentelemetry.sdk.trace.export import SpanExporter, SpanExportResult
 from monocle_apptrace.exporters.base_exporter import SpanExporterBase
@@ -14,7 +21,7 @@ import json
 logger = logging.getLogger(__name__)
 
 class S3SpanExporter(SpanExporterBase):
-    def __init__(self, bucket_name=None, region_name="us-east-1"):
+    def __init__(self, bucket_name=None, region_name=None):
         super().__init__()
         # Use environment variables if credentials are not provided
         DEFAULT_FILE_PREFIX = "monocle_trace__"
@@ -36,13 +43,10 @@ class S3SpanExporter(SpanExporterBase):
         # Check if bucket exists or create it
         if not self.__bucket_exists(self.bucket_name):
             try:
-                if region_name == "us-east-1":
-                    self.s3_client.create_bucket(Bucket=self.bucket_name)
-                else:
-                    self.s3_client.create_bucket(
-                    Bucket=self.bucket_name,
-                    CreateBucketConfiguration={'LocationConstraint': region_name}
-                     )
+                self.s3_client.create_bucket(
+                Bucket=self.bucket_name,
+                CreateBucketConfiguration={'LocationConstraint': region_name}
+                 )
                 logger.info(f"Bucket {self.bucket_name} created successfully.")
             except ClientError as e:
                 logger.error(f"Error creating bucket {self.bucket_name}: {e}")
@@ -131,15 +135,11 @@ class S3SpanExporter(SpanExporterBase):
         serialized_data = self.__serialize_spans(batch_to_export)
         self.export_queue = self.export_queue[self.max_batch_size:]
         try:
-            if asyncio.get_event_loop().is_running():
-                task = asyncio.create_task(self._retry_with_backoff(self.__upload_to_s3, serialized_data))
-                await task
-            else:
-                await self._retry_with_backoff(self.__upload_to_s3, serialized_data)
-
+            self.__upload_to_s3(serialized_data)
         except Exception as e:
             logger.error(f"Failed to upload span batch: {e}")
 
+    @SpanExporterBase.retry_with_backoff(exceptions=(EndpointConnectionError, ConnectionClosedError, ReadTimeoutError, ConnectTimeoutError))
     def __upload_to_s3(self, span_data_batch: str):
         current_time = datetime.datetime.now().strftime(self.time_format)
         file_name = f"{self.file_prefix}{current_time}.ndjson"

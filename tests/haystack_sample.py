@@ -104,17 +104,17 @@ def haystack_app():
 
 haystack_app()
 
-#{
+# {
 #     "name": "haystack.retriever",
 #     "context": {
-#         "trace_id": "0xd019e0de8688df0ff043b9e14f908632",
-#         "span_id": "0xbb8f840b045b5548",
+#         "trace_id": "0x627bf88dcb4903b36ec8e1981d974e30",
+#         "span_id": "0x51147cff2fbf2ae1",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0x93fd885c65e71bd2",
-#     "start_time": "2024-11-18T14:03:03.204908Z",
-#     "end_time": "2024-11-18T14:03:03.214109Z",
+#     "parent_id": "0x0b377cab5084badf",
+#     "start_time": "2024-11-25T08:06:36.456448Z",
+#     "end_time": "2024-11-25T08:06:36.469802Z",
 #     "status": {
 #         "status_code": "UNSET"
 #     },
@@ -129,14 +129,14 @@ haystack_app()
 #     "events": [
 #         {
 #             "name": "data.input",
-#             "timestamp": "2024-11-18T14:03:03.204935Z",
+#             "timestamp": "2024-11-25T08:06:36.456477Z",
 #             "attributes": {
-#                 "question": "What does Rhodes Statue look like?"
+#                 "input": "What does Rhodes Statue look like?"
 #             }
 #         },
 #         {
 #             "name": "data.output",
-#             "timestamp": "2024-11-18T14:03:03.214086Z",
+#             "timestamp": "2024-11-25T08:06:36.469782Z",
 #             "attributes": {
 #                 "response": "Within it, too, are to be seen large masses of rock, by the weight of which the artist steadied it w..."
 #             }
@@ -149,18 +149,18 @@ haystack_app()
 #         },
 #         "schema_url": ""
 #     }
-# }
+# },
 # {
 #     "name": "haystack.components.generators.openai.OpenAIGenerator",
 #     "context": {
-#         "trace_id": "0xd019e0de8688df0ff043b9e14f908632",
-#         "span_id": "0xe09c0b984e7f5bf5",
+#         "trace_id": "0x627bf88dcb4903b36ec8e1981d974e30",
+#         "span_id": "0xfca6cddc2de93669",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0x93fd885c65e71bd2",
-#     "start_time": "2024-11-18T14:03:03.214650Z",
-#     "end_time": "2024-11-18T14:03:05.124165Z",
+#     "parent_id": "0x0b377cab5084badf",
+#     "start_time": "2024-11-25T08:06:36.470300Z",
+#     "end_time": "2024-11-25T08:06:38.720635Z",
 #     "status": {
 #         "status_code": "UNSET"
 #     },
@@ -175,25 +175,25 @@ haystack_app()
 #     "events": [
 #         {
 #             "name": "data.input",
-#             "timestamp": "2024-11-18T14:03:05.124030Z",
+#             "timestamp": "2024-11-25T08:06:38.720289Z",
 #             "attributes": {
 #                 "input": "What does Rhodes Statue look like?"
 #             }
 #         },
 #         {
 #             "name": "data.output",
-#             "timestamp": "2024-11-18T14:03:05.124038Z",
+#             "timestamp": "2024-11-25T08:06:38.720316Z",
 #             "attributes": {
-#                 "output": "The Rhodes Statue was a statue of the Greek sun-god Helios. It was described as approximately 70 cubits or 33 meters (108 feet) tall, making it the tallest statue in the ancient world. The head was thought to have had curly hair with evenly spaced spikes of bronze or silver flame radiating. The statue was constructed with iron tie bars, brass plates, and filled with stone blocks. Despite the lack of exact visual representation, it is believed that the statue was similar in appearance to contemporary Rhodian coins depicting Helios."
+#                 "response": "The Rhodes Statue was a giant statue of the Greek sun-god Helios, erected in the city of Rhodes. It stood approximately 33 meters (108 feet) tall and was made of bronze. Scholars do not know the exact appearance of the statue, but it is believed to have had curly hair with evenly spaced spikes of bronze or silver flame radiating from the head, similar to contemporary Rhodian coins. The statue was located near the Rhodes harbor entrance on a 15-meter-high white marble pedestal. It collapsed at the knees during an earthquake in 226 BC."
 #             }
 #         },
 #         {
 #             "name": "metadata",
-#             "timestamp": "2024-11-18T14:03:05.124156Z",
+#             "timestamp": "2024-11-25T08:06:38.720610Z",
 #             "attributes": {
-#                 "completion_tokens": 110,
+#                 "completion_tokens": 114,
 #                 "prompt_tokens": 2464,
-#                 "total_tokens": 2574
+#                 "total_tokens": 2578
 #             }
 #         }
 #     ],
@@ -204,23 +204,23 @@ haystack_app()
 #         },
 #         "schema_url": ""
 #     }
-# },
+# }
 # {
 #     "name": "haystack.core.pipeline.pipeline.Pipeline",
 #     "context": {
-#         "trace_id": "0xd019e0de8688df0ff043b9e14f908632",
-#         "span_id": "0x93fd885c65e71bd2",
+#         "trace_id": "0x627bf88dcb4903b36ec8e1981d974e30",
+#         "span_id": "0x0b377cab5084badf",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
 #     "parent_id": null,
-#     "start_time": "2024-11-18T14:03:03.195395Z",
-#     "end_time": "2024-11-18T14:03:05.124266Z",
+#     "start_time": "2024-11-25T08:06:36.445584Z",
+#     "end_time": "2024-11-25T08:06:38.720920Z",
 #     "status": {
 #         "status_code": "UNSET"
 #     },
 #     "attributes": {
-#         "monocle_apptrace.version": "0.2.0",
+#         "monocle_apptrace.version": "0.3.0",
 #         "span.type": "workflow",
 #         "entity.1.name": "haystack_app_1",
 #         "entity.1.type": "workflow.haystack"
@@ -228,17 +228,17 @@ haystack_app()
 #     "events": [
 #         {
 #             "name": "data.input",
-#             "timestamp": "2024-11-21T10:33:48.075641Z",
+#             "timestamp": "2024-11-25T08:06:36.446344Z",
 #             "attributes": {
 #                 "input": "What does Rhodes Statue look like?"
 #             }
 #         },
 #         {
 #             "name": "data.output",
-#             "timestamp": "2024-11-21T10:33:50.200564Z",
+#             "timestamp": "2024-11-25T08:06:38.720906Z",
 #             "attributes": {
 #                 "response": [
-#                     "The Rhodes Statue was a statue of the Greek sun-god Helios, standing approximately 33 meters (108 feet) tall. While scholars do not know exactly what the statue looked like, they do have a good idea of what the head and face looked like. The head would have had curly hair with evenly spaced spikes of bronze or silver flame radiating, similar to the images found on contemporary Rhodian coins."
+#                     "The Rhodes Statue was a giant statue of the Greek sun-god Helios, erected in the city of Rhodes. It stood approximately 33 meters (108 feet) tall and was made of bronze. Scholars do not know the exact appearance of the statue, but it is believed to have had curly hair with evenly spaced spikes of bronze or silver flame radiating from the head, similar to contemporary Rhodian coins. The statue was located near the Rhodes harbor entrance on a 15-meter-high white marble pedestal. It collapsed at the knees during an earthquake in 226 BC."
 #                 ]
 #             }
 #         }

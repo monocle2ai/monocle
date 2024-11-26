@@ -220,35 +220,56 @@ def get_workflow_name(span: Span) -> str:
         return None
 
 def get_vectorstore_deployment(my_map):
-    if isinstance(my_map,dict):
-        for keys in my_map.keys():
-            if keys == '_client_settings' and '_client_settings' in my_map:
-                client=my_map['_client_settings'].__dict__
-                host, port = [], []
-                for key, value in client.items():
-                    if value is not None:
-                        if "host" in key:
-                            host.append(value)
-                        elif "port" in key:
-                            port.append(value)
-                if host is not None and port is not None:
-                    return host[0]+":"+str(port[0])
+    if isinstance(my_map, dict):
+        if '_client_settings' in my_map:
+            client = my_map['_client_settings'].__dict__
+            host_port_result = extract_host_and_port(client)
+            if host_port_result:
+                return host_port_result
 
-            if keys =='client' and 'client' in my_map and 'host' in my_map['client'].transport.seed_connections[0].__dict__:
-                return my_map['client'].transport.seed_connections[0].__dict__['host']
-            if keys =='_client' and '_client' in my_map and 'host' in my_map['_client'].transport.seed_connections[0].__dict__:
-                return my_map['_client'].transport.seed_connections[0].__dict__['host']
+        keys_to_check = ['client', '_client']
+        host = get_host_from_map(my_map, keys_to_check)
+        if host:
+            return host
+
     else:
         if hasattr(my_map, 'client') and '_endpoint' in my_map.client.__dict__:
             return my_map.client.__dict__['_endpoint']
 
-        host, port = [], []
-        for key, value in my_map.__dict__.items():
-            if value is not None:
-                if "host" in key:
-                    host.append(value)
-                elif "port" in key:
-                    port.append(value)
+        host_port_result = extract_host_and_port(my_map.__dict__)
+        if host_port_result:
+            return host_port_result
+    return None
 
-        if host is not None and port is not None:
-            return host[0] + ":" + str(port[0])
+def extract_host_and_port(dictionary):
+
+    host, port = [], []
+    for key, value in dictionary.items():
+        if value is not None:
+            if "host" in key:
+                host.append(value)
+            elif "port" in key:
+                port.append(value)
+    return f"{host[0]}:{port[0]}" if host and port else None
+
+def get_host_from_map(my_map, keys_to_check):
+
+    for key in keys_to_check:
+        seed_connections = get_nested_value_host(my_map, [key, 'transport', 'seed_connections'])
+        if seed_connections and 'host' in seed_connections[0].__dict__:
+            return seed_connections[0].__dict__['host']
+    return None
+
+def get_nested_value_host(obj, keys):
+    for key in keys:
+        try:
+            if isinstance(obj, dict):
+                obj = obj.get(key)
+            else:
+                obj = getattr(obj, key)
+
+            if obj is None:
+                return None
+        except (AttributeError, TypeError):
+            return None
+    return obj

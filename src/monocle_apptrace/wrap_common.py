@@ -7,7 +7,7 @@ from urllib.parse import urlparse
 from opentelemetry.trace import Tracer
 from opentelemetry.sdk.trace import Span
 from monocle_apptrace.utils import resolve_from_alias, with_tracer_wrapper, get_embedding_model, get_attribute, get_workflow_name, set_embedding_model, set_app_hosting_identifier_attribute
-from monocle_apptrace.utils import set_attribute
+from monocle_apptrace.utils import set_attribute, get_vectorstore_deployment
 from monocle_apptrace.utils import get_fully_qualified_class_name, flatten_dict, get_nested_value
 logger = logging.getLogger(__name__)
 WORKFLOW_TYPE_KEY = "workflow_type"

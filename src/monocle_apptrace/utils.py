@@ -218,3 +218,37 @@ def get_workflow_name(span: Span) -> str:
     except Exception as e:
         logger.exception(f"Error getting workflow name: {e}")
         return None
+
+def get_vectorstore_deployment(my_map):
+    if isinstance(my_map,dict):
+        for keys in my_map.keys():
+            if keys == '_client_settings' and '_client_settings' in my_map:
+                client=my_map['_client_settings'].__dict__
+                host, port = [], []
+                for key, value in client.items():
+                    if value is not None:
+                        if "host" in key:
+                            host.append(value)
+                        elif "port" in key:
+                            port.append(value)
+                if host is not None and port is not None:
+                    return host[0]+":"+str(port[0])
+
+            if keys =='client' and 'client' in my_map and 'host' in my_map['client'].transport.seed_connections[0].__dict__:
+                return my_map['client'].transport.seed_connections[0].__dict__['host']
+            if keys =='_client' and '_client' in my_map and 'host' in my_map['_client'].transport.seed_connections[0].__dict__:
+                return my_map['_client'].transport.seed_connections[0].__dict__['host']
+    else:
+        if hasattr(my_map, 'client') and '_endpoint' in my_map.client.__dict__:
+            return my_map.client.__dict__['_endpoint']
+
+        host, port = [], []
+        for key, value in my_map.__dict__.items():
+            if value is not None:
+                if "host" in key:
+                    host.append(value)
+                elif "port" in key:
+                    port.append(value)
+
+        if host is not None and port is not None:
+            return host[0] + ":" + str(port[0])

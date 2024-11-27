@@ -96,14 +96,14 @@ haystack_app()
 # {
 #     "name": "haystack.retriever",
 #     "context": {
-#         "trace_id": "0x5d8f46197016361b84ee878741643afa",
-#         "span_id": "0xb2bf64db3ad475ca",
+#         "trace_id": "0x3a350c422d4897c7ff7fb43ac05bac3c",
+#         "span_id": "0xbccb663f616a53f8",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0x9ecc03623e083280",
-#     "start_time": "2024-11-12T11:33:14.515261Z",
-#     "end_time": "2024-11-12T11:33:14.522977Z",
+#     "parent_id": "0x356e1d6b5f632527",
+#     "start_time": "2024-11-27T04:10:25.447082Z",
+#     "end_time": "2024-11-27T04:10:25.462024Z",
 #     "status": {
 #         "status_code": "UNSET"
 #     },
@@ -118,14 +118,14 @@ haystack_app()
 #     "events": [
 #         {
 #             "name": "data.input",
-#             "timestamp": "2024-11-12T11:33:14.515261Z",
+#             "timestamp": "2024-11-27T04:10:25.447110Z",
 #             "attributes": {
-#                 "question": "What does Rhodes Statue look like?"
+#                 "input": "What does Rhodes Statue look like?"
 #             }
 #         },
 #         {
 #             "name": "data.output",
-#             "timestamp": "2024-11-12T11:33:14.522977Z",
+#             "timestamp": "2024-11-27T04:10:25.462000Z",
 #             "attributes": {
 #                 "response": "Within it, too, are to be seen large masses of rock, by the weight of which the artist steadied it w..."
 #             }
@@ -138,18 +138,18 @@ haystack_app()
 #         },
 #         "schema_url": ""
 #     }
-# }
+# },
 # {
 #     "name": "haystack.components.generators.openai.OpenAIGenerator",
 #     "context": {
-#         "trace_id": "0x5d8f46197016361b84ee878741643afa",
-#         "span_id": "0x7cd9a8a7bf047c83",
+#         "trace_id": "0x3a350c422d4897c7ff7fb43ac05bac3c",
+#         "span_id": "0x8d618c0dc5ed2b96",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0x9ecc03623e083280",
-#     "start_time": "2024-11-12T11:33:14.523980Z",
-#     "end_time": "2024-11-12T11:33:16.594534Z",
+#     "parent_id": "0x356e1d6b5f632527",
+#     "start_time": "2024-11-27T04:10:25.462579Z",
+#     "end_time": "2024-11-27T04:10:28.695766Z",
 #     "status": {
 #         "status_code": "UNSET"
 #     },
@@ -157,7 +157,6 @@ haystack_app()
 #         "span.type": "inference",
 #         "entity.count": 2,
 #         "entity.1.type": "inference.azure_oai",
-#         "entity.1.provider_name": "api.openai.com",
 #         "entity.1.inference_endpoint": "https://api.openai.com/v1/",
 #         "entity.2.name": "gpt-3.5-turbo",
 #         "entity.2.type": "model.llm.gpt-3.5-turbo"
@@ -165,25 +164,26 @@ haystack_app()
 #     "events": [
 #         {
 #             "name": "data.input",
-#             "timestamp": "2024-11-18T14:01:02.490594Z",
+#             "timestamp": "2024-11-27T04:10:28.695339Z",
 #             "attributes": {
-#                 "input": "What does Rhodes Statue look like?"
+#                 "system": "",
+#                 "user": "What does Rhodes Statue look like?"
 #             }
 #         },
 #         {
 #             "name": "data.output",
-#             "timestamp": "2024-11-18T14:01:02.490618Z",
+#             "timestamp": "2024-11-27T04:10:28.695406Z",
 #             "attributes": {
-#                 "output": "The Rhodes Statue was a statue of the Greek sun-god Helios, erected in the city of Rhodes. It stood approximately 70 cubits (33 meters, 108 feet) tall and was made of bronze with iron tie bars and brass plates forming the skin. The head and face of the statue had curly hair with evenly spaced spikes of bronze or silver flame radiating. It collapsed during an earthquake in 226 BC, but parts of it were preserved. Its exact appearance is not known, but it was described as being very impressive even in its broken state."
+#                 "assistant": "The Rhodes Statue, also known as the Colossus of Rhodes, was a statue of the Greek sun-god Helios. It was approximately 70 cubits, or 33 meters (108 feet) tall. While scholars do not know exactly what the entire statue looked like, they do have a good idea of what the head and face looked like. The head would have had curly hair with evenly spaced spikes of bronze or silver flame radiating, similar to the images found on contemporary Rhodian coins."
 #             }
 #         },
 #         {
 #             "name": "metadata",
-#             "timestamp": "2024-11-12T11:33:16.594534Z",
+#             "timestamp": "2024-11-27T04:10:28.695734Z",
 #             "attributes": {
-#                 "completion_tokens": 114,
+#                 "completion_tokens": 102,
 #                 "prompt_tokens": 2464,
-#                 "total_tokens": 2578
+#                 "total_tokens": 2566
 #             }
 #         }
 #     ],
@@ -194,40 +194,40 @@ haystack_app()
 #         },
 #         "schema_url": ""
 #     }
-# }
+# },
 # {
 #     "name": "haystack.core.pipeline.pipeline.Pipeline",
 #     "context": {
-#         "trace_id": "0x5d8f46197016361b84ee878741643afa",
-#         "span_id": "0x9ecc03623e083280",
+#         "trace_id": "0x3a350c422d4897c7ff7fb43ac05bac3c",
+#         "span_id": "0x356e1d6b5f632527",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
 #     "parent_id": null,
-#     "start_time": "2024-11-12T11:33:14.482166Z",
-#     "end_time": "2024-11-12T11:33:16.594534Z",
+#     "start_time": "2024-11-27T04:10:25.437432Z",
+#     "end_time": "2024-11-27T04:10:28.696077Z",
 #     "status": {
 #         "status_code": "UNSET"
 #     },
 #     "attributes": {
+#         "monocle_apptrace.version": "0.3.0",
+#         "span.type": "workflow",
 #         "entity.1.name": "haystack_app_1",
 #         "entity.1.type": "workflow.haystack"
 #     },
 #     "events": [
 #         {
 #             "name": "data.input",
-#             "timestamp": "2024-11-12T11:33:14.482166Z",
+#             "timestamp": "2024-11-27T04:10:25.437901Z",
 #             "attributes": {
-#                 "question": "What does Rhodes Statue look like?"
+#                 "input": "What does Rhodes Statue look like?"
 #             }
 #         },
 #         {
 #             "name": "data.output",
-#             "timestamp": "2024-11-12T11:33:16.594534Z",
+#             "timestamp": "2024-11-27T04:10:28.696062Z",
 #             "attributes": {
-#                 "response": [
-#                     "The Rhodes Statue, also known as the Colossus of Rhodes, was a massive statue of the Greek sun-god Helios. It stood approximately 33 meters (108 feet) tall, with a head that had curly hair with spikes of bronze or silver flame radiating. The statue was constructed with iron tie bars, brass plates, and filled with stone blocks. Despite not knowing exactly what the full statue looked like, scholars have a good idea of the head and face due to standard renderings of the time, similar to images found on contemporary Rhodian coins."
-#                 ]
+#                 "response": "The Rhodes Statue, also known as the Colossus of Rhodes, was a statue of the Greek sun-god Helios. It was approximately 70 cubits, or 33 meters (108 feet) tall. While scholars do not know exactly what the entire statue looked like, they do have a good idea of what the head and face looked like. The head would have had curly hair with evenly spaced spikes of bronze or silver flame radiating, similar to the images found on contemporary Rhodian coins."
 #             }
 #         }
 #     ],

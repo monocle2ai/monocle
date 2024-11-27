@@ -207,9 +207,12 @@ def get_fully_qualified_class_name(instance):
 # returns json path like key probe in a dictionary
 def get_nested_value(data, keys):
     for key in keys:
-        if not isinstance(data, dict) or key not in data:
+        if isinstance(data, dict) and key in data:
+            data = data[key]
+        elif hasattr(data, key):
+            data = getattr(data, key)
+        else:
             return None
-        data = data[key]
     return data
 
 def get_workflow_name(span: Span) -> str:
@@ -223,7 +226,8 @@ def get_vectorstore_deployment(my_map):
     if isinstance(my_map, dict):
         if '_client_settings' in my_map:
             client = my_map['_client_settings'].__dict__
-            host_port_result = extract_host_and_port(client)
+            host, port = get_keys_as_tuple(client, 'host', 'port')
+            host_port_result = f"{host[0]}:{port[0]}" if host or port else None
             if host_port_result:
                 return host_port_result
 
@@ -236,40 +240,25 @@ def get_vectorstore_deployment(my_map):
         if hasattr(my_map, 'client') and '_endpoint' in my_map.client.__dict__:
             return my_map.client.__dict__['_endpoint']
 
-        host_port_result = extract_host_and_port(my_map.__dict__)
+        host, port = get_keys_as_tuple(my_map.__dict__, 'host', 'port')
+        host_port_result = f"{host[0]}:{port[0]}" if host or port else None
         if host_port_result:
             return host_port_result
     return None
 
-def extract_host_and_port(dictionary):
-
-    host, port = [], []
+def get_keys_as_tuple(dictionary, *keys):
+    key_lists = {key: [] for key in keys}
     for key, value in dictionary.items():
         if value is not None:
-            if "host" in key:
-                host.append(value)
-            elif "port" in key:
-                port.append(value)
-    return f"{host[0]}:{port[0]}" if host and port else None
+            for k in keys:
+                if k in key:
+                    key_lists[k].append(value)
+
+    return tuple(key_lists[key] for key in keys)
 
 def get_host_from_map(my_map, keys_to_check):
-
     for key in keys_to_check:
-        seed_connections = get_nested_value_host(my_map, [key, 'transport', 'seed_connections'])
+        seed_connections = get_nested_value(my_map, [key, 'transport', 'seed_connections'])
         if seed_connections and 'host' in seed_connections[0].__dict__:
             return seed_connections[0].__dict__['host']
     return None
-
-def get_nested_value_host(obj, keys):
-    for key in keys:
-        try:
-            if isinstance(obj, dict):
-                obj = obj.get(key)
-            else:
-                obj = getattr(obj, key)
-
-            if obj is None:
-                return None
-        except (AttributeError, TypeError):
-            return None
-    return obj

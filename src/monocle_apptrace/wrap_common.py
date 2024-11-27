@@ -238,7 +238,7 @@ async def allm_wrapper(tracer, to_wrap, wrapped, instance, args, kwargs):
         return_value = await wrapped(*args, **kwargs)
         kwargs.update({"provider_name": provider_name, "inference_endpoint": inference_endpoint or getattr(instance, 'endpoint', None)})
         process_span(to_wrap, span, instance, args, kwargs, return_value)
-        update_span_from_llm_response(response=return_value, span=span, instance=instance, args=args)
+        update_span_from_llm_response(response=return_value, span=span, instance=instance)
 
     return return_value
 
@@ -264,7 +264,7 @@ def llm_wrapper(tracer: Tracer, to_wrap, wrapped, instance, args, kwargs):
         return_value = wrapped(*args, **kwargs)
         kwargs.update({"provider_name": provider_name, "inference_endpoint": inference_endpoint or getattr(instance, 'endpoint', None)})
         process_span(to_wrap, span, instance, args, kwargs, return_value)
-        update_span_from_llm_response(response=return_value, span=span, instance=instance, args=args)
+        update_span_from_llm_response(response=return_value, span=span, instance=instance)
 
     return return_value
 
@@ -363,7 +363,7 @@ def get_input_from_args(chain_args):
     return ""
 
 
-def update_span_from_llm_response(response, span: Span, instance, args):
+def update_span_from_llm_response(response, span: Span, instance):
     if (response is not None and isinstance(response, dict) and "meta" in response) or (
             response is not None and hasattr(response, "response_metadata")):
         token_usage = None

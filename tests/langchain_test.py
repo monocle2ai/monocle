@@ -225,8 +225,7 @@ class TestHandler(unittest.TestCase):
             }
         )
         instance = MagicMock()
-        args = MagicMock()
-        update_span_from_llm_response(span=span, response=message, instance=instance, args=args)
+        update_span_from_llm_response(span=span, response=message, instance=instance)
         event_found = False
         for event in span.events:
             if event.name == "metadata":

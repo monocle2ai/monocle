@@ -31,5 +31,18 @@
         "accessor": "lambda arguments: 'model.llm.'+resolve_from_alias(arguments['instance'].__dict__, ['model', 'model_name'])"
       }
     ]
+  ],
+  "events": [
+    {
+      "attributes": {
+        "system": "lambda arguments: extract_messages(arguments)[0]",
+        "user": "lambda arguments: extract_messages(arguments)[1]"
+      }
+    },
+    {
+      "attributes": {
+        "assistant": "lambda response: extract_assistant_message(response)"
+      }
+    }
   ]
 }

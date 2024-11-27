@@ -8,7 +8,8 @@ from opentelemetry.trace import Tracer
 from opentelemetry.sdk.trace import Span
 from monocle_apptrace.utils import resolve_from_alias, with_tracer_wrapper, get_embedding_model, get_attribute, get_workflow_name, set_embedding_model, set_app_hosting_identifier_attribute
 from monocle_apptrace.utils import set_attribute
-from monocle_apptrace.utils import get_fully_qualified_class_name, flatten_dict, get_nested_value
+from monocle_apptrace.utils import get_fully_qualified_class_name, get_nested_value
+
 logger = logging.getLogger(__name__)
 WORKFLOW_TYPE_KEY = "workflow_type"
 DATA_INPUT_KEY = "data.input"
@@ -129,7 +130,20 @@ def process_span(to_wrap, span, instance, args, kwargs, return_value):
             else:
                 logger.warning("attributes not found or incorrect written in entity json")
                 span.set_attribute("span.count", count)
-
+            if 'events' in output_processor:
+                events = output_processor['events']
+                for event in events:
+                    event_attributes = {}
+                    for key, accessor in event["attributes"].items():
+                        accessor_function = eval(accessor)
+                        if "arguments" in accessor:
+                            event_attributes[key] = accessor_function(args)
+                        elif "response" in accessor:
+                            event_attributes[key] = accessor_function(return_value)
+                    if event_attributes.get('user'):
+                        span.add_event(name=DATA_INPUT_KEY, attributes=event_attributes)
+                    else:
+                        span.add_event(name=DATA_OUTPUT_KEY, attributes=event_attributes)
         else:
             logger.warning("empty or entities json is not in correct format")
 
@@ -288,7 +302,7 @@ def update_llm_endpoint(curr_span: Span, instance):
 def get_provider_name(instance):
     provider_url = ""
     inference_endpoint = ""
-    parsed_provider_url = None
+    parsed_provider_url = ""
     try:
         base_url = getattr(instance.client._client, "base_url", None)
         if base_url:
@@ -350,7 +364,6 @@ def get_input_from_args(chain_args):
 
 
 def update_span_from_llm_response(response, span: Span, instance, args):
-    update_events_for_inference_span(response=response, span=span, args=args)
     if (response is not None and isinstance(response, dict) and "meta" in response) or (
             response is not None and hasattr(response, "response_metadata")):
         token_usage = None
@@ -393,7 +406,10 @@ def update_span_from_llm_response(response, span: Span, instance, args):
 def extract_messages(args):
     """Extract system and user messages"""
     system_message, user_message = "", ""
-
+    args_input = get_attribute(DATA_INPUT_KEY)
+    if args_input:
+        user_message = args_input
+        return system_message, user_message
     if args and isinstance(args, tuple) and len(args) > 0:
         if hasattr(args[0], "messages") and isinstance(args[0].messages, list):
             for msg in args[0].messages:
@@ -419,45 +435,12 @@ def extract_assistant_message(response):
         return response.content
     if hasattr(response, "message") and hasattr(response.message, "content"):
         return response.message.content
-    return ""
-
-
-def inference_span_haystack(span, args, response):
-    args_input = get_attribute(DATA_INPUT_KEY)
-    span.add_event(name="data.input", attributes={"input": args_input})
-    output = (response['replies'][0].content if hasattr(response['replies'][0], 'content') else response['replies'][0])
-    span.add_event(name="data.output", attributes={"response": output})
-
-
-def inference_span_llama_index(span, args, response):
-    system_message, user_message = extract_messages(args)
-    span.add_event(name="data.input", attributes={"system": system_message, "user": user_message})
-    assistant_message = extract_assistant_message(response)
-    if assistant_message:
-        span.add_event(name="data.output", attributes={"assistant": assistant_message})
-
-
-span_handlers = {
-    'haystack.components.generators.openai.OpenAIGenerator': inference_span_haystack,
-    'haystack_integrations.components.generators.mistral.chat.chat_generator.MistralChatGenerator': inference_span_haystack,
-    'llamaindex.openai': inference_span_llama_index,
-}
-
-
-def update_events_for_inference_span(response, span, args):
-    if getattr(span, "attributes", {}).get("span.type") == "inference":
-        handler = span_handlers.get(span.name)
-        if handler:
-            handler(span, args, response)
+    if "replies" in response:
+        if hasattr(response['replies'][0], 'content'):
+            return response['replies'][0].content
         else:
-            system_message, user_message = extract_messages(args)
-            assistant_message = extract_assistant_message(response)
-            if system_message:
-                span.add_event(name="data.input", attributes={"system": system_message, "user": user_message}, )
-            else:
-                span.add_event(name="data.input", attributes={"input": user_message})
-            if assistant_message:
-                span.add_event(name="data.output", attributes={"assistant" if system_message else "response": assistant_message}, )
+            return response['replies'][0]
+    return ""
 
 
 def extract_query_from_content(content):
@@ -537,7 +520,7 @@ def update_span_with_prompt_output(to_wrap, wrapped_args, span: Span):
             if isinstance(resp, list) and hasattr(resp[0], 'content'):
                 span.add_event(PROMPT_OUTPUT_KEY, {RESPONSE: resp[0].content})
             else:
-                span.add_event(PROMPT_OUTPUT_KEY, {RESPONSE: resp})
+                span.add_event(PROMPT_OUTPUT_KEY, {RESPONSE: resp[0]})
     elif isinstance(wrapped_args, str):
         span.add_event(PROMPT_OUTPUT_KEY, {RESPONSE: wrapped_args})
     elif isinstance(wrapped_args, dict):

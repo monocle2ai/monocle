@@ -133,18 +133,27 @@ def process_span(to_wrap, span, instance, args, kwargs, return_value):
                 span.set_attribute("span.count", count)
             if 'events' in output_processor:
                 events = output_processor['events']
+                accessor_mapping = {
+                    "arguments": args,
+                    "response": return_value
+                }
                 for event in events:
+                    event_name = event.get("name")
                     event_attributes = {}
-                    for key, accessor in event["attributes"].items():
-                        accessor_function = eval(accessor)
-                        if "arguments" in accessor:
-                            event_attributes[key] = accessor_function(args)
-                        elif "response" in accessor:
-                            event_attributes[key] = accessor_function(return_value)
-                    if event_attributes.get('user'):
-                        span.add_event(name=DATA_INPUT_KEY, attributes=event_attributes)
-                    else:
-                        span.add_event(name=DATA_OUTPUT_KEY, attributes=event_attributes)
+                    attributes = event.get("attributes", [])
+                    for attribute in attributes:
+                        attribute_key = attribute.get("attribute")
+                        accessor = attribute.get("accessor")
+                        if accessor:
+                            try:
+                                accessor_function = eval(accessor)
+                                for keyword, value in accessor_mapping.items():
+                                    if keyword in accessor:
+                                        event_attributes[attribute_key] = accessor_function(value)
+                            except Exception as e:
+                                logger.error(f"Error evaluating accessor for attribute '{attribute_key}': {e}")
+                    span.add_event(name=event_name, attributes=event_attributes)
+
         else:
             logger.warning("empty or entities json is not in correct format")
 
@@ -469,7 +478,4 @@ def update_span_with_prompt_output(to_wrap, wrapped_args, span: Span):
     elif isinstance(wrapped_args, str):
         span.add_event(PROMPT_OUTPUT_KEY, {RESPONSE: wrapped_args})
     elif isinstance(wrapped_args, dict):
-        if "langchain.schema.runnable" in package_name:
-            span.add_event(PROMPT_OUTPUT_KEY, {RESPONSE: wrapped_args['answer']})
-        else:
-            span.add_event(PROMPT_OUTPUT_KEY, wrapped_args)
+        span.add_event(PROMPT_OUTPUT_KEY, wrapped_args)

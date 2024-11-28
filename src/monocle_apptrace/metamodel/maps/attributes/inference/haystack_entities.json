@@ -33,16 +33,30 @@
     ]
   ],
   "events": [
-    {
-      "attributes": {
-        "system": "lambda arguments: extract_messages(arguments)[0]",
-        "user": "lambda arguments: extract_messages(arguments)[1]"
-      }
+    { "name":"data.input",
+      "attributes": [
+
+        {
+            "_comment": "this is instruction to LLM",
+            "attribute": "system",
+            "accessor": "lambda arguments: extract_messages(arguments)[0]"
+        },
+        {
+            "_comment": "this is user query to LLM",
+            "attribute": "user",
+            "accessor": "lambda arguments: extract_messages(arguments)[1]"
+        }
+      ]
     },
     {
-      "attributes": {
-        "assistant": "lambda response: extract_assistant_message(response)"
-      }
-    }
+      "name":"data.output",
+      "attributes": [
+        {
+            "_comment": "this is response from LLM",
+            "attribute": "assistant",
+            "accessor": "lambda response: extract_assistant_message(response)"
+        }
+      ]
+   }
   ]
 }

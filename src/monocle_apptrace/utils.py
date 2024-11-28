@@ -227,34 +227,22 @@ def get_vectorstore_deployment(my_map):
         if '_client_settings' in my_map:
             client = my_map['_client_settings'].__dict__
             host, port = get_keys_as_tuple(client, 'host', 'port')
-            host_port_result = f"{host[0]}:{port[0]}" if host or port else None
-            if host_port_result:
-                return host_port_result
-
+            if host:
+                return f"{host}:{port}" if port else host
         keys_to_check = ['client', '_client']
         host = get_host_from_map(my_map, keys_to_check)
         if host:
             return host
-
     else:
         if hasattr(my_map, 'client') and '_endpoint' in my_map.client.__dict__:
             return my_map.client.__dict__['_endpoint']
-
         host, port = get_keys_as_tuple(my_map.__dict__, 'host', 'port')
-        host_port_result = f"{host[0]}:{port[0]}" if host or port else None
-        if host_port_result:
-            return host_port_result
+        if host:
+            return f"{host}:{port}" if port else host
     return None
 
 def get_keys_as_tuple(dictionary, *keys):
-    key_lists = {key: [] for key in keys}
-    for key, value in dictionary.items():
-        if value is not None:
-            for k in keys:
-                if k in key:
-                    key_lists[k].append(value)
-
-    return tuple(key_lists[key] for key in keys)
+    return tuple(next((value for key, value in dictionary.items() if key.endswith(k) and value is not None), None) for k in keys)
 
 def get_host_from_map(my_map, keys_to_check):
     for key in keys_to_check:

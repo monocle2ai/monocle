@@ -69,6 +69,24 @@
         "wrapper_package": "wrap_common",
         "wrapper_method": "allm_wrapper",
         "output_processor": ["metamodel/maps/attributes/inference/llamaindex_entities.json"]
+    },
+    {
+        "package": "llama_index.llms.mistralai.base",
+        "object": "MistralAI",
+        "method": "chat",
+        "span_name": "llamaindex.mistralai",
+        "wrapper_package": "wrap_common",
+        "wrapper_method": "llm_wrapper",
+        "output_processor": ["metamodel/maps/attributes/inference/llamaindex_entities.json"]
+    },
+    {
+        "package": "llama_index.llms.mistralai.base",
+        "object": "MistralAI",
+        "method": "achat",
+        "span_name": "llamaindex.mistralai",
+        "wrapper_package": "wrap_common",
+        "wrapper_method": "allm_wrapper",
+        "output_processor": ["metamodel/maps/attributes/inference/llamaindex_entities.json"]
     }
 ]
 }

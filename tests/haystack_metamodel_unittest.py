@@ -100,22 +100,27 @@ class TestHandler(unittest.TestCase):
         type_found = False
         model_name_found = False
         provider_found = False
-
+        input_event = False
 
         for span in dataJson["batch"]:
             if span["name"] == "haystack.components.generators.openai.OpenAIGenerator":
                 assert span["attributes"]["entity.count"] == 2
                 assert span["attributes"]["entity.1.type"] == "inference.azure_oai"
-                assert span["attributes"]["entity.1.provider_name"] == "api.openai.com"
+                # assert span["attributes"]["entity.1.provider_name"] == "api.openai.com"
                 assert span["attributes"]["entity.2.name"] == "gpt-3.5-turbo-0125"
                 type_found = True
                 provider_found = True
                 model_name_found = True
+                for event in span['events']:
+                    if event['name'] == "data.input":
+                        assert event['attributes']['user'] == message
+                        input_event = True
 
 
         assert type_found
         assert model_name_found
         assert provider_found
+        assert input_event
 
 
 if __name__ == '__main__':

@@ -9,22 +9,42 @@ from langchain_core.messages import HumanMessage
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.runnables import RunnablePassthrough
-from langchain_openai import ChatOpenAI, OpenAIEmbeddings
+from langchain_openai import ChatOpenAI, OpenAIEmbeddings, AzureOpenAI, AzureChatOpenAI, OpenAI
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from monocle_apptrace.instrumentor import set_context_properties, setup_monocle_telemetry
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
 from langhchain_patch import create_history_aware_retriever
-import logging
-logging.basicConfig(level=logging.INFO)
-
+from langchain_mistralai import ChatMistralAI
+import os
+os.environ["AZURE_OPENAI_API_DEPLOYMENT"] = ""
+os.environ["AZURE_OPENAI_API_KEY"] = ""
+os.environ["AZURE_OPENAI_API_VERSION"] = ""
+os.environ["AZURE_OPENAI_ENDPOINT"] = ""
+os.environ["OPENAI_API_KEY"] = ""
+os.environ["MISTRAL_API_KEY"] = ""
 setup_monocle_telemetry(
             workflow_name="langchain_app_1",
             span_processors=[BatchSpanProcessor(ConsoleSpanExporter())],
             wrapper_methods=[])
 
 
-llm = ChatOpenAI(model="gpt-3.5-turbo-0125")
+# llm = ChatOpenAI(model="gpt-3.5-turbo-0125")
+# llm = OpenAI(model="gpt-3.5-turbo-instruct")
+llm = AzureChatOpenAI(
+    # engine=os.environ.get("AZURE_OPENAI_API_DEPLOYMENT"),
+    azure_deployment=os.environ.get("AZURE_OPENAI_API_DEPLOYMENT"),
+    api_key=os.environ.get("AZURE_OPENAI_API_KEY"),
+    api_version=os.environ.get("AZURE_OPENAI_API_VERSION"),
+    azure_endpoint=os.environ.get("AZURE_OPENAI_ENDPOINT"),
+    temperature=0.7,
+    # model="gpt-4",
+    model="gpt-3.5-turbo-0125"
+    )
 
+# llm = ChatMistralAI(
+#     model="mistral-large-latest",
+#     temperature=0.7,
+# )
 
 # Load, chunk and index the contents of the blog.
 loader = WebBaseLoader(
@@ -48,12 +68,12 @@ prompt = hub.pull("rlm/rag-prompt")
 def format_docs(docs):
     return "\n\n".join(doc.page_content for doc in docs)
 
-rag_chain = (
-    {"context": retriever | format_docs, "question": RunnablePassthrough()}
-    | prompt
-    | llm
-    | StrOutputParser()
-)
+# rag_chain = (
+#     {"context": retriever | format_docs, "question": RunnablePassthrough()}
+#     | prompt
+#     | llm
+#     | StrOutputParser()
+# )
 
 
 contextualize_q_system_prompt = """Given a chat history and the latest user question \
@@ -64,7 +84,7 @@ contextualize_q_prompt = ChatPromptTemplate.from_messages(
     [
         ("system", contextualize_q_system_prompt),
         MessagesPlaceholder("chat_history"),
-        ("human", "{input}"),
+        ("user", "{input}"),
     ]
 )
 history_aware_retriever = create_history_aware_retriever(
@@ -81,7 +101,7 @@ qa_prompt = ChatPromptTemplate.from_messages(
     [
         ("system", qa_system_prompt),
         MessagesPlaceholder("chat_history"),
-        ("human", "{input}"),
+        ("user", "{input}"),
     ]
 )
 
@@ -96,13 +116,13 @@ set_context_properties({"session_id": "0x4fa6d91d1f2a4bdbb7a1287d90ec4a16"})
 
 question = "What is Task Decomposition?"
 ai_msg_1 = rag_chain.invoke({"input": question, "chat_history": chat_history})
-print(ai_msg_1["answer"])
+# print(ai_msg_1["answer"])
 chat_history.extend([HumanMessage(content=question), ai_msg_1["answer"]])
 
 second_question = "What are common ways of doing it?"
 ai_msg_2 = rag_chain.invoke({"input": second_question, "chat_history": chat_history})
 
-print(ai_msg_2["answer"])
+# print(ai_msg_2["answer"])
 
 
 # {
@@ -275,12 +295,26 @@ print(ai_msg_2["answer"])
 #         "span.type": "inference",
 #         "entity.count": 2,
 #         "entity.1.type": "inference.azure_oai",
-#         "entity.1.provider_name": "api.openai.com",
 #         "entity.1.inference_endpoint": "https://api.openai.com/v1/",
 #         "entity.2.name": "gpt-3.5-turbo-0125",
 #         "entity.2.type": "model.llm.gpt-3.5-turbo-0125"
 #     },
 #     "events": [
+#          {
+#             "name": "data.input",
+#             "timestamp": "2024-11-18T10:27:38.562148Z",
+#             "attributes": {
+#                 "system": "You are an assistant for question-answering tasks. Use the following pieces of retrieved context to answer the question. If you don't know the answer, just say that you don't know. Use three sentences maximum and keep the answer concise.\nFig. 1. Overview of a LLM-powered autonomous agent system.\nComponent One: Planning#\nA complicated task usually involves many steps. An agent needs to know what they are and plan ahead.\nTask Decomposition#\nChain of thought (CoT; Wei et al. 2022) has become a standard prompting technique for enhancing model performance on complex tasks. The model is instructed to \u201cthink step by step\u201d to utilize more test-time computation to decompose hard tasks into smaller and simpler steps. CoT transforms big tasks into multiple manageable tasks and shed lights into an interpretation of the model\u2019s thinking process.\n\nTree of Thoughts (Yao et al. 2023) extends CoT by exploring multiple reasoning possibilities at each step. It first decomposes the problem into multiple thought steps and generates multiple thoughts per step, creating a tree structure. The search process can be BFS (breadth-first search) or DFS (depth-first search) with each state evaluated by a classifier (via a prompt) or majority vote.\nTask decomposition can be done (1) by LLM with simple prompting like \"Steps for XYZ.\\n1.\", \"What are the subgoals for achieving XYZ?\", (2) by using task-specific instructions; e.g. \"Write a story outline.\" for writing a novel, or (3) with human inputs.\n\nResources:\n1. Internet access for searches and information gathering.\n2. Long Term memory management.\n3. GPT-3.5 powered Agents for delegation of simple tasks.\n4. File output.\n\nPerformance Evaluation:\n1. Continuously review and analyze your actions to ensure you are performing to the best of your abilities.\n2. Constructively self-criticize your big-picture behavior constantly.\n3. Reflect on past decisions and strategies to refine your approach.\n4. Every command has a cost, so be smart and efficient. Aim to complete tasks in the least number of steps.\n\n(3) Task execution: Expert models execute on the specific tasks and log results.\nInstruction:\n\nWith the input and the inference results, the AI assistant needs to describe the process and results. The previous stages can be formed as - User Input: {{ User Input }}, Task Planning: {{ Tasks }}, Model Selection: {{ Model Assignment }}, Task Execution: {{ Predictions }}. You must first answer the user's request in a straightforward manner. Then describe the task process and show your analysis and model inference results to the user in the first person. If inference results contain a file path, must tell the user the complete file path.",
+#                 "user": "What is Task Decomposition?"
+#             }
+#         },
+#         {
+#             "name": "data.output",
+#             "timestamp": "2024-11-18T10:27:38.562167Z",
+#             "attributes": {
+#                 "assistant": "Task decomposition involves breaking down a complex task into smaller and more manageable steps. This process helps agents or models tackle difficult tasks by dividing them into simpler subtasks or subgoals. Different techniques like Chain of Thought and Tree of Thoughts can be used to decompose tasks into multiple steps for easier execution and understanding."
+#             }
+#         },
 #         {
 #             "name": "metadata",
 #             "timestamp": "2024-11-12T11:30:12.814194Z",
@@ -402,19 +436,16 @@ print(ai_msg_2["answer"])
 #     "events": [
 #         {
 #             "name": "data.input",
-#             "timestamp": "2024-11-12T11:30:11.003578Z",
+#             "timestamp": "2024-11-21T10:18:06.470347Z",
 #             "attributes": {
-#                 "input": "What is Task Decomposition?",
-#                 "chat_history": []
+#                 "input": "What is Task Decomposition?"
 #             }
 #         },
 #         {
 #             "name": "data.output",
-#             "timestamp": "2024-11-12T11:30:12.815228Z",
+#             "timestamp": "2024-11-21T10:18:11.275431Z",
 #             "attributes": {
-#                 "input": "What is Task Decomposition?",
-#                 "chat_history": [],
-#                 "answer": "Task decomposition is a technique used to break down complex tasks into smaller and simpler steps, making them more manageable for agents or models to handle. This process involves transforming big tasks into multiple smaller tasks to enhance performance and simplify the overall task execution. Task decomposition can be achieved through various methods such as prompting with specific instructions, utilizing human inputs, or leveraging language models with appropriate prompts."
+#                 "response": "Task Decomposition is a strategy used to break down complex tasks into smaller, manageable steps. This can be achieved using techniques like Chain of Thought (CoT), which instructs the model to \"think step by step,\" or Tree of Thoughts, which explores multiple reasoning possibilities at each step. Task decomposition can be performed by a Large Language Model (LLM) with simple prompting, task-specific instructions, or human inputs."
 #             }
 #         }
 #     ],
@@ -477,6 +508,21 @@ print(ai_msg_2["answer"])
 #         "entity.2.type": "model.llm.gpt-3.5-turbo-0125"
 #     },
 #     "events": [
+#         {
+#             "name": "data.input",
+#             "timestamp": "2024-11-18T10:27:39.215883Z",
+#             "attributes": {
+#                 "system": "Given a chat history and the latest user question which might reference context in the chat history, formulate a standalone question which can be understood without the chat history. Do NOT answer the question, just reformulate it if needed and otherwise return it as is.",
+#                 "user": "What are common ways of doing it?"
+#             }
+#         },
+#         {
+#             "name": "data.output",
+#             "timestamp": "2024-11-18T10:27:39.215909Z",
+#             "attributes": {
+#                 "assistant": "What are some common methods for task decomposition?"
+#             }
+#         },
 #         {
 #             "name": "metadata",
 #             "timestamp": "2024-11-12T11:30:13.755816Z",
@@ -548,14 +594,14 @@ print(ai_msg_2["answer"])
 #     "events": [
 #         {
 #             "name": "data.input",
-#             "timestamp": "2024-11-12T11:30:13.756930Z",
+#             "timestamp": "2024-11-21T10:18:12.096133Z",
 #             "attributes": {
-#                 "question": "What are some common methods for task decomposition?"
+#                 "input": "What are common ways of doing Task Decomposition?"
 #             }
 #         },
 #         {
 #             "name": "data.output",
-#             "timestamp": "2024-11-12T11:30:14.121735Z",
+#             "timestamp": "2024-11-21T10:18:12.917233Z",
 #             "attributes": {
 #                 "response": "Tree of Thoughts (Yao et al. 2023) extends CoT by exploring multiple reasoning possibilities at each..."
 #             }
@@ -692,12 +738,27 @@ print(ai_msg_2["answer"])
 #         "span.type": "inference",
 #         "entity.count": 2,
 #         "entity.1.type": "inference.azure_oai",
-#         "entity.1.provider_name": "api.openai.com",
 #         "entity.1.inference_endpoint": "https://api.openai.com/v1/",
 #         "entity.2.name": "gpt-3.5-turbo-0125",
 #         "entity.2.type": "model.llm.gpt-3.5-turbo-0125"
 #     },
 #     "events": [
+#         "events": [
+#         {
+#             "name": "data.input",
+#             "timestamp": "2024-11-18T10:27:41.043865Z",
+#             "attributes": {
+#                 "system": "You are an assistant for question-answering tasks. Use the following pieces of retrieved context to answer the question. If you don't know the answer, just say that you don't know. Use three sentences maximum and keep the answer concise.\nTree of Thoughts (Yao et al. 2023) extends CoT by exploring multiple reasoning possibilities at each step. It first decomposes the problem into multiple thought steps and generates multiple thoughts per step, creating a tree structure. The search process can be BFS (breadth-first search) or DFS (depth-first search) with each state evaluated by a classifier (via a prompt) or majority vote.\nTask decomposition can be done (1) by LLM with simple prompting like \"Steps for XYZ.\\n1.\", \"What are the subgoals for achieving XYZ?\", (2) by using task-specific instructions; e.g. \"Write a story outline.\" for writing a novel, or (3) with human inputs.\n\nFig. 1. Overview of a LLM-powered autonomous agent system.\nComponent One: Planning#\nA complicated task usually involves many steps. An agent needs to know what they are and plan ahead.\nTask Decomposition#\nChain of thought (CoT; Wei et al. 2022) has become a standard prompting technique for enhancing model performance on complex tasks. The model is instructed to \u201cthink step by step\u201d to utilize more test-time computation to decompose hard tasks into smaller and simpler steps. CoT transforms big tasks into multiple manageable tasks and shed lights into an interpretation of the model\u2019s thinking process.\n\nResources:\n1. Internet access for searches and information gathering.\n2. Long Term memory management.\n3. GPT-3.5 powered Agents for delegation of simple tasks.\n4. File output.\n\nPerformance Evaluation:\n1. Continuously review and analyze your actions to ensure you are performing to the best of your abilities.\n2. Constructively self-criticize your big-picture behavior constantly.\n3. Reflect on past decisions and strategies to refine your approach.\n4. Every command has a cost, so be smart and efficient. Aim to complete tasks in the least number of steps.\n\nFig. 11. Illustration of how HuggingGPT works. (Image source: Shen et al. 2023)\nThe system comprises of 4 stages:\n(1) Task planning: LLM works as the brain and parses the user requests into multiple tasks. There are four attributes associated with each task: task type, ID, dependencies, and arguments. They use few-shot examples to guide LLM to do task parsing and planning.\nInstruction:",
+#                 "user": "What are common ways of doing it?"
+#             }
+#         },
+#         {
+#             "name": "data.output",
+#             "timestamp": "2024-11-18T10:27:41.043890Z",
+#             "attributes": {
+#                 "assistant": "Task decomposition can be achieved through various methods such as using Language Model (LLM) with simple prompting, providing task-specific instructions tailored to the task at hand, or incorporating human inputs to break down complex tasks into smaller, more manageable steps. These approaches help in guiding agents or models to effectively decompose tasks into actionable subgoals for better task execution and problem-solving."
+#             }
+#         },
 #         {
 #             "name": "metadata",
 #             "timestamp": "2024-11-12T11:30:15.526970Z",
@@ -819,17 +880,16 @@ print(ai_msg_2["answer"])
 #     "events": [
 #         {
 #             "name": "data.input",
-#             "timestamp": "2024-11-12T11:30:12.815228Z",
+#             "timestamp": "2024-11-21T10:18:11.276295Z",
 #             "attributes": {
 #                 "input": "What are common ways of doing it?"
 #             }
 #         },
 #         {
 #             "name": "data.output",
-#             "timestamp": "2024-11-12T11:30:15.526970Z",
+#             "timestamp": "2024-11-21T10:18:16.354855Z",
 #             "attributes": {
-#                 "input": "What are common ways of doing it?",
-#                 "answer": "Task decomposition can be commonly done through prompting with language models using simple instructions like \"Steps for XYZ\" or \"What are the subgoals for achieving XYZ?\" Another method is to provide task-specific instructions tailored to the nature of the task, such as \"Write a story outline\" for novel writing. Additionally, task decomposition can involve human inputs to break down complex tasks into more manageable components."
+#                 "response": "Common ways of doing task decomposition include using techniques like Chain of Thought (CoT), which instructs the model to \"think step by step,\" and Tree of Thoughts, which explores multiple reasoning possibilities at each step. These methods can be initiated by a Large Language Model (LLM) using simple prompting, such as \"Steps for XYZ.\\n1.\", task-specific instructions like \"Write a story outline.\" for a novel, or with human inputs."
 #             }
 #         }
 #     ],

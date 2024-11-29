@@ -7,7 +7,7 @@ import time
 import unittest
 from typing import List
 from unittest.mock import ANY, patch
-
+from unittest.mock import MagicMock
 import requests
 from helpers import OurLLM
 from http_span_exporter import HttpSpanExporter

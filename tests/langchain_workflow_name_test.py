@@ -9,6 +9,8 @@ from unittest.mock import ANY, MagicMock, patch
 
 import pytest
 import requests
+from markdown_it.rules_inline.backticks import regex
+
 from dummy_class import DummyClass
 from embeddings_wrapper import HuggingFaceEmbeddings
 from http_span_exporter import HttpSpanExporter
@@ -166,6 +168,18 @@ class TestWorkflowEntityProperties(unittest.TestCase):
 
             assert root_span["attributes"]["entity.1.name"] == "test"
             assert root_span["attributes"]["entity.1.type"] == "workflow.langchain"
+            input_found = False
+            output_found = False
+
+            for event in root_span['events']:
+                if event['name'] == "data.input" and event['attributes']['input'] == query:
+                    input_found = True
+                elif event['name'] == "data.output" and event['attributes']['response'] == self.ragText:
+                    output_found = True
+
+            assert input_found
+            assert output_found
+
 
         finally:
             os.environ.pop(test_input_infra)

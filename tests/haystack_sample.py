@@ -20,28 +20,29 @@ from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExport
 from monocle_apptrace.instrumentor import setup_monocle_telemetry
 from monocle_apptrace.wrap_common import llm_wrapper, task_wrapper
 from monocle_apptrace.wrapper import WrapperMethod
-
-
+from haystack_integrations.components.generators.mistral import MistralChatGenerator
+from haystack.dataclasses import ChatMessage
+from haystack.core.component import Component
+from haystack.components.builders import ChatPromptBuilder
+os.environ["OPENAI_API_KEY"] = ""
+os.environ["MISTRAL_API_KEY"] = ""
 def haystack_app():
 
     setup_monocle_telemetry(
             workflow_name="haystack_app_1",
             span_processors=[BatchSpanProcessor(ConsoleSpanExporter())],
             wrapper_methods=[
-                WrapperMethod(
-                    package="haystack.components.retrievers.in_memory",
-                    object_name="InMemoryEmbeddingRetriever",
-                    method="run",
-                    span_name="haystack.retriever",
-                    wrapper=llm_wrapper),
 
             ])
 
     # initialize
+
     api_key = os.getenv("OPENAI_API_KEY")
     generator = OpenAIGenerator(
         api_key=Secret.from_token(api_key), model="gpt-3.5-turbo"
     )
+    # api_key = os.getenv("MISTRAL_API_KEY")
+    # generator = MistralChatGenerator(api_key=Secret.from_token(api_key), model="mistral-small")
 
     # initialize document store, load data and store in document store
     document_store = InMemoryDocumentStore()
@@ -77,6 +78,8 @@ def haystack_app():
     """
 
     prompt_builder = PromptBuilder(template=template)
+    # template = [ChatMessage.from_user(template)]
+    # prompt_builder = ChatPromptBuilder(template=template)
 
     basic_rag_pipeline = Pipeline()
     # Add components to your pipeline
@@ -96,45 +99,44 @@ def haystack_app():
         {"text_embedder": {"text": question}, "prompt_builder": {"question": question}}
     )
 
-    # print(response["llm"]["replies"][0])
+    print(response["llm"]["replies"][0])
 
 
 haystack_app()
 
-#{
+# {
 #     "name": "haystack.retriever",
 #     "context": {
-#         "trace_id": "0x1db120b68e3a759882ac457b07af344f",
-#         "span_id": "0x88a0290f25ae392a",
+#         "trace_id": "0x627bf88dcb4903b36ec8e1981d974e30",
+#         "span_id": "0x51147cff2fbf2ae1",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0x346eb05a7dd44a99",
-#     "start_time": "2024-05-23T03:57:52.482232Z",
-#     "end_time": "2024-05-23T03:57:52.496394Z",
+#     "parent_id": "0x0b377cab5084badf",
+#     "start_time": "2024-11-25T08:06:36.456448Z",
+#     "end_time": "2024-11-25T08:06:36.469802Z",
 #     "status": {
 #         "status_code": "UNSET"
 #     },
-#      "attributes": {
-#         "tags": [
-#             "SentenceTransformersTextEmbedder",
-#             "InMemoryDocumentStore"
-#         ],
-#         "type": "vector_store",
-#         "provider_name": "InMemoryDocumentStore",
-#         "embedding_model": "sentence-transformers/all-MiniLM-L6-v2"
+#     "attributes": {
+#         "span.type": "retrieval",
+#         "entity.count": 2,
+#         "entity.1.name": "InMemoryDocumentStore",
+#         "entity.1.type": "vectorstore.InMemoryDocumentStore",
+#         "entity.2.name": "sentence-transformers/all-MiniLM-L6-v2",
+#         "entity.2.type": "model.embedding.sentence-transformers/all-MiniLM-L6-v2"
 #     },
 #     "events": [
 #         {
-#             "name": "context_input",
-#             "timestamp": "2024-10-03T12:15:44.709938Z",
+#             "name": "data.input",
+#             "timestamp": "2024-11-25T08:06:36.456477Z",
 #             "attributes": {
-#                 "question": "What does Rhodes Statue look like?"
+#                 "input": "What does Rhodes Statue look like?"
 #             }
 #         },
 #         {
-#             "name": "context_output",
-#             "timestamp": "2024-10-03T12:15:44.720922Z",
+#             "name": "data.output",
+#             "timestamp": "2024-11-25T08:06:36.469782Z",
 #             "attributes": {
 #                 "response": "Within it, too, are to be seen large masses of rock, by the weight of which the artist steadied it w..."
 #             }
@@ -147,29 +149,54 @@ haystack_app()
 #         },
 #         "schema_url": ""
 #     }
-# }
+# },
 # {
-#     "name": "haystack.openai",
+#     "name": "haystack.components.generators.openai.OpenAIGenerator",
 #     "context": {
-#         "trace_id": "0x1db120b68e3a759882ac457b07af344f",
-#         "span_id": "0xc90f3343240ee785",
+#         "trace_id": "0x627bf88dcb4903b36ec8e1981d974e30",
+#         "span_id": "0xfca6cddc2de93669",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0x346eb05a7dd44a99",
-#     "start_time": "2024-05-23T03:57:52.497002Z",
-#     "end_time": "2024-05-23T03:57:54.793035Z",
+#     "parent_id": "0x0b377cab5084badf",
+#     "start_time": "2024-11-25T08:06:36.470300Z",
+#     "end_time": "2024-11-25T08:06:38.720635Z",
 #     "status": {
 #         "status_code": "UNSET"
 #     },
 #     "attributes": {
-#         "llm_input": "\n    Given the following information, answer the question.\n\n    Context:\n    \n        Within it, too, are to be seen large masses of rock, by the weight of which the artist steadied it while erecting it.[22][23]\nDestruction of the remains[edit]\nThe ultimate fate of the remains of the statue is uncertain. Rhodes has two serious earthquakes per century, owing to its location on the seismically unstable Hellenic Arc.  \n    \n\n    Question: What does Rhodes Statue look like?\n    Answer:\n    ",
-#         "model_name": "gpt-3.5-turbo",
-#         "completion_tokens": 90,
-#         "prompt_tokens": 2464,
-#         "total_tokens": 2554
+#         "span.type": "inference",
+#         "entity.count": 2,
+#         "entity.1.type": "inference.azure_oai",
+#         "entity.1.inference_endpoint": "https://api.openai.com/v1/",
+#         "entity.2.name": "gpt-3.5-turbo",
+#         "entity.2.type": "model.llm.gpt-3.5-turbo"
 #     },
-#     "events": [],
+#     "events": [
+#         {
+#             "name": "data.input",
+#             "timestamp": "2024-11-25T08:06:38.720289Z",
+#             "attributes": {
+#                 "input": "What does Rhodes Statue look like?"
+#             }
+#         },
+#         {
+#             "name": "data.output",
+#             "timestamp": "2024-11-25T08:06:38.720316Z",
+#             "attributes": {
+#                 "response": "The Rhodes Statue was a giant statue of the Greek sun-god Helios, erected in the city of Rhodes. It stood approximately 33 meters (108 feet) tall and was made of bronze. Scholars do not know the exact appearance of the statue, but it is believed to have had curly hair with evenly spaced spikes of bronze or silver flame radiating from the head, similar to contemporary Rhodian coins. The statue was located near the Rhodes harbor entrance on a 15-meter-high white marble pedestal. It collapsed at the knees during an earthquake in 226 BC."
+#             }
+#         },
+#         {
+#             "name": "metadata",
+#             "timestamp": "2024-11-25T08:06:38.720610Z",
+#             "attributes": {
+#                 "completion_tokens": 114,
+#                 "prompt_tokens": 2464,
+#                 "total_tokens": 2578
+#             }
+#         }
+#     ],
 #     "links": [],
 #     "resource": {
 #         "attributes": {
@@ -179,26 +206,43 @@ haystack_app()
 #     }
 # }
 # {
-#     "name": "haystack_pipeline.workflow",
+#     "name": "haystack.core.pipeline.pipeline.Pipeline",
 #     "context": {
-#         "trace_id": "0x1db120b68e3a759882ac457b07af344f",
-#         "span_id": "0x346eb05a7dd44a99",
+#         "trace_id": "0x627bf88dcb4903b36ec8e1981d974e30",
+#         "span_id": "0x0b377cab5084badf",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
 #     "parent_id": null,
-#     "start_time": "2024-05-23T03:57:52.395585Z",
-#     "end_time": "2024-05-23T03:57:54.793340Z",
+#     "start_time": "2024-11-25T08:06:36.445584Z",
+#     "end_time": "2024-11-25T08:06:38.720920Z",
 #     "status": {
 #         "status_code": "UNSET"
 #     },
 #     "attributes": {
-#         "input": "What does Rhodes Statue look like?",
-#         "workflow_name": "haystack_app_1",
-#         "workflow_type": "workflow.haystack",
-#         "output": "The Rhodes Statue, also known as the Colossus of Rhodes, depicted the Greek sun-god Helios. It was a bronze statue standing approximately 33 meters (108 feet) tall with a standard rendering of the head and face, featuring curly hair with evenly spaced spikes of bronze or silver flame radiating. The actual appearance of the rest of the statue remains unknown, but it was considered the tallest statue in the ancient world."
+#         "monocle_apptrace.version": "0.3.0",
+#         "span.type": "workflow",
+#         "entity.1.name": "haystack_app_1",
+#         "entity.1.type": "workflow.haystack"
 #     },
-#     "events": [],
+#     "events": [
+#         {
+#             "name": "data.input",
+#             "timestamp": "2024-11-25T08:06:36.446344Z",
+#             "attributes": {
+#                 "input": "What does Rhodes Statue look like?"
+#             }
+#         },
+#         {
+#             "name": "data.output",
+#             "timestamp": "2024-11-25T08:06:38.720906Z",
+#             "attributes": {
+#                 "response": [
+#                     "The Rhodes Statue was a giant statue of the Greek sun-god Helios, erected in the city of Rhodes. It stood approximately 33 meters (108 feet) tall and was made of bronze. Scholars do not know the exact appearance of the statue, but it is believed to have had curly hair with evenly spaced spikes of bronze or silver flame radiating from the head, similar to contemporary Rhodian coins. The statue was located near the Rhodes harbor entrance on a 15-meter-high white marble pedestal. It collapsed at the knees during an earthquake in 226 BC."
+#                 ]
+#             }
+#         }
+#     ],
 #     "links": [],
 #     "resource": {
 #         "attributes": {

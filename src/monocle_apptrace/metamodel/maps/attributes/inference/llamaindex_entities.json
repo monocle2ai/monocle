@@ -17,7 +17,7 @@
       },
       {
         "attribute": "inference_endpoint",
-        "accessor": "lambda arguments: resolve_from_alias(arguments['instance'].__dict__, ['azure_endpoint', 'api_base'])"
+        "accessor": "lambda arguments: resolve_from_alias(arguments['instance'].__dict__, ['azure_endpoint', 'api_base']) or arguments['kwargs']['inference_endpoint']"
       }
     ],
     [
@@ -31,5 +31,32 @@
         "accessor": "lambda arguments: 'model.llm.'+resolve_from_alias(arguments['instance'].__dict__, ['model', 'model_name'])"
       }
     ]
+  ],
+  "events": [
+    { "name":"data.input",
+      "attributes": [
+
+        {
+            "_comment": "this is instruction to LLM",
+            "attribute": "system",
+            "accessor": "lambda arguments: extract_messages(arguments)[0]"
+        },
+        {
+            "_comment": "this is user query to LLM",
+            "attribute": "user",
+            "accessor": "lambda arguments: extract_messages(arguments)[1]"
+        }
+      ]
+    },
+    {
+      "name":"data.output",
+      "attributes": [
+        {
+            "_comment": "this is response from LLM",
+            "attribute": "assistant",
+            "accessor": "lambda response: extract_assistant_message(response)"
+        }
+      ]
+   }
   ]
 }

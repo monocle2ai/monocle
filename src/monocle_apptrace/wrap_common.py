@@ -322,6 +322,12 @@ def get_provider_name(instance):
     except:
         pass
 
+    try:
+        if isinstance(instance.client.meta.endpoint_url, str):
+            inference_endpoint = instance.client.meta.endpoint_url
+    except:
+        pass
+
     api_base = getattr(instance, "api_base", None)
     if isinstance(api_base, str):
         provider_url = api_base
@@ -381,15 +387,18 @@ def update_span_from_llm_response(response, span: Span, instance):
             token_usage = response["meta"][0]["usage"]
 
         if (response is not None and hasattr(response, "response_metadata")):
-            response_metadata = response.response_metadata
-            token_usage = response_metadata.get("token_usage")
+            if hasattr(response, "usage_metadata"):
+                token_usage = response.usage_metadata
+            else:
+                response_metadata = response.response_metadata
+                token_usage = response_metadata.get("token_usage")
 
         meta_dict = {}
         if token_usage is not None:
             temperature = instance.__dict__.get("temperature", None)
             meta_dict.update({"temperature": temperature})
-            meta_dict.update({"completion_tokens": token_usage.get("completion_tokens")})
-            meta_dict.update({"prompt_tokens": token_usage.get("prompt_tokens")})
+            meta_dict.update({"completion_tokens": token_usage.get("completion_tokens") or token_usage.get("output_tokens")})
+            meta_dict.update({"prompt_tokens": token_usage.get("prompt_tokens") or token_usage.get("input_tokens")})
             meta_dict.update({"total_tokens": token_usage.get("total_tokens")})
             span.add_event(META_DATA, meta_dict)
     # extract token usage from llamaindex openai

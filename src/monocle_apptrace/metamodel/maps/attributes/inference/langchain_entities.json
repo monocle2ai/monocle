@@ -9,7 +9,7 @@
       },
       {
         "attribute": "provider_name",
-        "accessor": "lambda arguments:arguments['kwargs']['provider_name']"
+        "accessor": "lambda arguments:arguments['kwargs']['provider_name'] or arguments['instance'].provider"
       },
       {
         "attribute": "deployment",
@@ -24,11 +24,11 @@
       {
         "_comment": "LLM Model",
         "attribute": "name",
-        "accessor": "lambda arguments: resolve_from_alias(arguments['instance'].__dict__, ['model', 'model_name'])"
+        "accessor": "lambda arguments: resolve_from_alias(arguments['instance'].__dict__, ['model', 'model_name']) or arguments['instance'].model_id"
       },
       {
         "attribute": "type",
-        "accessor": "lambda arguments: 'model.llm.'+resolve_from_alias(arguments['instance'].__dict__, ['model', 'model_name'])"
+        "accessor": "lambda arguments: 'model.llm.'+ (resolve_from_alias(arguments['instance'].__dict__, ['model', 'model_name']) or arguments['instance'].model_id)"
       }
     ]
   ],

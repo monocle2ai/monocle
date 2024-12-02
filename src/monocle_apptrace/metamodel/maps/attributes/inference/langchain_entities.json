@@ -9,7 +9,7 @@
       },
       {
         "attribute": "provider_name",
-        "accessor": "lambda arguments:arguments['kwargs']['provider_name'] or arguments['instance'].provider"
+        "accessor": "lambda arguments:arguments['kwargs']['provider_name']"
       },
       {
         "attribute": "deployment",

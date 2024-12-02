@@ -487,4 +487,4 @@ def update_span_with_prompt_output(to_wrap, wrapped_args, span: Span):
     elif isinstance(wrapped_args, str):
         span.add_event(PROMPT_OUTPUT_KEY, {RESPONSE: wrapped_args})
     elif isinstance(wrapped_args, dict):
-        span.add_event(PROMPT_OUTPUT_KEY, wrapped_args)
+        span.add_event(PROMPT_OUTPUT_KEY, {RESPONSE: wrapped_args['answer']})

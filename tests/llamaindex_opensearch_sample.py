@@ -155,7 +155,7 @@ print(res)
 #         "status_code": "UNSET"
 #     },
 #     "attributes": {
-#         "monocle_apptrace.version": "0.3.0",
+#         "monocle_apptrace.version": "0.2.1",
 #         "span.type": "workflow",
 #         "entity.1.name": "llama_index_1",
 #         "entity.1.type": "workflow.llamaindex"

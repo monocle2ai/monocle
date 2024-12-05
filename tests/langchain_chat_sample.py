@@ -431,7 +431,7 @@ ai_msg_2 = rag_chain.invoke({"input": second_question, "chat_history": chat_hist
 #         "span.type": "workflow",
 #         "entity.1.name": "langchain_app_1",
 #         "entity.1.type": "workflow.langchain",
-#         "monocle_apptrace.version": "0.2.0"
+#         "monocle_apptrace.version": "0.2.1"
 #     },
 #     "events": [
 #         {
@@ -875,7 +875,7 @@ ai_msg_2 = rag_chain.invoke({"input": second_question, "chat_history": chat_hist
 #         "span.type": "workflow",
 #         "entity.1.name": "langchain_app_1",
 #         "entity.1.type": "workflow.langchain",
-#         "monocle_apptrace.version": "0.2.0"
+#         "monocle_apptrace.version": "0.2.1"
 #     },
 #     "events": [
 #         {

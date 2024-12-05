@@ -162,7 +162,3 @@ jobs:
           git config --global user.name "$USER_NAME"
           git commit -a -m "$message"
           git push origin HEAD:$branch
-          gh pr create --title "$message" \
-                       --body "$body" \
-                       --head $branch \
-                       --base main

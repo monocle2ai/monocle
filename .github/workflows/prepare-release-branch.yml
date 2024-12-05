@@ -90,8 +90,8 @@ jobs:
         run: |
           message="Prepare release ${STABLE_VERSION}"
           branch="monocle/prepare-release-${STABLE_VERSION}"
-          git config --global user.email "abc"
-          git config --global user.name "$USER_NAME"
+          git config --global user.email "you@example.com"
+          git config --global user.name "you"
           git commit -a -m "$message"
           git push origin HEAD:$branch
           gh pr create --title "[$RELEASE_BRANCH_NAME] $message" \

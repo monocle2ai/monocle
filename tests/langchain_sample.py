@@ -279,7 +279,7 @@ print(result)
 #         "status_code": "UNSET"
 #     },
 #     "attributes": {
-#         "monocle_apptrace.version": "0.3.0",
+#         "monocle_apptrace.version": "0.2.0",
 #         "span.type": "workflow",
 #         "entity.1.name": "langchain_app_1",
 #         "entity.1.type": "workflow.langchain"

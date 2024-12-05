@@ -400,7 +400,7 @@ print(result)
 #     },
 #     "attributes": {
 #         "session.session_id": "0x4fa6d91d1f2a4bdbb7a1287d90ec4a16",
-#         "monocle_apptrace.version": "0.3.0",
+#         "monocle_apptrace.version": "0.2.0",
 #         "span.type": "workflow",
 #         "entity.1.name": "langchain_opensearch",
 #         "entity.1.type": "workflow.langchain"

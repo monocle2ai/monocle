@@ -210,7 +210,7 @@ haystack_app()
 #         "status_code": "UNSET"
 #     },
 #     "attributes": {
-#         "monocle_apptrace.version": "0.2.1",
+#         "monocle_apptrace.version": "0.2.0",
 #         "span.type": "workflow",
 #         "entity.1.name": "haystack_app_1",
 #         "entity.1.type": "workflow.haystack"

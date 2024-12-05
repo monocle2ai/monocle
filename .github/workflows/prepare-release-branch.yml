@@ -1,5 +1,8 @@
 name: Prepare release branch
 on:
+  push:
+    branches:
+      - release_test_temp
   workflow_dispatch:
     inputs:
       prerelease_version:
@@ -20,7 +23,7 @@ jobs:
         env:
           PRERELEASE_VERSION: ${{ github.event.inputs.prerelease_version }}
         run: |
-          if [[ $GITHUB_REF_NAME != main ]]; then
+          if [[ $GITHUB_REF_NAME != release_test_temp ]]; then
             echo this workflow should only be run against main
             exit 1
           fi
@@ -87,7 +90,7 @@ jobs:
         run: |
           message="Prepare release ${STABLE_VERSION}"
           branch="monocle/prepare-release-${STABLE_VERSION}"
-          git config --global user.email "$USER_EMAIL"
+          git config --global user.email "abc"
           git config --global user.name "$USER_NAME"
           git commit -a -m "$message"
           git push origin HEAD:$branch

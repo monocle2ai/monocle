@@ -94,10 +94,6 @@ jobs:
           git config --global user.name "you"
           git commit -a -m "$message"
           git push origin HEAD:$branch
-          gh pr create --title "[$RELEASE_BRANCH_NAME] $message" \
-                       --body "$message." \
-                       --head $branch \
-                       --base $RELEASE_BRANCH_NAME
 
   create-pull-request-against-main:
     environment: GITHUB

@@ -176,6 +176,7 @@ jobs:
       #   run: .github/scripts/use-cla-approved-github-bot.sh
 
       - name: Create pull request against main
+        shell: bash
         env:
           # not using secrets.GITHUB_TOKEN since pull requests from that token do not run workflows
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

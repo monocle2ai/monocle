@@ -23,7 +23,7 @@ jobs:
         env:
           PRERELEASE_VERSION: ${{ github.event.inputs.prerelease_version }}
         run: |
-          if [[ $GITHUB_REF_NAME != main ]]; then
+          if [[ $GITHUB_REF_NAME != release_test_temp ]]; then
             echo this workflow should only be run against main
             exit 1
           fi

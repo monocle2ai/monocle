@@ -1,3 +1,4 @@
+# 
 name: Prepare release branch
 on:
   push:

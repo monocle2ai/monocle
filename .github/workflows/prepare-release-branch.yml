@@ -11,7 +11,7 @@ on:
 
 jobs:
   prereqs:
-    environment: GITHUB
+    environment: ArtifactPublish
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -23,7 +23,7 @@ jobs:
         env:
           PRERELEASE_VERSION: ${{ github.event.inputs.prerelease_version }}
         run: |
-          if [[ $GITHUB_REF_NAME != release_test_temp ]]; then
+          if [[ $GITHUB_REF_NAME != main ]]; then
             echo this workflow should only be run against main
             exit 1
           fi
@@ -42,7 +42,7 @@ jobs:
           fi
 
   create-pull-request-against-release-branch:
-    environment: GITHUB
+    environment: ArtifactPublish
     runs-on: ubuntu-latest
     needs: prereqs
     steps:
@@ -90,13 +90,17 @@ jobs:
         run: |
           message="Prepare release ${STABLE_VERSION}"
           branch="monocle/prepare-release-${STABLE_VERSION}"
-          git config --global user.email "you@example.com"
-          git config --global user.name "you"
+          git config --global user.email "$USER_EMAIL"
+          git config --global user.name "$USER_NAME"
           git commit -a -m "$message"
           git push origin HEAD:$branch
+          gh pr create --title "[$RELEASE_BRANCH_NAME] $message" \
+                       --body "$message." \
+                       --head $branch \
+                       --base $RELEASE_BRANCH_NAME
 
   create-pull-request-against-main:
-    environment: GITHUB
+    environment: ArtifactPublish
     runs-on: ubuntu-latest
     needs: [prereqs, create-pull-request-against-release-branch]
     steps:
@@ -158,3 +162,7 @@ jobs:
           git config --global user.name "$USER_NAME"
           git commit -a -m "$message"
           git push origin HEAD:$branch
+          gh pr create --title "$message" \
+                       --body "$body" \
+                       --head $branch \
+                       --base main

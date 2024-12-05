@@ -179,6 +179,8 @@ jobs:
         env:
           # not using secrets.GITHUB_TOKEN since pull requests from that token do not run workflows
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          USER_EMAIL: ${{ secrets.GIT_USER_EMAIL }}
+          USER_NAME: ${{ secrets.GIT_USER_NAME }}
         run: |
           message="Copy change log updates from $GITHUB_REF_NAME"
           body="Copy log updates from \`$GITHUB_REF_NAME\`."
@@ -191,6 +193,8 @@ jobs:
             fi
           fi
 
+          git config --global user.email "you@example.com"
+          git config --global user.name "you"
           git commit -a -m "$message"
           git push origin HEAD:$branch
           gh pr create --title "$message" \

@@ -133,27 +133,31 @@ print(response)
 #     "events": [
 #         {
 #             "name": "data.input",
-#             "timestamp": "2024-11-18T10:57:06.165465Z",
+#             "timestamp": "2024-12-06T09:42:33.163651Z",
 #             "attributes": {
-#                 "system": "You are an expert Q&A system that is trusted around the world.\nAlways answer the query using the provided context information, and not prior knowledge.\nSome rules to follow:\n1. Never directly reference the given context in your answer.\n2. Avoid statements like 'Based on the context, ...' or 'The context information ...' or anything along those lines.",
-#                 "user": "What did the author do growing up?"
+#                 "input": [
+#                     "{'system': \"You are an expert Q&A system that is trusted around the world.\\nAlways answer the query using the provided context information, and not prior knowledge.\\nSome rules to follow:\\n1. Never directly reference the given context in your answer.\\n2. Avoid statements like 'Based on the context, ...' or 'The context information ...' or anything along those lines.\"}",
+#                     "{'user': 'What did the author do growing up?'}"
+#                 ]
 #             }
 #         },
 #         {
 #             "name": "data.output",
-#             "timestamp": "2024-11-18T10:57:06.165494Z",
+#             "timestamp": "2024-12-06T09:42:33.163735Z",
 #             "attributes": {
-#                 "assistant": "The context does not provide information about what the author did while growing up."
+#                 "response": [
+#                     "There is no information provided in the context about what the author did growing up."
+#                 ]
 #             }
 #         },
 #         {
 #             "name": "metadata",
-#             "timestamp": "2024-11-12T11:28:37.999529Z",
+#             "timestamp": "2024-12-06T09:42:33.163774Z",
 #             "attributes": {
 #                 "temperature": 0.1,
-#                 "completion_tokens": 15,
-#                 "prompt_tokens": 149,
-#                 "total_tokens": 164
+#                 "completion_tokens": 16,
+#                 "prompt_tokens": 144,
+#                 "total_tokens": 160
 #             }
 #         }
 #     ],

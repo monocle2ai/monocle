@@ -66,12 +66,12 @@ class TestHandler(unittest.TestCase):
         pipe.add_component("llm", llm)
         pipe.connect("retriever", "prompt_builder.documents")
         pipe.connect("prompt_builder.prompt", "llm.prompt")
-        query = "OpenTelemetry"
-        message = f"Tell me a joke about {query}"
+        query = f"Where does Joe lives?"
+        response = "Joe lives in Berlin"
         pipe.run(
             {
-                "retriever": {"query": message},
-                "prompt_builder": {"query": message},
+                "retriever": {"query": query},
+                "prompt_builder": {"query": query},
             }
         )
 
@@ -101,6 +101,7 @@ class TestHandler(unittest.TestCase):
         model_name_found = False
         provider_found = False
         input_event = False
+        output_event = False
 
         for span in dataJson["batch"]:
             if span["name"] == "haystack.components.generators.openai.OpenAIGenerator":
@@ -113,14 +114,19 @@ class TestHandler(unittest.TestCase):
                 model_name_found = True
                 for event in span['events']:
                     if event['name'] == "data.input":
-                        assert event['attributes']['user'] == message
+                        assert event['attributes']['input'] == [query]
                         input_event = True
+                    if event['name'] == "data.output":
+                        assert event['attributes']['response'] == [response]
+                        output_event = True
+
 
 
         assert type_found
         assert model_name_found
         assert provider_found
         assert input_event
+        assert output_event
 
 
 if __name__ == '__main__':

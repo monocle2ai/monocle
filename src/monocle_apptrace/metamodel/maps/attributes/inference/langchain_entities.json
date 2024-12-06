@@ -24,11 +24,11 @@
       {
         "_comment": "LLM Model",
         "attribute": "name",
-        "accessor": "lambda arguments: resolve_from_alias(arguments['instance'].__dict__, ['model', 'model_name'])"
+        "accessor": "lambda arguments: resolve_from_alias(arguments['instance'].__dict__, ['model', 'model_name']) or arguments['instance'].model_id"
       },
       {
         "attribute": "type",
-        "accessor": "lambda arguments: 'model.llm.'+resolve_from_alias(arguments['instance'].__dict__, ['model', 'model_name'])"
+        "accessor": "lambda arguments: 'model.llm.'+ (resolve_from_alias(arguments['instance'].__dict__, ['model', 'model_name']) or arguments['instance'].model_id)"
       }
     ]
   ],
@@ -37,14 +37,9 @@
       "attributes": [
 
         {
-            "_comment": "this is instruction to LLM",
-            "attribute": "system",
-            "accessor": "lambda arguments: extract_messages(arguments)[0]"
-        },
-        {
-            "_comment": "this is user query to LLM",
-            "attribute": "user",
-            "accessor": "lambda arguments: extract_messages(arguments)[1]"
+            "_comment": "this is instruction and user query to LLM",
+            "attribute": "input",
+            "accessor": "lambda arguments: extract_messages(arguments['args'])"
         }
       ]
     },
@@ -53,7 +48,7 @@
       "attributes": [
         {
             "_comment": "this is response from LLM",
-            "attribute": "assistant",
+            "attribute": "response",
             "accessor": "lambda response: extract_assistant_message(response)"
         }
       ]

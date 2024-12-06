@@ -175,25 +175,29 @@ haystack_app()
 #     "events": [
 #         {
 #             "name": "data.input",
-#             "timestamp": "2024-11-25T08:06:38.720289Z",
+#             "timestamp": "2024-12-06T09:31:43.106039Z",
 #             "attributes": {
-#                 "input": "What does Rhodes Statue look like?"
+#                 "input": [
+#                     "What does Rhodes Statue look like?"
+#                 ]
 #             }
 #         },
 #         {
 #             "name": "data.output",
-#             "timestamp": "2024-11-25T08:06:38.720316Z",
+#             "timestamp": "2024-12-06T09:31:43.106121Z",
 #             "attributes": {
-#                 "response": "The Rhodes Statue was a giant statue of the Greek sun-god Helios, erected in the city of Rhodes. It stood approximately 33 meters (108 feet) tall and was made of bronze. Scholars do not know the exact appearance of the statue, but it is believed to have had curly hair with evenly spaced spikes of bronze or silver flame radiating from the head, similar to contemporary Rhodian coins. The statue was located near the Rhodes harbor entrance on a 15-meter-high white marble pedestal. It collapsed at the knees during an earthquake in 226 BC."
+#                 "response": [
+#                     "The Rhodes Statue was a bronze statue of the Greek sun-god Helios. It stood approximately 33 meters (108 feet) high and had a standard rendering of a head with curly hair and spikes of bronze or silver flame radiating, similar to the images found on contemporary Rhodian coins."
+#                 ]
 #             }
 #         },
 #         {
 #             "name": "metadata",
-#             "timestamp": "2024-11-25T08:06:38.720610Z",
+#             "timestamp": "2024-12-06T09:31:43.106410Z",
 #             "attributes": {
-#                 "completion_tokens": 114,
+#                 "completion_tokens": 59,
 #                 "prompt_tokens": 2464,
-#                 "total_tokens": 2578
+#                 "total_tokens": 2523
 #             }
 #         }
 #     ],

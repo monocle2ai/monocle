@@ -4,6 +4,7 @@ on:
 
 jobs:
   release:
+    environment: ArtifactPublish
     runs-on: ubuntu-latest
     steps:
       - run: |
@@ -191,7 +192,7 @@ jobs:
             fi
           fi
 
-          git commit -a -m "$message"
+          git commit -s -a -m "$message"
           git push origin HEAD:$branch
           gh pr create --title "$message" \
                        --body "$body" \

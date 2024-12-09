@@ -1,16 +1,16 @@
 # pylint: disable=protected-access
 import logging
 import os
-import inspect
 from importlib.metadata import version
 from urllib.parse import urlparse
 from opentelemetry.trace import Tracer
 from opentelemetry.sdk.trace import Span
-from monocle_apptrace.utils import resolve_from_alias, with_tracer_wrapper, get_embedding_model, get_attribute, get_workflow_name, set_embedding_model, set_app_hosting_identifier_attribute
+from monocle_apptrace.utils import resolve_from_alias, with_tracer_wrapper, get_attribute, get_workflow_name, set_embedding_model, set_app_hosting_identifier_attribute
 from monocle_apptrace.utils import set_attribute, get_vectorstore_deployment
 from monocle_apptrace.utils import get_fully_qualified_class_name, get_nested_value
-from monocle_apptrace.message_processing import extract_messages, extract_assistant_message
-
+from monocle_apptrace.llamaindex.llama_processing import llama_processing
+from monocle_apptrace.langchain.langchain_processing import langchain_processing
+from monocle_apptrace.haystack.haystack_processing import haystack_processing
 logger = logging.getLogger(__name__)
 WORKFLOW_TYPE_KEY = "workflow_type"
 DATA_INPUT_KEY = "data.input"
@@ -133,11 +133,6 @@ def process_span(to_wrap, span, instance, args, kwargs, return_value):
                 span.set_attribute("span.count", count)
             if 'events' in output_processor:
                 events = output_processor['events']
-                arguments = {"instance": instance, "args": args, "kwargs": kwargs, "output": return_value}
-                accessor_mapping = {
-                    "arguments": arguments,
-                    "response": return_value
-                }
                 for event in events:
                     event_name = event.get("name")
                     event_attributes = {}
@@ -145,15 +140,14 @@ def process_span(to_wrap, span, instance, args, kwargs, return_value):
                     for attribute in attributes:
                         attribute_key = attribute.get("attribute")
                         accessor = attribute.get("accessor")
+                        arguments = {"instance": instance, "args": args, "kwargs": kwargs, "output": return_value, "accessor": accessor}
                         if accessor:
                             try:
                                 accessor_function = eval(accessor)
-                                for keyword, value in accessor_mapping.items():
-                                    if keyword in accessor:
-                                        evaluated_val = accessor_function(value)
-                                        if isinstance(evaluated_val, list):
-                                            evaluated_val = [str(d) for d in evaluated_val]
-                                        event_attributes[attribute_key] = evaluated_val
+                                evaluated_val = accessor_function(arguments)
+                                if isinstance(evaluated_val, list):
+                                    evaluated_val = [str(d) for d in evaluated_val]
+                                event_attributes[attribute_key] = evaluated_val
                             except Exception as e:
                                 logger.error(f"Error evaluating accessor for attribute '{attribute_key}': {e}")
                     span.add_event(name=event_name, attributes=event_attributes)
@@ -483,3 +477,5 @@ def update_span_with_prompt_output(to_wrap, wrapped_args, span: Span):
         span.add_event(PROMPT_OUTPUT_KEY, {RESPONSE: wrapped_args})
     elif isinstance(wrapped_args, dict):
         span.add_event(PROMPT_OUTPUT_KEY, {RESPONSE: wrapped_args['answer']})
+
+

@@ -39,7 +39,7 @@
         {
             "_comment": "this is instruction and user query to LLM",
             "attribute": "input",
-            "accessor": "lambda arguments: extract_messages(arguments['args'])"
+            "accessor": "lambda arguments: haystack_processing(arguments)"
         }
       ]
     },
@@ -49,7 +49,7 @@
         {
             "_comment": "this is response from LLM",
             "attribute": "response",
-            "accessor": "lambda response: extract_assistant_message(response)"
+            "accessor": "lambda response: haystack_processing(response)"
         }
       ]
    }

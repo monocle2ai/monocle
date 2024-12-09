@@ -1,7 +1,7 @@
 
-from monocle_apptrace.haystack import HAYSTACK_METHODS
-from monocle_apptrace.langchain import LANGCHAIN_METHODS
-from monocle_apptrace.llamaindex import LLAMAINDEX_METHODS
+from monocle_apptrace.haystack.haystack_methods import HAYSTACK_METHODS
+from monocle_apptrace.langchain.langchain_methods import LANGCHAIN_METHODS
+from monocle_apptrace.llamaindex.llamaindex_methods import LLAMAINDEX_METHODS
 from monocle_apptrace.wrap_common import task_wrapper
 
 # pylint: disable=too-few-public-methods

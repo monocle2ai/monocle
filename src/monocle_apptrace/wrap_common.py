@@ -10,6 +10,7 @@ from monocle_apptrace.utils import resolve_from_alias, with_tracer_wrapper, get_
 from monocle_apptrace.utils import set_attribute, get_vectorstore_deployment
 from monocle_apptrace.utils import get_fully_qualified_class_name, get_nested_value
 from monocle_apptrace.message_processing import extract_messages, extract_assistant_message
+from functools import wraps
 
 logger = logging.getLogger(__name__)
 WORKFLOW_TYPE_KEY = "workflow_type"
@@ -69,6 +70,10 @@ def task_wrapper(tracer: Tracer, to_wrap, wrapped, instance, args, kwargs):
         workflow_input = get_workflow_input(args, inputs)
         set_attribute(DATA_INPUT_KEY, workflow_input)
 
+    if to_wrap.get('skip_span'):
+        return_value = wrapped(*args, **kwargs)
+        botocore_processor(tracer, to_wrap, wrapped, instance, args, kwargs, return_value)
+        return return_value
 
     with tracer.start_as_current_span(name) as span:
         pre_task_processing(to_wrap, instance, args, span)
@@ -77,6 +82,21 @@ def task_wrapper(tracer: Tracer, to_wrap, wrapped, instance, args, kwargs):
         post_task_processing(to_wrap, span, return_value)
 
     return return_value
+
+def botocore_processor(tracer, to_wrap, wrapped, instance, args, kwargs,return_value):
+    if kwargs.get("service_name") == "sagemaker-runtime":
+        return_value.invoke_endpoint = _instrumented_endpoint_invoke(to_wrap,return_value,return_value.invoke_endpoint,tracer)
+
+def _instrumented_endpoint_invoke(to_wrap, instance, fn, tracer):
+    @wraps(fn)
+    def with_instrumentation(*args, **kwargs):
+
+        with tracer.start_as_current_span("botocore-sagemaker-invoke-endpoint") as span:
+            response = fn(*args, **kwargs)
+            process_span(to_wrap, span, instance=instance,args=args, kwargs=kwargs, return_value=response)
+            return response
+
+    return with_instrumentation
 
 def get_workflow_input(args, inputs):
     if args is not None and len(args) > 0:
@@ -95,10 +115,10 @@ def process_span(to_wrap, span, instance, args, kwargs, return_value):
     # Check if the output_processor is a valid JSON (in Python, that means it's a dictionary)
     instance_args = {}
     set_provider_name(instance, instance_args)
-    span_index = 1
+    span_index = 0
     if is_root_span(span):
-        span_index += set_workflow_attributes(to_wrap, span, span_index)
-        span_index += set_app_hosting_identifier_attribute(span, span_index)
+        span_index += set_workflow_attributes(to_wrap, span, span_index+1)
+        span_index += set_app_hosting_identifier_attribute(span, span_index+1)
     if 'output_processor' in to_wrap:
         output_processor=to_wrap['output_processor']
         if isinstance(output_processor, dict) and len(output_processor) > 0:
@@ -106,18 +126,14 @@ def process_span(to_wrap, span, instance, args, kwargs, return_value):
                 span.set_attribute("span.type", output_processor['type'])
             else:
                 logger.warning("type of span not found or incorrect written in entity json")
-            count = 0
             if 'attributes' in output_processor:
-                count = len(output_processor["attributes"])
-                span.set_attribute("entity.count", count)
-                span_index = 1
                 for processors in output_processor["attributes"]:
                     for processor in processors:
                         attribute = processor.get('attribute')
                         accessor = processor.get('accessor')
 
                         if attribute and accessor:
-                            attribute_name = f"entity.{span_index}.{attribute}"
+                            attribute_name = f"entity.{span_index+1}.{attribute}"
                             try:
                                 arguments = {"instance":instance, "args":args, "kwargs":kwargs, "output":return_value}
                                 result = eval(accessor)(arguments)
@@ -130,7 +146,6 @@ def process_span(to_wrap, span, instance, args, kwargs, return_value):
                     span_index += 1
             else:
                 logger.warning("attributes not found or incorrect written in entity json")
-                span.set_attribute("span.count", count)
             if 'events' in output_processor:
                 events = output_processor['events']
                 accessor_mapping = {
@@ -156,6 +171,8 @@ def process_span(to_wrap, span, instance, args, kwargs, return_value):
 
         else:
             logger.warning("empty or entities json is not in correct format")
+    if span_index > 0:
+        span.set_attribute("entity.count", span_index)
 
 def set_workflow_attributes(to_wrap, span: Span, span_index):
     return_value = 1

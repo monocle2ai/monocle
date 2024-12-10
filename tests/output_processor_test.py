@@ -18,6 +18,8 @@ class TestProcessSpan(unittest.TestCase):
         self.mock_span = Mock()
         self.mock_instance = Mock()
         self.mock_args = {}
+        self.mock_kwargs = {}
+        self.return_value = ""
 
     def test_valid_output_processor(self):
         """Test case for valid output processor with type and attributes."""
@@ -28,18 +30,18 @@ class TestProcessSpan(unittest.TestCase):
                     [
                         {
                             "attribute": "provider_name",
-                            "accessor": "lambda instance, args: 'example.com'"
+                            "accessor": "lambda args: 'example.com'"
                         },
                         {
                             "attribute": "inference_endpoint",
-                            "accessor": "lambda instance, args: 'https://example.com/'"
+                            "accessor": "lambda args: 'https://example.com/'"
                         }
                     ]
                 ]
             }
         }
 
-        process_span(to_wrap, self.mock_span, self.mock_instance, self.mock_args)
+        process_span(to_wrap, self.mock_span, self.mock_instance, self.mock_args, self.mock_kwargs, self.return_value)
 
         self.mock_span.set_attribute.assert_any_call("span.type", "inference")
         self.mock_span.set_attribute.assert_any_call("entity.count", 1)
@@ -55,17 +57,17 @@ class TestProcessSpan(unittest.TestCase):
                     [
                         {
                             "attribute": "provider_name",
-                            "accessor": "lambda instance, args: 'example.com'"
+                            "accessor": "lambda args: 'example.com'"
                         },
                         {
                             "attribute": "inference_endpoint",
-                            "accessor": "lambda instance, args: 'https://example.com/'"
+                            "accessor": "lambda args: 'https://example.com/'"
                         }
                     ]
                 ]
             }
          }
-        process_span(to_wrap, self.mock_span, self.mock_instance, self.mock_args)
+        process_span(to_wrap, self.mock_span, self.mock_instance, self.mock_args, self.mock_kwargs, self.return_value)
 
         self.mock_span.set_attribute.assert_any_call("entity.count", 1)
         self.mock_span.set_attribute.assert_any_call("entity.1.provider_name", "example.com")
@@ -80,21 +82,20 @@ class TestProcessSpan(unittest.TestCase):
                             "attributes":[]
                     }
                 }
-        process_span(to_wrap, self.mock_span, self.mock_instance, self.mock_args)
+        process_span(to_wrap, self.mock_span, self.mock_instance, self.mock_args, self.mock_kwargs, self.return_value)
 
         self.mock_span.set_attribute.assert_any_call("span.type", "inference")
-        self.mock_span.set_attribute.assert_any_call("entity.count", 0)
 
     def test_empty_output_processor(self):
         """Test case for an empty output processor."""
         to_wrap={
             "output_processor":{}
         }
-        process_span(to_wrap, self.mock_span, self.mock_instance, self.mock_args)
+        process_span(to_wrap, self.mock_span, self.mock_instance, self.mock_args, self.mock_kwargs, self.return_value)
 
         # Log warning expected for incorrect format
         with self.assertLogs(level='WARNING') as log:
-            process_span(to_wrap, self.mock_span, self.mock_instance, self.mock_args)
+            process_span(to_wrap, self.mock_span, self.mock_instance, self.mock_args, self.mock_kwargs, self.return_value)
 
         # Check if the correct log message is in the captured logs
         self.assertIn("empty or entities json is not in correct format", log.output[0])

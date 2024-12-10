@@ -195,7 +195,7 @@ class TestHandler(unittest.TestCase):
                 assert llm_azure_openai_span["attributes"]["entity.1.deployment"] == os.environ.get("AZURE_OPENAI_API_DEPLOYMENT")
                 assert llm_azure_openai_span["attributes"]["entity.1.inference_endpoint"] == "https://example.com/"
                 assert llm_azure_openai_span["attributes"]["entity.2.type"] == "model.llm.gpt-3.5-turbo-0125"
-                assert "Latte is a coffee drink" in llm_azure_openai_span["events"][1]['attributes']['assistant']
+                assert "Latte is a coffee drink" in llm_azure_openai_span["events"][1]['attributes']['response'][0]
 
         finally:
             os.environ.pop(test_input_infra)

@@ -1,0 +1,27 @@
+{
+  "type": "inference",
+  "attributes": [
+    [
+      {
+        "_comment": "provider type  , inference_endpoint",
+        "attribute": "type",
+        "accessor": "lambda arguments:'inference.aws_sagemaker'"
+      },
+      {
+        "attribute": "inference_endpoint",
+        "accessor": "lambda arguments: resolve_from_alias(arguments['instance'].__dict__, ['azure_endpoint', 'api_base']) or arguments['instance'].meta.endpoint_url"
+      }
+    ],
+    [
+      {
+        "_comment": "LLM Model",
+        "attribute": "name",
+        "accessor": "lambda arguments: resolve_from_alias(arguments['instance'].__dict__, ['model', 'model_name']) or arguments['kwargs'].get('EndpointName', '')"
+      },
+      {
+        "attribute": "type",
+        "accessor": "lambda arguments: 'model.llm.' + (resolve_from_alias(arguments['instance'].__dict__, ['model', 'model_name']) or arguments['kwargs'].get('EndpointName', ''))"
+      }
+    ]
+  ]
+}

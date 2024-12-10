@@ -207,9 +207,12 @@ def get_fully_qualified_class_name(instance):
 # returns json path like key probe in a dictionary
 def get_nested_value(data, keys):
     for key in keys:
-        if not isinstance(data, dict) or key not in data:
+        if isinstance(data, dict) and key in data:
+            data = data[key]
+        elif hasattr(data, key):
+            data = getattr(data, key)
+        else:
             return None
-        data = data[key]
     return data
 
 def get_workflow_name(span: Span) -> str:
@@ -218,3 +221,32 @@ def get_workflow_name(span: Span) -> str:
     except Exception as e:
         logger.exception(f"Error getting workflow name: {e}")
         return None
+
+def get_vectorstore_deployment(my_map):
+    if isinstance(my_map, dict):
+        if '_client_settings' in my_map:
+            client = my_map['_client_settings'].__dict__
+            host, port = get_keys_as_tuple(client, 'host', 'port')
+            if host:
+                return f"{host}:{port}" if port else host
+        keys_to_check = ['client', '_client']
+        host = get_host_from_map(my_map, keys_to_check)
+        if host:
+            return host
+    else:
+        if hasattr(my_map, 'client') and '_endpoint' in my_map.client.__dict__:
+            return my_map.client.__dict__['_endpoint']
+        host, port = get_keys_as_tuple(my_map.__dict__, 'host', 'port')
+        if host:
+            return f"{host}:{port}" if port else host
+    return None
+
+def get_keys_as_tuple(dictionary, *keys):
+    return tuple(next((value for key, value in dictionary.items() if key.endswith(k) and value is not None), None) for k in keys)
+
+def get_host_from_map(my_map, keys_to_check):
+    for key in keys_to_check:
+        seed_connections = get_nested_value(my_map, [key, 'transport', 'seed_connections'])
+        if seed_connections and 'host' in seed_connections[0].__dict__:
+            return seed_connections[0].__dict__['host']
+    return None

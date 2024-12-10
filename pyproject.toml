@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "monocle_apptrace"
-version = "0.3.0"
+version = "0.3.0b1"
 authors = []
 description = "package with monocle genAI tracing"
 readme = "README.md"

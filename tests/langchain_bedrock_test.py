@@ -10,7 +10,7 @@ class TestProcessSpan(unittest.TestCase):
     def test_process_span_with_mocked_eval(self, mock_eval):
         mock_eval.side_effect = lambda expression: {
             "lambda arguments: arguments['kwargs']['provider_name'] or arguments['instance'].provider": "value1",
-            "lambda arguments: extract_messages(arguments)[1]": "What is Task Decomposition?"
+            "lambda arguments: extract_messages(arguments['args']": "What is Task Decomposition?"
         }.get(expression, None)
 
         span = MagicMock()
@@ -42,7 +42,7 @@ class TestProcessSpan(unittest.TestCase):
                         "attributes": [
                             {
                                 "attribute": "user",
-                                "accessor": "lambda arguments: extract_messages(arguments)[1]"
+                                "accessor": "lambda arguments: extract_messages(arguments['args'])"
                             }
                         ]
                     }
@@ -57,7 +57,7 @@ class TestProcessSpan(unittest.TestCase):
         span.set_attribute.assert_any_call("entity.count", 1)
         span.set_attribute.assert_any_call("span.type", "inference")
         span.set_attribute.assert_any_call("entity.1.provider_name", "value1")
-        span.add_event.assert_any_call(name="data.input", attributes={'user': {'user': 'What is Task Decomposition?'}})
+        span.add_event.assert_any_call(name="data.input", attributes={'user': ["{'system': 'System message'}", "{'user': 'What is Task Decomposition?'}"]})
 
 if __name__ == '__main__':
     unittest.main()

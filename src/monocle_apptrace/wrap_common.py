@@ -150,7 +150,7 @@ def process_span(to_wrap, span, instance, args, kwargs, return_value):
                 events = output_processor['events']
                 arguments = {"instance": instance, "args": args, "kwargs": kwargs, "output": return_value}
                 accessor_mapping = {
-                    "arguments": args,
+                    "arguments": arguments,
                     "response": return_value
                 }
                 for event in events:

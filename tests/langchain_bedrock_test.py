@@ -57,7 +57,7 @@ class TestProcessSpan(unittest.TestCase):
         span.set_attribute.assert_any_call("entity.count", 1)
         span.set_attribute.assert_any_call("span.type", "inference")
         span.set_attribute.assert_any_call("entity.1.provider_name", "value1")
-        span.add_event.assert_any_call(name="data.input", attributes={"user": "What is Task Decomposition?"})
+        span.add_event.assert_any_call(name="data.input", attributes={'user': {'user': 'What is Task Decomposition?'}})
 
 if __name__ == '__main__':
     unittest.main()

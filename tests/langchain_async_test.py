@@ -158,7 +158,7 @@ class Test(IsolatedAsyncioTestCase):
             root_span_attributes = root_span["attributes"]
             root_span_events = root_span["events"]
             
-            assert llm_span["attributes"]["provider_name"] == "example.com"
+            assert llm_span["attributes"]["entity.1.provider_name"] == "example.com"
 
             def get_event_attributes(events, key):
                 return [event['attributes'] for event in events if event['name'] == key][0]

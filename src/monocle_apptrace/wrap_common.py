@@ -408,7 +408,7 @@ def update_span_from_llm_response(response, span: Span, instance):
             token_usage = response["meta"][0]["usage"]
 
         if (response is not None and hasattr(response, "response_metadata")):
-            if hasattr(response, "usage_metadata"):
+            if hasattr(response, "usage_metadata") and response.usage_metadata is not None:
                 token_usage = response.usage_metadata
             else:
                 response_metadata = response.response_metadata

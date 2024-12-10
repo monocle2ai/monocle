@@ -1,3 +1,15 @@
+## Unreleased
+
+- Add dev dependency for Mistral AI integration ([#81](https://github.com/monocle2ai/monocle/pull/81))
+- Add VectorStore deployment URL capture support ([#80](https://github.com/monocle2ai/monocle/pull/80))  
+- Clean up cloud exporter implementation ([#79](https://github.com/monocle2ai/monocle/pull/79))
+- Capture inference span input/output events attributes ([#77](https://github.com/monocle2ai/monocle/pull/77))
+- Add release automation workflows ([#76](https://github.com/monocle2ai/monocle/pull/76))
+- Fix gaps in Monocle SDK implementation ([#72](https://github.com/monocle2ai/monocle/pull/72))  
+- Add kwargs and return value handling in Accessor ([#71](https://github.com/monocle2ai/monocle/pull/71))
+- Update workflow name formatting ([#69](https://github.com/monocle2ai/monocle/pull/69))
+- Implement Haystack metamodel support ([#68](https://github.com/monocle2ai/monocle/pull/68))
+
 ## Version 0.2.0 (2024-12-05)
 
 ## 0.2.0 (Oct 22, 2024)

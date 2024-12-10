@@ -148,8 +148,9 @@ def process_span(to_wrap, span, instance, args, kwargs, return_value):
                 logger.warning("attributes not found or incorrect written in entity json")
             if 'events' in output_processor:
                 events = output_processor['events']
+                arguments = {"instance": instance, "args": args, "kwargs": kwargs, "output": return_value}
                 accessor_mapping = {
-                    "arguments": args,
+                    "arguments": arguments,
                     "response": return_value
                 }
                 for event in events:
@@ -164,7 +165,10 @@ def process_span(to_wrap, span, instance, args, kwargs, return_value):
                                 accessor_function = eval(accessor)
                                 for keyword, value in accessor_mapping.items():
                                     if keyword in accessor:
-                                        event_attributes[attribute_key] = accessor_function(value)
+                                        evaluated_val = accessor_function(value)
+                                        if isinstance(evaluated_val, list):
+                                            evaluated_val = [str(d) for d in evaluated_val]
+                                        event_attributes[attribute_key] = evaluated_val
                             except Exception as e:
                                 logger.error(f"Error evaluating accessor for attribute '{attribute_key}': {e}")
                     span.add_event(name=event_name, attributes=event_attributes)
@@ -339,6 +343,12 @@ def get_provider_name(instance):
     except:
         pass
 
+    try:
+        if isinstance(instance.client.meta.endpoint_url, str):
+            inference_endpoint = instance.client.meta.endpoint_url
+    except:
+        pass
+
     api_base = getattr(instance, "api_base", None)
     if isinstance(api_base, str):
         provider_url = api_base
@@ -398,15 +408,18 @@ def update_span_from_llm_response(response, span: Span, instance):
             token_usage = response["meta"][0]["usage"]
 
         if (response is not None and hasattr(response, "response_metadata")):
-            response_metadata = response.response_metadata
-            token_usage = response_metadata.get("token_usage")
+            if hasattr(response, "usage_metadata"):
+                token_usage = response.usage_metadata
+            else:
+                response_metadata = response.response_metadata
+                token_usage = response_metadata.get("token_usage")
 
         meta_dict = {}
         if token_usage is not None:
             temperature = instance.__dict__.get("temperature", None)
             meta_dict.update({"temperature": temperature})
-            meta_dict.update({"completion_tokens": token_usage.get("completion_tokens")})
-            meta_dict.update({"prompt_tokens": token_usage.get("prompt_tokens")})
+            meta_dict.update({"completion_tokens": token_usage.get("completion_tokens") or token_usage.get("output_tokens")})
+            meta_dict.update({"prompt_tokens": token_usage.get("prompt_tokens") or token_usage.get("input_tokens")})
             meta_dict.update({"total_tokens": token_usage.get("total_tokens")})
             span.add_event(META_DATA, meta_dict)
     # extract token usage from llamaindex openai

@@ -113,7 +113,7 @@ class TestHandler(unittest.TestCase):
                 model_name_found = True
                 for event in span['events']:
                     if event['name'] == "data.input":
-                        assert event['attributes']['user'] == message
+                        assert event['attributes']['input'] == [message]
                         input_event = True
 
 

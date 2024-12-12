@@ -16,11 +16,11 @@
       {
         "_comment": "LLM Model",
         "attribute": "name",
-        "accessor": "lambda arguments: resolve_from_alias(arguments['instance'].__dict__, ['model', 'model_name']) or arguments['kwargs'].get('EndpointName', '')"
+        "accessor": "lambda arguments: resolve_from_alias(arguments['instance'].__dict__, ['model', 'model_name']) or resolve_from_alias(arguments['kwargs'],['EndpointName','modelId'])"
       },
       {
         "attribute": "type",
-        "accessor": "lambda arguments: 'model.llm.' + (resolve_from_alias(arguments['instance'].__dict__, ['model', 'model_name']) or arguments['kwargs'].get('EndpointName', ''))"
+        "accessor": "lambda arguments: 'model.llm.' + (resolve_from_alias(arguments['instance'].__dict__, ['model', 'model_name']) or resolve_from_alias(arguments['kwargs'],['EndpointName','modelId']))"
       }
     ]
   ]

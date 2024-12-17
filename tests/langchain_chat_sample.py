@@ -21,7 +21,7 @@ os.environ["AZURE_OPENAI_API_KEY"] = ""
 os.environ["AZURE_OPENAI_API_VERSION"] = ""
 os.environ["AZURE_OPENAI_ENDPOINT"] = ""
 os.environ["OPENAI_API_KEY"] = ""
-
+os.environ["MISTRAL_API_KEY"] = ""
 setup_monocle_telemetry(
             workflow_name="langchain_app_1",
             span_processors=[BatchSpanProcessor(ConsoleSpanExporter())],

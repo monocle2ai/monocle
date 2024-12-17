@@ -8,9 +8,8 @@ from llama_index.embeddings.openai import OpenAIEmbedding
 from llama_index.llms.openai import OpenAI
 from llama_index.llms.azure_openai import AzureOpenAI
 from llama_index.vector_stores.chroma import ChromaVectorStore
-from monocle_apptrace.instrumentor import setup_monocle_telemetry
-from monocle_apptrace.wrap_common import llm_wrapper
-from monocle_apptrace.wrapper import WrapperMethod
+from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
+from monocle_apptrace.instrumentation.common.wrapper_method import WrapperMethod
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
 from llama_index.llms.mistralai import MistralAI
 os.environ["AZURE_OPENAI_API_DEPLOYMENT"] = ""

@@ -4,6 +4,8 @@ and assistant messages from various input formats.
 """
 
 import logging
+import json
+from io import BytesIO
 from monocle_apptrace.utils import get_attribute
 DATA_INPUT_KEY = "data.input"
 
@@ -33,6 +35,12 @@ def extract_messages(args):
                         elif msg.role in ["user", "human"]:
                             user_message = extract_query_from_content(msg.content)
                             messages.append({role: user_message})
+        elif args and isinstance(args, dict) and len(args) > 0:
+            if 'Body' in args and isinstance(args['Body'], str):
+                data = json.loads(args['Body'])
+                question = data.get("question")
+                messages.append(question)
+
         return messages
     except Exception as e:
         logger.warning("Warning: Error occurred in extract_messages: %s", str(e))
@@ -52,6 +60,14 @@ def extract_assistant_message(response):
             if hasattr(reply, 'content'):
                 return [reply.content]
             return [reply]
+        if "Body" in response and hasattr(response['Body'], "_raw_stream"):
+            raw_stream = getattr(response['Body'], "_raw_stream")
+            if hasattr(raw_stream, "data"):
+                response_bytes = getattr(raw_stream, "data")
+                response_str = response_bytes.decode('utf-8')
+                response_dict = json.loads(response_str)
+                response['Body'] = BytesIO(response_bytes)
+                return [response_dict]
         if isinstance(response, dict):
             return [response]
         return []

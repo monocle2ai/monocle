@@ -113,14 +113,14 @@ produce_response("hello")
 # {
 #     "name": "botocore-sagemaker-invoke-endpoint",
 #     "context": {
-#         "trace_id": "0x74c550d05bd44bd4bc7791230f2838c1",
-#         "span_id": "0x12636d1179add9a6",
+#         "trace_id": "0x37b4a00baf7bd83472ad7e48922aa123",
+#         "span_id": "0x382e9f7fabd4ba9a",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
 #     "parent_id": null,
-#     "start_time": "2024-12-05T09:42:08.229975Z",
-#     "end_time": "2024-12-05T09:42:10.207668Z",
+#     "start_time": "2024-12-17T07:23:00.328192Z",
+#     "end_time": "2024-12-17T07:23:01.821239Z",
 #     "status": {
 #         "status_code": "UNSET"
 #     },
@@ -134,7 +134,26 @@ produce_response("hello")
 #         "entity.3.type": "model.llm.okahu-sagemaker-rag-qa-ep",
 #         "entity.count": 3
 #     },
-#     "events": [],
+#     "events": [
+#         {
+#             "name": "data.input",
+#             "timestamp": "2024-12-17T07:23:01.821239Z",
+#             "attributes": {
+#                 "input": [
+#                     "hello"
+#                 ]
+#             }
+#         },
+#         {
+#             "name": "data.output",
+#             "timestamp": "2024-12-17T07:23:01.821239Z",
+#             "attributes": {
+#                 "response": [
+#                     "{'score': 0.30650365352630615, 'start': 0, 'end': 20, 'answer': 'You are an assistant'}"
+#                 ]
+#             }
+#         }
+#     ],
 #     "links": [],
 #     "resource": {
 #         "attributes": {

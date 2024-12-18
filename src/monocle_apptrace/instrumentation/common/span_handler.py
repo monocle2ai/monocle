@@ -8,8 +8,7 @@ from monocle_apptrace.instrumentation.common.constants import (
     service_name_map,
     service_type_map,
 )
-from monocle_apptrace.instrumentation.metamodel.langchain._helper import LangchainTaskProcessor
-from monocle_apptrace.instrumentation.metamodel.llamaindex._helper import LlamaTaskProcessor
+
 logger = logging.getLogger(__name__)
 
 WORKFLOW_TYPE_MAP = {
@@ -21,41 +20,22 @@ WORKFLOW_TYPE_MAP = {
 
 
 class SpanHandler:
-    def __init__(self):
-        self.processor_map = {
-            "langchain": LangchainTaskProcessor(),
-            "llama_index": LlamaTaskProcessor(),
-        }
 
     def validate(self, to_wrap, wrapped, instance, args, kwargs):
         pass
 
     def pre_task_processing(self, to_wrap, wrapped, instance, args, span):
-        framework_type = to_wrap.get('framework_type')
+        pass
 
-        if framework_type not in self.processor_map:
-            return
-
-        processor = self.processor_map[framework_type]
-        processor.pre_task_processing(to_wrap, wrapped, instance, args, span)
-
-    def post_task_processing(self, to_wrap, wrapped, instance, args, kwargs, return_value, span):
-        framework_type = to_wrap.get('framework_type')
-
-        if framework_type not in self.processor_map:
-            return
-
-        processor = self.processor_map[framework_type]
-        processor.post_task_processing(to_wrap, wrapped, instance, args, kwargs, return_value, span)
+    def post_task_processing(self, to_wrap, wrapped, instance, args, kwargs, result, span):
+        pass
 
     def set_context_properties(self, to_wrap, wrapped, instance, args, kwargs):
         pass
 
-
     def hydrate_span(self, to_wrap, wrapped, instance, args, kwargs, result, span):
         self.hydrate_attributes(to_wrap, wrapped, instance, args, kwargs, result, span)
         self.hydrate_events(to_wrap, wrapped, instance, args, kwargs, result, span)
-
 
     def hydrate_attributes(self, to_wrap, wrapped, instance, args, kwargs, result, span):
         span_index = 0
@@ -97,10 +77,9 @@ class SpanHandler:
     def hydrate_events(self, to_wrap, wrapped, instance, args, kwargs, result, span):
         if 'output_processor' in to_wrap:    
             output_processor=to_wrap['output_processor']
-
+            arguments = {"instance": instance, "args": args, "kwargs": kwargs, "result": result}
             if 'events' in output_processor:
                 events = output_processor['events']
-                arguments = {"instance":instance, "args":args, "kwargs":kwargs, "result":result}
                 for event in events:
                     event_name = event.get("name")
                     event_attributes = {}
@@ -110,10 +89,14 @@ class SpanHandler:
                         accessor = attribute.get("accessor")
                         if accessor:
                             try:
-                                event_attributes[attribute_key] = accessor(arguments)
+                                if attribute_key is not None:
+                                    event_attributes[attribute_key] = accessor(arguments)
+                                else:
+                                    event_attributes.update(accessor(arguments))
                             except Exception as e:
                                 logger.error(f"Error evaluating accessor for attribute '{attribute_key}': {e}")
                     span.add_event(name=event_name, attributes=event_attributes)
+
 
 
     def set_workflow_attributes(self, to_wrap, span: Span, span_index):

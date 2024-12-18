@@ -13,7 +13,6 @@ LLAMAINDEX_METHODS = [
         "object": "BaseRetriever",
         "method": "retrieve",
         "span_name": "llamaindex.retrieve",
-        "framework_type": "llama_index",
         "wrapper_method": task_wrapper,
         "output_processor": RETRIEVAL
     },
@@ -22,7 +21,6 @@ LLAMAINDEX_METHODS = [
         "object": "BaseRetriever",
         "method": "aretrieve",
         "span_name": "llamaindex.retrieve",
-        "framework_type": "llama_index",
         "wrapper_method": atask_wrapper,
         "output_processor": RETRIEVAL
     },
@@ -31,7 +29,6 @@ LLAMAINDEX_METHODS = [
         "object": "BaseQueryEngine",
         "method": "query",
         "span_name": "llamaindex.query",
-        "framework_type": "llama_index",
         "wrapper_method": task_wrapper
     },
     {
@@ -39,7 +36,6 @@ LLAMAINDEX_METHODS = [
         "object": "BaseQueryEngine",
         "method": "aquery",
         "span_name": "llamaindex.query",
-        "framework_type": "llama_index",
         "wrapper_method": atask_wrapper
     },
     {
@@ -47,7 +43,6 @@ LLAMAINDEX_METHODS = [
         "object": "CustomLLM",
         "method": "chat",
         "span_name": "llamaindex.llmchat",
-        "framework_type": "llama_index",
         "wrapper_method": task_wrapper,
         "output_processor": INFERENCE
     },
@@ -56,7 +51,6 @@ LLAMAINDEX_METHODS = [
         "object": "CustomLLM",
         "method": "achat",
         "span_name": "llamaindex.llmchat",
-        "framework_type": "llama_index",
         "wrapper_method": atask_wrapper,
         "output_processor": INFERENCE
     },
@@ -65,7 +59,6 @@ LLAMAINDEX_METHODS = [
         "object": "OpenAI",
         "method": "chat",
         "span_name": "llamaindex.openai",
-        "framework_type": "llama_index",
         "wrapper_method": task_wrapper,
         "output_processor": INFERENCE
     },
@@ -74,7 +67,6 @@ LLAMAINDEX_METHODS = [
         "object": "OpenAI",
         "method": "achat",
         "span_name": "llamaindex.openai",
-        "framework_type": "llama_index",
         "wrapper_method": atask_wrapper,
         "output_processor": INFERENCE
     },
@@ -83,7 +75,6 @@ LLAMAINDEX_METHODS = [
         "object": "MistralAI",
         "method": "chat",
         "span_name": "llamaindex.mistralai",
-        "framework_type": "llama_index",
         "wrapper_method": task_wrapper,
         "output_processor": INFERENCE
     },
@@ -92,7 +83,6 @@ LLAMAINDEX_METHODS = [
         "object": "MistralAI",
         "method": "achat",
         "span_name": "llamaindex.mistralai",
-        "framework_type": "llama_index",
         "wrapper_method": atask_wrapper,
         "output_processor": INFERENCE
     }

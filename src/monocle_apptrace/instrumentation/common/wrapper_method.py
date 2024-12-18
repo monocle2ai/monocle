@@ -1,9 +1,11 @@
 # pylint: disable=too-few-public-methods
 from monocle_apptrace.instrumentation.common.wrapper import task_wrapper
+from monocle_apptrace.instrumentation.metamodel.botocore.methods import BOTOCORE_METHODS
 from monocle_apptrace.instrumentation.metamodel.langchain.methods import (
     LANGCHAIN_METHODS,
 )
-from monocle_apptrace.instrumentation.metamodel.llamaindex.methods import ( LLAMAINDEX_METHODS, )
+from monocle_apptrace.instrumentation.metamodel.llamaindex.methods import (LLAMAINDEX_METHODS, )
+from monocle_apptrace.instrumentation.metamodel.haystack.methods import (HAYSTACK_METHODS, )
 
 
 class WrapperMethod:
@@ -40,4 +42,4 @@ class WrapperMethod:
         return instance_dict
 
 
-DEFAULT_METHODS_LIST = LANGCHAIN_METHODS + LLAMAINDEX_METHODS
+DEFAULT_METHODS_LIST = LANGCHAIN_METHODS + LLAMAINDEX_METHODS + HAYSTACK_METHODS + BOTOCORE_METHODS

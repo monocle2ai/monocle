@@ -1,4 +1,4 @@
-from monocle_apptrace.instrumentation.metamodel.llamaindex import (
+from monocle_apptrace.instrumentation.metamodel.haystack import (
     _helper,
 )
 
@@ -13,26 +13,31 @@ INFERENCE = {
             },
             {
                 "attribute": "provider_name",
-                "accessor": lambda arguments: _helper.extract_provider_name(arguments['instance'])
+                "accessor": lambda arguments: arguments['kwargs']['provider_name']
             },
             {
                 "attribute": "deployment",
-                "accessor": lambda arguments: _helper.resolve_from_alias(arguments['instance'].__dict__, ['engine', 'azure_deployment', 'deployment_name', 'deployment_id', 'deployment'])
+                "accessor": lambda arguments: _helper.resolve_from_alias(arguments['instance'].__dict__,
+                                                                         ['engine', 'azure_deployment',
+                                                                          'deployment_name', 'deployment_id',
+                                                                          'deployment'])
             },
             {
                 "attribute": "inference_endpoint",
-                "accessor": lambda arguments: _helper.resolve_from_alias(arguments['instance'].__dict__, ['azure_endpoint', 'api_base']) or _helper.extract_inference_endpoint(arguments['instance'])
+                "accessor": lambda arguments: _helper.resolve_from_alias(arguments['instance'].__dict__, ['api_base_url']) or _helper.extract_inference_endpoint(arguments['instance'])
             }
         ],
         [
             {
                 "_comment": "LLM Model",
                 "attribute": "name",
-                "accessor": lambda arguments: _helper.resolve_from_alias(arguments['instance'].__dict__, ['model', 'model_name'])
+                "accessor": lambda arguments: _helper.resolve_from_alias(arguments['instance'].__dict__,
+                                                                         ['model', 'model_name'])
             },
             {
                 "attribute": "type",
-                "accessor": lambda arguments: 'model.llm.' + _helper.resolve_from_alias(arguments['instance'].__dict__, ['model', 'model_name'])
+                "accessor": lambda arguments: 'model.llm.' + _helper.resolve_from_alias(arguments['instance'].__dict__,
+                                                                                        ['model', 'model_name'])
             }
         ]
     ],
@@ -43,7 +48,7 @@ INFERENCE = {
              {
                  "_comment": "this is instruction and user query to LLM",
                  "attribute": "input",
-                 "accessor": lambda arguments: _helper.extract_messages(arguments['args'])
+                 "accessor": lambda arguments: _helper.extract_messages(arguments['kwargs'])
              }
          ]
          },
@@ -62,7 +67,8 @@ INFERENCE = {
             "attributes": [
                 {
                     "_comment": "this is metadata usage from LLM",
-                    "accessor": lambda arguments: _helper.update_span_from_llm_response(arguments['result'],arguments['instance'])
+                    "accessor": lambda arguments: _helper.update_span_from_llm_response(arguments['result'],
+                                                                                        arguments['instance'])
                 }
             ]
         }

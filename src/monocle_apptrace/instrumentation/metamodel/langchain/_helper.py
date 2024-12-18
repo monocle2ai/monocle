@@ -4,34 +4,22 @@ and assistant messages from various input formats.
 """
 
 import logging
-from urllib.parse import urlparse
-from opentelemetry.sdk.trace import Span
 from monocle_apptrace.instrumentation.common.utils import (
     Option,
     get_keys_as_tuple,
     get_nested_value,
     try_option,
 )
-from monocle_apptrace.instrumentation.common.base_task_processor import TaskProcessor
-from importlib.metadata import version
-from monocle_apptrace.instrumentation.common.constants import (
-DATA_INPUT_KEY,
-DATA_OUTPUT_KEY,
-PROMPT_INPUT_KEY,
-PROMPT_OUTPUT_KEY,
-QUERY,
-RESPONSE,
-SESSION_PROPERTIES_KEY,
-INFRA_SERVICE_KEY,
-META_DATA
-)
+
 
 logger = logging.getLogger(__name__)
+
+
 def extract_messages(args):
     """Extract system and user messages"""
     try:
         messages = []
-        if args and isinstance(args, tuple) and len(args) > 0:
+        if args and isinstance(args, (list, tuple)) and len(args) > 0:
             if hasattr(args[0], "messages") and isinstance(args[0].messages, list):
                 for msg in args[0].messages:
                     if hasattr(msg, 'content') and hasattr(msg, 'type'):
@@ -103,50 +91,25 @@ def resolve_from_alias(my_map, alias):
     return None
 
 
-def is_root_span(curr_span: Span) -> bool:
-    return curr_span.parent is None
+def update_input_span_events(args):
+    return args[0] if len(args) > 0 else ""
 
 
-def update_span_with_context_input(to_wrap, wrapped_args, span: Span):
-    package_name: str = to_wrap.get('package')
-    if "retrievers" in package_name and len(wrapped_args) > 0:
-        input_arg_text = wrapped_args[0]
-        if input_arg_text:
-            span.add_event(DATA_INPUT_KEY, {QUERY: input_arg_text})
+def update_output_span_events(results):
+    output_arg_text = " ".join([doc.page_content for doc in results if hasattr(doc, 'page_content')])
+    if len(output_arg_text) > 100:
+        output_arg_text = output_arg_text[:100] + "..."
+    return output_arg_text
 
 
-def update_span_with_context_output(to_wrap, return_value, span: Span):
-    package_name: str = to_wrap.get('package')
-    if "retrievers" in package_name:
-        output_arg_text = " ".join([doc.page_content for doc in return_value if hasattr(doc, 'page_content')])
-        if len(output_arg_text) > 100:
-            output_arg_text = output_arg_text[:100] + "..."
-        span.add_event(DATA_OUTPUT_KEY, {RESPONSE: output_arg_text})
-
-
-def update_span_with_prompt_input(to_wrap, wrapped_args, span: Span):
-    input_arg_text = wrapped_args[0]
-    if isinstance(input_arg_text, dict):
-        span.add_event(PROMPT_INPUT_KEY, input_arg_text)
-    else:
-        span.add_event(PROMPT_INPUT_KEY, {QUERY: input_arg_text})
-
-
-def update_span_with_prompt_output(to_wrap, wrapped_args, span: Span):
-    if isinstance(wrapped_args, str):
-        span.add_event(PROMPT_OUTPUT_KEY, {RESPONSE: wrapped_args})
-    elif isinstance(wrapped_args, dict):
-        span.add_event(PROMPT_OUTPUT_KEY, wrapped_args)
-
-def update_span_from_llm_response(response, span: Span, instance):
+def update_span_from_llm_response(response, instance):
+    meta_dict = {}
     if response is not None and hasattr(response, "response_metadata"):
         if hasattr(response, "usage_metadata") and response.usage_metadata is not None:
             token_usage = response.usage_metadata
         else:
             response_metadata = response.response_metadata
             token_usage = response_metadata.get("token_usage")
-
-        meta_dict = {}
         if token_usage is not None:
             temperature = instance.__dict__.get("temperature", None)
             meta_dict.update({"temperature": temperature})
@@ -154,32 +117,5 @@ def update_span_from_llm_response(response, span: Span, instance):
                 {"completion_tokens": token_usage.get("completion_tokens") or token_usage.get("output_tokens")})
             meta_dict.update({"prompt_tokens": token_usage.get("prompt_tokens") or token_usage.get("input_tokens")})
             meta_dict.update({"total_tokens": token_usage.get("total_tokens")})
-            span.add_event(META_DATA, meta_dict)
-
-
-class LangchainTaskProcessor(TaskProcessor):
-
-    def pre_task_processing(self, to_wrap, wrapped, instance, args, span):
-            try:
-                if is_root_span(span):
-                    try:
-                        sdk_version = version("monocle_apptrace")
-                        span.set_attribute("monocle_apptrace.version", sdk_version)
-                    except:
-                        logger.warning(f"Exception finding monocle-apptrace version.")
-                    update_span_with_prompt_input(to_wrap=to_wrap, wrapped_args=args, span=span)
-                update_span_with_context_input(to_wrap=to_wrap, wrapped_args=args, span=span)
-            except:
-                logger.exception("exception in pre_task_processing")
-
-    def post_task_processing(self, to_wrap, wrapped, instance, args, kwargs, return_value, span):
-        try:
-            update_span_with_context_output(to_wrap=to_wrap, return_value=return_value, span=span)
-            update_span_from_llm_response(response=return_value, span=span, instance=instance)
-
-            if is_root_span(span):
-                update_span_with_prompt_output(to_wrap=to_wrap, wrapped_args=return_value, span=span)
-        except:
-            logger.exception("exception in post_task_processing")
-
+    return meta_dict
 

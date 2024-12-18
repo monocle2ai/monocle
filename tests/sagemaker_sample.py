@@ -1,6 +1,6 @@
 from opentelemetry import trace
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
-from monocle_apptrace.instrumentor import setup_monocle_telemetry
+from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
 setup_monocle_telemetry(
     workflow_name="sagemaker_workflow_1",
     span_processors=[BatchSpanProcessor(ConsoleSpanExporter())],

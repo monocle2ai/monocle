@@ -12,19 +12,6 @@ from monocle_apptrace.instrumentation.common.utils import (
     get_nested_value,
     try_option,
 )
-from monocle_apptrace.instrumentation.common.base_task_processor import TaskProcessor
-from importlib.metadata import version
-from monocle_apptrace.instrumentation.common.constants import (
-    DATA_INPUT_KEY,
-    DATA_OUTPUT_KEY,
-    PROMPT_INPUT_KEY,
-    PROMPT_OUTPUT_KEY,
-    QUERY,
-    RESPONSE,
-    SESSION_PROPERTIES_KEY,
-    INFRA_SERVICE_KEY,
-    META_DATA
-)
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +20,7 @@ def extract_messages(args):
     """Extract system and user messages"""
     try:
         messages = []
-        if isinstance(args[0], list):
+        if args and isinstance(args, (list, tuple)) and args[0]:
             for msg in args[0]:
                 if hasattr(msg, 'content') and hasattr(msg, 'role'):
                     role = getattr(msg.role, 'value', msg.role)
@@ -41,6 +28,15 @@ def extract_messages(args):
                         messages.append({role: msg.content})
                     elif role in ["user", "human"]:
                         user_message = extract_query_from_content(msg.content)
+                        messages.append({role: user_message})
+        if args and isinstance(args, dict):
+            for msg in args.get("messages", []):
+                if hasattr(msg, 'content') and hasattr(msg, 'role'):
+                    role = getattr(msg.role, 'value', msg.role)
+                    if role == "system":
+                        messages.append({role: msg.content})
+                    elif role in ["user", "human"]:
+                        user_message = msg.content
                         messages.append({role: user_message})
         return [str(message) for message in messages]
     except Exception as e:
@@ -128,78 +124,31 @@ def resolve_from_alias(my_map, alias):
     return None
 
 
-def is_root_span(curr_span: Span) -> bool:
-    return curr_span.parent is None
+def update_input_span_events(args):
+    if isinstance(args, tuple):
+        return args[0].query_str if len(args) > 0 else ""
 
 
-def update_spans_with_data_input(to_wrap, wrapped_args, span: Span):
-    package_name: str = to_wrap.get('package')
-    if "retriever" in package_name and len(wrapped_args) > 0:
-        input_arg_text = wrapped_args[0].query_str
-        if input_arg_text:
-            span.add_event(DATA_INPUT_KEY, {QUERY: input_arg_text})
-    if is_root_span(span):
-        input_arg_text = wrapped_args[0]
-        if isinstance(input_arg_text, dict):
-            span.add_event(PROMPT_INPUT_KEY, input_arg_text)
-        else:
-            span.add_event(PROMPT_INPUT_KEY, {QUERY: input_arg_text})
-
-
-def update_spans_with_data_output(to_wrap, return_value, span: Span):
-    package_name: str = to_wrap.get('package')
-    if "retriever" in package_name:
-        output_arg_text = return_value[0].text
+def update_output_span_events(results):
+    if isinstance(results, list):
+        output_arg_text = results[0].text
         if len(output_arg_text) > 100:
             output_arg_text = output_arg_text[:100] + "..."
-        span.add_event(DATA_OUTPUT_KEY, {RESPONSE: output_arg_text})
-    if is_root_span(span):
-        if isinstance(return_value, str):
-            span.add_event(PROMPT_OUTPUT_KEY, {RESPONSE: return_value})
-        elif isinstance(return_value, dict):
-            span.add_event(PROMPT_OUTPUT_KEY, return_value)
-        else:
-            span.add_event(PROMPT_OUTPUT_KEY, {RESPONSE: return_value.response})
+        return output_arg_text
 
 
-def update_span_from_llm_response(response, span: Span, instance):
+def update_span_from_llm_response(response, instance):
+    meta_dict = {}
     if response is not None and hasattr(response, "raw"):
-        try:
-            meta_dict = {}
-            if response.raw is not None:
-                token_usage = response.raw.get("usage") if isinstance(response.raw, dict) else getattr(response.raw,
-                                                                                                       "usage", None)
-                if token_usage is not None:
-                    temperature = instance.__dict__.get("temperature", None)
-                    meta_dict.update({"temperature": temperature})
-                    if getattr(token_usage, "completion_tokens", None):
-                        meta_dict.update({"completion_tokens": getattr(token_usage, "completion_tokens")})
-                    if getattr(token_usage, "prompt_tokens", None):
-                        meta_dict.update({"prompt_tokens": getattr(token_usage, "prompt_tokens")})
-                    if getattr(token_usage, "total_tokens", None):
-                        meta_dict.update({"total_tokens": getattr(token_usage, "total_tokens")})
-                    span.add_event(META_DATA, meta_dict)
-        except AttributeError:
-            token_usage = None
-
-
-class LlamaTaskProcessor(TaskProcessor):
-
-    def pre_task_processing(self, to_wrap, wrapped, instance, args, span):
-        try:
-            if is_root_span(span):
-                try:
-                    sdk_version = version("monocle_apptrace")
-                    span.set_attribute("monocle_apptrace.version", sdk_version)
-                except:
-                    logger.warning(f"Exception finding monocle-apptrace version.")
-            update_spans_with_data_input(to_wrap=to_wrap, wrapped_args=args, span=span)
-        except:
-            logger.exception("exception in pre_task_processing")
-
-    def post_task_processing(self, to_wrap, wrapped, instance, args, kwargs, return_value, span):
-        try:
-            update_spans_with_data_output(to_wrap=to_wrap, return_value=return_value, span=span)
-            update_span_from_llm_response(response=return_value, span=span, instance=instance)
-        except:
-            logger.exception("exception in post_task_processing")
+        if response.raw is not None:
+            token_usage = response.raw.get("usage") if isinstance(response.raw, dict) else getattr(response.raw, "usage", None)
+            if token_usage is not None:
+                temperature = instance.__dict__.get("temperature", None)
+                meta_dict.update({"temperature": temperature})
+                if getattr(token_usage, "completion_tokens", None):
+                    meta_dict.update({"completion_tokens": getattr(token_usage, "completion_tokens")})
+                if getattr(token_usage, "prompt_tokens", None):
+                    meta_dict.update({"prompt_tokens": getattr(token_usage, "prompt_tokens")})
+                if getattr(token_usage, "total_tokens", None):
+                    meta_dict.update({"total_tokens": getattr(token_usage, "total_tokens")})
+    return meta_dict

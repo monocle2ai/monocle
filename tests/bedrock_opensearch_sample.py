@@ -15,7 +15,6 @@ from requests_aws4auth import AWS4Auth
 from botocore.exceptions import ClientError
 import os
 #opensearch endpoint url
-
 def produce_response(query):
     similar_documents = search_similar_documents_opensearch(query)
     return produce_llm_response(query, similar_documents)
@@ -27,9 +26,8 @@ def produce_llm_response(query,similar_documents):
     # Set the model ID, e.g., Jurassic-2 Mid.
     model_id = "ai21.j2-mid-v1"
 
-    # Start a conversation with the user message.
-    #user_message = "Describe the purpose of a 'hello world' program in one line."
-    user_message = build_context(similar_documents)
+    context = build_context(similar_documents)
+    user_message = f'Context - {context}\nBased on the above context, answer this Query: {query}'
     conversation = [
         {
             "role": "user",
@@ -97,4 +95,123 @@ def search_similar_documents_opensearch(query):
 
 
 
-produce_response("hello?")
+produce_response("how?")
+
+# {
+#     "name": "langchain_core.vectorstores.base.VectorStoreRetriever",
+#     "context": {
+#         "trace_id": "0xbad92d1840a616639fe462581f4d0bdf",
+#         "span_id": "0x109dc591d5b54dbc",
+#         "trace_state": "[]"
+#     },
+#     "kind": "SpanKind.INTERNAL",
+#     "parent_id": null,
+#     "start_time": "2024-12-18T09:18:54.946429Z",
+#     "end_time": "2024-12-18T09:18:58.050413Z",
+#     "status": {
+#         "status_code": "UNSET"
+#     },
+#     "attributes": {
+#         "monocle_apptrace.version": "0.3.0",
+#         "entity.1.name": "bedrock_workflow",
+#         "entity.1.type": "workflow.langchain",
+#         "span.type": "retrieval",
+#         "entity.2.name": "OpenSearchVectorSearch",
+#         "entity.2.type": "vectorstore.OpenSearchVectorSearch",
+#         "entity.2.deployment": "https://vvd9mtj8odrs1h09sul4.us-east-1.aoss.amazonaws.com:443",
+#         "entity.3.name": "amazon.titan-embed-text-v1",
+#         "entity.3.type": "model.embedding.amazon.titan-embed-text-v1",
+#         "entity.count": 3
+#     },
+#     "events": [
+#         {
+#             "name": "data.input",
+#             "timestamp": "2024-12-18T09:18:54.956433Z",
+#             "attributes": {
+#                 "input": "how?"
+#             }
+#         },
+#         {
+#             "name": "data.input",
+#             "timestamp": "2024-12-18T09:18:54.956433Z",
+#             "attributes": {
+#                 "input": "how?"
+#             }
+#         },
+#         {
+#             "name": "data.output",
+#             "timestamp": "2024-12-18T09:18:58.050413Z",
+#             "attributes": {
+#                 "response": "\"How?\" Liam wondered aloud. \"We only just got back.\"\n\nTheir concern grew when a black SUV pulled up ..."
+#             }
+#         }
+#     ],
+#     "links": [],
+#     "resource": {
+#         "attributes": {
+#             "service.name": "bedrock_workflow"
+#         },
+#         "schema_url": ""
+#     }
+# }
+# {
+#     "name": "botocore-bedrock-runtime-invoke-endpoint",
+#     "context": {
+#         "trace_id": "0x74bd7103a5a3d193c09392a0ab941f96",
+#         "span_id": "0xed9609e802077f14",
+#         "trace_state": "[]"
+#     },
+#     "kind": "SpanKind.INTERNAL",
+#     "parent_id": null,
+#     "start_time": "2024-12-18T09:18:58.139787Z",
+#     "end_time": "2024-12-18T09:18:59.353851Z",
+#     "status": {
+#         "status_code": "UNSET"
+#     },
+#     "attributes": {
+#         "entity.1.name": "bedrock_workflow",
+#         "entity.1.type": "workflow.generic",
+#         "span.type": "inference",
+#         "entity.2.type": "inference.aws_sagemaker",
+#         "entity.2.inference_endpoint": "https://bedrock-runtime.us-east-1.amazonaws.com",
+#         "entity.3.name": "ai21.j2-mid-v1",
+#         "entity.3.type": "model.llm.ai21.j2-mid-v1",
+#         "entity.count": 3
+#     },
+#     "events": [
+#         {
+#             "name": "data.input",
+#             "timestamp": "2024-12-18T09:18:59.352430Z",
+#             "attributes": {
+#                 "input": [
+#                     "{'user': 'how?'}"
+#                 ]
+#             }
+#         },
+#         {
+#             "name": "data.output",
+#             "timestamp": "2024-12-18T09:18:59.352430Z",
+#             "attributes": {
+#                 "response": [
+#                     "\nLiam wondered how Victor Novak already knew about their discovery, even though they had just returned."
+#                 ]
+#             }
+#         },
+#         {
+#             "name": "metadata",
+#             "timestamp": "2024-12-18T09:18:59.353851Z",
+#             "attributes": {
+#                 "completion_tokens": 14,
+#                 "prompt_tokens": 299,
+#                 "total_tokens": 313
+#             }
+#         }
+#     ],
+#     "links": [],
+#     "resource": {
+#         "attributes": {
+#             "service.name": "bedrock_workflow"
+#         },
+#         "schema_url": ""
+#     }
+# }

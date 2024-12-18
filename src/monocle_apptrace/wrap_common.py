@@ -106,6 +106,7 @@ def _instrumented_endpoint_invoke(to_wrap, instance, fn, tracer,service_name):
         with tracer.start_as_current_span(span_name) as span:
             response = fn(*args, **kwargs)
             process_span(to_wrap, span, instance=instance,args=args, kwargs=kwargs, return_value=response)
+            update_span_from_llm_response(response=response, span=span, instance=instance)
             return response
 
     return with_instrumentation
@@ -413,7 +414,7 @@ def get_input_from_args(chain_args):
 
 
 def update_span_from_llm_response(response, span: Span, instance):
-    if (response is not None and isinstance(response, dict) and "meta" in response) or (
+    if (response is not None and isinstance(response, dict)) or (
             response is not None and hasattr(response, "response_metadata")):
         token_usage = None
         if (response is not None and isinstance(response, dict) and "meta" in response):  # haystack
@@ -426,13 +427,16 @@ def update_span_from_llm_response(response, span: Span, instance):
                 response_metadata = response.response_metadata
                 token_usage = response_metadata.get("token_usage")
 
+        if (response is not None and isinstance(response, dict) and "usage" in response):
+            token_usage = response["usage"]
+
         meta_dict = {}
         if token_usage is not None:
             temperature = instance.__dict__.get("temperature", None)
             meta_dict.update({"temperature": temperature})
-            meta_dict.update({"completion_tokens": token_usage.get("completion_tokens") or token_usage.get("output_tokens")})
-            meta_dict.update({"prompt_tokens": token_usage.get("prompt_tokens") or token_usage.get("input_tokens")})
-            meta_dict.update({"total_tokens": token_usage.get("total_tokens")})
+            meta_dict.update({"completion_tokens": resolve_from_alias(token_usage,["completion_tokens","output_tokens","outputTokens"])})
+            meta_dict.update({"prompt_tokens": resolve_from_alias(token_usage,["prompt_tokens","input_tokens","inputTokens"])})
+            meta_dict.update({"total_tokens": resolve_from_alias(token_usage,["total_tokens","totalTokens"])})
             span.add_event(META_DATA, meta_dict)
     # extract token usage from llamaindex openai
     if (response is not None and hasattr(response, "raw")):

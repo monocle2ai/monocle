@@ -33,6 +33,12 @@ def extract_messages(args):
                         elif msg.role in ["user", "human"]:
                             user_message = extract_query_from_content(msg.content)
                             messages.append({role: user_message})
+        elif args and isinstance(args, dict) and len(args) > 0:
+            if 'messages' in args and isinstance(args['messages'], list):
+                role = args['messages'][0]['role']
+                user_message = extract_query_from_content(args['messages'][0]['content'][0]['text'])
+                messages.append({role: user_message})
+
         return messages
     except Exception as e:
         logger.warning("Warning: Error occurred in extract_messages: %s", str(e))
@@ -52,6 +58,13 @@ def extract_assistant_message(response):
             if hasattr(reply, 'content'):
                 return [reply.content]
             return [reply]
+        if "output" in response:
+            output = response.get("output", {})
+            message = output.get("message", {})
+            content = message.get("content", [])
+            if isinstance(content, list) and len(content) > 0 and "text" in content[0]:
+                reply = content[0]["text"]
+                return [reply]
         if isinstance(response, dict):
             return [response]
         return []

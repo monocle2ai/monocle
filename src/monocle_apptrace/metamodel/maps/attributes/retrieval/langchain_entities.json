@@ -20,11 +20,11 @@
       {
         "_comment": "embedding model name and type",
         "attribute": "name",
-        "accessor": "lambda arguments: arguments['instance'].vectorstore.embeddings.model"
+        "accessor": "lambda arguments: resolve_from_alias(arguments['instance'].vectorstore.embeddings.__dict__,['endpoint_name','model_id','model'])"
       },
       {
         "attribute": "type",
-        "accessor": "lambda arguments: 'model.embedding.'+arguments['instance'].vectorstore.embeddings.model"
+        "accessor": "lambda arguments: 'model.embedding.'+ resolve_from_alias(arguments['instance'].vectorstore.embeddings.__dict__,['endpoint_name','model_id','model'])"
       }
     ]
   ]

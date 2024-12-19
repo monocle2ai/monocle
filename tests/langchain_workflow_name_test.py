@@ -150,6 +150,7 @@ class TestWorkflowEntityProperties(unittest.TestCase):
 
             '''mock_post.call_args gives the parameters used to make post call.
             This can be used to do more asserts'''
+            time.sleep(10)
             dataBodyStr = mock_post.call_args.kwargs['data']
             dataJson =  json.loads(dataBodyStr) # more asserts can be added on individual fields
 

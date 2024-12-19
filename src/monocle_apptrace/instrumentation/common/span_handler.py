@@ -8,7 +8,7 @@ from monocle_apptrace.instrumentation.common.constants import (
     service_name_map,
     service_type_map,
 )
-
+from importlib.metadata import version
 logger = logging.getLogger(__name__)
 
 WORKFLOW_TYPE_MAP = {
@@ -25,7 +25,12 @@ class SpanHandler:
         pass
 
     def pre_task_processing(self, to_wrap, wrapped, instance, args, span):
-        pass
+        if self.__is_root_span(span):
+            try:
+                sdk_version = version("monocle_apptrace")
+                span.set_attribute("monocle_apptrace.version", sdk_version)
+            except Exception as e:
+                logger.warning("Exception finding monocle-apptrace version.")
 
     def post_task_processing(self, to_wrap, wrapped, instance, args, kwargs, result, span):
         pass

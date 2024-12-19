@@ -143,7 +143,7 @@ class TestHandler(unittest.TestCase):
             query = "what is latte"
             response = self.chain.invoke(query, config={})
             assert response == self.ragText
-            time.sleep(5)
+            time.sleep(8)
             mock_post.assert_called_with(
                 url = 'https://localhost:3000/api/v1/traces',
                 data=ANY,
@@ -152,6 +152,7 @@ class TestHandler(unittest.TestCase):
 
             '''mock_post.call_args gives the parameters used to make post call.
             This can be used to do more asserts'''
+            time.sleep(10)
             dataBodyStr = mock_post.call_args.kwargs['data']
             dataJson =  json.loads(dataBodyStr) # more asserts can be added on individual fields
             # assert len(dataJson['batch']) == 75 = {dict: 11} {'attributes': {'session.context_key_1': 'context_value_1'}, 'context': {'span_id': '18a8d75ec4c94523', 'trace_id': '4fedeffc8d9a4ec8b3029a437b667e15', 'trace_state': '[]'}, 'end_time': '2024-09-17T07:30:36.830264Z', 'events': [], 'kind': 'SpanKind.INTERNAL', 'links': [], 'name': 'langchain.task.StrOutputParser', 'parent_id': 'f371def04dfa963d', 'resource': {'attributes': {'service.name': 'test'}, 'schema_url': ''}, 'start_time': '2024-09-17T07:30:36.829211Z', 'status': {'status_code': 'UNSET'}}... View
@@ -174,6 +175,7 @@ class TestHandler(unittest.TestCase):
             #
             # assert input_event_attributes[QUERY] == query
             # assert output_event_attributes[RESPONSE] == TestHandler.ragText
+
             assert root_span_attributes[f"{SESSION_PROPERTIES_KEY}.{context_key}"] == context_value
             assert root_span_attributes["entity.2.type"] == "app_hosting." + test_output_infra
             assert root_span_attributes["entity.2.name"] == "my-infra-name"

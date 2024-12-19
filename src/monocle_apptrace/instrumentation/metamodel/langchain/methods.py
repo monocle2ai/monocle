@@ -31,7 +31,7 @@ LANGCHAIN_METHODS = [
         "object": "BaseChatModel",
         "method": "ainvoke",
         "wrapper_method": atask_wrapper,
-        "output_processor": RETRIEVAL
+        "output_processor": INFERENCE
     },
     {
         "package": "langchain_core.language_models.llms",

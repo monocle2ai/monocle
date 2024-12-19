@@ -1,6 +1,6 @@
-from monocle_apptrace.instrumentation.common.wrapper import atask_wrapper, task_wrapper
-from monocle_apptrace.instrumentation.metamodel.haystack.inference import INFERENCE
-from monocle_apptrace.instrumentation.metamodel.haystack.retrieval import RETRIEVAL
+from monocle_apptrace.instrumentation.common.wrapper import task_wrapper
+from monocle_apptrace.instrumentation.metamodel.haystack.entities.inference import INFERENCE
+from monocle_apptrace.instrumentation.metamodel.haystack.entities.retrieval import RETRIEVAL
 
 HAYSTACK_METHODS = [
     {

@@ -12,7 +12,7 @@ from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.runnables import RunnablePassthrough
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from monocle_apptrace.instrumentor import set_context_properties, setup_monocle_telemetry
+from monocle_apptrace.instrumentation.common.instrumentor import set_context_properties, setup_monocle_telemetry
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
 from langhchain_patch import create_history_aware_retriever
 from monocle_apptrace.exporters.azure.blob_exporter import AzureBlobSpanExporter

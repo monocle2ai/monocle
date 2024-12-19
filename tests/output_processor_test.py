@@ -1,7 +1,7 @@
 
 from monocle_apptrace.wrap_common import process_span
-from monocle_apptrace.utils import load_output_processor
-from monocle_apptrace.wrapper import WrapperMethod
+from monocle_apptrace.instrumentation.common.utils import load_output_processor
+from monocle_apptrace.instrumentation.common.wrapper_method import WrapperMethod
 import unittest
 from unittest.mock import Mock
 import logging

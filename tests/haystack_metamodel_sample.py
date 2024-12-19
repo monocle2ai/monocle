@@ -17,10 +17,9 @@ from haystack.components.retrievers.in_memory.embedding_retriever import (
 from haystack.document_stores.in_memory import InMemoryDocumentStore
 from haystack.utils import Secret
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
-from monocle_apptrace.instrumentor import setup_monocle_telemetry
-from monocle_apptrace.wrap_common import llm_wrapper, task_wrapper
-from monocle_apptrace.wrapper import WrapperMethod
-
+from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
+from monocle_apptrace.instrumentation.common.wrapper import task_wrapper
+from monocle_apptrace.instrumentation.common.wrapper_method import WrapperMethod
 def haystack_app():
 
     setup_monocle_telemetry(

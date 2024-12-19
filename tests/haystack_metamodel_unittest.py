@@ -12,10 +12,9 @@ from http_span_exporter import HttpSpanExporter
 from haystack.components.generators import OpenAIGenerator
 from haystack.dataclasses import ChatMessage
 from haystack.utils import Secret
-from monocle_apptrace.instrumentor import setup_monocle_telemetry
-from monocle_apptrace.wrap_common import WORKFLOW_TYPE_MAP
-from monocle_apptrace.wrapper import WrapperMethod
-from monocle_apptrace.wrap_common import llm_wrapper
+from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
+from monocle_apptrace.instrumentation.common.span_handler import WORKFLOW_TYPE_MAP
+from monocle_apptrace.instrumentation.common.wrapper_method import WrapperMethod
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
 from haystack.components.retrievers import InMemoryBM25Retriever
 from haystack.document_stores.in_memory import InMemoryDocumentStore
@@ -113,7 +112,7 @@ class TestHandler(unittest.TestCase):
                 model_name_found = True
                 for event in span['events']:
                     if event['name'] == "data.input":
-                        assert event['attributes']['input'] == [message]
+                        assert event['attributes']['input'] == [str({'user': message})]
                         input_event = True
 
 

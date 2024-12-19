@@ -1,8 +1,8 @@
 import unittest
 from unittest.mock import patch, MagicMock
-from monocle_apptrace.wrap_common import process_span
 import requests
-
+from monocle_apptrace.instrumentation.common.span_handler import SpanHandler
+from monocle_apptrace.instrumentation.metamodel.langchain import _helper
 
 class TestProcessSpan(unittest.TestCase):
 
@@ -23,6 +23,7 @@ class TestProcessSpan(unittest.TestCase):
         ]), {})
         kwargs = {"key1": "value1", "provider_name": "value1"}
         return_value = "test_return_value"
+        wrapped = MagicMock()
 
         # Define wrap_attributes with attributes and events to process
         wrap_attributes = {
@@ -32,7 +33,7 @@ class TestProcessSpan(unittest.TestCase):
                     [
                         {
                             "attribute": "provider_name",
-                            "accessor": "lambda arguments: arguments['kwargs']['provider_name'] or arguments['instance'].provider"
+                            "accessor": lambda arguments: arguments['kwargs']['provider_name'] or arguments['instance'].provider
                         }
                     ]
                 ],
@@ -42,16 +43,16 @@ class TestProcessSpan(unittest.TestCase):
                         "attributes": [
                             {
                                 "attribute": "user",
-                                "accessor": "lambda arguments: extract_messages(arguments['args'])"
+                                "accessor": lambda arguments: _helper.extract_messages(arguments['args'])
                             }
                         ]
                     }
                 ]
             }
         }
-
-        process_span(to_wrap=wrap_attributes, span=span, instance=instance, args=args, kwargs=kwargs,
-                     return_value=return_value)
+        handler = SpanHandler()
+        handler.hydrate_span(to_wrap=wrap_attributes,wrapped=wrapped, span=span, instance=instance, args=args, kwargs=kwargs,
+                     result=return_value)
 
         # Verify the span and events attributes
         span.set_attribute.assert_any_call("entity.count", 1)

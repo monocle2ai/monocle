@@ -1,10 +1,10 @@
 import os
 import unittest
-from monocle_apptrace.wrapper import WrapperMethod
+from monocle_apptrace.instrumentation.common.wrapper_method import WrapperMethod
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, SimpleSpanProcessor
-from monocle_apptrace.instrumentor import setup_monocle_telemetry
-from monocle_apptrace.wrap_common import task_wrapper
-from monocle_apptrace.constants import service_type_map, service_name_map
+from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
+from monocle_apptrace.instrumentation.common.wrapper import task_wrapper
+from monocle_apptrace.instrumentation.common.constants import service_type_map, service_name_map
 from dummy_class import DummyClass
 from test_exporter import TestExporter
 
@@ -24,7 +24,8 @@ class TestHandler(unittest.TestCase):
                     object_name="DummyClass",
                     method="dummy_chat",
                     span_name="langchain.workflow",
-                    wrapper=task_wrapper
+                    output_processor="output_processor",
+                    wrapper_method=task_wrapper
                 )
             ]
         )

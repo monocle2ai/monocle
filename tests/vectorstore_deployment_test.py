@@ -1,6 +1,6 @@
 import unittest
 from unittest.mock import Mock
-from monocle_apptrace.utils import get_vectorstore_deployment
+from monocle_apptrace.instrumentation.metamodel.haystack._helper import get_vectorstore_deployment
 
 
 class TestGetVectorstoreDeployment(unittest.TestCase):

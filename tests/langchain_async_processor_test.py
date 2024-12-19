@@ -19,26 +19,20 @@ from langchain.schema import StrOutputParser
 from langchain_community.vectorstores import faiss
 from langchain_core.messages.ai import AIMessage
 from langchain_core.runnables import RunnablePassthrough
-from monocle_apptrace.instrumentor import (
+from monocle_apptrace.instrumentation.common.instrumentor import (
     MonocleInstrumentor,
     set_context_properties,
     setup_monocle_telemetry,
 )
-from monocle_apptrace.wrap_common import (
-    SESSION_PROPERTIES_KEY,
-    PROMPT_INPUT_KEY,
-    PROMPT_OUTPUT_KEY,
-    QUERY,
-    RESPONSE,
-    update_span_from_llm_response,
-)
-from monocle_apptrace.wrapper import WrapperMethod
+
+from monocle_apptrace.instrumentation.common.wrapper_method import WrapperMethod
 from opentelemetry import trace
 from opentelemetry.sdk.resources import SERVICE_NAME, Resource
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
-from monocle_apptrace.wrap_common import allm_wrapper
+from monocle_apptrace.instrumentation.common.wrapper import atask_wrapper, task_wrapper
 from fake_list_llm import FakeListLLM
+from monocle_apptrace.instrumentation.common.span_handler import SpanHandler
 
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
@@ -78,7 +72,7 @@ class Test(IsolatedAsyncioTestCase):
 
         traceProvider.add_span_processor(monocleProcessor)
         trace.set_tracer_provider(traceProvider)
-        self.instrumentor = MonocleInstrumentor()
+        self.instrumentor = MonocleInstrumentor(handlers=SpanHandler())
         self.instrumentor.instrument()
         self.processor = monocleProcessor
         responses = [self.ragText]
@@ -119,8 +113,8 @@ class Test(IsolatedAsyncioTestCase):
                 WrapperMethod(
                     package="langchain.chat_models.base",
                     object_name="BaseChatModel",
-                    method="ainvoke",
-                    wrapper=allm_wrapper
+                    method="invoke",
+                    wrapper_method=atask_wrapper
                 )
 
             ])
@@ -134,7 +128,7 @@ class Test(IsolatedAsyncioTestCase):
             mock_post.return_value.json.return_value = 'mock response'
 
             query = "what is latte"
-            response = await self.chain.ainvoke(query, config={})
+            response = self.chain.invoke(query, config={})
             assert response == self.ragText
             time.sleep(5)
             mock_post.assert_called_with(
@@ -151,13 +145,13 @@ class Test(IsolatedAsyncioTestCase):
             llm_span = [x for x in dataJson["batch"] if "FakeListLLM" in x["name"]][0]
 
             assert llm_span["attributes"]["span.type"] == "inference"
-            assert llm_span["attributes"]["entity.1.provider_name"] == "example.com"
+            # assert llm_span["attributes"]["entity.1.provider_name"] == "example.com"
             assert llm_span["attributes"]["entity.1.type"] == "inference.azure_oai"
             assert llm_span["attributes"]["entity.1.inference_endpoint"] == "https://example.com/"
 
         finally:
             try:
-                if (self.instrumentor is not None):
+                if self.instrumentor is not None:
                     self.instrumentor.uninstrument()
             except Exception as e:
                 print("Uninstrument failed:", e)

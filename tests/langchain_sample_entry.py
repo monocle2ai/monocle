@@ -5,7 +5,7 @@
 
 # importing the langchain RAG app code from the file
 from langchain_sample_wrapped import main
-from monocle_apptrace.instrumentor import setup_monocle_telemetry
+from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
 
 # setting up the Monocle agent

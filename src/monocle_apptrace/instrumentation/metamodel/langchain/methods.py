@@ -1,8 +1,8 @@
 from monocle_apptrace.instrumentation.common.wrapper import atask_wrapper, task_wrapper
-from monocle_apptrace.instrumentation.metamodel.langchain.inference import (
+from monocle_apptrace.instrumentation.metamodel.langchain.entities.inference import (
     INFERENCE,
 )
-from monocle_apptrace.instrumentation.metamodel.langchain.retrieval import (
+from monocle_apptrace.instrumentation.metamodel.langchain.entities.retrieval import (
     RETRIEVAL,
 )
 

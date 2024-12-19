@@ -4,8 +4,8 @@ import os
 import unittest
 from dummy_class import DummyClass, dummy_wrapper
 
-from monocle_apptrace.instrumentor import setup_monocle_telemetry
-from monocle_apptrace.wrapper import WrapperMethod
+from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
+from monocle_apptrace.instrumentation.common.wrapper_method import WrapperMethod
 from monocle_apptrace.exporters.file_exporter import FileSpanExporter
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 
@@ -34,7 +34,7 @@ class TestHandler(unittest.TestCase):
                     object_name="DummyClass",
                     method="dummy_method",
                     span_name=self.SPAN_NAME,
-                    wrapper=dummy_wrapper)
+                    wrapper_method=dummy_wrapper)
             ])
         dummy_class_1 = DummyClass()
 

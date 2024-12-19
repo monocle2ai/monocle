@@ -1,8 +1,8 @@
 from opentelemetry.trace import Tracer
-from monocle_apptrace.utils import with_tracer_wrapper
+from monocle_apptrace.instrumentation.common.utils import with_tracer_wrapper
 
 @with_tracer_wrapper
-def dummy_wrapper(tracer: Tracer, to_wrap, wrapped, instance, args, kwargs):
+def dummy_wrapper(tracer: Tracer, handler, to_wrap, wrapped, instance, args, kwargs):
     if callable(to_wrap.get("span_name_getter")):
         name = to_wrap.get("span_name_getter")(instance)
     elif hasattr(instance, "name") and instance.name:

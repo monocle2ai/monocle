@@ -6,7 +6,7 @@ from llama_index.vector_stores.opensearch import (
 )
 import os
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
-from monocle_apptrace.instrumentor import setup_monocle_telemetry
+from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
 from llama_index.core import VectorStoreIndex, StorageContext
 
 setup_monocle_telemetry(

@@ -1,8 +1,9 @@
 
 
 import torch
-from monocle_apptrace.instrumentor import setup_monocle_telemetry
-from monocle_apptrace.wrapper import WrapperMethod, task_wrapper
+from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
+from monocle_apptrace.instrumentation.common.wrapper import task_wrapper
+from monocle_apptrace.instrumentation.common.wrapper_method import WrapperMethod
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
 from transformers import GPT2DoubleHeadsModel, GPT2Tokenizer
 
@@ -15,13 +16,13 @@ setup_monocle_telemetry(
                     object_name="GPT2DoubleHeadsModel",
                     method="forward",
                     span_name="pytorch.transformer.GPT2DoubleHeadsModel",
-                    wrapper=task_wrapper),
+                    wrapper_method=task_wrapper),
                 WrapperMethod(
                     package="transformers",
                     object_name="PreTrainedModel",
                     method="from_pretrained",
                     span_name="pytorch.transformer.PreTrainedModel",
-                    wrapper=task_wrapper),
+                    wrapper_method=task_wrapper),
             ]
     )
 

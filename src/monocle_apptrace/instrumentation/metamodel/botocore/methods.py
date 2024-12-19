@@ -1,5 +1,5 @@
-from monocle_apptrace.instrumentation.common.wrapper import atask_wrapper, task_wrapper
-from monocle_apptrace.instrumentation.metamodel.botocore.inference import (
+from monocle_apptrace.instrumentation.common.wrapper import task_wrapper
+from monocle_apptrace.instrumentation.metamodel.botocore.entities.inference import (
     INFERENCE,
 )
 

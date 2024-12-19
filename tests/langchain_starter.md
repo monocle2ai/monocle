@@ -12,7 +12,7 @@ The `workflow_name` is a mandatory parameter which represents your app.
 
 ```python
 
-from monocle_apptrace.instrumentor import setup_monocle_telemetry
+from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
 
 setup_monocle_telemetry(
     workflow_name="langchain_app_1")

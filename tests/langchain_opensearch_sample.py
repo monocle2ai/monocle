@@ -12,12 +12,12 @@ from langchain.chains.query_constructor.base import AttributeInfo
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.runnables import RunnablePassthrough
 from langhchain_patch import create_history_aware_retriever
-from monocle_apptrace.instrumentor import set_context_properties
+from monocle_apptrace.instrumentation.common.instrumentor import set_context_properties
 from langchain.retrievers.self_query.base import SelfQueryRetriever
 from langchain_openai import OpenAI
 from opensearchpy import OpenSearch, RequestsHttpConnection
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
-from monocle_apptrace.instrumentor import setup_monocle_telemetry
+from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
 
 # Set up OpenAI API key
 

@@ -1,8 +1,8 @@
 from monocle_apptrace.instrumentation.common.wrapper import atask_wrapper, task_wrapper
-from monocle_apptrace.instrumentation.metamodel.llamaindex.inference import (
+from monocle_apptrace.instrumentation.metamodel.llamaindex.entities.inference import (
     INFERENCE,
 )
-from monocle_apptrace.instrumentation.metamodel.llamaindex.retrieval import (
+from monocle_apptrace.instrumentation.metamodel.llamaindex.entities.retrieval import (
     RETRIEVAL,
 )
 

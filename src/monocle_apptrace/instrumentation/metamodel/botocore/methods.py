@@ -8,7 +8,6 @@ BOTOCORE_METHODS = [{
       "package": "botocore.client",
       "object": "ClientCreator",
       "method": "create_client",
-      "wrapper_package": "wrap_common",
       "wrapper_method": task_wrapper,
       "skip_span": True,
       "output_processor": INFERENCE

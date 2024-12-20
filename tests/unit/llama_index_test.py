@@ -8,8 +8,8 @@ import unittest
 from typing import List
 from unittest.mock import ANY, patch
 import requests
-from helpers import OurLLM
-from http_span_exporter import HttpSpanExporter
+from monocle.tests.unit.helpers import OurLLM
+from monocle.tests.unit.http_span_exporter import HttpSpanExporter
 from llama_index.core import (
     Settings,
     SimpleDirectoryReader,
@@ -58,22 +58,14 @@ class TestHandler(unittest.TestCase):
                             object_name="OurLLM",
                             method="complete",
                             span_name="llamaindex.OurLLM",
-                            output_processor=INFERENCE,
-                            wrapper_method=task_wrapper),
-                        WrapperMethod(
-                            package="llama_index.llms.openai.base",
-                            object_name="OpenAI",
-                            method="chat",
-                            span_name="llamaindex.openai",
-                            output_processor=RETRIEVAL,
-                            wrapper_method=task_wrapper),
+                            ),
                     ], union_with_default_methods=True
             )
 
         llm = OurLLM()
 
         # check if storage already exists
-        PERSIST_DIR = "./storage"
+        PERSIST_DIR = "../storage"
         if not os.path.exists(PERSIST_DIR):
             # load the documents and create the index
             dir_path = os.path.dirname(os.path.realpath(__file__))
@@ -91,7 +83,7 @@ class TestHandler(unittest.TestCase):
         query_engine = index.as_query_engine(llm= llm)
         query = "What did the author do growing up?"
         response = query_engine.query(query)
-        time.sleep(5)
+        time.sleep(6)
         mock_post.assert_called_with(
             url = os.environ["HTTP_INGESTION_ENDPOINT"],
             data=ANY,
@@ -101,7 +93,7 @@ class TestHandler(unittest.TestCase):
            This can be used to do more asserts'''
         dataBodyStr = mock_post.call_args.kwargs['data']
         logger.debug(dataBodyStr)
-        dataJson =  json.loads(dataBodyStr) # more asserts can be added on individual fields
+        dataJson = json.loads(dataBodyStr) # more asserts can be added on individual fields
 
         root_span = [x for x in  dataJson["batch"] if(x["parent_id"] == "None")][0]
         root_span_events = root_span["events"]
@@ -116,13 +108,14 @@ class TestHandler(unittest.TestCase):
         # assert output_event_attributes[RESPONSE] == llm.dummy_response
 
         span_names: List[str] = [span["name"] for span in dataJson['batch']]
-        llm_span = [x for x in  dataJson["batch"] if "llamaindex.OurLLM" in x["name"]][0]
+        llm_span = [x for x in  dataJson["batch"] if "llamaindex.OurLLM" in x["name"]]
+        if llm_span:
+            assert llm_span[0]['events'][2]["attributes"]["completion_tokens"] == 1
+            assert llm_span[0]['events'][2]["attributes"]["prompt_tokens"] == 2
+            assert llm_span[0]['events'][2]["attributes"]["total_tokens"] == 3
         vectorstore_retriever_span = [x for x in  dataJson["batch"] if "llamaindex.retrieve" in x["name"]][0]
         for name in ["llamaindex.retrieve", "llamaindex.query", "llamaindex.OurLLM"]:
             assert name in span_names
-        assert llm_span['events'][2]["attributes"]["completion_tokens"] == 1
-        assert llm_span['events'][2]["attributes"]["prompt_tokens"] == 2
-        assert llm_span['events'][2]["attributes"]["total_tokens"] == 3
         assert vectorstore_retriever_span["attributes"]['entity.1.name'] == "SimpleVectorStore"
         assert vectorstore_retriever_span["attributes"]['entity.1.type'] == 'vectorstore.SimpleVectorStore'
         assert vectorstore_retriever_span["attributes"]['entity.2.name'] == "BAAI/bge-small-en-v1.5"

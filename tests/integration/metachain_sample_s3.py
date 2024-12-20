@@ -1,10 +1,9 @@
 
 
 import logging
-import os
 
 import bs4
-from dotenv import dotenv_values, load_dotenv
+from dotenv import load_dotenv
 from langchain import hub
 from langchain.chains import create_retrieval_chain
 from langchain.chains.combine_documents import create_stuff_documents_chain
@@ -17,10 +16,9 @@ from langchain_core.runnables import RunnablePassthrough
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langhchain_patch import create_history_aware_retriever
-from metamodel.metachain.methods import METACHAIN_METHODS
+from monocle.tests.metamodel.metachain.methods import METACHAIN_METHODS
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
 
-from monocle_apptrace.exporters.aws.s3_exporter import S3SpanExporter
 from monocle_apptrace.instrumentation.common.instrumentor import (
     set_context_properties,
     setup_monocle_telemetry,
@@ -29,7 +27,6 @@ from monocle_apptrace.instrumentation.common.instrumentor import (
 logging.basicConfig(level=logging.INFO)
 
 load_dotenv()
-
 setup_monocle_telemetry(
             workflow_name="langchain_app_1",
             span_processors=[BatchSpanProcessor(ConsoleSpanExporter())],

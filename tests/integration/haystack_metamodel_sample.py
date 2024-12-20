@@ -39,6 +39,8 @@ def haystack_app():
     dataset = load_dataset("bilgeyucel/seven-wonders", split="train")
     docs = [Document(content=doc["content"], meta=doc["meta"]) for doc in dataset]
 
+    assert len(docs) > 0, "Dataset should contain documents."
+
     doc_embedder = SentenceTransformersDocumentEmbedder(
         model="sentence-transformers/all-MiniLM-L6-v2"
     )
@@ -86,6 +88,8 @@ def haystack_app():
     response = basic_rag_pipeline.run(
         {"text_embedder": {"text": question}, "prompt_builder": {"question": question}}
     )
+
+    assert "llm" in response, "Pipeline output must include 'llm' key."
 
     # print(response["llm"]["replies"][0])
 

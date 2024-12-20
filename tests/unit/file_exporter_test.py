@@ -2,7 +2,7 @@ import json
 import logging
 import os
 import unittest
-from dummy_class import DummyClass, dummy_wrapper
+from monocle.tests.unit.dummy_class import DummyClass, dummy_wrapper
 
 from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
 from monocle_apptrace.instrumentation.common.wrapper_method import WrapperMethod
@@ -11,7 +11,7 @@ from opentelemetry.sdk.trace.export import BatchSpanProcessor
 
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
-fileHandler = logging.FileHandler('traces.txt','w')
+fileHandler = logging.FileHandler('../traces.txt', 'w')
 formatter = logging.Formatter('%(asctime)s [%(levelname)s] %(name)s: %(message)s')
 fileHandler.setFormatter(formatter)
 logger.addHandler(fileHandler)

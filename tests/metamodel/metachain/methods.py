@@ -1,4 +1,4 @@
-from metamodel.metachain.entities.inference import (
+from monocle.tests.metamodel.metachain.entities.inference import (
     INFERENCE,
 )
 

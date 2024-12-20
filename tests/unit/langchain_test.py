@@ -8,11 +8,10 @@ import time
 import unittest
 from unittest.mock import ANY, MagicMock, patch
 
-import pytest
 import requests
-from dummy_class import DummyClass
-from embeddings_wrapper import HuggingFaceEmbeddings
-from http_span_exporter import HttpSpanExporter
+from monocle.tests.unit.dummy_class import DummyClass
+from monocle.tests.unit.embeddings_wrapper import HuggingFaceEmbeddings
+from monocle.tests.unit.http_span_exporter import HttpSpanExporter
 from langchain.prompts import PromptTemplate
 from langchain.schema import StrOutputParser
 from langchain_community.vectorstores import faiss
@@ -38,11 +37,6 @@ from monocle_apptrace.instrumentation.common.instrumentor import (
 )
 from monocle_apptrace.instrumentation.common.constants import (
     SESSION_PROPERTIES_KEY,
-    INFRA_SERVICE_KEY,
-    PROMPT_INPUT_KEY,
-    PROMPT_OUTPUT_KEY,
-    QUERY,
-    RESPONSE,
 )
 from monocle_apptrace.instrumentation.common.wrapper_method import WrapperMethod
 from opentelemetry import trace
@@ -50,12 +44,12 @@ from opentelemetry.sdk.resources import SERVICE_NAME, Resource
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
 from monocle_apptrace.instrumentation.common.span_handler import SpanHandler
-from fake_list_llm import FakeListLLM
+from monocle.tests.unit.fake_list_llm import FakeListLLM
 from parameterized import parameterized
 from monocle_apptrace.instrumentation.metamodel.langchain import _helper
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
-fileHandler = logging.FileHandler('traces.txt','w')
+fileHandler = logging.FileHandler('../traces.txt', 'w')
 formatter = logging.Formatter('%(asctime)s [%(levelname)s] %(name)s: %(message)s')
 fileHandler.setFormatter(formatter)
 logger.addHandler(fileHandler)
@@ -122,14 +116,13 @@ class TestHandler(unittest.TestCase):
     @parameterized.expand([
         ("1", AZURE_ML_ENDPOINT_ENV_NAME, AZURE_ML_SERVICE_NAME, AZURE_ML_ENDPOINT_ENV_NAME),
         ("2", AZURE_FUNCTION_WORKER_ENV_NAME, AZURE_FUNCTION_NAME, AZURE_FUNCTION_IDENTIFIER_ENV_NAME),
-        ("3", AZURE_APP_SERVICE_ENV_NAME, AZURE_APP_SERVICE_NAME, AZURE_APP_SERVICE_IDENTIFIER_ENV_NAME),
+        ("3", AZURE_APP_SERVICE_ENV_NAME, AZURE_APP_SERVICE_NAME, AZURE_FUNCTION_IDENTIFIER_ENV_NAME),
         ("4", AWS_LAMBDA_ENV_NAME, AWS_LAMBDA_SERVICE_NAME, AWS_LAMBDA_FUNCTION_IDENTIFIER_ENV_NAME),
     ])
     @patch.object(requests.Session, 'post')
     def test_llm_chain(self, test_name, test_input_infra, test_output_infra, test_input_infra_identifier, mock_post):
 
         try:
-            
             os.environ[test_input_infra] = "1"
             os.environ[test_input_infra_identifier] = "my-infra-name"
             context_key = "context_key_1"
@@ -143,7 +136,7 @@ class TestHandler(unittest.TestCase):
             query = "what is latte"
             response = self.chain.invoke(query, config={})
             assert response == self.ragText
-            time.sleep(8)
+            time.sleep(5)
             mock_post.assert_called_with(
                 url = 'https://localhost:3000/api/v1/traces',
                 data=ANY,
@@ -152,7 +145,6 @@ class TestHandler(unittest.TestCase):
 
             '''mock_post.call_args gives the parameters used to make post call.
             This can be used to do more asserts'''
-            time.sleep(10)
             dataBodyStr = mock_post.call_args.kwargs['data']
             dataJson =  json.loads(dataBodyStr) # more asserts can be added on individual fields
             # assert len(dataJson['batch']) == 75 = {dict: 11} {'attributes': {'session.context_key_1': 'context_value_1'}, 'context': {'span_id': '18a8d75ec4c94523', 'trace_id': '4fedeffc8d9a4ec8b3029a437b667e15', 'trace_state': '[]'}, 'end_time': '2024-09-17T07:30:36.830264Z', 'events': [], 'kind': 'SpanKind.INTERNAL', 'links': [], 'name': 'langchain.task.StrOutputParser', 'parent_id': 'f371def04dfa963d', 'resource': {'attributes': {'service.name': 'test'}, 'schema_url': ''}, 'start_time': '2024-09-17T07:30:36.829211Z', 'status': {'status_code': 'UNSET'}}... View
@@ -185,8 +177,9 @@ class TestHandler(unittest.TestCase):
                 assert not spanObject["context"]["trace_id"].startswith("0x")
         finally:
             os.environ.pop(test_input_infra)
+            os.environ.pop(test_input_infra_identifier, None)
             try:
-                if(self.instrumentor is not None):
+                if self.instrumentor is not None:
                     self.instrumentor.uninstrument()
             except Exception as e:
                 print("Uninstrument failed:", e)

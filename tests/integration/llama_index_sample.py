@@ -13,12 +13,7 @@ from monocle_apptrace.instrumentation.common.wrapper_method import WrapperMethod
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
 from monocle.tests.common.custom_exporter import CustomConsoleSpanExporter
 from llama_index.llms.mistralai import MistralAI
-os.environ["AZURE_OPENAI_API_DEPLOYMENT"] = ""
-os.environ["AZURE_OPENAI_API_KEY"] = ""
-os.environ["AZURE_OPENAI_API_VERSION"] = ""
-os.environ["AZURE_OPENAI_ENDPOINT"] = ""
-os.environ["OPENAI_API_KEY"] = ""
-os.environ["MISTRAL_API_KEY"] = ""
+
 
 custom_exporter = CustomConsoleSpanExporter()
 setup_monocle_telemetry(

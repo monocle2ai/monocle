@@ -19,9 +19,6 @@ from dotenv import load_dotenv
 import logging
 logging.basicConfig(level=logging.INFO)
 load_dotenv()
-os.environ["OPENAI_API_KEY"] = " "
-os.environ['MONOCLE_BLOB_CONNECTION_STRING'] = ""
-os.environ['MONOCLE_BLOB_CONTAINER_NAME'] = ""
 
 
 custom_exporter = CustomConsoleSpanExporter()

@@ -19,7 +19,6 @@ from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_t
 from monocle.tests.common.custom_exporter import CustomConsoleSpanExporter
 
 
-
 def haystack_app():
     custom_exporter = CustomConsoleSpanExporter()
     setup_monocle_telemetry(

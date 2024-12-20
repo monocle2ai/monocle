@@ -17,7 +17,7 @@ from requests_aws4auth import AWS4Auth
 from botocore.exceptions import ClientError
 import os
 #opensearch endpoint url
-os.environ['OPENSEARCH_ENDPOINT_URL']=''
+
 def produce_response(query):
     similar_documents = search_similar_documents_opensearch(query)
     return produce_llm_response(query, similar_documents)

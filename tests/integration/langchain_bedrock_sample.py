@@ -11,8 +11,6 @@ from langchain_community.embeddings import OpenAIEmbeddings
 from langchain_community.document_loaders import WebBaseLoader
 from monocle.tests.common.custom_exporter import CustomConsoleSpanExporter
 import boto3
-import os
-os.environ["OPENAI_API_KEY"] = ""
 
 
 bedrock_runtime_client = boto3.client(service_name='bedrock-runtime', region_name='us-east-1')

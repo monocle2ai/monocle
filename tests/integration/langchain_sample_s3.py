@@ -23,9 +23,8 @@ import os
 from dotenv import load_dotenv
 
 load_dotenv()
-os.environ["OPENAI_API_KEY"] = ""
-os.environ['AWS_ACCESS_KEY_ID'] = ''
-os.environ['AWS_SECRET_ACCESS_KEY'] = ''
+
+
 exporter = S3SpanExporter(
     region_name='us-east-1',
     bucket_name='sachin-dev'

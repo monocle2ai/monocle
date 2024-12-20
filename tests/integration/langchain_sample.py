@@ -13,11 +13,7 @@ from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExport
 from langchain_mistralai import ChatMistralAI
 from monocle.tests.common.custom_exporter import CustomConsoleSpanExporter
 import os
-os.environ["AZURE_OPENAI_API_DEPLOYMENT"] = ""
-os.environ["AZURE_OPENAI_API_KEY"] = ""
-os.environ["AZURE_OPENAI_API_VERSION"] = ""
-os.environ["AZURE_OPENAI_ENDPOINT"] = ""
-os.environ["OPENAI_API_KEY"] = ""
+
 
 custom_exporter = CustomConsoleSpanExporter()
 setup_monocle_telemetry(

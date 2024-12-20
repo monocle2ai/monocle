@@ -14,12 +14,7 @@ from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExport
 from monocle.tests.common.langhchain_patch import create_history_aware_retriever
 from monocle.tests.common.custom_exporter import CustomConsoleSpanExporter
 import os
-os.environ["AZURE_OPENAI_API_DEPLOYMENT"] = ""
-os.environ["AZURE_OPENAI_API_KEY"] = ""
-os.environ["AZURE_OPENAI_API_VERSION"] = ""
-os.environ["AZURE_OPENAI_ENDPOINT"] = ""
-os.environ["OPENAI_API_KEY"] = ""
-os.environ["MISTRAL_API_KEY"] = ""
+
 
 custom_exporter = CustomConsoleSpanExporter()
 setup_monocle_telemetry(

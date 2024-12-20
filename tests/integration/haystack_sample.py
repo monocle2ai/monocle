@@ -25,8 +25,8 @@ from haystack.dataclasses import ChatMessage
 from haystack.core.component import Component
 from haystack.components.builders import ChatPromptBuilder
 from monocle.tests.common.custom_exporter import CustomConsoleSpanExporter
-os.environ["OPENAI_API_KEY"] = ""
-os.environ["MISTRAL_API_KEY"] = ""
+
+
 def haystack_app():
     custom_exporter = CustomConsoleSpanExporter()
     setup_monocle_telemetry(

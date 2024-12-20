@@ -7,7 +7,7 @@ from haystack.components.embedders import (
     SentenceTransformersTextEmbedder,
 )
 from haystack.components.generators import OpenAIGenerator
-from haystack_integrations.components.retrievers.opensearch  import OpenSearchEmbeddingRetriever
+from haystack_integrations.components.retrievers.opensearch import OpenSearchEmbeddingRetriever
 from haystack_integrations.document_stores.opensearch import OpenSearchDocumentStore
 
 from haystack.document_stores.types import DuplicatePolicy
@@ -16,12 +16,14 @@ from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExport
 from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
 from monocle_apptrace.instrumentation.common.wrapper import task_wrapper
 from monocle_apptrace.instrumentation.common.wrapper_method import WrapperMethod
+from monocle.tests.common.custom_exporter import CustomConsoleSpanExporter
+
 
 def haystack_app():
-
+    custom_exporter = CustomConsoleSpanExporter()
     setup_monocle_telemetry(
             workflow_name="haystack_app_1",
-            span_processors=[BatchSpanProcessor(ConsoleSpanExporter())],
+            span_processors=[BatchSpanProcessor(custom_exporter)],
             wrapper_methods=[
 
 
@@ -93,6 +95,28 @@ def haystack_app():
     )
 
     # print(response["llm"]["replies"][0])
+
+    spans = custom_exporter.get_captured_spans()
+    for span in spans:
+        span_attributes = span.attributes
+        if "span.type" in span_attributes and span_attributes["span.type"] == "retrieval":
+            # Assertions for all retrieval attributes
+            assert span_attributes["entity.1.name"] == "OpenSearchVectorSearch"
+            assert span_attributes["entity.1.type"] == "vectorstore.OpenSearchVectorSearch"
+            assert "entity.1.deployment" in span_attributes
+            assert span_attributes["entity.2.name"] == "sentence-transformers/all-mpnet-base-v2"
+            assert span_attributes["entity.2.type"] == "model.embedding.sentence-transformers/all-mpnet-base-v2"
+
+        if "span.type" in span_attributes and span_attributes["span.type"] == "inference":
+            # Assertions for all inference attributes
+            assert span_attributes["entity.1.type"] == "inference.azure_oai"
+            assert "entity.1.inference_endpoint" in span_attributes
+            assert span_attributes["entity.2.name"] == "gpt-3.5-turbo"
+            assert span_attributes["entity.2.type"] == "model.llm.gpt-3.5-turbo"
+
+        if not span.parent and 'haystack' in span.name:  # Root span
+            assert span_attributes["entity.1.name"] == "haystack_app_1"
+            assert span_attributes["entity.1.type"] == "workflow.haystack"
 
 
 haystack_app()

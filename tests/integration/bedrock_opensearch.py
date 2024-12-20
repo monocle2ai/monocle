@@ -1,9 +1,11 @@
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
 from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
 from monocle_apptrace.instrumentation.common.instrumentor import set_context_properties
+from monocle.tests.common.custom_exporter import CustomConsoleSpanExporter
+custom_exporter = CustomConsoleSpanExporter()
 setup_monocle_telemetry(
     workflow_name="bedrock_workflow",
-    span_processors=[BatchSpanProcessor(ConsoleSpanExporter())],
+    span_processors=[BatchSpanProcessor(custom_exporter)],
     wrapper_methods=[]
 )
 #Continue with code
@@ -97,6 +99,38 @@ def search_similar_documents_opensearch(query):
 
 
 produce_response("how?")
+
+
+spans = custom_exporter.get_captured_spans()
+
+for span in spans:
+    span_attributes = span.attributes
+    if 'span.type' in span_attributes and span_attributes["span.type"] == "retrieval":
+        # Assertions for all retrieval attributes
+        assert span_attributes["entity.1.name"] == "bedrock_workflow"
+        assert span_attributes["entity.1.type"] == "workflow.langchain"
+        assert span_attributes["entity.2.name"] == "OpenSearchVectorSearch"
+        assert span_attributes["entity.2.type"] == "vectorstore.OpenSearchVectorSearch"
+        assert "entity.2.deployment" in span_attributes
+        assert span_attributes["entity.3.name"] == "amazon.titan-embed-text-v1"
+        assert span_attributes["entity.3.type"] == "model.embedding.amazon.titan-embed-text-v1"
+
+    if 'span.type' in span_attributes and span_attributes["span.type"] == "inference":
+        # Assertions for all inference attributes
+        assert span_attributes["entity.1.name"] == "bedrock_workflow"
+        assert span_attributes["entity.1.type"] == "workflow.generic"
+        assert span_attributes["entity.2.type"] == "inference.aws_sagemaker"
+        assert "entity.2.inference_endpoint" in span_attributes
+        assert span_attributes["entity.3.name"] == "ai21.j2-mid-v1"
+        assert span_attributes["entity.3.type"] == "model.llm.ai21.j2-mid-v1"
+
+
+        # Assertions for metadata
+        span_input, span_output, span_metadata = span.events
+        assert "completion_tokens" in span_metadata.attributes
+        assert "prompt_tokens" in span_metadata.attributes
+        assert "total_tokens" in span_metadata.attributes
+
 
 # {
 #     "name": "langchain_core.vectorstores.base.VectorStoreRetriever",

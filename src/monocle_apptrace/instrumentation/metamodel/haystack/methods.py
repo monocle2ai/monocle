@@ -12,6 +12,14 @@ HAYSTACK_METHODS = [
         "output_processor": RETRIEVAL
     },
     {
+        "package": "haystack_integrations.components.retrievers.opensearch",
+        "object": "OpenSearchEmbeddingRetriever",
+        "method": "run",
+        "span_name": "haystack.retriever",
+        "wrapper_method": task_wrapper,
+        "output_processor": RETRIEVAL
+    },
+    {
         "package": "haystack.components.generators.openai",
         "object": "OpenAIGenerator",
         "method": "run",
@@ -32,4 +40,3 @@ HAYSTACK_METHODS = [
         "wrapper_method": task_wrapper
     }
 ]
-

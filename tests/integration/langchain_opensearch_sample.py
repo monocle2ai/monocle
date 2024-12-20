@@ -15,13 +15,15 @@ from langchain_openai import OpenAI
 from opensearchpy import OpenSearch, RequestsHttpConnection
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
 from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
-
+from monocle.tests.common.custom_exporter import CustomConsoleSpanExporter
 # Set up OpenAI API key
 
 # Set up OpenTelemetry tracing
+
+custom_exporter = CustomConsoleSpanExporter()
 setup_monocle_telemetry(
     workflow_name="langchain_opensearch",
-    span_processors=[BatchSpanProcessor(ConsoleSpanExporter())],
+    span_processors=[BatchSpanProcessor(custom_exporter)],
     wrapper_methods=[]
 )
 
@@ -39,7 +41,7 @@ opensearch_client = OpenSearch(
 
 # Load documents from a local directory
 my_path = os.path.abspath(os.path.dirname(__file__))
-data_path = os.path.join(my_path, "data/sample.txt")
+data_path = os.path.join(my_path, "..", "data/sample.txt")
 
 loader = TextLoader(data_path)
 documents = loader.load()
@@ -118,6 +120,30 @@ question = "What is Task Decomposition?"
 result = rag_chain.invoke({"input": question, "chat_history": chat_history})
 
 print(result)
+
+
+spans = custom_exporter.get_captured_spans()
+for span in spans:
+    span_attributes = span.attributes
+    if "span.type" in span_attributes and span_attributes["span.type"] == "retrieval":
+        # Assertions for all retrieval attributes
+        assert span_attributes["entity.1.name"] == "OpenSearchVectorSearch"
+        assert span_attributes["entity.1.type"] == "vectorstore.OpenSearchVectorSearch"
+        assert "entity.1.deployment" in span_attributes
+        assert span_attributes["entity.2.name"] == "text-embedding-ada-002"
+        assert span_attributes["entity.2.type"] == "model.embedding.text-embedding-ada-002"
+
+    if "span.type" in span_attributes and span_attributes["span.type"] == "inference":
+        # Assertions for all inference attributes
+        assert span_attributes["entity.1.type"] == "inference.azure_oai"
+        assert "entity.1.provider_name" in span_attributes
+        assert "entity.1.inference_endpoint" in span_attributes
+        assert span_attributes["entity.2.name"] == "gpt-3.5-turbo-instruct"
+        assert span_attributes["entity.2.type"] == "model.llm.gpt-3.5-turbo-instruct"
+
+    if not span.parent and 'langchain' in span.name:  # Root span
+        assert span_attributes["entity.1.name"] == "langchain_opensearch"
+        assert span_attributes["entity.1.type"] == "workflow.langchain"
 
 # {
 #     "name": "langchain_core.vectorstores.base.VectorStoreRetriever",

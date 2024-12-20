@@ -15,7 +15,6 @@ HAYSTACK_METHODS = [
         "package": "haystack.components.generators.openai",
         "object": "OpenAIGenerator",
         "method": "run",
-        "wrapper_package": "wrap_common",
         "wrapper_method": task_wrapper,
         "output_processor": INFERENCE
     },
@@ -23,7 +22,6 @@ HAYSTACK_METHODS = [
         "package": "haystack.components.generators.chat.openai",
         "object": "OpenAIChatGenerator",
         "method": "run",
-        "wrapper_package": "wrap_common",
         "wrapper_method": task_wrapper,
         "output_processor": INFERENCE
     },

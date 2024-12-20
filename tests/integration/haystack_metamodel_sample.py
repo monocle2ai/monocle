@@ -1,6 +1,9 @@
 
 
 import os
+import sys
+import io
+import time
 
 from datasets import load_dataset
 from haystack import Document, Pipeline
@@ -16,15 +19,18 @@ from haystack.components.retrievers.in_memory.embedding_retriever import (
 )
 from haystack.document_stores.in_memory import InMemoryDocumentStore
 from haystack.utils import Secret
-from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
+from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter, SimpleSpanProcessor
 from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
 from monocle_apptrace.instrumentation.common.wrapper import task_wrapper
 from monocle_apptrace.instrumentation.common.wrapper_method import WrapperMethod
-def haystack_app():
+from test_exporter import CustomConsoleSpanExporter
 
+
+def haystack_app():
+    custom_exporter = CustomConsoleSpanExporter()
     setup_monocle_telemetry(
             workflow_name="haystack_app_1",
-            span_processors=[BatchSpanProcessor(ConsoleSpanExporter())],
+            span_processors=[BatchSpanProcessor(custom_exporter)],
             wrapper_methods=[
                 ])
 
@@ -53,8 +59,10 @@ def haystack_app():
         model="sentence-transformers/all-MiniLM-L6-v2"
     )
 
+
     # get relevant documents from embedded query
     retriever = InMemoryEmbeddingRetriever(document_store)
+
 
     # use documents to build the prompt
     template = """
@@ -89,12 +97,29 @@ def haystack_app():
         {"text_embedder": {"text": question}, "prompt_builder": {"question": question}}
     )
 
-    assert "llm" in response, "Pipeline output must include 'llm' key."
+    query_embedding = text_embedder.run(question)["embedding"]
+
+    # Assert query embedding generation
+    assert query_embedding is not None, "Query embedding generation failed."
+    assert len(query_embedding) == 384, "Query embedding is empty."
+
+    # Assert response structure
+    assert "llm" in response, "LLM response is missing in pipeline output."
+    assert "replies" in response["llm"], "Replies are missing in LLM response."
+    assert isinstance(response["llm"]["replies"], list), "Expected 'replies' to be a list."
+
+    # Assert the response contains meaningful content
+    reply = response["llm"]["replies"][0]
+    assert "Rhodes" in reply, "Response does not mention 'Rhodes'."
 
     # print(response["llm"]["replies"][0])
+    time.sleep(30)
+    spans = custom_exporter.get_captured_spans()
+    print(spans)
 
 
 haystack_app()
+
 
 # {
 #     "name": "haystack.retriever",

@@ -1,8 +1,6 @@
 
 
 import os
-import sys
-import io
 import time
 
 from datasets import load_dataset
@@ -14,16 +12,12 @@ from haystack.components.embedders import (
 )
 from haystack.components.generators import OpenAIGenerator
 from haystack.components.retrievers.in_memory import InMemoryEmbeddingRetriever
-from haystack.components.retrievers.in_memory.embedding_retriever import (
-    InMemoryDocumentStore,
-)
 from haystack.document_stores.in_memory import InMemoryDocumentStore
 from haystack.utils import Secret
-from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter, SimpleSpanProcessor
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
-from monocle_apptrace.instrumentation.common.wrapper import task_wrapper
-from monocle_apptrace.instrumentation.common.wrapper_method import WrapperMethod
-from test_exporter import CustomConsoleSpanExporter
+from monocle.tests.common.custom_exporter import CustomConsoleSpanExporter
+
 
 
 def haystack_app():
@@ -87,8 +81,8 @@ def haystack_app():
     basic_rag_pipeline.add_component("llm", generator)
 
     # Now, connect the components to each other
-    basic_rag_pipeline.connect("text_embedder.embedding", "retriever.query_embedding")
-    basic_rag_pipeline.connect("retriever", "prompt_builder.documents")
+    basic_rag_pipeline.connect("text_embedder", "retriever")
+    basic_rag_pipeline.connect("retriever", "prompt_builder")
     basic_rag_pipeline.connect("prompt_builder", "llm")
 
     question = "What does Rhodes Statue look like?"
@@ -97,25 +91,36 @@ def haystack_app():
         {"text_embedder": {"text": question}, "prompt_builder": {"question": question}}
     )
 
-    query_embedding = text_embedder.run(question)["embedding"]
-
-    # Assert query embedding generation
-    assert query_embedding is not None, "Query embedding generation failed."
-    assert len(query_embedding) == 384, "Query embedding is empty."
-
-    # Assert response structure
-    assert "llm" in response, "LLM response is missing in pipeline output."
-    assert "replies" in response["llm"], "Replies are missing in LLM response."
-    assert isinstance(response["llm"]["replies"], list), "Expected 'replies' to be a list."
-
-    # Assert the response contains meaningful content
-    reply = response["llm"]["replies"][0]
-    assert "Rhodes" in reply, "Response does not mention 'Rhodes'."
 
     # print(response["llm"]["replies"][0])
-    time.sleep(30)
+    time.sleep(10)
     spans = custom_exporter.get_captured_spans()
-    print(spans)
+
+    for span in spans:
+        span_attributes = span.attributes
+        if span_attributes["span.type"] == "retrieval":
+            # Assertions for all retrieval attributes
+            assert span_attributes["entity.1.name"] == "InMemoryDocumentStore"
+            assert span_attributes["entity.1.type"] == "vectorstore.InMemoryDocumentStore"
+            assert span_attributes["entity.2.name"] == "sentence-transformers/all-MiniLM-L6-v2"
+            assert span_attributes["entity.2.type"] == "model.embedding.sentence-transformers/all-MiniLM-L6-v2"
+
+        elif span_attributes["span.type"] == "inference":
+            # Assertions for all inference attributes
+            assert span_attributes["entity.1.type"] == "inference.azure_oai"
+            assert span_attributes["entity.1.inference_endpoint"] == "https://api.openai.com/v1/"
+            assert span_attributes["entity.2.name"] == "gpt-3.5-turbo"
+            assert span_attributes["entity.2.type"] == "model.llm.gpt-3.5-turbo"
+
+            # Assertions for metadata
+            span_input, span_output, span_metadata = span.events
+            assert "completion_tokens" in span_metadata.attributes
+            assert "prompt_tokens" in span_metadata.attributes
+            assert "total_tokens" in span_metadata.attributes
+
+        if not span.parent:  # Root span
+            assert span_attributes["entity.1.name"] == "haystack_app_1"
+            assert span_attributes["entity.1.type"] == "workflow.haystack"
 
 
 haystack_app()

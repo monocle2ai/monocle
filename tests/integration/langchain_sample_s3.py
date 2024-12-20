@@ -13,13 +13,15 @@ from langchain_core.runnables import RunnablePassthrough
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from monocle_apptrace.instrumentation.common.instrumentor import set_context_properties, setup_monocle_telemetry
-from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
-from langhchain_patch import create_history_aware_retriever
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from monocle.tests.common.langhchain_patch import create_history_aware_retriever
 from monocle_apptrace.exporters.aws.s3_exporter import S3SpanExporter
+from monocle.tests.common.custom_exporter import CustomConsoleSpanExporter
 import logging
 logging.basicConfig(level=logging.INFO)
 import os
-from dotenv import load_dotenv, dotenv_values
+from dotenv import load_dotenv
+
 load_dotenv()
 os.environ["OPENAI_API_KEY"] = ""
 os.environ['AWS_ACCESS_KEY_ID'] = ''
@@ -28,9 +30,11 @@ exporter = S3SpanExporter(
     region_name='us-east-1',
     bucket_name='sachin-dev'
 )
+custom_exporter = CustomConsoleSpanExporter()
 setup_monocle_telemetry(
             workflow_name="langchain_app_1",
-            span_processors=[BatchSpanProcessor(exporter)],
+            span_processors=[BatchSpanProcessor(exporter),
+                             BatchSpanProcessor(custom_exporter)],
             wrapper_methods=[])
 
 llm = ChatOpenAI(model="gpt-3.5-turbo-0125")
@@ -113,6 +117,34 @@ ai_msg_2 = rag_chain.invoke({"input": second_question, "chat_history": chat_hist
 
 print(ai_msg_2["answer"])
 
+spans = custom_exporter.get_captured_spans()
+for span in spans:
+    span_attributes = span.attributes
+    if "span.type" in span_attributes and span_attributes["span.type"] == "retrieval":
+        # Assertions for all retrieval attributes
+        assert span_attributes["entity.1.name"] == "Chroma"
+        assert span_attributes["entity.1.type"] == "vectorstore.Chroma"
+        assert "entity.1.deployment" in span_attributes
+        assert span_attributes["entity.2.name"] == "text-embedding-ada-002"
+        assert span_attributes["entity.2.type"] == "model.embedding.text-embedding-ada-002"
+
+    if "span.type" in span_attributes and span_attributes["span.type"] == "inference":
+        # Assertions for all inference attributes
+        assert span_attributes["entity.1.type"] == "inference.azure_oai"
+        assert "entity.1.provider_name" in span_attributes
+        assert "entity.1.inference_endpoint" in span_attributes
+        assert span_attributes["entity.2.name"] == "gpt-3.5-turbo-0125"
+        assert span_attributes["entity.2.type"] == "model.llm.gpt-3.5-turbo-0125"
+
+        # Assertions for metadata
+        span_input, span_output, span_metadata = span.events
+        assert "completion_tokens" in span_metadata.attributes
+        assert "prompt_tokens" in span_metadata.attributes
+        assert "total_tokens" in span_metadata.attributes
+
+    if not span.parent and span.name == "langchain.workflow":  # Root span
+        assert span_attributes["entity.1.name"] == "langchain_app_1"
+        assert span_attributes["entity.1.type"] == "workflow.langchain"
 
 #ndjson format stored in s3_bucket
 

@@ -1,6 +1,8 @@
 
 
 import os
+import time
+from os import times
 
 from datasets import load_dataset
 from haystack import Document, Pipeline
@@ -22,13 +24,14 @@ from haystack_integrations.components.generators.mistral import MistralChatGener
 from haystack.dataclasses import ChatMessage
 from haystack.core.component import Component
 from haystack.components.builders import ChatPromptBuilder
+from monocle.tests.common.custom_exporter import CustomConsoleSpanExporter
 os.environ["OPENAI_API_KEY"] = ""
 os.environ["MISTRAL_API_KEY"] = ""
 def haystack_app():
-
+    custom_exporter = CustomConsoleSpanExporter()
     setup_monocle_telemetry(
             workflow_name="haystack_app_1",
-            span_processors=[BatchSpanProcessor(ConsoleSpanExporter())],
+            span_processors=[BatchSpanProcessor(custom_exporter)],
             wrapper_methods=[
 
             ])
@@ -98,6 +101,34 @@ def haystack_app():
     )
 
     print(response["llm"]["replies"][0])
+    time.sleep(10)
+    spans = custom_exporter.get_captured_spans()
+
+    for span in spans:
+        span_attributes = span.attributes
+        if span_attributes["span.type"] == "retrieval":
+            # Assertions for all retrieval attributes
+            assert span_attributes["entity.1.name"] == "InMemoryDocumentStore"
+            assert span_attributes["entity.1.type"] == "vectorstore.InMemoryDocumentStore"
+            assert span_attributes["entity.2.name"] == "sentence-transformers/all-MiniLM-L6-v2"
+            assert span_attributes["entity.2.type"] == "model.embedding.sentence-transformers/all-MiniLM-L6-v2"
+
+        if span_attributes["span.type"] == "inference":
+            # Assertions for all inference attributes
+            assert span_attributes["entity.1.type"] == "inference.azure_oai"
+            assert span_attributes["entity.1.inference_endpoint"] == "https://api.openai.com/v1/"
+            assert span_attributes["entity.2.name"] == "gpt-3.5-turbo"
+            assert span_attributes["entity.2.type"] == "model.llm.gpt-3.5-turbo"
+
+            # Assertions for metadata
+            span_input, span_output, span_metadata = span.events
+            assert "completion_tokens" in span_metadata.attributes
+            assert "prompt_tokens" in span_metadata.attributes
+            assert "total_tokens" in span_metadata.attributes
+
+        if not span.parent:  # Root span
+            assert span_attributes["entity.1.name"] == "haystack_app_1"
+            assert span_attributes["entity.1.type"] == "workflow.haystack"
 
 
 haystack_app()

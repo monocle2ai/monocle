@@ -12,7 +12,7 @@ from langchain_core.runnables import RunnablePassthrough
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
-
+from monocle.tests.common.custom_exporter import CustomConsoleSpanExporter
 from monocle_apptrace.instrumentation.common.instrumentor import (
     set_context_properties,
     setup_monocle_telemetry,
@@ -20,9 +20,10 @@ from monocle_apptrace.instrumentation.common.instrumentor import (
 
 os.environ["USER_AGENT"] = "langchain-python-app"
 
+custom_exporter = CustomConsoleSpanExporter()
 setup_monocle_telemetry(
     workflow_name="raanne_rag_ltom",
-    span_processors=[BatchSpanProcessor(ConsoleSpanExporter())],
+    span_processors=[BatchSpanProcessor(custom_exporter)],
     wrapper_methods=[])
 
 set_context_properties({"session_id": f"{uuid.uuid4().hex}"})
@@ -115,6 +116,38 @@ print("\n")
 print(f"q_and_a:\n[{q_a_pairs}]")
 print("*************** END ********************")
 print(least_to_most_chain)
+
+spans = custom_exporter.get_captured_spans()
+for span in spans:
+    span_attributes = span.attributes
+    if "span.type" in span_attributes and span_attributes["span.type"] == "retrieval":
+        # Assertions for all retrieval attributes
+        assert span_attributes["entity.1.name"] == "Chroma"
+        assert span_attributes["entity.1.type"] == "vectorstore.Chroma"
+        assert "entity.1.deployment" in span_attributes
+        assert span_attributes["entity.2.name"] == "text-embedding-ada-002"
+        assert span_attributes["entity.2.type"] == "model.embedding.text-embedding-ada-002"
+
+    if "span.type" in span_attributes and span_attributes["span.type"] == "inference":
+        # Assertions for all inference attributes
+        assert span_attributes["entity.1.type"] == "inference.azure_oai"
+        assert "entity.1.provider_name" in span_attributes
+        assert "entity.1.inference_endpoint" in span_attributes
+        assert span_attributes["entity.2.name"] == "gpt-3.5-turbo-0125"
+        assert span_attributes["entity.2.type"] == "model.llm.gpt-3.5-turbo-0125"
+
+        # Assertions for metadata
+        span_input, span_output, span_metadata = span.events
+        assert "completion_tokens" in span_metadata.attributes
+        assert "prompt_tokens" in span_metadata.attributes
+        assert "total_tokens" in span_metadata.attributes
+
+    if not span.parent and span.name == "langchain.workflow":  # Root span
+        assert span_attributes["entity.1.name"] == "raanne_rag_ltom"
+        assert span_attributes["entity.1.type"] == "workflow.langchain"
+
+
+
 
 #*************** OUTPUT ********************
 

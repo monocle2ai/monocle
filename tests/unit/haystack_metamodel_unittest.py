@@ -4,18 +4,16 @@ import os
 import time
 import unittest
 from typing import List
-from unittest.mock import ANY, patch
+from unittest.mock import patch
 from haystack.components.builders.prompt_builder import PromptBuilder
 import requests
 from haystack import Pipeline, Document
-from http_span_exporter import HttpSpanExporter
+from monocle.tests.common.http_span_exporter import HttpSpanExporter
 from haystack.components.generators import OpenAIGenerator
-from haystack.dataclasses import ChatMessage
 from haystack.utils import Secret
 from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
 from monocle_apptrace.instrumentation.common.span_handler import WORKFLOW_TYPE_MAP
-from monocle_apptrace.instrumentation.common.wrapper_method import WrapperMethod
-from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from haystack.components.retrievers import InMemoryBM25Retriever
 from haystack.document_stores.in_memory import InMemoryDocumentStore
 
@@ -45,7 +43,7 @@ class TestHandler(unittest.TestCase):
                 {{ doc.content }}
             {% endfor %}
 
-            \nQuestion: {{query}}
+            \nQuestion: {{question}}
             \nAnswer:
             """
         prompt_builder = PromptBuilder(template=prompt_template)
@@ -70,7 +68,7 @@ class TestHandler(unittest.TestCase):
         pipe.run(
             {
                 "retriever": {"query": message},
-                "prompt_builder": {"query": message},
+                "prompt_builder": {"question": message},
             }
         )
 

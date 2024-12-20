@@ -11,6 +11,7 @@ from llama_index.vector_stores.chroma import ChromaVectorStore
 from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
 from monocle_apptrace.instrumentation.common.wrapper_method import WrapperMethod
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
+from monocle.tests.common.custom_exporter import CustomConsoleSpanExporter
 from llama_index.llms.mistralai import MistralAI
 os.environ["AZURE_OPENAI_API_DEPLOYMENT"] = ""
 os.environ["AZURE_OPENAI_API_KEY"] = ""
@@ -18,9 +19,11 @@ os.environ["AZURE_OPENAI_API_VERSION"] = ""
 os.environ["AZURE_OPENAI_ENDPOINT"] = ""
 os.environ["OPENAI_API_KEY"] = ""
 os.environ["MISTRAL_API_KEY"] = ""
+
+custom_exporter = CustomConsoleSpanExporter()
 setup_monocle_telemetry(
     workflow_name="llama_index_1",
-    span_processors=[BatchSpanProcessor(ConsoleSpanExporter())],
+    span_processors=[BatchSpanProcessor(custom_exporter)],
     wrapper_methods=[]
 )
 # Creating a Chroma client
@@ -33,7 +36,7 @@ vector_store = ChromaVectorStore(
     chroma_collection=chroma_collection,
 )
 dir_path = os.path.dirname(os.path.realpath(__file__))
-documents = SimpleDirectoryReader(dir_path + "/data").load_data()
+documents = SimpleDirectoryReader(os.path.join(dir_path, "..", "data")).load_data()
 
 embed_model = OpenAIEmbedding(model="text-embedding-3-large")
 storage_context = StorageContext.from_defaults(vector_store=vector_store)
@@ -59,6 +62,34 @@ query_engine = index.as_query_engine(llm= llm, )
 response = query_engine.query("What did the author do growing up?")
 
 print(response)
+
+spans = custom_exporter.get_captured_spans()
+for span in spans:
+    span_attributes = span.attributes
+    if "span.type" in span_attributes and span_attributes["span.type"] == "retrieval":
+        # Assertions for all retrieval attributes
+        assert span_attributes["entity.1.name"] == "ChromaVectorStore"
+        assert span_attributes["entity.1.type"] == "vectorstore.ChromaVectorStore"
+        assert span_attributes["entity.2.name"] == "text-embedding-3-large"
+        assert span_attributes["entity.2.type"] == "model.embedding.text-embedding-3-large"
+
+    if "span.type" in span_attributes and span_attributes["span.type"] == "inference":
+        # Assertions for all inference attributes
+        assert span_attributes["entity.1.type"] == "inference.azure_oai"
+        assert "entity.1.provider_name" in span_attributes
+        assert "entity.1.inference_endpoint" in span_attributes
+        assert span_attributes["entity.2.name"] == "gpt-3.5-turbo-0125"
+        assert span_attributes["entity.2.type"] == "model.llm.gpt-3.5-turbo-0125"
+
+        # Assertions for metadata
+        span_input, span_output, span_metadata = span.events
+        assert "completion_tokens" in span_metadata.attributes
+        assert "prompt_tokens" in span_metadata.attributes
+        assert "total_tokens" in span_metadata.attributes
+
+    if not span.parent and span.name == "llamaindex.query":  # Root span
+        assert span_attributes["entity.1.name"] == "llama_index_1"
+        assert span_attributes["entity.1.type"] == "workflow.langchain"
 
 # {
 #     "name": "llamaindex.retrieve",

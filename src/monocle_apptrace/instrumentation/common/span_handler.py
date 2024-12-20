@@ -7,8 +7,10 @@ from opentelemetry.sdk.trace import Span
 from monocle_apptrace.instrumentation.common.constants import (
     service_name_map,
     service_type_map,
+    QUERY,
 )
 from importlib.metadata import version
+from monocle_apptrace.instrumentation.common.utils import set_attribute
 logger = logging.getLogger(__name__)
 
 WORKFLOW_TYPE_MAP = {
@@ -31,6 +33,10 @@ class SpanHandler:
                 span.set_attribute("monocle_apptrace.version", sdk_version)
             except Exception as e:
                 logger.warning("Exception finding monocle-apptrace version.")
+        if "pipeline" in to_wrap['package']:
+            set_attribute(QUERY, args[0]['prompt_builder']['question'])
+
+
 
     def post_task_processing(self, to_wrap, wrapped, instance, args, kwargs, result, span):
         pass

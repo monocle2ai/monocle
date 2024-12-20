@@ -6,15 +6,13 @@ from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain_chroma import Chroma
 from langchain_community.document_loaders import WebBaseLoader
 from langchain_core.messages import HumanMessage
-from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain_core.runnables import RunnablePassthrough
-from langchain_openai import ChatOpenAI, OpenAIEmbeddings, AzureOpenAI, AzureChatOpenAI, OpenAI
+from langchain_openai import OpenAIEmbeddings, AzureChatOpenAI
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from monocle_apptrace.instrumentation.common.instrumentor import set_context_properties, setup_monocle_telemetry
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
-from langhchain_patch import create_history_aware_retriever
-from langchain_mistralai import ChatMistralAI
+from monocle.tests.common.langhchain_patch import create_history_aware_retriever
+from monocle.tests.common.custom_exporter import CustomConsoleSpanExporter
 import os
 os.environ["AZURE_OPENAI_API_DEPLOYMENT"] = ""
 os.environ["AZURE_OPENAI_API_KEY"] = ""
@@ -22,9 +20,11 @@ os.environ["AZURE_OPENAI_API_VERSION"] = ""
 os.environ["AZURE_OPENAI_ENDPOINT"] = ""
 os.environ["OPENAI_API_KEY"] = ""
 os.environ["MISTRAL_API_KEY"] = ""
+
+custom_exporter = CustomConsoleSpanExporter()
 setup_monocle_telemetry(
             workflow_name="langchain_app_1",
-            span_processors=[BatchSpanProcessor(ConsoleSpanExporter())],
+            span_processors=[BatchSpanProcessor(custom_exporter)],
             wrapper_methods=[])
 
 
@@ -122,8 +122,37 @@ chat_history.extend([HumanMessage(content=question), ai_msg_1["answer"]])
 second_question = "What are common ways of doing it?"
 ai_msg_2 = rag_chain.invoke({"input": second_question, "chat_history": chat_history})
 
-# print(ai_msg_2["answer"])
+print(ai_msg_2["answer"])
 
+spans = custom_exporter.get_captured_spans()
+
+for span in spans:
+    span_attributes = span.attributes
+    if "span.type" in span_attributes and span_attributes["span.type"] == "retrieval":
+        # Assertions for all retrieval attributes
+        assert span_attributes["entity.1.name"] == "Chroma"
+        assert span_attributes["entity.1.type"] == "vectorstore.Chroma"
+        assert "entity.1.deployment" in span_attributes
+        assert span_attributes["entity.2.name"] == "text-embedding-ada-002"
+        assert span_attributes["entity.2.type"] == "model.embedding.text-embedding-ada-002"
+
+    if "span.type" in span_attributes and span_attributes["span.type"] == "inference":
+        # Assertions for all inference attributes
+        assert span_attributes["entity.1.type"] == "inference.azure_oai"
+        assert "entity.1.provider_name" in span_attributes
+        assert "entity.1.inference_endpoint" in span_attributes
+        assert span_attributes["entity.2.name"] == "gpt-3.5-turbo-0125"
+        assert span_attributes["entity.2.type"] == "model.llm.gpt-3.5-turbo-0125"
+
+        # Assertions for metadata
+        span_input, span_output, span_metadata = span.events
+        assert "completion_tokens" in span_metadata.attributes
+        assert "prompt_tokens" in span_metadata.attributes
+        assert "total_tokens" in span_metadata.attributes
+
+    if not span.parent and span.name == "langchain.workflow":  # Root span
+        assert span_attributes["entity.1.name"] == "langchain_app_1"
+        assert span_attributes["entity.1.type"] == "workflow.langchain"
 
 # {
 #     "name": "langchain_core.vectorstores.base.VectorStoreRetriever",

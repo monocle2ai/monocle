@@ -15,7 +15,7 @@ from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.runnables import RunnablePassthrough
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langhchain_patch import create_history_aware_retriever
+from monocle.tests.common.langhchain_patch import create_history_aware_retriever
 from monocle.tests.metamodel.metachain.methods import METACHAIN_METHODS
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
 

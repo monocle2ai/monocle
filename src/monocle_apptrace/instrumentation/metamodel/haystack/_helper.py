@@ -120,13 +120,6 @@ def update_span_from_llm_response(response, instance):
     return meta_dict
 
 
-def update_input_span_events(args): #TODO
-    if isinstance(args, tuple):
-        data_input = get_nested_value(args[0], ['prompt_builder', 'question'])
-        return data_input
-    return ""
-
-
 def update_output_span_events(results):
     output_arg_text = " ".join([doc.content for doc in results['documents']])
     if len(output_arg_text) > 100:

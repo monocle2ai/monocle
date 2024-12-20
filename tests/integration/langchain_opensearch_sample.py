@@ -6,14 +6,11 @@ from langchain_community.document_loaders import TextLoader
 from langchain_community.vectorstores import OpenSearchVectorSearch  # Change this import
 from langchain_openai import OpenAIEmbeddings
 from langchain_text_splitters import CharacterTextSplitter
-from langchain.chains import RetrievalQA
 from langchain_core.output_parsers import StrOutputParser
-from langchain.chains.query_constructor.base import AttributeInfo
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.runnables import RunnablePassthrough
-from langhchain_patch import create_history_aware_retriever
+from monocle.tests.common.langhchain_patch import create_history_aware_retriever
 from monocle_apptrace.instrumentation.common.instrumentor import set_context_properties
-from langchain.retrievers.self_query.base import SelfQueryRetriever
 from langchain_openai import OpenAI
 from opensearchpy import OpenSearch, RequestsHttpConnection
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter

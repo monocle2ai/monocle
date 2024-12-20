@@ -1,12 +1,12 @@
 import os
 import unittest
 from monocle_apptrace.instrumentation.common.wrapper_method import WrapperMethod
-from opentelemetry.sdk.trace.export import BatchSpanProcessor, SimpleSpanProcessor
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
 from monocle_apptrace.instrumentation.common.wrapper import task_wrapper
 from monocle_apptrace.instrumentation.common.constants import service_type_map, service_name_map
-from dummy_class import DummyClass
-from test_exporter import TestExporter
+from monocle.tests.common.dummy_class import DummyClass
+from monocle.tests.common.test_exporter import TestExporter
 
 class TestHandler(unittest.TestCase):
     test_span_exporter = None

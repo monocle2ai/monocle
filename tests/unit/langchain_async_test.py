@@ -8,8 +8,8 @@ from unittest.mock import ANY, MagicMock, patch
 from unittest import IsolatedAsyncioTestCase
 
 import requests
-from monocle.tests.unit.embeddings_wrapper import HuggingFaceEmbeddings
-from monocle.tests.unit.http_span_exporter import HttpSpanExporter
+from monocle.tests.common.embeddings_wrapper import HuggingFaceEmbeddings
+from monocle.tests.common.http_span_exporter import HttpSpanExporter
 from langchain.prompts import PromptTemplate
 from langchain.schema import StrOutputParser
 from langchain_community.vectorstores import faiss
@@ -29,7 +29,7 @@ from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
 from monocle_apptrace.instrumentation.common.span_handler import SpanHandler
 
-from monocle.tests.unit.fake_list_llm import FakeListLLM
+from monocle.tests.common.fake_list_llm import FakeListLLM
 
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
@@ -79,7 +79,7 @@ class Test(IsolatedAsyncioTestCase):
         llm.api_base = "https://example.com/"
         embeddings = HuggingFaceEmbeddings(model_id = "multi-qa-mpnet-base-dot-v1")
         my_path = os.path.abspath(os.path.dirname(__file__))
-        model_path = os.path.join(my_path, "../vector_data/coffee_embeddings")
+        model_path = os.path.join(my_path, "..", "data/coffee_embeddings")
         vectorstore = faiss.FAISS.load_local(model_path, embeddings, allow_dangerous_deserialization = True)
 
         retriever = vectorstore.as_retriever()

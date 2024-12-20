@@ -7,8 +7,8 @@ import time
 import unittest
 from unittest.mock import ANY, MagicMock, patch
 import requests
-from monocle.tests.unit.embeddings_wrapper import HuggingFaceEmbeddings
-from monocle.tests.unit.http_span_exporter import HttpSpanExporter
+from monocle.tests.common.embeddings_wrapper import HuggingFaceEmbeddings
+from monocle.tests.common.http_span_exporter import HttpSpanExporter
 from langchain.prompts import PromptTemplate
 from langchain.schema import StrOutputParser
 from langchain_community.vectorstores import faiss
@@ -34,7 +34,7 @@ from opentelemetry.sdk.resources import SERVICE_NAME, Resource
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
 
-from monocle.tests.unit.fake_list_llm import FakeListLLM
+from monocle.tests.common.fake_list_llm import FakeListLLM
 from parameterized import parameterized
 from monocle_apptrace.instrumentation.common.span_handler import SpanHandler
 
@@ -85,7 +85,7 @@ class TestHandler(unittest.TestCase):
 
         embeddings = HuggingFaceEmbeddings(model_id = "multi-qa-mpnet-base-dot-v1")
         my_path = os.path.abspath(os.path.dirname(__file__))
-        model_path = os.path.join(my_path, "../vector_data/coffee_embeddings")
+        model_path = os.path.join(my_path, "..", "data/coffee_embeddings")
         vectorstore = faiss.FAISS.load_local(model_path, embeddings, allow_dangerous_deserialization = True)
 
         retriever = vectorstore.as_retriever()

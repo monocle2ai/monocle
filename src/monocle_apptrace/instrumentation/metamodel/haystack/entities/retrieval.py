@@ -1,4 +1,5 @@
 from monocle_apptrace.instrumentation.metamodel.haystack import (_helper, )
+from monocle_apptrace.instrumentation.common.utils import get_attribute
 
 RETRIEVAL = {
     "type": "retrieval",
@@ -42,7 +43,7 @@ RETRIEVAL = {
              {
                  "_comment": "this is instruction and user query to LLM",
                  "attribute": "input",
-                 "accessor": lambda arguments: _helper.update_input_span_events(arguments['kwargs'])
+                 "accessor": lambda arguments: get_attribute("input")
              }
          ]
          },

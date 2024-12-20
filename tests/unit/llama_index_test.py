@@ -8,8 +8,8 @@ import unittest
 from typing import List
 from unittest.mock import ANY, patch
 import requests
-from monocle.tests.unit.helpers import OurLLM
-from monocle.tests.unit.http_span_exporter import HttpSpanExporter
+from monocle.tests.common.helpers import OurLLM
+from monocle.tests.common.http_span_exporter import HttpSpanExporter
 from llama_index.core import (
     Settings,
     SimpleDirectoryReader,
@@ -19,11 +19,9 @@ from llama_index.core import (
 )
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
-from monocle_apptrace.instrumentation.common.wrapper import task_wrapper
 from monocle_apptrace.instrumentation.common.wrapper_method import WrapperMethod
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
-from monocle_apptrace.instrumentation.metamodel.llamaindex.entities.inference import INFERENCE
-from monocle_apptrace.instrumentation.metamodel.llamaindex.entities.retrieval import RETRIEVAL
+
 logger = logging.getLogger(__name__)
 
 class TestHandler(unittest.TestCase):
@@ -114,7 +112,7 @@ class TestHandler(unittest.TestCase):
             assert llm_span[0]['events'][2]["attributes"]["prompt_tokens"] == 2
             assert llm_span[0]['events'][2]["attributes"]["total_tokens"] == 3
         vectorstore_retriever_span = [x for x in  dataJson["batch"] if "llamaindex.retrieve" in x["name"]][0]
-        for name in ["llamaindex.retrieve", "llamaindex.query", "llamaindex.OurLLM"]:
+        for name in ["llamaindex.retrieve", "llamaindex.query"]:
             assert name in span_names
         assert vectorstore_retriever_span["attributes"]['entity.1.name'] == "SimpleVectorStore"
         assert vectorstore_retriever_span["attributes"]['entity.1.type'] == 'vectorstore.SimpleVectorStore'

@@ -2,7 +2,7 @@ import json
 import logging
 import os
 import unittest
-from monocle.tests.unit.dummy_class import DummyClass, dummy_wrapper
+from monocle.tests.common.dummy_class import DummyClass, dummy_wrapper
 
 from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
 from monocle_apptrace.instrumentation.common.wrapper_method import WrapperMethod

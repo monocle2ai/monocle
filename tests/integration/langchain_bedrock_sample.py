@@ -9,16 +9,17 @@ from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_t
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
 from langchain_community.embeddings import OpenAIEmbeddings
 from langchain_community.document_loaders import WebBaseLoader
+from monocle.tests.common.custom_exporter import CustomConsoleSpanExporter
 import boto3
 import os
 os.environ["OPENAI_API_KEY"] = ""
 
 
 bedrock_runtime_client = boto3.client(service_name='bedrock-runtime', region_name='us-east-1')
-
+custom_exporter = CustomConsoleSpanExporter()
 setup_monocle_telemetry(
     workflow_name="bedrock_rag_workflow",
-    span_processors=[BatchSpanProcessor(ConsoleSpanExporter())],
+    span_processors=[BatchSpanProcessor(custom_exporter)],
     wrapper_methods=[],
 )
 
@@ -67,6 +68,34 @@ result = rag_chain.invoke(query)
 
 print(result)
 
+spans = custom_exporter.get_captured_spans()
+for span in spans:
+    span_attributes = span.attributes
+    if "span.type" in span_attributes and span_attributes["span.type"] == "retrieval":
+        # Assertions for all retrieval attributes
+        assert span_attributes["entity.1.name"] == "Chroma"
+        assert span_attributes["entity.1.type"] == "vectorstore.Chroma"
+        assert "entity.1.deployment" in span_attributes
+        assert span_attributes["entity.2.name"] == "text-embedding-ada-002"
+        assert span_attributes["entity.2.type"] == "model.embedding.text-embedding-ada-002"
+
+    if "span.type" in span_attributes and span_attributes["span.type"] == "inference":
+        # Assertions for all inference attributes
+        assert span_attributes["entity.1.type"] == "inference.azure_oai"
+        assert "entity.1.provider_name" in span_attributes
+        assert "entity.1.inference_endpoint" in span_attributes
+        assert span_attributes["entity.2.name"] == "gpt-3.5-turbo-0125"
+        assert span_attributes["entity.2.type"] == "model.llm.gpt-3.5-turbo-0125"
+
+        # Assertions for metadata
+        span_input, span_output, span_metadata = span.events
+        assert "completion_tokens" in span_metadata.attributes
+        assert "prompt_tokens" in span_metadata.attributes
+        assert "total_tokens" in span_metadata.attributes
+
+    if not span.parent and span.name == "langchain.workflow":  # Root span
+        assert span_attributes["entity.1.name"] == "langchain_app_1"
+        assert span_attributes["entity.1.type"] == "workflow.langchain"
 
 # {
 #     "name": "langchain_core.vectorstores.base.VectorStoreRetriever",

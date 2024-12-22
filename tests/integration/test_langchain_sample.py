@@ -1,25 +1,36 @@
 
 
+import os
+
 import bs4
+import pytest
+from common.custom_exporter import CustomConsoleSpanExporter
 from langchain import hub
 from langchain_chroma import Chroma
 from langchain_community.document_loaders import WebBaseLoader
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import RunnablePassthrough
-from langchain_openai import ChatOpenAI, OpenAIEmbeddings, AzureChatOpenAI, AzureOpenAI, OpenAI
-from langchain_text_splitters import RecursiveCharacterTextSplitter
-from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
-from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
 from langchain_mistralai import ChatMistralAI
-from monocle.tests.common.custom_exporter import CustomConsoleSpanExporter
-import os
+from langchain_openai import (
+    AzureChatOpenAI,
+    AzureOpenAI,
+    ChatOpenAI,
+    OpenAI,
+    OpenAIEmbeddings,
+)
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
 
+from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
 
 custom_exporter = CustomConsoleSpanExporter()
-setup_monocle_telemetry(
-            workflow_name="langchain_app_1",
-            span_processors=[BatchSpanProcessor(custom_exporter)],
-            wrapper_methods=[])
+
+@pytest.fixture(scope="module")
+def setup():
+    setup_monocle_telemetry(
+                workflow_name="langchain_app_1",
+                span_processors=[BatchSpanProcessor(custom_exporter)],
+                wrapper_methods=[])
 
 
 # llm = ChatMistralAI(
@@ -27,75 +38,75 @@ setup_monocle_telemetry(
 #     temperature=0.7,
 # )
 
+@pytest.mark.integration()
+def test_langchain_sample(setup):
 # llm = OpenAI(model="gpt-3.5-turbo-instruct")
-llm = AzureOpenAI(
-    # engine=os.environ.get("AZURE_OPENAI_API_DEPLOYMENT"),
-    azure_deployment=os.environ.get("AZURE_OPENAI_API_DEPLOYMENT"),
-    api_key=os.environ.get("AZURE_OPENAI_API_KEY"),
-    api_version=os.environ.get("AZURE_OPENAI_API_VERSION"),
-    azure_endpoint=os.environ.get("AZURE_OPENAI_ENDPOINT"),
-    temperature=0.1,
-    # model="gpt-4",
+    llm = AzureOpenAI(
+        # engine=os.environ.get("AZURE_OPENAI_API_DEPLOYMENT"),
+        azure_deployment=os.environ.get("AZURE_OPENAI_API_DEPLOYMENT"),
+        api_key=os.environ.get("AZURE_OPENAI_API_KEY"),
+        api_version=os.environ.get("AZURE_OPENAI_API_VERSION"),
+        azure_endpoint=os.environ.get("AZURE_OPENAI_ENDPOINT"),
+        temperature=0.1,
+        # model="gpt-4",
 
-    model="gpt-3.5-turbo-0125")
-# Load, chunk and index the contents of the blog.
-loader = WebBaseLoader(
-    web_paths=("https://lilianweng.github.io/posts/2023-06-23-agent/",),
-    bs_kwargs=dict(
-        parse_only=bs4.SoupStrainer(
-            class_=("post-content", "post-title", "post-header")
-        )
-    ),
-)
-docs = loader.load()
+        model="gpt-3.5-turbo-0125")
+    # Load, chunk and index the contents of the blog.
+    loader = WebBaseLoader(
+        web_paths=("https://lilianweng.github.io/posts/2023-06-23-agent/",),
+        bs_kwargs=dict(
+            parse_only=bs4.SoupStrainer(
+                class_=("post-content", "post-title", "post-header")
+            )
+        ),
+    )
+    docs = loader.load()
 
-text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
-splits = text_splitter.split_documents(docs)
-vectorstore = Chroma.from_documents(documents=splits, embedding=OpenAIEmbeddings())
+    text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
+    splits = text_splitter.split_documents(docs)
+    vectorstore = Chroma.from_documents(documents=splits, embedding=OpenAIEmbeddings())
 
-# Retrieve and generate using the relevant snippets of the blog.
-retriever = vectorstore.as_retriever()
-prompt = hub.pull("rlm/rag-prompt")
+    # Retrieve and generate using the relevant snippets of the blog.
+    retriever = vectorstore.as_retriever()
+    prompt = hub.pull("rlm/rag-prompt")
 
-def format_docs(docs):
-    return "\n\n".join(doc.page_content for doc in docs)
-
-
-rag_chain = (
-    {"context": retriever | format_docs, "question": RunnablePassthrough()}
-    | prompt
-    | llm
-    | StrOutputParser()
-)
-
-result = rag_chain.invoke("What is Task Decomposition?")
-print(result)
-
-spans = custom_exporter.get_captured_spans()
-for span in spans:
-    span_attributes = span.attributes
-    if "span.type" in span_attributes and span_attributes["span.type"] == "retrieval":
-        # Assertions for all retrieval attributes
-        assert span_attributes["entity.1.name"] == "Chroma"
-        assert span_attributes["entity.1.type"] == "vectorstore.Chroma"
-        assert "entity.1.deployment" in span_attributes
-        assert span_attributes["entity.2.name"] == "text-embedding-ada-002"
-        assert span_attributes["entity.2.type"] == "model.embedding.text-embedding-ada-002"
-
-    if "span.type" in span_attributes and span_attributes["span.type"] == "inference":
-        # Assertions for all inference attributes
-        assert span_attributes["entity.1.type"] == "inference.azure_oai"
-        assert "entity.1.provider_name" in span_attributes
-        assert "entity.1.inference_endpoint" in span_attributes
-        assert span_attributes["entity.2.name"] == "gpt-3.5-turbo-0125"
-        assert span_attributes["entity.2.type"] == "model.llm.gpt-3.5-turbo-0125"
+    def format_docs(docs):
+        return "\n\n".join(doc.page_content for doc in docs)
 
 
-    if not span.parent and span.name == "langchain.workflow":  # Root span
-        assert span_attributes["entity.1.name"] == "langchain_app_1"
-        assert span_attributes["entity.1.type"] == "workflow.langchain"
+    rag_chain = (
+        {"context": retriever | format_docs, "question": RunnablePassthrough()}
+        | prompt
+        | llm
+        | StrOutputParser()
+    )
 
-print(result)
+    result = rag_chain.invoke("What is Task Decomposition?")
+    print(result)
+
+    spans = custom_exporter.get_captured_spans()
+    for span in spans:
+        span_attributes = span.attributes
+        if "span.type" in span_attributes and span_attributes["span.type"] == "retrieval":
+            # Assertions for all retrieval attributes
+            assert span_attributes["entity.1.name"] == "Chroma"
+            assert span_attributes["entity.1.type"] == "vectorstore.Chroma"
+            assert "entity.1.deployment" in span_attributes
+            assert span_attributes["entity.2.name"] == "text-embedding-ada-002"
+            assert span_attributes["entity.2.type"] == "model.embedding.text-embedding-ada-002"
+
+        if "span.type" in span_attributes and span_attributes["span.type"] == "inference":
+            # Assertions for all inference attributes
+            assert span_attributes["entity.1.type"] == "inference.azure_oai"
+            assert "entity.1.provider_name" in span_attributes
+            assert "entity.1.inference_endpoint" in span_attributes
+            assert span_attributes["entity.2.name"] == "gpt-3.5-turbo-0125"
+            assert span_attributes["entity.2.type"] == "model.llm.gpt-3.5-turbo-0125"
+
+
+        if not span.parent and span.name == "langchain.workflow":  # Root span
+            assert span_attributes["entity.1.name"] == "langchain_app_1"
+            assert span_attributes["entity.1.type"] == "workflow.langchain"
 
 # {
 #     "name": "langchain_core.vectorstores.base.VectorStoreRetriever",

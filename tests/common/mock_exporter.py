@@ -1,17 +1,19 @@
 from typing import Sequence
+
 from opentelemetry.sdk.trace import ReadableSpan
 from opentelemetry.sdk.trace.export import SpanExporter, SpanExportResult
 
-class TestExporter(SpanExporter):
+
+class MockExporter(SpanExporter):
     current_trace_id: int = None
     current_file_path: str = None
-    attributes_to_check: dict[str, str] = None
+    attributes_to_check: dict[str, str] = {}
 
     def __init__(self):
         pass
 
     def set_trace_check(self, attributes_to_check: dict[str, str]):
-        self.attributes_to_check = attributes_to_check
+        self.attributes_to_check.update(attributes_to_check)
 
     def export(self, spans: Sequence[ReadableSpan]) -> SpanExportResult:
         for span in spans:

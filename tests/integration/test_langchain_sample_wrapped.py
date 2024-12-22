@@ -1,6 +1,5 @@
-
-
 import bs4
+import pytest
 from langchain import hub
 from langchain_chroma import Chroma
 from langchain_community.document_loaders import WebBaseLoader
@@ -11,7 +10,8 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 
 # the method contains the untouched RAG application code
-def main():
+@pytest.mark.integration()
+def test_langchain_sample_wrapped():
 
     llm = ChatOpenAI(model="gpt-3.5-turbo-0125")
 
@@ -46,13 +46,6 @@ def main():
     )
 
     result =  rag_chain.invoke("What is Task Decomposition?")
-
-    print(result)
-
-
-if __name__=="__main__":
-    main()
-
 
 
 # {

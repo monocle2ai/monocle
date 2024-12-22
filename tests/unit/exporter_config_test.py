@@ -1,7 +1,10 @@
+import logging
 import os
 import unittest
 
 from monocle_apptrace.exporters.monocle_exporters import get_monocle_exporter
+
+logger = logging.getLogger(__name__)
 
 class TestHandler(unittest.TestCase):
     def test_default_exporter(self):

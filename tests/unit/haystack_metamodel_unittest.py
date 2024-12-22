@@ -5,20 +5,21 @@ import time
 import unittest
 from typing import List
 from unittest.mock import patch
-from haystack.components.builders.prompt_builder import PromptBuilder
+
 import requests
-from haystack import Pipeline, Document
-from monocle.tests.common.http_span_exporter import HttpSpanExporter
+from common.http_span_exporter import HttpSpanExporter
+from haystack import Document, Pipeline
+from haystack.components.builders.prompt_builder import PromptBuilder
 from haystack.components.generators import OpenAIGenerator
-from haystack.utils import Secret
-from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
-from monocle_apptrace.instrumentation.common.span_handler import WORKFLOW_TYPE_MAP
-from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from haystack.components.retrievers import InMemoryBM25Retriever
 from haystack.document_stores.in_memory import InMemoryDocumentStore
+from haystack.utils import Secret
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
+
+from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
+from monocle_apptrace.instrumentation.common.span_handler import WORKFLOW_TYPE_MAP
 
 logger = logging.getLogger(__name__)
-
 
 class TestHandler(unittest.TestCase):
     ragText = "sample_rag_text"

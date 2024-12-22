@@ -1,53 +1,57 @@
-from os import getenv
-from llama_index.core import SimpleDirectoryReader
-from llama_index.vector_stores.opensearch import (
-    OpensearchVectorStore,
-    OpensearchVectorClient,
-)
 import os
+from os import getenv
+
+import pytest
+from llama_index.core import SimpleDirectoryReader, StorageContext, VectorStoreIndex
+from llama_index.vector_stores.opensearch import (
+    OpensearchVectorClient,
+    OpensearchVectorStore,
+)
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
+
 from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
-from llama_index.core import VectorStoreIndex, StorageContext
-
-setup_monocle_telemetry(
-    workflow_name="llama_index_1",
-    span_processors=[BatchSpanProcessor(ConsoleSpanExporter())],
-    wrapper_methods=[]
-)
-# http endpoint for your cluster (opensearch required for vector index usage)
-endpoint = "https://search-sachin-opensearch-cvvd5pdeyrme2l2y26xmcpkm2a.us-east-1.es.amazonaws.com"
-# index to demonstrate the VectorStore impl
-idx = "gpt-index-demo"
-# load some sample data
-my_path = os.path.abspath(os.path.dirname(__file__))
-model_path = os.path.join(my_path, "data")
-documents = SimpleDirectoryReader(model_path).load_data()
 
 
+@pytest.fixture(scope="module")
+def setup():
+    setup_monocle_telemetry(
+        workflow_name="llama_index_1",
+        span_processors=[BatchSpanProcessor(ConsoleSpanExporter())],
+        wrapper_methods=[]
+    )
+    
+@pytest.mark.integration()
+def test_llamaindex_opensearch_sample(setup):   
+    # http endpoint for your cluster (opensearch required for vector index usage)
+    endpoint = "https://search-sachin-opensearch-cvvd5pdeyrme2l2y26xmcpkm2a.us-east-1.es.amazonaws.com"
+    # index to demonstrate the VectorStore impl
+    idx = "gpt-index-demo"
+    # load some sample data
+    my_path = os.path.abspath(os.path.dirname(__file__))
+    model_path = os.path.join(my_path, "../data")
+    documents = SimpleDirectoryReader(model_path).load_data()
 
-# OpensearchVectorClient stores text in this field by default
-text_field = "content"
-# OpensearchVectorClient stores embeddings in this field by default
-embedding_field = "embedding"
-# OpensearchVectorClient encapsulates logic for a
-# single opensearch index with vector search enabled
-client = OpensearchVectorClient(
-    endpoint, idx, 1536, embedding_field=embedding_field, text_field=text_field,   http_auth=("sachin-opensearch", "Sachin@123")
-)
-# initialize vector store
-vector_store = OpensearchVectorStore(client)
-storage_context = StorageContext.from_defaults(vector_store=vector_store)
-# initialize an index using our sample data and the client we just created
-index = VectorStoreIndex.from_documents(
-    documents=documents, storage_context=storage_context
-)
+    # OpensearchVectorClient stores text in this field by default
+    text_field = "content"
+    # OpensearchVectorClient stores embeddings in this field by default
+    embedding_field = "embedding"
+    # OpensearchVectorClient encapsulates logic for a
+    # single opensearch index with vector search enabled
+    client = OpensearchVectorClient(
+        endpoint, idx, 1536, embedding_field=embedding_field, text_field=text_field,   http_auth=("sachin-opensearch", "Sachin@123")
+    )
+    # initialize vector store
+    vector_store = OpensearchVectorStore(client)
+    storage_context = StorageContext.from_defaults(vector_store=vector_store)
+    # initialize an index using our sample data and the client we just created
+    index = VectorStoreIndex.from_documents(
+        documents=documents, storage_context=storage_context
+    )
 
-
-
-# run query
-query_engine = index.as_query_engine()
-res = query_engine.query("What did the author do growing up?")
-print(res)
+    # run query
+    query_engine = index.as_query_engine()
+    res = query_engine.query("What did the author do growing up?")
+    print(res)
 
 # {
 #     "name": "llamaindex.retrieve",

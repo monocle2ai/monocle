@@ -4,9 +4,11 @@ import os
 import time
 from os import times
 
+import pytest
+from common.custom_exporter import CustomConsoleSpanExporter
 from datasets import load_dataset
 from haystack import Document, Pipeline
-from haystack.components.builders import PromptBuilder
+from haystack.components.builders import ChatPromptBuilder, PromptBuilder
 from haystack.components.embedders import (
     SentenceTransformersDocumentEmbedder,
     SentenceTransformersTextEmbedder,
@@ -16,28 +18,27 @@ from haystack.components.retrievers.in_memory import InMemoryEmbeddingRetriever
 from haystack.components.retrievers.in_memory.embedding_retriever import (
     InMemoryDocumentStore,
 )
+from haystack.core.component import Component
+from haystack.dataclasses import ChatMessage
 from haystack.document_stores.in_memory import InMemoryDocumentStore
 from haystack.utils import Secret
-from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
-from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
 from haystack_integrations.components.generators.mistral import MistralChatGenerator
-from haystack.dataclasses import ChatMessage
-from haystack.core.component import Component
-from haystack.components.builders import ChatPromptBuilder
-from monocle.tests.common.custom_exporter import CustomConsoleSpanExporter
+from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
 
+from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
 
-def haystack_app():
-    custom_exporter = CustomConsoleSpanExporter()
+custom_exporter = CustomConsoleSpanExporter()
+
+@pytest.fixture(scope="module")
+def setup():
     setup_monocle_telemetry(
             workflow_name="haystack_app_1",
             span_processors=[BatchSpanProcessor(custom_exporter)],
             wrapper_methods=[
-
             ])
 
-    # initialize
-
+@pytest.mark.integration()
+def test_haystack_sample(setup):
     api_key = os.getenv("OPENAI_API_KEY")
     generator = OpenAIGenerator(
         api_key=Secret.from_token(api_key), model="gpt-3.5-turbo"
@@ -130,8 +131,6 @@ def haystack_app():
             assert span_attributes["entity.1.name"] == "haystack_app_1"
             assert span_attributes["entity.1.type"] == "workflow.haystack"
 
-
-haystack_app()
 
 # {
 #     "name": "haystack.retriever",

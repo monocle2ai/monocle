@@ -3,88 +3,95 @@
 import os
 
 import chromadb
+import pytest
+from common.custom_exporter import CustomConsoleSpanExporter
 from llama_index.core import SimpleDirectoryReader, StorageContext, VectorStoreIndex
 from llama_index.embeddings.openai import OpenAIEmbedding
-from llama_index.llms.openai import OpenAI
 from llama_index.llms.azure_openai import AzureOpenAI
+from llama_index.llms.mistralai import MistralAI
+from llama_index.llms.openai import OpenAI
 from llama_index.vector_stores.chroma import ChromaVectorStore
+from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
+
 from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
 from monocle_apptrace.instrumentation.common.wrapper_method import WrapperMethod
-from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
-from monocle.tests.common.custom_exporter import CustomConsoleSpanExporter
-from llama_index.llms.mistralai import MistralAI
-
 
 custom_exporter = CustomConsoleSpanExporter()
-setup_monocle_telemetry(
-    workflow_name="llama_index_1",
-    span_processors=[BatchSpanProcessor(custom_exporter)],
-    wrapper_methods=[]
-)
-# Creating a Chroma client
-# EphemeralClient operates purely in-memory, PersistentClient will also save to disk
-chroma_client = chromadb.EphemeralClient()
-chroma_collection = chroma_client.create_collection("quickstart")
 
-# construct vector store
-vector_store = ChromaVectorStore(
-    chroma_collection=chroma_collection,
-)
-dir_path = os.path.dirname(os.path.realpath(__file__))
-documents = SimpleDirectoryReader(os.path.join(dir_path, "..", "data")).load_data()
+@pytest.fixture(scope="module")
+def setup():
+    setup_monocle_telemetry(
+        workflow_name="llama_index_1",
+        span_processors=[BatchSpanProcessor(custom_exporter)],
+        wrapper_methods=[]
+    )
 
-embed_model = OpenAIEmbedding(model="text-embedding-3-large")
-storage_context = StorageContext.from_defaults(vector_store=vector_store)
-index = VectorStoreIndex.from_documents(
-    documents, storage_context=storage_context, embed_model=embed_model
-)
+@pytest.mark.integration()
+def test_llama_index_sample(setup):    
+    # Creating a Chroma client
+    # EphemeralClient operates purely in-memory, PersistentClient will also save to disk
+    chroma_client = chromadb.EphemeralClient()
+    chroma_collection = chroma_client.create_collection("quickstart")
 
-# llm = OpenAI(temperature=0.8, model="gpt-4")
-llm = AzureOpenAI(
-    engine=os.environ.get("AZURE_OPENAI_API_DEPLOYMENT"),
-    azure_deployment=os.environ.get("AZURE_OPENAI_API_DEPLOYMENT"),
-    api_key=os.environ.get("AZURE_OPENAI_API_KEY"),
-    api_version=os.environ.get("AZURE_OPENAI_API_VERSION"),
-    azure_endpoint=os.environ.get("AZURE_OPENAI_ENDPOINT"),
-    temperature=0.1,
-    # model="gpt-4",
+    # construct vector store
+    vector_store = ChromaVectorStore(
+        chroma_collection=chroma_collection,
+    )
+    dir_path = os.path.dirname(os.path.realpath(__file__))
+    documents = SimpleDirectoryReader(os.path.join(dir_path, "..", "data")).load_data()
 
-    model="gpt-3.5-turbo-0125")
+    embed_model = OpenAIEmbedding(model="text-embedding-3-large")
+    storage_context = StorageContext.from_defaults(vector_store=vector_store)
+    index = VectorStoreIndex.from_documents(
+        documents, storage_context=storage_context, embed_model=embed_model
+    )
 
-# llm = MistralAI(api_key=os.getenv("MISTRAL_API_KEY"))
+    # llm = OpenAI(temperature=0.8, model="gpt-4")
+    llm = AzureOpenAI(
+        engine=os.environ.get("AZURE_OPENAI_API_DEPLOYMENT"),
+        azure_deployment=os.environ.get("AZURE_OPENAI_API_DEPLOYMENT"),
+        api_key=os.environ.get("AZURE_OPENAI_API_KEY"),
+        api_version=os.environ.get("AZURE_OPENAI_API_VERSION"),
+        azure_endpoint=os.environ.get("AZURE_OPENAI_ENDPOINT"),
+        temperature=0.1,
+        # model="gpt-4",
 
-query_engine = index.as_query_engine(llm= llm, )
-response = query_engine.query("What did the author do growing up?")
+        model="gpt-3.5-turbo-0125")
 
-print(response)
+    # llm = MistralAI(api_key=os.getenv("MISTRAL_API_KEY"))
 
-spans = custom_exporter.get_captured_spans()
-for span in spans:
-    span_attributes = span.attributes
-    if "span.type" in span_attributes and span_attributes["span.type"] == "retrieval":
-        # Assertions for all retrieval attributes
-        assert span_attributes["entity.1.name"] == "ChromaVectorStore"
-        assert span_attributes["entity.1.type"] == "vectorstore.ChromaVectorStore"
-        assert span_attributes["entity.2.name"] == "text-embedding-3-large"
-        assert span_attributes["entity.2.type"] == "model.embedding.text-embedding-3-large"
+    query_engine = index.as_query_engine(llm= llm, )
+    response = query_engine.query("What did the author do growing up?")
 
-    if "span.type" in span_attributes and span_attributes["span.type"] == "inference":
-        # Assertions for all inference attributes
-        assert span_attributes["entity.1.type"] == "inference.azure_oai"
-        assert "entity.1.provider_name" in span_attributes
-        assert "entity.1.inference_endpoint" in span_attributes
-        assert span_attributes["entity.2.name"] == "gpt-3.5-turbo-0125"
-        assert span_attributes["entity.2.type"] == "model.llm.gpt-3.5-turbo-0125"
+    print(response)
 
-        # Assertions for metadata
-        span_input, span_output, span_metadata = span.events
-        assert "completion_tokens" in span_metadata.attributes
-        assert "prompt_tokens" in span_metadata.attributes
-        assert "total_tokens" in span_metadata.attributes
+    spans = custom_exporter.get_captured_spans()
+    for span in spans:
+        span_attributes = span.attributes
+        if "span.type" in span_attributes and span_attributes["span.type"] == "retrieval":
+            # Assertions for all retrieval attributes
+            assert span_attributes["entity.1.name"] == "ChromaVectorStore"
+            assert span_attributes["entity.1.type"] == "vectorstore.ChromaVectorStore"
+            assert span_attributes["entity.2.name"] == "text-embedding-3-large"
+            assert span_attributes["entity.2.type"] == "model.embedding.text-embedding-3-large"
 
-    if not span.parent and span.name == "llamaindex.query":  # Root span
-        assert span_attributes["entity.1.name"] == "llama_index_1"
-        assert span_attributes["entity.1.type"] == "workflow.langchain"
+        if "span.type" in span_attributes and span_attributes["span.type"] == "inference":
+            # Assertions for all inference attributes
+            assert span_attributes["entity.1.type"] == "inference.azure_oai"
+            assert "entity.1.provider_name" in span_attributes
+            assert "entity.1.inference_endpoint" in span_attributes
+            assert span_attributes["entity.2.name"] == "gpt-3.5-turbo-0125"
+            assert span_attributes["entity.2.type"] == "model.llm.gpt-3.5-turbo-0125"
+
+            # Assertions for metadata
+            span_input, span_output, span_metadata = span.events
+            assert "completion_tokens" in span_metadata.attributes
+            assert "prompt_tokens" in span_metadata.attributes
+            assert "total_tokens" in span_metadata.attributes
+
+        if not span.parent and span.name == "llamaindex.query":  # Root span
+            assert span_attributes["entity.1.name"] == "llama_index_1"
+            assert span_attributes["entity.1.type"] == "workflow.langchain"
 
 # {
 #     "name": "llamaindex.retrieve",

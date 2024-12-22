@@ -1,5 +1,10 @@
 
+import os
+
 import bs4
+import pytest
+from common.custom_exporter import CustomConsoleSpanExporter
+from common.langhchain_patch import create_history_aware_retriever
 from langchain import hub
 from langchain.chains import create_retrieval_chain
 from langchain.chains.combine_documents import create_stuff_documents_chain
@@ -7,147 +12,151 @@ from langchain_chroma import Chroma
 from langchain_community.document_loaders import WebBaseLoader
 from langchain_core.messages import HumanMessage
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain_openai import OpenAIEmbeddings, AzureChatOpenAI
+from langchain_openai import AzureChatOpenAI, OpenAIEmbeddings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from monocle_apptrace.instrumentation.common.instrumentor import set_context_properties, setup_monocle_telemetry
-from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
-from monocle.tests.common.langhchain_patch import create_history_aware_retriever
-from monocle.tests.common.custom_exporter import CustomConsoleSpanExporter
-import os
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
 
+from monocle_apptrace.instrumentation.common.instrumentor import (
+    set_context_properties,
+    setup_monocle_telemetry,
+)
 
 custom_exporter = CustomConsoleSpanExporter()
-setup_monocle_telemetry(
-            workflow_name="langchain_app_1",
-            span_processors=[BatchSpanProcessor(custom_exporter)],
-            wrapper_methods=[])
+
+@pytest.fixture(scope="module")
+def setup():
+    setup_monocle_telemetry(
+                workflow_name="langchain_app_1",
+                span_processors=[BatchSpanProcessor(custom_exporter)],
+                wrapper_methods=[])
+
+@pytest.mark.integration()
+def test_langchain_chat_sample(setup):
+    # llm = ChatOpenAI(model="gpt-3.5-turbo-0125")
+    # llm = OpenAI(model="gpt-3.5-turbo-instruct")
+    llm = AzureChatOpenAI(
+        # engine=os.environ.get("AZURE_OPENAI_API_DEPLOYMENT"),
+        azure_deployment=os.environ.get("AZURE_OPENAI_API_DEPLOYMENT"),
+        api_key=os.environ.get("AZURE_OPENAI_API_KEY"),
+        api_version=os.environ.get("AZURE_OPENAI_API_VERSION"),
+        azure_endpoint=os.environ.get("AZURE_OPENAI_ENDPOINT"),
+        temperature=0.7,
+        # model="gpt-4",
+        model="gpt-3.5-turbo-0125"
+        )
+
+    # llm = ChatMistralAI(
+    #     model="mistral-large-latest",
+    #     temperature=0.7,
+    # )
+
+    # Load, chunk and index the contents of the blog.
+    loader = WebBaseLoader(
+        web_paths=("https://lilianweng.github.io/posts/2023-06-23-agent/",),
+        bs_kwargs=dict(
+            parse_only=bs4.SoupStrainer(
+                class_=("post-content", "post-title", "post-header")
+            )
+        ),
+    )
+    docs = loader.load()
+
+    text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
+    splits = text_splitter.split_documents(docs)
+    vectorstore = Chroma.from_documents(documents=splits, embedding=OpenAIEmbeddings())
+
+    # Retrieve and generate using the relevant snippets of the blog.
+    retriever = vectorstore.as_retriever()
+    prompt = hub.pull("rlm/rag-prompt")
+
+    def format_docs(docs):
+        return "\n\n".join(doc.page_content for doc in docs)
+
+    # rag_chain = (
+    #     {"context": retriever | format_docs, "question": RunnablePassthrough()}
+    #     | prompt
+    #     | llm
+    #     | StrOutputParser()
+    # )
 
 
-# llm = ChatOpenAI(model="gpt-3.5-turbo-0125")
-# llm = OpenAI(model="gpt-3.5-turbo-instruct")
-llm = AzureChatOpenAI(
-    # engine=os.environ.get("AZURE_OPENAI_API_DEPLOYMENT"),
-    azure_deployment=os.environ.get("AZURE_OPENAI_API_DEPLOYMENT"),
-    api_key=os.environ.get("AZURE_OPENAI_API_KEY"),
-    api_version=os.environ.get("AZURE_OPENAI_API_VERSION"),
-    azure_endpoint=os.environ.get("AZURE_OPENAI_ENDPOINT"),
-    temperature=0.7,
-    # model="gpt-4",
-    model="gpt-3.5-turbo-0125"
+    contextualize_q_system_prompt = """Given a chat history and the latest user question \
+    which might reference context in the chat history, formulate a standalone question \
+    which can be understood without the chat history. Do NOT answer the question, \
+    just reformulate it if needed and otherwise return it as is."""
+    contextualize_q_prompt = ChatPromptTemplate.from_messages(
+        [
+            ("system", contextualize_q_system_prompt),
+            MessagesPlaceholder("chat_history"),
+            ("user", "{input}"),
+        ]
+    )
+    history_aware_retriever = create_history_aware_retriever(
+        llm, retriever, contextualize_q_prompt
     )
 
-# llm = ChatMistralAI(
-#     model="mistral-large-latest",
-#     temperature=0.7,
-# )
+    qa_system_prompt = """You are an assistant for question-answering tasks. \
+    Use the following pieces of retrieved context to answer the question. \
+    If you don't know the answer, just say that you don't know. \
+    Use three sentences maximum and keep the answer concise.\
 
-# Load, chunk and index the contents of the blog.
-loader = WebBaseLoader(
-    web_paths=("https://lilianweng.github.io/posts/2023-06-23-agent/",),
-    bs_kwargs=dict(
-        parse_only=bs4.SoupStrainer(
-            class_=("post-content", "post-title", "post-header")
-        )
-    ),
-)
-docs = loader.load()
-
-text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
-splits = text_splitter.split_documents(docs)
-vectorstore = Chroma.from_documents(documents=splits, embedding=OpenAIEmbeddings())
-
-# Retrieve and generate using the relevant snippets of the blog.
-retriever = vectorstore.as_retriever()
-prompt = hub.pull("rlm/rag-prompt")
-
-def format_docs(docs):
-    return "\n\n".join(doc.page_content for doc in docs)
-
-# rag_chain = (
-#     {"context": retriever | format_docs, "question": RunnablePassthrough()}
-#     | prompt
-#     | llm
-#     | StrOutputParser()
-# )
+    {context}"""
+    qa_prompt = ChatPromptTemplate.from_messages(
+        [
+            ("system", qa_system_prompt),
+            MessagesPlaceholder("chat_history"),
+            ("user", "{input}"),
+        ]
+    )
 
 
-contextualize_q_system_prompt = """Given a chat history and the latest user question \
-which might reference context in the chat history, formulate a standalone question \
-which can be understood without the chat history. Do NOT answer the question, \
-just reformulate it if needed and otherwise return it as is."""
-contextualize_q_prompt = ChatPromptTemplate.from_messages(
-    [
-        ("system", contextualize_q_system_prompt),
-        MessagesPlaceholder("chat_history"),
-        ("user", "{input}"),
-    ]
-)
-history_aware_retriever = create_history_aware_retriever(
-    llm, retriever, contextualize_q_prompt
-)
+    question_answer_chain = create_stuff_documents_chain(llm, qa_prompt)
 
-qa_system_prompt = """You are an assistant for question-answering tasks. \
-Use the following pieces of retrieved context to answer the question. \
-If you don't know the answer, just say that you don't know. \
-Use three sentences maximum and keep the answer concise.\
+    rag_chain = create_retrieval_chain(history_aware_retriever, question_answer_chain)
 
-{context}"""
-qa_prompt = ChatPromptTemplate.from_messages(
-    [
-        ("system", qa_system_prompt),
-        MessagesPlaceholder("chat_history"),
-        ("user", "{input}"),
-    ]
-)
+    chat_history = []
 
+    set_context_properties({"session_id": "0x4fa6d91d1f2a4bdbb7a1287d90ec4a16"})
 
-question_answer_chain = create_stuff_documents_chain(llm, qa_prompt)
+    question = "What is Task Decomposition?"
+    ai_msg_1 = rag_chain.invoke({"input": question, "chat_history": chat_history})
+    # print(ai_msg_1["answer"])
+    chat_history.extend([HumanMessage(content=question), ai_msg_1["answer"]])
 
-rag_chain = create_retrieval_chain(history_aware_retriever, question_answer_chain)
+    second_question = "What are common ways of doing it?"
+    ai_msg_2 = rag_chain.invoke({"input": second_question, "chat_history": chat_history})
 
-chat_history = []
+    print(ai_msg_2["answer"])
 
-set_context_properties({"session_id": "0x4fa6d91d1f2a4bdbb7a1287d90ec4a16"})
+    spans = custom_exporter.get_captured_spans()
 
-question = "What is Task Decomposition?"
-ai_msg_1 = rag_chain.invoke({"input": question, "chat_history": chat_history})
-# print(ai_msg_1["answer"])
-chat_history.extend([HumanMessage(content=question), ai_msg_1["answer"]])
+    for span in spans:
+        span_attributes = span.attributes
+        if "span.type" in span_attributes and span_attributes["span.type"] == "retrieval":
+            # Assertions for all retrieval attributes
+            assert span_attributes["entity.1.name"] == "Chroma"
+            assert span_attributes["entity.1.type"] == "vectorstore.Chroma"
+            assert "entity.1.deployment" in span_attributes
+            assert span_attributes["entity.2.name"] == "text-embedding-ada-002"
+            assert span_attributes["entity.2.type"] == "model.embedding.text-embedding-ada-002"
 
-second_question = "What are common ways of doing it?"
-ai_msg_2 = rag_chain.invoke({"input": second_question, "chat_history": chat_history})
+        if "span.type" in span_attributes and span_attributes["span.type"] == "inference":
+            # Assertions for all inference attributes
+            assert span_attributes["entity.1.type"] == "inference.azure_oai"
+            assert "entity.1.provider_name" in span_attributes
+            assert "entity.1.inference_endpoint" in span_attributes
+            assert span_attributes["entity.2.name"] == "gpt-3.5-turbo-0125"
+            assert span_attributes["entity.2.type"] == "model.llm.gpt-3.5-turbo-0125"
 
-print(ai_msg_2["answer"])
+            # Assertions for metadata
+            span_input, span_output, span_metadata = span.events
+            assert "completion_tokens" in span_metadata.attributes
+            assert "prompt_tokens" in span_metadata.attributes
+            assert "total_tokens" in span_metadata.attributes
 
-spans = custom_exporter.get_captured_spans()
-
-for span in spans:
-    span_attributes = span.attributes
-    if "span.type" in span_attributes and span_attributes["span.type"] == "retrieval":
-        # Assertions for all retrieval attributes
-        assert span_attributes["entity.1.name"] == "Chroma"
-        assert span_attributes["entity.1.type"] == "vectorstore.Chroma"
-        assert "entity.1.deployment" in span_attributes
-        assert span_attributes["entity.2.name"] == "text-embedding-ada-002"
-        assert span_attributes["entity.2.type"] == "model.embedding.text-embedding-ada-002"
-
-    if "span.type" in span_attributes and span_attributes["span.type"] == "inference":
-        # Assertions for all inference attributes
-        assert span_attributes["entity.1.type"] == "inference.azure_oai"
-        assert "entity.1.provider_name" in span_attributes
-        assert "entity.1.inference_endpoint" in span_attributes
-        assert span_attributes["entity.2.name"] == "gpt-3.5-turbo-0125"
-        assert span_attributes["entity.2.type"] == "model.llm.gpt-3.5-turbo-0125"
-
-        # Assertions for metadata
-        span_input, span_output, span_metadata = span.events
-        assert "completion_tokens" in span_metadata.attributes
-        assert "prompt_tokens" in span_metadata.attributes
-        assert "total_tokens" in span_metadata.attributes
-
-    if not span.parent and span.name == "langchain.workflow":  # Root span
-        assert span_attributes["entity.1.name"] == "langchain_app_1"
-        assert span_attributes["entity.1.type"] == "workflow.langchain"
+        if not span.parent and span.name == "langchain.workflow":  # Root span
+            assert span_attributes["entity.1.name"] == "langchain_app_1"
+            assert span_attributes["entity.1.type"] == "workflow.langchain"
 
 # {
 #     "name": "langchain_core.vectorstores.base.VectorStoreRetriever",

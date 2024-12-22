@@ -1,8 +1,13 @@
+import logging
 import unittest
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
+
 import requests
+
 from monocle_apptrace.instrumentation.common.span_handler import SpanHandler
 from monocle_apptrace.instrumentation.metamodel.langchain import _helper
+
+logger = logging.getLogger(__name__)
 
 class TestProcessSpan(unittest.TestCase):
 

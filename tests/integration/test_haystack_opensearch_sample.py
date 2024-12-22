@@ -1,4 +1,7 @@
 import os
+
+import pytest
+from common.custom_exporter import CustomConsoleSpanExporter
 from datasets import load_dataset
 from haystack import Document, Pipeline
 from haystack.components.builders import PromptBuilder
@@ -7,30 +10,31 @@ from haystack.components.embedders import (
     SentenceTransformersTextEmbedder,
 )
 from haystack.components.generators import OpenAIGenerator
-from haystack_integrations.components.retrievers.opensearch import OpenSearchEmbeddingRetriever
-from haystack_integrations.document_stores.opensearch import OpenSearchDocumentStore
-
 from haystack.document_stores.types import DuplicatePolicy
 from haystack.utils import Secret
+from haystack_integrations.components.retrievers.opensearch import (
+    OpenSearchEmbeddingRetriever,
+)
+from haystack_integrations.document_stores.opensearch import OpenSearchDocumentStore
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
+
 from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
 from monocle_apptrace.instrumentation.common.wrapper import task_wrapper
 from monocle_apptrace.instrumentation.common.wrapper_method import WrapperMethod
-from monocle.tests.common.custom_exporter import CustomConsoleSpanExporter
 
+custom_exporter = CustomConsoleSpanExporter()
 
-def haystack_app():
-    custom_exporter = CustomConsoleSpanExporter()
+@pytest.fixture(scope="module")
+def setup():
     setup_monocle_telemetry(
-            workflow_name="haystack_app_1",
-            span_processors=[BatchSpanProcessor(custom_exporter)],
-            wrapper_methods=[
+        workflow_name="haystack_app_1",
+        span_processors=[BatchSpanProcessor(custom_exporter)],
+        wrapper_methods=[
+        ])
 
-
-            ])
-
+@pytest.mark.integration()
+def test_haystack_opensearch_sample(setup):
     # initialize
-
     api_key = os.getenv("OPENAI_API_KEY")
     http_auth=("sachin-opensearch", "Sachin@123")
     generator = OpenAIGenerator(
@@ -117,9 +121,6 @@ def haystack_app():
         if not span.parent and 'haystack' in span.name:  # Root span
             assert span_attributes["entity.1.name"] == "haystack_app_1"
             assert span_attributes["entity.1.type"] == "workflow.haystack"
-
-
-haystack_app()
 
 # {
 #     "name": "haystack.retriever",

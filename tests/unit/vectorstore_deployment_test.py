@@ -1,7 +1,12 @@
+import logging
 import unittest
 from unittest.mock import Mock
-from monocle_apptrace.instrumentation.metamodel.haystack._helper import get_vectorstore_deployment
 
+from monocle_apptrace.instrumentation.metamodel.haystack._helper import (
+    get_vectorstore_deployment,
+)
+
+logger = logging.getLogger(__name__)
 
 class TestGetVectorstoreDeployment(unittest.TestCase):
     def setUp(self):

@@ -3,47 +3,44 @@ import json
 import logging
 import os
 import time
-
 import unittest
 from unittest.mock import ANY, MagicMock, patch
+
 import requests
-from monocle.tests.common.embeddings_wrapper import HuggingFaceEmbeddings
-from monocle.tests.common.http_span_exporter import HttpSpanExporter
+from common.embeddings_wrapper import HuggingFaceEmbeddings
+from common.fake_list_llm import FakeListLLM
+from common.http_span_exporter import HttpSpanExporter
 from langchain.prompts import PromptTemplate
 from langchain.schema import StrOutputParser
 from langchain_community.vectorstores import faiss
 from langchain_core.runnables import RunnablePassthrough
-from monocle_apptrace.instrumentation.common.span_handler import WORKFLOW_TYPE_MAP
+from opentelemetry import trace
+from opentelemetry.sdk.resources import SERVICE_NAME, Resource
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
+from parameterized import parameterized
+
 from monocle_apptrace.instrumentation.common.constants import (
+    AWS_LAMBDA_ENV_NAME,
+    AWS_LAMBDA_SERVICE_NAME,
     AZURE_APP_SERVICE_ENV_NAME,
     AZURE_APP_SERVICE_NAME,
     AZURE_FUNCTION_NAME,
     AZURE_FUNCTION_WORKER_ENV_NAME,
     AZURE_ML_ENDPOINT_ENV_NAME,
     AZURE_ML_SERVICE_NAME,
-    AWS_LAMBDA_ENV_NAME,
-    AWS_LAMBDA_SERVICE_NAME
 )
 from monocle_apptrace.instrumentation.common.instrumentor import (
     MonocleInstrumentor,
     set_context_properties,
     setup_monocle_telemetry,
 )
-from opentelemetry import trace
-from opentelemetry.sdk.resources import SERVICE_NAME, Resource
-from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
+from monocle_apptrace.instrumentation.common.span_handler import (
+    WORKFLOW_TYPE_MAP,
+    SpanHandler,
+)
 
-from monocle.tests.common.fake_list_llm import FakeListLLM
-from parameterized import parameterized
-from monocle_apptrace.instrumentation.common.span_handler import SpanHandler
-
-logger = logging.getLogger()
-logger.setLevel(logging.DEBUG)
-fileHandler = logging.FileHandler('../traces.txt', 'w')
-formatter = logging.Formatter('%(asctime)s [%(levelname)s] %(name)s: %(message)s')
-fileHandler.setFormatter(formatter)
-logger.addHandler(fileHandler)
+logger = logging.getLogger(__name__)
 
 class TestHandler(unittest.TestCase):
 

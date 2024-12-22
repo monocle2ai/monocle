@@ -1,8 +1,12 @@
+import datetime
+import logging
 import time
 import unittest
-from unittest.mock import patch, MagicMock
-import datetime
+from unittest.mock import MagicMock, patch
+
 from monocle_apptrace.exporters.aws.s3_exporter import S3SpanExporter
+
+logger = logging.getLogger(__name__)
 
 class TestS3SpanExporter(unittest.TestCase):
     @patch('boto3.client')

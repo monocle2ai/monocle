@@ -1,7 +1,6 @@
-from langchain_core.language_models.llms import LLM
-from typing import Optional
+from typing import Any, List, Mapping, Optional
 
-from typing import Any, List, Mapping
+from langchain_core.language_models.llms import LLM
 
 
 class FakeListLLM(LLM):
@@ -21,7 +20,7 @@ class FakeListLLM(LLM):
 
     Useful primarily for testing purposes.
     """
-    api_base = ""
+    api_base: str = ""
 
     @property
     def _llm_type(self) -> str:

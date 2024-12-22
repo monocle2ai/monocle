@@ -7,9 +7,10 @@ import time
 import unittest
 from typing import List
 from unittest.mock import ANY, patch
+
 import requests
-from monocle.tests.common.helpers import OurLLM
-from monocle.tests.common.http_span_exporter import HttpSpanExporter
+from common.helpers import OurLLM
+from common.http_span_exporter import HttpSpanExporter
 from llama_index.core import (
     Settings,
     SimpleDirectoryReader,
@@ -18,20 +19,43 @@ from llama_index.core import (
     load_index_from_storage,
 )
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
+from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
+
 from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
 from monocle_apptrace.instrumentation.common.wrapper_method import WrapperMethod
-from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
 
 logger = logging.getLogger(__name__)
 
 class TestHandler(unittest.TestCase):
 
+    instrumentor = None
+
     def setUp(self):
         os.environ["HTTP_API_KEY"] = "key1"
         os.environ["HTTP_INGESTION_ENDPOINT"] = "https://localhost:3000/api/v1/traces"
+        self.instrumentor = setup_monocle_telemetry(
+            workflow_name="llama_index_1",
+            span_processors=[
+                    BatchSpanProcessor(HttpSpanExporter(os.environ["HTTP_INGESTION_ENDPOINT"])),
+                    BatchSpanProcessor(ConsoleSpanExporter())
+                ],
+            wrapper_methods=[
+                        WrapperMethod(
+                            package="helpers",
+                            object_name="OurLLM",
+                            method="complete",
+                            span_name="llamaindex.OurLLM",
+                            output_processor="output_processor"
+                            ),
+                    ])
         
 
     def tearDown(self) -> None:
+        try:
+            if self.instrumentor is not None:
+                self.instrumentor.uninstrument()
+        except Exception as e:
+            print("Uninstrument failed:", e)
         return super().tearDown()
 
     @patch.object(requests.Session, 'post')
@@ -44,21 +68,7 @@ class TestHandler(unittest.TestCase):
         mock_post.return_value.status_code = 201
         mock_post.return_value.json.return_value = 'mock response'
 
-        setup_monocle_telemetry(
-            workflow_name="llama_index_1",
-            span_processors=[
-                    BatchSpanProcessor(HttpSpanExporter(os.environ["HTTP_INGESTION_ENDPOINT"])),
-                    BatchSpanProcessor(ConsoleSpanExporter())
-                ],
-            wrapper_methods=[
-                        WrapperMethod(
-                            package="helpers",
-                            object_name="OurLLM",
-                            method="complete",
-                            span_name="llamaindex.OurLLM",
-                            ),
-                    ], union_with_default_methods=True
-            )
+       
 
         llm = OurLLM()
 
@@ -67,7 +77,7 @@ class TestHandler(unittest.TestCase):
         if not os.path.exists(PERSIST_DIR):
             # load the documents and create the index
             dir_path = os.path.dirname(os.path.realpath(__file__))
-            documents = SimpleDirectoryReader(dir_path + "/data").load_data()
+            documents = SimpleDirectoryReader(os.path.join(dir_path, "..", "data")).load_data()
             index = VectorStoreIndex.from_documents(documents)
             # store it for later
             index.storage_context.persist(persist_dir=PERSIST_DIR)

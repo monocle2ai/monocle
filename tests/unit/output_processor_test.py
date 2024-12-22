@@ -1,13 +1,11 @@
 
-from monocle_apptrace.instrumentation.common.span_handler import SpanHandler
-from monocle_apptrace.instrumentation.common.wrapper_method import WrapperMethod
+import logging
 import unittest
 from unittest.mock import Mock
-import logging
-import os
+
+from monocle_apptrace.instrumentation.common.span_handler import SpanHandler
 
 # Initialize the logger for testing
-logging.basicConfig(level=logging.WARNING)
 logger = logging.getLogger(__name__)
 
 class TestProcessSpan(unittest.TestCase):

@@ -3,6 +3,8 @@
 import os
 import time
 
+import pytest
+from common.custom_exporter import CustomConsoleSpanExporter
 from datasets import load_dataset
 from haystack import Document, Pipeline
 from haystack.components.builders import PromptBuilder
@@ -15,19 +17,21 @@ from haystack.components.retrievers.in_memory import InMemoryEmbeddingRetriever
 from haystack.document_stores.in_memory import InMemoryDocumentStore
 from haystack.utils import Secret
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
+
 from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
-from monocle.tests.common.custom_exporter import CustomConsoleSpanExporter
 
+custom_exporter = CustomConsoleSpanExporter()
 
-def haystack_app():
-    custom_exporter = CustomConsoleSpanExporter()
+@pytest.fixture(scope="module")
+def setup():
     setup_monocle_telemetry(
-            workflow_name="haystack_app_1",
-            span_processors=[BatchSpanProcessor(custom_exporter)],
-            wrapper_methods=[
-                ])
-
-    # initialize
+        workflow_name="haystack_app_1",
+        span_processors=[BatchSpanProcessor(custom_exporter)],
+        wrapper_methods=[
+            ])
+    
+@pytest.mark.integration()
+def test_haystack_metamodel_sample(setup):
     api_key = os.getenv("OPENAI_API_KEY")
     generator = OpenAIGenerator(
         api_key=Secret.from_token(api_key), model="gpt-3.5-turbo"
@@ -120,10 +124,6 @@ def haystack_app():
         if not span.parent:  # Root span
             assert span_attributes["entity.1.name"] == "haystack_app_1"
             assert span_attributes["entity.1.type"] == "workflow.haystack"
-
-
-haystack_app()
-
 
 # {
 #     "name": "haystack.retriever",

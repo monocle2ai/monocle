@@ -11,16 +11,15 @@ import requests
 from haystack import Pipeline
 from haystack.components.builders import DynamicChatPromptBuilder
 from haystack.components.generators.chat import OpenAIChatGenerator
-from haystack.dataclasses import ChatMessage
-from haystack.utils import Secret
-from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
-from monocle_apptrace.instrumentation.common.wrapper_method import WrapperMethod
-from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
 from haystack.components.retrievers import InMemoryBM25Retriever
+from haystack.dataclasses import ChatMessage
 from haystack.document_stores.in_memory import InMemoryDocumentStore
+from haystack.utils import Secret
+from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
+
+from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
 
 logger = logging.getLogger(__name__)
-
 
 class TestHandler(unittest.TestCase):
     ragText = "sample_rag_text"

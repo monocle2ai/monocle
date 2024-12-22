@@ -1,6 +1,7 @@
 
 
 import json
+import logging
 import os
 import os.path
 import time
@@ -9,32 +10,39 @@ from unittest.mock import ANY, patch
 
 import requests
 import torch
+from common.http_span_exporter import HttpSpanExporter
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from transformers import GPT2DoubleHeadsModel, GPT2Tokenizer
+
 from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
 from monocle_apptrace.instrumentation.common.wrapper import task_wrapper
 from monocle_apptrace.instrumentation.common.wrapper_method import WrapperMethod
-from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
-from transformers import GPT2DoubleHeadsModel, GPT2Tokenizer
 
+logger = logging.getLogger(__name__)
 
 class TestHandler(unittest.TestCase):
+
     @patch.object(requests.Session, 'post')
     def test_pytorch(self, mock_post):
-        os.environ["OPENAI_API_KEY"] = ""
+        os.environ["HTTP_API_KEY"] = "key1"
+        os.environ["HTTP_INGESTION_ENDPOINT"] = "https://localhost:3000/api/v1/traces"
 
         mock_post.return_value.status_code = 201
         mock_post.return_value.json.return_value = 'mock response'
 
         setup_monocle_telemetry(
             workflow_name="pytorch_1",
-            span_processors=[BatchSpanProcessor(ConsoleSpanExporter())],
+            span_processors=[BatchSpanProcessor(HttpSpanExporter(os.environ["HTTP_INGESTION_ENDPOINT"]))],
             wrapper_methods=[
                         WrapperMethod(
                             package="transformers",
                             object_name="GPT2DoubleHeadsModel",
                             method="forward",
                             span_name="pytorch.transformer.GPT2DoubleHeadsModel",
+                            output_processor="output_processor",
                             wrapper_method=task_wrapper),
-                    ]
+                    ],
+            union_with_default_methods= False
             )
 
         tokenizer = GPT2Tokenizer.from_pretrained('gpt2')
@@ -56,7 +64,7 @@ class TestHandler(unittest.TestCase):
         lm_prediction_scores, mc_prediction_scores = outputs[:2]
 
         time.sleep(5)
-        mock_post.assert_called_once_with(
+        mock_post.assert_called_with(
             url = 'https://localhost:3000/api/v1/traces',
             data=ANY,
             timeout=ANY

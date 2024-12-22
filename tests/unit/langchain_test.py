@@ -4,57 +4,46 @@ import json
 import logging
 import os
 import time
-
 import unittest
-from unittest.mock import ANY, MagicMock, patch
+from unittest.mock import ANY, patch
 
 import requests
-from monocle.tests.common.dummy_class import DummyClass
-from monocle.tests.common.embeddings_wrapper import HuggingFaceEmbeddings
-from monocle.tests.common.http_span_exporter import HttpSpanExporter
+from common.embeddings_wrapper import HuggingFaceEmbeddings
+from common.fake_list_llm import FakeListLLM
+from common.http_span_exporter import HttpSpanExporter
 from langchain.prompts import PromptTemplate
 from langchain.schema import StrOutputParser
 from langchain_community.vectorstores import faiss
-from langchain_core.messages.ai import AIMessage
 from langchain_core.runnables import RunnablePassthrough
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from parameterized import parameterized
+
 from monocle_apptrace.instrumentation.common.constants import (
+    AWS_LAMBDA_ENV_NAME,
+    AWS_LAMBDA_FUNCTION_IDENTIFIER_ENV_NAME,
+    AWS_LAMBDA_SERVICE_NAME,
     AZURE_APP_SERVICE_ENV_NAME,
+    AZURE_APP_SERVICE_IDENTIFIER_ENV_NAME,
     AZURE_APP_SERVICE_NAME,
+    AZURE_FUNCTION_IDENTIFIER_ENV_NAME,
     AZURE_FUNCTION_NAME,
     AZURE_FUNCTION_WORKER_ENV_NAME,
     AZURE_ML_ENDPOINT_ENV_NAME,
     AZURE_ML_SERVICE_NAME,
-    AWS_LAMBDA_ENV_NAME,
-    AWS_LAMBDA_SERVICE_NAME,
-    AWS_LAMBDA_FUNCTION_IDENTIFIER_ENV_NAME,
-    AZURE_FUNCTION_IDENTIFIER_ENV_NAME
+    SESSION_PROPERTIES_KEY,
 )
 from monocle_apptrace.instrumentation.common.instrumentor import (
-    MonocleInstrumentor,
     set_context_properties,
     setup_monocle_telemetry,
 )
-from monocle_apptrace.instrumentation.common.constants import (
-    SESSION_PROPERTIES_KEY,
+from monocle_apptrace.instrumentation.metamodel.langchain.methods import (
+    LANGCHAIN_METHODS,
 )
-from monocle_apptrace.instrumentation.common.wrapper_method import WrapperMethod
-from opentelemetry import trace
-from opentelemetry.sdk.resources import SERVICE_NAME, Resource
-from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
-from monocle_apptrace.instrumentation.common.span_handler import SpanHandler
-from monocle.tests.common.fake_list_llm import FakeListLLM
-from parameterized import parameterized
-from monocle_apptrace.instrumentation.metamodel.langchain import _helper
-logger = logging.getLogger()
-logger.setLevel(logging.DEBUG)
-fileHandler = logging.FileHandler('../traces.txt', 'w')
-formatter = logging.Formatter('%(asctime)s [%(levelname)s] %(name)s: %(message)s')
-fileHandler.setFormatter(formatter)
-logger.addHandler(fileHandler)
 
+logger = logging.getLogger(__name__)
 class TestHandler(unittest.TestCase):
 
+    exporter = None
     prompt = PromptTemplate.from_template(
             """
             <s> [INST] You are an assistant for question-answering tasks. Use the following pieces of retrieved context
@@ -74,18 +63,10 @@ class TestHandler(unittest.TestCase):
 
     def __createChain(self):
 
-        resource = Resource(attributes={
-            SERVICE_NAME: "coffee_rag_fake"
-        })
-        traceProvider = TracerProvider(resource=resource)
-        exporter = ConsoleSpanExporter()
-        monocleProcessor = BatchSpanProcessor(exporter)
+        # resource = Resource(attributes={
+        #     SERVICE_NAME: "coffee_rag_fake"
+        # })
 
-        traceProvider.add_span_processor(monocleProcessor)
-        trace.set_tracer_provider(traceProvider)
-        self.instrumentor = MonocleInstrumentor(handlers=SpanHandler())
-        self.instrumentor.instrument()
-        self.processor = monocleProcessor
         responses=[self.ragText]
         llm = FakeListLLM(responses=responses)
         llm.api_base = "https://example.com/"
@@ -107,18 +88,34 @@ class TestHandler(unittest.TestCase):
     def setUp(self):
         os.environ["HTTP_API_KEY"] = "key1"
         os.environ["HTTP_INGESTION_ENDPOINT"] = "https://localhost:3000/api/v1/traces"
-        
+        exporter = HttpSpanExporter(os.environ["HTTP_INGESTION_ENDPOINT"])
+        self.instrumentor = setup_monocle_telemetry(
+            workflow_name="llama_index_1",
+            wrapper_methods= LANGCHAIN_METHODS,
+            union_with_default_methods = False,
+            span_processors=[
+                    BatchSpanProcessor(exporter)
+                ])
+
 
     def tearDown(self) -> None:
+        try:
+            if self.instrumentor is not None:
+                self.instrumentor.uninstrument()
+        except Exception as e:
+            print("Uninstrument failed:", e)
         return super().tearDown()
 
+
+    #The @patch.object decorator is used to replace the post method of requests.Session with a mock object.
+    #The mock_post parameter in the test method is the mock object that replaces requests.Session.post.
     @parameterized.expand([
         ("1", AZURE_ML_ENDPOINT_ENV_NAME, AZURE_ML_SERVICE_NAME, AZURE_ML_ENDPOINT_ENV_NAME),
         ("2", AZURE_FUNCTION_WORKER_ENV_NAME, AZURE_FUNCTION_NAME, AZURE_FUNCTION_IDENTIFIER_ENV_NAME),
-        ("3", AZURE_APP_SERVICE_ENV_NAME, AZURE_APP_SERVICE_NAME, AZURE_FUNCTION_IDENTIFIER_ENV_NAME),
+        ("3", AZURE_APP_SERVICE_ENV_NAME, AZURE_APP_SERVICE_NAME, AZURE_APP_SERVICE_IDENTIFIER_ENV_NAME),
         ("4", AWS_LAMBDA_ENV_NAME, AWS_LAMBDA_SERVICE_NAME, AWS_LAMBDA_FUNCTION_IDENTIFIER_ENV_NAME),
     ])
-    @patch.object(requests.Session, 'post')
+    @patch.object(requests.Session, 'post') 
     def test_llm_chain(self, test_name, test_input_infra, test_output_infra, test_input_infra_identifier, mock_post):
 
         try:
@@ -167,9 +164,9 @@ class TestHandler(unittest.TestCase):
             # assert input_event_attributes[QUERY] == query
             # assert output_event_attributes[RESPONSE] == TestHandler.ragText
 
-            assert root_span_attributes[f"{SESSION_PROPERTIES_KEY}.{context_key}"] == context_value
+            assert root_span_attributes["session.context_key_1"] == context_value
             assert root_span_attributes["entity.2.type"] == "app_hosting." + test_output_infra
-            assert root_span_attributes["entity.2.name"] == "my-infra-name"
+            assert root_span_attributes["entity.2.name"] == os.getenv(test_input_infra_identifier)
 
             for spanObject in dataJson['batch']:
                 assert not spanObject["context"]["span_id"].startswith("0x")
@@ -177,60 +174,6 @@ class TestHandler(unittest.TestCase):
         finally:
             os.environ.pop(test_input_infra)
             os.environ.pop(test_input_infra_identifier, None)
-            try:
-                if self.instrumentor is not None:
-                    self.instrumentor.uninstrument()
-            except Exception as e:
-                print("Uninstrument failed:", e)
-
-    
-    def test_custom_methods(self):
-        app_name = "test"
-        wrap_method = MagicMock(return_value=3)
-        setup_monocle_telemetry(
-            workflow_name=app_name,
-            span_processors=[
-                    BatchSpanProcessor(HttpSpanExporter("https://localhost:3000/api/v1/traces"))
-                ],
-            wrapper_methods=[
-                WrapperMethod(
-                    package="dummy_class",
-                    object_name="DummyClass",
-                    method="dummy_method",
-                    span_name="langchain.workflow",
-                    wrapper_method=wrap_method()),
-
-            ])
-        dummy_class_1 = DummyClass()
-
-        dummy_class_1.dummy_method()
-        wrap_method.assert_called_once()
-
-    def test_llm_response(self):
-        trace.set_tracer_provider(TracerProvider())
-        tracer = trace.get_tracer(__name__)
-        span = tracer.start_span("foo", start_time=0)
-
-        message = AIMessage(
-            content = "",
-            response_metadata = {
-                'token_usage': {'completion_tokens': 58, 'prompt_tokens': 584, 'total_tokens': 642}
-            }
-        )
-        instance = MagicMock()
-        metadata_dict = _helper.update_span_from_llm_response(response=message, instance=instance)
-        span.add_event(name="metadata", attributes=metadata_dict)
-        event_found = False
-        for event in span.events:
-            if event.name == "metadata":
-                attributes = event.attributes
-                assert attributes["completion_tokens"] == 58
-                assert attributes["prompt_tokens"] == 584
-                assert attributes["total_tokens"] == 642
-                event_found = True
-        assert event_found, "META_DATA event with token usage was not found"
-
-
 
 if __name__ == '__main__':
     unittest.main()

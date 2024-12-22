@@ -1,27 +1,34 @@
-from opentelemetry import trace
-from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
-from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
-setup_monocle_telemetry(
-    workflow_name="sagemaker_workflow_1",
-    span_processors=[BatchSpanProcessor(ConsoleSpanExporter())],
-    wrapper_methods=[])
-
 # Continue with your code
-from langchain_community.vectorstores import OpenSearchVectorSearch
-import boto3
-from requests_aws4auth import AWS4Auth
-
-from langchain_community.embeddings import SagemakerEndpointEmbeddings
-from opensearchpy import RequestsHttpConnection
-import os
 import json
+import os
 from typing import Dict, List
 
+import boto3
+import pytest
+from langchain_community.embeddings import SagemakerEndpointEmbeddings
 from langchain_community.embeddings.sagemaker_endpoint import EmbeddingsContentHandler
+from langchain_community.vectorstores import OpenSearchVectorSearch
+from opensearchpy import RequestsHttpConnection
+from opentelemetry import trace
+from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
+from requests_aws4auth import AWS4Auth
 
-def produce_response(query):
+from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
+
+
+@pytest.fixture(scope="module")
+def setup():
+    setup_monocle_telemetry(
+        workflow_name="sagemaker_workflow_1",
+        span_processors=[BatchSpanProcessor(ConsoleSpanExporter())],
+        wrapper_methods=[]
+    )
+
+
+@pytest.mark.integration()
+def test_sagemaker_sample(setup):
     #similar_documents = search_similar_documents_opensearch(query)
-    return produce_llm_response(query)
+    produce_llm_response("hello")
 
 
 def produce_llm_response(query):
@@ -107,8 +114,6 @@ class ContentHandler(EmbeddingsContentHandler):
         response_json = json.loads(output.read().decode("utf-8"))
         return response_json["embedding"]
 
-
-produce_response("hello")
 
 # {
 #     "name": "botocore-sagemaker-invoke-endpoint",

@@ -1,16 +1,17 @@
 import logging
 import os
+from importlib.metadata import version
 
 from opentelemetry.context import get_value
 from opentelemetry.sdk.trace import Span
 
 from monocle_apptrace.instrumentation.common.constants import (
+    QUERY,
     service_name_map,
     service_type_map,
-    QUERY,
 )
-from importlib.metadata import version
 from monocle_apptrace.instrumentation.common.utils import set_attribute
+
 logger = logging.getLogger(__name__)
 
 WORKFLOW_TYPE_MAP = {
@@ -54,7 +55,7 @@ class SpanHandler:
             span_index += self.set_workflow_attributes(to_wrap, span, span_index+1)
             span_index += self.set_app_hosting_identifier_attribute(span, span_index+1)
 
-        if 'output_processor' in to_wrap:    
+        if 'output_processor' in to_wrap and to_wrap["output_processor"] is not None:    
             output_processor=to_wrap['output_processor']
             if 'type' in output_processor:
                         span.set_attribute("span.type", output_processor['type'])
@@ -86,7 +87,7 @@ class SpanHandler:
 
 
     def hydrate_events(self, to_wrap, wrapped, instance, args, kwargs, result, span):
-        if 'output_processor' in to_wrap:    
+        if 'output_processor' in to_wrap and to_wrap["output_processor"] is not None:
             output_processor=to_wrap['output_processor']
             arguments = {"instance": instance, "args": args, "kwargs": kwargs, "result": result}
             if 'events' in output_processor:

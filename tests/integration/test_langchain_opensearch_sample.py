@@ -1,149 +1,155 @@
 import os
+
+import pytest
+from common.custom_exporter import CustomConsoleSpanExporter
+from common.langhchain_patch import create_history_aware_retriever
 from langchain import hub
 from langchain.chains import create_retrieval_chain
 from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain_community.document_loaders import TextLoader
-from langchain_community.vectorstores import OpenSearchVectorSearch  # Change this import
-from langchain_openai import OpenAIEmbeddings
-from langchain_text_splitters import CharacterTextSplitter
+from langchain_community.vectorstores import (
+    OpenSearchVectorSearch,  # Change this import
+)
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.runnables import RunnablePassthrough
-from monocle.tests.common.langhchain_patch import create_history_aware_retriever
-from monocle_apptrace.instrumentation.common.instrumentor import set_context_properties
-from langchain_openai import OpenAI
+from langchain_openai import OpenAI, OpenAIEmbeddings
+from langchain_text_splitters import CharacterTextSplitter
 from opensearchpy import OpenSearch, RequestsHttpConnection
-from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
-from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
-from monocle.tests.common.custom_exporter import CustomConsoleSpanExporter
-# Set up OpenAI API key
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
 
-# Set up OpenTelemetry tracing
+from monocle_apptrace.instrumentation.common.instrumentor import (
+    set_context_properties,
+    setup_monocle_telemetry,
+)
 
 custom_exporter = CustomConsoleSpanExporter()
-setup_monocle_telemetry(
-    workflow_name="langchain_opensearch",
-    span_processors=[BatchSpanProcessor(custom_exporter)],
-    wrapper_methods=[]
-)
+# Set up OpenTelemetry tracing
 
-# OpenSearch endpoint and credentials
-endpoint = "https://search-sachin-opensearch-cvvd5pdeyrme2l2y26xmcpkm2a.us-east-1.es.amazonaws.com"
-http_auth = ("sachin-opensearch", "Sachin@123")
-index_name = "gpt-index-demo"
+@pytest.fixture(scope="module")
+def setup():
+    setup_monocle_telemetry(
+        workflow_name="langchain_opensearch",
+        span_processors=[BatchSpanProcessor(custom_exporter)],
+        wrapper_methods=[]
+    )
 
-# Initialize OpenSearch client
-opensearch_client = OpenSearch(
-    hosts=[endpoint],
-    http_auth=http_auth,
-    connection_class=RequestsHttpConnection
-)
+@pytest.mark.integration()
+def test_langchain_opensearch_sample(setup):
+    # OpenSearch endpoint and credentials
+    endpoint = "https://search-sachin-opensearch-cvvd5pdeyrme2l2y26xmcpkm2a.us-east-1.es.amazonaws.com"
+    http_auth = ("sachin-opensearch", "Sachin@123")
+    index_name = "gpt-index-demo"
 
-# Load documents from a local directory
-my_path = os.path.abspath(os.path.dirname(__file__))
-data_path = os.path.join(my_path, "..", "data/sample.txt")
+    # Initialize OpenSearch client
+    opensearch_client = OpenSearch(
+        hosts=[endpoint],
+        http_auth=http_auth,
+        connection_class=RequestsHttpConnection
+    )
 
-loader = TextLoader(data_path)
-documents = loader.load()
+    # Load documents from a local directory
+    my_path = os.path.abspath(os.path.dirname(__file__))
+    data_path = os.path.join(my_path, "..", "data/sample.txt")
 
-# Split documents into chunks
-text_splitter = CharacterTextSplitter(chunk_size=1000, chunk_overlap=0)
-docs = text_splitter.split_documents(documents)
+    loader = TextLoader(data_path)
+    documents = loader.load()
 
-# Create embeddings
-embeddings = OpenAIEmbeddings()
+    # Split documents into chunks
+    text_splitter = CharacterTextSplitter(chunk_size=1000, chunk_overlap=0)
+    docs = text_splitter.split_documents(documents)
 
-# Use OpenSearchVectorStore instead of OpenSearchVectorSearch
-docsearch = OpenSearchVectorSearch.from_documents(
-    docs, embeddings, opensearch_url=endpoint, http_auth=http_auth
-)
+    # Create embeddings
+    embeddings = OpenAIEmbeddings()
 
-# Convert to retriever
+    # Use OpenSearchVectorStore instead of OpenSearchVectorSearch
+    docsearch = OpenSearchVectorSearch.from_documents(
+        docs, embeddings, opensearch_url=endpoint, http_auth=http_auth
+    )
 
-# Initialize the LLM
-llm = OpenAI(temperature=0)
-query = "What did the author do growing up?"
+    # Convert to retriever
 
-retriever = docsearch.as_retriever()
+    # Initialize the LLM
+    llm = OpenAI(temperature=0)
+    query = "What did the author do growing up?"
 
-prompt = hub.pull("rlm/rag-prompt")
+    retriever = docsearch.as_retriever()
 
-def format_docs(docs):
-    return "\n\n".join(doc.page_content for doc in docs)
+    prompt = hub.pull("rlm/rag-prompt")
 
-rag_chain = (
-    {"context": retriever | format_docs, "question": RunnablePassthrough()}
-    | prompt
-    | llm
-    | StrOutputParser()
-)
+    def format_docs(docs):
+        return "\n\n".join(doc.page_content for doc in docs)
 
-
-contextualize_q_system_prompt = """Given a chat history and the latest user question \
-which might reference context in the chat history, formulate a standalone question \
-which can be understood without the chat history. Do NOT answer the question, \
-just reformulate it if needed and otherwise return it as is."""
-contextualize_q_prompt = ChatPromptTemplate.from_messages(
-    [
-        ("system", contextualize_q_system_prompt),
-        MessagesPlaceholder("chat_history"),
-        ("human", "{input}"),
-    ]
-)
-history_aware_retriever = create_history_aware_retriever(
-    llm, retriever, contextualize_q_prompt
-)
-
-qa_system_prompt = """You are an assistant for question-answering tasks. \
-Use the following pieces of retrieved context to answer the question. \
-If you don't know the answer, just say that you don't know. \
-Use three sentences maximum and keep the answer concise.\
-
-{context}"""
-qa_prompt = ChatPromptTemplate.from_messages(
-    [
-        ("system", qa_system_prompt),
-        MessagesPlaceholder("chat_history"),
-        ("human", "{input}"),
-    ]
-)
+    rag_chain = (
+        {"context": retriever | format_docs, "question": RunnablePassthrough()}
+        | prompt
+        | llm
+        | StrOutputParser()
+    )
 
 
-question_answer_chain = create_stuff_documents_chain(llm, qa_prompt)
+    contextualize_q_system_prompt = """Given a chat history and the latest user question \
+    which might reference context in the chat history, formulate a standalone question \
+    which can be understood without the chat history. Do NOT answer the question, \
+    just reformulate it if needed and otherwise return it as is."""
+    contextualize_q_prompt = ChatPromptTemplate.from_messages(
+        [
+            ("system", contextualize_q_system_prompt),
+            MessagesPlaceholder("chat_history"),
+            ("human", "{input}"),
+        ]
+    )
+    history_aware_retriever = create_history_aware_retriever(
+        llm, retriever, contextualize_q_prompt
+    )
 
-rag_chain = create_retrieval_chain(history_aware_retriever, question_answer_chain)
-# This example only specifies a relevant query
-chat_history = []
+    qa_system_prompt = """You are an assistant for question-answering tasks. \
+    Use the following pieces of retrieved context to answer the question. \
+    If you don't know the answer, just say that you don't know. \
+    Use three sentences maximum and keep the answer concise.\
 
-set_context_properties({"session_id": "0x4fa6d91d1f2a4bdbb7a1287d90ec4a16"})
-question = "What is Task Decomposition?"
-result = rag_chain.invoke({"input": question, "chat_history": chat_history})
+    {context}"""
+    qa_prompt = ChatPromptTemplate.from_messages(
+        [
+            ("system", qa_system_prompt),
+            MessagesPlaceholder("chat_history"),
+            ("human", "{input}"),
+        ]
+    )
 
-print(result)
 
+    question_answer_chain = create_stuff_documents_chain(llm, qa_prompt)
 
-spans = custom_exporter.get_captured_spans()
-for span in spans:
-    span_attributes = span.attributes
-    if "span.type" in span_attributes and span_attributes["span.type"] == "retrieval":
-        # Assertions for all retrieval attributes
-        assert span_attributes["entity.1.name"] == "OpenSearchVectorSearch"
-        assert span_attributes["entity.1.type"] == "vectorstore.OpenSearchVectorSearch"
-        assert "entity.1.deployment" in span_attributes
-        assert span_attributes["entity.2.name"] == "text-embedding-ada-002"
-        assert span_attributes["entity.2.type"] == "model.embedding.text-embedding-ada-002"
+    rag_chain = create_retrieval_chain(history_aware_retriever, question_answer_chain)
+    # This example only specifies a relevant query
+    chat_history = []
 
-    if "span.type" in span_attributes and span_attributes["span.type"] == "inference":
-        # Assertions for all inference attributes
-        assert span_attributes["entity.1.type"] == "inference.azure_oai"
-        assert "entity.1.provider_name" in span_attributes
-        assert "entity.1.inference_endpoint" in span_attributes
-        assert span_attributes["entity.2.name"] == "gpt-3.5-turbo-instruct"
-        assert span_attributes["entity.2.type"] == "model.llm.gpt-3.5-turbo-instruct"
+    set_context_properties({"session_id": "0x4fa6d91d1f2a4bdbb7a1287d90ec4a16"})
+    question = "What is Task Decomposition?"
+    result = rag_chain.invoke({"input": question, "chat_history": chat_history})
 
-    if not span.parent and 'langchain' in span.name:  # Root span
-        assert span_attributes["entity.1.name"] == "langchain_opensearch"
-        assert span_attributes["entity.1.type"] == "workflow.langchain"
+    spans = custom_exporter.get_captured_spans()
+    for span in spans:
+        span_attributes = span.attributes
+        if "span.type" in span_attributes and span_attributes["span.type"] == "retrieval":
+            # Assertions for all retrieval attributes
+            assert span_attributes["entity.1.name"] == "OpenSearchVectorSearch"
+            assert span_attributes["entity.1.type"] == "vectorstore.OpenSearchVectorSearch"
+            assert "entity.1.deployment" in span_attributes
+            assert span_attributes["entity.2.name"] == "text-embedding-ada-002"
+            assert span_attributes["entity.2.type"] == "model.embedding.text-embedding-ada-002"
+
+        if "span.type" in span_attributes and span_attributes["span.type"] == "inference":
+            # Assertions for all inference attributes
+            assert span_attributes["entity.1.type"] == "inference.azure_oai"
+            assert "entity.1.provider_name" in span_attributes
+            assert "entity.1.inference_endpoint" in span_attributes
+            assert span_attributes["entity.2.name"] == "gpt-3.5-turbo-instruct"
+            assert span_attributes["entity.2.type"] == "model.llm.gpt-3.5-turbo-instruct"
+
+        if not span.parent and 'langchain' in span.name:  # Root span
+            assert span_attributes["entity.1.name"] == "langchain_opensearch"
+            assert span_attributes["entity.1.type"] == "workflow.langchain"
 
 # {
 #     "name": "langchain_core.vectorstores.base.VectorStoreRetriever",

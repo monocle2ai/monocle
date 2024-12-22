@@ -125,6 +125,8 @@ def setup_monocle_telemetry(
     if not instrumentor.is_instrumented_by_opentelemetry:
         instrumentor.instrument(trace_provider=trace_provider)
 
+    return instrumentor
+
 def on_processor_start(span: Span, parent_context):
     context_properties = get_value(SESSION_PROPERTIES_KEY)
     if context_properties is not None:

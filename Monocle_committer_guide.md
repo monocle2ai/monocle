@@ -22,5 +22,35 @@ After setup of credentials, follow the commands below to publish the package to 
 
 ```
 > python3 -m pip install pipenv
-> pipenv install monocle-observability
+> pipenv install monocle-apptrace
+```
+### Running the testcases
+
+ 
+##### Activate the virtual environment
+```
+cd monocle
+monocle% python -m pip install pipenv
+monocle% pipenv --python 3.11.9
+monocle% source $(pipenv --venv)/bin/activate
+
+ ```
+##### Install the dependencies
+```
+monocle% pip install -e '.[dev]'
+ ```
+
+##### Run the unit tests
+```
+monocle% pytest tests/unit/*_test.py
+ ```
+ 
+##### Run the integration tests
+```
+monocle% pytest -m integration
+ ```
+
+###### Run the integration test individually
+```
+monocle% pytest tests/integration/test_langchain_rag_l_to_m.py
 ```

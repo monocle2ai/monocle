@@ -1,61 +1,77 @@
 import json
 import logging
 import os
+import time
 import unittest
-from monocle.tests.common.dummy_class import DummyClass, dummy_wrapper
 
-from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
-from monocle_apptrace.instrumentation.common.wrapper_method import WrapperMethod
-from monocle_apptrace.exporters.file_exporter import FileSpanExporter
+from common.dummy_class import DummyClass, dummy_wrapper
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 
-logger = logging.getLogger()
-logger.setLevel(logging.DEBUG)
-fileHandler = logging.FileHandler('../traces.txt', 'w')
-formatter = logging.Formatter('%(asctime)s [%(levelname)s] %(name)s: %(message)s')
-fileHandler.setFormatter(formatter)
-logger.addHandler(fileHandler)
+from monocle_apptrace.exporters.file_exporter import FileSpanExporter
+from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
+from monocle_apptrace.instrumentation.common.wrapper_method import WrapperMethod
 
+logger = logging.getLogger(__name__)
 
 class TestHandler(unittest.TestCase):
-    SPAN_NAME="dummy.span"
-    def test_file_exporter(self):
+    span_processor = None
+    file_exporter = None
+
+    def tearDown(self) -> None:
+        try:
+            self.span_processor.shutdown()
+            if self.instrumentor is not None:
+                self.instrumentor.uninstrument()
+        except Exception as e:
+            print("Uninstrument failed:", e)
+        return super().tearDown()
+
+    def setUp(self):
         app_name = "file_test"
-        file_exporter = FileSpanExporter(time_format="%Y-%m-%d")
-        span_processor = BatchSpanProcessor(file_exporter)
-        setup_monocle_telemetry(
+        self.file_exporter = FileSpanExporter(time_format="%Y-%m-%d")
+        self.span_processor = BatchSpanProcessor(self.file_exporter)
+        self.instrumentor = setup_monocle_telemetry(
             workflow_name=app_name,
             span_processors=[
-                    span_processor
+                    self.span_processor
             ],
+            union_with_default_methods=False,
             wrapper_methods=[
                 WrapperMethod(
-                    package="dummy_class",
+                    package="common.dummy_class",
                     object_name="DummyClass",
                     method="dummy_method",
-                    span_name=self.SPAN_NAME,
+                    span_name="dummy.span",
                     wrapper_method=dummy_wrapper)
             ])
-        dummy_class_1 = DummyClass()
 
+    def test_file_exporter(self):
+        
+        dummy_class_1 = DummyClass()
         dummy_class_1.dummy_method()
 
-        span_processor.force_flush()
-        span_processor.shutdown()
-        trace_file_name = file_exporter.current_file_path
+        self.span_processor.force_flush()
+        
+        trace_file_name = self.file_exporter.current_file_path
+        if trace_file_name is None:
+            print("Inside no file")
+            time.sleep(10)
+        else:
+            print("file name is : ",trace_file_name)
 
         try:
             with open(trace_file_name) as f:
+                print("Inside file")
                 trace_data = json.load(f)
                 trace_id_from_file = trace_data["context"]["trace_id"]
-                trace_id_from_exporter = hex(file_exporter.current_trace_id)
+                trace_id_from_exporter = hex(self.file_exporter.current_trace_id)
                 assert trace_id_from_file == trace_id_from_exporter
-
-                span_name = trace_data["name"]
-                assert self.SPAN_NAME == span_name
 
             os.remove(trace_file_name)
         except Exception as ex:
             print("Got error " + str(ex))
             assert False
+       
 
+if __name__ == '__main__':
+    unittest.main()

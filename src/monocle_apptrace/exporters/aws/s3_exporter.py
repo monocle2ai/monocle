@@ -25,13 +25,13 @@ class S3SpanExporter(SpanExporterBase):
         super().__init__()
         # Use environment variables if credentials are not provided
         DEFAULT_FILE_PREFIX = "monocle_trace_"
-        DEFAULT_TIME_FORMAT = "%Y-%m-%d_%H.%M.%S"
+        DEFAULT_TIME_FORMAT = "%Y-%m-%d__%H.%M.%S"
         self.max_batch_size = 500
         self.export_interval = 1
         self.s3_client = boto3.client(
             's3',
-            aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID'),
-            aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY'),
+            aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID_EXPORTER'),
+            aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY_EXPORTER'),
             region_name=region_name,
         )
         self.bucket_name = bucket_name or os.getenv('MONOCLE_S3_BUCKET_NAME','default-bucket')

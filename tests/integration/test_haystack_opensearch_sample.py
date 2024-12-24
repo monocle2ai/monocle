@@ -105,8 +105,8 @@ def test_haystack_opensearch_sample(setup):
         span_attributes = span.attributes
         if "span.type" in span_attributes and span_attributes["span.type"] == "retrieval":
             # Assertions for all retrieval attributes
-            assert span_attributes["entity.1.name"] == "OpenSearchVectorSearch"
-            assert span_attributes["entity.1.type"] == "vectorstore.OpenSearchVectorSearch"
+            assert span_attributes["entity.1.name"] == "OpenSearchDocumentStore"
+            assert span_attributes["entity.1.type"] == "vectorstore.OpenSearchDocumentStore"
             assert "entity.1.deployment" in span_attributes
             assert span_attributes["entity.2.name"] == "sentence-transformers/all-mpnet-base-v2"
             assert span_attributes["entity.2.type"] == "model.embedding.sentence-transformers/all-mpnet-base-v2"

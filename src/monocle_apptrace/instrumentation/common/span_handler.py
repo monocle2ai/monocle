@@ -1,7 +1,7 @@
 import logging
 import os
 from importlib.metadata import version
-
+from opentelemetry.context import get_current
 from opentelemetry.context import get_value
 from opentelemetry.sdk.trace import Span
 
@@ -147,4 +147,8 @@ class SpanHandler:
             return None
 
     def __is_root_span(self, curr_span: Span) -> bool:
-        return curr_span.parent is None
+        try:
+            if curr_span is not None and hasattr(curr_span, "parent"):
+                return curr_span.parent is None or get_current().get("root_span_id") == curr_span.parent.span_id
+        except Exception as e:
+            logger.warning(f"Error finding root span: {e}")

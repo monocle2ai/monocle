@@ -41,25 +41,22 @@ def with_tracer_wrapper(func):
 
     def _with_tracer(tracer, handler, to_wrap):
         def wrapper(wrapped, instance, args, kwargs):
-            token = None
             try:
+                # get and log the parent span context if injected by the application
+                # This is useful for debugging and tracing of Azure functions
                 _parent_span_context = get_current()
                 if _parent_span_context is not None and _parent_span_context.get(_SPAN_KEY, None):
                     parent_span: Span = _parent_span_context.get(_SPAN_KEY, None)
-                    is_invalid_span = isinstance(parent_span, NonRecordingSpan)
-                    if is_invalid_span:
-                        token = attach(context={})
+                    is_span = isinstance(parent_span, NonRecordingSpan)
+                    if is_span:
+                        logger.debug(
+                            f"Parent span is found with trace id {hex(parent_span.get_span_context().trace_id)}")
             except Exception as e:
                 logger.error("Exception in attaching parent context: %s", e)
 
             val = func(tracer, handler, to_wrap, wrapped, instance, args, kwargs)
-            # Detach the token if it was set
-            if token:
-                try:
-                    detach(token=token)
-                except Exception as e:
-                    logger.error("Exception in detaching parent context: %s", e)
             return val
+
         return wrapper
 
     return _with_tracer

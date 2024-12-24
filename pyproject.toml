@@ -68,7 +68,9 @@ dev = [
   'requests-aws4auth==1.2.3',
   'opensearch-haystack==1.2.0',
   'langchainhub==0.1.21',
-  'chromadb==0.4.22'
+  'chromadb==0.4.22',
+  'flask',
+  'opentelemetry-instrumentation-flask'
 ]
 
 azure = [

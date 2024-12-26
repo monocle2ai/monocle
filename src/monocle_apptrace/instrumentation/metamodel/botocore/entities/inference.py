@@ -9,7 +9,7 @@ INFERENCE = {
             {
                 "_comment": "provider type  , inference_endpoint",
                 "attribute": "type",
-                "accessor": lambda arguments: 'inference.aws_sagemaker'
+                "accessor": lambda arguments: 'inference.aws_' + arguments['instance'].meta.service_model.service_name.split('-')[0]
             },
             {
                 "attribute": "inference_endpoint",

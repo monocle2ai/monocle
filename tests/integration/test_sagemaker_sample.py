@@ -1,9 +1,10 @@
-# Continue with your code
 import json
 import os
+import time
 from typing import Dict, List
 
 import boto3
+from common.custom_exporter import CustomConsoleSpanExporter
 import pytest
 from langchain_community.embeddings import SagemakerEndpointEmbeddings
 from langchain_community.embeddings.sagemaker_endpoint import EmbeddingsContentHandler
@@ -16,19 +17,35 @@ from requests_aws4auth import AWS4Auth
 from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
 
 
+custom_exporter = CustomConsoleSpanExporter()
 @pytest.fixture(scope="module")
 def setup():
     setup_monocle_telemetry(
         workflow_name="sagemaker_workflow_1",
-        span_processors=[BatchSpanProcessor(ConsoleSpanExporter())],
+        span_processors=[BatchSpanProcessor(custom_exporter)],
         wrapper_methods=[]
     )
 
 
 @pytest.mark.integration()
 def test_sagemaker_sample(setup):
+    query = "how"
     #similar_documents = search_similar_documents_opensearch(query)
-    produce_llm_response("hello")
+    produce_llm_response(query)
+    time.sleep(30)
+    spans = custom_exporter.get_captured_spans()
+
+    for span in spans:
+        span_attributes = span.attributes
+        if "span.type" in span_attributes and span_attributes["span.type"] == "inference":
+            # Assertions for all inference attributes
+            assert span_attributes["entity.1.name"] == "sagemaker_workflow_1"
+            assert span_attributes["entity.1.type"] == "workflow.generic"
+            assert span_attributes["entity.2.type"] == "inference.aws_sagemaker"
+            assert "entity.2.inference_endpoint" in span_attributes
+            assert span_attributes["entity.3.name"] == "okahu-sagemaker-rag-qa-ep"
+            assert span_attributes["entity.3.type"] == "model.llm.okahu-sagemaker-rag-qa-ep"
+
 
 
 def produce_llm_response(query):
@@ -75,7 +92,7 @@ def build_context(similar_documents):
 
 
 def search_similar_documents_opensearch(query):
-    opensearch_url = os.environ['OPENSEARCH_ENDPOINT_URL']
+    opensearch_url = os.environ['OPENSEARCH_ENDPOINT_URL_BOTO']
     index_name = "embeddings"  # Your index name
     content_handler = ContentHandler()
     sagemaker_endpoint_embeddings = SagemakerEndpointEmbeddings(endpoint_name="okahu-sagemaker-rag-embedding-ep",
@@ -114,18 +131,18 @@ class ContentHandler(EmbeddingsContentHandler):
         response_json = json.loads(output.read().decode("utf-8"))
         return response_json["embedding"]
 
-
+#
 # {
-#     "name": "botocore-sagemaker-invoke-endpoint",
+#     "name": "botocore-sagemaker-runtime-invoke-endpoint",
 #     "context": {
-#         "trace_id": "0x74c550d05bd44bd4bc7791230f2838c1",
-#         "span_id": "0x12636d1179add9a6",
+#         "trace_id": "0xd3c554d5335e94524366adb9574cd532",
+#         "span_id": "0xe8076532c5d9eda2",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
 #     "parent_id": null,
-#     "start_time": "2024-12-05T09:42:08.229975Z",
-#     "end_time": "2024-12-05T09:42:10.207668Z",
+#     "start_time": "2024-12-26T10:30:21.283691Z",
+#     "end_time": "2024-12-26T10:30:22.466974Z",
 #     "status": {
 #         "status_code": "UNSET"
 #     },
@@ -139,7 +156,31 @@ class ContentHandler(EmbeddingsContentHandler):
 #         "entity.3.type": "model.llm.okahu-sagemaker-rag-qa-ep",
 #         "entity.count": 3
 #     },
-#     "events": [],
+#     "events": [
+#         {
+#             "name": "data.input",
+#             "timestamp": "2024-12-26T10:30:22.466974Z",
+#             "attributes": {
+#                 "input": [
+#                     "how"
+#                 ]
+#             }
+#         },
+#         {
+#             "name": "data.output",
+#             "timestamp": "2024-12-26T10:30:22.466974Z",
+#             "attributes": {
+#                 "response": [
+#                     "Use the following pieces of retrieved context"
+#                 ]
+#             }
+#         },
+#         {
+#             "name": "metadata",
+#             "timestamp": "2024-12-26T10:30:22.466974Z",
+#             "attributes": {}
+#         }
+#     ],
 #     "links": [],
 #     "resource": {
 #         "attributes": {
@@ -148,3 +189,4 @@ class ContentHandler(EmbeddingsContentHandler):
 #         "schema_url": ""
 #     }
 # }
+

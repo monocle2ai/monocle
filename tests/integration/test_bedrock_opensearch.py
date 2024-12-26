@@ -1,5 +1,5 @@
-#Continue with code
 import os
+import time
 
 import boto3
 import pytest
@@ -31,7 +31,7 @@ def test_bedrock_opensearch(setup):
     query = "how?"
     similar_documents = search_similar_documents_opensearch(query)
     produce_llm_response(query, similar_documents)
-
+    time.sleep(20)
     spans = custom_exporter.get_captured_spans()
 
     for span in spans:
@@ -50,7 +50,7 @@ def test_bedrock_opensearch(setup):
             # Assertions for all inference attributes
             assert span_attributes["entity.1.name"] == "bedrock_workflow"
             assert span_attributes["entity.1.type"] == "workflow.generic"
-            assert span_attributes["entity.2.type"] == "inference.aws_sagemaker"
+            assert span_attributes["entity.2.type"] == "inference.aws_bedrock"
             assert "entity.2.inference_endpoint" in span_attributes
             assert span_attributes["entity.3.name"] == "ai21.j2-mid-v1"
             assert span_attributes["entity.3.type"] == "model.llm.ai21.j2-mid-v1"
@@ -137,18 +137,17 @@ def search_similar_documents_opensearch(query):
     print(f"Retrieved docs: {docs}")
     return [doc.page_content for doc in docs]
 
-
 # {
 #     "name": "langchain_core.vectorstores.base.VectorStoreRetriever",
 #     "context": {
-#         "trace_id": "0xbad92d1840a616639fe462581f4d0bdf",
-#         "span_id": "0x109dc591d5b54dbc",
+#         "trace_id": "0xa98d7934d334d3afd58b34fa4b24862f",
+#         "span_id": "0x0a52d9a5c65b8b80",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
 #     "parent_id": null,
-#     "start_time": "2024-12-18T09:18:54.946429Z",
-#     "end_time": "2024-12-18T09:18:58.050413Z",
+#     "start_time": "2024-12-26T10:33:43.036674Z",
+#     "end_time": "2024-12-26T10:33:45.965446Z",
 #     "status": {
 #         "status_code": "UNSET"
 #     },
@@ -167,21 +166,14 @@ def search_similar_documents_opensearch(query):
 #     "events": [
 #         {
 #             "name": "data.input",
-#             "timestamp": "2024-12-18T09:18:54.956433Z",
-#             "attributes": {
-#                 "input": "how?"
-#             }
-#         },
-#         {
-#             "name": "data.input",
-#             "timestamp": "2024-12-18T09:18:54.956433Z",
+#             "timestamp": "2024-12-26T10:33:45.965446Z",
 #             "attributes": {
 #                 "input": "how?"
 #             }
 #         },
 #         {
 #             "name": "data.output",
-#             "timestamp": "2024-12-18T09:18:58.050413Z",
+#             "timestamp": "2024-12-26T10:33:45.965446Z",
 #             "attributes": {
 #                 "response": "\"How?\" Liam wondered aloud. \"We only just got back.\"\n\nTheir concern grew when a black SUV pulled up ..."
 #             }
@@ -198,14 +190,14 @@ def search_similar_documents_opensearch(query):
 # {
 #     "name": "botocore-bedrock-runtime-invoke-endpoint",
 #     "context": {
-#         "trace_id": "0x74bd7103a5a3d193c09392a0ab941f96",
-#         "span_id": "0xed9609e802077f14",
+#         "trace_id": "0x0ace7bfa12f8161f2e4460471f912090",
+#         "span_id": "0x2c5cc59353524cbc",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
 #     "parent_id": null,
-#     "start_time": "2024-12-18T09:18:58.139787Z",
-#     "end_time": "2024-12-18T09:18:59.353851Z",
+#     "start_time": "2024-12-26T10:33:46.090828Z",
+#     "end_time": "2024-12-26T10:33:47.115262Z",
 #     "status": {
 #         "status_code": "UNSET"
 #     },
@@ -213,7 +205,7 @@ def search_similar_documents_opensearch(query):
 #         "entity.1.name": "bedrock_workflow",
 #         "entity.1.type": "workflow.generic",
 #         "span.type": "inference",
-#         "entity.2.type": "inference.aws_sagemaker",
+#         "entity.2.type": "inference.aws_bedrock",
 #         "entity.2.inference_endpoint": "https://bedrock-runtime.us-east-1.amazonaws.com",
 #         "entity.3.name": "ai21.j2-mid-v1",
 #         "entity.3.type": "model.llm.ai21.j2-mid-v1",
@@ -222,7 +214,7 @@ def search_similar_documents_opensearch(query):
 #     "events": [
 #         {
 #             "name": "data.input",
-#             "timestamp": "2024-12-18T09:18:59.352430Z",
+#             "timestamp": "2024-12-26T10:33:47.115262Z",
 #             "attributes": {
 #                 "input": [
 #                     "{'user': 'how?'}"
@@ -231,7 +223,7 @@ def search_similar_documents_opensearch(query):
 #         },
 #         {
 #             "name": "data.output",
-#             "timestamp": "2024-12-18T09:18:59.352430Z",
+#             "timestamp": "2024-12-26T10:33:47.115262Z",
 #             "attributes": {
 #                 "response": [
 #                     "\nLiam wondered how Victor Novak already knew about their discovery, even though they had just returned."
@@ -240,7 +232,7 @@ def search_similar_documents_opensearch(query):
 #         },
 #         {
 #             "name": "metadata",
-#             "timestamp": "2024-12-18T09:18:59.353851Z",
+#             "timestamp": "2024-12-26T10:33:47.115262Z",
 #             "attributes": {
 #                 "completion_tokens": 14,
 #                 "prompt_tokens": 299,

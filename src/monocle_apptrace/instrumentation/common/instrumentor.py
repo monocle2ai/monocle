@@ -84,10 +84,13 @@ class MonocleInstrumentor(BaseInstrumentor):
                 )
                 self.instrumented_method_list.append(method_config)
             except ModuleNotFoundError as e:
-                pass
+                if e.name in {'llama_index', 'langchain', 'langchain_core', 'haystack', 'haystack_integrations', 'botocore'}:
+                    pass
+                else:
+                    logger.error(f"{str(e)}")
 
             except Exception as ex:
-                logger.error(f"""_instrument wrap Exception: {str(ex)}
+                logger.error(f"""_instrument wrap exception: {str(ex)}
                             for package: {target_package},
                             object:{target_object},
                             method:{target_method}""")

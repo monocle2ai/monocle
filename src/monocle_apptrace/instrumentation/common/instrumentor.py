@@ -103,7 +103,7 @@ class MonocleInstrumentor(BaseInstrumentor):
                     wrap_method,
                 )
             except Exception as ex:
-                logger.error(f"""_instrument unwrap Exception: {str(ex)}
+                logger.error(f"""_instrument unwrap exception: {str(ex)}
                              for package: {wrap_package},
                              object:{wrap_object},
                              method:{wrap_method}""")

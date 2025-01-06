@@ -83,8 +83,11 @@ class MonocleInstrumentor(BaseInstrumentor):
                     wrapped_by(tracer, handler, method_config),
                 )
                 self.instrumented_method_list.append(method_config)
+            except ModuleNotFoundError as e:
+                logger.debug(f"ignoring module {e.name}")
+
             except Exception as ex:
-                logger.error(f"""_instrument wrap Exception: {str(ex)}
+                logger.error(f"""_instrument wrap exception: {str(ex)}
                             for package: {target_package},
                             object:{target_object},
                             method:{target_method}""")
@@ -100,7 +103,7 @@ class MonocleInstrumentor(BaseInstrumentor):
                     wrap_method,
                 )
             except Exception as ex:
-                logger.error(f"""_instrument unwrap Exception: {str(ex)}
+                logger.error(f"""_instrument unwrap exception: {str(ex)}
                              for package: {wrap_package},
                              object:{wrap_object},
                              method:{wrap_method}""")

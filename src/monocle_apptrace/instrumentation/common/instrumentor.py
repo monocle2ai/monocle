@@ -117,7 +117,8 @@ def setup_monocle_telemetry(
     resource = Resource(attributes={
         SERVICE_NAME: workflow_name
     })
-    span_processors = span_processors or [BatchSpanProcessor(get_monocle_exporter())]
+    exporters = get_monocle_exporter()
+    span_processors = span_processors or [BatchSpanProcessor(exporter) for exporter in exporters]
     trace_provider = TracerProvider(resource=resource)
     attach(set_value("workflow_name", workflow_name))
     tracer_provider_default = trace.get_tracer_provider()

@@ -1,27 +1,45 @@
-from typing import Dict, Any
-import os, warnings
+from typing import Dict, Any, List
+import os
+import warnings
 from importlib import import_module
 from opentelemetry.sdk.trace.export import SpanExporter, ConsoleSpanExporter
 from monocle_apptrace.exporters.file_exporter import FileSpanExporter
 
-monocle_exporters:Dict[str, Any] = {
+monocle_exporters: Dict[str, Any] = {
     "s3": {"module": "monocle_apptrace.exporters.aws.s3_exporter", "class": "S3SpanExporter"},
-    "blob": {"module":"monocle_apptrace.exporters.azure.blob_exporter", "class": "AzureBlobSpanExporter"},
-    "okahu": {"module":"monocle_apptrace.exporters.okahu.okahu_exporter", "class": "OkahuSpanExporter"},
-    "file": {"module":"monocle_apptrace.exporters.file_exporter", "class": "FileSpanExporter"}
+    "blob": {"module": "monocle_apptrace.exporters.azure.blob_exporter", "class": "AzureBlobSpanExporter"},
+    "okahu": {"module": "monocle_apptrace.exporters.okahu.okahu_exporter", "class": "OkahuSpanExporter"},
+    "file": {"module": "monocle_apptrace.exporters.file_exporter", "class": "FileSpanExporter"},
+    "memory": {"module": "opentelemetry.sdk.trace.export.in_memory_span_exporter", "class": "InMemorySpanExporter"},
+    "console": {"module": "opentelemetry.sdk.trace.export", "class": "ConsoleSpanExporter"}
 }
 
-def get_monocle_exporter() -> SpanExporter:
-    exporter_name = os.environ.get("MONOCLE_EXPORTER", "file")
-    try:
-        exporter_class_path  = monocle_exporters[exporter_name]
-    except Exception as ex:
-        warnings.warn(f"Unsupported Monocle span exporter setting {exporter_name}, using default FileSpanExporter.")
-        return FileSpanExporter()
-    try:
-        exporter_module = import_module(exporter_class_path.get("module"))
-        exporter_class = getattr(exporter_module, exporter_class_path.get("class"))
-        return exporter_class()
-    except Exception as ex:
-        warnings.warn(f"Unable to set Monocle span exporter to {exporter_name}, error {ex}. Using ConsoleSpanExporter")
-        return ConsoleSpanExporter()
+
+def get_monocle_exporter() -> List[SpanExporter]:
+    # Retrieve the MONOCLE_EXPORTER environment variable and split it into a list
+    exporter_names = os.environ.get("MONOCLE_EXPORTER", "file").split(",")
+    exporters = []
+
+    for exporter_name in exporter_names:
+        exporter_name = exporter_name.strip()
+        try:
+            exporter_class_path = monocle_exporters[exporter_name]
+        except KeyError:
+            warnings.warn(f"Unsupported Monocle span exporter '{exporter_name}', skipping.")
+            continue
+        try:
+            exporter_module = import_module(exporter_class_path["module"])
+            exporter_class = getattr(exporter_module, exporter_class_path["class"])
+            exporters.append(exporter_class())
+        except Exception as ex:
+            warnings.warn(
+                f"Unable to initialize Monocle span exporter '{exporter_name}', error: {ex}. Using ConsoleSpanExporter as a fallback.")
+            exporters.append(ConsoleSpanExporter())
+            continue
+
+    # If no exporters were created, default to FileSpanExporter
+    if not exporters:
+        warnings.warn("No valid Monocle span exporters configured. Defaulting to FileSpanExporter.")
+        exporters.append(FileSpanExporter())
+
+    return exporters

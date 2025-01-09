@@ -136,7 +136,7 @@ class Test(IsolatedAsyncioTestCase):
             dataJson =  json.loads(dataBodyStr) # more asserts can be added on individual fields
             # assert len(dataJson['batch']) == 7
 
-            root_span = [x for x in  dataJson["batch"] if x["parent_id"] == "None"][0]
+            root_span = [x for x in dataJson["batch"] if x['attributes'].get("span.type") == 'workflow'][0]
             llm_span = [x for x in  dataJson["batch"] if "FakeListLLM" in x["name"]][0]
             root_span_attributes = root_span["attributes"]
             root_span_events = root_span["events"]

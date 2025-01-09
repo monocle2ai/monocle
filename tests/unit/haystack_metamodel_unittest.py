@@ -80,16 +80,16 @@ class TestHandler(unittest.TestCase):
         # logger.debug(dataBodyStr)
         dataJson = json.loads(dataBodyStr)  # more asserts can be added on individual fields
 
-        root_attributes = [x for x in dataJson["batch"] if x['parent_id'] == 'None'][0]["attributes"]
+        root_attributes = [x for x in dataJson["batch"] if x['attributes'].get("span.type") == 'workflow'][0]["attributes"]
         # assert root_attributes["workflow_input"] == query
         # assert root_attributes["workflow_output"] == llm.dummy_response
         assert root_attributes["entity.1.name"] == workflow_name
         assert root_attributes["entity.1.type"] == WORKFLOW_TYPE_MAP["haystack"]
 
-        assert len(dataJson['batch']) == 2
+        assert len(dataJson['batch']) == 3
         # llmspan = dataJson["batch"].find
 
-        assert dataJson["batch"][0]["attributes"]["span.type"] == "inference"
+        assert dataJson["batch"][1]["attributes"]["span.type"] == "inference"
         span_names: List[str] = [span["name"] for span in dataJson['batch']]
         for name in ["haystack.components.generators.openai.OpenAIGenerator",
                      "haystack.core.pipeline.pipeline.Pipeline"]:

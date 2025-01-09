@@ -131,7 +131,7 @@ class TestHandler(unittest.TestCase):
             This can be used to do more asserts'''
             dataBodyStr = mock_post.call_args.kwargs['data']
             dataJson =  json.loads(dataBodyStr) # more asserts can be added on individual fields
-            root_attributes = [x for x in dataJson["batch"] if x["parent_id"] == "None"][0]["attributes"]
+            root_attributes = [x for x in dataJson["batch"] if x['attributes'].get("span.type") == 'workflow'][0]["attributes"]
             assert root_attributes["entity.1.name"] == app_name
             assert root_attributes["entity.1.type"] == WORKFLOW_TYPE_MAP['langchain']
             if llm_type == "FakeListLLM":

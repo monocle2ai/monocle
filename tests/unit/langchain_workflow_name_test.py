@@ -144,7 +144,7 @@ class TestWorkflowEntityProperties(unittest.TestCase):
             dataBodyStr = mock_post.call_args.kwargs['data']
             dataJson =  json.loads(dataBodyStr) # more asserts can be added on individual fields
 
-            root_span = [x for x in dataJson["batch"] if x["parent_id"] == "None"][0]
+            root_span = [x for x in dataJson["batch"] if x['attributes'].get("span.type") == 'workflow'][0]
 
             # workflow_name and workflow_type in new format entity.{index}.name and entity.{index}.type
 

@@ -132,6 +132,10 @@ def setup_monocle_telemetry(
             trace_provider.add_span_processor(processor)
     if is_proxy_provider:
         trace.set_tracer_provider(trace_provider)
+    try:
+        propagate_trace_id()
+    except Exception as e:
+        logger.warning(f"Error propagating trace ID: {e}")
     instrumentor = MonocleInstrumentor(user_wrapper_methods=wrapper_methods or [], 
                                        handlers=span_handlers, union_with_default_methods = union_with_default_methods)
     # instrumentor.app_name = workflow_name

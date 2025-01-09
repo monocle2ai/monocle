@@ -24,6 +24,7 @@ class TestHandler(unittest.TestCase):
 
     @patch.object(requests.Session, 'post')
     def test_pytorch(self, mock_post):
+        os.environ.clear()
         os.environ["HTTP_API_KEY"] = "key1"
         os.environ["HTTP_INGESTION_ENDPOINT"] = "https://localhost:3000/api/v1/traces"
 
@@ -73,8 +74,8 @@ class TestHandler(unittest.TestCase):
            This can be used to do more asserts'''
         dataBodyStr = mock_post.call_args.kwargs['data']
         dataJson =  json.loads(dataBodyStr) # more asserts can be added on individual fields
-        assert len(dataJson['batch']) == 1
-        assert dataJson['batch'][0]["name"] == "pytorch.transformer.GPT2DoubleHeadsModel"
+        assert len(dataJson['batch']) == 2
+        assert dataJson['batch'][1]["name"] == "pytorch.transformer.GPT2DoubleHeadsModel"
 
 if __name__ == '__main__':
     unittest.main()

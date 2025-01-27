@@ -32,7 +32,7 @@ exporter_s3 = OpenDALS3Exporter(
     bucket_name='sachin-dev'
 )
 #for azure blob storage
-exporter_blob = OpenDALAzureExporter()
+#exporter_blob = OpenDALAzureExporter()
 custom_exporter = CustomConsoleSpanExporter()
 
 @pytest.fixture(scope="module")
@@ -42,7 +42,7 @@ def setup():
     setup_monocle_telemetry(
                 workflow_name="langchain_app_1",
                 span_processors=[BatchSpanProcessor(exporter_s3),
-                                 BatchSpanProcessor(exporter_blob),   #for azure blob storage
+                                 #BatchSpanProcessor(exporter_blob),   #for azure blob storage
                                 BatchSpanProcessor(custom_exporter)],
                 wrapper_methods=[])
 

@@ -72,7 +72,7 @@ class SpanHandler:
                             try:
                                 arguments = {"instance":instance, "args":args, "kwargs":kwargs, "result":result}
                                 result = accessor(arguments)
-                                if result and isinstance(result, str):
+                                if result and isinstance(result, (str, list)):
                                     span.set_attribute(attribute_name, result)
                             except Exception as e:
                                 logger.error(f"Error processing accessor: {e}")

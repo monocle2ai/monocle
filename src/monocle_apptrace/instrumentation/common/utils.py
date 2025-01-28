@@ -161,3 +161,10 @@ def try_option(func: Callable[..., T], *args, **kwargs) -> Option[T]:
         return Option(func(*args, **kwargs))
     except Exception:
         return Option(None)
+
+def resolve_from_alias(my_map, alias):
+    """Find a alias that is not none from list of aliases"""
+    for i in alias:
+        if i in my_map.keys():
+            return my_map[i]
+    return None

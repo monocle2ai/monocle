@@ -70,7 +70,8 @@ dev = [
   'langchainhub==0.1.21',
   'chromadb==0.4.22',
   'flask',
-  'opentelemetry-instrumentation-flask'
+  'opentelemetry-instrumentation-flask',
+  'opendal==0.45.14'
 ]
 
 azure = [

@@ -75,7 +75,7 @@ class SpanHandler:
                                 if result and isinstance(result, str):
                                     span.set_attribute(attribute_name, result)
                             except Exception as e:
-                                logger.error(f"Error processing accessor: {e}")
+                                logger.debug(f"Error processing accessor: {e}")
                         else:
                             logger.warning(f"{' and '.join([key for key in ['attribute', 'accessor'] if not processor.get(key)])} not found or incorrect in entity JSON")
                     span_index += 1
@@ -106,7 +106,7 @@ class SpanHandler:
                                 else:
                                     event_attributes.update(accessor(arguments))
                             except Exception as e:
-                                logger.error(f"Error evaluating accessor for attribute '{attribute_key}': {e}")
+                                logger.debug(f"Error evaluating accessor for attribute '{attribute_key}': {e}")
                     span.add_event(name=event_name, attributes=event_attributes)
 
 

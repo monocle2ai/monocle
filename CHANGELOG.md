@@ -1,4 +1,4 @@
-## Version 0.3.0b2 (2024-12-10)
+## Version 0.3.0b3 (2024-12-10)
 
 - Add dev dependency for Mistral AI integration ([#81](https://github.com/monocle2ai/monocle/pull/81))
 - Add VectorStore deployment URL capture support ([#80](https://github.com/monocle2ai/monocle/pull/80))  

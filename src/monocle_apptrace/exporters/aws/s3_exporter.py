@@ -25,7 +25,7 @@ class S3SpanExporter(SpanExporterBase):
         super().__init__()
         # Use environment variables if credentials are not provided
         DEFAULT_FILE_PREFIX = "monocle_trace_"
-        DEFAULT_TIME_FORMAT = "%Y-%m-%d_%H.%M.%S"
+        DEFAULT_TIME_FORMAT = "%Y-%m-%d__%H.%M.%S"
         self.max_batch_size = 500
         self.export_interval = 1
         self.s3_client = boto3.client(

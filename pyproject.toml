@@ -23,8 +23,20 @@ dependencies = [
 ]
 
 [tool.pytest.ini_options]
+#log_cli = true
+#log_cli_level = "INFO"
+# Enable file logging
+log_file = "traces.log"
+log_file_level = "INFO"
+log_format = "%(asctime)s %(levelname)s %(pathname)s:%(lineno)d %(message)s"
+log_date_format = "%Y-%m-%d %H:%M:%S"
+
 pythonpath = [
-  "src"
+  "src",
+  "tests"
+]
+markers = [
+  "integration"
 ]
 
 [project.optional-dependencies]
@@ -46,7 +58,20 @@ dev = [
   'parameterized==0.9.0',
   'llama-index-llms-mistralai==0.1.20',
   'langchain-mistralai==0.1.13',
-  'mistral-haystack==0.0.2'
+  'mistral-haystack==0.0.2',
+  'langchain-aws==0.1.10',
+  'azure-storage-blob==12.22.0', # this is for blob exporter
+  'boto3==1.34.131', # this is for aws exporter
+  'llama-index-vector-stores-opensearch==0.1.10',
+  'haystack-ai==2.3.0',
+  'llama-index-llms-azure-openai==0.1.9',
+  'requests-aws4auth==1.2.3',
+  'opensearch-haystack==1.2.0',
+  'langchainhub==0.1.21',
+  'chromadb==0.4.22',
+  'flask',
+  'opentelemetry-instrumentation-flask',
+  'opendal==0.45.14'
 ]
 
 azure = [

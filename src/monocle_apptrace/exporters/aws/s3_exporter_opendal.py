@@ -33,8 +33,8 @@ class OpenDALS3Exporter(SpanExporterBase):
             root = "/",
             region=os.getenv("AWS_REGION", region_name),
             bucket=self.bucket_name,
-            access_key_id=os.getenv("AWS_ACCESS_KEY_ID_EXPORTER"),
-            secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY_EXPORTER"),
+            access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
+            secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
         )
 
 

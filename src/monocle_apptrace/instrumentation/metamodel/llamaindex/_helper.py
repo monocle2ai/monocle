@@ -16,33 +16,49 @@ from monocle_apptrace.instrumentation.common.utils import (
 logger = logging.getLogger(__name__)
 
 
+def extract_tools(instance):
+    tools = []
+    if not hasattr(instance, 'state') or not hasattr(instance.state, 'task_dict'):
+        return []
+    try:
+        data = next(iter(instance.state.task_dict.values())).task
+    except (AttributeError, StopIteration):
+        return []
+
+    if hasattr(data,'extra_state') and 'sources' in data.extra_state:
+        for tool_output in data.extra_state['sources']:
+            tool_name = tool_output.tool_name
+            if tool_name:
+                tools.append(tool_name)
+    return tools
+
+
 def extract_messages(args):
     """Extract system and user messages"""
     try:
         messages = []
-        if args and isinstance(args, (list, tuple)) and args[0]:
-            for msg in args[0]:
-                if hasattr(msg, 'content') and hasattr(msg, 'role'):
-                    role = getattr(msg.role, 'value', msg.role)
-                    if role == "system":
-                        messages.append({role: msg.content})
-                    elif role in ["user", "human"]:
-                        user_message = extract_query_from_content(msg.content)
-                        messages.append({role: user_message})
-        if args and isinstance(args, dict):
-            for msg in args.get("messages", []):
-                if hasattr(msg, 'content') and hasattr(msg, 'role'):
-                    role = getattr(msg.role, 'value', msg.role)
-                    if role == "system":
-                        messages.append({role: msg.content})
-                    elif role in ["user", "human"]:
-                        user_message = msg.content
-                        messages.append({role: user_message})
-        return [str(message) for message in messages]
-    except Exception as e:
-        logger.warning("Warning: Error occurred in extract_messages: %s", str(e))
-        return []
 
+        def process_message(msg):
+            """Processes a single message and extracts relevant information."""
+            if hasattr(msg, 'content') and hasattr(msg, 'role'):
+                role = getattr(msg.role, 'value', msg.role)
+                content = msg.content if role == "system" else extract_query_from_content(msg.content)
+                messages.append({role: content})
+
+        if isinstance(args, (list, tuple)) and args:
+            for msg in args[0]:
+                process_message(msg)
+        if isinstance(args, dict):
+            for msg in args.get("messages", []):
+                process_message(msg)
+        if args and isinstance(args, tuple):
+            messages.append(args[0])
+
+        return [str(message) for message in messages]
+
+    except Exception as e:
+        logger.warning("Error in extract_messages: %s", str(e))
+        return []
 
 def extract_assistant_message(response):
     try:
@@ -52,6 +68,8 @@ def extract_assistant_message(response):
             return [response.content]
         if hasattr(response, "message") and hasattr(response.message, "content"):
             return [response.message.content]
+        if hasattr(response,"response") and isinstance(response.response, str):
+            return [response.response]
     except Exception as e:
         logger.warning("Warning: Error occurred in extract_assistant_message: %s", str(e))
         return []
@@ -63,7 +81,7 @@ def extract_query_from_content(content):
         answer_prefix = "Answer:"
         query_start = content.find(query_prefix)
         if query_start == -1:
-            return None
+            return content
 
         query_start += len(query_prefix)
         answer_start = content.find(answer_prefix, query_start)

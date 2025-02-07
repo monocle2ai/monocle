@@ -148,7 +148,7 @@ def update_input_span_events(args):
 
 
 def update_output_span_events(results):
-    if isinstance(results, list):
+    if isinstance(results, list) and len(results) >0:
         output_arg_text = results[0].text
         if len(output_arg_text) > 100:
             output_arg_text = output_arg_text[:100] + "..."

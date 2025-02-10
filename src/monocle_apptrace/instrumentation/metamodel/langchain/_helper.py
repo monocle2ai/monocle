@@ -53,7 +53,7 @@ def extract_provider_name(instance):
 
 def extract_inference_endpoint(instance):
     inference_endpoint: Option[str] = try_option(getattr, instance.client._client, 'base_url').map(str)
-    if inference_endpoint.is_none():
+    if inference_endpoint.is_none() and "meta" in instance.client.__dict__:
         inference_endpoint = try_option(getattr, instance.client.meta, 'endpoint_url').map(str)
 
     return inference_endpoint.unwrap_or(extract_provider_name(instance))

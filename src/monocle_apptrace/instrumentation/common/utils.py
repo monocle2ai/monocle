@@ -61,6 +61,14 @@ def with_tracer_wrapper(func):
 
     return _with_tracer
 
+def resolve_from_alias(my_map, alias):
+    """Find a alias that is not none from list of aliases"""
+
+    for i in alias and my_map[i] is not None:
+        if i in my_map.keys():
+            return my_map[i]
+    return None
+
 def set_embedding_model(model_name: str):
     """
     Sets the embedding model in the global context.

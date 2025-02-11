@@ -43,7 +43,7 @@ class S3SpanExporter(SpanExporterBase):
                 region_name=region_name,
             )
         self.bucket_name = bucket_name or os.getenv('MONOCLE_S3_BUCKET_NAME','default-bucket')
-        self.file_prefix = DEFAULT_FILE_PREFIX
+        self.file_prefix = os.getenv('MONOCLE_S3_KEY_PREFIX', DEFAULT_FILE_PREFIX)
         self.time_format = DEFAULT_TIME_FORMAT
         self.export_queue = []
         self.last_export_time = time.time()

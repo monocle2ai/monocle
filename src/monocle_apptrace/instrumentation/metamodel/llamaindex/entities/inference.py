@@ -1,6 +1,7 @@
 from monocle_apptrace.instrumentation.metamodel.llamaindex import (
     _helper,
 )
+from monocle_apptrace.instrumentation.common.utils import resolve_from_alias
 
 INFERENCE = {
     "type": "inference",
@@ -17,22 +18,22 @@ INFERENCE = {
             },
             {
                 "attribute": "deployment",
-                "accessor": lambda arguments: _helper.resolve_from_alias(arguments['instance'].__dict__, ['engine', 'azure_deployment', 'deployment_name', 'deployment_id', 'deployment'])
+                "accessor": lambda arguments: resolve_from_alias(arguments['instance'].__dict__, ['engine', 'azure_deployment', 'deployment_name', 'deployment_id', 'deployment'])
             },
             {
                 "attribute": "inference_endpoint",
-                "accessor": lambda arguments: _helper.resolve_from_alias(arguments['instance'].__dict__, ['azure_endpoint', 'api_base']) or _helper.extract_inference_endpoint(arguments['instance'])
+                "accessor": lambda arguments: resolve_from_alias(arguments['instance'].__dict__, ['azure_endpoint', 'api_base']) or _helper.extract_inference_endpoint(arguments['instance'])
             }
         ],
         [
             {
                 "_comment": "LLM Model",
                 "attribute": "name",
-                "accessor": lambda arguments: _helper.resolve_from_alias(arguments['instance'].__dict__, ['model', 'model_name'])
+                "accessor": lambda arguments: resolve_from_alias(arguments['instance'].__dict__, ['model', 'model_name'])
             },
             {
                 "attribute": "type",
-                "accessor": lambda arguments: 'model.llm.' + _helper.resolve_from_alias(arguments['instance'].__dict__, ['model', 'model_name'])
+                "accessor": lambda arguments: 'model.llm.' + resolve_from_alias(arguments['instance'].__dict__, ['model', 'model_name'])
             }
         ]
     ],

@@ -142,7 +142,8 @@ class S3SpanExporter(SpanExporterBase):
     @SpanExporterBase.retry_with_backoff(exceptions=(EndpointConnectionError, ConnectionClosedError, ReadTimeoutError, ConnectTimeoutError))
     def __upload_to_s3(self, span_data_batch: str):
         current_time = datetime.datetime.now().strftime(self.time_format)
-        file_name = f"{self.file_prefix}{current_time}.ndjson"
+        prefix = self.file_prefix + os.environ.get('MONOCLE_S3_KEY_PREFIX_CURRENT', '')
+        file_name = f"{prefix}{current_time}.ndjson"
         self.s3_client.put_object(
             Bucket=self.bucket_name,
             Key=file_name,

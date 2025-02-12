@@ -103,7 +103,7 @@ class TestHandler(unittest.TestCase):
         logger.debug(dataBodyStr)
         dataJson = json.loads(dataBodyStr) # more asserts can be added on individual fields
 
-        root_span = [x for x in  dataJson["batch"] if(x["parent_id"] == "None")][0]
+        root_span = [x for x in dataJson["batch"] if x['attributes'].get("span.type") == 'workflow'][0]
         root_span_events = root_span["events"]
 
         def get_event_attributes(events, key):

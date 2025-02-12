@@ -37,12 +37,6 @@ class TestHandler(unittest.TestCase):
             ],
             union_with_default_methods=False,
             wrapper_methods=[
-                WrapperMethod(
-                    package="common.dummy_class",
-                    object_name="DummyClass",
-                    method="dummy_method",
-                    span_name="dummy.span",
-                    wrapper_method=dummy_wrapper)
             ])
 
     def test_file_exporter(self):

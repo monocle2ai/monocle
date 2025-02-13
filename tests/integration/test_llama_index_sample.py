@@ -91,7 +91,7 @@ def test_llama_index_sample(setup):
 
         if not span.parent and span.name == "llamaindex.query":  # Root span
             assert span_attributes["entity.1.name"] == "llama_index_1"
-            assert span_attributes["entity.1.type"] == "workflow.langchain"
+            assert span_attributes["entity.1.type"] == "workflow.llamaindex"
 
 # {
 #     "name": "llamaindex.retrieve",

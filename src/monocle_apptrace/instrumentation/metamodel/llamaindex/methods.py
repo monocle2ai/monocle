@@ -2,6 +2,7 @@ from monocle_apptrace.instrumentation.common.wrapper import atask_wrapper, task_
 from monocle_apptrace.instrumentation.metamodel.llamaindex.entities.inference import (
     INFERENCE,
 )
+from monocle_apptrace.instrumentation.metamodel.llamaindex.entities.agent import AGENT
 from monocle_apptrace.instrumentation.metamodel.llamaindex.entities.retrieval import (
     RETRIEVAL,
 )
@@ -85,5 +86,13 @@ LLAMAINDEX_METHODS = [
         "span_name": "llamaindex.mistralai",
         "wrapper_method": atask_wrapper,
         "output_processor": INFERENCE
+    },
+    {
+        "package": "llama_index.core.agent",
+        "object": "ReActAgent",
+        "method": "chat",
+        "span_name": "react.agent",
+        "wrapper_method": task_wrapper,
+        "output_processor": AGENT
     }
 ]

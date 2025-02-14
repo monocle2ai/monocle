@@ -6,7 +6,7 @@ from opentelemetry.context import Context, attach, detach
 token_data = local()
 token_data.current_token = None
 
-def flask_pre_processor(args, kwargs):
+def flask_pre_processor(to_wrap, wrapped, result, args, kwargs):
     headers = dict()
     for key, value in args[0].items():
         if key.startswith("HTTP_"):
@@ -14,6 +14,6 @@ def flask_pre_processor(args, kwargs):
             headers[new_key] = value
     token_data.current_token = extract_http_headers(headers)
 
-def flask_post_processor(tracer, to_wrap, wrapped, instance, args, kwargs,return_value):
+def flask_post_processor(to_wrap, wrapped, result, args, kwargs):
     clear_http_scopes(token_data.current_token)
     token_data.current_token = None

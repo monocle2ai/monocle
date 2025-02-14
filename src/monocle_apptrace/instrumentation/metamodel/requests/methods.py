@@ -10,6 +10,10 @@ REQUESTS_METHODS = [
         "pre_task_processor": {
             "module": "monocle_apptrace.instrumentation.metamodel.requests._helper",
             "method": "request_pre_processor"
+        },
+        "pre_task_action_processor" : {
+            "module": "monocle_apptrace.instrumentation.metamodel.requests._helper",
+            "method": "pre_task_action_processor"
         }
     }
 ]

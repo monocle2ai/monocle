@@ -10,7 +10,7 @@ from monocle_apptrace.instrumentation.common.constants import (
     service_name_map,
     service_type_map,
 )
-from monocle_apptrace.instrumentation.common.utils import set_attribute
+from monocle_apptrace.instrumentation.common.utils import set_attribute, get_scopes
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +27,8 @@ class SpanHandler:
     def validate(self, to_wrap, wrapped, instance, args, kwargs):
         pass
 
-    def pre_task_processing(self, to_wrap, wrapped, instance, args, span):
+    def pre_task_processing(self, to_wrap, wrapped, instance, args, kwargs, span):
+        SpanHandler.__execute_processor("pre_task_processor", to_wrap, args, kwargs)
         if self.__is_root_span(span):
             try:
                 sdk_version = version("monocle_apptrace")
@@ -36,8 +37,6 @@ class SpanHandler:
                 logger.warning("Exception finding monocle-apptrace version.")
         if "pipeline" in to_wrap['package']:
             set_attribute(QUERY, args[0]['prompt_builder']['question'])
-
-
 
     def post_task_processing(self, to_wrap, wrapped, instance, args, kwargs, result, span):
         pass
@@ -82,6 +81,11 @@ class SpanHandler:
             else:
                 logger.warning("attributes not found or incorrect written in entity json")
 
+        # set scopes as attributes by calling get_scopes()
+        # scopes is a Mapping[str:object], iterate directly with .items()
+        for scope_key, scope_value in get_scopes().items():
+            span.set_attribute(f"scope.{scope_key}", scope_value)
+        
         if span_index > 0:
             span.set_attribute("entity.count", span_index)
 
@@ -152,3 +156,33 @@ class SpanHandler:
                 return curr_span.parent is None or get_current().get("root_span_id") == curr_span.parent.span_id
         except Exception as e:
             logger.warning(f"Error finding root span: {e}")
+
+    @staticmethod
+    def __get_task_action_processor(processor_name, to_wrap):
+        processor = None
+        if to_wrap.get(processor_name):
+            try:
+                pre_processor_module = to_wrap[processor_name]['module']
+                pre_processor_function = to_wrap[processor_name]['method']
+                module_path = pre_processor_module.split('.')
+                if len(module_path) > 1:
+                    module = __import__(pre_processor_module, fromlist=[module_path[-1]])
+                    processor = getattr(module, pre_processor_function)
+            except Exception as e:
+                logger.debug(f"Error getting {processor_name}: {e}")
+        return processor
+
+    @staticmethod
+    def __execute_processor(processor_name, to_wrap, args, kwargs):
+        processor = SpanHandler.__get_task_action_processor(processor_name, to_wrap)
+        if processor:
+            try:
+                processor(args, kwargs)
+            except Exception as e:
+                logger.debug(f"Error executing {processor_name}: {e}")
+    
+    def pre_task_action(self, to_wrap, wrapped, instance, args, kwargs):
+        SpanHandler.__execute_processor("pre_processor", to_wrap, args, kwargs)
+
+    def post_task_action(self, tracer, to_wrap, wrapped, instance, args, kwargs, result):
+        SpanHandler.__execute_processor("post_processor", to_wrap, args, kwargs)

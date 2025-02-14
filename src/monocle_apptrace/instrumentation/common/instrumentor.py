@@ -20,6 +20,11 @@ from monocle_apptrace.instrumentation.common.wrapper_method import (
     DEFAULT_METHODS_LIST,
     WrapperMethod,
 )
+from monocle_apptrace.instrumentation.common.wrapper import scope_wrapper
+from monocle_apptrace.instrumentation.common.utils import (
+    set_scope, remove_scope, set_tracer_provider, get_tracer_provider, http_route_handler, load_scopes
+)
+from monocle_apptrace.instrumentation.common.constants import MONOCLE_INSTRUMENTOR
 
 logger = logging.getLogger(__name__)
 
@@ -27,9 +32,6 @@ SESSION_PROPERTIES_KEY = "session"
 
 _instruments = ()
 
-monocle_tracer_provider: TracerProvider = None
-
-MONOCLE_INSTRUMENTOR = "monocle_apptrace"
 
 class MonocleInstrumentor(BaseInstrumentor):
     workflow_name: str = ""
@@ -67,6 +69,10 @@ class MonocleInstrumentor(BaseInstrumentor):
                 final_method_list.append(method)
             elif isinstance(method, WrapperMethod):
                 final_method_list.append(method.to_dict())
+
+        for method in load_scopes():
+            method['wrapper_method'] = scope_wrapper
+            final_method_list.append(method)
         
         for method_config in final_method_list:
             target_package = method_config.get("package", None)
@@ -119,7 +125,7 @@ def setup_monocle_telemetry(
     })
     exporters = get_monocle_exporter()
     span_processors = span_processors or [BatchSpanProcessor(exporter) for exporter in exporters]
-    trace_provider = TracerProvider(resource=resource)
+    set_tracer_provider(TracerProvider(resource=resource))
     attach(set_value("workflow_name", workflow_name))
     tracer_provider_default = trace.get_tracer_provider()
     provider_type = type(tracer_provider_default).__name__
@@ -129,14 +135,14 @@ def setup_monocle_telemetry(
         if not is_proxy_provider:
             tracer_provider_default.add_span_processor(processor)
         else:
-            trace_provider.add_span_processor(processor)
+            get_tracer_provider().add_span_processor(processor)
     if is_proxy_provider:
-        trace.set_tracer_provider(trace_provider)
+        trace.set_tracer_provider(get_tracer_provider())
     instrumentor = MonocleInstrumentor(user_wrapper_methods=wrapper_methods or [], 
                                        handlers=span_handlers, union_with_default_methods = union_with_default_methods)
     # instrumentor.app_name = workflow_name
     if not instrumentor.is_instrumented_by_opentelemetry:
-        instrumentor.instrument(trace_provider=trace_provider)
+        instrumentor.instrument(trace_provider=get_tracer_provider())
 
     return instrumentor
 
@@ -194,6 +200,27 @@ def is_valid_trace_id_uuid(traceId: str) -> bool:
         pass
     return False
 
+def start_scope(scope_name: str) -> object:
+    return set_scope(scope_name)
+
+def stop_scope(scope_name: str, token:object) -> None:
+    remove_scope(scope_name, token)
+    return
+
+def monocle_trace_scope(scope_name: str):
+    def decorator(func):
+        def wrapper(*args, **kwargs):
+            token = start_scope(scope_name)
+            result = func(*args, **kwargs)
+            stop_scope(scope_name, token)
+            return result
+        return wrapper
+    return decorator
+
+def monocle_trace_http_route(func):
+    def wrapper(req):
+        return http_route_handler(req.headers, func, req)
+    return wrapper
 
 class FixedIdGenerator(id_generator.IdGenerator):
     def __init__(

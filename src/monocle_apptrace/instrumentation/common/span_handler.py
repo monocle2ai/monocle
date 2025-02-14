@@ -28,7 +28,7 @@ class SpanHandler:
         pass
 
     def pre_task_processing(self, to_wrap, wrapped, instance, args, kwargs, span):
-        SpanHandler.__execute_processor("pre_task_processor", to_wrap, args, kwargs)
+        SpanHandler.__execute_processor("pre_task_processor", to_wrap, wrapped, None, args, kwargs)
         if self.__is_root_span(span):
             try:
                 sdk_version = version("monocle_apptrace")
@@ -173,16 +173,16 @@ class SpanHandler:
         return processor
 
     @staticmethod
-    def __execute_processor(processor_name, to_wrap, args, kwargs):
+    def __execute_processor(processor_name, to_wrap, wrapped, result, args, kwargs ):
         processor = SpanHandler.__get_task_action_processor(processor_name, to_wrap)
         if processor:
             try:
-                processor(args, kwargs)
+                processor(to_wrap, wrapped, result, args, kwargs)
             except Exception as e:
                 logger.debug(f"Error executing {processor_name}: {e}")
     
     def pre_task_action(self, to_wrap, wrapped, instance, args, kwargs):
-        SpanHandler.__execute_processor("pre_processor", to_wrap, args, kwargs)
+        SpanHandler.__execute_processor("pre_task_action_processor", to_wrap, wrapped, None, args, kwargs)
 
-    def post_task_action(self, tracer, to_wrap, wrapped, instance, args, kwargs, result):
-        SpanHandler.__execute_processor("post_processor", to_wrap, args, kwargs)
+    def post_task_action(self, tracer, to_wrap, wrapped, instance, result, args, kwargs):
+        SpanHandler.__execute_processor("post_task_action_processor", to_wrap, wrapped, result, args, kwargs)

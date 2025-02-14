@@ -82,7 +82,7 @@ def resolve_from_alias(my_map, alias):
     return None
 
 
-def botocore_processor(tracer, to_wrap, wrapped, instance, args, kwargs,return_value):
+def botocore_processor(tracer, to_wrap, wrapped, return_value, args, kwargs):
     service_name = kwargs.get("service_name")
     service_method_mapping = {
         "sagemaker-runtime": "invoke_endpoint",

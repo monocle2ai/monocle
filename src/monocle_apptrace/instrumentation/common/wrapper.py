@@ -73,7 +73,7 @@ async def atask_wrapper(tracer: Tracer, handler: SpanHandler, to_wrap, wrapped, 
             handler.hydrate_span(to_wrap, wrapped, instance, args, kwargs, return_value, span)
             handler.post_task_processing(to_wrap, wrapped, instance, args, kwargs, return_value, span)
 
-    handler.post_task_action(tracer, to_wrap, wrapped, instance, args, kwargs, return_value)
+    handler.post_task_action(tracer, to_wrap, wrapped, instance, return_value, args, kwargs)
     return return_value
 
 @with_tracer_wrapper

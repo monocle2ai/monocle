@@ -98,7 +98,6 @@ def botocore_processor(tracer, to_wrap, wrapped, instance, args, kwargs,return_v
             )
             setattr(return_value, method_name, instrumented_method)
 
-
 def _instrumented_endpoint_invoke(to_wrap,wrapped, instance, fn, tracer,service_name):
     @wraps(fn)
     def with_instrumentation(*args, **kwargs):

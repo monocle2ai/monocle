@@ -37,6 +37,7 @@ service_name_map = {
     GITHUB_CODESPACE_SERVICE_NAME: GITHUB_CODESPACE_IDENTIFIER_ENV_NAME
 }
 
+MONOCLE_INSTRUMENTOR = "monocle_apptrace"
 WORKFLOW_TYPE_KEY = "workflow_type"
 DATA_INPUT_KEY = "data.input"
 DATA_OUTPUT_KEY = "data.output"
@@ -47,3 +48,6 @@ RESPONSE = "response"
 SESSION_PROPERTIES_KEY = "session"
 INFRA_SERVICE_KEY = "infra_service_name"
 META_DATA = 'metadata'
+MONOCLE_SCOPE_NAME_PREFIX = "monocle.scope."
+SCOPE_METHOD_LIST = 'MONOCLE_SCOPE_METHODS'
+SCOPE_METHOD_FILE = 'monocle_scopes.json'

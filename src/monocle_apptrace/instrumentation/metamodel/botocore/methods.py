@@ -10,6 +10,10 @@ BOTOCORE_METHODS = [{
       "method": "create_client",
       "wrapper_method": task_wrapper,
       "skip_span": True,
+      "post_processor": {
+            "module": "monocle_apptrace.instrumentation.metamodel.botocore._helper",
+            "method": "botocore_processor"
+    },
       "output_processor": INFERENCE
 
 }

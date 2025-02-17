@@ -20,6 +20,8 @@ def extract_messages(args):
     """Extract system and user messages"""
     try:
         messages = []
+        if args and isinstance(args, (list, tuple)) and hasattr(args[0], 'text'):
+            return [args[0].text]
         if args and isinstance(args, (list, tuple)) and len(args) > 0:
             if isinstance(args[0], list) and len(args[0]) > 0 and isinstance(args[0][0], HumanMessage):   # Check if the message is a HumanMessage
                 return args[0][0].content

@@ -200,8 +200,8 @@ def is_valid_trace_id_uuid(traceId: str) -> bool:
         pass
     return False
 
-def start_scope(scope_name: str) -> object:
-    return set_scope(scope_name)
+def start_scope(scope_name: str, scope_value:str = None) -> object:
+    return set_scope(scope_name, scope_value)
 
 def stop_scope(scope_name: str, token:object) -> None:
     remove_scope(scope_name, token)

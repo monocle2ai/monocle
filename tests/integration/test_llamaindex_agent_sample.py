@@ -15,31 +15,50 @@ def setup():
         wrapper_methods=[]
     )
 
-def add(x: int, y: int) -> int:
-    """Useful function to add two numbers."""
-    return x + y
+# Define coffee menu
+COFFEE_MENU = {
+    "espresso": 2.5,
+    "latte": 3.5,
+    "cappuccino": 4.0,
+    "americano": 3.0
+}
 
+# Define tools for the chatbot
 
-def multiply(x: int, y: int) -> int:
-    """Useful function to multiply two numbers."""
-    return x * y
+def get_coffee_menu() -> str:
+    """Return the available coffee menu."""
+    menu_str = "\n".join([f"{item}: ${price:.2f}" for item, price in COFFEE_MENU.items()])
+    return f"Available coffee options:\n{menu_str}"
 
+coffee_menu_tool = FunctionTool.from_defaults(
+    fn=get_coffee_menu,
+    name="get_coffee_menu",
+    description="Provides a list of available coffee options with prices."
+)
 
-tools = [
-    FunctionTool.from_defaults(add),
-    FunctionTool.from_defaults(multiply),
-]
+def place_order(coffee_type: str, quantity: int) -> str:
+    """Places an order for coffee."""
+    if coffee_type.lower() not in COFFEE_MENU:
+        return f"Sorry, {coffee_type} is not available. Please choose from the menu."
+    total_cost = COFFEE_MENU[coffee_type.lower()] * quantity
+    return f"Your order for {quantity} {coffee_type}(s) is confirmed. Total cost: ${total_cost:.2f}"
+
+order_tool = FunctionTool.from_defaults(
+    fn=place_order,
+    name="place_order",
+    description="Takes a coffee order and provides the total cost."
+)
+
+# Initialize LlamaIndex ReAct agent
+llm = OpenAI(model="gpt-4")
+agent = ReActAgent.from_tools([coffee_menu_tool, order_tool], llm=llm)
 
 def test_llamaindex_agent(setup):
-    llm=OpenAI(temperature=0.1, model="gpt-4")
-
-    agent = ReActAgent.from_tools(
-        tools=tools, llm=llm, memory=None, verbose=True
-    )
-
-    ret = agent.chat("What is (2123 + 2321) * 312?")
+    print("Welcome to the Coffee Bot! ")
+    user_input = "Please order 3 expresso coffees"
+    response = agent.chat(user_input)
     time.sleep(5)
-    print(ret.response)
+    print(f"Bot: {response}")
 
     spans = custom_exporter.get_captured_spans()
     for span in spans:
@@ -63,6 +82,6 @@ def test_llamaindex_agent(setup):
             # Assertions for all inference attributes
             assert span_attributes["entity.2.name"] == "ReActAgent"
             assert span_attributes["entity.2.type"] == "Agent.oai"
-            assert span_attributes["entity.2.tools"] == ('add','multiply',)
+            assert span_attributes["entity.2.tools"] == ("place_order",)
 
 

@@ -28,14 +28,22 @@ class S3SpanExporter(SpanExporterBase):
         DEFAULT_TIME_FORMAT = "%Y-%m-%d__%H.%M.%S"
         self.max_batch_size = 500
         self.export_interval = 1
-        self.s3_client = boto3.client(
-            's3',
-            aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID'),
-            aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY'),
-            region_name=region_name,
-        )
+        if(os.getenv('MONOCLE_AWS_ACCESS_KEY_ID') and os.getenv('MONOCLE_AWS_SECRET_ACCESS_KEY')):
+            self.s3_client = boto3.client(
+                's3',
+                aws_access_key_id=os.getenv('MONOCLE_AWS_ACCESS_KEY_ID'),
+                aws_secret_access_key=os.getenv('MONOCLE_AWS_SECRET_ACCESS_KEY'),
+                region_name=region_name,
+            )
+        else:
+            self.s3_client = boto3.client(
+                's3',
+                aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID'),
+                aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY'),
+                region_name=region_name,
+            )
         self.bucket_name = bucket_name or os.getenv('MONOCLE_S3_BUCKET_NAME','default-bucket')
-        self.file_prefix = DEFAULT_FILE_PREFIX
+        self.file_prefix = os.getenv('MONOCLE_S3_KEY_PREFIX', DEFAULT_FILE_PREFIX)
         self.time_format = DEFAULT_TIME_FORMAT
         self.export_queue = []
         self.last_export_time = time.time()
@@ -142,7 +150,8 @@ class S3SpanExporter(SpanExporterBase):
     @SpanExporterBase.retry_with_backoff(exceptions=(EndpointConnectionError, ConnectionClosedError, ReadTimeoutError, ConnectTimeoutError))
     def __upload_to_s3(self, span_data_batch: str):
         current_time = datetime.datetime.now().strftime(self.time_format)
-        file_name = f"{self.file_prefix}{current_time}.ndjson"
+        prefix = self.file_prefix + os.environ.get('MONOCLE_S3_KEY_PREFIX_CURRENT', '')
+        file_name = f"{prefix}{current_time}.ndjson"
         self.s3_client.put_object(
             Bucket=self.bucket_name,
             Key=file_name,

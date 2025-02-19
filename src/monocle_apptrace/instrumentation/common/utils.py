@@ -155,7 +155,6 @@ def get_nested_value(data, keys):
 def get_keys_as_tuple(dictionary, *keys):
     return tuple(next((value for key, value in dictionary.items() if key.endswith(k) and value is not None), None) for k in keys)
 
-#TODO: handle file/io exceptions
 def load_scopes() -> dict:
     methods_data = []
     scope_methods = []

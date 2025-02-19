@@ -15,4 +15,4 @@ os.environ.setdefault("MISTRAL_API_KEY", "")
 os.environ.setdefault('MONOCLE_EXPORTER', "") #comma seperated values like "s3,blob,console"
 os.environ.setdefault("MONOCLE_S3_BUCKET_NAME", "")
 os.environ.setdefault("HAYSTACK_AUTO_TRACE_ENABLED", "False")
-
+os.environ.setdefault("MONOCLE_TRACE_PROPAGATATION_URLS", "http://127.0.0.1")

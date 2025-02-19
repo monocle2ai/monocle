@@ -1,6 +1,7 @@
 from flask import Flask, request, jsonify
 from threading import Thread
 import time
+import requests
 from common.chain_exec import exec_chain
 PORT=8096
 import multiprocessing
@@ -19,20 +20,27 @@ def message():
         print(e)
         return jsonify({"Status":"Failure --- some error occured"})
 
+@web_app.route("/hello", methods=["GET"])
+def hello():
+    return jsonify({"Status":"Success"})
+
 def start_server():
     global web_app
     web_app.run(host="127.0.0.1", port=PORT)
 
 def stop_flask():
-    global flask_proc
-    if flask_proc is not None:
-        flask_proc.terminate()
+    pass
 
 def start_flask():
-    global flask_proc
-    flask_proc = multiprocessing.Process(target=start_server)
-    flask_proc.start()
-    time.sleep(2)
+    flask_thread = Thread(target=start_server)
+    flask_thread.daemon = True
+    flask_thread.start()
+    for i in range(10):
+        try:
+            requests.get(get_url()+"/hello")    
+            break
+        except:
+            time.sleep(1)
 
 def get_url() -> str:
     return f"http://127.0.0.1:{PORT}"

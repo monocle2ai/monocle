@@ -76,10 +76,10 @@ class SpanHandler:
                             except Exception as e:
                                 logger.debug(f"Error processing accessor: {e}")
                         else:
-                            logger.warning(f"{' and '.join([key for key in ['attribute', 'accessor'] if not processor.get(key)])} not found or incorrect in entity JSON")
+                            logger.debug(f"{' and '.join([key for key in ['attribute', 'accessor'] if not processor.get(key)])} not found or incorrect in entity JSON")
                     span_index += 1
             else:
-                logger.warning("attributes not found or incorrect written in entity json")
+                logger.debug("attributes not found or incorrect written in entity json")
 
         # set scopes as attributes by calling get_scopes()
         # scopes is a Mapping[str:object], iterate directly with .items()

@@ -159,14 +159,16 @@ def get_keys_as_tuple(dictionary, *keys):
 def load_scopes() -> dict:
     methods_data = []
     scope_methods = []
-    with open(SCOPE_METHOD_FILE) as f:
-        methods_data = json.load(f)
-        for method in methods_data:
-            if method.get('http_header'):
-                http_scopes[method.get('http_header')] = method.get('scope_name')
-            else:
-                scope_methods.append(method)
-
+    try:
+        with open(SCOPE_METHOD_FILE) as f:
+            methods_data = json.load(f)
+            for method in methods_data:
+                if method.get('http_header'):
+                    http_scopes[method.get('http_header')] = method.get('scope_name')
+                else:
+                    scope_methods.append(method)
+    except Exception as e:
+        logger.debug(f"Error loading scope methods from file: {e}")
     return scope_methods
 
 def __generate_scope_id() -> str:

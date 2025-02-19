@@ -1,0 +1,8 @@
+[
+    {
+        "package": "common.chain_exec",
+        "object": "TestScopes",
+        "method": "config_scope_func",
+        "scope_name": "question"
+    }
+]

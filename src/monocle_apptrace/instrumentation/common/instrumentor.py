@@ -3,6 +3,7 @@ from typing import Collection, Dict, List, Union
 import random
 import uuid
 from opentelemetry import trace
+from contextlib import contextmanager
 from opentelemetry.context import attach, get_value, set_value, get_current, detach
 from opentelemetry.instrumentation.instrumentor import BaseInstrumentor
 from opentelemetry.instrumentation.utils import unwrap
@@ -203,16 +204,22 @@ def is_valid_trace_id_uuid(traceId: str) -> bool:
 def start_scope(scope_name: str, scope_value:str = None) -> object:
     return set_scope(scope_name, scope_value)
 
-def stop_scope(scope_name: str, token:object) -> None:
-    remove_scope(scope_name, token)
+def stop_scope(token:object) -> None:
+    remove_scope(token)
     return
 
-def monocle_trace_scope(scope_name: str):
+@contextmanager
+def monocle_trace_scope(scope_name: str, scope_value:str = None):
+    token = start_scope(scope_name, scope_value)
+    yield
+    stop_scope(token)
+
+def monocle_trace_scope_method(scope_name: str):
     def decorator(func):
         def wrapper(*args, **kwargs):
             token = start_scope(scope_name)
             result = func(*args, **kwargs)
-            stop_scope(scope_name, token)
+            stop_scope(token)
             return result
         return wrapper
     return decorator

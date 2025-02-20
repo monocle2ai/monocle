@@ -16,6 +16,6 @@ def pre_task_action_processor(to_wrap, wrapped, result, args, kwargs):
     if 'url' in kwargs:
         url:str = kwargs['url']
         for allowed_url in allowed_urls:
-            if url.startswith(allowed_url):
+            if url.startswith(allowed_url.strip()):
                 return
     to_wrap['skip_span'] = True

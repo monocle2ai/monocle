@@ -83,7 +83,7 @@ def scope_wrapper(tracer: Tracer, handler: SpanHandler, to_wrap, wrapped, instan
         token = set_scope(scope_name)
     return_value = wrapped(*args, **kwargs)
     if scope_name:
-        remove_scope(scope_name, token)
+        remove_scope(token)
     return return_value
 
 
@@ -94,5 +94,5 @@ async def ascope_wrapper(tracer: Tracer, handler: SpanHandler, to_wrap, wrapped,
         token = set_scope(scope_name)
     return_value = wrapped(*args, **kwargs)
     if scope_name:
-        remove_scope(scope_name, token)
+        remove_scope(token)
     return return_value

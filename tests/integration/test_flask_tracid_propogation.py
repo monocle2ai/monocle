@@ -22,11 +22,9 @@ custom_exporter = CustomConsoleSpanExporter()
 def setup():
     flask_helper.start_flask()
     setup_monocle_telemetry(workflow_name = "flask_test", span_processors=[SimpleSpanProcessor(custom_exporter)])
-    yield None
-    flask_helper.stop_flask()
 
 @pytest.mark.integration()
-def test(setup):
+def test_http_scope(setup):
     custom_exporter.reset()
     client_session_id = f"{uuid.uuid4().hex}"
     prompt = "What is Task Decomposition?"
@@ -34,8 +32,7 @@ def test(setup):
     url = flask_helper.get_url()
     token = start_scope(CONVERSATION_SCOPE_NAME, CONVERSATION_SCOPE_VALUE)
     response = requests.get(f"{url}/chat?question={prompt}", headers=headers)
-    print (response)
-    stop_scope(CONVERSATION_SCOPE_NAME, token)
+    stop_scope(token)
 
     scope_name = "conversation"
     spans = custom_exporter.get_captured_spans()

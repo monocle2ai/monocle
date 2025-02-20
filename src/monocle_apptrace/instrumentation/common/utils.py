@@ -188,12 +188,10 @@ def set_scopes(scopes:dict[str, object], baggage_context:Context = None) -> obje
     token:object = attach(baggage_context)
     return token
 
-def remove_scope(scope_name: str, token:object) -> None:
-    remove_scopes([scope_name], token)
+def remove_scope(token:object) -> None:
+    remove_scopes(token)
 
-def remove_scopes(scopes:list[str], token:object) -> None:
-    for scope_name in scopes:
-       baggage.remove_baggage(f"{MONOCLE_SCOPE_NAME_PREFIX}{scope_name}")
+def remove_scopes(token:object) -> None:
     if token is not None:
         detach(token)
 
@@ -229,7 +227,7 @@ def extract_http_headers(headers) -> object:
 
 def clear_http_scopes(token:object) -> None:
     global http_scopes
-    remove_scopes(http_scopes, token)
+    remove_scopes(token)
 
 def http_route_handler(headers, func, req):
     token = extract_http_headers(headers)

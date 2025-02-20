@@ -1,6 +1,6 @@
 from flask import Flask, request, jsonify
 from threading import Thread
-import time
+import time, logging
 import requests
 from common.chain_exec import exec_chain
 PORT=8096
@@ -37,7 +37,7 @@ def start_flask():
     flask_thread.start()
     for i in range(10):
         try:
-            requests.get(get_url()+"/hello")    
+            requests.get(get_url()+"/hello")
             break
         except:
             time.sleep(1)

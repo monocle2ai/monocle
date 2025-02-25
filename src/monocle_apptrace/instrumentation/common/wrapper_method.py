@@ -6,7 +6,7 @@ from monocle_apptrace.instrumentation.metamodel.langchain.methods import (
 )
 from monocle_apptrace.instrumentation.metamodel.llamaindex.methods import (LLAMAINDEX_METHODS, )
 from monocle_apptrace.instrumentation.metamodel.haystack.methods import (HAYSTACK_METHODS, )
-
+from monocle_apptrace.instrumentation.metamodel.openai.methods import (OPENAI_METHODS,)
 
 class WrapperMethod:
     def __init__(
@@ -42,4 +42,4 @@ class WrapperMethod:
         return instance_dict
 
 
-DEFAULT_METHODS_LIST = LANGCHAIN_METHODS + LLAMAINDEX_METHODS + HAYSTACK_METHODS + BOTOCORE_METHODS
+DEFAULT_METHODS_LIST = LANGCHAIN_METHODS + LLAMAINDEX_METHODS + HAYSTACK_METHODS + BOTOCORE_METHODS + OPENAI_METHODS

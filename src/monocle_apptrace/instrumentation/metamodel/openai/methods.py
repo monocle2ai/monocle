@@ -2,6 +2,9 @@ from monocle_apptrace.instrumentation.common.wrapper import atask_wrapper, task_
 from monocle_apptrace.instrumentation.metamodel.openai.entities.inference import (
     INFERENCE,
 )
+from monocle_apptrace.instrumentation.metamodel.openai.entities.retrieval import (
+    RETRIEVAL,
+)
 
 OPENAI_METHODS = [
     {
@@ -10,5 +13,12 @@ OPENAI_METHODS = [
         "method": "create",
         "wrapper_method": task_wrapper,
         "output_processor": INFERENCE
+    },
+    {
+        "package": "openai",
+        "object": "embeddings",
+        "method": "create",
+        "wrapper_method": task_wrapper,
+        "output_processor": RETRIEVAL
     },
 ]

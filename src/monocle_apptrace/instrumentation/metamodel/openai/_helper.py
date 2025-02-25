@@ -19,10 +19,12 @@ def extract_messages(kwargs):
     """Extract system and user messages"""
     try:
         messages = []
-        if len(kwargs['messages']) >0:
-            messages = next((msg['content'] for msg in kwargs['messages'] if msg['role'] == 'user'), None)
+        if 'messages' in kwargs and len(kwargs['messages']) >0:
+            for msg in kwargs['messages']:
+                if msg.get('content') and msg.get('role'):
+                    messages.append({msg['role']: msg['content']})
 
-        return messages
+        return [str(message) for message in messages]
     except Exception as e:
         logger.warning("Warning: Error occurred in extract_messages: %s", str(e))
         return []

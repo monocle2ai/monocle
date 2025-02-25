@@ -231,9 +231,11 @@ def clear_http_scopes(token:object) -> None:
 
 def http_route_handler(headers, func, req):
     token = extract_http_headers(headers)
-    result = func(req)
-    clear_http_scopes(token)
-    return result
+    try:
+        result = func(req)
+        return result
+    finally:
+        clear_http_scopes(token)
 
 class Option(Generic[T]):
     def __init__(self, value: Optional[T]):

@@ -30,6 +30,7 @@ def task_wrapper(tracer: Tracer, handler: SpanHandler, to_wrap, wrapped, instanc
 
     handler.validate(to_wrap, wrapped, instance, args, kwargs)
     handler.pre_task_action(to_wrap, wrapped, instance, args, kwargs)
+    return_value = None
     try:
         if to_wrap.get('skip_span'):
             return_value = wrapped(*args, **kwargs)

@@ -41,9 +41,6 @@ class SpanHandler:
     def post_task_processing(self, to_wrap, wrapped, instance, args, kwargs, result, span):
         pass
 
-    def set_context_properties(self, to_wrap, wrapped, instance, args, kwargs):
-        pass
-
     def hydrate_span(self, to_wrap, wrapped, instance, args, kwargs, result, span):
         self.hydrate_attributes(to_wrap, wrapped, instance, args, kwargs, result, span)
         self.hydrate_events(to_wrap, wrapped, instance, args, kwargs, result, span)

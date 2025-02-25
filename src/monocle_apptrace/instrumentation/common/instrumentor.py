@@ -23,7 +23,7 @@ from monocle_apptrace.instrumentation.common.wrapper_method import (
 )
 from monocle_apptrace.instrumentation.common.wrapper import scope_wrapper
 from monocle_apptrace.instrumentation.common.utils import (
-    set_scope, remove_scope, set_tracer_provider, get_tracer_provider, http_route_handler, load_scopes
+    set_scope, remove_scope, http_route_handler, load_scopes
 )
 from monocle_apptrace.instrumentation.common.constants import MONOCLE_INSTRUMENTOR
 
@@ -33,6 +33,7 @@ SESSION_PROPERTIES_KEY = "session"
 
 _instruments = ()
 
+monocle_tracer_provider: TracerProvider = None
 
 class MonocleInstrumentor(BaseInstrumentor):
     workflow_name: str = ""
@@ -57,8 +58,7 @@ class MonocleInstrumentor(BaseInstrumentor):
 
     def _instrument(self, **kwargs):
         tracer_provider: TracerProvider = kwargs.get("tracer_provider")
-        global monocle_tracer_provider
-        monocle_tracer_provider = tracer_provider
+        set_tracer_provider(tracer_provider)
         tracer = get_tracer(instrumenting_module_name=MONOCLE_INSTRUMENTOR, tracer_provider=tracer_provider)
 
         final_method_list = []
@@ -115,6 +115,14 @@ class MonocleInstrumentor(BaseInstrumentor):
                              object:{wrap_object},
                              method:{wrap_method}""")
 
+def set_tracer_provider(tracer_provider: TracerProvider):
+    global monocle_tracer_provider
+    monocle_tracer_provider = tracer_provider
+
+def get_tracer_provider() -> TracerProvider:
+    global monocle_tracer_provider
+    return monocle_tracer_provider
+
 def setup_monocle_telemetry(
         workflow_name: str,
         span_processors: List[SpanProcessor] = None,
@@ -163,7 +171,7 @@ def propagate_trace_id(traceId = "", use_trace_context = False):
     try:
         if traceId.startswith("0x"):
             traceId = traceId.lstrip("0x")
-        tracer = get_tracer(instrumenting_module_name= MONOCLE_INSTRUMENTOR, tracer_provider= monocle_tracer_provider)
+        tracer = get_tracer(instrumenting_module_name= MONOCLE_INSTRUMENTOR, tracer_provider= get_tracer_provider())
         initial_id_generator = tracer.id_generator
         _parent_span_context = get_current() if use_trace_context else None
         if traceId and is_valid_trace_id_uuid(traceId):
@@ -211,16 +219,20 @@ def stop_scope(token:object) -> None:
 @contextmanager
 def monocle_trace_scope(scope_name: str, scope_value:str = None):
     token = start_scope(scope_name, scope_value)
-    yield
-    stop_scope(token)
+    try:
+        yield
+    finally:
+        stop_scope(token)
 
 def monocle_trace_scope_method(scope_name: str):
     def decorator(func):
         def wrapper(*args, **kwargs):
             token = start_scope(scope_name)
-            result = func(*args, **kwargs)
-            stop_scope(token)
-            return result
+            try:
+                result = func(*args, **kwargs)
+                return result
+            finally:
+                stop_scope(token)
         return wrapper
     return decorator
 

@@ -29,20 +29,19 @@ def task_wrapper(tracer: Tracer, handler: SpanHandler, to_wrap, wrapped, instanc
         name = get_fully_qualified_class_name(instance)
 
     handler.validate(to_wrap, wrapped, instance, args, kwargs)
-    handler.set_context_properties(to_wrap, wrapped, instance, args, kwargs)
     handler.pre_task_action(to_wrap, wrapped, instance, args, kwargs)
-
-    if to_wrap.get('skip_span'):
-        return_value = wrapped(*args, **kwargs)
-    else:
-        with tracer.start_as_current_span(name) as span:
-            handler.pre_task_processing(to_wrap, wrapped, instance, args, kwargs, span)
+    try:
+        if to_wrap.get('skip_span'):
             return_value = wrapped(*args, **kwargs)
-            handler.hydrate_span(to_wrap, wrapped, instance, args, kwargs, return_value, span)
-            handler.post_task_processing(to_wrap, wrapped, instance, args, kwargs, return_value, span)
-
-    handler.post_task_action(tracer, to_wrap, wrapped, instance, args, kwargs, return_value)
-    return return_value
+        else:
+            with tracer.start_as_current_span(name) as span:
+                handler.pre_task_processing(to_wrap, wrapped, instance, args, kwargs, span)
+                return_value = wrapped(*args, **kwargs)
+                handler.hydrate_span(to_wrap, wrapped, instance, args, kwargs, return_value, span)
+                handler.post_task_processing(to_wrap, wrapped, instance, args, kwargs, return_value, span)
+        return return_value
+    finally:
+        handler.post_task_action(tracer, to_wrap, wrapped, instance, args, kwargs, return_value)
 
 
 @with_tracer_wrapper
@@ -61,20 +60,20 @@ async def atask_wrapper(tracer: Tracer, handler: SpanHandler, to_wrap, wrapped, 
         name = get_fully_qualified_class_name(instance)
 
     handler.validate(to_wrap, wrapped, instance, args, kwargs)
-    handler.set_context_properties(to_wrap, wrapped, instance, args, kwargs)
     handler.pre_task_action(to_wrap, wrapped, instance, args, kwargs)
 
-    if to_wrap.get('skip_span'):
-        return_value = wrapped(*args, **kwargs)
-    else:
-        with tracer.start_as_current_span(name) as span:
-            handler.pre_task_processing(to_wrap, wrapped, instance, args, span)
+    try:
+        if to_wrap.get('skip_span'):
             return_value = wrapped(*args, **kwargs)
-            handler.hydrate_span(to_wrap, wrapped, instance, args, kwargs, return_value, span)
-            handler.post_task_processing(to_wrap, wrapped, instance, args, kwargs, return_value, span)
-
-    handler.post_task_action(tracer, to_wrap, wrapped, instance, return_value, args, kwargs)
-    return return_value
+        else:
+            with tracer.start_as_current_span(name) as span:
+                handler.pre_task_processing(to_wrap, wrapped, instance, args, span)
+                return_value = wrapped(*args, **kwargs)
+                handler.hydrate_span(to_wrap, wrapped, instance, args, kwargs, return_value, span)
+                handler.post_task_processing(to_wrap, wrapped, instance, args, kwargs, return_value, span)
+        return return_value
+    finally:
+        handler.post_task_action(tracer, to_wrap, wrapped, instance, return_value, args, kwargs)
 
 @with_tracer_wrapper
 def scope_wrapper(tracer: Tracer, handler: SpanHandler, to_wrap, wrapped, instance, args, kwargs):

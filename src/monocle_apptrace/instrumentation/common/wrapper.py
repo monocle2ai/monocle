@@ -7,6 +7,8 @@ from monocle_apptrace.instrumentation.common.span_handler import SpanHandler
 from monocle_apptrace.instrumentation.common.utils import (
     get_fully_qualified_class_name,
     with_tracer_wrapper,
+    set_scope,
+    remove_scope
 )
 from monocle_apptrace.instrumentation.metamodel.botocore import _helper
 logger = logging.getLogger(__name__)
@@ -27,20 +29,19 @@ def task_wrapper(tracer: Tracer, handler: SpanHandler, to_wrap, wrapped, instanc
         name = get_fully_qualified_class_name(instance)
 
     handler.validate(to_wrap, wrapped, instance, args, kwargs)
-    handler.set_context_properties(to_wrap, wrapped, instance, args, kwargs)
-
-    if to_wrap.get('skip_span'):
-        return_value = wrapped(*args, **kwargs)
-        _helper.botocore_processor(tracer, to_wrap, wrapped, instance, args, kwargs, return_value)
+    handler.pre_task_action(to_wrap, wrapped, instance, args, kwargs)
+    try:
+        if to_wrap.get('skip_span'):
+            return_value = wrapped(*args, **kwargs)
+        else:
+            with tracer.start_as_current_span(name) as span:
+                handler.pre_task_processing(to_wrap, wrapped, instance, args, kwargs, span)
+                return_value = wrapped(*args, **kwargs)
+                handler.hydrate_span(to_wrap, wrapped, instance, args, kwargs, return_value, span)
+                handler.post_task_processing(to_wrap, wrapped, instance, args, kwargs, return_value, span)
         return return_value
-
-    with tracer.start_as_current_span(name) as span:
-        handler.pre_task_processing(to_wrap, wrapped, instance, args, span)
-        return_value = wrapped(*args, **kwargs)
-        handler.hydrate_span(to_wrap, wrapped, instance, args, kwargs, return_value, span)
-        handler.post_task_processing(to_wrap, wrapped, instance, args, kwargs, return_value, span)
-
-    return return_value
+    finally:
+        handler.post_task_action(tracer, to_wrap, wrapped, instance, args, kwargs, return_value)
 
 
 @with_tracer_wrapper
@@ -59,11 +60,38 @@ async def atask_wrapper(tracer: Tracer, handler: SpanHandler, to_wrap, wrapped, 
         name = get_fully_qualified_class_name(instance)
 
     handler.validate(to_wrap, wrapped, instance, args, kwargs)
-    handler.set_context_properties(to_wrap, wrapped, instance, args, kwargs)
-    with tracer.start_as_current_span(name) as span:
-        handler.pre_task_processing(to_wrap, wrapped, instance, args, span)
-        return_value = wrapped(*args, **kwargs)
-        handler.hydrate_span(to_wrap, wrapped, instance, args, kwargs, return_value, span)
-        handler.post_task_processing(to_wrap, wrapped, instance, args, kwargs, return_value, span)
+    handler.pre_task_action(to_wrap, wrapped, instance, args, kwargs)
 
+    try:
+        if to_wrap.get('skip_span'):
+            return_value = wrapped(*args, **kwargs)
+        else:
+            with tracer.start_as_current_span(name) as span:
+                handler.pre_task_processing(to_wrap, wrapped, instance, args, span)
+                return_value = wrapped(*args, **kwargs)
+                handler.hydrate_span(to_wrap, wrapped, instance, args, kwargs, return_value, span)
+                handler.post_task_processing(to_wrap, wrapped, instance, args, kwargs, return_value, span)
+        return return_value
+    finally:
+        handler.post_task_action(tracer, to_wrap, wrapped, instance, return_value, args, kwargs)
+
+@with_tracer_wrapper
+def scope_wrapper(tracer: Tracer, handler: SpanHandler, to_wrap, wrapped, instance, args, kwargs):
+    scope_name = to_wrap.get('scope_name', None)
+    if scope_name:
+        token = set_scope(scope_name)
+    return_value = wrapped(*args, **kwargs)
+    if scope_name:
+        remove_scope(token)
+    return return_value
+
+
+@with_tracer_wrapper
+async def ascope_wrapper(tracer: Tracer, handler: SpanHandler, to_wrap, wrapped, instance, args, kwargs):
+    scope_name = to_wrap.get('scope_name', None)
+    if scope_name:
+        token = set_scope(scope_name)
+    return_value = wrapped(*args, **kwargs)
+    if scope_name:
+        remove_scope(token)
     return return_value

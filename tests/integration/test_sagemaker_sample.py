@@ -15,13 +15,14 @@ from requests_aws4auth import AWS4Auth
 
 from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
 
-
+from monocle_apptrace.instrumentation.metamodel.botocore.handlers.botocore_span_handler import BotoCoreSpanHandler
 @pytest.fixture(scope="module")
 def setup():
     setup_monocle_telemetry(
         workflow_name="sagemaker_workflow_1",
         span_processors=[BatchSpanProcessor(ConsoleSpanExporter())],
-        wrapper_methods=[]
+        wrapper_methods=[],
+        span_handlers={"botocore_handler":BotoCoreSpanHandler}
     )
 
 

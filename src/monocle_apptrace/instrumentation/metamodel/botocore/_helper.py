@@ -81,36 +81,6 @@ def resolve_from_alias(my_map, alias):
             return my_map[i]
     return None
 
-
-def botocore_processor(tracer, to_wrap, wrapped, return_value, args, kwargs):
-    service_name = kwargs.get("service_name")
-    service_method_mapping = {
-        "sagemaker-runtime": "invoke_endpoint",
-        "bedrock-runtime": "converse",
-    }
-    if service_name in service_method_mapping:
-        method_name = service_method_mapping[service_name]
-        original_method = getattr(return_value, method_name, None)
-
-        if original_method:
-            instrumented_method = _instrumented_endpoint_invoke(
-                to_wrap, wrapped,return_value, original_method, tracer, service_name
-            )
-            setattr(return_value, method_name, instrumented_method)
-
-def _instrumented_endpoint_invoke(to_wrap,wrapped, instance, fn, tracer,service_name):
-    @wraps(fn)
-    def with_instrumentation(*args, **kwargs):
-        span_name="botocore-"+service_name+"-invoke-endpoint"
-        handler = SpanHandler()
-        with tracer.start_as_current_span(span_name) as span:
-            response = fn(*args, **kwargs)
-            handler.hydrate_span(to_wrap, span=span,wrapped=wrapped, instance=instance,args=args, kwargs=kwargs, result=response)
-            return response
-
-    return with_instrumentation
-
-
 def update_span_from_llm_response(response, instance):
     meta_dict = {}
     if response is not None and isinstance(response, dict) and "usage" in response:

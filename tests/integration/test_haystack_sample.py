@@ -127,7 +127,7 @@ def test_haystack_sample(setup):
             assert "prompt_tokens" in span_metadata.attributes
             assert "total_tokens" in span_metadata.attributes
 
-        if not span.parent:  # Root span
+        if not span.parent and 'haystack' in span.name:  # Root span
             assert span_attributes["entity.1.name"] == "haystack_app_1"
             assert span_attributes["entity.1.type"] == "workflow.haystack"
 

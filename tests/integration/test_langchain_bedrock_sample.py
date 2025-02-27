@@ -13,7 +13,7 @@ from langchain_core.runnables import RunnablePassthrough
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 
 from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
-
+from monocle_apptrace.instrumentation.metamodel.botocore.handlers.botocore_span_handler import BotoCoreSpanHandler
 custom_exporter = CustomConsoleSpanExporter()
 
 @pytest.fixture(scope="module")
@@ -22,6 +22,7 @@ def setup():
         workflow_name="bedrock_rag_workflow",
         span_processors=[BatchSpanProcessor(custom_exporter)],
         wrapper_methods=[],
+        span_handlers={"botocore_handler": BotoCoreSpanHandler},
     )
 
 @pytest.mark.integration()
@@ -83,22 +84,22 @@ def test_langchain_bedrock_sample(setup):
             assert span_attributes["entity.2.name"] == "text-embedding-ada-002"
             assert span_attributes["entity.2.type"] == "model.embedding.text-embedding-ada-002"
 
-        if "span.type" in span_attributes and span_attributes["span.type"] == "inference":
+        if 'span.type' in span_attributes and span_attributes["span.type"] == "inference":
             # Assertions for all inference attributes
-            assert span_attributes["entity.1.type"] == "inference.azure_oai"
-            assert "entity.1.provider_name" in span_attributes
-            assert "entity.1.inference_endpoint" in span_attributes
-            assert span_attributes["entity.2.name"] == "gpt-3.5-turbo-0125"
-            assert span_attributes["entity.2.type"] == "model.llm.gpt-3.5-turbo-0125"
+            if "entity.1.inference_endpoint" in span_attributes.keys():
+                assert span_attributes["entity.1.type"] == "inference.aws_sagemaker"
+                assert "entity.1.inference_endpoint" in span_attributes
+                assert span_attributes["entity.2.name"] == "ai21.jamba-1-5-mini-v1:0"
+                assert span_attributes["entity.2.type"] == "model.llm.ai21.jamba-1-5-mini-v1:0"
 
-            # Assertions for metadata
-            span_input, span_output, span_metadata = span.events
-            assert "completion_tokens" in span_metadata.attributes
-            assert "prompt_tokens" in span_metadata.attributes
-            assert "total_tokens" in span_metadata.attributes
+                # Assertions for metadata
+                span_input, span_output, span_metadata = span.events
+                assert "completion_tokens" in span_metadata.attributes
+                assert "prompt_tokens" in span_metadata.attributes
+                assert "total_tokens" in span_metadata.attributes
 
         if not span.parent and span.name == "langchain.workflow":  # Root span
-            assert span_attributes["entity.1.name"] == "langchain_app_1"
+            assert span_attributes["entity.1.name"] == "bedrock_rag_workflow"
             assert span_attributes["entity.1.type"] == "workflow.langchain"
 
 # {

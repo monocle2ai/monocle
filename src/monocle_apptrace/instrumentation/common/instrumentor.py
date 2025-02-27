@@ -26,7 +26,7 @@ from monocle_apptrace.instrumentation.common.utils import (
     set_scope, remove_scope, http_route_handler, load_scopes
 )
 from monocle_apptrace.instrumentation.common.constants import MONOCLE_INSTRUMENTOR
-
+from functools import wraps
 logger = logging.getLogger(__name__)
 
 SESSION_PROPERTIES_KEY = "session"
@@ -49,9 +49,27 @@ class MonocleInstrumentor(BaseInstrumentor):
             union_with_default_methods: bool = True
             ) -> None:
         self.user_wrapper_methods = user_wrapper_methods or []
-        self.handlers = handlers or {'default':SpanHandler()}
+        self.handlers = handlers
+        if self.handlers is not None:
+            self.handlers['default'] = SpanHandler()
+        else:
+            self.handlers = handlers or {'default':SpanHandler()}
         self.union_with_default_methods = union_with_default_methods
         super().__init__()
+
+    def get_instrumentor(self, tracer):
+        def instrumented_endpoint_invoke(to_wrap,wrapped, span_name, instance,fn):
+            @wraps(fn)
+            def with_instrumentation(*args, **kwargs):
+                handler = SpanHandler()
+                with tracer.start_as_current_span(span_name) as span:
+                    response = fn(*args, **kwargs)
+                    handler.hydrate_span(to_wrap, span=span, wrapped=wrapped, instance=instance, args=args, kwargs=kwargs,
+                                         result=response)
+                    return response
+
+            return with_instrumentation
+        return instrumented_endpoint_invoke
 
     def instrumentation_dependencies(self) -> Collection[str]:
         return _instruments
@@ -84,6 +102,11 @@ class MonocleInstrumentor(BaseInstrumentor):
             handler_key = method_config.get("span_handler",'default')
             try:
                 handler =  self.handlers.get(handler_key)
+                if not handler:
+                    logger.warning("incorrect or empty handler falling back to default handler")
+                    handler = self.handlers.get('default')
+                if isinstance(handler,type):
+                    handler = handler(get_instrumentor=self.get_instrumentor(tracer))
                 wrap_function_wrapper(
                     target_package,
                     f"{target_object}.{target_method}" if target_object else target_method,

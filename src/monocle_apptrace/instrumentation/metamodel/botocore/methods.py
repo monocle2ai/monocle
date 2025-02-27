@@ -9,13 +9,14 @@ BOTOCORE_METHODS = [{
       "object": "ClientCreator",
       "method": "create_client",
       "wrapper_method": task_wrapper,
-      "skip_span": True,
-      "post_task_action_processor": {
-            "module": "monocle_apptrace.instrumentation.metamodel.botocore._helper",
-            "method": "botocore_processor"
-      },
+      "span_handler":"botocore_handler",
+      #"skip_span": True,
+      # "post_task_action_processor": {
+      #       "module": "monocle_apptrace.instrumentation.metamodel.botocore._helper",
+      #       "method": "botocore_processor"
+      # },
       "output_processor": INFERENCE,
-      "skip_span": True
+      # "skip_span": True
 
 
 }

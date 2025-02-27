@@ -24,11 +24,13 @@ WORKFLOW_TYPE_MAP = {
 
 class SpanHandler:
 
+    def __init__(self,get_instrumentor=None):
+        self.get_instrumentor=get_instrumentor
+
     def validate(self, to_wrap, wrapped, instance, args, kwargs):
         pass
 
-    def pre_task_processing(self, to_wrap, wrapped, instance, args, kwargs, span):
-        SpanHandler.__execute_processor("pre_task_processor", to_wrap, wrapped, None, args, kwargs)
+    def pre_task_processing(self, to_wrap, wrapped, instance, args,kwargs, span):
         if self.__is_root_span(span):
             try:
                 sdk_version = version("monocle_apptrace")
@@ -153,33 +155,3 @@ class SpanHandler:
                 return curr_span.parent is None or get_current().get("root_span_id") == curr_span.parent.span_id
         except Exception as e:
             logger.warning(f"Error finding root span: {e}")
-
-    @staticmethod
-    def __get_task_action_processor(processor_name, to_wrap):
-        processor = None
-        if to_wrap.get(processor_name):
-            try:
-                pre_processor_module = to_wrap[processor_name]['module']
-                pre_processor_function = to_wrap[processor_name]['method']
-                module_path = pre_processor_module.split('.')
-                if len(module_path) > 1:
-                    module = __import__(pre_processor_module, fromlist=[module_path[-1]])
-                    processor = getattr(module, pre_processor_function)
-            except Exception as e:
-                logger.debug(f"Error getting {processor_name}: {e}")
-        return processor
-
-    @staticmethod
-    def __execute_processor(processor_name, to_wrap, wrapped, result, args, kwargs ):
-        processor = SpanHandler.__get_task_action_processor(processor_name, to_wrap)
-        if processor:
-            try:
-                processor(to_wrap, wrapped, result, args, kwargs)
-            except Exception as e:
-                logger.debug(f"Error executing {processor_name}: {e}")
-    
-    def pre_task_action(self, to_wrap, wrapped, instance, args, kwargs):
-        SpanHandler.__execute_processor("pre_task_action_processor", to_wrap, wrapped, None, args, kwargs)
-
-    def post_task_action(self, tracer, to_wrap, wrapped, instance, result, args, kwargs):
-        SpanHandler.__execute_processor("post_task_action_processor", to_wrap, wrapped, result, args, kwargs)

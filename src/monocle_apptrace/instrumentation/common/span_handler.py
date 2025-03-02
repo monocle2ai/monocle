@@ -24,11 +24,23 @@ WORKFLOW_TYPE_MAP = {
 
 class SpanHandler:
 
-    def __init__(self,get_instrumentor=None):
-        self.get_instrumentor=get_instrumentor
+    def __init__(self,instrumentor=None):
+        self.instrumentor=instrumentor
+
+    def set_instrumentor(self, instrumentor):
+        self.instrumentor = instrumentor
 
     def validate(self, to_wrap, wrapped, instance, args, kwargs):
         pass
+
+    def pre_tracing(self, to_wrap, wrapped, instance, args, kwargs):
+        pass
+
+    def post_tracing(self, to_wrap, wrapped, instance, args, kwargs, return_value):
+        pass
+
+    def skip_span(self, to_wrap, wrapped, instance, args, kwargs) -> bool:
+        return False
 
     def pre_task_processing(self, to_wrap, wrapped, instance, args,kwargs, span):
         if self.__is_root_span(span):

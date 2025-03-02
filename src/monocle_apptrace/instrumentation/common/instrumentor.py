@@ -20,6 +20,7 @@ from monocle_apptrace.instrumentation.common.span_handler import SpanHandler
 from monocle_apptrace.instrumentation.common.wrapper_method import (
     DEFAULT_METHODS_LIST,
     WrapperMethod,
+    MONOCLE_SPAN_HANDLERS
 )
 from monocle_apptrace.instrumentation.common.wrapper import scope_wrapper
 from monocle_apptrace.instrumentation.common.utils import (
@@ -51,9 +52,11 @@ class MonocleInstrumentor(BaseInstrumentor):
         self.user_wrapper_methods = user_wrapper_methods or []
         self.handlers = handlers
         if self.handlers is not None:
-            self.handlers['default'] = SpanHandler()
+            for key, val in MONOCLE_SPAN_HANDLERS.items():
+                if key not in self.handlers:
+                    self.handlers[key] = val
         else:
-            self.handlers = handlers or {'default':SpanHandler()}
+            self.handlers = MONOCLE_SPAN_HANDLERS
         self.union_with_default_methods = union_with_default_methods
         super().__init__()
 
@@ -105,8 +108,7 @@ class MonocleInstrumentor(BaseInstrumentor):
                 if not handler:
                     logger.warning("incorrect or empty handler falling back to default handler")
                     handler = self.handlers.get('default')
-                if isinstance(handler,type):
-                    handler = handler(get_instrumentor=self.get_instrumentor(tracer))
+                handler.set_instrumentor(self.get_instrumentor(tracer))
                 wrap_function_wrapper(
                     target_package,
                     f"{target_object}.{target_method}" if target_object else target_method,

@@ -8,6 +8,6 @@ FLASK_METHODS = [
         "span_name": "Flask.wsgi_app",
         "wrapper_method": task_wrapper,
         "span_handler": "flask_handler",
-        # "skip_span": True
+        "skip_span": True
     }
 ]

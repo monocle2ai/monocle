@@ -22,7 +22,7 @@ def setup():
         workflow_name="bedrock_rag_workflow",
         span_processors=[BatchSpanProcessor(custom_exporter)],
         wrapper_methods=[],
-        span_handlers={"botocore_handler": BotoCoreSpanHandler},
+        span_handlers={"botocore_handler": BotoCoreSpanHandler()},
     )
 
 @pytest.mark.integration()

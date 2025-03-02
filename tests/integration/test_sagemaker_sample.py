@@ -22,7 +22,7 @@ def setup():
         workflow_name="sagemaker_workflow_1",
         span_processors=[BatchSpanProcessor(ConsoleSpanExporter())],
         wrapper_methods=[],
-        span_handlers={"botocore_handler":BotoCoreSpanHandler}
+        span_handlers={"botocore_handler":BotoCoreSpanHandler()}
     )
 
 

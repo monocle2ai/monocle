@@ -3,6 +3,7 @@ from typing import Collection, Dict, List, Union
 import random
 import uuid
 from opentelemetry import trace
+from contextlib import contextmanager
 from opentelemetry.context import attach, get_value, set_value, get_current, detach
 from opentelemetry.instrumentation.instrumentor import BaseInstrumentor
 from opentelemetry.instrumentation.utils import unwrap
@@ -19,8 +20,14 @@ from monocle_apptrace.instrumentation.common.span_handler import SpanHandler
 from monocle_apptrace.instrumentation.common.wrapper_method import (
     DEFAULT_METHODS_LIST,
     WrapperMethod,
+    MONOCLE_SPAN_HANDLERS
 )
-
+from monocle_apptrace.instrumentation.common.wrapper import scope_wrapper
+from monocle_apptrace.instrumentation.common.utils import (
+    set_scope, remove_scope, http_route_handler, load_scopes
+)
+from monocle_apptrace.instrumentation.common.constants import MONOCLE_INSTRUMENTOR
+from functools import wraps
 logger = logging.getLogger(__name__)
 
 SESSION_PROPERTIES_KEY = "session"
@@ -28,8 +35,6 @@ SESSION_PROPERTIES_KEY = "session"
 _instruments = ()
 
 monocle_tracer_provider: TracerProvider = None
-
-MONOCLE_INSTRUMENTOR = "monocle_apptrace"
 
 class MonocleInstrumentor(BaseInstrumentor):
     workflow_name: str = ""
@@ -45,17 +50,36 @@ class MonocleInstrumentor(BaseInstrumentor):
             union_with_default_methods: bool = True
             ) -> None:
         self.user_wrapper_methods = user_wrapper_methods or []
-        self.handlers = handlers or {'default':SpanHandler()}
+        self.handlers = handlers
+        if self.handlers is not None:
+            for key, val in MONOCLE_SPAN_HANDLERS.items():
+                if key not in self.handlers:
+                    self.handlers[key] = val
+        else:
+            self.handlers = MONOCLE_SPAN_HANDLERS
         self.union_with_default_methods = union_with_default_methods
         super().__init__()
+
+    def get_instrumentor(self, tracer):
+        def instrumented_endpoint_invoke(to_wrap,wrapped, span_name, instance,fn):
+            @wraps(fn)
+            def with_instrumentation(*args, **kwargs):
+                handler = SpanHandler()
+                with tracer.start_as_current_span(span_name) as span:
+                    response = fn(*args, **kwargs)
+                    handler.hydrate_span(to_wrap, span=span, wrapped=wrapped, instance=instance, args=args, kwargs=kwargs,
+                                         result=response)
+                    return response
+
+            return with_instrumentation
+        return instrumented_endpoint_invoke
 
     def instrumentation_dependencies(self) -> Collection[str]:
         return _instruments
 
     def _instrument(self, **kwargs):
         tracer_provider: TracerProvider = kwargs.get("tracer_provider")
-        global monocle_tracer_provider
-        monocle_tracer_provider = tracer_provider
+        set_tracer_provider(tracer_provider)
         tracer = get_tracer(instrumenting_module_name=MONOCLE_INSTRUMENTOR, tracer_provider=tracer_provider)
 
         final_method_list = []
@@ -67,6 +91,10 @@ class MonocleInstrumentor(BaseInstrumentor):
                 final_method_list.append(method)
             elif isinstance(method, WrapperMethod):
                 final_method_list.append(method.to_dict())
+
+        for method in load_scopes():
+            method['wrapper_method'] = scope_wrapper
+            final_method_list.append(method)
         
         for method_config in final_method_list:
             target_package = method_config.get("package", None)
@@ -77,6 +105,10 @@ class MonocleInstrumentor(BaseInstrumentor):
             handler_key = method_config.get("span_handler",'default')
             try:
                 handler =  self.handlers.get(handler_key)
+                if not handler:
+                    logger.warning("incorrect or empty handler falling back to default handler")
+                    handler = self.handlers.get('default')
+                handler.set_instrumentor(self.get_instrumentor(tracer))
                 wrap_function_wrapper(
                     target_package,
                     f"{target_object}.{target_method}" if target_object else target_method,
@@ -108,6 +140,14 @@ class MonocleInstrumentor(BaseInstrumentor):
                              object:{wrap_object},
                              method:{wrap_method}""")
 
+def set_tracer_provider(tracer_provider: TracerProvider):
+    global monocle_tracer_provider
+    monocle_tracer_provider = tracer_provider
+
+def get_tracer_provider() -> TracerProvider:
+    global monocle_tracer_provider
+    return monocle_tracer_provider
+
 def setup_monocle_telemetry(
         workflow_name: str,
         span_processors: List[SpanProcessor] = None,
@@ -119,7 +159,7 @@ def setup_monocle_telemetry(
     })
     exporters = get_monocle_exporter()
     span_processors = span_processors or [BatchSpanProcessor(exporter) for exporter in exporters]
-    trace_provider = TracerProvider(resource=resource)
+    set_tracer_provider(TracerProvider(resource=resource))
     attach(set_value("workflow_name", workflow_name))
     tracer_provider_default = trace.get_tracer_provider()
     provider_type = type(tracer_provider_default).__name__
@@ -129,14 +169,14 @@ def setup_monocle_telemetry(
         if not is_proxy_provider:
             tracer_provider_default.add_span_processor(processor)
         else:
-            trace_provider.add_span_processor(processor)
+            get_tracer_provider().add_span_processor(processor)
     if is_proxy_provider:
-        trace.set_tracer_provider(trace_provider)
+        trace.set_tracer_provider(get_tracer_provider())
     instrumentor = MonocleInstrumentor(user_wrapper_methods=wrapper_methods or [], 
                                        handlers=span_handlers, union_with_default_methods = union_with_default_methods)
     # instrumentor.app_name = workflow_name
     if not instrumentor.is_instrumented_by_opentelemetry:
-        instrumentor.instrument(trace_provider=trace_provider)
+        instrumentor.instrument(trace_provider=get_tracer_provider())
 
     return instrumentor
 
@@ -156,7 +196,7 @@ def propagate_trace_id(traceId = "", use_trace_context = False):
     try:
         if traceId.startswith("0x"):
             traceId = traceId.lstrip("0x")
-        tracer = get_tracer(instrumenting_module_name= MONOCLE_INSTRUMENTOR, tracer_provider= monocle_tracer_provider)
+        tracer = get_tracer(instrumenting_module_name= MONOCLE_INSTRUMENTOR, tracer_provider= get_tracer_provider())
         initial_id_generator = tracer.id_generator
         _parent_span_context = get_current() if use_trace_context else None
         if traceId and is_valid_trace_id_uuid(traceId):
@@ -194,6 +234,37 @@ def is_valid_trace_id_uuid(traceId: str) -> bool:
         pass
     return False
 
+def start_scope(scope_name: str, scope_value:str = None) -> object:
+    return set_scope(scope_name, scope_value)
+
+def stop_scope(token:object) -> None:
+    remove_scope(token)
+    return
+
+@contextmanager
+def monocle_trace_scope(scope_name: str, scope_value:str = None):
+    token = start_scope(scope_name, scope_value)
+    try:
+        yield
+    finally:
+        stop_scope(token)
+
+def monocle_trace_scope_method(scope_name: str):
+    def decorator(func):
+        def wrapper(*args, **kwargs):
+            token = start_scope(scope_name)
+            try:
+                result = func(*args, **kwargs)
+                return result
+            finally:
+                stop_scope(token)
+        return wrapper
+    return decorator
+
+def monocle_trace_http_route(func):
+    def wrapper(req):
+        return http_route_handler(req.headers, func, req)
+    return wrapper
 
 class FixedIdGenerator(id_generator.IdGenerator):
     def __init__(

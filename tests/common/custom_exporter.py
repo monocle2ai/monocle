@@ -12,3 +12,6 @@ class CustomConsoleSpanExporter(ConsoleSpanExporter):
 
     def get_captured_spans(self):
         return self.captured_spans
+    
+    def reset(self):
+        self.captured_spans = []

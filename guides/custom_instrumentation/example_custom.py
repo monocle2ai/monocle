@@ -7,14 +7,14 @@ setup_monocle_telemetry(
     workflow_name="openai.app",
     wrapper_methods=[
         WrapperMethod(
-            package="openai_client",
+            package="custom_ai_code.openai_client",
             object_name="OpenAIClient",
             method="chat",
             span_name="openai_client.chat",
             output_processor=INFERENCE_OUTPUT_PROCESSOR
         ),
         WrapperMethod(
-            package="vector_db",
+            package="custom_ai_code.vector_db",
             object_name="InMemoryVectorDB",
             method="search_by_text",
             span_name="vector_db.search_by_text",
@@ -23,8 +23,8 @@ setup_monocle_telemetry(
     ],
 )
 
-from openai_client import OpenAIClient
-from vector_db import InMemoryVectorDB
+from custom_ai_code.openai_client import OpenAIClient
+from custom_ai_code.vector_db import InMemoryVectorDB
 
 
 

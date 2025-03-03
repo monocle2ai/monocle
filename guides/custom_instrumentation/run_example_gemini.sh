@@ -11,6 +11,17 @@ else
     echo "Using existing OPENAI_API_KEY from environment."
 fi
 
+# Check if GOOGLE_API_KEY is already set
+if [ -z "$GOOGLE_API_KEY" ]; then
+    echo "GOOGLE_API_KEY not found in environment."
+    echo "Please enter your Gemini API Key: "
+    read -s GOOGLE_API_KEY
+    export GOOGLE_API_KEY
+    echo "Gemini API Key set."
+else
+    echo "Using existing GOOGLE_API_KEY from environment."
+fi
+
 # Check if Python 3 is installed
 if ! command -v python3 &> /dev/null; then
     echo "Python 3 is required but not found. Please install Python 3 and try again."
@@ -53,11 +64,11 @@ else
 fi
 
 # Run example.py
-if [ -f "example.py" ]; then
-    echo "Running example.py..."
-    python example.py
+if [ -f "example_gemini.py" ]; then
+    echo "Running example_gemini.py..."
+    python example_gemini.py
 else
-    echo "Error: example.py file not found."
+    echo "Error: example_gemini.py file not found."
     exit 1
 fi
 

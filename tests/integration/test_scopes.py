@@ -7,12 +7,14 @@ from langchain_chroma import Chroma
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry, start_scope, stop_scope, monocle_trace_scope_method, monocle_trace_scope
 from monocle_apptrace.instrumentation.common.utils import get_scopes
+from monocle_apptrace.instrumentation.common.constants import SCOPE_METHOD_FILE, SCOPE_CONFIG_PATH
 
 CHAT_SCOPE_NAME = "chat"
 custom_exporter = CustomConsoleSpanExporter()
 @pytest.fixture(scope="module")
 def setup():
-      setup_monocle_telemetry(
+    os.environ[SCOPE_CONFIG_PATH] = os.path.join(os.path.dirname(os.path.abspath(__file__)), SCOPE_METHOD_FILE)
+    setup_monocle_telemetry(
                 workflow_name="langchain_app_1",
                 span_processors=[SimpleSpanProcessor(custom_exporter)],
                 wrapper_methods=[])
@@ -111,6 +113,8 @@ def test_scope_wrapper(setup):
 def test_scope_config(setup):
     """ Test setting scope at function level using external configuartion """
     test_scope = TestScopes()
+    # set config path as monocle_scopes.json in the same directory as this file
+    chain = setup_chain()
     chain = setup_chain()
     result = test_scope.config_scope_func(chain, "What is Task Decomposition?")
     print(result)

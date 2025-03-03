@@ -1,4 +1,5 @@
 import logging, json
+import os
 from typing import Callable, Generic, Optional, TypeVar, Mapping
 from threading import local
 
@@ -8,7 +9,7 @@ from opentelemetry.trace.propagation import _SPAN_KEY
 from opentelemetry.sdk.trace import id_generator, TracerProvider
 from opentelemetry.propagate import inject, extract
 from opentelemetry import baggage
-from monocle_apptrace.instrumentation.common.constants import MONOCLE_SCOPE_NAME_PREFIX, SCOPE_METHOD_FILE, MONOCLE_INSTRUMENTOR
+from monocle_apptrace.instrumentation.common.constants import MONOCLE_SCOPE_NAME_PREFIX, SCOPE_METHOD_FILE, SCOPE_CONFIG_PATH
 
 T = TypeVar('T')
 U = TypeVar('U')
@@ -159,7 +160,9 @@ def load_scopes() -> dict:
     methods_data = []
     scope_methods = []
     try:
-        with open(SCOPE_METHOD_FILE) as f:
+        scope_config_file_path = os.environ.get(SCOPE_CONFIG_PATH, 
+                                        os.path.join(os.getcwd(), SCOPE_METHOD_FILE))
+        with open(scope_config_file_path) as f:
             methods_data = json.load(f)
             for method in methods_data:
                 if method.get('http_header'):

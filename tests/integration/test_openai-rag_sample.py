@@ -6,7 +6,7 @@ import chromadb
 from chromadb import ClientAPI, Collection
 from chromadb.errors import InvalidCollectionException
 from chromadb.utils import embedding_functions
-import openai
+from openai import OpenAI
 import pytest
 from common.custom_exporter import CustomConsoleSpanExporter
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
@@ -16,7 +16,6 @@ custom_exporter = CustomConsoleSpanExporter()
 COLLECTION_NAME="coffee"
 EMBBEDING_MODEL="text-embedding-ada-002"
 INFERENCE_MODEL="gpt-4o-mini"
-openai.api_type = "openai"
 @pytest.fixture(scope="module")
 def setup():
     setup_monocle_telemetry(
@@ -59,6 +58,7 @@ def get_vector_store() -> Collection:
 @pytest.mark.integration()
 def test_openai_rag_sample(setup):
     question = "what is latte?"
+    openai = OpenAI()
     vector = openai.embeddings.create(input = question.split(" "), model=EMBBEDING_MODEL).data[0].embedding
 
     vector_store:Collection = get_vector_store()
@@ -108,14 +108,14 @@ def test_openai_rag_sample(setup):
 # {
 #     "name": "openai.resources.embeddings.Embeddings",
 #     "context": {
-#         "trace_id": "0x59c7771f8cd0e9ac7f90096cfc18af5a",
-#         "span_id": "0x47f8226e1288aa21",
+#         "trace_id": "0xcdec2091ed29492419dd2aaee28e4f64",
+#         "span_id": "0x0a2e97ba87b57138",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
 #     "parent_id": null,
-#     "start_time": "2025-02-25T07:03:04.884325Z",
-#     "end_time": "2025-02-25T07:03:06.209301Z",
+#     "start_time": "2025-03-04T11:40:00.451440Z",
+#     "end_time": "2025-03-04T11:40:01.214602Z",
 #     "status": {
 #         "status_code": "UNSET"
 #     },
@@ -138,16 +138,16 @@ def test_openai_rag_sample(setup):
 #     }
 # }
 # {
-#     "name": "openai.resources.chat.completions.Completions",
+#     "name": "openai_inference",
 #     "context": {
-#         "trace_id": "0x0197853368de0182df301cc057682539",
-#         "span_id": "0x3f8a298042b2a275",
+#         "trace_id": "0x8544aa3bcdd7160469fb6c66a894a85e",
+#         "span_id": "0x6b4115cda3e5708f",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
 #     "parent_id": null,
-#     "start_time": "2025-02-25T07:03:58.839552Z",
-#     "end_time": "2025-02-25T07:04:09.736285Z",
+#     "start_time": "2025-03-04T11:40:01.391407Z",
+#     "end_time": "2025-03-04T11:40:02.348573Z",
 #     "status": {
 #         "status_code": "UNSET"
 #     },
@@ -166,7 +166,7 @@ def test_openai_rag_sample(setup):
 #     "events": [
 #         {
 #             "name": "data.input",
-#             "timestamp": "2025-02-25T07:03:59.668215Z",
+#             "timestamp": "2025-03-04T11:40:02.347568Z",
 #             "attributes": {
 #                 "input": [
 #                     "{'system': \"You are a helpful assistant to answer coffee related questions. Use the following pieces of retrieved context to answer the question. If you don't have the details in the context, say don't know. Context: Coffee is a hot drink made from the roasted and ground seeds (coffee beans) of a tropical shrub\\nA latte consists of one or more shots of espresso, served in a glass (or sometimes a cup), into which hot steamed milk is added\\nAmericano is a type of coffee drink prepared by diluting an espresso shot with hot water at a 1:3 to 1:4 ratio, resulting in a drink that retains the complex flavors of espresso, but in a lighter way\"}",
@@ -176,14 +176,14 @@ def test_openai_rag_sample(setup):
 #         },
 #         {
 #             "name": "data.output",
-#             "timestamp": "2025-02-25T07:04:04.684207Z",
+#             "timestamp": "2025-03-04T11:40:02.347568Z",
 #             "attributes": {
 #                 "response": "A latte consists of one or more shots of espresso, served in a glass (or sometimes a cup), into which hot steamed milk is added."
 #             }
 #         },
 #         {
 #             "name": "metadata",
-#             "timestamp": "2025-02-25T07:04:09.736285Z",
+#             "timestamp": "2025-03-04T11:40:02.348573Z",
 #             "attributes": {
 #                 "completion_tokens": 30,
 #                 "prompt_tokens": 152,

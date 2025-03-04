@@ -8,15 +8,7 @@ from monocle_apptrace.instrumentation.metamodel.openai.entities.retrieval import
 
 OPENAI_METHODS = [
     {
-        "package": "openai",
-        "object": "chat.completions",
-        "method": "create",
-        "wrapper_method": task_wrapper,
-        "span_name": "openai_inference",
-        "output_processor": INFERENCE
-    },
-    {
-        "package": "openai.resources.chat.completions.completions",
+        "package": "openai.resources.chat.completions",
         "object": "Completions",
         "method": "create",
         "wrapper_method": task_wrapper,
@@ -24,10 +16,10 @@ OPENAI_METHODS = [
         "output_processor": INFERENCE
     },
     {
-        "package": "openai",
-        "object": "embeddings",
+        "package": "openai.resources.embeddings",
+        "object": "Embeddings",
         "method": "create",
         "wrapper_method": task_wrapper,
         "output_processor": RETRIEVAL
-    },
+    }
 ]

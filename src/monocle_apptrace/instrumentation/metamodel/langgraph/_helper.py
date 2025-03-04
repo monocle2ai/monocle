@@ -1,5 +1,4 @@
 from monocle_apptrace.instrumentation.common.utils import resolve_from_alias
-from langchain_core.messages import HumanMessage
 import logging
 logger = logging.getLogger(__name__)
 
@@ -21,7 +20,7 @@ def agent_instructions(arguments):
 def extract_input(arguments):
     history = arguments['result']['messages']
     for message in history:
-        if isinstance(message, HumanMessage):  # Check if the message is a HumanMessage
+        if hasattr(message, 'content') and hasattr(message, 'type') and message.type == "human":  # Check if the message is a HumanMessage
             return message.content
 
 def get_inference_endpoint(arguments):

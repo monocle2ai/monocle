@@ -12,6 +12,15 @@ OPENAI_METHODS = [
         "object": "chat.completions",
         "method": "create",
         "wrapper_method": task_wrapper,
+        "span_name": "openai_inference",
+        "output_processor": INFERENCE
+    },
+    {
+        "package": "openai.resources.chat.completions.completions",
+        "object": "Completions",
+        "method": "create",
+        "wrapper_method": task_wrapper,
+        "span_name": "openai_inference",
         "output_processor": INFERENCE
     },
     {

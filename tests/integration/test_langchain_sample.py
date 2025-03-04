@@ -41,7 +41,7 @@ def setup():
 @pytest.mark.integration()
 def test_langchain_sample(setup):
 # llm = OpenAI(model="gpt-3.5-turbo-instruct")
-    llm = AzureOpenAI(
+    llm = AzureChatOpenAI(
         # engine=os.environ.get("AZURE_OPENAI_API_DEPLOYMENT"),
         azure_deployment=os.environ.get("AZURE_OPENAI_API_DEPLOYMENT"),
         api_key=os.environ.get("AZURE_OPENAI_API_KEY"),

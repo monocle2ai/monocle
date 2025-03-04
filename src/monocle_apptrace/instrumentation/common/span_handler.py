@@ -10,7 +10,7 @@ from monocle_apptrace.instrumentation.common.constants import (
     service_name_map,
     service_type_map,
 )
-from monocle_apptrace.instrumentation.common.utils import set_attribute
+from monocle_apptrace.instrumentation.common.utils import set_attribute, get_scopes
 
 logger = logging.getLogger(__name__)
 
@@ -24,10 +24,25 @@ WORKFLOW_TYPE_MAP = {
 
 class SpanHandler:
 
+    def __init__(self,instrumentor=None):
+        self.instrumentor=instrumentor
+
+    def set_instrumentor(self, instrumentor):
+        self.instrumentor = instrumentor
+
     def validate(self, to_wrap, wrapped, instance, args, kwargs):
         pass
 
-    def pre_task_processing(self, to_wrap, wrapped, instance, args, span):
+    def pre_tracing(self, to_wrap, wrapped, instance, args, kwargs):
+        pass
+
+    def post_tracing(self, to_wrap, wrapped, instance, args, kwargs, return_value):
+        pass
+
+    def skip_span(self, to_wrap, wrapped, instance, args, kwargs) -> bool:
+        return False
+
+    def pre_task_processing(self, to_wrap, wrapped, instance, args,kwargs, span):
         if self.__is_root_span(span):
             try:
                 sdk_version = version("monocle_apptrace")
@@ -37,12 +52,7 @@ class SpanHandler:
         if "pipeline" in to_wrap['package']:
             set_attribute(QUERY, args[0]['prompt_builder']['question'])
 
-
-
     def post_task_processing(self, to_wrap, wrapped, instance, args, kwargs, result, span):
-        pass
-
-    def set_context_properties(self, to_wrap, wrapped, instance, args, kwargs):
         pass
 
     def hydrate_span(self, to_wrap, wrapped, instance, args, kwargs, result, span):
@@ -72,16 +82,21 @@ class SpanHandler:
                             try:
                                 arguments = {"instance":instance, "args":args, "kwargs":kwargs, "result":result}
                                 result = accessor(arguments)
-                                if result and isinstance(result, str):
+                                if result and isinstance(result, (str, list)):
                                     span.set_attribute(attribute_name, result)
                             except Exception as e:
                                 logger.debug(f"Error processing accessor: {e}")
                         else:
-                            logger.warning(f"{' and '.join([key for key in ['attribute', 'accessor'] if not processor.get(key)])} not found or incorrect in entity JSON")
+                            logger.debug(f"{' and '.join([key for key in ['attribute', 'accessor'] if not processor.get(key)])} not found or incorrect in entity JSON")
                     span_index += 1
             else:
-                logger.warning("attributes not found or incorrect written in entity json")
+                logger.debug("attributes not found or incorrect written in entity json")
 
+        # set scopes as attributes by calling get_scopes()
+        # scopes is a Mapping[str:object], iterate directly with .items()
+        for scope_key, scope_value in get_scopes().items():
+            span.set_attribute(f"scope.{scope_key}", scope_value)
+        
         if span_index > 0:
             span.set_attribute("entity.count", span_index)
 

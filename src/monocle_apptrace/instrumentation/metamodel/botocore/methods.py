@@ -3,14 +3,14 @@ from monocle_apptrace.instrumentation.metamodel.botocore.entities.inference impo
     INFERENCE,
 )
 
-BOTOCORE_METHODS = [{
-
+BOTOCORE_METHODS = [
+    {
       "package": "botocore.client",
       "object": "ClientCreator",
       "method": "create_client",
       "wrapper_method": task_wrapper,
-      "skip_span": True,
-      "output_processor": INFERENCE
-
-}
+      "span_handler":"botocore_handler",
+      "output_processor": INFERENCE,
+      "skip_span": True
+    }
 ]

@@ -1,9 +1,10 @@
 from typing import Dict, Any, List
 import os
-import warnings
+import logging
 from importlib import import_module
 from opentelemetry.sdk.trace.export import SpanExporter, ConsoleSpanExporter
 from monocle_apptrace.exporters.file_exporter import FileSpanExporter
+logger = logging.getLogger(__name__)
 
 monocle_exporters: Dict[str, Any] = {
     "s3": {"module": "monocle_apptrace.exporters.aws.s3_exporter", "class": "S3SpanExporter"},
@@ -25,21 +26,21 @@ def get_monocle_exporter() -> List[SpanExporter]:
         try:
             exporter_class_path = monocle_exporters[exporter_name]
         except KeyError:
-            warnings.warn(f"Unsupported Monocle span exporter '{exporter_name}', skipping.")
+            logger.debug(f"Unsupported Monocle span exporter '{exporter_name}', skipping.")
             continue
         try:
             exporter_module = import_module(exporter_class_path["module"])
             exporter_class = getattr(exporter_module, exporter_class_path["class"])
             exporters.append(exporter_class())
         except Exception as ex:
-            warnings.warn(
+            logger.debug(
                 f"Unable to initialize Monocle span exporter '{exporter_name}', error: {ex}. Using ConsoleSpanExporter as a fallback.")
             exporters.append(ConsoleSpanExporter())
             continue
 
     # If no exporters were created, default to FileSpanExporter
     if not exporters:
-        warnings.warn("No valid Monocle span exporters configured. Defaulting to FileSpanExporter.")
+        logger.debug("No valid Monocle span exporters configured. Defaulting to FileSpanExporter.")
         exporters.append(FileSpanExporter())
 
     return exporters

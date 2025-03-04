@@ -1,13 +1,11 @@
-import openai
 import os
 import time
 import pytest
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from common.custom_exporter import CustomConsoleSpanExporter
 from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
-
+from openai import OpenAI
 custom_exporter = CustomConsoleSpanExporter()
-openai.api_type = "openai"
 
 @pytest.fixture(scope="module")
 def setup():
@@ -18,6 +16,7 @@ def setup():
 
 @pytest.mark.integration()
 def test_openai_api_sample(setup):
+    openai = OpenAI()
     response = openai.chat.completions.create(
       model="gpt-4o-mini",
       messages=[

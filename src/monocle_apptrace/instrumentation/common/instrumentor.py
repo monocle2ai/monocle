@@ -22,9 +22,9 @@ from monocle_apptrace.instrumentation.common.wrapper_method import (
     WrapperMethod,
     MONOCLE_SPAN_HANDLERS
 )
-from monocle_apptrace.instrumentation.common.wrapper import scope_wrapper
+from monocle_apptrace.instrumentation.common.wrapper import scope_wrapper, task_wrapper
 from monocle_apptrace.instrumentation.common.utils import (
-    set_scope, remove_scope, http_route_handler, load_scopes
+    set_scope, remove_scope, http_route_handler, load_config, configure_http_scopes
 )
 from monocle_apptrace.instrumentation.common.constants import MONOCLE_INSTRUMENTOR
 from functools import wraps
@@ -41,16 +41,19 @@ class MonocleInstrumentor(BaseInstrumentor):
     user_wrapper_methods: list[Union[dict,WrapperMethod]] = []
     instrumented_method_list: list[object] = []
     handlers:Dict[str,SpanHandler] = {} # dict of handlers
+    http_scopes: List[dict] = []
     union_with_default_methods: bool = False
 
     def __init__(
             self,
             handlers,
             user_wrapper_methods: list[Union[dict,WrapperMethod]] = None,
+            http_scopes: List[dict] = [],
             union_with_default_methods: bool = True
             ) -> None:
         self.user_wrapper_methods = user_wrapper_methods or []
         self.handlers = handlers
+        self.http_scopes = http_scopes
         if self.handlers is not None:
             for key, val in MONOCLE_SPAN_HANDLERS.items():
                 if key not in self.handlers:
@@ -86,15 +89,23 @@ class MonocleInstrumentor(BaseInstrumentor):
         if self.union_with_default_methods is True:
             final_method_list= final_method_list + DEFAULT_METHODS_LIST
 
-        for method in self.user_wrapper_methods:
-            if isinstance(method, dict):
-                final_method_list.append(method)
-            elif isinstance(method, WrapperMethod):
-                final_method_list.append(method.to_dict())
-
-        for method in load_scopes():
-            method['wrapper_method'] = scope_wrapper
+        #Combine programmatic and config based methods
+        for wrapper_method in load_config() + self.user_wrapper_methods :
+            if isinstance(wrapper_method, WrapperMethod):
+                method = wrapper_method.to_dict()
+            elif isinstance(wrapper_method, dict) :
+                method = wrapper_method
+            else:
+                logger.debug(f"incorrect method type {type(wrapper_method)}")
+                continue
+            if method.get("scope_name", None) is not None:
+                method["wrapper_method"] = scope_wrapper
+            elif method.get("wrapper_method", None) is None:
+                method["wrapper_method"] = task_wrapper
             final_method_list.append(method)
+
+        #set programmatic http scopes (configured http scopes are already handled in load_config)
+        configure_http_scopes(self.http_scopes)
         
         for method_config in final_method_list:
             target_package = method_config.get("package", None)
@@ -153,6 +164,7 @@ def setup_monocle_telemetry(
         span_processors: List[SpanProcessor] = None,
         span_handlers: Dict[str,SpanHandler] = None,
         wrapper_methods: List[Union[dict,WrapperMethod]] = None,
+        http_scopes: List[dict] = [],
         union_with_default_methods: bool = True) -> None:
     resource = Resource(attributes={
         SERVICE_NAME: workflow_name
@@ -173,7 +185,7 @@ def setup_monocle_telemetry(
     if is_proxy_provider:
         trace.set_tracer_provider(get_tracer_provider())
     instrumentor = MonocleInstrumentor(user_wrapper_methods=wrapper_methods or [], 
-                                       handlers=span_handlers, union_with_default_methods = union_with_default_methods)
+                                       handlers=span_handlers, http_scopes=http_scopes, union_with_default_methods = union_with_default_methods)
     # instrumentor.app_name = workflow_name
     if not instrumentor.is_instrumented_by_opentelemetry:
         instrumentor.instrument(trace_provider=get_tracer_provider())

@@ -7,13 +7,13 @@ from langchain_chroma import Chroma
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry, start_scope, stop_scope, monocle_trace_scope_method, monocle_trace_scope
 from monocle_apptrace.instrumentation.common.utils import get_scopes
-from monocle_apptrace.instrumentation.common.constants import SCOPE_METHOD_FILE, SCOPE_CONFIG_PATH
+from monocle_apptrace.instrumentation.common.constants import CONFIG_FILE_NAME, CONFIG_FILE_PATH
 
 CHAT_SCOPE_NAME = "chat"
 custom_exporter = CustomConsoleSpanExporter()
 @pytest.fixture(scope="module")
 def setup():
-    os.environ[SCOPE_CONFIG_PATH] = os.path.join(os.path.dirname(os.path.abspath(__file__)), SCOPE_METHOD_FILE)
+    os.environ[CONFIG_FILE_PATH] = os.path.join(os.path.dirname(os.path.abspath(__file__)), CONFIG_FILE_NAME)
     setup_monocle_telemetry(
                 workflow_name="langchain_app_1",
                 span_processors=[SimpleSpanProcessor(custom_exporter)],

@@ -60,15 +60,20 @@ def resolve_from_alias(my_map, alias):
     return None
 
 
-def update_input_span_events(args):
-    return args[0] if len(args) > 0 else ""
+def update_input_span_events(kwargs):
+    if 'input' in kwargs and isinstance(kwargs['input'], list):
+        query = ' '.join(kwargs['input'])
+        return query
 
 
 def update_output_span_events(results):
-    output_arg_text = " ".join([doc.page_content for doc in results if hasattr(doc, 'page_content')])
-    if len(output_arg_text) > 100:
-        output_arg_text = output_arg_text[:100] + "..."
-    return output_arg_text
+    if hasattr(results,'data') and isinstance(results.data, list):
+        embeddings = results.data
+        embedding_strings = [f"index={e.index}, embedding={e.embedding}" for e in embeddings]
+        output = '\n'.join(embedding_strings)
+        if len(output) > 100:
+            output = output[:100] + "..."
+        return output
 
 
 def update_span_from_llm_response(response):

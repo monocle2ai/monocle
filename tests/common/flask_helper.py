@@ -5,12 +5,12 @@ import requests
 from common.chain_exec import exec_chain
 PORT=8096
 import multiprocessing
+from monocle_apptrace.instrumentation.common.instrumentor import monocle_trace_http_route
 
 web_app = Flask(__name__)
 flask_proc:multiprocessing.Process = None
 
-@web_app.route("/chat", methods=["GET"])
-def message():
+def route_executer(request):
     try:
         client_id= request.headers["client-id"]
         question = request.args["question"]
@@ -19,6 +19,25 @@ def message():
     except Exception as e:
         print(e)
         return jsonify({"Status":"Failure --- some error occured"})
+
+                
+@web_app.route("/chat", methods=["GET"])
+def message_chat():
+    route_executer(request)
+
+@web_app.route("/talk", methods=["GET"])
+async def talk():
+    route_executer(request)
+
+@web_app.route("/http_chat", methods=["GET"])
+@monocle_trace_http_route
+def message_http_chat():
+    route_executer(request)
+
+@web_app.route("/http_talk", methods=["GET"])
+@monocle_trace_http_route
+async def talk_http():
+    route_executer(request)
 
 @web_app.route("/hello", methods=["GET"])
 def hello():

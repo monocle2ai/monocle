@@ -19,6 +19,26 @@ RETRIEVAL = {
         ]
     ],
     "events": [
+        {"name": "data.input",
+         "attributes": [
+
+             {
+                 "_comment": "this is search query for vector store",
+                 "attribute": "input",
+                 "accessor": lambda arguments: _helper.extract_vector_input(arguments['kwargs'])
+             }
+         ]
+         },
+        {
+            "name": "data.output",
+            "attributes": [
+                {
+                    "_comment": "this is result from vector search",
+                    "attribute": "response",
+                    "accessor": lambda arguments: _helper.extract_vector_output(arguments['result'])
+                }
+            ]
+        }
 
     ]
 }

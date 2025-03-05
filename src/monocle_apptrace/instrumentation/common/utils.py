@@ -1,7 +1,7 @@
 import logging, json
 import os
 from typing import Callable, Generic, Optional, TypeVar, Mapping
-from threading import local
+import threading, asyncio
 
 from opentelemetry.context import attach, detach, get_current, get_value, set_value, Context
 from opentelemetry.trace import NonRecordingSpan, Span, get_tracer
@@ -239,6 +239,40 @@ def http_route_handler(headers, func, req):
         return result
     finally:
         clear_http_scopes(token)
+
+async def http_async_route_handler(headers, func, req):
+    token = extract_http_headers(headers)
+    try:
+        result = async_wrapper(func, req)
+        return result
+    finally:
+        clear_http_scopes(token)
+
+def run_async_with_scope(method, scope_name:str = None, *args, **kwargs):
+    token = None
+    if scope_name:
+        token = set_scope(scope_name)
+    try:
+        return asyncio.run(method(*args, **kwargs))
+    finally:
+        if token:
+            remove_scope(token)
+
+def async_wrapper(method, *args, **kwargs):
+    try:
+        run_loop = asyncio.get_running_loop()
+    except RuntimeError:
+        run_loop = None
+
+    if run_loop and run_loop.is_running():
+        results = []
+        thread = threading.Thread(target=lambda: results.append(run_async_with_scope(method, *args, **kwargs)))
+        thread.start()
+        thread.join()
+        return_value = results[0] if len(results) > 0 else None
+        return return_value
+    else:
+        return run_async_with_scope(method, *args, **kwargs)
 
 class Option(Generic[T]):
     def __init__(self, value: Optional[T]):

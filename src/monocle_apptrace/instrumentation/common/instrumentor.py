@@ -1,4 +1,5 @@
 import logging
+import inspect
 from typing import Collection, Dict, List, Union
 import random
 import uuid
@@ -22,9 +23,9 @@ from monocle_apptrace.instrumentation.common.wrapper_method import (
     WrapperMethod,
     MONOCLE_SPAN_HANDLERS
 )
-from monocle_apptrace.instrumentation.common.wrapper import scope_wrapper
+from monocle_apptrace.instrumentation.common.wrapper import scope_wrapper, ascope_wrapper
 from monocle_apptrace.instrumentation.common.utils import (
-    set_scope, remove_scope, http_route_handler, load_scopes
+    set_scope, remove_scope, http_route_handler, load_scopes, async_wrapper, http_async_route_handler
 )
 from monocle_apptrace.instrumentation.common.constants import MONOCLE_INSTRUMENTOR
 from functools import wraps
@@ -93,7 +94,10 @@ class MonocleInstrumentor(BaseInstrumentor):
                 final_method_list.append(method.to_dict())
 
         for method in load_scopes():
-            method['wrapper_method'] = scope_wrapper
+            if method.get('async', False):
+                method['wrapper_method'] = ascope_wrapper
+            else:
+                method['wrapper_method'] = scope_wrapper
             final_method_list.append(method)
         
         for method_config in final_method_list:
@@ -248,23 +252,43 @@ def monocle_trace_scope(scope_name: str, scope_value:str = None):
         yield
     finally:
         stop_scope(token)
-
+    
 def monocle_trace_scope_method(scope_name: str):
     def decorator(func):
-        def wrapper(*args, **kwargs):
-            token = start_scope(scope_name)
-            try:
-                result = func(*args, **kwargs)
-                return result
-            finally:
-                stop_scope(token)
-        return wrapper
+        if inspect.iscoroutinefunction(func):
+            @wraps(func)
+            async def wrapper(*args, **kwargs):
+#                token = start_scope(scope_name)
+                try:
+                    result = async_wrapper(func, scope_name, *args, **kwargs)
+                    return result
+                finally:
+#                    stop_scope(token)
+                    pass
+            return wrapper
+        else:
+            @wraps(func)
+            def wrapper(*args, **kwargs):
+                token = start_scope(scope_name)
+                try:
+                    result = func(*args, **kwargs)
+                    return result
+                finally:
+                    stop_scope(token)
+            return wrapper
     return decorator
 
 def monocle_trace_http_route(func):
-    def wrapper(req):
-        return http_route_handler(req.headers, func, req)
-    return wrapper
+    if inspect.iscoroutinefunction(func):
+        @wraps(func)
+        async def wrapper(req):
+            return http_async_route_handler(req.headers, func, req)
+        return wrapper
+    else:
+        @wraps(func)
+        def wrapper(req):
+            return http_route_handler(req.headers, func, req)
+        return wrapper
 
 class FixedIdGenerator(id_generator.IdGenerator):
     def __init__(

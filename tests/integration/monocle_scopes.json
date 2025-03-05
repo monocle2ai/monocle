@@ -6,6 +6,13 @@
         "scope_name": "question"
     },
     {
+        "package": "common.chain_exec",
+        "object": "TestScopes",
+        "method": "config_scope_async_func",
+        "async": true,
+        "scope_name": "aquestion"
+    },
+    {
         "http_header": "client-id",
         "scope_name": "conversation"
     }

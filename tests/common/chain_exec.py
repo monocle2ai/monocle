@@ -20,6 +20,10 @@ class TestScopes:
         result = chain.invoke(message)
         return result
 
+    async def config_scope_async_func(self, chain, message):
+        result = chain.invoke(message)
+        return result
+
 @staticmethod
 def setup_chain():
     """ Setup the langchain chain for the test """

@@ -16,10 +16,26 @@ OPENAI_METHODS = [
         "output_processor": INFERENCE
     },
     {
+        "package": "openai.resources.chat.completions",
+        "object": "AsyncCompletions",
+        "method": "create",
+        "wrapper_method": atask_wrapper,
+        "span_name": "openai_inference",
+        "output_processor": INFERENCE
+    },
+    {
         "package": "openai.resources.embeddings",
         "object": "Embeddings",
         "method": "create",
         "wrapper_method": task_wrapper,
         "output_processor": RETRIEVAL
+    },
+    {
+        "package": "openai.resources.embeddings",
+        "object": "AsyncEmbeddings",
+        "method": "create",
+        "wrapper_method": atask_wrapper,
+        "output_processor": RETRIEVAL
     }
+
 ]

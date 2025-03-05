@@ -1,6 +1,7 @@
 import os
 import bs4
 import pytest
+import asyncio
 from common.custom_exporter import CustomConsoleSpanExporter
 from common.chain_exec import TestScopes, setup_chain, exec_chain
 from langchain_chroma import Chroma
@@ -96,9 +97,23 @@ def run_chain_with_scope(chain, message):
 def test_scope_wrapper(setup):
     """ Test setting scope at function level using decorator """
     rag_chain = setup_chain()
-    scope_name = CHAT_SCOPE_NAME
     result = run_chain_with_scope(rag_chain, "What is Task Decomposition?")
+    verify_scope_testing(scope_name = CHAT_SCOPE_NAME)
+
+@monocle_trace_scope_method(scope_name=CHAT_SCOPE_NAME)
+async def run_chain_async_with_scope(chain, message):
+    result = chain.invoke(message)
     print(result)
+    return result
+
+@pytest.mark.integration()
+def test_async_scope_wrapper(setup):
+    """ Test setting scope at async function level using decorator """
+    rag_chain = setup_chain()
+    result = asyncio.run(run_chain_async_with_scope(rag_chain, "What is Task Decomposition?"))
+    verify_scope_testing(scope_name = CHAT_SCOPE_NAME)
+
+def verify_scope_testing(scope_name:str):
     spans = custom_exporter.get_captured_spans()
     message_scope_id = None
     for span in spans:
@@ -115,19 +130,17 @@ def test_scope_config(setup):
     test_scope = TestScopes()
     # set config path as monocle_scopes.json in the same directory as this file
     chain = setup_chain()
-    chain = setup_chain()
     result = test_scope.config_scope_func(chain, "What is Task Decomposition?")
-    print(result)
-    scope_name = "question"
-    spans = custom_exporter.get_captured_spans()
-    message_scope_id = None
-    for span in spans:
-        span_attributes = span.attributes
-        if message_scope_id is None:
-            message_scope_id = span_attributes.get("scope."+scope_name)
-            assert message_scope_id is not None
-        else:
-            assert message_scope_id == span_attributes.get("scope."+scope_name)
+    verify_scope_testing(scope_name = "question")
+
+@pytest.mark.integration()
+def test_async_scope_config(setup):
+    """ Test setting scope at function level using external configuartion """
+    test_scope = TestScopes()
+    # set config path as monocle_scopes.json in the same directory as this file
+    chain = setup_chain()
+    result = asyncio.run(test_scope.config_scope_async_func(chain, "What is Task Decomposition?"))
+    verify_scope_testing(scope_name = "aquestion")
 
 @pytest.mark.integration()
 def test_scope_with_code_block(setup):

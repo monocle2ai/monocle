@@ -25,25 +25,11 @@ def route_executer(request):
 def message_chat():
     route_executer(request)
 
-@web_app.route("/talk", methods=["GET"])
-async def talk():
-    route_executer(request)
-
-@web_app.route("/http_chat", methods=["GET"])
-@monocle_trace_http_route
-def message_http_chat():
-    route_executer(request)
-
-@web_app.route("/http_talk", methods=["GET"])
-@monocle_trace_http_route
-async def talk_http():
-    route_executer(request)
-
 @web_app.route("/hello", methods=["GET"])
 def hello():
     return jsonify({"Status":"Success"})
 
-def start_server():
+def start_server() -> None:
     global web_app
     web_app.run(host="127.0.0.1", port=PORT)
 
@@ -51,14 +37,15 @@ def stop_flask():
     pass
 
 def start_flask():
-    flask_thread = Thread(target=start_server)
+    flask_thread = Thread(target=lambda: start_server())
     flask_thread.daemon = True
     flask_thread.start()
-    for i in range(10):
+    for i in range(15):
         try:
             requests.get(get_url()+"/hello")
+            print("Flask server started")
             break
-        except:
+        except Exception as e:
             time.sleep(1)
 
 def get_url() -> str:

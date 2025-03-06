@@ -258,13 +258,8 @@ def monocle_trace_scope_method(scope_name: str):
         if inspect.iscoroutinefunction(func):
             @wraps(func)
             async def wrapper(*args, **kwargs):
-#                token = start_scope(scope_name)
-                try:
-                    result = async_wrapper(func, scope_name, *args, **kwargs)
-                    return result
-                finally:
-#                    stop_scope(token)
-                    pass
+                result = async_wrapper(func, scope_name, None, *args, **kwargs)
+                return result
             return wrapper
         else:
             @wraps(func)
@@ -281,13 +276,13 @@ def monocle_trace_scope_method(scope_name: str):
 def monocle_trace_http_route(func):
     if inspect.iscoroutinefunction(func):
         @wraps(func)
-        async def wrapper(req):
-            return http_async_route_handler(req.headers, func, req)
+        async def wrapper(*args, **kwargs):
+            return http_async_route_handler(func, *args, **kwargs)
         return wrapper
     else:
         @wraps(func)
-        def wrapper(req):
-            return http_route_handler(req.headers, func, req)
+        def wrapper(*args, **kwargs):
+            return http_route_handler(func, *args, **kwargs)
         return wrapper
 
 class FixedIdGenerator(id_generator.IdGenerator):

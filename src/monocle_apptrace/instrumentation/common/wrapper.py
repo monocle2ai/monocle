@@ -66,7 +66,7 @@ async def atask_wrapper(tracer: Tracer, handler: SpanHandler, to_wrap, wrapped, 
         else:
             with tracer.start_as_current_span(name) as span:
                 handler.pre_task_processing(to_wrap, wrapped, instance, args, kwargs, span)
-                return_value = async_wrapper(wrapped, *args, **kwargs)
+                return_value = async_wrapper(wrapped, None, None, *args, **kwargs)
                 handler.hydrate_span(to_wrap, wrapped, instance, args, kwargs, return_value, span)
                 handler.post_task_processing(to_wrap, wrapped, instance, args, kwargs, return_value, span)
         return return_value
@@ -86,5 +86,5 @@ def scope_wrapper(tracer: Tracer, handler: SpanHandler, to_wrap, wrapped, instan
 @with_tracer_wrapper
 async def ascope_wrapper(tracer: Tracer, handler: SpanHandler, to_wrap, wrapped, instance, args, kwargs):
     scope_name = to_wrap.get('scope_name', None)
-    return_value = async_wrapper(wrapped, scope_name, *args, **kwargs)
+    return_value = async_wrapper(wrapped, scope_name, None, *args, **kwargs)
     return return_value

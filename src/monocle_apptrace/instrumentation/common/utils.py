@@ -232,33 +232,41 @@ def clear_http_scopes(token:object) -> None:
     global http_scopes
     remove_scopes(token)
 
-def http_route_handler(headers, func, req):
-    token = extract_http_headers(headers)
+def http_route_handler(func, *args, **kwargs):
+    if 'req' in kwargs and hasattr(kwargs['req'], 'headers'):
+        headers = kwargs['req'].headers
+    else:
+        headers = None
+    token = None
+    if headers is not None:
+        token = extract_http_headers(headers)
     try:
-        result = func(req)
+        result = func(*args, **kwargs)
         return result
     finally:
-        clear_http_scopes(token)
+        if token is not None:
+            clear_http_scopes(token)
 
-async def http_async_route_handler(headers, func, req):
-    token = extract_http_headers(headers)
-    try:
-        result = async_wrapper(func, req)
-        return result
-    finally:
-        clear_http_scopes(token)
+async def http_async_route_handler(func, *args, **kwargs):
+    if 'req' in kwargs and hasattr(kwargs['req'], 'headers'):
+        headers = kwargs['req'].headers
+    else:
+        headers = None
+    return async_wrapper(func, None, headers, *args, **kwargs)
 
-def run_async_with_scope(method, scope_name:str = None, *args, **kwargs):
+def run_async_with_scope(method, scope_name, headers, *args, **kwargs):
     token = None
     if scope_name:
         token = set_scope(scope_name)
+    elif headers:
+        token = extract_http_headers(headers)
     try:
         return asyncio.run(method(*args, **kwargs))
     finally:
         if token:
             remove_scope(token)
 
-def async_wrapper(method, *args, **kwargs):
+def async_wrapper(method, scope_name=None, headers=None, *args, **kwargs):
     try:
         run_loop = asyncio.get_running_loop()
     except RuntimeError:
@@ -266,13 +274,13 @@ def async_wrapper(method, *args, **kwargs):
 
     if run_loop and run_loop.is_running():
         results = []
-        thread = threading.Thread(target=lambda: results.append(run_async_with_scope(method, *args, **kwargs)))
+        thread = threading.Thread(target=lambda: results.append(run_async_with_scope(method, scope_name, headers, *args, **kwargs)))
         thread.start()
         thread.join()
         return_value = results[0] if len(results) > 0 else None
         return return_value
     else:
-        return run_async_with_scope(method, *args, **kwargs)
+        return run_async_with_scope(method, scope_name, headers, *args, **kwargs)
 
 class Option(Generic[T]):
     def __init__(self, value: Optional[T]):

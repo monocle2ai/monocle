@@ -32,7 +32,7 @@ def extract_messages(kwargs):
 
 def extract_assistant_message(response):
     try:
-        if hasattr(response,"choices") and len(response.choices) >0:
+        if response is not None and hasattr(response,"choices") and len(response.choices) >0:
             if hasattr(response.choices[0],"message"):
                 return response.choices[0].message.content
     except (IndexError, AttributeError) as e:
@@ -91,3 +91,15 @@ def update_span_from_llm_response(response):
             meta_dict.update({"total_tokens": getattr(response.usage, "total_tokens", None)})
     return meta_dict
 
+def extract_vector_input(vector_input: dict):
+    if 'input' in vector_input:
+        return vector_input['input']
+    return ""
+
+def extract_vector_output(vector_output):
+    try:
+        if hasattr(vector_output, 'data') and len(vector_output.data) > 0:
+            return vector_output.data[0].embedding
+    except Exception as e:
+        pass
+    return ""

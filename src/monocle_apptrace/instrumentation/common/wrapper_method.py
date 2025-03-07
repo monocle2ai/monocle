@@ -1,7 +1,7 @@
 # pylint: disable=too-few-public-methods
 from typing import Any, Dict
 from monocle_apptrace.instrumentation.common.wrapper import task_wrapper, scope_wrapper
-from monocle_apptrace.instrumentation.common.span_handler import SpanHandler
+from monocle_apptrace.instrumentation.common.span_handler import SpanHandler, NonFrameworkSpanHandler
 from monocle_apptrace.instrumentation.metamodel.botocore.methods import BOTOCORE_METHODS
 from monocle_apptrace.instrumentation.metamodel.botocore.handlers.botocore_span_handler import BotoCoreSpanHandler
 from monocle_apptrace.instrumentation.metamodel.langchain.methods import (
@@ -64,5 +64,6 @@ MONOCLE_SPAN_HANDLERS: Dict[str, SpanHandler] = {
     "default": SpanHandler(),
     "botocore_handler": BotoCoreSpanHandler(),
     "flask_handler": FlaskSpanHandler(),
-    "request_handler": RequestSpanHandler()
+    "request_handler": RequestSpanHandler(),
+    "non_framework_handler": NonFrameworkSpanHandler()
 }

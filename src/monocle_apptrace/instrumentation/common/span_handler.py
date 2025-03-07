@@ -2,7 +2,7 @@ import logging
 import os
 from importlib.metadata import version
 from opentelemetry.context import get_current
-from opentelemetry.context import get_value
+from opentelemetry.context import get_value, set_value, attach, detach
 from opentelemetry.sdk.trace import Span
 
 from monocle_apptrace.instrumentation.common.constants import (
@@ -19,8 +19,6 @@ WORKFLOW_TYPE_MAP = {
     "langchain": "workflow.langchain",
     "haystack": "workflow.haystack"
 }
-
-
 
 class SpanHandler:
 
@@ -43,17 +41,26 @@ class SpanHandler:
         return False
 
     def pre_task_processing(self, to_wrap, wrapped, instance, args,kwargs, span):
+        if "pipeline" in to_wrap['package']:
+            set_attribute(QUERY, args[0]['prompt_builder']['question'])
+
+    def set_workflow_span(self, to_wrap, span: Span):
+        """ Set attributes of workflow if this is a root span"""
         if self.__is_root_span(span):
             try:
                 sdk_version = version("monocle_apptrace")
                 span.set_attribute("monocle_apptrace.version", sdk_version)
             except Exception as e:
                 logger.warning("Exception finding monocle-apptrace version.")
-        if "pipeline" in to_wrap['package']:
-            set_attribute(QUERY, args[0]['prompt_builder']['question'])
 
-    def post_task_processing(self, to_wrap, wrapped, instance, args, kwargs, result, span):
-        pass
+            token = self.set_workflow_attributes(to_wrap, span)
+            self.set_app_hosting_identifier_attribute(span)
+            return token
+        return None
+
+    def post_task_processing(self, token, to_wrap, wrapped, instance, args, kwargs, result, span):
+        if token:
+            detach(token)
 
     def hydrate_span(self, to_wrap, wrapped, instance, args, kwargs, result, span):
         self.hydrate_attributes(to_wrap, wrapped, instance, args, kwargs, result, span)
@@ -62,9 +69,7 @@ class SpanHandler:
     def hydrate_attributes(self, to_wrap, wrapped, instance, args, kwargs, result, span):
         span_index = 0
         if self.__is_root_span(span):
-            span_index += self.set_workflow_attributes(to_wrap, span, span_index+1)
-            span_index += self.set_app_hosting_identifier_attribute(span, span_index+1)
-
+            span_index = 2 # root span will have workflow and hosting entities pre-populated
         if 'output_processor' in to_wrap and to_wrap["output_processor"] is not None:    
             output_processor=to_wrap['output_processor']
             if 'type' in output_processor:
@@ -124,35 +129,45 @@ class SpanHandler:
                                 logger.debug(f"Error evaluating accessor for attribute '{attribute_key}': {e}")
                     span.add_event(name=event_name, attributes=event_attributes)
 
-
-
-    def set_workflow_attributes(self, to_wrap, span: Span, span_index):
-        return_value = 1
+    def set_workflow_attributes(self, to_wrap, span: Span):
+        span_index = 1
         workflow_name = self.get_workflow_name(span=span)
         if workflow_name:
             span.set_attribute("span.type", "workflow")
             span.set_attribute(f"entity.{span_index}.name", workflow_name)
             # workflow type
         package_name = to_wrap.get('package')
-        workflow_type_set = False
-        for (package, workflow_type) in WORKFLOW_TYPE_MAP.items():
+        workflow_type = "workflow.generic"
+        for (package, framework_workflow_type) in WORKFLOW_TYPE_MAP.items():
             if (package_name is not None and package in package_name):
-                span.set_attribute(f"entity.{span_index}.type", workflow_type)
-                workflow_type_set = True
-        if not workflow_type_set:
-            span.set_attribute(f"entity.{span_index}.type", "workflow.generic")
-        return return_value
+                workflow_type = framework_workflow_type
+                break
+        span.set_attribute(f"entity.{span_index}.type", workflow_type)
+        token = attach(set_value("workflow_type", workflow_type))
+        return token
 
-    def set_app_hosting_identifier_attribute(self, span, span_index):
-        return_value = 0
+    def close_workflow_span(self, span, token):
+        if token:
+            detach(token)
+
+    def is_framework_trace(self) -> bool:
+        current_workflow_type = get_value("workflow_type")
+        if current_workflow_type is not None:
+            for (package, workflow_type) in WORKFLOW_TYPE_MAP.items():
+                if workflow_type == current_workflow_type:
+                    return True
+        return False
+    
+    def set_app_hosting_identifier_attribute(self, span):
+        span_index = 2
         # Search env to indentify the infra service type, if found check env for service name if possible
+        span.set_attribute(f"entity.{span_index}.type", f"app_hosting.generic")
+        span.set_attribute(f"entity.{span_index}.name", "generic")
         for type_env, type_name in service_type_map.items():
             if type_env in os.environ:
-                return_value = 1
                 span.set_attribute(f"entity.{span_index}.type", f"app_hosting.{type_name}")
                 entity_name_env = service_name_map.get(type_name, "unknown")
                 span.set_attribute(f"entity.{span_index}.name", os.environ.get(entity_name_env, "generic"))
-        return return_value
 
     def get_workflow_name(self, span: Span) -> str:
         try:
@@ -167,3 +182,12 @@ class SpanHandler:
                 return curr_span.parent is None or get_current().get("root_span_id") == curr_span.parent.span_id
         except Exception as e:
             logger.warning(f"Error finding root span: {e}")
+
+    def is_non_workflow_root_span(self, curr_span: Span, to_wrap) -> bool:
+        return self.__is_root_span(curr_span) and 'output_processor' in to_wrap and to_wrap["output_processor"] is not None
+
+class NonFrameworkSpanHandler(SpanHandler):
+
+    # If the language framework is being executed, then skip generating direct openAI spans
+    def skip_span(self, to_wrap, wrapped, instance, args, kwargs) -> bool:
+        return super().is_framework_trace()

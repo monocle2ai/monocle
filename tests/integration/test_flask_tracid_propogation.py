@@ -6,7 +6,7 @@ import requests, uuid
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
 from common.custom_exporter import CustomConsoleSpanExporter
-from common import flask_helper
+from tests.common import flask_helper
 from common.custom_exporter import CustomConsoleSpanExporter
 from common.chain_exec import TestScopes, setup_chain
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor

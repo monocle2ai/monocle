@@ -1,0 +1,16 @@
+{ 
+    "wrapper_methods" : [
+        {
+            "package": "common.chain_exec",
+            "object": "TestScopes",
+            "method": "config_scope_func",
+            "scope_name": "question"
+        }
+    ],
+    "http_scopoes": [
+        {
+            "http_header": "client-id",
+            "scope_name": "conversation"
+        }
+    ]
+}

@@ -2,6 +2,7 @@ import logging, json
 import os
 from typing import Callable, Generic, Optional, TypeVar, Mapping
 from threading import local
+from typing import List
 
 from opentelemetry.context import attach, detach, get_current, get_value, set_value, Context
 from opentelemetry.trace import NonRecordingSpan, Span, get_tracer
@@ -9,7 +10,7 @@ from opentelemetry.trace.propagation import _SPAN_KEY
 from opentelemetry.sdk.trace import id_generator, TracerProvider
 from opentelemetry.propagate import inject, extract
 from opentelemetry import baggage
-from monocle_apptrace.instrumentation.common.constants import MONOCLE_SCOPE_NAME_PREFIX, SCOPE_METHOD_FILE, SCOPE_CONFIG_PATH
+from monocle_apptrace.instrumentation.common.constants import MONOCLE_SCOPE_NAME_PREFIX, CONFIG_FILE_NAME, CONFIG_FILE_PATH
 
 T = TypeVar('T')
 U = TypeVar('U')
@@ -156,22 +157,24 @@ def get_nested_value(data, keys):
 def get_keys_as_tuple(dictionary, *keys):
     return tuple(next((value for key, value in dictionary.items() if key.endswith(k) and value is not None), None) for k in keys)
 
-def load_scopes() -> dict:
-    methods_data = []
-    scope_methods = []
+def load_config() -> List[dict]:
     try:
-        scope_config_file_path = os.environ.get(SCOPE_CONFIG_PATH, 
-                                        os.path.join(os.getcwd(), SCOPE_METHOD_FILE))
+        scope_config_file_path = os.environ.get(CONFIG_FILE_PATH, 
+                                        os.path.join(os.getcwd(), CONFIG_FILE_NAME))
         with open(scope_config_file_path) as f:
-            methods_data = json.load(f)
-            for method in methods_data:
-                if method.get('http_header'):
-                    http_scopes[method.get('http_header')] = method.get('scope_name')
-                else:
-                    scope_methods.append(method)
+            config_data = json.load(f)
+            wrapper_methods = config_data.get('wrapper_methods', [])
+            configure_http_scopes(config_data.get('http_scopes', []))
+            return wrapper_methods
     except Exception as e:
         logger.debug(f"Error loading scope methods from file: {e}")
-    return scope_methods
+        return []
+
+def configure_http_scopes(input_http_scopes:List[dict]) -> None:
+    global http_scopes
+    for scope in input_http_scopes:
+        if scope.get('http_header'):
+            http_scopes[scope.get('http_header')] = scope.get('scope_name')
 
 def __generate_scope_id() -> str:
     global scope_id_generator

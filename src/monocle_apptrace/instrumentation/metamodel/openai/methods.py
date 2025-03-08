@@ -12,7 +12,6 @@ OPENAI_METHODS = [
         "object": "Completions",
         "method": "create",
         "wrapper_method": task_wrapper,
-        "span_name": "openai",
         "span_handler": "non_framework_handler",
         "output_processor": INFERENCE
     },
@@ -21,7 +20,6 @@ OPENAI_METHODS = [
         "object": "AsyncCompletions",
         "method": "create",
         "wrapper_method": atask_wrapper,
-        "span_name": "openai",
         "span_handler": "non_framework_handler",
         "output_processor": INFERENCE
     },

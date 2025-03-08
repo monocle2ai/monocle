@@ -1,6 +1,7 @@
 # pylint: disable=protected-access
 import logging
 from opentelemetry.trace import Tracer
+from opentelemetry.context import set_value, attach, detach, get_value
 
 from monocle_apptrace.instrumentation.common.span_handler import SpanHandler
 from monocle_apptrace.instrumentation.common.utils import (
@@ -10,6 +11,7 @@ from monocle_apptrace.instrumentation.common.utils import (
     remove_scope,
     async_wrapper
 )
+from monocle_apptrace.instrumentation.common.constants import WORKFLOW_TYPE_KEY
 logger = logging.getLogger(__name__)
 
 def wrapper_processor(async_task: bool, tracer: Tracer, handler: SpanHandler, to_wrap, wrapped, instance, args, kwargs):
@@ -25,36 +27,40 @@ def wrapper_processor(async_task: bool, tracer: Tracer, handler: SpanHandler, to
         name = get_fully_qualified_class_name(instance)
 
     return_value = None
+    token = None
     try:
         handler.pre_tracing(to_wrap, wrapped, instance, args, kwargs)
-        if to_wrap.get('skip_span') or handler.skip_span(to_wrap, wrapped, instance, args, kwargs):
+        skip_scan:bool = to_wrap.get('skip_span') or handler.skip_span(to_wrap, wrapped, instance, args, kwargs)
+        token = SpanHandler.attach_workflow_type(to_wrap=to_wrap)
+        if skip_scan:
             if async_task:
                 return_value = async_wrapper(wrapped, None, None, *args, **kwargs)
             else:
                 return_value = wrapped(*args, **kwargs)
         else:
-            return_value = task_processor(name, async_task, tracer, handler, to_wrap, wrapped, instance, args, kwargs)
+            return_value = span_processor(name, async_task, tracer, handler, to_wrap, wrapped, instance, args, kwargs)
         return return_value
     finally:
+        handler.detach_workflow_type(token)
         handler.post_tracing(to_wrap, wrapped, instance, args, kwargs, return_value)
 
-def task_processor(name: str, async_task: bool, tracer: Tracer, handler: SpanHandler, to_wrap, wrapped, instance, args, kwargs):
+def span_processor(name: str, async_task: bool, tracer: Tracer, handler: SpanHandler, to_wrap, wrapped, instance, args, kwargs):
     # For singleton spans, eg OpenAI inference generate a workflow span to format the workflow specific attributes
+    return_value = None
     with tracer.start_as_current_span(name) as span:
-        token = handler.set_workflow_span(to_wrap, span)
-        try:
-            if handler.is_non_workflow_root_span(span, to_wrap):
-                # This is a singleton span, so call the processor recursively for the actual span
-                return_value = task_processor(name, async_task, tracer, handler, to_wrap, wrapped, instance, args, kwargs)
-            else:
-                token = handler.pre_task_processing(to_wrap, wrapped, instance, args, kwargs, span)
-                if async_task:
-                    return_value = async_wrapper(wrapped, None, None, *args, **kwargs)
-                else:                    return_value = wrapped(*args, **kwargs)
-                handler.hydrate_span(to_wrap, wrapped, instance, args, kwargs, return_value, span)
-                handler.post_task_processing(token, to_wrap, wrapped, instance, args, kwargs, return_value, span)
-        finally:
-            handler.close_workflow_span(span, token)
+        if SpanHandler.is_root_span(span):
+            SpanHandler.set_workflow_properties(span, to_wrap)
+        if handler.is_non_workflow_root_span(span, to_wrap):
+            # This is a direct API call of a non-framework type, call the span_processor recursively for the actual span
+            return_value = span_processor(name, async_task, tracer, handler, to_wrap, wrapped, instance, args, kwargs)
+        else:
+            handler.pre_task_processing(to_wrap, wrapped, instance, args, kwargs, span)
+            if async_task:
+                return_value = async_wrapper(wrapped, None, None, *args, **kwargs)
+            else:                    
+                return_value = wrapped(*args, **kwargs)
+            handler.hydrate_span(to_wrap, wrapped, instance, args, kwargs, return_value, span)
+            handler.post_task_processing(to_wrap, wrapped, instance, args, kwargs, return_value, span)
     return return_value
 
 @with_tracer_wrapper

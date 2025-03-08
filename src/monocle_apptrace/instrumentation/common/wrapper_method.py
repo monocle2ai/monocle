@@ -26,13 +26,15 @@ class WrapperMethod:
             output_processor : str = None,
             wrapper_method = task_wrapper,
             span_handler = 'default',
-            scope_name: str = None
+            scope_name: str = None,
+            span_type: str = None
             ):
         self.package = package
         self.object = object_name
         self.method = method
         self.span_name = span_name
         self.output_processor=output_processor
+        self.span_type = span_type
 
         self.span_handler:SpanHandler.__class__ = span_handler
         self.scope_name = scope_name
@@ -51,7 +53,8 @@ class WrapperMethod:
             'output_processor': self.output_processor,
             'wrapper_method': self.wrapper_method,
             'span_handler': self.span_handler,
-            'scope_name': self.scope_name
+            'scope_name': self.scope_name,
+            'span_type': self.span_type
         }
         return instance_dict
 

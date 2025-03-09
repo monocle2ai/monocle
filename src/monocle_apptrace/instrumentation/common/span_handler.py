@@ -8,6 +8,7 @@ from monocle_apptrace.instrumentation.common.constants import (
     QUERY,
     service_name_map,
     service_type_map,
+    MONOCLE_SDK_VERSION
 )
 from monocle_apptrace.instrumentation.common.utils import set_attribute, get_scopes
 from monocle_apptrace.instrumentation.common.constants import WORKFLOW_TYPE_KEY, WORKFLOW_TYPE_GENERIC
@@ -48,18 +49,21 @@ class SpanHandler:
             set_attribute(QUERY, args[0]['prompt_builder']['question'])
 
     @staticmethod
-    def set_workflow_properties(span: Span, to_wrap = None):
-        """ Set attributes of workflow if this is a root span"""
+    def set_default_monocle_attributes(span: Span):
+        """ Set default monocle attributes for all spans """
         try:
             sdk_version = version("monocle_apptrace")
-            span.set_attribute("monocle_apptrace.version", sdk_version)
+            span.set_attribute(MONOCLE_SDK_VERSION, sdk_version)
         except Exception as e:
             logger.warning("Exception finding monocle-apptrace version.")
-
-        SpanHandler.set_workflow_attributes(to_wrap, span)
-        SpanHandler.set_app_hosting_identifier_attribute(span)
         for scope_key, scope_value in get_scopes().items():
             span.set_attribute(f"scope.{scope_key}", scope_value)
+
+    @staticmethod
+    def set_workflow_properties(span: Span, to_wrap = None):
+        """ Set attributes of workflow if this is a root span"""
+        SpanHandler.set_workflow_attributes(to_wrap, span)
+        SpanHandler.set_app_hosting_identifier_attribute(span)
 
     def post_task_processing(self, to_wrap, wrapped, instance, args, kwargs, result, span):
         pass

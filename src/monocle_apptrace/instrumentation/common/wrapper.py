@@ -48,6 +48,8 @@ def span_processor(name: str, async_task: bool, tracer: Tracer, handler: SpanHan
     # For singleton spans, eg OpenAI inference generate a workflow span to format the workflow specific attributes
     return_value = None
     with tracer.start_as_current_span(name) as span:
+        # Since Spanhandler can be overridden, ensure we set default monocle attributes.
+        SpanHandler.set_default_monocle_attributes(span)
         if SpanHandler.is_root_span(span):
             SpanHandler.set_workflow_properties(span, to_wrap)
         if handler.is_non_workflow_root_span(span, to_wrap):

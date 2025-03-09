@@ -11,6 +11,7 @@ from opentelemetry.sdk.trace.export import SpanExporter, SpanExportResult
 from typing import Sequence
 from monocle_apptrace.exporters.base_exporter import SpanExporterBase
 import json
+from monocle_apptrace.instrumentation.common.constants import MONOCLE_SDK_VERSION
 logger = logging.getLogger(__name__)
 
 class AzureBlobSpanExporter(SpanExporterBase):
@@ -72,6 +73,8 @@ class AzureBlobSpanExporter(SpanExporterBase):
         """The actual async export logic is run here."""
         # Add spans to the export queue
         for span in spans:
+            if not span.attributes.get(MONOCLE_SDK_VERSION):
+                continue # TODO: All exporters to use same base class and check it there
             self.export_queue.append(span)
             if len(self.export_queue) >= self.max_batch_size:
                 await self.__export_spans()

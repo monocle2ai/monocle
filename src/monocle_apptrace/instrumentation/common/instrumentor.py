@@ -200,6 +200,7 @@ def start_trace():
         tracer = get_tracer(instrumenting_module_name= MONOCLE_INSTRUMENTOR, tracer_provider= get_tracer_provider())
         span = tracer.start_span(name = "workflow")
         updated_span_context = set_span_in_context(span=span)
+        SpanHandler.set_default_monocle_attributes(span)
         SpanHandler.set_workflow_properties(span)
         token = SpanHandler.attach_workflow_type(context=updated_span_context)
         return token

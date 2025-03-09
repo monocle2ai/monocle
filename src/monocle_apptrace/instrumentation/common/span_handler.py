@@ -58,6 +58,8 @@ class SpanHandler:
 
         SpanHandler.set_workflow_attributes(to_wrap, span)
         SpanHandler.set_app_hosting_identifier_attribute(span)
+        for scope_key, scope_value in get_scopes().items():
+            span.set_attribute(f"scope.{scope_key}", scope_value)
 
     def post_task_processing(self, to_wrap, wrapped, instance, args, kwargs, result, span):
         pass

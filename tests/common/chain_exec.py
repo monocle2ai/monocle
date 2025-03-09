@@ -16,11 +16,13 @@ from langchain_openai import (
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 class TestScopes:
-    def config_scope_func(self, chain, message):
+    def config_scope_func(self, message):
+        chain = setup_chain()        
         result = chain.invoke(message)
         return result
 
-    async def config_scope_async_func(self, chain, message):
+    async def config_scope_async_func(self, message):
+        chain = setup_chain()
         result = chain.invoke(message)
         return result
 

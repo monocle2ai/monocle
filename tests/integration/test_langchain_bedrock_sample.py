@@ -238,7 +238,7 @@ def test_langchain_bedrock_sample(setup):
 #     "attributes": {
 #         "span.type": "inference",
 #         "entity.count": 2,
-#         "entity.1.type": "inference.azure_oai",
+#         "entity.1.type": "inference.azure_openai",
 #         "entity.1.inference_endpoint": "https://bedrock-runtime.us-east-1.amazonaws.com",
 #         "entity.2.name": "ai21.jamba-1-5-mini-v1:0",
 #         "entity.2.type": "model.llm.ai21.jamba-1-5-mini-v1:0"

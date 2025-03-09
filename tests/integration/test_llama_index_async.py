@@ -76,7 +76,7 @@ def test_llama_index_sample(setup):
 
         if "span.type" in span_attributes and span_attributes["span.type"] == "inference":
             # Assertions for all inference attributes
-            assert span_attributes["entity.2.type"] == "inference.azure_oai"
+            assert span_attributes["entity.2.type"] == "inference.azure_openai"
             assert "entity.2.provider_name" in span_attributes
             assert "entity.2.inference_endpoint" in span_attributes
             assert span_attributes["entity.3.name"] == "gpt-3.5-turbo-0125"
@@ -155,7 +155,7 @@ def test_llama_index_sample(setup):
 #     "attributes": {
 #         "span.type": "inference",
 #         "entity.count": 2,
-#         "entity.1.type": "inference.azure_oai",
+#         "entity.1.type": "inference.azure_openai",
 #         "entity.1.provider_name": "api.openai.com",
 #         "entity.1.inference_endpoint": "https://api.openai.com/v1",
 #         "entity.2.name": "gpt-4",

@@ -125,7 +125,7 @@ def test_langchain_rag_l_to_m(setup):
 
         if "span.type" in span_attributes and span_attributes["span.type"] == "inference":
             # Assertions for all inference attributes
-            assert span_attributes["entity.1.type"] == "inference.azure_oai"
+            assert span_attributes["entity.1.type"] == "inference.azure_openai"
             assert "entity.1.provider_name" in span_attributes
             assert "entity.1.inference_endpoint" in span_attributes
             assert span_attributes["entity.2.name"] == "gpt-3.5-turbo-0125"

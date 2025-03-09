@@ -29,6 +29,7 @@ def test_openai_api_sample(setup):
     print(response.choices[0].message.content)
 
     spans = custom_exporter.get_captured_spans()
+    found_workflow_span = False
     for span in spans:
         span_attributes = span.attributes
 
@@ -44,3 +45,7 @@ def test_openai_api_sample(setup):
             assert "completion_tokens" in span_metadata.attributes
             assert "prompt_tokens" in span_metadata.attributes
             assert "total_tokens" in span_metadata.attributes
+        
+        if "span.type" in span_attributes and span_attributes["span.type"] == "workflow":
+            found_workflow_span = True
+    assert found_workflow_span

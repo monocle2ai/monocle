@@ -331,7 +331,7 @@ def test_langchain_chat_sample(setup):
 #         "session.session_id": "0x4fa6d91d1f2a4bdbb7a1287d90ec4a16",
 #         "span.type": "inference",
 #         "entity.count": 2,
-#         "entity.1.type": "inference.azure_oai",
+#         "entity.1.type": "inference.azure_openai",
 #         "entity.1.inference_endpoint": "https://api.openai.com/v1/",
 #         "entity.2.name": "gpt-3.5-turbo-0125",
 #         "entity.2.type": "model.llm.gpt-3.5-turbo-0125"
@@ -538,7 +538,7 @@ def test_langchain_chat_sample(setup):
 #         "session.session_id": "0x4fa6d91d1f2a4bdbb7a1287d90ec4a16",
 #         "span.type": "inference",
 #         "entity.count": 2,
-#         "entity.1.type": "inference.azure_oai",
+#         "entity.1.type": "inference.azure_openai",
 #         "entity.1.provider_name": "api.openai.com",
 #         "entity.1.inference_endpoint": "https://api.openai.com/v1/",
 #         "entity.2.name": "gpt-3.5-turbo-0125",
@@ -774,7 +774,7 @@ def test_langchain_chat_sample(setup):
 #         "session.session_id": "0x4fa6d91d1f2a4bdbb7a1287d90ec4a16",
 #         "span.type": "inference",
 #         "entity.count": 2,
-#         "entity.1.type": "inference.azure_oai",
+#         "entity.1.type": "inference.azure_openai",
 #         "entity.1.inference_endpoint": "https://api.openai.com/v1/",
 #         "entity.2.name": "gpt-3.5-turbo-0125",
 #         "entity.2.type": "model.llm.gpt-3.5-turbo-0125"

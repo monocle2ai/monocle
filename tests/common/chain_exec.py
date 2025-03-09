@@ -14,6 +14,8 @@ from langchain_openai import (
     OpenAIEmbeddings,
 )
 from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain.prompts import ChatPromptTemplate
+
 
 class TestScopes:
     def config_scope_func(self, message):
@@ -68,6 +70,23 @@ def setup_chain():
         | StrOutputParser()
     )
     return rag_chain
+
+def setup_simple_chain():
+    llm = ChatOpenAI(model_name="gpt-4o-mini", temperature=0)
+    prompt = ChatPromptTemplate([
+        ("system", "You are an assistant for question-answering tasks."
+            + "If you don't know the answer, just say that you don't know. Use three sentences maximum and keep the answer concise."
+            + "Respond in the same sentiment as the question"),
+        ("user", "Question: {question}")
+    ])
+
+    simple_chain = (
+        {"question": RunnablePassthrough()}
+        | prompt
+        | llm
+        | StrOutputParser()
+    )
+    return simple_chain
 
 def exec_chain(message):
     chain = setup_chain()

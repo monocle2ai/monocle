@@ -138,7 +138,7 @@ def test_langchain_sample_s3(setup):
 
         if "span.type" in span_attributes and span_attributes["span.type"] == "inference":
             # Assertions for all inference attributes
-            assert span_attributes["entity.1.type"] == "inference.azure_oai"
+            assert span_attributes["entity.1.type"] == "inference.azure_openai"
             assert "entity.1.provider_name" in span_attributes
             assert "entity.1.inference_endpoint" in span_attributes
             assert span_attributes["entity.2.name"] == "gpt-3.5-turbo-0125"
@@ -156,6 +156,6 @@ def test_langchain_sample_s3(setup):
 
 #ndjson format stored in s3_bucket
 
-# {"name": "langchain.task.ChatOpenAI", "context": {"trace_id": "0x5b964bc8323611c33bedfb2ba1c02297", "span_id": "0xef1a5270c100927d", "trace_state": "[]"}, "kind": "SpanKind.INTERNAL", "parent_id": "0x0ea09995ad209078", "start_time": "2024-10-22T06:29:20.705616Z", "end_time": "2024-10-22T06:29:22.488604Z", "status": {"status_code": "UNSET"}, "attributes": {"session.session_id": "0x4fa6d91d1f2a4bdbb7a1287d90ec4a16", "span.type": "inference", "entity.count": 2, "entity.1.type": "inference.azure_oai", "entity.1.provider_name": "api.openai.com", "entity.2.name": "gpt-3.5-turbo-0125", "entity.2.type": "model.llm.gpt-3.5-turbo-0125"}, "events": [{"name": "metadata", "timestamp": "2024-10-22T06:29:22.488587Z", "attributes": {"temperature": 0.7, "completion_tokens": 82, "prompt_tokens": 580, "total_tokens": 662}}], "links": [], "resource": {"attributes": {"service.name": "langchain_app_1"}, "schema_url": ""}}
+# {"name": "langchain.task.ChatOpenAI", "context": {"trace_id": "0x5b964bc8323611c33bedfb2ba1c02297", "span_id": "0xef1a5270c100927d", "trace_state": "[]"}, "kind": "SpanKind.INTERNAL", "parent_id": "0x0ea09995ad209078", "start_time": "2024-10-22T06:29:20.705616Z", "end_time": "2024-10-22T06:29:22.488604Z", "status": {"status_code": "UNSET"}, "attributes": {"session.session_id": "0x4fa6d91d1f2a4bdbb7a1287d90ec4a16", "span.type": "inference", "entity.count": 2, "entity.1.type": "inference.azure_openai", "entity.1.provider_name": "api.openai.com", "entity.2.name": "gpt-3.5-turbo-0125", "entity.2.type": "model.llm.gpt-3.5-turbo-0125"}, "events": [{"name": "metadata", "timestamp": "2024-10-22T06:29:22.488587Z", "attributes": {"temperature": 0.7, "completion_tokens": 82, "prompt_tokens": 580, "total_tokens": 662}}], "links": [], "resource": {"attributes": {"service.name": "langchain_app_1"}, "schema_url": ""}}
 # {"name": "langchain.task.StrOutputParser", "context": {"trace_id": "0x5b964bc8323611c33bedfb2ba1c02297", "span_id": "0x4ffc0cd2351f4560", "trace_state": "[]"}, "kind": "SpanKind.INTERNAL", "parent_id": "0x0ea09995ad209078", "start_time": "2024-10-22T06:29:22.488731Z", "end_time": "2024-10-22T06:29:22.488930Z", "status": {"status_code": "UNSET"}, "attributes": {"session.session_id": "0x4fa6d91d1f2a4bdbb7a1287d90ec4a16"}, "events": [], "links": [], "resource": {"attributes": {"service.name": "langchain_app_1"}, "schema_url": ""}}
 #

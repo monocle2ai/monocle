@@ -9,7 +9,7 @@ INFERENCE = {
             {
                 "_comment": "provider type ,name , deployment , inference_endpoint",
                 "attribute": "type",
-                "accessor": lambda arguments: 'inference.azure_oai'
+                "accessor": lambda arguments: 'inference.azure_openai'
             },
             {
                 "attribute": "provider_name",

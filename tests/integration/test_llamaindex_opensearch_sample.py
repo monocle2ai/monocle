@@ -118,7 +118,7 @@ def test_llamaindex_opensearch_sample(setup):
 #     "attributes": {
 #         "span.type": "inference",
 #         "entity.count": 2,
-#         "entity.1.type": "inference.azure_oai",
+#         "entity.1.type": "inference.azure_openai",
 #         "entity.1.provider_name": "api.openai.com",
 #         "entity.1.inference_endpoint": "https://api.openai.com/v1",
 #         "entity.2.name": "gpt-3.5-turbo",

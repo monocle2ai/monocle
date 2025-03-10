@@ -37,6 +37,19 @@ service_name_map = {
     GITHUB_CODESPACE_SERVICE_NAME: GITHUB_CODESPACE_IDENTIFIER_ENV_NAME
 }
 
+
+llm_type_map = {
+    "sagemakerendpoint": "aws_sagemaker",
+    "azureopenai": "azure_openai",
+    "openai": "openai",
+    "chatopenai": "openai",
+    "azurechatopenai": "azure_openai",
+    "bedrock": "aws_bedrock",
+    "sagemakerllm": "aws_sagemaker",
+    "chatbedrock": "aws_bedrock",
+    "openaigenerator": "openai",
+}
+
 MONOCLE_INSTRUMENTOR = "monocle_apptrace"
 WORKFLOW_TYPE_KEY = "workflow_type"
 DATA_INPUT_KEY = "data.input"
@@ -52,3 +65,7 @@ MONOCLE_SCOPE_NAME_PREFIX = "monocle.scope."
 SCOPE_METHOD_LIST = 'MONOCLE_SCOPE_METHODS'
 SCOPE_METHOD_FILE = 'monocle_scopes.json'
 SCOPE_CONFIG_PATH = 'MONOCLE_SCOPE_CONFIG_PATH'
+TRACE_PROPOGATION_URLS = "MONOCLE_TRACE_PROPAGATATION_URLS"
+WORKFLOW_TYPE_KEY = "monocle.workflow_type"
+WORKFLOW_TYPE_GENERIC = "workflow.generic"
+MONOCLE_SDK_VERSION = "monocle_apptrace.version"

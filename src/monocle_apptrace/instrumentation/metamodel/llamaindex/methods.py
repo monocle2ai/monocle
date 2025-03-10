@@ -30,14 +30,16 @@ LLAMAINDEX_METHODS = [
         "object": "BaseQueryEngine",
         "method": "query",
         "span_name": "llamaindex.query",
-        "wrapper_method": task_wrapper
+        "wrapper_method": task_wrapper,
+        "span_type": "workflow"
     },
     {
         "package": "llama_index.core.base.base_query_engine",
         "object": "BaseQueryEngine",
         "method": "aquery",
         "span_name": "llamaindex.query",
-        "wrapper_method": atask_wrapper
+        "wrapper_method": atask_wrapper,
+        "span_type": "workflow"
     },
     {
         "package": "llama_index.core.llms.custom",
@@ -53,7 +55,8 @@ LLAMAINDEX_METHODS = [
         "method": "achat",
         "span_name": "llamaindex.llmchat",
         "wrapper_method": atask_wrapper,
-        "output_processor": INFERENCE
+        "output_processor": INFERENCE,
+        
     },
     {
         "package": "llama_index.llms.openai.base",

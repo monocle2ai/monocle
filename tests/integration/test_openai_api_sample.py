@@ -29,18 +29,23 @@ def test_openai_api_sample(setup):
     print(response.choices[0].message.content)
 
     spans = custom_exporter.get_captured_spans()
+    found_workflow_span = False
     for span in spans:
         span_attributes = span.attributes
 
         if "span.type" in span_attributes and span_attributes["span.type"] == "inference":
             # Assertions for all inference attributes
-            assert span_attributes["entity.2.type"] == "inference.azure_oai"
-            assert "entity.2.provider_name" in span_attributes
-            assert "entity.2.inference_endpoint" in span_attributes
-            assert span_attributes["entity.3.name"] == "gpt-4o-mini"
-            assert span_attributes["entity.3.type"] == "model.llm.gpt-4o-mini"
+            assert span_attributes["entity.1.type"] == "inference.openai"
+            assert "entity.1.provider_name" in span_attributes
+            assert "entity.1.inference_endpoint" in span_attributes
+            assert span_attributes["entity.2.name"] == "gpt-4o-mini"
+            assert span_attributes["entity.2.type"] == "model.llm.gpt-4o-mini"
 
             span_input, span_output, span_metadata = span.events
             assert "completion_tokens" in span_metadata.attributes
             assert "prompt_tokens" in span_metadata.attributes
             assert "total_tokens" in span_metadata.attributes
+        
+        if "span.type" in span_attributes and span_attributes["span.type"] == "workflow":
+            found_workflow_span = True
+    assert found_workflow_span

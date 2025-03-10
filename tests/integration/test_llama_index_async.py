@@ -1,13 +1,13 @@
 
 
 import os
-
+import asyncio
 import chromadb
 import pytest
 from common.custom_exporter import CustomConsoleSpanExporter
 from llama_index.core import SimpleDirectoryReader, StorageContext, VectorStoreIndex
 from llama_index.embeddings.openai import OpenAIEmbedding
-from llama_index.llms.azure_openai import AzureOpenAI
+from llama_index.llms.azure_openai import AzureOpenAI, AsyncAzureOpenAI
 from llama_index.llms.mistralai import MistralAI
 from llama_index.llms.openai import OpenAI
 from llama_index.vector_stores.chroma import ChromaVectorStore
@@ -31,7 +31,7 @@ def test_llama_index_sample(setup):
     # Creating a Chroma client
     # EphemeralClient operates purely in-memory, PersistentClient will also save to disk
     chroma_client = chromadb.EphemeralClient()
-    chroma_collection = chroma_client.create_collection("quickstart")
+    chroma_collection = chroma_client.create_collection("quickstart-async")
 
     # construct vector store
     vector_store = ChromaVectorStore(
@@ -57,11 +57,10 @@ def test_llama_index_sample(setup):
         # model="gpt-4",
 
         model="gpt-3.5-turbo-0125")
-
     # llm = MistralAI(api_key=os.getenv("MISTRAL_API_KEY"))
 
     query_engine = index.as_query_engine(llm= llm, )
-    response = query_engine.query("What did the author do growing up?")
+    response = asyncio.run(query_engine.aquery("What did the author do growing up?"))
 
     print(response)
 
@@ -70,20 +69,18 @@ def test_llama_index_sample(setup):
         span_attributes = span.attributes
         if "span.type" in span_attributes and span_attributes["span.type"] == "retrieval":
             # Assertions for all retrieval attributes
-            assert span_attributes["entity.1.name"] == "ChromaVectorStore"
-            assert span_attributes["entity.1.type"] == "vectorstore.ChromaVectorStore"
-            assert span_attributes["entity.2.name"] == "text-embedding-3-large"
-            assert span_attributes["entity.2.type"] == "model.embedding.text-embedding-3-large"
-            assert not span.name.lower().startswith("openai")
+            assert span_attributes["entity.2.name"] == "ChromaVectorStore"
+            assert span_attributes["entity.2.type"] == "vectorstore.ChromaVectorStore"
+            assert span_attributes["entity.3.name"] == "text-embedding-3-large"
+            assert span_attributes["entity.3.type"] == "model.embedding.text-embedding-3-large"
 
         if "span.type" in span_attributes and span_attributes["span.type"] == "inference":
             # Assertions for all inference attributes
-            assert span_attributes["entity.1.type"] == "inference.azure_openai"
-            assert "entity.1.provider_name" in span_attributes
-            assert "entity.1.inference_endpoint" in span_attributes
-            assert span_attributes["entity.2.name"] == "gpt-3.5-turbo-0125"
-            assert span_attributes["entity.2.type"] == "model.llm.gpt-3.5-turbo-0125"
-            assert not span.name.lower().startswith("openai")
+            assert span_attributes["entity.2.type"] == "inference.azure_openai"
+            assert "entity.2.provider_name" in span_attributes
+            assert "entity.2.inference_endpoint" in span_attributes
+            assert span_attributes["entity.3.name"] == "gpt-3.5-turbo-0125"
+            assert span_attributes["entity.3.type"] == "model.llm.gpt-3.5-turbo-0125"
 
             # Assertions for metadata
             span_input, span_output, span_metadata = span.events

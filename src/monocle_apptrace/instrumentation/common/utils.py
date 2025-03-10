@@ -1,7 +1,7 @@
 import logging, json
 import os
 from typing import Callable, Generic, Optional, TypeVar, Mapping
-from threading import local
+import threading, asyncio
 
 from opentelemetry.context import attach, detach, get_current, get_value, set_value, Context
 from opentelemetry.trace import NonRecordingSpan, Span, get_tracer
@@ -9,7 +9,7 @@ from opentelemetry.trace.propagation import _SPAN_KEY
 from opentelemetry.sdk.trace import id_generator, TracerProvider
 from opentelemetry.propagate import inject, extract
 from opentelemetry import baggage
-from monocle_apptrace.instrumentation.common.constants import MONOCLE_SCOPE_NAME_PREFIX, SCOPE_METHOD_FILE, SCOPE_CONFIG_PATH
+from monocle_apptrace.instrumentation.common.constants import MONOCLE_SCOPE_NAME_PREFIX, SCOPE_METHOD_FILE, SCOPE_CONFIG_PATH, llm_type_map
 
 T = TypeVar('T')
 U = TypeVar('U')
@@ -232,13 +232,55 @@ def clear_http_scopes(token:object) -> None:
     global http_scopes
     remove_scopes(token)
 
-def http_route_handler(headers, func, req):
-    token = extract_http_headers(headers)
+def http_route_handler(func, *args, **kwargs):
+    if 'req' in kwargs and hasattr(kwargs['req'], 'headers'):
+        headers = kwargs['req'].headers
+    else:
+        headers = None
+    token = None
+    if headers is not None:
+        token = extract_http_headers(headers)
     try:
-        result = func(req)
+        result = func(*args, **kwargs)
         return result
     finally:
-        clear_http_scopes(token)
+        if token is not None:
+            clear_http_scopes(token)
+
+async def http_async_route_handler(func, *args, **kwargs):
+    if 'req' in kwargs and hasattr(kwargs['req'], 'headers'):
+        headers = kwargs['req'].headers
+    else:
+        headers = None
+    return async_wrapper(func, None, headers, *args, **kwargs)
+
+def run_async_with_scope(method, scope_name, headers, *args, **kwargs):
+    token = None
+    if scope_name:
+        token = set_scope(scope_name)
+    elif headers:
+        token = extract_http_headers(headers)
+    try:
+        return asyncio.run(method(*args, **kwargs))
+    finally:
+        if token:
+            remove_scope(token)
+
+def async_wrapper(method, scope_name=None, headers=None, *args, **kwargs):
+    try:
+        run_loop = asyncio.get_running_loop()
+    except RuntimeError:
+        run_loop = None
+
+    if run_loop and run_loop.is_running():
+        results = []
+        thread = threading.Thread(target=lambda: results.append(run_async_with_scope(method, scope_name, headers, *args, **kwargs)))
+        thread.start()
+        thread.join()
+        return_value = results[0] if len(results) > 0 else None
+        return return_value
+    else:
+        return run_async_with_scope(method, scope_name, headers, *args, **kwargs)
 
 class Option(Generic[T]):
     def __init__(self, value: Optional[T]):
@@ -269,6 +311,13 @@ def try_option(func: Callable[..., T], *args, **kwargs) -> Option[T]:
         return Option(func(*args, **kwargs))
     except Exception:
         return Option(None)
+
+def get_llm_type(instance):
+    try:
+        llm_type = llm_type_map.get(type(instance).__name__.lower())
+        return llm_type
+    except:
+        pass
 
 def resolve_from_alias(my_map, alias):
     """Find a alias that is not none from list of aliases"""

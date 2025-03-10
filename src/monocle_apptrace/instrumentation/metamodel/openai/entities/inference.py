@@ -10,7 +10,7 @@ INFERENCE = {
             {
                 "_comment": "provider type ,name , deployment , inference_endpoint",
                 "attribute": "type",
-                "accessor": lambda arguments: 'inference.azure_oai'
+                "accessor": lambda arguments: 'inference.' + (_helper.get_inference_type(arguments['instance'])) or 'openai'
             },
             {
                 "attribute": "provider_name",

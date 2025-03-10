@@ -31,7 +31,7 @@ def test_llama_index_sample(setup):
     # Creating a Chroma client
     # EphemeralClient operates purely in-memory, PersistentClient will also save to disk
     chroma_client = chromadb.EphemeralClient()
-    chroma_collection = chroma_client.create_collection("quickstart")
+    chroma_collection = chroma_client.create_collection("quickstart-async")
 
     # construct vector store
     vector_store = ChromaVectorStore(

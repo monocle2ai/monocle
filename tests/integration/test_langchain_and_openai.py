@@ -20,6 +20,11 @@ def setup():
                 span_processors=[SimpleSpanProcessor(custom_exporter)],
                 wrapper_methods=[])
 
+@pytest.fixture(autouse=True)
+def pre_test():
+    # clear old spans
+    custom_exporter.reset()
+
 # Test multiple chains with OpenAI APIs in between. Verify each has it's workflow and inference spans
 @pytest.mark.integration()
 def test_langchain_with_openai(setup):
@@ -29,6 +34,7 @@ def test_langchain_with_openai(setup):
 
     chain1.invoke("What is an americano?")
     verify_spans(expected_langchain_inference_spans=1, expected_openai_inference_spans=0, exptected_workflow_spans=1)
+    custom_exporter.reset()
     
     response = openai.chat.completions.create(
       model="gpt-4o-mini",
@@ -38,9 +44,11 @@ def test_langchain_with_openai(setup):
       ]
       )
     verify_spans(expected_langchain_inference_spans=0, expected_openai_inference_spans=1, exptected_workflow_spans=1)
+    custom_exporter.reset()
 
     chain2.invoke("What is an coffee?")
     verify_spans(expected_langchain_inference_spans=1, expected_openai_inference_spans=0, exptected_workflow_spans=1)
+    custom_exporter.reset()
 
 # Test multiple chains with OpenAI APIs in between in a single trace Verify there only one workflow and all inference spans
 @pytest.mark.integration()

@@ -142,7 +142,7 @@ def test_langchain_opensearch_sample(setup):
 
         if "span.type" in span_attributes and span_attributes["span.type"] == "inference":
             # Assertions for all inference attributes
-            assert span_attributes["entity.1.type"] == "inference.azure_openai"
+            assert span_attributes["entity.1.type"] == "inference.openai"
             assert "entity.1.provider_name" in span_attributes
             assert "entity.1.inference_endpoint" in span_attributes
             assert span_attributes["entity.2.name"] == "gpt-3.5-turbo-instruct"
@@ -322,7 +322,7 @@ def test_langchain_opensearch_sample(setup):
 #         "session.session_id": "0x4fa6d91d1f2a4bdbb7a1287d90ec4a16",
 #         "span.type": "inference",
 #         "entity.count": 2,
-#         "entity.1.type": "inference.azure_openai",
+#         "entity.1.type": "inference.openai",
 #         "entity.1.inference_endpoint": "https://api.openai.com/v1/",
 #         "entity.2.name": "gpt-3.5-turbo-instruct",
 #         "entity.2.type": "model.llm.gpt-3.5-turbo-instruct"

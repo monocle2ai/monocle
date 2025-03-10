@@ -96,7 +96,7 @@ def test_langgraph_chat_sample(setup):
 
         if "span.type" in span_attributes and span_attributes["span.type"] == "inference":
             # Assertions for all inference attributes
-            assert span_attributes["entity.1.type"] == "inference.azure_openai"
+            assert span_attributes["entity.1.type"] == "inference.openai"
             assert "entity.1.provider_name" in span_attributes
             assert "entity.1.inference_endpoint" in span_attributes
             assert span_attributes["entity.2.name"] == "gpt-4"
@@ -109,12 +109,12 @@ def test_langgraph_chat_sample(setup):
             assert "total_tokens" in span_metadata.attributes
 
         if "span.type" in span_attributes and span_attributes["span.type"] == "agent":
-            assert "entity.2.type" in span_attributes
-            assert "entity.2.name" in span_attributes
-            assert "entity.2.tools" in span_attributes
-            assert span_attributes["entity.2.name"] == "LangGraph"
-            assert span_attributes["entity.2.type"] == "agent.oai"
-            assert span_attributes["entity.2.tools"]  == ('GetCoffeeMenu', 'OrderCoffee', 'GetCoffeeDetails')
+            assert "entity.1.type" in span_attributes
+            assert "entity.1.name" in span_attributes
+            assert "entity.1.tools" in span_attributes
+            assert span_attributes["entity.1.name"] == "LangGraph"
+            assert span_attributes["entity.1.type"] == "agent.oai"
+            assert span_attributes["entity.1.tools"]  == ('GetCoffeeMenu', 'OrderCoffee', 'GetCoffeeDetails')
 
             # Assertions for metadata
             span_input, span_output, span_metadata = span.events

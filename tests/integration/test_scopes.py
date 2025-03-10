@@ -28,10 +28,10 @@ def pre_test():
 @pytest.mark.integration()
 def test_scope_api(setup):
     """ Test setting scope via start/stop API. Verify that the scope is effective across chains/traces, and not in effect after stop is called"""
-    rag_chain = setup_chain()
     scope_name = "message"
     token = start_scope(scope_name)
-
+    rag_chain = setup_chain()
+ 
     # 1st chain run
     result = rag_chain.invoke("What is Task Decomposition?")
     print(result)
@@ -52,6 +52,7 @@ def test_scope_api(setup):
     spans = custom_exporter.get_captured_spans()
     for span in spans:
         span_attributes = span.attributes
+        print(span_attributes)
         assert span_attributes.get("scope."+scope_name) == message_scope_id
 
     stop_scope(token)
@@ -68,10 +69,10 @@ def test_scope_api(setup):
 @pytest.mark.integration()
 def test_scope_api_with_value(setup):
     """ Test setting scope via start/stop API with specific scope value """
-    rag_chain = setup_chain()
     scope_name = "dummy"
     scope_value = "test123"
     token = start_scope(scope_name, scope_value)
+    rag_chain = setup_chain()
 
     result = rag_chain.invoke("What is Task Decomposition?")
     print(result)
@@ -88,7 +89,8 @@ def test_scope_api_with_value(setup):
     stop_scope(token)
 
 @monocle_trace_scope_method(scope_name=CHAT_SCOPE_NAME)
-def run_chain_with_scope(chain, message):
+def run_chain_with_scope(message):
+    chain = setup_chain()    
     result = chain.invoke(message)
     print(result)
     return result
@@ -96,12 +98,12 @@ def run_chain_with_scope(chain, message):
 @pytest.mark.integration()
 def test_scope_wrapper(setup):
     """ Test setting scope at function level using decorator """
-    rag_chain = setup_chain()
-    result = run_chain_with_scope(rag_chain, "What is Task Decomposition?")
+    result = run_chain_with_scope("What is Task Decomposition?")
     verify_scope_testing(scope_name = CHAT_SCOPE_NAME)
 
 @monocle_trace_scope_method(scope_name=CHAT_SCOPE_NAME)
-async def run_chain_async_with_scope(chain, message):
+async def run_chain_async_with_scope(message):
+    chain = setup_chain()
     result = chain.invoke(message)
     print(result)
     return result
@@ -109,8 +111,7 @@ async def run_chain_async_with_scope(chain, message):
 @pytest.mark.integration()
 def test_async_scope_wrapper(setup):
     """ Test setting scope at async function level using decorator """
-    rag_chain = setup_chain()
-    result = asyncio.run(run_chain_async_with_scope(rag_chain, "What is Task Decomposition?"))
+    result = asyncio.run(run_chain_async_with_scope("What is Task Decomposition?"))
     verify_scope_testing(scope_name = CHAT_SCOPE_NAME)
 
 def verify_scope_testing(scope_name:str):
@@ -129,8 +130,7 @@ def test_scope_config(setup):
     """ Test setting scope at function level using external configuartion """
     test_scope = TestScopes()
     # set config path as monocle_scopes.json in the same directory as this file
-    chain = setup_chain()
-    result = test_scope.config_scope_func(chain, "What is Task Decomposition?")
+    result = test_scope.config_scope_func("What is Task Decomposition?")
     verify_scope_testing(scope_name = "question")
 
 @pytest.mark.integration()
@@ -138,8 +138,7 @@ def test_async_scope_config(setup):
     """ Test setting scope at function level using external configuartion """
     test_scope = TestScopes()
     # set config path as monocle_scopes.json in the same directory as this file
-    chain = setup_chain()
-    result = asyncio.run(test_scope.config_scope_async_func(chain, "What is Task Decomposition?"))
+    result = asyncio.run(test_scope.config_scope_async_func("What is Task Decomposition?"))
     verify_scope_testing(scope_name = "aquestion")
 
 @pytest.mark.integration()

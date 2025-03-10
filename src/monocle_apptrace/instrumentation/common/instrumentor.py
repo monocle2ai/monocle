@@ -15,7 +15,7 @@ from opentelemetry.sdk.trace import Span, TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, SpanProcessor
 from opentelemetry.trace import get_tracer
 from wrapt import wrap_function_wrapper
-from opentelemetry.trace.propagation import set_span_in_context
+from opentelemetry.trace.propagation import set_span_in_context, _SPAN_KEY
 from monocle_apptrace.exporters.monocle_exporters import get_monocle_exporter
 from monocle_apptrace.instrumentation.common.span_handler import SpanHandler
 from monocle_apptrace.instrumentation.common.wrapper_method import (
@@ -27,7 +27,7 @@ from monocle_apptrace.instrumentation.common.wrapper import scope_wrapper, ascop
 from monocle_apptrace.instrumentation.common.utils import (
     set_scope, remove_scope, http_route_handler, load_scopes, async_wrapper, http_async_route_handler
 )
-from monocle_apptrace.instrumentation.common.constants import MONOCLE_INSTRUMENTOR
+from monocle_apptrace.instrumentation.common.constants import MONOCLE_INSTRUMENTOR, WORKFLOW_TYPE_KEY
 from functools import wraps
 logger = logging.getLogger(__name__)
 
@@ -68,8 +68,8 @@ class MonocleInstrumentor(BaseInstrumentor):
                 handler = SpanHandler()
                 with tracer.start_as_current_span(span_name) as span:
                     response = fn(*args, **kwargs)
-                    handler.hydrate_span(to_wrap, span=span, wrapped=wrapped, instance=instance, args=args, kwargs=kwargs,
-                                         result=response)
+                    handler.hydrate_span(to_wrap, wrapped=wrapped, instance=instance, args=args, kwargs=kwargs,
+                                         result=response, span=span)
                     return response
 
             return with_instrumentation
@@ -195,40 +195,30 @@ def on_processor_start(span: Span, parent_context):
 def set_context_properties(properties: dict) -> None:
     attach(set_value(SESSION_PROPERTIES_KEY, properties))
 
-
-def propagate_trace_id(traceId = "", use_trace_context = False):
+def start_trace():
     try:
-        if traceId.startswith("0x"):
-            traceId = traceId.lstrip("0x")
         tracer = get_tracer(instrumenting_module_name= MONOCLE_INSTRUMENTOR, tracer_provider= get_tracer_provider())
-        initial_id_generator = tracer.id_generator
-        _parent_span_context = get_current() if use_trace_context else None
-        if traceId and is_valid_trace_id_uuid(traceId):
-            tracer.id_generator = FixedIdGenerator(uuid.UUID(traceId).int)
-
-        span = tracer.start_span(name = "parent_placeholder_span", context= _parent_span_context)
-        updated_span_context = set_span_in_context(span=span, context= _parent_span_context)
-        updated_span_context = set_value("root_span_id", span.get_span_context().span_id, updated_span_context)
-        token = attach(updated_span_context)
-
-        span.end()
-        tracer.id_generator = initial_id_generator
+        span = tracer.start_span(name = "workflow")
+        updated_span_context = set_span_in_context(span=span)
+        SpanHandler.set_default_monocle_attributes(span)
+        SpanHandler.set_workflow_properties(span)
+        token = SpanHandler.attach_workflow_type(context=updated_span_context)
         return token
     except:
-        logger.warning("Failed to propagate trace id")
-    return
+        logger.warning("Failed to start trace")
+        return None
 
-
-def propagate_trace_id_from_traceparent():
-    propagate_trace_id(use_trace_context = True)
-
-
-def stop_propagate_trace_id(token) -> None:
+def stop_trace(token) -> None:
     try:
-        detach(token)
+        _parent_span_context = get_current()
+        if _parent_span_context is not None:
+            parent_span: Span = _parent_span_context.get(_SPAN_KEY, None)
+            if parent_span is not None:
+                parent_span.end()
+        if token is not None:
+            SpanHandler.detach_workflow_type(token)
     except:
-        logger.warning("Failed to stop propagating trace id")
-
+        logger.warning("Failed to stop trace")
 
 def is_valid_trace_id_uuid(traceId: str) -> bool:
     try:

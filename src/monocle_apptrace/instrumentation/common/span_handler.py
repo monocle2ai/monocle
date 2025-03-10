@@ -1,16 +1,17 @@
 import logging
 import os
 from importlib.metadata import version
-from opentelemetry.context import get_current
-from opentelemetry.context import get_value
+from opentelemetry.context import get_value, set_value, attach, detach
 from opentelemetry.sdk.trace import Span
 
 from monocle_apptrace.instrumentation.common.constants import (
     QUERY,
     service_name_map,
     service_type_map,
+    MONOCLE_SDK_VERSION
 )
 from monocle_apptrace.instrumentation.common.utils import set_attribute, get_scopes
+from monocle_apptrace.instrumentation.common.constants import WORKFLOW_TYPE_KEY, WORKFLOW_TYPE_GENERIC
 
 logger = logging.getLogger(__name__)
 
@@ -19,8 +20,6 @@ WORKFLOW_TYPE_MAP = {
     "langchain": "workflow.langchain",
     "haystack": "workflow.haystack"
 }
-
-
 
 class SpanHandler:
 
@@ -40,17 +39,31 @@ class SpanHandler:
         pass
 
     def skip_span(self, to_wrap, wrapped, instance, args, kwargs) -> bool:
+        # If this is a workflow span type and a workflow span is already generated, then skip generating this span
+        if to_wrap.get('span_type') == "workflow" and self.is_workflow_span_active():
+            return True
         return False
 
     def pre_task_processing(self, to_wrap, wrapped, instance, args,kwargs, span):
-        if self.__is_root_span(span):
-            try:
-                sdk_version = version("monocle_apptrace")
-                span.set_attribute("monocle_apptrace.version", sdk_version)
-            except Exception as e:
-                logger.warning("Exception finding monocle-apptrace version.")
         if "pipeline" in to_wrap['package']:
             set_attribute(QUERY, args[0]['prompt_builder']['question'])
+
+    @staticmethod
+    def set_default_monocle_attributes(span: Span):
+        """ Set default monocle attributes for all spans """
+        try:
+            sdk_version = version("monocle_apptrace")
+            span.set_attribute(MONOCLE_SDK_VERSION, sdk_version)
+        except Exception as e:
+            logger.warning("Exception finding monocle-apptrace version.")
+        for scope_key, scope_value in get_scopes().items():
+            span.set_attribute(f"scope.{scope_key}", scope_value)
+
+    @staticmethod
+    def set_workflow_properties(span: Span, to_wrap = None):
+        """ Set attributes of workflow if this is a root span"""
+        SpanHandler.set_workflow_attributes(to_wrap, span)
+        SpanHandler.set_app_hosting_identifier_attribute(span)
 
     def post_task_processing(self, to_wrap, wrapped, instance, args, kwargs, result, span):
         pass
@@ -61,10 +74,8 @@ class SpanHandler:
 
     def hydrate_attributes(self, to_wrap, wrapped, instance, args, kwargs, result, span):
         span_index = 0
-        if self.__is_root_span(span):
-            span_index += self.set_workflow_attributes(to_wrap, span, span_index+1)
-            span_index += self.set_app_hosting_identifier_attribute(span, span_index+1)
-
+        if SpanHandler.is_root_span(span):
+            span_index = 2 # root span will have workflow and hosting entities pre-populated
         if 'output_processor' in to_wrap and to_wrap["output_processor"] is not None:    
             output_processor=to_wrap['output_processor']
             if 'type' in output_processor:
@@ -124,46 +135,79 @@ class SpanHandler:
                                 logger.debug(f"Error evaluating accessor for attribute '{attribute_key}': {e}")
                     span.add_event(name=event_name, attributes=event_attributes)
 
-
-
-    def set_workflow_attributes(self, to_wrap, span: Span, span_index):
-        return_value = 1
-        workflow_name = self.get_workflow_name(span=span)
+    @staticmethod
+    def set_workflow_attributes(to_wrap, span: Span):
+        span_index = 1
+        workflow_name = SpanHandler.get_workflow_name(span=span)
         if workflow_name:
             span.set_attribute("span.type", "workflow")
             span.set_attribute(f"entity.{span_index}.name", workflow_name)
-            # workflow type
-        package_name = to_wrap.get('package')
-        workflow_type_set = False
-        for (package, workflow_type) in WORKFLOW_TYPE_MAP.items():
-            if (package_name is not None and package in package_name):
-                span.set_attribute(f"entity.{span_index}.type", workflow_type)
-                workflow_type_set = True
-        if not workflow_type_set:
-            span.set_attribute(f"entity.{span_index}.type", "workflow.generic")
-        return return_value
+        workflow_type = SpanHandler.get_workflow_type(to_wrap)
+        span.set_attribute(f"entity.{span_index}.type", workflow_type)
 
-    def set_app_hosting_identifier_attribute(self, span, span_index):
-        return_value = 0
+    @staticmethod
+    def get_workflow_type(to_wrap):
+        # workflow type
+        workflow_type = WORKFLOW_TYPE_GENERIC
+        if to_wrap is not None:
+            package_name = to_wrap.get('package')
+            for (package, framework_workflow_type) in WORKFLOW_TYPE_MAP.items():
+                if (package_name is not None and package in package_name):
+                    workflow_type = framework_workflow_type
+                    break
+        return workflow_type
+
+    def set_app_hosting_identifier_attribute(span):
+        span_index = 2
         # Search env to indentify the infra service type, if found check env for service name if possible
+        span.set_attribute(f"entity.{span_index}.type", f"app_hosting.generic")
+        span.set_attribute(f"entity.{span_index}.name", "generic")
         for type_env, type_name in service_type_map.items():
             if type_env in os.environ:
-                return_value = 1
                 span.set_attribute(f"entity.{span_index}.type", f"app_hosting.{type_name}")
                 entity_name_env = service_name_map.get(type_name, "unknown")
                 span.set_attribute(f"entity.{span_index}.name", os.environ.get(entity_name_env, "generic"))
-        return return_value
 
-    def get_workflow_name(self, span: Span) -> str:
+    @staticmethod
+    def get_workflow_name(span: Span) -> str:
         try:
             return get_value("workflow_name") or span.resource.attributes.get("service.name")
         except Exception as e:
             logger.exception(f"Error getting workflow name: {e}")
             return None
 
-    def __is_root_span(self, curr_span: Span) -> bool:
+    @staticmethod
+    def is_root_span(curr_span: Span) -> bool:
         try:
             if curr_span is not None and hasattr(curr_span, "parent"):
-                return curr_span.parent is None or get_current().get("root_span_id") == curr_span.parent.span_id
+                return curr_span.parent is None
         except Exception as e:
             logger.warning(f"Error finding root span: {e}")
+
+    def is_non_workflow_root_span(self, curr_span: Span, to_wrap) -> bool:
+        return SpanHandler.is_root_span(curr_span) and to_wrap.get("span_type") != "workflow"
+    
+    def is_workflow_span_active(self):
+        return get_value(WORKFLOW_TYPE_KEY) is not None
+
+    @staticmethod
+    def attach_workflow_type(to_wrap=None, context=None): 
+        token = None
+        if to_wrap:
+            if to_wrap.get('span_type') == "workflow":
+                token = attach(set_value(WORKFLOW_TYPE_KEY,
+                                        SpanHandler.get_workflow_type(to_wrap), context))
+        else:
+            token = attach(set_value(WORKFLOW_TYPE_KEY, WORKFLOW_TYPE_GENERIC, context))
+        return token
+
+    @staticmethod
+    def detach_workflow_type(token):
+        if token:
+            return detach(token)
+
+class NonFrameworkSpanHandler(SpanHandler):
+
+    # If the language framework is being executed, then skip generating direct openAI spans
+    def skip_span(self, to_wrap, wrapped, instance, args, kwargs) -> bool:
+        return get_value(WORKFLOW_TYPE_KEY) in WORKFLOW_TYPE_MAP.values()

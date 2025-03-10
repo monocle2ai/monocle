@@ -12,7 +12,7 @@ OPENAI_METHODS = [
         "object": "Completions",
         "method": "create",
         "wrapper_method": task_wrapper,
-        "span_name": "openai_inference",
+        "span_handler": "non_framework_handler",
         "output_processor": INFERENCE
     },
     {
@@ -20,7 +20,7 @@ OPENAI_METHODS = [
         "object": "AsyncCompletions",
         "method": "create",
         "wrapper_method": atask_wrapper,
-        "span_name": "openai_inference",
+        "span_handler": "non_framework_handler",
         "output_processor": INFERENCE
     },
     {
@@ -28,6 +28,8 @@ OPENAI_METHODS = [
         "object": "Embeddings",
         "method": "create",
         "wrapper_method": task_wrapper,
+        "span_name": "openai_embeddings",
+        "span_handler": "non_framework_handler",
         "output_processor": RETRIEVAL
     },
     {
@@ -35,6 +37,8 @@ OPENAI_METHODS = [
         "object": "AsyncEmbeddings",
         "method": "create",
         "wrapper_method": atask_wrapper,
+        "span_name": "openai_embeddings",
+        "span_handler": "non_framework_handler",
         "output_processor": RETRIEVAL
     }
 

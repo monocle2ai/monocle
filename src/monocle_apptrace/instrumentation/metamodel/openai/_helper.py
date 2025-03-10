@@ -103,3 +103,10 @@ def extract_vector_output(vector_output):
     except Exception as e:
         pass
     return ""
+
+def get_inference_type(instance):
+    inference_type: Option[str] = try_option(getattr, instance._client, '_api_version')
+    if inference_type.unwrap_or(None):
+        return 'azure_openai'
+    else:
+        return 'openai'

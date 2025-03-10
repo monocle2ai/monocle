@@ -74,14 +74,16 @@ def test_llama_index_sample(setup):
             assert span_attributes["entity.1.type"] == "vectorstore.ChromaVectorStore"
             assert span_attributes["entity.2.name"] == "text-embedding-3-large"
             assert span_attributes["entity.2.type"] == "model.embedding.text-embedding-3-large"
+            assert not span.name.lower().startswith("openai")
 
         if "span.type" in span_attributes and span_attributes["span.type"] == "inference":
             # Assertions for all inference attributes
-            assert span_attributes["entity.1.type"] == "inference.azure_oai"
+            assert span_attributes["entity.1.type"] == "inference.azure_openai"
             assert "entity.1.provider_name" in span_attributes
             assert "entity.1.inference_endpoint" in span_attributes
             assert span_attributes["entity.2.name"] == "gpt-3.5-turbo-0125"
             assert span_attributes["entity.2.type"] == "model.llm.gpt-3.5-turbo-0125"
+            assert not span.name.lower().startswith("openai")
 
             # Assertions for metadata
             span_input, span_output, span_metadata = span.events
@@ -156,7 +158,7 @@ def test_llama_index_sample(setup):
 #     "attributes": {
 #         "span.type": "inference",
 #         "entity.count": 2,
-#         "entity.1.type": "inference.azure_oai",
+#         "entity.1.type": "inference.azure_openai",
 #         "entity.1.provider_name": "api.openai.com",
 #         "entity.1.inference_endpoint": "https://api.openai.com/v1",
 #         "entity.2.name": "gpt-4",

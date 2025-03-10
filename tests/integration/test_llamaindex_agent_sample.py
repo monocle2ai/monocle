@@ -66,7 +66,7 @@ def test_llamaindex_agent(setup):
 
         if "span.type" in span_attributes and span_attributes["span.type"] == "inference":
             # Assertions for all inference attributes
-            assert span_attributes["entity.1.type"] == "inference.azure_oai"
+            assert span_attributes["entity.1.type"] == "inference.openai"
             assert "entity.1.provider_name" in span_attributes
             assert "entity.1.inference_endpoint" in span_attributes
             assert span_attributes["entity.2.name"] == "gpt-4"
@@ -80,8 +80,8 @@ def test_llamaindex_agent(setup):
 
         if "span.type" in span_attributes and span_attributes["span.type"] == "agent":
             # Assertions for all inference attributes
-            assert span_attributes["entity.2.name"] == "ReActAgent"
-            assert span_attributes["entity.2.type"] == "Agent.oai"
-            assert span_attributes["entity.2.tools"] == ("place_order",)
+            assert span_attributes["entity.1.name"] == "ReActAgent"
+            assert span_attributes["entity.1.type"] == "Agent.oai"
+            assert span_attributes["entity.1.tools"] == ("place_order",)
 
 

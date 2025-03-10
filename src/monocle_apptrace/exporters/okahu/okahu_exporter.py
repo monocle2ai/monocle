@@ -83,7 +83,7 @@ class OkahuSpanExporter(SpanExporter):
                         result.text,
                     )
                     return SpanExportResult.FAILURE
-                logger.warning("spans successfully exported to okahu")
+                logger.debug("spans successfully exported to okahu")
                 return SpanExportResult.SUCCESS
             except ReadTimeout as e:
                 logger.warning("Trace export timed out: %s", str(e))

@@ -1,7 +1,7 @@
 from monocle_apptrace.instrumentation.metamodel.llamaindex import (
     _helper,
 )
-from monocle_apptrace.instrumentation.common.utils import resolve_from_alias
+from monocle_apptrace.instrumentation.common.utils import resolve_from_alias, get_llm_type
 
 INFERENCE = {
     "type": "inference",
@@ -10,11 +10,13 @@ INFERENCE = {
             {
                 "_comment": "provider type ,name , deployment , inference_endpoint",
                 "attribute": "type",
-                "accessor": lambda arguments: 'inference.azure_oai'
+                "accessor": lambda arguments: 'inference.' + (get_llm_type(arguments['instance']) or 'generic')
+
             },
             {
                 "attribute": "provider_name",
-                "accessor": lambda arguments: _helper.extract_provider_name(arguments['instance'])
+                "accessor": lambda arguments: arguments['kwargs'].get('provider_name') or _helper.extract_provider_name(arguments['instance'])
+
             },
             {
                 "attribute": "deployment",

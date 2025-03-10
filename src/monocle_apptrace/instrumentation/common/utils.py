@@ -9,7 +9,7 @@ from opentelemetry.trace.propagation import _SPAN_KEY
 from opentelemetry.sdk.trace import id_generator, TracerProvider
 from opentelemetry.propagate import inject, extract
 from opentelemetry import baggage
-from monocle_apptrace.instrumentation.common.constants import MONOCLE_SCOPE_NAME_PREFIX, SCOPE_METHOD_FILE, SCOPE_CONFIG_PATH
+from monocle_apptrace.instrumentation.common.constants import MONOCLE_SCOPE_NAME_PREFIX, SCOPE_METHOD_FILE, SCOPE_CONFIG_PATH, llm_type_map
 
 T = TypeVar('T')
 U = TypeVar('U')
@@ -311,6 +311,13 @@ def try_option(func: Callable[..., T], *args, **kwargs) -> Option[T]:
         return Option(func(*args, **kwargs))
     except Exception:
         return Option(None)
+
+def get_llm_type(instance):
+    try:
+        llm_type = llm_type_map.get(type(instance).__name__.lower())
+        return llm_type
+    except:
+        pass
 
 def resolve_from_alias(my_map, alias):
     """Find a alias that is not none from list of aliases"""

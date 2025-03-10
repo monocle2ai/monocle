@@ -116,7 +116,7 @@ def test_haystack_sample(setup):
 
         if span_attributes["span.type"] == "inference":
             # Assertions for all inference attributes
-            assert span_attributes["entity.1.type"] == "inference.azure_oai"
+            assert span_attributes["entity.1.type"] == "inference.azure_openai"
             assert span_attributes["entity.1.inference_endpoint"] == "https://api.openai.com/v1/"
             assert span_attributes["entity.2.name"] == "gpt-3.5-turbo"
             assert span_attributes["entity.2.type"] == "model.llm.gpt-3.5-turbo"
@@ -195,7 +195,7 @@ def test_haystack_sample(setup):
 #     "attributes": {
 #         "span.type": "inference",
 #         "entity.count": 2,
-#         "entity.1.type": "inference.azure_oai",
+#         "entity.1.type": "inference.azure_openai",
 #         "entity.1.inference_endpoint": "https://api.openai.com/v1/",
 #         "entity.2.name": "gpt-3.5-turbo",
 #         "entity.2.type": "model.llm.gpt-3.5-turbo"

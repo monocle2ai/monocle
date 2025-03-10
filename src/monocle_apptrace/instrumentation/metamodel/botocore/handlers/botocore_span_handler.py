@@ -1,3 +1,4 @@
+from opentelemetry.context import get_value, set_value, attach, detach
 from monocle_apptrace.instrumentation.common.span_handler import SpanHandler
 
 class BotoCoreSpanHandler(SpanHandler):

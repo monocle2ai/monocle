@@ -247,7 +247,7 @@ def test_langchain_sample(setup):
 #         "entity.count": 2,
 #         "entity.1.type": "inference.azure_openai",
 #         "entity.1.deployment": "kshitiz-gpt",
-#         "entity.1.inference_endpoint": "https://okahu-openai-dev.openai.azure.com/",
+#         "entity.1.inference_endpoint": "https://xyz.openai.azure.com/",
 #         "entity.2.name": "gpt-3.5-turbo-0125",
 #         "entity.2.type": "model.llm.gpt-3.5-turbo-0125"
 #     },

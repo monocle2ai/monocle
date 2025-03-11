@@ -36,11 +36,11 @@ def setup():
 def test_haystack_opensearch_sample(setup):
     # initialize
     api_key = os.getenv("OPENAI_API_KEY")
-    http_auth=("sachin-opensearch", "Sachin@123")
+    http_auth=(os.getenv("OPEN_SEARCH_AUTH_USER"), os.getenv("OPEN_SEARCH_AUTH_PASSWORD"))
     generator = OpenAIGenerator(
         api_key=Secret.from_token(api_key), model="gpt-3.5-turbo"
     )
-    document_store = OpenSearchDocumentStore(hosts="https://search-sachin-opensearch-cvvd5pdeyrme2l2y26xmcpkm2a.us-east-1.es.amazonaws.com", use_ssl=True,
+    document_store = OpenSearchDocumentStore(hosts=os.getenv("OPEN_SEARCH_DOCSTORE_ENDPOINT"), use_ssl=True,
                         verify_certs=True, http_auth=http_auth)
     model = "sentence-transformers/all-mpnet-base-v2"
 
@@ -141,7 +141,7 @@ def test_haystack_opensearch_sample(setup):
 #         "entity.count": 2,
 #         "entity.1.name": "OpenSearchDocumentStore",
 #         "entity.1.type": "vectorstore.OpenSearchDocumentStore",
-#         "entity.1.deployment": "https://search-sachin-opensearch-cvvd5pdeyrme2l2y26xmcpkm2a.us-east-1.es.amazonaws.com:443",
+#         "entity.1.deployment": "https://xyz.us-east-1.es.amazonaws.com:443",
 #         "entity.2.name": "sentence-transformers/all-mpnet-base-v2",
 #         "entity.2.type": "model.embedding.sentence-transformers/all-mpnet-base-v2"
 #     },

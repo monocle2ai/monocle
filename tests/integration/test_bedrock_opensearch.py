@@ -40,23 +40,19 @@ def test_bedrock_opensearch(setup):
         span_attributes = span.attributes
         if 'span.type' in span_attributes and span_attributes["span.type"] == "retrieval":
             # Assertions for all retrieval attributes
-            assert span_attributes["entity.1.name"] == "bedrock_workflow"
-            assert span_attributes["entity.1.type"] == "workflow.langchain"
-            assert span_attributes["entity.2.name"] == "OpenSearchVectorSearch"
-            assert span_attributes["entity.2.type"] == "vectorstore.OpenSearchVectorSearch"
-            assert "entity.2.deployment" in span_attributes
-            assert span_attributes["entity.3.name"] == "amazon.titan-embed-text-v1"
-            assert span_attributes["entity.3.type"] == "model.embedding.amazon.titan-embed-text-v1"
+            assert span_attributes["entity.1.name"] == "OpenSearchVectorSearch"
+            assert span_attributes["entity.1.type"] == "vectorstore.OpenSearchVectorSearch"
+            assert "entity.1.deployment" in span_attributes
+            assert span_attributes["entity.2.name"] == "amazon.titan-embed-text-v1"
+            assert span_attributes["entity.2.type"] == "model.embedding.amazon.titan-embed-text-v1"
 
         if 'span.type' in span_attributes and span_attributes["span.type"] == "inference":
             # Assertions for all inference attributes
-            assert span_attributes["entity.1.name"] == "bedrock_workflow"
-            assert span_attributes["entity.1.type"] == "workflow.generic"
-            assert span_attributes["entity.2.type"] == "inference.aws_sagemaker"
+            assert span_attributes["entity.1.type"] == "inference.aws_sagemaker"
             if "entity.2.inference_endpoint" in span_attributes.keys():
-                assert "entity.2.inference_endpoint" in span_attributes
-                assert span_attributes["entity.3.name"] == "ai21.j2-mid-v1"
-                assert span_attributes["entity.3.type"] == "model.llm.ai21.j2-mid-v1"
+                assert "entity.1.inference_endpoint" in span_attributes
+                assert span_attributes["entity.2.name"] == "ai21.j2-mid-v1"
+                assert span_attributes["entity.2.type"] == "model.llm.ai21.j2-mid-v1"
 
 
                 # Assertions for metadata

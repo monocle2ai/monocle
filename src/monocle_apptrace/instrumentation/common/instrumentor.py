@@ -17,13 +17,13 @@ from opentelemetry.trace import get_tracer
 from wrapt import wrap_function_wrapper
 from opentelemetry.trace.propagation import set_span_in_context, _SPAN_KEY
 from monocle_apptrace.exporters.monocle_exporters import get_monocle_exporter
-from monocle_apptrace.instrumentation.common.span_handler import SpanHandler
+from monocle_apptrace.instrumentation.common.span_handler import SpanHandler, NonFrameworkSpanHandler
 from monocle_apptrace.instrumentation.common.wrapper_method import (
     DEFAULT_METHODS_LIST,
     WrapperMethod,
     MONOCLE_SPAN_HANDLERS
 )
-from monocle_apptrace.instrumentation.common.wrapper import scope_wrapper, ascope_wrapper
+from monocle_apptrace.instrumentation.common.wrapper import scope_wrapper, ascope_wrapper, wrapper_processor
 from monocle_apptrace.instrumentation.common.utils import (
     set_scope, remove_scope, http_route_handler, load_scopes, async_wrapper, http_async_route_handler
 )
@@ -65,13 +65,11 @@ class MonocleInstrumentor(BaseInstrumentor):
         def instrumented_endpoint_invoke(to_wrap,wrapped, span_name, instance,fn):
             @wraps(fn)
             def with_instrumentation(*args, **kwargs):
-                handler = SpanHandler()
-                with tracer.start_as_current_span(span_name) as span:
-                    response = fn(*args, **kwargs)
-                    handler.hydrate_span(to_wrap, wrapped=wrapped, instance=instance, args=args, kwargs=kwargs,
-                                         result=response, span=span)
-                    return response
-
+                async_task = inspect.iscoroutinefunction(fn)
+                boto_method_to_wrap = to_wrap.copy()
+                boto_method_to_wrap['skip_span'] = False
+                return wrapper_processor(async_task, tracer, NonFrameworkSpanHandler(),
+                            boto_method_to_wrap, fn, instance, args, kwargs)
             return with_instrumentation
         return instrumented_endpoint_invoke
 

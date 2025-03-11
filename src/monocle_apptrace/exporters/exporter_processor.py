@@ -1,5 +1,3 @@
-# Copyright (C) Okahu Inc 2023-2024. All rights reserved
-
 from abc import ABC, abstractmethod
 import logging
 import os

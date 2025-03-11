@@ -7,6 +7,7 @@ from typing import Optional, Callable, Sequence
 from opentelemetry.sdk.trace import ReadableSpan
 from opentelemetry.sdk.trace.export import SpanExporter, SpanExportResult
 from opentelemetry.sdk.resources import SERVICE_NAME
+from monocle_apptrace.exporters.exporter_processor import ExportTaskProcessor
 
 DEFAULT_FILE_PREFIX:str = "monocle_trace_"
 DEFAULT_TIME_FORMAT:str = "%Y-%m-%d_%H.%M.%S"
@@ -25,6 +26,7 @@ class FileSpanExporter(SpanExporter):
             [ReadableSpan], str
         ] = lambda span: span.to_json()
         + linesep,
+        task_processor: Optional[ExportTaskProcessor] = None
     ):
         self.out_handle:TextIOWrapper = None
         self.formatter = formatter
@@ -32,8 +34,18 @@ class FileSpanExporter(SpanExporter):
         self.output_path = out_path
         self.file_prefix = file_prefix
         self.time_format = time_format
+        self.task_processor = task_processor
+        if self.task_processor is not None:
+            self.task_processor.start()
 
     def export(self, spans: Sequence[ReadableSpan]) -> SpanExportResult:
+        if self.task_processor is not None and callable(getattr(self.task_processor, 'queue_task', None)):
+            self.task_processor.queue_task(self._process_spans, spans)
+            return SpanExportResult.SUCCESS
+        else:
+            return self._process_spans(spans)
+
+    def _process_spans(self, spans: Sequence[ReadableSpan]) -> SpanExportResult:
         for span in spans:
             if span.context.trace_id != self.current_trace_id:
                 self.rotate_file(span.resource.attributes[SERVICE_NAME],
@@ -60,4 +72,6 @@ class FileSpanExporter(SpanExporter):
             self.out_handle = None
 
     def shutdown(self) -> None:
+        if hasattr(self, 'task_processor') and self.task_processor is not None:
+            self.task_processor.stop()
         self.reset_handle()

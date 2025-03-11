@@ -48,7 +48,7 @@ class OkahuSpanExporter(SpanExporter):
 
         if self._closed:
             logger.warning("Exporter already shutdown, ignoring batch")
-            return SpanExportResult.FAILUREencoder
+            return SpanExportResult.FAILURE
         if len(spans) == 0:
             return
 

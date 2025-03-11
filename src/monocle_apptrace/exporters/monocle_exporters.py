@@ -3,7 +3,9 @@ import os
 import logging
 from importlib import import_module
 from opentelemetry.sdk.trace.export import SpanExporter, ConsoleSpanExporter
+from monocle_apptrace.exporters.exporter_processor import LambdaExportTaskProcessor, is_aws_lambda_environment
 from monocle_apptrace.exporters.file_exporter import FileSpanExporter
+
 logger = logging.getLogger(__name__)
 
 monocle_exporters: Dict[str, Any] = {
@@ -20,6 +22,9 @@ def get_monocle_exporter() -> List[SpanExporter]:
     # Retrieve the MONOCLE_EXPORTER environment variable and split it into a list
     exporter_names = os.environ.get("MONOCLE_EXPORTER", "file").split(",")
     exporters = []
+    
+    # Create task processor for AWS Lambda environment
+    task_processor = LambdaExportTaskProcessor() if is_aws_lambda_environment() else None
 
     for exporter_name in exporter_names:
         exporter_name = exporter_name.strip()
@@ -31,7 +36,11 @@ def get_monocle_exporter() -> List[SpanExporter]:
         try:
             exporter_module = import_module(exporter_class_path["module"])
             exporter_class = getattr(exporter_module, exporter_class_path["class"])
-            exporters.append(exporter_class())
+            # Pass task_processor to all exporters when in AWS Lambda environment
+            if task_processor is not None:
+                exporters.append(exporter_class(task_processor=task_processor))
+            else:
+                exporters.append(exporter_class())
         except Exception as ex:
             logger.debug(
                 f"Unable to initialize Monocle span exporter '{exporter_name}', error: {ex}. Using ConsoleSpanExporter as a fallback.")

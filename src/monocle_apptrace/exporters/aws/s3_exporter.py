@@ -16,12 +16,13 @@ from botocore.exceptions import (
 from opentelemetry.sdk.trace import ReadableSpan
 from opentelemetry.sdk.trace.export import SpanExporter, SpanExportResult
 from monocle_apptrace.exporters.base_exporter import SpanExporterBase
-from typing import Sequence
+from monocle_apptrace.exporters.exporter_processor import ExportTaskProcessor
+from typing import Sequence, Optional
 import json
 logger = logging.getLogger(__name__)
 
 class S3SpanExporter(SpanExporterBase):
-    def __init__(self, bucket_name=None, region_name=None):
+    def __init__(self, bucket_name=None, region_name=None, task_processor: Optional[ExportTaskProcessor] = None):
         super().__init__()
         # Use environment variables if credentials are not provided
         DEFAULT_FILE_PREFIX = "monocle_trace_"
@@ -47,6 +48,9 @@ class S3SpanExporter(SpanExporterBase):
         self.time_format = DEFAULT_TIME_FORMAT
         self.export_queue = []
         self.last_export_time = time.time()
+        self.task_processor = task_processor
+        if self.task_processor is not None:
+            self.task_processor.start()
 
         # Check if bucket exists or create it
         if not self.__bucket_exists(self.bucket_name):
@@ -142,10 +146,14 @@ class S3SpanExporter(SpanExporterBase):
         batch_to_export = self.export_queue[:self.max_batch_size]
         serialized_data = self.__serialize_spans(batch_to_export)
         self.export_queue = self.export_queue[self.max_batch_size:]
-        try:
-            self.__upload_to_s3(serialized_data)
-        except Exception as e:
-            logger.error(f"Failed to upload span batch: {e}")
+        
+        if self.task_processor is not None and callable(getattr(self.task_processor, 'queue_task', None)):
+            self.task_processor.queue_task(self.__upload_to_s3, serialized_data)
+        else:
+            try:
+                self.__upload_to_s3(serialized_data)
+            except Exception as e:
+                logger.error(f"Failed to upload span batch: {e}")
 
     @SpanExporterBase.retry_with_backoff(exceptions=(EndpointConnectionError, ConnectionClosedError, ReadTimeoutError, ConnectTimeoutError))
     def __upload_to_s3(self, span_data_batch: str):
@@ -164,4 +172,6 @@ class S3SpanExporter(SpanExporterBase):
         return True
 
     def shutdown(self) -> None:
+        if hasattr(self, 'task_processor') and self.task_processor is not None:
+            self.task_processor.stop()
         logger.info("S3SpanExporter has been shut down.")

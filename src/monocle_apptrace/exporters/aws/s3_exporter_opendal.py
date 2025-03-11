@@ -3,19 +3,19 @@ import time
 import datetime
 import logging
 import asyncio
-from typing import Sequence
+from typing import Sequence, Optional
 from opentelemetry.sdk.trace import ReadableSpan
 from opentelemetry.sdk.trace.export import SpanExportResult
 from monocle_apptrace.exporters.base_exporter import SpanExporterBase
+from monocle_apptrace.exporters.exporter_processor import ExportTaskProcessor
 from opendal import Operator
 from opendal.exceptions import PermissionDenied, ConfigInvalid, Unexpected
-
 
 import json
 
 logger = logging.getLogger(__name__)
 class OpenDALS3Exporter(SpanExporterBase):
-    def __init__(self, bucket_name=None, region_name=None):
+    def __init__(self, bucket_name=None, region_name=None, task_processor: Optional[ExportTaskProcessor] = None):
         super().__init__()
         DEFAULT_FILE_PREFIX = "monocle_trace_"
         DEFAULT_TIME_FORMAT = "%Y-%m-%d__%H.%M.%S"
@@ -36,7 +36,10 @@ class OpenDALS3Exporter(SpanExporterBase):
             access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
             secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
         )
-
+        
+        self.task_processor = task_processor
+        if self.task_processor is not None:
+            self.task_processor.start()
 
     def export(self, spans: Sequence[ReadableSpan]) -> SpanExportResult:
         """Synchronous export method that internally handles async logic."""
@@ -88,10 +91,14 @@ class OpenDALS3Exporter(SpanExporterBase):
         batch_to_export = self.export_queue[:self.max_batch_size]
         serialized_data = self.__serialize_spans(batch_to_export)
         self.export_queue = self.export_queue[self.max_batch_size:]
-        try:
-            self.__upload_to_s3(serialized_data)
-        except Exception as e:
-            logger.error(f"Failed to upload span batch: {e}")
+        
+        if self.task_processor is not None and callable(getattr(self.task_processor, 'queue_task', None)):
+            self.task_processor.queue_task(self.__upload_to_s3, serialized_data)
+        else:
+            try:
+                self.__upload_to_s3(serialized_data)
+            except Exception as e:
+                logger.error(f"Failed to upload span batch: {e}")
 
     @SpanExporterBase.retry_with_backoff(exceptions=(Unexpected))
     def __upload_to_s3(self, span_data_batch: str):
@@ -123,4 +130,6 @@ class OpenDALS3Exporter(SpanExporterBase):
         return True
 
     def shutdown(self) -> None:
+        if hasattr(self, 'task_processor') and self.task_processor is not None:
+            self.task_processor.stop()
         logger.info("S3SpanExporter has been shut down.")

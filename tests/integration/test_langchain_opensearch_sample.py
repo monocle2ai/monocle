@@ -37,8 +37,8 @@ def setup():
 @pytest.mark.integration()
 def test_langchain_opensearch_sample(setup):
     # OpenSearch endpoint and credentials
-    endpoint = "https://search-sachin-opensearch-cvvd5pdeyrme2l2y26xmcpkm2a.us-east-1.es.amazonaws.com"
-    http_auth = ("sachin-opensearch", "Sachin@123")
+    endpoint = os.environ.get("OPEN_SEARCH_DOCSTORE_ENDPOINT")
+    http_auth = (os.environ.get("OPEN_SEARCH_AUTH_USER"), os.environ.get("OPEN_SEARCH_AUTH_PASSWORD"))
     index_name = "gpt-index-demo"
 
     # Initialize OpenSearch client

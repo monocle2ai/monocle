@@ -31,7 +31,8 @@ def wrapper_processor(async_task: bool, tracer: Tracer, handler: SpanHandler, to
     try:
         handler.pre_tracing(to_wrap, wrapped, instance, args, kwargs)
         skip_scan:bool = to_wrap.get('skip_span') or handler.skip_span(to_wrap, wrapped, instance, args, kwargs)
-        token = SpanHandler.attach_workflow_type(to_wrap=to_wrap)
+        if not to_wrap.get('skip_span'):
+            token = SpanHandler.attach_workflow_type(to_wrap=to_wrap)
         if skip_scan:
             if async_task:
                 return_value = async_wrapper(wrapped, None, None, *args, **kwargs)

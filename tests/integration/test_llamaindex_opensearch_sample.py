@@ -23,7 +23,7 @@ def setup():
 @pytest.mark.integration()
 def test_llamaindex_opensearch_sample(setup):   
     # http endpoint for your cluster (opensearch required for vector index usage)
-    endpoint = "https://search-sachin-opensearch-cvvd5pdeyrme2l2y26xmcpkm2a.us-east-1.es.amazonaws.com"
+    endpoint = os.getenv("OPEN_SEARCH_DOCSTORE_ENDPOINT")
     # index to demonstrate the VectorStore impl
     idx = "gpt-index-demo"
     # load some sample data
@@ -38,7 +38,8 @@ def test_llamaindex_opensearch_sample(setup):
     # OpensearchVectorClient encapsulates logic for a
     # single opensearch index with vector search enabled
     client = OpensearchVectorClient(
-        endpoint, idx, 1536, embedding_field=embedding_field, text_field=text_field,   http_auth=("sachin-opensearch", "Sachin@123")
+        endpoint, idx, 1536, embedding_field=embedding_field, text_field=text_field,
+        http_auth=(os.getenv("OPEN_SEARCH_AUTH_USER"), os.getenv("OPEN_SEARCH_AUTH_PASSWORD"))
     )
     # initialize vector store
     vector_store = OpensearchVectorStore(client)
@@ -72,7 +73,7 @@ def test_llamaindex_opensearch_sample(setup):
 #         "entity.count": 2,
 #         "entity.1.name": "OpensearchVectorStore",
 #         "entity.1.type": "vectorstore.OpensearchVectorStore",
-#         "entity.1.deployment": "https://search-sachin-opensearch-cvvd5pdeyrme2l2y26xmcpkm2a.us-east-1.es.amazonaws.com",
+#         "entity.1.deployment": "https://xyz.us-east-1.es.amazonaws.com",
 #         "entity.2.name": "text-embedding-ada-002",
 #         "entity.2.type": "model.embedding.text-embedding-ada-002"
 #     },

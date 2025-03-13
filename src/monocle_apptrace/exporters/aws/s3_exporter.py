@@ -96,6 +96,7 @@ class S3SpanExporter(SpanExporterBase):
         """Synchronous export method that internally handles async logic."""
         try:
             # Run the asynchronous export logic in an event loop
+            logger.info(f"Exporting {len(spans)} spans to S3.")
             asyncio.run(self.__export_async(spans))
             return SpanExportResult.SUCCESS
         except Exception as e:
@@ -104,6 +105,7 @@ class S3SpanExporter(SpanExporterBase):
 
     async def __export_async(self, spans: Sequence[ReadableSpan]) -> SpanExportResult:
         try:
+            logger.info(f"__export_async {len(spans)} spans to S3.")
             # Add spans to the export queue
             for span in spans:
                 self.export_queue.append(span)
@@ -146,9 +148,11 @@ class S3SpanExporter(SpanExporterBase):
         batch_to_export = self.export_queue[:self.max_batch_size]
         serialized_data = self.__serialize_spans(batch_to_export)
         self.export_queue = self.export_queue[self.max_batch_size:]
-        
+        # to calculate is_root_span loop over each span in batch_to_export and check if parent id is none or null
+        is_root_span = any(not span.parent for span in batch_to_export)
+        logger.info(f"Exporting {len(batch_to_export)} spans to S3 is_root_span : {is_root_span}.")
         if self.task_processor is not None and callable(getattr(self.task_processor, 'queue_task', None)):
-            self.task_processor.queue_task(self.__upload_to_s3, serialized_data)
+            self.task_processor.queue_task(self.__upload_to_s3, serialized_data, is_root_span)
         else:
             try:
                 self.__upload_to_s3(serialized_data)

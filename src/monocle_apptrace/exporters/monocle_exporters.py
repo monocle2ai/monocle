@@ -37,7 +37,7 @@ def get_monocle_exporter() -> List[SpanExporter]:
             exporter_module = import_module(exporter_class_path["module"])
             exporter_class = getattr(exporter_module, exporter_class_path["class"])
             # Pass task_processor to all exporters when in AWS Lambda environment
-            if task_processor is not None:
+            if task_processor is not None and exporter_module.__name__.startswith("monocle_apptrace"):
                 exporters.append(exporter_class(task_processor=task_processor))
             else:
                 exporters.append(exporter_class())

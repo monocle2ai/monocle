@@ -22,14 +22,14 @@ class ExportTaskProcessor(ABC):
         return
 
     @abstractmethod
-    def queue_task(self, async_task: Callable[[Callable, any], any] = None, args: any = None):
+    def queue_task(self, async_task: Callable[[Callable, any], any] = None, args: any = None, is_root_span: bool = False):
         return
 
 class LambdaExportTaskProcessor(ExportTaskProcessor):
     
     def __init__(
         self,
-        span_check_interval_seconds: int = 2,
+        span_check_interval_seconds: int = 1,
         max_time_allowed_seconds: int = 30):
         # An internal queue used by the handler to notify the extension that it can
         # start processing the async task.
@@ -46,8 +46,8 @@ class LambdaExportTaskProcessor(ExportTaskProcessor):
     def stop(self):
         return
 
-    def queue_task(self, async_task=None, args=None):
-        self.async_tasks_queue.put((async_task, args))
+    def queue_task(self, async_task=None, args=None, is_root_span=False):
+        self.async_tasks_queue.put((async_task, args, is_root_span))
     
     def set_sagemaker_model(self, endpoint_name: str, span: dict[str, dict[str, str]]):
         try:
@@ -118,13 +118,10 @@ class LambdaExportTaskProcessor(ExportTaskProcessor):
                     # Get next task from internal queue
                     logger.info(f"[{LAMBDA_EXTENSION_NAME}] Async thread running, waiting for task from handler")
                     while self.async_tasks_queue.empty() is False :
-                        async_task, args = self.async_tasks_queue.get()
-                        # check if root span task is present in queue
-                        if 'batch' in args:
-                            for span in args["batch"]:
-                                if(span["parent_id"] == "None"):
-                                    root_span_found = True
-                        self.update_spans(export_args=args)
+                        logger.info(f"[{LAMBDA_EXTENSION_NAME}] Processing task from handler")
+                        async_task, arg, is_root_span = self.async_tasks_queue.get()
+                        root_span_found = is_root_span
+                        # self.update_spans(export_args=arg)
 
                         if async_task is None:
                             # No task to run this invocation
@@ -132,8 +129,9 @@ class LambdaExportTaskProcessor(ExportTaskProcessor):
                         else:
                             # Invoke task
                             logger.debug(f"[{LAMBDA_EXTENSION_NAME}] Received async task from handler. Starting task.")
-                            async_task(args)
+                            async_task(arg)
                     total_time_elapsed+=self.span_check_interval
+                    logger.info(f"[{LAMBDA_EXTENSION_NAME}] Waiting for root span. total_time_elapsed: {total_time_elapsed}, root_span_found: {root_span_found}.")
                     time.sleep(self.span_check_interval)
                 
                 logger.debug(f"[{LAMBDA_EXTENSION_NAME}] Finished processing task. total_time_elapsed: {total_time_elapsed}, root_span_found: {root_span_found}.")

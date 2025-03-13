@@ -26,6 +26,8 @@ class OpenDALAzureExporter(SpanExporterBase):
         # Default values
         self.file_prefix = DEFAULT_FILE_PREFIX
         self.time_format = DEFAULT_TIME_FORMAT
+        self.export_queue = []  # Add this line to initialize export_queue
+        self.last_export_time = time.time()  # Add this line to initialize last_export_time
 
         # Validate input
         if not connection_string:
@@ -117,22 +119,25 @@ class OpenDALAzureExporter(SpanExporterBase):
         serialized_data = self.__serialize_spans(batch_to_export)
         self.export_queue = self.export_queue[self.max_batch_size:]
         
+        # Calculate is_root_span by checking if any span has no parent
+        is_root_span = any(not span.parent for span in batch_to_export)
+        
         if self.task_processor is not None and callable(getattr(self.task_processor, 'queue_task', None)):
-            self.task_processor.queue_task(self.__upload_to_opendal, serialized_data)
+            self.task_processor.queue_task(self.__upload_to_opendal, serialized_data, is_root_span)
         else:
             try:
-                self.__upload_to_opendal(serialized_data)
+                self.__upload_to_opendal(serialized_data, is_root_span)
             except Exception as e:
                 logger.error(f"Failed to upload span batch: {e}")
 
     @SpanExporterBase.retry_with_backoff(exceptions=(Unexpected,))
-    def __upload_to_opendal(self, span_data_batch: str):
+    def __upload_to_opendal(self, span_data_batch: str, is_root_span: bool = False):
         current_time = datetime.datetime.now().strftime(self.time_format)
         file_name = f"{self.file_prefix}{current_time}.ndjson"
 
         try:
             self.operator.write(file_name, span_data_batch.encode('utf-8'))
-            logger.info(f"Span batch uploaded to Azure Blob Storage as {file_name}.")
+            logger.info(f"Span batch uploaded to Azure Blob Storage as {file_name}. Is root span: {is_root_span}")
         except PermissionDenied as e:
             # Azure Container is forbidden.
             logger.error(f"Access to container {self.container_name} is forbidden (403).")

@@ -117,21 +117,24 @@ class AzureBlobSpanExporter(SpanExporterBase):
         serialized_data = self.__serialize_spans(batch_to_export)
         self.export_queue = self.export_queue[self.max_batch_size:]
         
+        # Calculate is_root_span by checking if any span has no parent
+        is_root_span = any(not span.parent for span in batch_to_export)
+        
         if self.task_processor is not None and callable(getattr(self.task_processor, 'queue_task', None)):
-            self.task_processor.queue_task(self.__upload_to_blob, serialized_data)
+            self.task_processor.queue_task(self.__upload_to_blob, serialized_data, is_root_span)
         else:
             try:
-                self.__upload_to_blob(serialized_data)
+                self.__upload_to_blob(serialized_data, is_root_span)
             except Exception as e:
                 logger.error(f"Failed to upload span batch: {e}")
 
     @SpanExporterBase.retry_with_backoff(exceptions=(ResourceNotFoundError, ClientAuthenticationError, ServiceRequestError))
-    def __upload_to_blob(self, span_data_batch: str):
+    def __upload_to_blob(self, span_data_batch: str, is_root_span: bool = False):
         current_time = datetime.datetime.now().strftime(self.time_format)
         file_name = f"{self.file_prefix}{current_time}.ndjson"
         blob_client = self.blob_service_client.get_blob_client(container=self.container_name, blob=file_name)
         blob_client.upload_blob(span_data_batch, overwrite=True)
-        logger.info(f"Span batch uploaded to Azure Blob Storage as {file_name}.")
+        logger.info(f"Span batch uploaded to Azure Blob Storage as {file_name}. Is root span: {is_root_span}")
 
     async def force_flush(self, timeout_millis: int = 30000) -> bool:
         await self.__export_spans()

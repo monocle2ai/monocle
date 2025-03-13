@@ -40,12 +40,14 @@ class FileSpanExporter(SpanExporter):
 
     def export(self, spans: Sequence[ReadableSpan]) -> SpanExportResult:
         if self.task_processor is not None and callable(getattr(self.task_processor, 'queue_task', None)):
-            self.task_processor.queue_task(self._process_spans, spans)
+            # Check if any span is a root span (no parent)
+            is_root_span = any(not span.parent for span in spans)
+            self.task_processor.queue_task(self._process_spans, spans, is_root_span)
             return SpanExportResult.SUCCESS
         else:
             return self._process_spans(spans)
 
-    def _process_spans(self, spans: Sequence[ReadableSpan]) -> SpanExportResult:
+    def _process_spans(self, spans: Sequence[ReadableSpan], is_root_span: bool = False) -> SpanExportResult:
         for span in spans:
             if span.context.trace_id != self.current_trace_id:
                 self.rotate_file(span.resource.attributes[SERVICE_NAME],

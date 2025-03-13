@@ -48,7 +48,7 @@ class OkahuSpanExporter(SpanExporter):
 
         if self._closed:
             logger.warning("Exporter already shutdown, ignoring batch")
-            return SpanExportResult.FAILUREencoder
+            return SpanExportResult.FAILURE
         if len(spans) == 0:
             return
 
@@ -69,7 +69,10 @@ class OkahuSpanExporter(SpanExporter):
                 obj["context"]["span_id"] = remove_0x_from_start(obj["context"]["span_id"])
             span_list["batch"].append(obj)
 
-        def send_spans_to_okahu(span_list_local=None):
+        # Calculate is_root_span by checking if any span has no parent
+        is_root_span = any(not span.parent for span in spans)
+
+        def send_spans_to_okahu(span_list_local=None, is_root=False):
             try:
                 result = self.session.post(
                     url=self.endpoint,
@@ -83,18 +86,17 @@ class OkahuSpanExporter(SpanExporter):
                         result.text,
                     )
                     return SpanExportResult.FAILURE
-                logger.debug("spans successfully exported to okahu")
+                logger.debug("spans successfully exported to okahu. Is root span: %s", is_root)
                 return SpanExportResult.SUCCESS
             except ReadTimeout as e:
                 logger.warning("Trace export timed out: %s", str(e))
                 return SpanExportResult.FAILURE
 
         # if async task function is present, then push the request to asnc task
-
         if self.task_processor is not None and callable(self.task_processor.queue_task):
-            self.task_processor.queue_task(send_spans_to_okahu, span_list)
+            self.task_processor.queue_task(send_spans_to_okahu, span_list, is_root_span)
             return SpanExportResult.SUCCESS
-        return send_spans_to_okahu(span_list)
+        return send_spans_to_okahu(span_list, is_root_span)
 
     def shutdown(self) -> None:
         if self._closed:

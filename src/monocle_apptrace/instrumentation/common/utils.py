@@ -21,6 +21,21 @@ embedding_model_context = {}
 scope_id_generator = id_generator.RandomIdGenerator()
 http_scopes:dict[str:str] = {}
 
+class MonocleSpanException(Exception):
+    def __init__(self, err_message:str):
+        """
+        Monocle exeption to indicate error in span processing.        
+        Parameters:
+        - err_message (str): Error message.
+        - status (str): Status code
+        """
+        super().__init__(err_message)
+        self.message = err_message
+
+    def __str__(self):
+        """String representation of the exception."""
+        return f"[Monocle Span Error: {self.message} {self.status}"
+
 def set_tracer_provider(tracer_provider: TracerProvider):
     global monocle_tracer_provider
     monocle_tracer_provider = tracer_provider
@@ -254,17 +269,16 @@ async def http_async_route_handler(func, *args, **kwargs):
         headers = None
     return async_wrapper(func, None, headers, *args, **kwargs)
 
-def run_async_with_scope(method, scope_name, headers, *args, **kwargs):
-    token = None
-    if scope_name:
-        token = set_scope(scope_name)
-    elif headers:
-        token = extract_http_headers(headers)
+def run_async_with_scope(method, current_context, exceptions, *args, **kwargs):
     try:
+        token = attach(current_context)
         return asyncio.run(method(*args, **kwargs))
+    except Exception as e:
+        exceptions['exception'] = e
+        raise e
     finally:
         if token:
-            remove_scope(token)
+            detach(token)
 
 def async_wrapper(method, scope_name=None, headers=None, *args, **kwargs):
     try:
@@ -272,15 +286,28 @@ def async_wrapper(method, scope_name=None, headers=None, *args, **kwargs):
     except RuntimeError:
         run_loop = None
 
-    if run_loop and run_loop.is_running():
-        results = []
-        thread = threading.Thread(target=lambda: results.append(run_async_with_scope(method, scope_name, headers, *args, **kwargs)))
-        thread.start()
-        thread.join()
-        return_value = results[0] if len(results) > 0 else None
-        return return_value
-    else:
-        return run_async_with_scope(method, scope_name, headers, *args, **kwargs)
+    token = None
+    exceptions = {}
+    if scope_name:
+        token = set_scope(scope_name)
+    elif headers:
+        token = extract_http_headers(headers)
+    current_context = get_current()
+    try:
+        if run_loop and run_loop.is_running():
+            results = []
+            thread = threading.Thread(target=lambda: results.append(run_async_with_scope(method, current_context, exceptions, *args, **kwargs)))
+            thread.start()
+            thread.join()
+            if 'exception' in exceptions:
+                raise exceptions['exception']
+            return_value = results[0] if len(results) > 0 else None
+            return return_value
+        else:
+            return run_async_with_scope(method, current_context, exceptions, *args, **kwargs)
+    finally:
+        if token:
+            remove_scope(token)
 
 class Option(Generic[T]):
     def __init__(self, value: Optional[T]):

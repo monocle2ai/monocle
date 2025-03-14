@@ -3,14 +3,14 @@ import os
 from importlib.metadata import version
 from opentelemetry.context import get_value, set_value, attach, detach
 from opentelemetry.sdk.trace import Span
-
+from opentelemetry.trace.status import Status, StatusCode
 from monocle_apptrace.instrumentation.common.constants import (
     QUERY,
     service_name_map,
     service_type_map,
     MONOCLE_SDK_VERSION
 )
-from monocle_apptrace.instrumentation.common.utils import set_attribute, get_scopes
+from monocle_apptrace.instrumentation.common.utils import set_attribute, get_scopes, MonocleSpanException
 from monocle_apptrace.instrumentation.common.constants import WORKFLOW_TYPE_KEY, WORKFLOW_TYPE_GENERIC
 
 logger = logging.getLogger(__name__)
@@ -64,9 +64,12 @@ class SpanHandler:
         """ Set attributes of workflow if this is a root span"""
         SpanHandler.set_workflow_attributes(to_wrap, span)
         SpanHandler.set_app_hosting_identifier_attribute(span)
+        span.set_status(StatusCode.OK)
 
-    def post_task_processing(self, to_wrap, wrapped, instance, args, kwargs, result, span):
-        pass
+
+    def post_task_processing(self, to_wrap, wrapped, instance, args, kwargs, result, span:Span):
+        if span.status.status_code == StatusCode.UNSET:
+            span.set_status(StatusCode.OK)
 
     def hydrate_span(self, to_wrap, wrapped, instance, args, kwargs, result, span):
         self.hydrate_attributes(to_wrap, wrapped, instance, args, kwargs, result, span)
@@ -95,6 +98,8 @@ class SpanHandler:
                                 result = accessor(arguments)
                                 if result and isinstance(result, (str, list)):
                                     span.set_attribute(attribute_name, result)
+                            except MonocleSpanException as e:
+                                span.set_status(StatusCode.ERROR, e.message)
                             except Exception as e:
                                 logger.debug(f"Error processing accessor: {e}")
                         else:
@@ -131,6 +136,8 @@ class SpanHandler:
                                     event_attributes[attribute_key] = accessor(arguments)
                                 else:
                                     event_attributes.update(accessor(arguments))
+                            except MonocleSpanException as e:
+                                span.set_status(StatusCode.ERROR, e.message)
                             except Exception as e:
                                 logger.debug(f"Error evaluating accessor for attribute '{attribute_key}': {e}")
                     span.add_event(name=event_name, attributes=event_attributes)

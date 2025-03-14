@@ -18,6 +18,7 @@ from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_t
 from monocle_apptrace.instrumentation.common.wrapper_method import WrapperMethod
 from common.custom_exporter import CustomConsoleSpanExporter
 from monocle_apptrace.instrumentation.common.wrapper import atask_wrapper
+from opentelemetry.trace.status import StatusCode
 
 logger = logging.getLogger(__name__)
 exporter = CustomConsoleSpanExporter()
@@ -100,6 +101,28 @@ class TestHandler(unittest.IsolatedAsyncioTestCase):
         assert len(spans) == 4
         for span in spans:
             assert span.attributes.get("scope."+SCOPE_NAME) == SCOPE_VALUE
+
+    # verify nested async calls have same scope set using scope API
+    async def test_nested_async_scopes_with_wrapper_errors(self):
+        SCOPE_NAME="test_scope1"
+        SCOPE_VALUE="test1"
+        with monocle_trace_scope(SCOPE_NAME, SCOPE_VALUE):
+            try:
+                res = await self.dummy.add1(10,raise_error=True)
+                assert False
+            except Exception as e:
+                print(f"Got exception {e}")
+        exporter.force_flush()
+        spans = exporter.captured_spans
+        assert len(spans) == 4
+        traceID = None
+        for span in spans:
+            assert span.attributes.get("scope."+SCOPE_NAME) == SCOPE_VALUE
+            assert span.status.status_code == StatusCode.ERROR
+            if traceID == None:
+                traceID = span.context.trace_id
+            else:
+                assert traceID == span.context.trace_id
 
 if __name__ == '__main__':
     unittest.main()

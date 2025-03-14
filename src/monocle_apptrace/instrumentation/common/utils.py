@@ -254,10 +254,13 @@ async def http_async_route_handler(func, *args, **kwargs):
         headers = None
     return async_wrapper(func, None, headers, *args, **kwargs)
 
-def run_async_with_scope(method, current_context, *args, **kwargs):
+def run_async_with_scope(method, current_context, exceptions, *args, **kwargs):
     try:
         token = attach(current_context)
         return asyncio.run(method(*args, **kwargs))
+    except Exception as e:
+        exceptions['exception'] = e
+        raise e
     finally:
         if token:
             detach(token)
@@ -269,6 +272,7 @@ def async_wrapper(method, scope_name=None, headers=None, *args, **kwargs):
         run_loop = None
 
     token = None
+    exceptions = {}
     if scope_name:
         token = set_scope(scope_name)
     elif headers:
@@ -277,13 +281,15 @@ def async_wrapper(method, scope_name=None, headers=None, *args, **kwargs):
     try:
         if run_loop and run_loop.is_running():
             results = []
-            thread = threading.Thread(target=lambda: results.append(run_async_with_scope(method, current_context, *args, **kwargs)))
+            thread = threading.Thread(target=lambda: results.append(run_async_with_scope(method, current_context, exceptions, *args, **kwargs)))
             thread.start()
             thread.join()
+            if 'exception' in exceptions:
+                raise exceptions['exception']
             return_value = results[0] if len(results) > 0 else None
             return return_value
         else:
-            return run_async_with_scope(method, current_context, *args, **kwargs)
+            return run_async_with_scope(method, current_context, exceptions, *args, **kwargs)
     finally:
         if token:
             remove_scope(token)

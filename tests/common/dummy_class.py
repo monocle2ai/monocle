@@ -23,3 +23,13 @@ class DummyClass:
 
     def dummy_chat(self, prompt: str):
         pass
+
+    async def add3(self, val:int):
+        return val + 3
+
+    async def add2(self, val:int):
+        return await self.add3(val) + 2
+
+    async def add1(self, val:int):
+        return await self.add2(val) + 1
+    

@@ -13,7 +13,6 @@ from llama_index.core import (
     load_index_from_storage,
 )
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
-
 from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry, monocle_trace_scope, start_scope, stop_scope
 from monocle_apptrace.instrumentation.common.wrapper_method import WrapperMethod
 from common.custom_exporter import CustomConsoleSpanExporter

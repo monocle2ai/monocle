@@ -21,6 +21,21 @@ embedding_model_context = {}
 scope_id_generator = id_generator.RandomIdGenerator()
 http_scopes:dict[str:str] = {}
 
+class MonocleSpanException(Exception):
+    def __init__(self, err_message:str):
+        """
+        Monocle exeption to indicate error in span processing.        
+        Parameters:
+        - err_message (str): Error message.
+        - status (str): Status code
+        """
+        super().__init__(err_message)
+        self.message = err_message
+
+    def __str__(self):
+        """String representation of the exception."""
+        return f"[Monocle Span Error: {self.message} {self.status}"
+
 def set_tracer_provider(tracer_provider: TracerProvider):
     global monocle_tracer_provider
     monocle_tracer_provider = tracer_provider

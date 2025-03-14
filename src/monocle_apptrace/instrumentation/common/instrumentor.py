@@ -348,3 +348,4 @@ class FixedIdGenerator(id_generator.IdGenerator):
 
     def generate_trace_id(self) -> int:
         return self.trace_id
+

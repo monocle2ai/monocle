@@ -1,5 +1,8 @@
 from opentelemetry.trace import Tracer
 from monocle_apptrace.instrumentation.common.utils import with_tracer_wrapper
+from monocle_apptrace.instrumentation.common.instrumentor import monocle_trace_scope_method
+SCOPE_NAME="test_scope1"
+SCOPE_VALUE="test1"
 
 @with_tracer_wrapper
 def dummy_wrapper(tracer: Tracer, handler, to_wrap, wrapped, instance, args, kwargs):
@@ -40,4 +43,11 @@ class DummyClass:
 
     async def dummy_async_error(self, prompt:str):
         raise Exception("dummy async error for "+ prompt)
+
+    @monocle_trace_scope_method(SCOPE_NAME, SCOPE_VALUE)
+    async def scope_async_decorator_test_method(self):
+        return await self.add1(10)
+
+    async def scope_async_config_test_method(self):
+        return await self.add1(10)
     

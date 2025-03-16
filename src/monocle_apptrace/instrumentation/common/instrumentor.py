@@ -286,6 +286,17 @@ def stop_scope(token:object) -> None:
     return
 
 @contextmanager
+def monocle_trace():
+    """
+    Context manager to start and stop a scope. All the spans, across traces created within the encapsulated code will have same trace ID
+    """
+    token = start_trace()
+    try:
+        yield
+    finally:
+        stop_trace(token)
+
+@contextmanager
 def monocle_trace_scope(scope_name: str, scope_value:str = None):
     """
     Context manager to start and stop a scope. All the spans, across traces created within the encapsulated code will have the scope attached.
@@ -298,7 +309,7 @@ def monocle_trace_scope(scope_name: str, scope_value:str = None):
     finally:
         stop_scope(token)
     
-def monocle_trace_scope_method(scope_name: str):
+def monocle_trace_scope_method(scope_name: str, scope_value:str=None):
     """
     Decorator to start and stop a scope for a method. All the spans, across traces created in the method will have the scope attached.
     """
@@ -306,13 +317,13 @@ def monocle_trace_scope_method(scope_name: str):
         if inspect.iscoroutinefunction(func):
             @wraps(func)
             async def wrapper(*args, **kwargs):
-                result = async_wrapper(func, scope_name, None, *args, **kwargs)
+                result = async_wrapper(func, scope_name, scope_value, None, *args, **kwargs)
                 return result
             return wrapper
         else:
             @wraps(func)
             def wrapper(*args, **kwargs):
-                token = start_scope(scope_name)
+                token = start_scope(scope_name, scope_value)
                 try:
                     result = func(*args, **kwargs)
                     return result

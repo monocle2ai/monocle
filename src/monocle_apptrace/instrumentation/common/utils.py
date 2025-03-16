@@ -267,7 +267,7 @@ async def http_async_route_handler(func, *args, **kwargs):
         headers = kwargs['req'].headers
     else:
         headers = None
-    return async_wrapper(func, None, headers, *args, **kwargs)
+    return async_wrapper(func, None, None, headers, *args, **kwargs)
 
 def run_async_with_scope(method, current_context, exceptions, *args, **kwargs):
     try:
@@ -280,7 +280,7 @@ def run_async_with_scope(method, current_context, exceptions, *args, **kwargs):
         if token:
             detach(token)
 
-def async_wrapper(method, scope_name=None, headers=None, *args, **kwargs):
+def async_wrapper(method, scope_name=None, scope_value=None, headers=None, *args, **kwargs):
     try:
         run_loop = asyncio.get_running_loop()
     except RuntimeError:
@@ -289,7 +289,7 @@ def async_wrapper(method, scope_name=None, headers=None, *args, **kwargs):
     token = None
     exceptions = {}
     if scope_name:
-        token = set_scope(scope_name)
+        token = set_scope(scope_name, scope_value)
     elif headers:
         token = extract_http_headers(headers)
     current_context = get_current()

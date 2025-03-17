@@ -16,3 +16,8 @@ os.environ.setdefault('MONOCLE_EXPORTER', "") #comma seperated values like "s3,b
 os.environ.setdefault("MONOCLE_S3_BUCKET_NAME", "")
 os.environ.setdefault("HAYSTACK_AUTO_TRACE_ENABLED", "False")
 os.environ.setdefault("MONOCLE_TRACE_PROPAGATATION_URLS", "http://127.0.0.1")
+os.environ.setdefault("SAGEMAKER_ENDPOINT_NAME", "")
+os.environ.setdefault("SAGEMAKER_EMB_ENDPOINT_NAME", "")
+os.environ.setdefault("OPEN_SEARCH_AUTH_USER", "")
+os.environ.setdefault("OPEN_SEARCH_AUTH_PASSWORD", "")
+os.environ.setdefault("OPEN_SEARCH_DOCSTORE_ENDPOINT", "")

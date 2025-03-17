@@ -35,7 +35,7 @@ def test_sagemaker_sample(setup):
 def produce_llm_response(query):
     client = boto3.client('sagemaker-runtime', region_name='us-east-1')
 
-    endpoint_name = "okahu-sagemaker-rag-qa-ep"  # Your endpoint name.
+    endpoint_name = os.environ['SAGEMAKER_ENDPOINT_NAME']
     content_type = "application/json"  # The MIME type of the input data in the request body.
     accept = "application/json"  # The desired MIME type of the inference in the response.
 
@@ -79,7 +79,7 @@ def search_similar_documents_opensearch(query):
     opensearch_url = os.environ['OPENSEARCH_ENDPOINT_URL']
     index_name = "embeddings"  # Your index name
     content_handler = ContentHandler()
-    sagemaker_endpoint_embeddings = SagemakerEndpointEmbeddings(endpoint_name="okahu-sagemaker-rag-embedding-ep",
+    sagemaker_endpoint_embeddings = SagemakerEndpointEmbeddings(endpoint_name=os.environ['SAGEMAKER_EMB_ENDPOINT_NAME'],
                                                                 region_name="us-east-1",
                                                                 content_handler=content_handler)
     region = 'us-east-1'
@@ -136,8 +136,8 @@ class ContentHandler(EmbeddingsContentHandler):
 #         "span.type": "inference",
 #         "entity.2.type": "inference.aws_sagemaker",
 #         "entity.2.inference_endpoint": "https://runtime.sagemaker.us-east-1.amazonaws.com",
-#         "entity.3.name": "okahu-sagemaker-rag-qa-ep",
-#         "entity.3.type": "model.llm.okahu-sagemaker-rag-qa-ep",
+#         "entity.3.name": "xyz-sagemaker-rag-qa-ep",
+#         "entity.3.type": "model.llm.xyz-sagemaker-rag-qa-ep",
 #         "entity.count": 3
 #     },
 #     "events": [],

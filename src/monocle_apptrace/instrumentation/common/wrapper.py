@@ -31,10 +31,11 @@ def wrapper_processor(async_task: bool, tracer: Tracer, handler: SpanHandler, to
     try:
         handler.pre_tracing(to_wrap, wrapped, instance, args, kwargs)
         skip_scan:bool = to_wrap.get('skip_span') or handler.skip_span(to_wrap, wrapped, instance, args, kwargs)
-        token = SpanHandler.attach_workflow_type(to_wrap=to_wrap)
+        if not to_wrap.get('skip_span'):
+            token = SpanHandler.attach_workflow_type(to_wrap=to_wrap)
         if skip_scan:
             if async_task:
-                return_value = async_wrapper(wrapped, None, None, *args, **kwargs)
+                return_value = async_wrapper(wrapped, None, None, None, *args, **kwargs)
             else:
                 return_value = wrapped(*args, **kwargs)
         else:
@@ -58,7 +59,7 @@ def span_processor(name: str, async_task: bool, tracer: Tracer, handler: SpanHan
         else:
             handler.pre_task_processing(to_wrap, wrapped, instance, args, kwargs, span)
             if async_task:
-                return_value = async_wrapper(wrapped, None, None, *args, **kwargs)
+                return_value = async_wrapper(wrapped, None, None, None, *args, **kwargs)
             else:                    
                 return_value = wrapped(*args, **kwargs)
             handler.hydrate_span(to_wrap, wrapped, instance, args, kwargs, return_value, span)
@@ -86,5 +87,6 @@ def scope_wrapper(tracer: Tracer, handler: SpanHandler, to_wrap, wrapped, instan
 @with_tracer_wrapper
 async def ascope_wrapper(tracer: Tracer, handler: SpanHandler, to_wrap, wrapped, instance, args, kwargs):
     scope_name = to_wrap.get('scope_name', None)
-    return_value = async_wrapper(wrapped, scope_name, None, *args, **kwargs)
+    scope_value = to_wrap.get('scope_value', None)
+    return_value = async_wrapper(wrapped, scope_name, scope_value, None, *args, **kwargs)
     return return_value

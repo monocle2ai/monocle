@@ -5,5 +5,11 @@
         "method": "scope_async_config_test_method",
         "scope_name": "test_scope1",
         "async": true
+    },
+    {
+        "package": "common.dummy_class",
+        "object": "DummyClass",
+        "method": "scope_config_test_method",
+        "scope_name": "test_scope1"
     }
 ]

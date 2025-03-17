@@ -270,8 +270,10 @@ async def http_async_route_handler(func, *args, **kwargs):
     return async_wrapper(func, None, None, headers, *args, **kwargs)
 
 def run_async_with_scope(method, current_context, exceptions, *args, **kwargs):
+    token = None
     try:
-        token = attach(current_context)
+        if current_context:
+            token = attach(current_context)
         return asyncio.run(method(*args, **kwargs))
     except Exception as e:
         exceptions['exception'] = e
@@ -304,7 +306,7 @@ def async_wrapper(method, scope_name=None, scope_value=None, headers=None, *args
             return_value = results[0] if len(results) > 0 else None
             return return_value
         else:
-            return run_async_with_scope(method, current_context, exceptions, *args, **kwargs)
+            return run_async_with_scope(method, None, exceptions, *args, **kwargs)
     finally:
         if token:
             remove_scope(token)

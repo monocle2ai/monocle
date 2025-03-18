@@ -116,11 +116,16 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release create --target $GITHUB_REF_NAME \
-                            --title "Version ${STABLE_VERSION}" \
-                            --notes-file /tmp/release-notes.txt \
-                            --discussion-category announcements \
-                            v$STABLE_VERSION
+          # Check if release already exists
+          if gh release view v$STABLE_VERSION &> /dev/null; then
+            echo "Release v$STABLE_VERSION already exists. Skipping release creation."
+          else
+            gh release create --target $GITHUB_REF_NAME \
+                              --title "Version ${STABLE_VERSION}" \
+                              --notes-file /tmp/release-notes.txt \
+                              --discussion-category announcements \
+                              v$STABLE_VERSION
+          fi
 
       - uses: actions/checkout@v4
         with:
@@ -185,7 +190,8 @@ jobs:
           body="Copy log updates from \`$GITHUB_REF_NAME\`."
           git config --global user.email "info@lfaidata.foundation"
           git config --global user.name "Monocle pr bot"
-          branch="opentelemetrybot/copy-change-log-updates-from-${GITHUB_REF_NAME//\//-}"
+          timestamp=$(date +%s)
+          branch="monoclebot/copy-change-log-updates-from-${GITHUB_REF_NAME//\//-}-${timestamp}"
 
           if [[ -z $PRIOR_VERSION_WHEN_PATCH ]]; then
             if git diff --quiet; then

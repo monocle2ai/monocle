@@ -51,7 +51,6 @@ llm_type_map = {
 }
 
 MONOCLE_INSTRUMENTOR = "monocle_apptrace"
-WORKFLOW_TYPE_KEY = "workflow_type"
 DATA_INPUT_KEY = "data.input"
 DATA_OUTPUT_KEY = "data.output"
 PROMPT_INPUT_KEY = "data.input"

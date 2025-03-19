@@ -320,7 +320,7 @@ def test_langchain_bedrock_sample(setup):
 #         "status_code": "UNSET"
 #     },
 #     "attributes": {
-#         "monocle_apptrace.version": "0.3.0b7",
+#         "monocle_apptrace.version": "0.3.0",
 #         "span.type": "workflow",
 #         "entity.1.name": "bedrock_rag_workflow",
 #         "entity.1.type": "workflow.langchain"

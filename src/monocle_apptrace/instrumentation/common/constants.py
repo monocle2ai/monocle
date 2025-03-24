@@ -48,6 +48,8 @@ llm_type_map = {
     "sagemakerllm": "aws_sagemaker",
     "chatbedrock": "aws_bedrock",
     "openaigenerator": "openai",
+    "bedrockruntime":"aws_bedrock",
+    "sagemakerruntime":"aws_sagemaker",
 }
 
 MONOCLE_INSTRUMENTOR = "monocle_apptrace"

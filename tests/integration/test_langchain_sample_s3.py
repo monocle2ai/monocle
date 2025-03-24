@@ -26,8 +26,8 @@ from monocle_apptrace.instrumentation.common.instrumentor import (
 )
 
 exporter = S3SpanExporter(
-    region_name='us-east-1',
-    bucket_name='sachin-dev'
+    region_name=os.getenv("MONOCLE_S3_REGION_NAME"),
+    bucket_name=os.getenv("MONOCLE_S3_BUCKET_NAME")
 )
 custom_exporter = CustomConsoleSpanExporter()
 
@@ -138,7 +138,7 @@ def test_langchain_sample_s3(setup):
 
         if "span.type" in span_attributes and span_attributes["span.type"] == "inference":
             # Assertions for all inference attributes
-            assert span_attributes["entity.1.type"] == "inference.azure_openai"
+            assert span_attributes["entity.1.type"] == "inference.openai"
             assert "entity.1.provider_name" in span_attributes
             assert "entity.1.inference_endpoint" in span_attributes
             assert span_attributes["entity.2.name"] == "gpt-3.5-turbo-0125"

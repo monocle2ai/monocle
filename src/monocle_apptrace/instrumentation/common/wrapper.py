@@ -52,9 +52,8 @@ def span_processor(name: str, async_task: bool, tracer: Tracer, handler: SpanHan
         # Since Spanhandler can be overridden, ensure we set default monocle attributes.
         SpanHandler.set_default_monocle_attributes(span)
         if SpanHandler.is_root_span(span):
-            SpanHandler.set_workflow_properties(span, to_wrap)
-        if handler.is_non_workflow_root_span(span, to_wrap):
             # This is a direct API call of a non-framework type, call the span_processor recursively for the actual span
+            SpanHandler.set_workflow_properties(span, to_wrap)
             return_value = span_processor(name, async_task, tracer, handler, to_wrap, wrapped, instance, args, kwargs)
         else:
             handler.pre_task_processing(to_wrap, wrapped, instance, args, kwargs, span)

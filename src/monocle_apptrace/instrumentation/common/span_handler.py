@@ -147,6 +147,7 @@ class SpanHandler:
         span_index = 1
         workflow_name = SpanHandler.get_workflow_name(span=span)
         if workflow_name:
+            span.update_name("workflow")
             span.set_attribute("span.type", "workflow")
             span.set_attribute(f"entity.{span_index}.name", workflow_name)
         workflow_type = SpanHandler.get_workflow_type(to_wrap)
@@ -192,7 +193,7 @@ class SpanHandler:
             logger.warning(f"Error finding root span: {e}")
 
     def is_non_workflow_root_span(self, curr_span: Span, to_wrap) -> bool:
-        return SpanHandler.is_root_span(curr_span) and to_wrap.get("span_type") != "workflow"
+        return SpanHandler.is_root_span(curr_span) and to_wrap.get("span_type") != "anchor"
     
     def is_workflow_span_active(self):
         return get_value(WORKFLOW_TYPE_KEY) is not None
@@ -201,7 +202,7 @@ class SpanHandler:
     def attach_workflow_type(to_wrap=None, context=None): 
         token = None
         if to_wrap:
-            if to_wrap.get('span_type') == "workflow":
+            if to_wrap.get('span_type') == "anchor":
                 token = attach(set_value(WORKFLOW_TYPE_KEY,
                                         SpanHandler.get_workflow_type(to_wrap), context))
         else:

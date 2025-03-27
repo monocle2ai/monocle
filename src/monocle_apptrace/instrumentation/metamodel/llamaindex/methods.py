@@ -31,7 +31,7 @@ LLAMAINDEX_METHODS = [
         "method": "query",
         "span_name": "llamaindex.query",
         "wrapper_method": task_wrapper,
-        "span_type": "workflow"
+        "span_type": "anchor"
     },
     {
         "package": "llama_index.core.base.base_query_engine",
@@ -39,7 +39,7 @@ LLAMAINDEX_METHODS = [
         "method": "aquery",
         "span_name": "llamaindex.query",
         "wrapper_method": atask_wrapper,
-        "span_type": "workflow"
+        "span_type": "anchor"
     },
     {
         "package": "llama_index.core.llms.custom",

@@ -13,6 +13,7 @@ GITHUB_CODESPACE_IDENTIFIER_ENV_NAME = "GITHUB_REPOSITORY"
 
 # Azure naming reference can be found here
 # https://learn.microsoft.com/en-us/azure/cloud-adoption-framework/ready/azure-best-practices/resource-abbreviations
+# https://docs.aws.amazon.com/resource-explorer/latest/userguide/supported-resource-types.html#services-lookoutmetrics
 AZURE_FUNCTION_NAME = "azure.func"
 AZURE_APP_SERVICE_NAME = "azure.asp"
 AZURE_ML_SERVICE_NAME = "azure.mlw"

@@ -1,7 +1,7 @@
 from monocle_apptrace.instrumentation.metamodel.botocore import (
     _helper,
 )
-
+from monocle_apptrace.instrumentation.common.utils import get_llm_type
 INFERENCE = {
     "type": "inference",
     "attributes": [
@@ -9,7 +9,7 @@ INFERENCE = {
             {
                 "_comment": "provider type  , inference_endpoint",
                 "attribute": "type",
-                "accessor": lambda arguments: 'inference.aws_sagemaker'
+                "accessor": lambda arguments: 'inference.'+(get_llm_type(arguments['instance']) or 'generic')
             },
             {
                 "attribute": "inference_endpoint",

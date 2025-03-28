@@ -23,4 +23,4 @@ class BotoCoreSpanHandler(SpanHandler):
     def post_tracing(self, to_wrap, wrapped, instance, args, kwargs, return_value):
         self._botocore_processor(to_wrap=to_wrap, wrapped=wrapped, instance=instance, return_value=return_value, args=args,
                                  kwargs=kwargs)
-        return super().pre_tracing(to_wrap, wrapped, instance, args, kwargs)
+        return super().post_tracing(to_wrap, wrapped, instance, args, kwargs,return_value)

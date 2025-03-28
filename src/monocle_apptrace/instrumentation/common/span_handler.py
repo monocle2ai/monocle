@@ -39,9 +39,9 @@ class SpanHandler:
         pass
 
     def skip_span(self, to_wrap, wrapped, instance, args, kwargs) -> bool:
-        # If this is a workflow span type and a workflow span is already generated, then skip generating this span
-        if to_wrap.get('span_type') == "workflow" and self.is_workflow_span_active():
-            return True
+        return False
+
+    def skip_processor(self, to_wrap, wrapped, instance, args, kwargs) -> bool:
         return False
 
     def pre_task_processing(self, to_wrap, wrapped, instance, args,kwargs, span):
@@ -79,7 +79,8 @@ class SpanHandler:
         span_index = 0
         if SpanHandler.is_root_span(span):
             span_index = 2 # root span will have workflow and hosting entities pre-populated
-        if 'output_processor' in to_wrap and to_wrap["output_processor"] is not None:    
+        if not self.skip_processor(to_wrap, wrapped, instance, args, kwargs) and (
+                'output_processor' in to_wrap and to_wrap["output_processor"] is not None):    
             output_processor=to_wrap['output_processor']
             if 'type' in output_processor:
                         span.set_attribute("span.type", output_processor['type'])
@@ -118,7 +119,8 @@ class SpanHandler:
 
 
     def hydrate_events(self, to_wrap, wrapped, instance, args, kwargs, result, span):
-        if 'output_processor' in to_wrap and to_wrap["output_processor"] is not None:
+        if not self.skip_processor(to_wrap, wrapped, instance, args, kwargs) and (
+                'output_processor' in to_wrap and to_wrap["output_processor"] is not None):
             output_processor=to_wrap['output_processor']
             arguments = {"instance": instance, "args": args, "kwargs": kwargs, "result": result}
             if 'events' in output_processor:
@@ -192,9 +194,6 @@ class SpanHandler:
         except Exception as e:
             logger.warning(f"Error finding root span: {e}")
 
-    def is_non_workflow_root_span(self, curr_span: Span, to_wrap) -> bool:
-        return SpanHandler.is_root_span(curr_span) and to_wrap.get("span_type") != "anchor"
-    
     def is_workflow_span_active(self):
         return get_value(WORKFLOW_TYPE_KEY) is not None
 
@@ -202,8 +201,7 @@ class SpanHandler:
     def attach_workflow_type(to_wrap=None, context=None): 
         token = None
         if to_wrap:
-            if to_wrap.get('span_type') == "anchor":
-                token = attach(set_value(WORKFLOW_TYPE_KEY,
+            token = attach(set_value(WORKFLOW_TYPE_KEY,
                                         SpanHandler.get_workflow_type(to_wrap), context))
         else:
             token = attach(set_value(WORKFLOW_TYPE_KEY, WORKFLOW_TYPE_GENERIC, context))
@@ -216,6 +214,6 @@ class SpanHandler:
 
 class NonFrameworkSpanHandler(SpanHandler):
 
-    # If the language framework is being executed, then skip generating direct openAI spans
-    def skip_span(self, to_wrap, wrapped, instance, args, kwargs) -> bool:
+    # If the language framework is being executed, then skip generating direct openAI attributes and events
+    def skip_processor(self, to_wrap, wrapped, instance, args, kwargs) -> bool:
         return get_value(WORKFLOW_TYPE_KEY) in WORKFLOW_TYPE_MAP.values()

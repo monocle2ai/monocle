@@ -30,10 +30,7 @@ def wrapper_processor(async_task: bool, tracer: Tracer, handler: SpanHandler, to
     token = None
     try:
         handler.pre_tracing(to_wrap, wrapped, instance, args, kwargs)
-        skip_scan:bool = to_wrap.get('skip_span') or handler.skip_span(to_wrap, wrapped, instance, args, kwargs)
-        if not to_wrap.get('skip_span'):
-            token = SpanHandler.attach_workflow_type(to_wrap=to_wrap)
-        if skip_scan:
+        if to_wrap.get('skip_span', False) or handler.skip_span(to_wrap, wrapped, instance, args, kwargs):
             if async_task:
                 return_value = async_wrapper(wrapped, None, None, None, *args, **kwargs)
             else:
@@ -42,7 +39,6 @@ def wrapper_processor(async_task: bool, tracer: Tracer, handler: SpanHandler, to
             return_value = span_processor(name, async_task, tracer, handler, to_wrap, wrapped, instance, args, kwargs)
         return return_value
     finally:
-        handler.detach_workflow_type(token)
         handler.post_tracing(to_wrap, wrapped, instance, args, kwargs, return_value)
 
 def span_processor(name: str, async_task: bool, tracer: Tracer, handler: SpanHandler, to_wrap, wrapped, instance, args, kwargs):
@@ -51,10 +47,14 @@ def span_processor(name: str, async_task: bool, tracer: Tracer, handler: SpanHan
     with tracer.start_as_current_span(name) as span:
         # Since Spanhandler can be overridden, ensure we set default monocle attributes.
         SpanHandler.set_default_monocle_attributes(span)
-        if SpanHandler.is_root_span(span):
+        if SpanHandler.is_root_span(span) or not SpanHandler.is_workflow_span_active(span):
             # This is a direct API call of a non-framework type, call the span_processor recursively for the actual span
             SpanHandler.set_workflow_properties(span, to_wrap)
-            return_value = span_processor(name, async_task, tracer, handler, to_wrap, wrapped, instance, args, kwargs)
+            token = SpanHandler.attach_workflow_type(to_wrap)
+            try:
+                return_value = span_processor(name, async_task, tracer, handler, to_wrap, wrapped, instance, args, kwargs)
+            finally:
+                SpanHandler.detach_workflow_type(token)
         else:
             handler.pre_task_processing(to_wrap, wrapped, instance, args, kwargs, span)
             if async_task:

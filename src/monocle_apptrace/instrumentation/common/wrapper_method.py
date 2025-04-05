@@ -12,7 +12,7 @@ from monocle_apptrace.instrumentation.metamodel.haystack.methods import (HAYSTAC
 from monocle_apptrace.instrumentation.metamodel.openai.methods import (OPENAI_METHODS,)
 from monocle_apptrace.instrumentation.metamodel.langgraph.methods import LANGGRAPH_METHODS
 from monocle_apptrace.instrumentation.metamodel.flask.methods import (FLASK_METHODS, )
-from monocle_apptrace.instrumentation.metamodel.flask._helper import FlaskSpanHandler
+from monocle_apptrace.instrumentation.metamodel.flask._helper import FlaskSpanHandler, FlaskResponseSpanHandler
 from monocle_apptrace.instrumentation.metamodel.requests.methods import (REQUESTS_METHODS, )
 from monocle_apptrace.instrumentation.metamodel.requests._helper import RequestSpanHandler
 from monocle_apptrace.instrumentation.metamodel.teamsai.methods import (TEAMAI_METHODS, )
@@ -68,6 +68,7 @@ MONOCLE_SPAN_HANDLERS: Dict[str, SpanHandler] = {
     "default": SpanHandler(),
     "botocore_handler": BotoCoreSpanHandler(),
     "flask_handler": FlaskSpanHandler(),
+    "flask_response_handler": FlaskResponseSpanHandler(),
     "request_handler": RequestSpanHandler(),
     "non_framework_handler": NonFrameworkSpanHandler()
 }

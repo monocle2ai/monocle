@@ -9,7 +9,8 @@ from opentelemetry.trace.propagation import _SPAN_KEY
 from opentelemetry.sdk.trace import id_generator, TracerProvider
 from opentelemetry.propagate import inject, extract
 from opentelemetry import baggage
-from monocle_apptrace.instrumentation.common.constants import MONOCLE_SCOPE_NAME_PREFIX, SCOPE_METHOD_FILE, SCOPE_CONFIG_PATH, llm_type_map
+from monocle_apptrace.instrumentation.common.constants import MONOCLE_SCOPE_NAME_PREFIX, SCOPE_METHOD_FILE, SCOPE_CONFIG_PATH, llm_type_map, MONOCLE_SDK_VERSION, ADD_NEW_WORKFLOW
+from importlib.metadata import version
 
 T = TypeVar('T')
 U = TypeVar('U')
@@ -20,6 +21,12 @@ monocle_tracer_provider: TracerProvider = None
 embedding_model_context = {}
 scope_id_generator = id_generator.RandomIdGenerator()
 http_scopes:dict[str:str] = {}
+
+try:
+    monocle_sdk_version = version("monocle_apptrace")
+except Exception as e:
+    monocle_sdk_version = "unknown"
+    logger.warning("Exception finding monocle-apptrace version.")
 
 class MonocleSpanException(Exception):
     def __init__(self, err_message:str):
@@ -97,7 +104,7 @@ def resolve_from_alias(my_map, alias):
     """Find a alias that is not none from list of aliases"""
 
     for i in alias and my_map[i] is not None:
-        if i in my_map.keys():
+        if i in my_map.keys() and my_map[i] is not None:
             return my_map[i]
     return None
 
@@ -236,6 +243,7 @@ def set_scopes_from_baggage(baggage_context:Context):
 def extract_http_headers(headers) -> object:
     global http_scopes
     trace_context:Context = extract(headers, context=get_current())
+    trace_context = set_value(ADD_NEW_WORKFLOW, True, trace_context)
     imported_scope:dict[str, object] = {}
     for http_header, http_scope in http_scopes.items():
         if http_header in headers:
@@ -311,6 +319,19 @@ def async_wrapper(method, scope_name=None, scope_value=None, headers=None, *args
         if token:
             remove_scope(token)
 
+def get_monocle_version() -> str:
+    global monocle_sdk_version
+    return monocle_sdk_version
+
+def add_monocle_trace_state(headers:dict[str:str]) -> None:
+    if headers is None:
+        return
+    monocle_trace_state = f"{MONOCLE_SDK_VERSION}={get_monocle_version()}"
+    if 'tracestate' in headers:
+        headers['tracestate'] = f"{headers['tracestate']},{monocle_trace_state}"
+    else:
+        headers['tracestate'] = monocle_trace_state
+
 class Option(Generic[T]):
     def __init__(self, value: Optional[T]):
         self.value = value
@@ -343,14 +364,8 @@ def try_option(func: Callable[..., T], *args, **kwargs) -> Option[T]:
 
 def get_llm_type(instance):
     try:
+        t_name = type(instance).__name__.lower()
         llm_type = llm_type_map.get(type(instance).__name__.lower())
         return llm_type
     except:
         pass
-
-def resolve_from_alias(my_map, alias):
-    """Find a alias that is not none from list of aliases"""
-    for i in alias:
-        if i in my_map.keys():
-            return my_map[i]
-    return None

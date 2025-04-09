@@ -19,8 +19,10 @@ def extract_messages(kwargs):
     """Extract system and user messages"""
     try:
         messages = []
+        if 'instructions' in kwargs:
+            messages.append({'instructions': kwargs.get('instructions', {})})
         if 'input' in kwargs:
-            messages.append(kwargs.get('input', {}))
+            messages.append({'input': kwargs.get('input', {})})
         if 'messages' in kwargs and len(kwargs['messages']) >0:
             for msg in kwargs['messages']:
                 if msg.get('content') and msg.get('role'):

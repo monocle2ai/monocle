@@ -27,7 +27,8 @@ def test_openai_response_api_sample(setup):
     )
     response = client.responses.create(
         model="gpt-4o-mini",
-        input="tell me a joke",
+        instructions="You are a coding assistant that talks like a pirate.",
+        input="How do I check if a Python object is an instance of a class?",
     )
     time.sleep(5)
     print(response)
@@ -57,14 +58,14 @@ def test_openai_response_api_sample(setup):
 # {
 #     "name": "openai.resources.responses.responses.Responses",
 #     "context": {
-#         "trace_id": "0x54e6179f4070ebe5c3e73226ed39d4fc",
-#         "span_id": "0x6cc93487f39d753f",
+#         "trace_id": "0xfd03161795a6914db367f6c49b3d6f8b",
+#         "span_id": "0x7fb7be3f64d59fdc",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0x9fe3a2844665393f",
-#     "start_time": "2025-04-07T11:35:17.035371Z",
-#     "end_time": "2025-04-07T11:35:19.742512Z",
+#     "parent_id": "0xfe8cd56fa8268a99",
+#     "start_time": "2025-04-09T11:58:07.606353Z",
+#     "end_time": "2025-04-09T11:59:32.792483Z",
 #     "status": {
 #         "status_code": "OK"
 #     },
@@ -81,27 +82,28 @@ def test_openai_response_api_sample(setup):
 #     "events": [
 #         {
 #             "name": "data.input",
-#             "timestamp": "2025-04-07T11:35:19.742512Z",
+#             "timestamp": "2025-04-09T11:59:32.792483Z",
 #             "attributes": {
 #                 "input": [
-#                     "tell me a joke"
+#                     "{'instructions': 'You are a coding assistant that talks like a pirate.'}",
+#                     "{'input': 'How do I check if a Python object is an instance of a class?'}"
 #                 ]
 #             }
 #         },
 #         {
 #             "name": "data.output",
-#             "timestamp": "2025-04-07T11:35:19.742512Z",
+#             "timestamp": "2025-04-09T11:59:32.792483Z",
 #             "attributes": {
-#                 "response": "Why did the scarecrow win an award?\n\nBecause he was outstanding in his field!"
+#                 "response": "Arrr matey! To check if a Python object be an instance of a class, ye can use the `isinstance()` function. Here be a wee example fer ye:\n\n```python\nclass Ship:\n    pass\n\nblack_pearl = Ship()\n\n# Checkin' if black_pearl be an instance of Ship\nif isinstance(black_pearl, Ship):\n    print(\"Aye! 'Tis a ship!\")\nelse:\n    print(\"Nay, 'tis not a ship!\")\n```\n\nSo there ye have it! Just call `isinstance(object, class)`, and ye'll know if that object be sailin' under that class flag! Arrr! \ud83c\udff4\u200d\u2620\ufe0f"
 #             }
 #         },
 #         {
 #             "name": "metadata",
-#             "timestamp": "2025-04-07T11:35:19.742512Z",
+#             "timestamp": "2025-04-09T11:59:32.792483Z",
 #             "attributes": {
-#                 "completion_tokens": 19,
-#                 "prompt_tokens": 28,
-#                 "total_tokens": 47
+#                 "completion_tokens": 146,
+#                 "prompt_tokens": 54,
+#                 "total_tokens": 200
 #             }
 #         }
 #     ],
@@ -116,14 +118,14 @@ def test_openai_response_api_sample(setup):
 # {
 #     "name": "openai.resources.responses.responses.Responses",
 #     "context": {
-#         "trace_id": "0x54e6179f4070ebe5c3e73226ed39d4fc",
-#         "span_id": "0x9fe3a2844665393f",
+#         "trace_id": "0xfd03161795a6914db367f6c49b3d6f8b",
+#         "span_id": "0xfe8cd56fa8268a99",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
 #     "parent_id": null,
-#     "start_time": "2025-04-07T11:35:17.034372Z",
-#     "end_time": "2025-04-07T11:35:19.742512Z",
+#     "start_time": "2025-04-09T11:58:07.604875Z",
+#     "end_time": "2025-04-09T11:59:32.792483Z",
 #     "status": {
 #         "status_code": "OK"
 #     },

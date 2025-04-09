@@ -15,7 +15,7 @@ ANTHROPIC_METHODS = [
         "package": "anthropic.resources.messages.messages",
         "object": "AsyncMessages",
         "method": "create",
-        "wrapper_method": task_wrapper,
+        "wrapper_method": atask_wrapper,
         "output_processor": INFERENCE
     },
 

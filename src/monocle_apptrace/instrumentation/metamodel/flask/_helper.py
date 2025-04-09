@@ -23,8 +23,7 @@ def get_params(args) -> dict:
     return unquote(params)
 
 def get_body(args) -> dict:
-    body = {}
-    return body
+    return ""
 
 def extract_response(instance) -> str:
     if hasattr(instance, 'data') and hasattr(instance, 'content_length'):

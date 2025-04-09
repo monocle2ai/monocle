@@ -15,11 +15,8 @@ In the above sequence, all method execution will generate a span each and they a
 ### Trace ID propogation
 Each child span inherits the parent's trace ID. When spans running in same process, it captures it from process memory/context etc. But consider the above example again, where the `f4()-->f5()` code is not part of the process that executing f1(). It's a remote call, say over REST. From the overall application's point of view, the work done if `f4()` and `f5()` is part of `f1()` and you want same traceID associated with all spans. You want the instrumentation to seamlessly pass the tracedID over such remote calls and continue that instead of generating a new one. It's the responsibility of Monocle to provide such mechanism to make thsi trace ID propogation transparent to the application logic and architecture.
 
-## Pruning 
-
-
 ## Propogation
-
+When the execution logic spans mulitple processes using remote calling mechanisms like REST, you want the trace ID also to propogate from process that originated it to the one that's continueing the remote execution. Monocle supports seamlessly propogating traceID over REST if both the sides for the trace execution are instrumented.
 
 ## Types of spans in Monocle
 Monocle extends these generic span types by enriching additional attributes/data for genAI specific operations.

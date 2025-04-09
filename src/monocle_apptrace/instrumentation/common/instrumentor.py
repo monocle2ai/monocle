@@ -42,7 +42,7 @@ class MonocleInstrumentor(BaseInstrumentor):
     workflow_name: str = ""
     user_wrapper_methods: list[Union[dict,WrapperMethod]] = []
     instrumented_method_list: list[object] = []
-    handlers:Dict[str,SpanHandler] = {} # dict of handlers
+    handlers:Dict[str,SpanHandler] = None # dict of handlers
     union_with_default_methods: bool = False
 
     def __init__(

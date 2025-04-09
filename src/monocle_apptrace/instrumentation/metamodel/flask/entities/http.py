@@ -27,11 +27,6 @@ FLASK_RESPONSE_PROCESSOR = {
                     "_comment": "route params",
                     "attribute": "params",
                     "accessor": lambda arguments: _helper.get_params(arguments['args'])
-                },
-                {
-                    "_comment": "route body",
-                    "attribute": "body",
-                    "accessor": lambda arguments: _helper.get_body(arguments['args'])
                 }
          ]
          },

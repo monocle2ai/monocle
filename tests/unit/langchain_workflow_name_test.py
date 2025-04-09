@@ -73,7 +73,7 @@ class TestWorkflowEntityProperties(unittest.TestCase):
 
         traceProvider.add_span_processor(monocleProcessor)
         trace.set_tracer_provider(traceProvider)
-        self.instrumentor = MonocleInstrumentor(handlers=SpanHandler)
+        self.instrumentor = MonocleInstrumentor(handlers={"default" :SpanHandler})
         self.instrumentor.instrument()
         self.processor = monocleProcessor
         responses =[self.ragText]

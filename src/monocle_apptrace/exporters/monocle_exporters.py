@@ -18,9 +18,12 @@ monocle_exporters: Dict[str, Any] = {
 }
 
 
-def get_monocle_exporter() -> List[SpanExporter]:
+def get_monocle_exporter(exporters_list:str=None) -> List[SpanExporter]:
     # Retrieve the MONOCLE_EXPORTER environment variable and split it into a list
-    exporter_names = os.environ.get("MONOCLE_EXPORTER", "file").split(",")
+    if exporters_list:
+        exporter_names = exporters_list.split(",")
+    else:
+        exporter_names = os.environ.get("MONOCLE_EXPORTER", "file").split(",")
     exporters = []
     
     # Create task processor for AWS Lambda environment

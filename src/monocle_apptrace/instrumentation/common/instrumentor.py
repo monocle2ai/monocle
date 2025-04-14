@@ -112,7 +112,6 @@ class MonocleInstrumentor(BaseInstrumentor):
                     logger.warning("incorrect or empty handler falling back to default handler")
                     handler = self.handlers.get('default')
                 handler.set_instrumentor(self.get_instrumentor(tracer))
-                inspect.iscoroutinefunction("")
                 wrap_function_wrapper(
                     target_package,
                     f"{target_object}.{target_method}" if target_object else target_method,

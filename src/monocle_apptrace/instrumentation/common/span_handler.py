@@ -8,7 +8,7 @@ from monocle_apptrace.instrumentation.common.constants import (
     QUERY,
     service_name_map,
     service_type_map,
-    MONOCLE_SDK_VERSION
+    MONOCLE_SDK_VERSION, MONOCLE_SDK_LANGUAGE
 )
 from monocle_apptrace.instrumentation.common.utils import set_attribute, get_scopes, MonocleSpanException, get_monocle_version
 from monocle_apptrace.instrumentation.common.constants import WORKFLOW_TYPE_KEY, WORKFLOW_TYPE_GENERIC
@@ -51,7 +51,8 @@ class SpanHandler:
     @staticmethod
     def set_default_monocle_attributes(span: Span):
         """ Set default monocle attributes for all spans """
-        span.set_attribute(MONOCLE_SDK_VERSION, "Python " + get_monocle_version())
+        span.set_attribute(MONOCLE_SDK_VERSION, get_monocle_version())
+        span.set_attribute(MONOCLE_SDK_LANGUAGE, "python")
         for scope_key, scope_value in get_scopes().items():
             span.set_attribute(f"scope.{scope_key}", scope_value)
 

@@ -19,6 +19,10 @@ def extract_messages(kwargs):
     """Extract system and user messages"""
     try:
         messages = []
+        if 'instructions' in kwargs:
+            messages.append({'instructions': kwargs.get('instructions', {})})
+        if 'input' in kwargs:
+            messages.append({'input': kwargs.get('input', {})})
         if 'messages' in kwargs and len(kwargs['messages']) >0:
             for msg in kwargs['messages']:
                 if msg.get('content') and msg.get('role'):
@@ -32,6 +36,8 @@ def extract_messages(kwargs):
 
 def extract_assistant_message(response):
     try:
+        if hasattr(response,"output_text") and len(response.output_text):
+            return response.output_text
         if response is not None and hasattr(response,"choices") and len(response.choices) >0:
             if hasattr(response.choices[0],"message"):
                 return response.choices[0].message.content
@@ -85,10 +91,9 @@ def update_span_from_llm_response(response):
             response_metadata = response.response_metadata
             token_usage = response_metadata.get("token_usage")
         if token_usage is not None:
-            meta_dict.update(
-                {"completion_tokens": getattr(response.usage, "completion_tokens", None)})
-            meta_dict.update({"prompt_tokens": getattr(response.usage, "prompt_tokens", None)})
-            meta_dict.update({"total_tokens": getattr(response.usage, "total_tokens", None)})
+            meta_dict.update({"completion_tokens": getattr(token_usage,"completion_tokens",None) or getattr(token_usage,"output_tokens",None)})
+            meta_dict.update({"prompt_tokens": getattr(token_usage, "prompt_tokens", None) or getattr(token_usage, "input_tokens", None)})
+            meta_dict.update({"total_tokens": getattr(token_usage,"total_tokens")})
     return meta_dict
 
 def extract_vector_input(vector_input: dict):

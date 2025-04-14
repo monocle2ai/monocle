@@ -1,3 +1,4 @@
+from monocle_apptrace.instrumentation.common.utils import MonocleSpanException
 def capture_input(arguments):
     """
     Captures the input from Teams AI state.
@@ -49,3 +50,9 @@ def capture_prompt_info(arguments):
         return "No prompt information found"
     except Exception as e:
         return f"Error capturing prompt: {str(e)}"
+
+def status_check(arguments):
+    if hasattr(arguments["result"], "error") and arguments["result"].error is not None:
+        error_msg:str = arguments["result"].error
+        error_code:str = arguments["result"].status if hasattr(arguments["result"], "status") else "unknown"
+        raise MonocleSpanException(f"Error: {error_code} - {error_msg}")

@@ -56,11 +56,7 @@ ACTIONPLANNER_OUTPUT_PROCESSOR = {
             "attributes": [
                 {
                     "attribute": "status",
-                    "accessor": lambda arguments: arguments["result"].status if hasattr(arguments["result"], "status") else "unknown"
-                },
-                {
-                    "attribute": "error",
-                    "accessor": lambda arguments: arguments["result"].error if hasattr(arguments["result"], "error") and arguments["result"].error else None
+                    "accessor": lambda arguments: _helper.status_check(arguments)
                 },
                 {
                     "attribute": "response",

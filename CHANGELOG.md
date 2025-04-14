@@ -1,3 +1,11 @@
+## Version 0.3.1b1 (2024-04-14)
+
+- Add MetaModel for Anthropic SDK ([#159](https://github.com/monocle2ai/monocle/pull/159))
+- Add openAI response for openAI and AzureOpenAI ([#158](https://github.com/monocle2ai/monocle/pull/158))
+- Update retrieval span for Boto Client ([#157](https://github.com/monocle2ai/monocle/pull/157))
+- Resolve token threshold error ([#156](https://github.com/monocle2ai/monocle/pull/156))
+- Update Inference Span ([#155](https://github.com/monocle2ai/monocle/pull/155))
+
 ## Version 0.3.0 (2024-12-10)
 
 - Fixed issue with passing context in async case ([#150](https://github.com/monocle2ai/monocle/pull/150))

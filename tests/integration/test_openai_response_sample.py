@@ -38,13 +38,13 @@ def assert_workflow_span_exists(spans):
 @pytest.mark.integration()
 def test_openai_response_api_sample(setup):
     openai_client = OpenAI()
-    openai_client.responses.create(
+    response  = openai_client.responses.create(
         model="gpt-4o-mini",
         instructions="You are a coding assistant that talks like a pirate.",
         input="How do I check if a Python object is an instance of a class?",
     )
     time.sleep(5)
-
+    print(response.output[0].content[0].text)
     spans = custom_exporter.get_captured_spans()
     inference_spans = [s for s in spans if s.attributes.get("span.type") == "inference"]
     assert any(s.attributes.get("entity.1.type") == "inference.openai" for s in inference_spans)
@@ -61,13 +61,13 @@ def test_azure_openai_response_api_sample(setup):
         api_key=os.getenv("AZURE_OPENAI_API_KEY"),
         api_version="2025-03-01-preview"
     )
-    azure_client.responses.create(
+    response = azure_client.responses.create(
         model="gpt-4o-mini",
         instructions="You are a coding assistant that talks like a pirate.",
         input="How do I check if a Python object is an instance of a class?",
     )
     time.sleep(5)
-
+    print(response.output[0].content[0].text)
     spans = custom_exporter.get_captured_spans()
     inference_spans = [s for s in spans if s.attributes.get("span.type") == "inference"]
     assert any(s.attributes.get("entity.1.type") == "inference.azure_openai" for s in inference_spans)

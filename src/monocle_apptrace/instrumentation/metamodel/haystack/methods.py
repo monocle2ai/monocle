@@ -7,7 +7,6 @@ HAYSTACK_METHODS = [
         "package": "haystack.components.retrievers.in_memory",
         "object": "InMemoryEmbeddingRetriever",
         "method": "run",
-        "span_name": "haystack.retriever",
         "wrapper_method": task_wrapper,
         "output_processor": RETRIEVAL
     },
@@ -15,7 +14,6 @@ HAYSTACK_METHODS = [
         "package": "haystack_integrations.components.retrievers.opensearch",
         "object": "OpenSearchEmbeddingRetriever",
         "method": "run",
-        "span_name": "haystack.retriever",
         "wrapper_method": task_wrapper,
         "output_processor": RETRIEVAL
     },
@@ -37,7 +35,6 @@ HAYSTACK_METHODS = [
         "package": "haystack.core.pipeline.pipeline",
         "object": "Pipeline",
         "method": "run",
-        "wrapper_method": task_wrapper,
-        "span_type": "workflow"
+        "wrapper_method": task_wrapper
     }
 ]

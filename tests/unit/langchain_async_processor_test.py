@@ -60,7 +60,7 @@ class Test(IsolatedAsyncioTestCase):
 
         traceProvider.add_span_processor(monocleProcessor)
         trace.set_tracer_provider(traceProvider)
-        self.instrumentor = MonocleInstrumentor(handlers=SpanHandler())
+        self.instrumentor = MonocleInstrumentor(handlers={"default":SpanHandler()})
         self.instrumentor.instrument()
         self.processor = monocleProcessor
         responses = [self.ragText]
@@ -134,7 +134,7 @@ class Test(IsolatedAsyncioTestCase):
 
             assert llm_span["attributes"]["span.type"] == "inference"
             # assert llm_span["attributes"]["entity.1.provider_name"] == "example.com"
-            assert llm_span["attributes"]["entity.1.type"] == "inference.azure_oai"
+            assert llm_span["attributes"]["entity.1.type"] == "inference.generic"
             assert llm_span["attributes"]["entity.1.inference_endpoint"] == "https://example.com/"
 
         finally:

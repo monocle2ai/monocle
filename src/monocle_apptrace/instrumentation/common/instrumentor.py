@@ -3,6 +3,7 @@ import inspect
 from typing import Collection, Dict, List, Union
 import random
 import uuid
+import inspect
 from opentelemetry import trace
 from contextlib import contextmanager
 from opentelemetry.context import attach, get_value, set_value, get_current, detach
@@ -27,7 +28,7 @@ from monocle_apptrace.instrumentation.common.wrapper import scope_wrapper, ascop
 from monocle_apptrace.instrumentation.common.utils import (
     set_scope, remove_scope, http_route_handler, load_scopes, async_wrapper, http_async_route_handler
 )
-from monocle_apptrace.instrumentation.common.constants import MONOCLE_INSTRUMENTOR, WORKFLOW_TYPE_KEY
+from monocle_apptrace.instrumentation.common.constants import MONOCLE_INSTRUMENTOR, WORKFLOW_TYPE_GENERIC
 from functools import wraps
 logger = logging.getLogger(__name__)
 
@@ -41,7 +42,7 @@ class MonocleInstrumentor(BaseInstrumentor):
     workflow_name: str = ""
     user_wrapper_methods: list[Union[dict,WrapperMethod]] = []
     instrumented_method_list: list[object] = []
-    handlers:Dict[str,SpanHandler] = {} # dict of handlers
+    handlers:Dict[str,SpanHandler] = None # dict of handlers
     union_with_default_methods: bool = False
 
     def __init__(
@@ -228,7 +229,7 @@ def start_trace():
         updated_span_context = set_span_in_context(span=span)
         SpanHandler.set_default_monocle_attributes(span)
         SpanHandler.set_workflow_properties(span)
-        token = SpanHandler.attach_workflow_type(context=updated_span_context)
+        token = attach(updated_span_context)
         return token
     except:
         logger.warning("Failed to start trace")
@@ -250,7 +251,7 @@ def stop_trace(token) -> None:
             if parent_span is not None:
                 parent_span.end()
         if token is not None:
-            SpanHandler.detach_workflow_type(token)
+            detach(token)
     except:
         logger.warning("Failed to stop trace")
 

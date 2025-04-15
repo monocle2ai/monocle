@@ -25,7 +25,8 @@ from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_t
 from monocle_apptrace.instrumentation.common.wrapper_method import WrapperMethod
 
 logger = logging.getLogger(__name__)
-
+LLAMA_INDEX_RETRIEVAL_SPAN_NAME = "llama_index.core.indices.vector_store.retrievers.retriever.VectorIndexRetriever"
+LLAMA_INDEX_QUERY_SPAN_NAME = "llama_index.core.query_engine.retriever_query_engine.RetrieverQueryEngine"
 class TestHandler(unittest.TestCase):
 
     instrumentor = None
@@ -121,8 +122,8 @@ class TestHandler(unittest.TestCase):
             assert llm_span[0]['events'][2]["attributes"]["completion_tokens"] == 1
             assert llm_span[0]['events'][2]["attributes"]["prompt_tokens"] == 2
             assert llm_span[0]['events'][2]["attributes"]["total_tokens"] == 3
-        vectorstore_retriever_span = [x for x in  dataJson["batch"] if "llamaindex.retrieve" in x["name"]][0]
-        for name in ["llamaindex.retrieve", "llamaindex.query"]:
+        vectorstore_retriever_span = [x for x in  dataJson["batch"] if LLAMA_INDEX_RETRIEVAL_SPAN_NAME in x["name"]][0]
+        for name in [LLAMA_INDEX_RETRIEVAL_SPAN_NAME, LLAMA_INDEX_QUERY_SPAN_NAME]:
             assert name in span_names
         assert vectorstore_retriever_span["attributes"]['entity.1.name'] == "SimpleVectorStore"
         assert vectorstore_retriever_span["attributes"]['entity.1.type'] == 'vectorstore.SimpleVectorStore'
@@ -134,10 +135,10 @@ class TestHandler(unittest.TestCase):
         vectorstore_provider = False
 
         for span in dataJson["batch"]:
-            if span["name"] == "llamaindex.query":
+            if span["name"] == "workflow":
                 assert span["attributes"]["entity.1.type"] == "workflow.llamaindex"
                 type_found = True
-            if span["name"] == "llamaindex.retrieve":
+            if span["name"] == LLAMA_INDEX_RETRIEVAL_SPAN_NAME:
                 assert span["attributes"]['entity.1.name'] == "SimpleVectorStore"
                 vectorstore_provider = True
         assert type_found

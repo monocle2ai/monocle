@@ -1,6 +1,6 @@
 import logging
 import os
-from importlib.metadata import version
+from contextlib import contextmanager
 from opentelemetry.context import get_value, set_value, attach, detach
 from opentelemetry.sdk.trace import Span
 from opentelemetry.trace.status import Status, StatusCode
@@ -8,9 +8,9 @@ from monocle_apptrace.instrumentation.common.constants import (
     QUERY,
     service_name_map,
     service_type_map,
-    MONOCLE_SDK_VERSION
+    MONOCLE_SDK_VERSION, MONOCLE_SDK_LANGUAGE
 )
-from monocle_apptrace.instrumentation.common.utils import set_attribute, get_scopes, MonocleSpanException
+from monocle_apptrace.instrumentation.common.utils import set_attribute, get_scopes, MonocleSpanException, get_monocle_version
 from monocle_apptrace.instrumentation.common.constants import WORKFLOW_TYPE_KEY, WORKFLOW_TYPE_GENERIC
 
 logger = logging.getLogger(__name__)
@@ -39,9 +39,9 @@ class SpanHandler:
         pass
 
     def skip_span(self, to_wrap, wrapped, instance, args, kwargs) -> bool:
-        # If this is a workflow span type and a workflow span is already generated, then skip generating this span
-        if to_wrap.get('span_type') == "workflow" and self.is_workflow_span_active():
-            return True
+        return False
+
+    def skip_processor(self, to_wrap, wrapped, instance, args, kwargs) -> bool:
         return False
 
     def pre_task_processing(self, to_wrap, wrapped, instance, args,kwargs, span):
@@ -51,11 +51,8 @@ class SpanHandler:
     @staticmethod
     def set_default_monocle_attributes(span: Span):
         """ Set default monocle attributes for all spans """
-        try:
-            sdk_version = version("monocle_apptrace")
-            span.set_attribute(MONOCLE_SDK_VERSION, sdk_version)
-        except Exception as e:
-            logger.warning("Exception finding monocle-apptrace version.")
+        span.set_attribute(MONOCLE_SDK_VERSION, get_monocle_version())
+        span.set_attribute(MONOCLE_SDK_LANGUAGE, "python")
         for scope_key, scope_value in get_scopes().items():
             span.set_attribute(f"scope.{scope_key}", scope_value)
 
@@ -64,8 +61,14 @@ class SpanHandler:
         """ Set attributes of workflow if this is a root span"""
         SpanHandler.set_workflow_attributes(to_wrap, span)
         SpanHandler.set_app_hosting_identifier_attribute(span)
+
         span.set_status(StatusCode.OK)
 
+    @staticmethod
+    def set_non_workflow_properties(span: Span, to_wrap = None):
+        workflow_name = SpanHandler.get_workflow_name(span=span)
+        if workflow_name:
+            span.set_attribute("workflow.name", workflow_name)
 
     def post_task_processing(self, to_wrap, wrapped, instance, args, kwargs, result, span:Span):
         if span.status.status_code == StatusCode.UNSET:
@@ -79,7 +82,8 @@ class SpanHandler:
         span_index = 0
         if SpanHandler.is_root_span(span):
             span_index = 2 # root span will have workflow and hosting entities pre-populated
-        if 'output_processor' in to_wrap and to_wrap["output_processor"] is not None:    
+        if not self.skip_processor(to_wrap, wrapped, instance, args, kwargs) and (
+                'output_processor' in to_wrap and to_wrap["output_processor"] is not None):
             output_processor=to_wrap['output_processor']
             if 'type' in output_processor:
                         span.set_attribute("span.type", output_processor['type'])
@@ -107,6 +111,8 @@ class SpanHandler:
                     span_index += 1
             else:
                 logger.debug("attributes not found or incorrect written in entity json")
+        else:
+            span.set_attribute("span.type", "generic")
 
         # set scopes as attributes by calling get_scopes()
         # scopes is a Mapping[str:object], iterate directly with .items()
@@ -118,7 +124,8 @@ class SpanHandler:
 
 
     def hydrate_events(self, to_wrap, wrapped, instance, args, kwargs, result, span):
-        if 'output_processor' in to_wrap and to_wrap["output_processor"] is not None:
+        if not self.skip_processor(to_wrap, wrapped, instance, args, kwargs) and (
+                'output_processor' in to_wrap and to_wrap["output_processor"] is not None):
             output_processor=to_wrap['output_processor']
             arguments = {"instance": instance, "args": args, "kwargs": kwargs, "result": result}
             if 'events' in output_processor:
@@ -147,6 +154,7 @@ class SpanHandler:
         span_index = 1
         workflow_name = SpanHandler.get_workflow_name(span=span)
         if workflow_name:
+            span.update_name("workflow")
             span.set_attribute("span.type", "workflow")
             span.set_attribute(f"entity.{span_index}.name", workflow_name)
         workflow_type = SpanHandler.get_workflow_type(to_wrap)
@@ -186,26 +194,19 @@ class SpanHandler:
     @staticmethod
     def is_root_span(curr_span: Span) -> bool:
         try:
-            if curr_span is not None and hasattr(curr_span, "parent"):
+            if curr_span is not None and hasattr(curr_span, "parent") or  curr_span.context.trace_state:
                 return curr_span.parent is None
         except Exception as e:
             logger.warning(f"Error finding root span: {e}")
-
-    def is_non_workflow_root_span(self, curr_span: Span, to_wrap) -> bool:
-        return SpanHandler.is_root_span(curr_span) and to_wrap.get("span_type") != "workflow"
-    
-    def is_workflow_span_active(self):
-        return get_value(WORKFLOW_TYPE_KEY) is not None
 
     @staticmethod
     def attach_workflow_type(to_wrap=None, context=None): 
         token = None
         if to_wrap:
-            if to_wrap.get('span_type') == "workflow":
+            workflow_type = SpanHandler.get_workflow_type(to_wrap)
+            if workflow_type != WORKFLOW_TYPE_GENERIC:
                 token = attach(set_value(WORKFLOW_TYPE_KEY,
                                         SpanHandler.get_workflow_type(to_wrap), context))
-        else:
-            token = attach(set_value(WORKFLOW_TYPE_KEY, WORKFLOW_TYPE_GENERIC, context))
         return token
 
     @staticmethod
@@ -213,8 +214,18 @@ class SpanHandler:
         if token:
             return detach(token)
 
+    @staticmethod
+    @contextmanager
+    def workflow_type(to_wrap=None):
+        token = SpanHandler.attach_workflow_type(to_wrap)
+        try:
+            yield
+        finally:
+            SpanHandler.detach_workflow_type(token)
+
+
 class NonFrameworkSpanHandler(SpanHandler):
 
-    # If the language framework is being executed, then skip generating direct openAI spans
-    def skip_span(self, to_wrap, wrapped, instance, args, kwargs) -> bool:
+    # If the language framework is being executed, then skip generating direct openAI attributes and events
+    def skip_processor(self, to_wrap, wrapped, instance, args, kwargs) -> bool:
         return get_value(WORKFLOW_TYPE_KEY) in WORKFLOW_TYPE_MAP.values()

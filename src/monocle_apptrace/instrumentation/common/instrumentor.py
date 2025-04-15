@@ -14,6 +14,7 @@ from opentelemetry.sdk.trace import TracerProvider, Span, id_generator
 from opentelemetry.sdk.resources import SERVICE_NAME, Resource
 from opentelemetry.sdk.trace import Span, TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, SpanProcessor
+from opentelemetry.sdk.trace.export import SpanExporter
 from opentelemetry.trace import get_tracer
 from wrapt import wrap_function_wrapper
 from opentelemetry.trace.propagation import set_span_in_context, _SPAN_KEY
@@ -40,7 +41,8 @@ monocle_tracer_provider: TracerProvider = None
 
 class MonocleInstrumentor(BaseInstrumentor):
     workflow_name: str = ""
-    user_wrapper_methods: list[Union[dict,WrapperMethod]] = []
+    user_wrapper_methods: list[Union[dict,WrapperMethod]] = [],
+    exporters: list[SpanExporter] = [],
     instrumented_method_list: list[object] = []
     handlers:Dict[str,SpanHandler] = None # dict of handlers
     union_with_default_methods: bool = False
@@ -49,10 +51,12 @@ class MonocleInstrumentor(BaseInstrumentor):
             self,
             handlers,
             user_wrapper_methods: list[Union[dict,WrapperMethod]] = None,
+            exporters: list[SpanExporter] = None,
             union_with_default_methods: bool = True
             ) -> None:
         self.user_wrapper_methods = user_wrapper_methods or []
         self.handlers = handlers
+        self.exporters = exporters
         if self.handlers is not None:
             for key, val in MONOCLE_SPAN_HANDLERS.items():
                 if key not in self.handlers:
@@ -156,7 +160,8 @@ def setup_monocle_telemetry(
         span_processors: List[SpanProcessor] = None,
         span_handlers: Dict[str,SpanHandler] = None,
         wrapper_methods: List[Union[dict,WrapperMethod]] = None,
-        union_with_default_methods: bool = True) -> None:
+        union_with_default_methods: bool = True,
+        monocle_exporters_list:str = None) -> None:
     """
     Set up Monocle telemetry for the application.
 
@@ -166,7 +171,7 @@ def setup_monocle_telemetry(
         The name of the workflow to be used as the service name in telemetry.
     span_processors : List[SpanProcessor], optional
         Custom span processors to use instead of the default ones. If None, 
-        BatchSpanProcessors with Monocle exporters will be used.
+        BatchSpanProcessors with Monocle exporters will be used. This can't be combined with `monocle_exporters_list`.
     span_handlers : Dict[str, SpanHandler], optional
         Dictionary of span handlers to be used by the instrumentor, mapping handler names to handler objects.
     wrapper_methods : List[Union[dict, WrapperMethod]], optional
@@ -174,11 +179,16 @@ def setup_monocle_telemetry(
     union_with_default_methods : bool, default=True
         If True, combine the provided wrapper_methods with the default methods.
         If False, only use the provided wrapper_methods.
+    monocle_exporters_list : str, optional
+        Comma-separated list of exporters to use. This will override the env setting MONOCLE_EXPORTERS.
+        Supported exporters are: s3, blob, okahu, file, memory, console. This can't be combined with `span_processors`.
     """
     resource = Resource(attributes={
         SERVICE_NAME: workflow_name
     })
-    exporters = get_monocle_exporter()
+    if span_processors and monocle_exporters_list:
+        raise ValueError("span_processors and monocle_exporters_list can't be used together")
+    exporters:List[SpanExporter] = get_monocle_exporter(monocle_exporters_list)
     span_processors = span_processors or [BatchSpanProcessor(exporter) for exporter in exporters]
     set_tracer_provider(TracerProvider(resource=resource))
     attach(set_value("workflow_name", workflow_name))
@@ -193,7 +203,7 @@ def setup_monocle_telemetry(
             get_tracer_provider().add_span_processor(processor)
     if is_proxy_provider:
         trace.set_tracer_provider(get_tracer_provider())
-    instrumentor = MonocleInstrumentor(user_wrapper_methods=wrapper_methods or [], 
+    instrumentor = MonocleInstrumentor(user_wrapper_methods=wrapper_methods or [], exporters=exporters,
                                        handlers=span_handlers, union_with_default_methods = union_with_default_methods)
     # instrumentor.app_name = workflow_name
     if not instrumentor.is_instrumented_by_opentelemetry:

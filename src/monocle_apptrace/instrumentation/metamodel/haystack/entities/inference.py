@@ -1,6 +1,7 @@
 from monocle_apptrace.instrumentation.metamodel.haystack import (
     _helper,
 )
+from monocle_apptrace.instrumentation.common.utils import get_llm_type
 
 INFERENCE = {
     "type": "inference",
@@ -9,7 +10,9 @@ INFERENCE = {
             {
                 "_comment": "provider type ,name , deployment , inference_endpoint",
                 "attribute": "type",
-                "accessor": lambda arguments: 'inference.azure_openai'
+#                "accessor": lambda arguments: 'inference.azure_openai'
+                "accessor": lambda arguments: 'inference.' + (get_llm_type(arguments['instance']) or 'generic')
+
             },
             {
                 "attribute": "provider_name",

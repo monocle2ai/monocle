@@ -72,7 +72,8 @@ dev = [
   'flask',
   'opentelemetry-instrumentation-flask',
   'langgraph==0.2.68',
-  'opendal==0.45.14'
+  'opendal==0.45.14',
+  'anthropic==0.49.0',
 ]
 
 azure = [

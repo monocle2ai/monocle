@@ -38,6 +38,22 @@ OPENAI_METHODS = [
         "wrapper_method": atask_wrapper,
         "span_handler": "non_framework_handler",
         "output_processor": RETRIEVAL
+    },
+    {
+        "package": "openai.resources.responses",
+        "object": "Responses",
+        "method": "create",
+        "wrapper_method": task_wrapper,
+        "span_handler": "non_framework_handler",
+        "output_processor": INFERENCE
+    },
+    {
+        "package": "openai.resources.responses",
+        "object": "AsyncResponses",
+        "method": "create",
+        "wrapper_method": atask_wrapper,
+        "span_handler": "non_framework_handler",
+        "output_processor": INFERENCE
     }
 
 ]

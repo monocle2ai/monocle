@@ -71,5 +71,7 @@ SCOPE_METHOD_FILE = 'monocle_scopes.json'
 SCOPE_CONFIG_PATH = 'MONOCLE_SCOPE_CONFIG_PATH'
 TRACE_PROPOGATION_URLS = "MONOCLE_TRACE_PROPAGATATION_URLS"
 WORKFLOW_TYPE_KEY = "monocle.workflow_type"
+ADD_NEW_WORKFLOW = "monocle.add_new_workflow"
 WORKFLOW_TYPE_GENERIC = "workflow.generic"
 MONOCLE_SDK_VERSION = "monocle_apptrace.version"
+MONOCLE_SDK_LANGUAGE = "monocle_apptrace.language"

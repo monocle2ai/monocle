@@ -9,6 +9,7 @@ ANTHROPIC_METHODS = [
         "object": "Messages",
         "method": "create",
         "wrapper_method": task_wrapper,
+        "span_handler": "non_framework_handler",
         "output_processor": INFERENCE
     },
     {
@@ -16,6 +17,7 @@ ANTHROPIC_METHODS = [
         "object": "AsyncMessages",
         "method": "create",
         "wrapper_method": atask_wrapper,
+        "span_handler": "non_framework_handler",
         "output_processor": INFERENCE
     },
 

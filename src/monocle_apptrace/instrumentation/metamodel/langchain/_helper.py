@@ -50,6 +50,7 @@ def extract_assistant_message(response):
 
 
 def extract_provider_name(instance):
+    provider_url: Option[str] = None
     if hasattr(instance,'client'):
         provider_url: Option[str] = try_option(getattr, instance.client._client.base_url, 'host')
     if hasattr(instance, '_client'):
@@ -58,6 +59,7 @@ def extract_provider_name(instance):
 
 
 def extract_inference_endpoint(instance):
+    inference_endpoint: Option[str] = None
     if hasattr(instance,'client'):
         inference_endpoint: Option[str] = try_option(getattr, instance.client._client, 'base_url').map(str)
         if inference_endpoint.is_none() and "meta" in instance.client.__dict__:

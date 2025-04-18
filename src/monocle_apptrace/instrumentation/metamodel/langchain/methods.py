@@ -11,15 +11,13 @@ LANGCHAIN_METHODS = [
         "package": "langchain.prompts.base",
         "object": "BasePromptTemplate",
         "method": "invoke",
-        "wrapper_method": task_wrapper,
-        "span_type": "workflow"
+        "wrapper_method": task_wrapper
     },
     {
         "package": "langchain.prompts.base",
         "object": "BasePromptTemplate",
         "method": "ainvoke",
-        "wrapper_method": atask_wrapper,
-        "span_type": "workflow"
+        "wrapper_method": atask_wrapper
     },
     {
         "package": "langchain.chat_models.base",
@@ -82,30 +80,24 @@ LANGCHAIN_METHODS = [
         "package": "langchain.schema",
         "object": "BaseOutputParser",
         "method": "invoke",
-        "wrapper_method": task_wrapper,
-        "span_type": "workflow"
+        "wrapper_method": task_wrapper
     },
     {
         "package": "langchain.schema",
         "object": "BaseOutputParser",
         "method": "ainvoke",
-        "wrapper_method": atask_wrapper,
-        "span_type": "workflow"
+        "wrapper_method": atask_wrapper
     },
     {
         "package": "langchain.schema.runnable",
         "object": "RunnableSequence",
         "method": "invoke",
-        "span_name": "langchain.workflow",
-        "wrapper_method": task_wrapper,
-        "span_type": "workflow"
+        "wrapper_method": task_wrapper
     },
     {
         "package": "langchain.schema.runnable",
         "object": "RunnableSequence",
         "method": "ainvoke",
-        "span_name": "langchain.workflow",
-        "wrapper_method": atask_wrapper,
-        "span_type": "workflow"
+        "wrapper_method": atask_wrapper
     }
 ]

@@ -8,7 +8,7 @@ from monocle_apptrace.instrumentation.common.constants import (
     QUERY,
     service_name_map,
     service_type_map,
-    MONOCLE_SDK_VERSION, MONOCLE_SDK_LANGUAGE
+    MONOCLE_SDK_VERSION, MONOCLE_SDK_LANGUAGE, MONOCLE_DETECTED_SPAN_ERROR
 )
 from monocle_apptrace.instrumentation.common.utils import set_attribute, get_scopes, MonocleSpanException, get_monocle_version
 from monocle_apptrace.instrumentation.common.constants import WORKFLOW_TYPE_KEY, WORKFLOW_TYPE_GENERIC
@@ -64,23 +64,25 @@ class SpanHandler:
         SpanHandler.set_workflow_attributes(to_wrap, span)
         SpanHandler.set_app_hosting_identifier_attribute(span)
 
-        span.set_status(StatusCode.OK)
-
     @staticmethod
     def set_non_workflow_properties(span: Span, to_wrap = None):
         workflow_name = SpanHandler.get_workflow_name(span=span)
         if workflow_name:
             span.set_attribute("workflow.name", workflow_name)
 
-    def post_task_processing(self, to_wrap, wrapped, instance, args, kwargs, result, span:Span):
+    def post_task_processing(self, to_wrap, wrapped, instance, detected_error:bool, args, kwargs, result, span:Span):
         if span.status.status_code == StatusCode.UNSET:
             span.set_status(StatusCode.OK)
+        if detected_error:
+            span.set_attribute(MONOCLE_DETECTED_SPAN_ERROR, detected_error)
 
-    def hydrate_span(self, to_wrap, wrapped, instance, args, kwargs, result, span):
-        self.hydrate_attributes(to_wrap, wrapped, instance, args, kwargs, result, span)
-        self.hydrate_events(to_wrap, wrapped, instance, args, kwargs, result, span)
+    def hydrate_span(self, to_wrap, wrapped, instance, args, kwargs, result, span) -> bool:
+        detected_error_in_attribute = self.hydrate_attributes(to_wrap, wrapped, instance, args, kwargs, result, span)
+        detected_error_in_event = self.hydrate_events(to_wrap, wrapped, instance, args, kwargs, result, span)
+        return detected_error_in_attribute or detected_error_in_event
 
-    def hydrate_attributes(self, to_wrap, wrapped, instance, args, kwargs, result, span):
+    def hydrate_attributes(self, to_wrap, wrapped, instance, args, kwargs, result, span:Span) -> bool:
+        detected_error:bool = False
         span_index = 0
         if SpanHandler.is_root_span(span):
             span_index = 2 # root span will have workflow and hosting entities pre-populated
@@ -106,6 +108,7 @@ class SpanHandler:
                                     span.set_attribute(attribute_name, result)
                             except MonocleSpanException as e:
                                 span.set_status(StatusCode.ERROR, e.message)
+                                detected_error = True
                             except Exception as e:
                                 logger.debug(f"Error processing accessor: {e}")
                         else:
@@ -123,9 +126,10 @@ class SpanHandler:
         
         if span_index > 0:
             span.set_attribute("entity.count", span_index)
+        return detected_error
 
-
-    def hydrate_events(self, to_wrap, wrapped, instance, args, kwargs, ret_result, span):
+    def hydrate_events(self, to_wrap, wrapped, instance, args, kwargs, ret_result, span) -> bool:
+        detected_error:bool = False
         if not self.skip_processor(to_wrap, wrapped, instance, args, kwargs) and (
                 'output_processor' in to_wrap and to_wrap["output_processor"] is not None):
             output_processor=to_wrap['output_processor']
@@ -151,6 +155,7 @@ class SpanHandler:
                                         event_attributes.update(result)
                             except MonocleSpanException as e:
                                 span.set_status(StatusCode.ERROR, e.message)
+                                detected_error = True
                             except Exception as e:
                                 logger.debug(f"Error evaluating accessor for attribute '{attribute_key}': {e}")
                     matching_timestamp = getattr(ret_result, "timestamps", {}).get(event_name, None)
@@ -158,6 +163,7 @@ class SpanHandler:
                         span.add_event(name=event_name, attributes=event_attributes, timestamp=matching_timestamp)
                     else:
                         span.add_event(name=event_name, attributes=event_attributes)
+        return detected_error
 
     @staticmethod
     def set_workflow_attributes(to_wrap, span: Span):

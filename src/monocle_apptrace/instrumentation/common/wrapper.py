@@ -192,4 +192,3 @@ async def ascope_wrapper(tracer: Tracer, handler: SpanHandler, to_wrap, wrapped,
     finally:
         if token:
             remove_scope(token)
-    

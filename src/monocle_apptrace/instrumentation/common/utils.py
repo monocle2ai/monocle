@@ -1,5 +1,6 @@
 import logging, json
 import os
+import traceback
 from typing import Callable, Generic, Optional, TypeVar, Mapping
 import threading, asyncio
 
@@ -93,7 +94,9 @@ def with_tracer_wrapper(func):
             except Exception as e:
                 logger.error("Exception in attaching parent context: %s", e)
 
-            val = func(tracer, handler, to_wrap, wrapped, instance, args, kwargs)
+            filename, line_number, _, _ = traceback.extract_stack()[-2]
+            source_path = f"{filename}:{line_number}"
+            val = func(tracer, handler, to_wrap, wrapped, instance, source_path, args, kwargs)
             return val
 
         return wrapper

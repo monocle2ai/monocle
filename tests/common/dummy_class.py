@@ -4,7 +4,7 @@ from monocle_apptrace.instrumentation.common.instrumentor import monocle_trace_s
 from common.utils import SCOPE_NAME, SCOPE_VALUE
 
 @with_tracer_wrapper
-def dummy_wrapper(tracer: Tracer, handler, to_wrap, wrapped, instance, args, kwargs):
+def dummy_wrapper(tracer: Tracer, handler, to_wrap, wrapped, instance, source_path, args, kwargs):
     if callable(to_wrap.get("span_name_getter")):
         name = to_wrap.get("span_name_getter")(instance)
     elif hasattr(instance, "name") and instance.name:

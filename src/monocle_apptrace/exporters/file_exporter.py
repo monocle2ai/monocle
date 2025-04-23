@@ -39,21 +39,30 @@ class FileSpanExporter(SpanExporter):
             self.task_processor.start()
 
     def export(self, spans: Sequence[ReadableSpan]) -> SpanExportResult:
+        is_root_span = any(not span.parent for span in spans)
         if self.task_processor is not None and callable(getattr(self.task_processor, 'queue_task', None)):
             # Check if any span is a root span (no parent)
-            is_root_span = any(not span.parent for span in spans)
             self.task_processor.queue_task(self._process_spans, spans, is_root_span)
             return SpanExportResult.SUCCESS
         else:
-            return self._process_spans(spans)
+            return self._process_spans(spans, is_root_span=is_root_span)
 
     def _process_spans(self, spans: Sequence[ReadableSpan], is_root_span: bool = False) -> SpanExportResult:
+        first_span:bool = True
         for span in spans:
             if span.context.trace_id != self.current_trace_id:
                 self.rotate_file(span.resource.attributes[SERVICE_NAME],
                                 span.context.trace_id)
+                first_span = True
+            if first_span:
+                first_span = False
+            else:
+                self.out_handle.write(",")
             self.out_handle.write(self.formatter(span))
-        self.out_handle.flush()
+        if is_root_span:
+            self.reset_handle()
+        else:
+            self.out_handle.flush()
         return SpanExportResult.SUCCESS
 
     def rotate_file(self, trace_name:str, trace_id:int) -> None:
@@ -62,6 +71,7 @@ class FileSpanExporter(SpanExporter):
                         self.file_prefix + trace_name + "_" + hex(trace_id) + "_"
                         + datetime.now().strftime(self.time_format) + ".json")
         self.out_handle = open(self.current_file_path, "w", encoding='UTF-8')
+        self.out_handle.write("[")
         self.current_trace_id = trace_id
 
     def force_flush(self, timeout_millis: int = 30000) -> bool:
@@ -70,6 +80,7 @@ class FileSpanExporter(SpanExporter):
 
     def reset_handle(self) -> None:
         if self.out_handle is not None:
+            self.out_handle.write("]")
             self.out_handle.close()
             self.out_handle = None
 

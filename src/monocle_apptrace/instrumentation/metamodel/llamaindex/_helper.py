@@ -172,5 +172,5 @@ def update_span_from_llm_response(response, instance):
                 meta_dict.update({"temperature": temperature})
                 meta_dict.update({"completion_tokens": getattr(token_usage, "completion_tokens",None) or getattr(token_usage,"output_tokens",None)})
                 meta_dict.update({"prompt_tokens": getattr(token_usage, "prompt_tokens",None) or getattr(token_usage,"input_tokens",None)})
-                meta_dict.update({"total_tokens": getattr(token_usage, "total_tokens",None)})
+                meta_dict.update({"total_tokens": getattr(token_usage, "total_tokens",None) or getattr(token_usage,"output_tokens",None)+getattr(token_usage,"input_tokens",None)})
     return meta_dict

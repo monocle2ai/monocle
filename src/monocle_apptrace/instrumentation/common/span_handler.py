@@ -80,7 +80,7 @@ class SpanHandler:
         self.hydrate_attributes(to_wrap, wrapped, instance, args, kwargs, result, span)
         self.hydrate_events(to_wrap, wrapped, instance, args, kwargs, result, span)
 
-    def hydrate_attributes(self, to_wrap, wrapped, instance, args, kwargs, result, span):
+    def hydrate_attributes(self, to_wrap, wrapped, instance, args, kwargs, result, span:Span):
         span_index = 0
         if SpanHandler.is_root_span(span):
             span_index = 2 # root span will have workflow and hosting entities pre-populated

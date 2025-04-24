@@ -9,7 +9,7 @@
 - Support monocle exporter list as parameter to `setup_monocle_telemetry()` ([#161](https://github.com/monocle2ai/monocle/pull/161))
 - Add langchain anthropic sample ([#165](https://github.com/monocle2ai/monocle/pull/165))
 
-## Version 0.3.0 (2024-12-10)
+## Version 0.3.0 (2024-03-18)
 
 - Fixed issue with passing context in async case ([#150](https://github.com/monocle2ai/monocle/pull/150))
 - Added lambda processor ([#148](https://github.com/monocle2ai/monocle/pull/148))

@@ -123,11 +123,11 @@ class SpanHandler:
             span.set_attribute("entity.count", span_index)
 
 
-    def hydrate_events(self, to_wrap, wrapped, instance, args, kwargs, result, span):
+    def hydrate_events(self, to_wrap, wrapped, instance, args, kwargs, result, span: Span):
         if not self.skip_processor(to_wrap, wrapped, instance, args, kwargs) and (
                 'output_processor' in to_wrap and to_wrap["output_processor"] is not None):
             output_processor=to_wrap['output_processor']
-            arguments = {"instance": instance, "args": args, "kwargs": kwargs, "result": result}
+            arguments = {"instance": instance, "args": args, "kwargs": kwargs, "result": result, "to_wrap": to_wrap, "span_id": span.context.span_id}
             if 'events' in output_processor:
                 events = output_processor['events']
                 for event in events:

@@ -4,6 +4,8 @@ and assistant messages from various input formats.
 """
 
 import logging
+import random
+import types
 from monocle_apptrace.instrumentation.common.utils import (
     Option,
     get_keys_as_tuple,
@@ -14,6 +16,21 @@ from monocle_apptrace.instrumentation.common.utils import (
 
 logger = logging.getLogger(__name__)
 
+def patch_instance_method(obj, method_name, func):
+    """
+    Patch a special method (like __iter__) for a single instance.
+
+    Args:
+        obj: the instance to patch
+        method_name: the name of the method (e.g., '__iter__')
+        func: the new function, expecting (self, ...)
+    """
+    cls = obj.__class__
+    # Dynamically create a new class that inherits from obj's class
+    new_cls = type(f"Patched{cls.__name__}", (cls,), {
+        method_name: func
+    })
+    obj.__class__ = new_cls
 
 def extract_messages(kwargs):
     """Extract system and user messages"""
@@ -34,8 +51,31 @@ def extract_messages(kwargs):
         return []
 
 
-def extract_assistant_message(response):
+def extract_assistant_message(response, to_wrap=None, span_id=None):
     try:
+        if to_wrap and to_wrap.get("stream_prompt_cache") and hasattr(response, '__iter__'):
+            original_iter = response.__iter__
+            random_id = f"__{random.randint(10**9, 10**10 - 1)}__"
+            def new_iter(self):
+                stream_prompt_cache = to_wrap.get("stream_prompt_cache")
+                if span_id not in stream_prompt_cache:
+                    stream_prompt_cache[span_id] = {}
+                    stream_prompt_cache[span_id][random_id] = ""
+                    
+                for item in original_iter():
+                    # append to span_id key stream_prompt_cache dict and create the span_id key if it does not exist
+                    try:
+                        if item.choices and item.choices[0].delta:
+                        # append the item to the span_id key
+                            stream_prompt_cache[span_id][random_id] += item.choices[0].delta.content
+                    except Exception as e:
+                        logger.warning("Warning: Error occurred while processing item in new_iter: %s", str(e))
+                    finally:
+                        yield item
+
+            patch_instance_method(response, '__iter__', new_iter)
+            return random_id
+
         if hasattr(response,"output_text") and len(response.output_text):
             return response.output_text
         if response is not None and hasattr(response,"choices") and len(response.choices) >0:

@@ -54,7 +54,7 @@ INFERENCE = {
                 {
                     "_comment": "this is result from LLM",
                     "attribute": "response",
-                    "accessor": lambda arguments: _helper.extract_assistant_message(arguments['result'])
+                    "accessor": lambda arguments: _helper.extract_assistant_message(arguments['result'], arguments['to_wrap'], arguments["span_id"])
                 }
             ]
         },

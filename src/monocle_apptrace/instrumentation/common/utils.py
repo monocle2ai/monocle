@@ -7,6 +7,7 @@ from opentelemetry.context import attach, detach, get_current, get_value, set_va
 from opentelemetry.trace import NonRecordingSpan, Span, get_tracer
 from opentelemetry.trace.propagation import _SPAN_KEY
 from opentelemetry.sdk.trace import id_generator, TracerProvider
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from opentelemetry.propagate import inject, extract
 from opentelemetry import baggage
 from monocle_apptrace.instrumentation.common.constants import MONOCLE_SCOPE_NAME_PREFIX, SCOPE_METHOD_FILE, SCOPE_CONFIG_PATH, llm_type_map, MONOCLE_SDK_VERSION, ADD_NEW_WORKFLOW
@@ -369,3 +370,36 @@ def get_llm_type(instance):
         return llm_type
     except:
         pass
+
+class MonocleBatchSpanProcessor(BatchSpanProcessor):
+    def __init__(self, stream_prompt_cache: dict[str, dict[str, str]],  *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.stream_prompt_cache = stream_prompt_cache
+    
+    def _export_batch(self):
+        # print(self.spans_list)
+        # for span in self.spans_list:
+        #     if span is not None:
+        #         print(span.get_span_context().span_id)
+        logger.debug("Stream prompt cache: %s", self.stream_prompt_cache)
+        # get all spans for which self.stream_prompt_cache has the span id
+        for span in self.queue:
+            if span.get_span_context().span_id in self.stream_prompt_cache:
+                mapping = self.stream_prompt_cache[span.get_span_context().span_id]
+                # iterate over all the attributes in span.events
+                for event in span.events:
+                    # check if the event name is data.input
+                    attributes = event.attributes
+                    # check if the attribute name is input
+                    logger.debug("Event attributes: %s", attributes._dict)
+                    for attribute in attributes:
+                        logger.debug("Processing attribute: %s", attribute)
+                        # if attribute value is in mapping then replace the attribute value with the mapping value
+                        if attributes[attribute] in mapping:
+                            # the only way to set the attribute value for a completed span is to use the internal _dict property
+                            attributes._dict[attribute] =  mapping[attributes[attribute]]
+                            # attributes[attribute] = mapping[attributes[attribute]]
+                        
+        
+        
+        return super()._export_batch()

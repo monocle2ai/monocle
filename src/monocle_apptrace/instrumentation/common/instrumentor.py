@@ -27,7 +27,7 @@ from monocle_apptrace.instrumentation.common.wrapper_method import (
 )
 from monocle_apptrace.instrumentation.common.wrapper import scope_wrapper, ascope_wrapper, wrapper_processor
 from monocle_apptrace.instrumentation.common.utils import (
-    set_scope, remove_scope, http_route_handler, load_scopes, async_wrapper, http_async_route_handler
+    MonocleBatchSpanProcessor, set_scope, remove_scope, http_route_handler, load_scopes, async_wrapper, http_async_route_handler
 )
 from monocle_apptrace.instrumentation.common.constants import MONOCLE_INSTRUMENTOR, WORKFLOW_TYPE_GENERIC
 from functools import wraps
@@ -46,17 +46,20 @@ class MonocleInstrumentor(BaseInstrumentor):
     instrumented_method_list: list[object] = []
     handlers:Dict[str,SpanHandler] = None # dict of handlers
     union_with_default_methods: bool = False
-
+    stream_prompt_cache: dict[str, str] = {}
+    
     def __init__(
             self,
             handlers,
             user_wrapper_methods: list[Union[dict,WrapperMethod]] = None,
             exporters: list[SpanExporter] = None,
-            union_with_default_methods: bool = True
+            union_with_default_methods: bool = True,
+            stream_prompt_cache: dict[str, str] = {},
             ) -> None:
         self.user_wrapper_methods = user_wrapper_methods or []
         self.handlers = handlers
         self.exporters = exporters
+        self.stream_prompt_cache = stream_prompt_cache
         if self.handlers is not None:
             for key, val in MONOCLE_SPAN_HANDLERS.items():
                 if key not in self.handlers:
@@ -108,6 +111,7 @@ class MonocleInstrumentor(BaseInstrumentor):
             target_object = method_config.get("object", None)
             target_method = method_config.get("method", None)
             wrapped_by = method_config.get("wrapper_method", None)
+            method_config["stream_prompt_cache"] = self.stream_prompt_cache
             #get the requisite handler or default one
             handler_key = method_config.get("span_handler",'default')
             try:
@@ -189,7 +193,8 @@ def setup_monocle_telemetry(
     if span_processors and monocle_exporters_list:
         raise ValueError("span_processors and monocle_exporters_list can't be used together")
     exporters:List[SpanExporter] = get_monocle_exporter(monocle_exporters_list)
-    span_processors = span_processors or [BatchSpanProcessor(exporter) for exporter in exporters]
+    stream_prompt_cache: dict[str, dict[str, str]] = {}
+    span_processors = span_processors or [MonocleBatchSpanProcessor(stream_prompt_cache=stream_prompt_cache, span_exporter=exporter) for exporter in exporters]
     set_tracer_provider(TracerProvider(resource=resource))
     attach(set_value("workflow_name", workflow_name))
     tracer_provider_default = trace.get_tracer_provider()
@@ -204,7 +209,7 @@ def setup_monocle_telemetry(
     if is_proxy_provider:
         trace.set_tracer_provider(get_tracer_provider())
     instrumentor = MonocleInstrumentor(user_wrapper_methods=wrapper_methods or [], exporters=exporters,
-                                       handlers=span_handlers, union_with_default_methods = union_with_default_methods)
+                                       handlers=span_handlers, union_with_default_methods=union_with_default_methods, stream_prompt_cache=stream_prompt_cache )
     # instrumentor.app_name = workflow_name
     if not instrumentor.is_instrumented_by_opentelemetry:
         instrumentor.instrument(trace_provider=get_tracer_provider())

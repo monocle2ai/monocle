@@ -34,7 +34,7 @@ def get_monocle_exporter(exporters_list:str=None) -> List[SpanExporter]:
         try:
             exporter_class_path = monocle_exporters[exporter_name]
         except KeyError:
-            logger.debug(f"Unsupported Monocle span exporter '{exporter_name}', skipping.")
+            logger.warn(f"Unsupported Monocle span exporter '{exporter_name}', skipping.")
             continue
         try:
             exporter_module = import_module(exporter_class_path["module"])
@@ -45,7 +45,7 @@ def get_monocle_exporter(exporters_list:str=None) -> List[SpanExporter]:
             else:
                 exporters.append(exporter_class())
         except Exception as ex:
-            logger.debug(
+            logger.warn(
                 f"Unable to initialize Monocle span exporter '{exporter_name}', error: {ex}. Using ConsoleSpanExporter as a fallback.")
             exporters.append(ConsoleSpanExporter())
             continue

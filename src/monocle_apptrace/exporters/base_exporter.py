@@ -1,20 +1,21 @@
-import time
+import time, os
 import random
 import logging
 from abc import ABC, abstractmethod
 from opentelemetry.sdk.trace import ReadableSpan
-from opentelemetry.sdk.trace.export import SpanExporter, SpanExportResult
+from opentelemetry.sdk.trace.export import SpanExportResult
+from monocle_apptrace.instrumentation.common.constants import MONOCLE_SDK_VERSION
 from typing import Sequence
-import asyncio
 
 logger = logging.getLogger(__name__)
 
 class SpanExporterBase(ABC):
-    def __init__(self):
+    def __init__(self, export_monocle_only: bool = True):
         self.backoff_factor = 2
         self.max_retries = 10
         self.export_queue = []
         self.last_export_time = time.time()
+        self.export_monocle_only = export_monocle_only or os.environ.get("MONOCLE_EXPORTS_ONLY", True)
 
     @abstractmethod
     async def export(self, spans: Sequence[ReadableSpan]) -> SpanExportResult:
@@ -26,6 +27,11 @@ class SpanExporterBase(ABC):
 
     def shutdown(self) -> None:
         pass
+
+    def skip_export(self, span:ReadableSpan) -> bool:
+        if self.export_monocle_only and (not span.attributes.get(MONOCLE_SDK_VERSION)):
+            return True
+        return False
 
     @staticmethod
     def retry_with_backoff(retries=3, backoff_in_seconds=1, max_backoff_in_seconds=32, exceptions=(Exception,)):

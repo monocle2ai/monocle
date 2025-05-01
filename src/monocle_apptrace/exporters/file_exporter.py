@@ -7,12 +7,13 @@ from typing import Optional, Callable, Sequence
 from opentelemetry.sdk.trace import ReadableSpan
 from opentelemetry.sdk.trace.export import SpanExporter, SpanExportResult
 from opentelemetry.sdk.resources import SERVICE_NAME
+from monocle_apptrace.exporters.base_exporter import SpanExporterBase
 from monocle_apptrace.exporters.exporter_processor import ExportTaskProcessor
 
 DEFAULT_FILE_PREFIX:str = "monocle_trace_"
 DEFAULT_TIME_FORMAT:str = "%Y-%m-%d_%H.%M.%S"
 
-class FileSpanExporter(SpanExporter):
+class FileSpanExporter(SpanExporterBase):
     current_trace_id: int = None
     current_file_path: str = None
 
@@ -50,6 +51,8 @@ class FileSpanExporter(SpanExporter):
     def _process_spans(self, spans: Sequence[ReadableSpan], is_root_span: bool = False) -> SpanExportResult:
         first_span:bool = True
         for span in spans:
+            if self.skip_export(span):
+                continue
             if span.context.trace_id != self.current_trace_id:
                 self.rotate_file(span.resource.attributes[SERVICE_NAME],
                                 span.context.trace_id)

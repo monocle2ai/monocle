@@ -129,6 +129,8 @@ class S3SpanExporter(SpanExporterBase):
             # Serialize spans to JSON or any other format you prefer
             valid_json_list = []
             for span in spans:
+                if self.skip_export(span):
+                    continue
                 try:
                     valid_json_list.append(span.to_json(indent=0).replace("\n", ""))
                 except json.JSONDecodeError as e:
@@ -169,7 +171,7 @@ class S3SpanExporter(SpanExporterBase):
             Key=file_name,
             Body=span_data_batch
         )
-        logger.info(f"Span batch uploaded to AWS S3 as {file_name}.")
+        logger.debug(f"Span batch uploaded to AWS S3 as {file_name}.")
 
     async def force_flush(self, timeout_millis: int = 30000) -> bool:
         await self.__export_spans()  # Export any remaining spans in the queue

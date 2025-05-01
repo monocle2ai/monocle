@@ -6,7 +6,7 @@ import requests
 from opentelemetry.sdk.trace import ReadableSpan
 from opentelemetry.sdk.trace.export import SpanExporter, SpanExportResult, ConsoleSpanExporter
 from requests.exceptions import ReadTimeout
-
+from monocle_apptrace.exporters.base_exporter import SpanExporterBase
 from monocle_apptrace.exporters.exporter_processor import ExportTaskProcessor
 
 REQUESTS_SUCCESS_STATUS_CODES = (200, 202)
@@ -15,7 +15,7 @@ OKAHU_PROD_INGEST_ENDPOINT = "https://ingest.okahu.co/api/v1/trace/ingest"
 logger = logging.getLogger(__name__)
 
 
-class OkahuSpanExporter(SpanExporter):
+class OkahuSpanExporter(SpanExporterBase):
     def __init__(
             self,
             endpoint: Optional[str] = None,
@@ -58,6 +58,8 @@ class OkahuSpanExporter(SpanExporter):
 
         # append the batch object with all the spans object
         for span in spans:
+            if self.skip_export(span):
+                continue
             # create a object from serialized span
             obj = json.loads(span.to_json())
             if obj["parent_id"] is None:

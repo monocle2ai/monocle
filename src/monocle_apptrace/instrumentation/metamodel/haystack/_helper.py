@@ -1,5 +1,4 @@
 import logging
-from platform import system
 
 from monocle_apptrace.instrumentation.common.utils import (
     Option,

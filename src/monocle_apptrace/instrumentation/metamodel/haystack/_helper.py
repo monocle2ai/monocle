@@ -1,4 +1,6 @@
 import logging
+from platform import system
+
 from monocle_apptrace.instrumentation.common.utils import (
     Option,
     get_keys_as_tuple,
@@ -11,13 +13,19 @@ logger = logging.getLogger(__name__)
 def extract_messages(kwargs):
     try:
         messages = []
+        system_message, user_message = None,None
         if isinstance(kwargs, dict):
             if 'system_prompt' in kwargs and kwargs['system_prompt']:
                 system_message = kwargs['system_prompt']
-                messages.append({"system" : system_message})
             if 'prompt' in kwargs and kwargs['prompt']:
                 user_message = extract_question_from_prompt(kwargs['prompt'])
+            if 'messages' in kwargs and len(kwargs['messages'])>1:
+                system_message = kwargs['messages'][0].text
+                user_message = kwargs['messages'][1].text
+            if system_message and user_message:
+                messages.append({"system": system_message})
                 messages.append({"user": user_message})
+
         return [str(message) for message in messages]
     except Exception as e:
         logger.warning("Warning: Error occurred in extract_messages: %s", str(e))
@@ -52,6 +60,8 @@ def extract_assistant_message(response):
             reply = response["replies"][0]
             if hasattr(reply, 'content'):
                 return [reply.content]
+            if hasattr(reply, 'text'):
+                return [reply.text]
             return [reply]
     except Exception as e:
         logger.warning("Warning: Error occurred in extract_assistant_message: %s", str(e))
@@ -108,15 +118,19 @@ def extract_embeding_model(instance):
 
 def update_span_from_llm_response(response, instance):
     meta_dict = {}
-    if response is not None and isinstance(response, dict) and "meta" in response:
-        token_usage = response["meta"][0]["usage"]
+    token_usage = None
+    if response is not None and isinstance(response, dict):
+        if "meta" in response:
+            token_usage = response["meta"][0]["usage"]
+        if "replies" in response:
+            token_usage = response["replies"][0].meta["usage"]
         if token_usage is not None:
             temperature = instance.__dict__.get("temperature", None)
             meta_dict.update({"temperature": temperature})
             meta_dict.update(
                 {"completion_tokens": token_usage.get("completion_tokens") or token_usage.get("output_tokens")})
             meta_dict.update({"prompt_tokens": token_usage.get("prompt_tokens") or token_usage.get("input_tokens")})
-            meta_dict.update({"total_tokens": token_usage.get("total_tokens")})
+            meta_dict.update({"total_tokens": token_usage.get("total_tokens") or token_usage.get("completion_tokens")+token_usage.get("prompt_tokens")})
     return meta_dict
 
 

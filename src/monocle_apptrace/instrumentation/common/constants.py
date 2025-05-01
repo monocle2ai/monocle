@@ -52,6 +52,7 @@ llm_type_map = {
     "bedrockruntime":"aws_bedrock",
     "sagemakerruntime":"aws_sagemaker",
     "chatanthropic":"anthropic",
+    "anthropicchatgenerator":"anthropic",
 }
 
 MONOCLE_INSTRUMENTOR = "monocle_apptrace"

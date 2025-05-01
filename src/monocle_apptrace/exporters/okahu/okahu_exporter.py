@@ -24,6 +24,7 @@ class OkahuSpanExporter(SpanExporterBase):
             task_processor: ExportTaskProcessor = None
     ):
         """Okahu exporter."""
+        super().__init__()
         okahu_endpoint: str = os.environ.get("OKAHU_INGESTION_ENDPOINT", OKAHU_PROD_INGEST_ENDPOINT)
         self.endpoint = endpoint or okahu_endpoint
         api_key: str = os.environ.get("OKAHU_API_KEY")

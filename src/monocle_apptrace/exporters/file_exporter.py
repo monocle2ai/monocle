@@ -29,6 +29,7 @@ class FileSpanExporter(SpanExporterBase):
         + linesep,
         task_processor: Optional[ExportTaskProcessor] = None
     ):
+        super().__init__()
         self.out_handle:TextIOWrapper = None
         self.formatter = formatter
         self.service_name = service_name

@@ -140,7 +140,7 @@ class SpanHandler:
                         if accessor:
                             try:
                                 result = accessor(arguments)
-                                if result and isinstance(result, (str, list)):
+                                if result and isinstance(result, (str, list, dict)):
                                     if attribute_key is not None:
                                         event_attributes[attribute_key] = result
                                     else:

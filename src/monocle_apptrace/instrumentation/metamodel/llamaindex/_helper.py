@@ -96,12 +96,19 @@ def extract_query_from_content(content):
 
 
 def extract_provider_name(instance):
-    provider_url = try_option(getattr, instance, 'api_base').and_then(lambda url: urlparse(url).hostname)
-    return provider_url
+    if hasattr(instance,'api_base'):
+        provider_url: Option[str]= try_option(getattr, instance, 'api_base').and_then(lambda url: urlparse(url).hostname)
+    if hasattr(instance,'_client'):
+        provider_url:Option[str] = try_option(getattr, instance._client.base_url,'host')
+    return provider_url.unwrap_or(None)
 
 
 def extract_inference_endpoint(instance):
-    inference_endpoint = try_option(getattr, instance._client.sdk_configuration, 'server_url').map(str)
+    if hasattr(instance,'_client'):
+        if hasattr(instance._client,'sdk_configuration'):
+            inference_endpoint: Option[str] = try_option(getattr, instance._client.sdk_configuration, 'server_url').map(str)
+        if hasattr(instance._client,'base_url'):
+            inference_endpoint: Option[str] = try_option(getattr, instance._client, 'base_url').map(str)
     return inference_endpoint.unwrap_or(extract_provider_name(instance))
 
 
@@ -163,10 +170,7 @@ def update_span_from_llm_response(response, instance):
             if token_usage is not None:
                 temperature = instance.__dict__.get("temperature", None)
                 meta_dict.update({"temperature": temperature})
-                if getattr(token_usage, "completion_tokens", None):
-                    meta_dict.update({"completion_tokens": getattr(token_usage, "completion_tokens")})
-                if getattr(token_usage, "prompt_tokens", None):
-                    meta_dict.update({"prompt_tokens": getattr(token_usage, "prompt_tokens")})
-                if getattr(token_usage, "total_tokens", None):
-                    meta_dict.update({"total_tokens": getattr(token_usage, "total_tokens")})
+                meta_dict.update({"completion_tokens": getattr(token_usage, "completion_tokens",None) or getattr(token_usage,"output_tokens",None)})
+                meta_dict.update({"prompt_tokens": getattr(token_usage, "prompt_tokens",None) or getattr(token_usage,"input_tokens",None)})
+                meta_dict.update({"total_tokens": getattr(token_usage, "total_tokens",None) or getattr(token_usage,"output_tokens",None)+getattr(token_usage,"input_tokens",None)})
     return meta_dict

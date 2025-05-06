@@ -52,7 +52,9 @@ llm_type_map = {
     "openaigenerator": "openai",
     "bedrockruntime":"aws_bedrock",
     "sagemakerruntime":"aws_sagemaker",
+    "anthropic": "anthropic",
     "chatanthropic":"anthropic",
+    "anthropicchatgenerator":"anthropic",
 }
 
 MONOCLE_INSTRUMENTOR = "monocle_apptrace"

@@ -2,7 +2,7 @@ from monocle_apptrace.instrumentation.metamodel.teamsai import (
     _helper,
 )
 ACTIONPLANNER_OUTPUT_PROCESSOR = {
-    "type": "inference",
+    "type": "generic",
     "attributes": [
         [
             {

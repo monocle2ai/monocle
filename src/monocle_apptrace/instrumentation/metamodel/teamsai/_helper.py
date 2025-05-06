@@ -1,4 +1,10 @@
 from monocle_apptrace.instrumentation.common.utils import MonocleSpanException
+from monocle_apptrace.instrumentation.common.utils import (
+    Option,
+    get_keys_as_tuple,
+    get_nested_value,
+    try_option,
+)
 def capture_input(arguments):
     """
     Captures the input from Teams AI state.
@@ -56,3 +62,15 @@ def status_check(arguments):
         error_msg:str = arguments["result"].error
         error_code:str = arguments["result"].status if hasattr(arguments["result"], "status") else "unknown"
         raise MonocleSpanException(f"Error: {error_code} - {error_msg}")
+
+def extract_provider_name(instance):
+    provider_url: Option[str] = try_option(getattr, instance._client.base_url, 'host')
+    return provider_url.unwrap_or(None)
+
+
+def extract_inference_endpoint(instance):
+    inference_endpoint: Option[str] = try_option(getattr, instance._client, 'base_url').map(str)
+    if inference_endpoint.is_none() and "meta" in instance.client.__dict__:
+        inference_endpoint = try_option(getattr, instance.client.meta, 'endpoint_url').map(str)
+
+    return inference_endpoint.unwrap_or(extract_provider_name(instance))

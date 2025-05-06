@@ -12,11 +12,11 @@ TEAMAI_OUTPUT_PROCESSOR = {
             },
             {
                 "attribute": "provider_name",
-                "accessor": lambda arguments: "Microsoft Teams AI"
+                "accessor": lambda arguments: _helper.extract_provider_name(arguments['instance'])
             },
             {
                 "attribute": "deployment",
-                "accessor": lambda arguments: arguments["instance"]._options.default_model if hasattr(arguments["instance"], "_options") else "unknown"
+                "accessor": lambda arguments: _helper.extract_inference_endpoint(arguments['instance'])
             }
         ],
         [
@@ -24,6 +24,11 @@ TEAMAI_OUTPUT_PROCESSOR = {
                 "_comment": "LLM Model",
                 "attribute": "name",
                 "accessor": lambda arguments: arguments["instance"]._options.default_model if hasattr(arguments["instance"], "_options") else "unknown"
+            },
+            {
+                "_comment": "LLM Model",
+                "attribute": "type",
+                "accessor": lambda arguments: 'model.llm.'+ arguments["instance"]._options.default_model if hasattr(arguments["instance"], "_options") else "unknown"
             },
             {
                 "attribute": "is_streaming",

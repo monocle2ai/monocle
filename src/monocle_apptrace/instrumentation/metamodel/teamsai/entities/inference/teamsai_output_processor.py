@@ -15,7 +15,7 @@ TEAMAI_OUTPUT_PROCESSOR = {
                 "accessor": lambda arguments: _helper.extract_provider_name(arguments['instance'])
             },
             {
-                "attribute": "deployment",
+                "attribute": "inference_endpoint",
                 "accessor": lambda arguments: _helper.extract_inference_endpoint(arguments['instance'])
             }
         ],

@@ -96,7 +96,7 @@ LLAMAINDEX_METHODS = [
         "package": "llama_index.llms.anthropic",
         "object": "Anthropic",
         "method": "achat",
-        "wrapper_method": task_wrapper,
+        "wrapper_method": atask_wrapper,
         "output_processor": INFERENCE
     }
 ]

@@ -36,5 +36,12 @@ HAYSTACK_METHODS = [
         "object": "Pipeline",
         "method": "run",
         "wrapper_method": task_wrapper
-    }
+    },
+    {
+        "package": "haystack_integrations.components.generators.anthropic",
+        "object": "AnthropicChatGenerator",
+        "method": "run",
+        "wrapper_method": task_wrapper,
+        "output_processor": INFERENCE
+    },
 ]

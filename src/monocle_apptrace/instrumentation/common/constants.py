@@ -53,6 +53,7 @@ llm_type_map = {
     "sagemakerruntime":"aws_sagemaker",
     "anthropic": "anthropic",
     "chatanthropic":"anthropic",
+    "anthropicchatgenerator":"anthropic",
 }
 
 MONOCLE_INSTRUMENTOR = "monocle_apptrace"

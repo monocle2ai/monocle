@@ -84,5 +84,19 @@ LLAMAINDEX_METHODS = [
         "method": "chat",
         "wrapper_method": task_wrapper,
         "output_processor": AGENT
+    },
+    {
+        "package": "llama_index.llms.anthropic",
+        "object": "Anthropic",
+        "method": "chat",
+        "wrapper_method": task_wrapper,
+        "output_processor": INFERENCE
+    },
+    {
+        "package": "llama_index.llms.anthropic",
+        "object": "Anthropic",
+        "method": "achat",
+        "wrapper_method": atask_wrapper,
+        "output_processor": INFERENCE
     }
 ]

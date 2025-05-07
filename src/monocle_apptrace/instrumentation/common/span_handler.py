@@ -18,7 +18,8 @@ logger = logging.getLogger(__name__)
 WORKFLOW_TYPE_MAP = {
     "llama_index": "workflow.llamaindex",
     "langchain": "workflow.langchain",
-    "haystack": "workflow.haystack"
+    "haystack": "workflow.haystack",
+    "teams.ai": "workflow.teams_ai",
 }
 
 class SpanHandler:

@@ -44,6 +44,7 @@ llm_type_map = {
     "azureopenai": "azure_openai",
     "openai": "openai",
     "chatopenai": "openai",
+    "openaimodel":"openai",
     "azurechatopenai": "azure_openai",
     "bedrock": "aws_bedrock",
     "sagemakerllm": "aws_sagemaker",

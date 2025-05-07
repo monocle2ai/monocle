@@ -290,8 +290,10 @@ def run_async_with_scope(method, current_context, exceptions, *args, **kwargs):
             token = attach(current_context)
         return asyncio.run(method(*args, **kwargs))
     except Exception as e:
-        exceptions['exception'] = e
-        raise e
+        if exceptions is not None:
+            exceptions['exception'] = e
+        else:
+            raise e
     finally:
         if token:
             detach(token)
@@ -320,7 +322,7 @@ def async_wrapper(method, scope_name=None, scope_value=None, headers=None, *args
             return_value = results[0] if len(results) > 0 else None
             return return_value
         else:
-            return run_async_with_scope(method, None, exceptions, *args, **kwargs)
+            return run_async_with_scope(method, None, None, *args, **kwargs)
     finally:
         if token:
             remove_scope(token)

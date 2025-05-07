@@ -3,9 +3,6 @@ from threading import local
 from monocle_apptrace.instrumentation.common.utils import extract_http_headers, clear_http_scopes, try_option, Option
 from monocle_apptrace.instrumentation.common.span_handler import SpanHandler
 from urllib.parse import unquote
-from opentelemetry.context import get_current
-from opentelemetry.trace import Span, get_current_span
-from opentelemetry.trace.propagation import _SPAN_KEY
 
 logger = logging.getLogger(__name__)
 MAX_DATA_LENGTH = 1000
@@ -46,6 +43,11 @@ def aiohttp_post_tracing():
     clear_http_scopes(token_data.current_token)
     token_data.current_token = None
 
+def aiohttp_skip_span(args) -> bool:
+    if get_method(args) == "HEAD":
+        return True
+    return False
+
 class aiohttpSpanHandler(SpanHandler):
 
     def pre_tracing(self, to_wrap, wrapped, instance, args, kwargs):
@@ -55,3 +57,6 @@ class aiohttpSpanHandler(SpanHandler):
     def post_tracing(self, to_wrap, wrapped, instance, args, kwargs, return_value):
         aiohttp_post_tracing()
         return super().post_tracing(to_wrap, wrapped, instance, args, kwargs, return_value)
+
+    def skip_span(self, to_wrap, wrapped, instance, args, kwargs) -> bool:
+        return aiohttp_skip_span(args)

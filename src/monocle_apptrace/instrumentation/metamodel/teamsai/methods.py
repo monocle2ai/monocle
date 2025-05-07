@@ -11,7 +11,6 @@ TEAMAI_METHODS =[
         "package": "teams.ai.models.openai_model",
         "object": "OpenAIModel",
         "method": "complete_prompt",
-        "span_name": "teamsai.workflow",
         "wrapper_method": atask_wrapper,
         "output_processor": TEAMAI_OUTPUT_PROCESSOR
     },
@@ -19,7 +18,6 @@ TEAMAI_METHODS =[
         "package": "teams.ai.planners.action_planner",
         "object": "ActionPlanner",
         "method": "complete_prompt",
-        "span_name": "teamsai.workflow",
         "wrapper_method": atask_wrapper,
         "output_processor": ACTIONPLANNER_OUTPUT_PROCESSOR
     }

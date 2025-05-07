@@ -1,13 +1,12 @@
 import logging, json
 import os
 from typing import Callable, Generic, Optional, TypeVar, Mapping
-import threading, asyncio
 
 from opentelemetry.context import attach, detach, get_current, get_value, set_value, Context
-from opentelemetry.trace import NonRecordingSpan, Span, get_tracer
+from opentelemetry.trace import NonRecordingSpan, Span
 from opentelemetry.trace.propagation import _SPAN_KEY
 from opentelemetry.sdk.trace import id_generator, TracerProvider
-from opentelemetry.propagate import inject, extract
+from opentelemetry.propagate import extract
 from opentelemetry import baggage
 from monocle_apptrace.instrumentation.common.constants import MONOCLE_SCOPE_NAME_PREFIX, SCOPE_METHOD_FILE, SCOPE_CONFIG_PATH, llm_type_map, MONOCLE_SDK_VERSION, ADD_NEW_WORKFLOW
 from importlib.metadata import version
@@ -275,49 +274,44 @@ async def http_async_route_handler(func, *args, **kwargs):
         headers = kwargs['req'].headers
     else:
         headers = None
-    return async_wrapper(func, None, None, headers, *args, **kwargs)
-
-def run_async_with_scope(method, current_context, exceptions, *args, **kwargs):
-    token = None
     try:
-        if current_context:
-            token = attach(current_context)
-        return asyncio.run(method(*args, **kwargs))
-    except Exception as e:
-        exceptions['exception'] = e
-        raise e
+        if headers is not None:
+            token = extract_http_headers(headers)
+        return await func(*args, **kwargs)
     finally:
-        if token:
-            detach(token)
+        if token is not None:
+            clear_http_scopes(token)
 
-def async_wrapper(method, scope_name=None, scope_value=None, headers=None, *args, **kwargs):
-    try:
-        run_loop = asyncio.get_running_loop()
-    except RuntimeError:
-        run_loop = None
+# def run_async_with_scope(method, current_context, exceptions, *args, **kwargs):
+#     token = None
+#     try:
+#         if current_context:
+#             token = attach(current_context)
+#         return asyncio.run(method(*args, **kwargs))
+#     except Exception as e:
+#         exceptions['exception'] = e
+#         raise e
+#     finally:
+#         if token:
+#             detach(token)
 
-    token = None
-    exceptions = {}
-    if scope_name:
-        token = set_scope(scope_name, scope_value)
-    elif headers:
-        token = extract_http_headers(headers)
-    current_context = get_current()
-    try:
-        if run_loop and run_loop.is_running():
-            results = []
-            thread = threading.Thread(target=lambda: results.append(run_async_with_scope(method, current_context, exceptions, *args, **kwargs)))
-            thread.start()
-            thread.join()
-            if 'exception' in exceptions:
-                raise exceptions['exception']
-            return_value = results[0] if len(results) > 0 else None
-            return return_value
-        else:
-            return run_async_with_scope(method, None, exceptions, *args, **kwargs)
-    finally:
-        if token:
-            remove_scope(token)
+# async def async_wrapper(method, headers=None, *args, **kwargs):
+#     current_context = get_current()
+#     try:
+#         if run_loop and run_loop.is_running():
+#             results = []
+#             thread = threading.Thread(target=lambda: results.append(run_async_with_scope(method, current_context, exceptions, *args, **kwargs)))
+#             thread.start()
+#             thread.join()
+#             if 'exception' in exceptions:
+#                 raise exceptions['exception']
+#             return_value = results[0] if len(results) > 0 else None
+#             return return_value
+#         else:
+#             return run_async_with_scope(method, None, exceptions, *args, **kwargs)
+#     finally:
+#         if token:
+#             remove_scope(token)
 
 def get_monocle_version() -> str:
     global monocle_sdk_version
@@ -369,3 +363,19 @@ def get_llm_type(instance):
         return llm_type
     except:
         pass
+
+def patch_instance_method(obj, method_name, func):
+    """
+    Patch a special method (like __iter__) for a single instance.
+
+    Args:
+        obj: the instance to patch
+        method_name: the name of the method (e.g., '__iter__')
+        func: the new function, expecting (self, ...)
+    """
+    cls = obj.__class__
+    # Dynamically create a new class that inherits from obj's class
+    new_cls = type(f"Patched{cls.__name__}", (cls,), {
+        method_name: func
+    })
+    obj.__class__ = new_cls

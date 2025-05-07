@@ -14,3 +14,4 @@ dist
 .DS_Store
 Pipfile**
 launch.json
+monocle_trace**.json

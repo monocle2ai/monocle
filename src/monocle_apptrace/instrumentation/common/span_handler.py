@@ -124,11 +124,11 @@ class SpanHandler:
             span.set_attribute("entity.count", span_index)
 
 
-    def hydrate_events(self, to_wrap, wrapped, instance, args, kwargs, result, span):
+    def hydrate_events(self, to_wrap, wrapped, instance, args, kwargs, ret_result, span):
         if not self.skip_processor(to_wrap, wrapped, instance, args, kwargs) and (
                 'output_processor' in to_wrap and to_wrap["output_processor"] is not None):
             output_processor=to_wrap['output_processor']
-            arguments = {"instance": instance, "args": args, "kwargs": kwargs, "result": result}
+            arguments = {"instance": instance, "args": args, "kwargs": kwargs, "result": ret_result}
             if 'events' in output_processor:
                 events = output_processor['events']
                 for event in events:
@@ -152,7 +152,11 @@ class SpanHandler:
                                 span.set_status(StatusCode.ERROR, e.message)
                             except Exception as e:
                                 logger.debug(f"Error evaluating accessor for attribute '{attribute_key}': {e}")
-                    span.add_event(name=event_name, attributes=event_attributes)
+                    matching_timestamp = getattr(ret_result, "timestamps", {}).get(event_name, None)
+                    if isinstance(matching_timestamp, int):
+                        span.add_event(name=event_name, attributes=event_attributes, timestamp=matching_timestamp)
+                    else:
+                        span.add_event(name=event_name, attributes=event_attributes)
 
     @staticmethod
     def set_workflow_attributes(to_wrap, span: Span):

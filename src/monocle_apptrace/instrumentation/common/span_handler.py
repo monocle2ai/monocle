@@ -50,10 +50,11 @@ class SpanHandler:
             set_attribute(QUERY, args[0]['prompt_builder']['question'])
 
     @staticmethod
-    def set_default_monocle_attributes(span: Span):
+    def set_default_monocle_attributes(span: Span, source_path ):
         """ Set default monocle attributes for all spans """
         span.set_attribute(MONOCLE_SDK_VERSION, get_monocle_version())
         span.set_attribute(MONOCLE_SDK_LANGUAGE, "python")
+        span.set_attribute("span_source", source_path)
         for scope_key, scope_value in get_scopes().items():
             span.set_attribute(f"scope.{scope_key}", scope_value)
 

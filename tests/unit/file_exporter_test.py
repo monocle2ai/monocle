@@ -5,7 +5,7 @@ import time
 import unittest
 
 from common.dummy_class import DummyClass, dummy_wrapper
-from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 
 from monocle_apptrace.exporters.file_exporter import FileSpanExporter
 from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
@@ -29,7 +29,7 @@ class TestHandler(unittest.TestCase):
     def setUp(self):
         app_name = "file_test"
         self.file_exporter = FileSpanExporter(time_format="%Y-%m-%d")
-        self.span_processor = BatchSpanProcessor(self.file_exporter)
+        self.span_processor = SimpleSpanProcessor(self.file_exporter)
         self.instrumentor = setup_monocle_telemetry(
             workflow_name=app_name,
             span_processors=[
@@ -63,7 +63,7 @@ class TestHandler(unittest.TestCase):
             with open(trace_file_name) as f:
                 print("Inside file")
                 trace_data = json.load(f)
-                trace_id_from_file = trace_data["context"]["trace_id"]
+                trace_id_from_file = trace_data[0]["context"]["trace_id"]
                 trace_id_from_exporter = hex(self.file_exporter.current_trace_id)
                 assert trace_id_from_file == trace_id_from_exporter
 

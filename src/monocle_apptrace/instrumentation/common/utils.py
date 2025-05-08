@@ -1,5 +1,6 @@
 import logging, json
 import os
+import traceback
 from typing import Callable, Generic, Optional, TypeVar, Mapping
 
 from opentelemetry.context import attach, detach, get_current, get_value, set_value, Context
@@ -92,7 +93,12 @@ def with_tracer_wrapper(func):
             except Exception as e:
                 logger.error("Exception in attaching parent context: %s", e)
 
-            val = func(tracer, handler, to_wrap, wrapped, instance, args, kwargs)
+            if traceback.extract_stack().__len__() > 2:
+                filename, line_number, _, _ = traceback.extract_stack()[-2]
+                source_path = f"{filename}:{line_number}"
+            else:
+                source_path = ""
+            val = func(tracer, handler, to_wrap, wrapped, instance, source_path, args, kwargs)
             return val
 
         return wrapper

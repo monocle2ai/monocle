@@ -22,8 +22,8 @@ def get_auto_close_span(to_wrap, kwargs):
         logger.warning("Warning: Error occurred in get_auto_close_span: %s", str(e))
         return True
 
-def pre_process_span(name, tracer, handler, add_workflow_span, to_wrap, wrapped, instance, args, kwargs, span):
-    SpanHandler.set_default_monocle_attributes(span)
+def pre_process_span(name, tracer, handler, add_workflow_span, to_wrap, wrapped, instance, args, kwargs, span, source_path):
+    SpanHandler.set_default_monocle_attributes(span, source_path)
     if SpanHandler.is_root_span(span) or add_workflow_span:
         # This is a direct API call of a non-framework type
         SpanHandler.set_workflow_properties(span, to_wrap)
@@ -36,7 +36,7 @@ def post_process_span(handler, to_wrap, wrapped, instance, args, kwargs, return_
         handler.hydrate_span(to_wrap, wrapped, instance, args, kwargs, return_value, span)
         handler.post_task_processing(to_wrap, wrapped, instance, args, kwargs, return_value, span)
 
-def monocle_wrapper(tracer: Tracer, handler: SpanHandler, to_wrap, wrapped, instance, args, kwargs):
+def monocle_wrapper(tracer: Tracer, handler: SpanHandler, to_wrap, wrapped, instance, source_path, args, kwargs):
     # Some Langchain objects are wrapped elsewhere, so we ignore them here
     if instance.__class__.__name__ in ("AgentExecutor"):
         return wrapped(*args, **kwargs)
@@ -59,11 +59,11 @@ def monocle_wrapper(tracer: Tracer, handler: SpanHandler, to_wrap, wrapped, inst
                 # Main span processing logic
                 if(get_auto_close_span(to_wrap, kwargs)):
                     with tracer.start_as_current_span(name) as span:
-                        pre_process_span(name, tracer, handler, add_workflow_span, to_wrap, wrapped, instance, args, kwargs, span)
+                        pre_process_span(name, tracer, handler, add_workflow_span, to_wrap, wrapped, instance, args, kwargs, span, source_path)
                         
                         if SpanHandler.is_root_span(span) or add_workflow_span:
                             # Recursive call for the actual span
-                            return_value = monocle_wrapper(tracer, handler, to_wrap, wrapped, instance, args, kwargs)
+                            return_value = monocle_wrapper(tracer, handler, to_wrap, wrapped, instance, source_path, args, kwargs)
                         else:
                             with SpanHandler.workflow_type(to_wrap):
                                 return_value = wrapped(*args, **kwargs)
@@ -72,7 +72,7 @@ def monocle_wrapper(tracer: Tracer, handler: SpanHandler, to_wrap, wrapped, inst
                 else:
                     span = tracer.start_span(name)
                     
-                    pre_process_span(name, tracer, handler, add_workflow_span, to_wrap, wrapped, instance, args, kwargs, span)
+                    pre_process_span(name, tracer, handler, add_workflow_span, to_wrap, wrapped, instance, args, kwargs, span, source_path)
                     
                     def post_process_span_internal(ret_val):
                         nonlocal handler, to_wrap, wrapped, instance, args, kwargs, span
@@ -98,7 +98,7 @@ def monocle_wrapper(tracer: Tracer, handler: SpanHandler, to_wrap, wrapped, inst
     finally:
         handler.post_tracing(to_wrap, wrapped, instance, args, kwargs, return_value)
         
-async def amonocle_wrapper(tracer: Tracer, handler: SpanHandler, to_wrap, wrapped, instance, args, kwargs):
+async def amonocle_wrapper(tracer: Tracer, handler: SpanHandler, to_wrap, wrapped, instance, source_path, args, kwargs):
     # Some Langchain objects are wrapped elsewhere, so we ignore them here
     if instance.__class__.__name__ in ("AgentExecutor"):
         return wrapped(*args, **kwargs)
@@ -121,11 +121,11 @@ async def amonocle_wrapper(tracer: Tracer, handler: SpanHandler, to_wrap, wrappe
                 # Main span processing logic
                 if(get_auto_close_span(to_wrap, kwargs)):
                     with tracer.start_as_current_span(name) as span:
-                        pre_process_span(name, tracer, handler, add_workflow_span, to_wrap, wrapped, instance, args, kwargs, span)
+                        pre_process_span(name, tracer, handler, add_workflow_span, to_wrap, wrapped, instance, args, kwargs, span, source_path)
                         
                         if SpanHandler.is_root_span(span) or add_workflow_span:
                             # Recursive call for the actual span
-                            return_value = await amonocle_wrapper(tracer, handler, to_wrap, wrapped, instance, args, kwargs)
+                            return_value = await amonocle_wrapper(tracer, handler, to_wrap, wrapped, instance, source_path, args, kwargs)
                         else:
                             with SpanHandler.workflow_type(to_wrap):
                                 return_value = await wrapped(*args, **kwargs)
@@ -134,7 +134,7 @@ async def amonocle_wrapper(tracer: Tracer, handler: SpanHandler, to_wrap, wrappe
                 else:
                     span = tracer.start_span(name)
                     
-                    pre_process_span(name, tracer, handler, add_workflow_span, to_wrap, wrapped, instance, args, kwargs, span)
+                    pre_process_span(name, tracer, handler, add_workflow_span, to_wrap, wrapped, instance, args, kwargs, span, source_path)
                     
                     def post_process_span_internal(ret_val):
                         nonlocal handler, to_wrap, wrapped, instance, args, kwargs, span
@@ -162,12 +162,12 @@ async def amonocle_wrapper(tracer: Tracer, handler: SpanHandler, to_wrap, wrappe
         handler.post_tracing(to_wrap, wrapped, instance, args, kwargs, return_value)
 
 @with_tracer_wrapper
-def task_wrapper(tracer: Tracer, handler: SpanHandler, to_wrap, wrapped, instance, args, kwargs):
-    return monocle_wrapper(tracer, handler, to_wrap, wrapped, instance, args, kwargs)
+def task_wrapper(tracer: Tracer, handler: SpanHandler, to_wrap, wrapped, instance, source_path, args, kwargs):
+    return monocle_wrapper(tracer, handler, to_wrap, wrapped, instance, source_path, args, kwargs)
 
 @with_tracer_wrapper
-async def atask_wrapper(tracer: Tracer, handler: SpanHandler, to_wrap, wrapped, instance, args, kwargs):
-    return await amonocle_wrapper(tracer, handler, to_wrap, wrapped, instance, args, kwargs)
+async def atask_wrapper(tracer: Tracer, handler: SpanHandler, to_wrap, wrapped, instance, source_path, args, kwargs):
+    return await amonocle_wrapper(tracer, handler, to_wrap, wrapped, instance, source_path, args, kwargs)
 
 @with_tracer_wrapper
 def scope_wrapper(tracer: Tracer, handler: SpanHandler, to_wrap, wrapped, instance, args, kwargs):

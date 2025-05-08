@@ -82,8 +82,8 @@ class AzureBlobSpanExporter(SpanExporterBase):
             # With Monocle,OpenTelemetry is always loaded. If the Azure trace package is installed, then it triggers the blob trace generation on every blob operation.
             # Thus, the Monocle span write ends up generating a blob span which again comes back to the exporter .. and would result in an infinite loop.
             # To avoid this, we check if the span has the Monocle SDK version attribute and skip it if it doesn't. That way the blob span genearted by Azure library are not exported.
-            if not span.attributes.get(MONOCLE_SDK_VERSION):
-                continue # TODO: All exporters to use same base class and check it there
+            if self.skip_export(span):
+                continue
             self.export_queue.append(span)
             if len(self.export_queue) >= self.max_batch_size:
                 await self.__export_spans()

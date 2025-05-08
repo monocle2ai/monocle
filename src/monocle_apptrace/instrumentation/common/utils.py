@@ -371,7 +371,8 @@ def try_option(func: Callable[..., T], *args, **kwargs) -> Option[T]:
 def get_llm_type(instance):
     try:
         t_name = type(instance).__name__.lower()
-        llm_type = llm_type_map.get(type(instance).__name__.lower())
+        t_name = t_name.replace("async", "") if "async" in t_name else t_name
+        llm_type = llm_type_map.get(t_name)
         return llm_type
     except:
         pass

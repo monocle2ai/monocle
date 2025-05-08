@@ -18,7 +18,8 @@ logger = logging.getLogger(__name__)
 WORKFLOW_TYPE_MAP = {
     "llama_index": "workflow.llamaindex",
     "langchain": "workflow.langchain",
-    "haystack": "workflow.haystack"
+    "haystack": "workflow.haystack",
+    "teams.ai": "workflow.teams_ai",
 }
 
 class SpanHandler:
@@ -140,10 +141,14 @@ class SpanHandler:
                         accessor = attribute.get("accessor")
                         if accessor:
                             try:
-                                if attribute_key is not None:
-                                    event_attributes[attribute_key] = accessor(arguments)
-                                else:
-                                    event_attributes.update(accessor(arguments))
+                                result = accessor(arguments)
+                                if result and isinstance(result, dict):
+                                    result = dict((key, value) for key, value in result.items() if value is not None)
+                                if result and isinstance(result, (str, list, dict)):
+                                    if attribute_key is not None:
+                                        event_attributes[attribute_key] = result
+                                    else:
+                                        event_attributes.update(result)
                             except MonocleSpanException as e:
                                 span.set_status(StatusCode.ERROR, e.message)
                             except Exception as e:

@@ -44,6 +44,7 @@ llm_type_map = {
     "azureopenai": "azure_openai",
     "openai": "openai",
     "chatopenai": "openai",
+    "openaimodel":"openai",
     "azurechatopenai": "azure_openai",
     "bedrock": "aws_bedrock",
     "sagemakerllm": "aws_sagemaker",
@@ -51,7 +52,9 @@ llm_type_map = {
     "openaigenerator": "openai",
     "bedrockruntime":"aws_bedrock",
     "sagemakerruntime":"aws_sagemaker",
+    "anthropic": "anthropic",
     "chatanthropic":"anthropic",
+    "anthropicchatgenerator":"anthropic",
 }
 
 MONOCLE_INSTRUMENTOR = "monocle_apptrace"

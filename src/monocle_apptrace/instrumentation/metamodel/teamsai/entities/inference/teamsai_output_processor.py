@@ -1,6 +1,7 @@
 from monocle_apptrace.instrumentation.metamodel.teamsai import (
     _helper,
 )
+from monocle_apptrace.instrumentation.common.utils import get_llm_type
 TEAMAI_OUTPUT_PROCESSOR = {
     "type": "inference",
     "attributes": [
@@ -8,15 +9,15 @@ TEAMAI_OUTPUT_PROCESSOR = {
             {
                 "_comment": "provider type, name, deployment",
                 "attribute": "type",
-                "accessor": lambda arguments: "teams.openai"
+                "accessor": lambda arguments: 'inference.' + (get_llm_type(arguments['instance']) or 'generic')
             },
             {
                 "attribute": "provider_name",
-                "accessor": lambda arguments: "Microsoft Teams AI"
+                "accessor": lambda arguments: _helper.extract_provider_name(arguments['instance'])
             },
             {
-                "attribute": "deployment",
-                "accessor": lambda arguments: arguments["instance"]._options.default_model if hasattr(arguments["instance"], "_options") else "unknown"
+                "attribute": "inference_endpoint",
+                "accessor": lambda arguments: _helper.extract_inference_endpoint(arguments['instance'])
             }
         ],
         [
@@ -24,6 +25,11 @@ TEAMAI_OUTPUT_PROCESSOR = {
                 "_comment": "LLM Model",
                 "attribute": "name",
                 "accessor": lambda arguments: arguments["instance"]._options.default_model if hasattr(arguments["instance"], "_options") else "unknown"
+            },
+            {
+                "_comment": "LLM Model",
+                "attribute": "type",
+                "accessor": lambda arguments: 'model.llm.'+ arguments["instance"]._options.default_model if hasattr(arguments["instance"], "_options") else "unknown"
             },
             {
                 "attribute": "is_streaming",

@@ -9,7 +9,7 @@ TEAMAI_OUTPUT_PROCESSOR = {
             {
                 "_comment": "provider type, name, deployment",
                 "attribute": "type",
-                "accessor": lambda arguments: 'inference.' + (get_llm_type(arguments['instance']) or 'generic')
+                "accessor": lambda arguments: 'inference.' + (get_llm_type(arguments['instance']._client) or 'generic')
             },
             {
                 "attribute": "provider_name",

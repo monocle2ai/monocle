@@ -25,9 +25,9 @@ from monocle_apptrace.instrumentation.common.wrapper_method import (
     WrapperMethod,
     MONOCLE_SPAN_HANDLERS
 )
-from monocle_apptrace.instrumentation.common.wrapper import scope_wrapper, ascope_wrapper, wrapper_processor
+from monocle_apptrace.instrumentation.common.wrapper import scope_wrapper, ascope_wrapper, monocle_wrapper
 from monocle_apptrace.instrumentation.common.utils import (
-    set_scope, remove_scope, http_route_handler, load_scopes, async_wrapper, http_async_route_handler
+    set_scope, remove_scope, http_route_handler, load_scopes, http_async_route_handler
 )
 from monocle_apptrace.instrumentation.common.constants import MONOCLE_INSTRUMENTOR, WORKFLOW_TYPE_GENERIC
 from functools import wraps
@@ -73,7 +73,7 @@ class MonocleInstrumentor(BaseInstrumentor):
                 async_task = inspect.iscoroutinefunction(fn)
                 boto_method_to_wrap = to_wrap.copy()
                 boto_method_to_wrap['skip_span'] = False
-                return wrapper_processor(async_task, tracer, NonFrameworkSpanHandler(),
+                return monocle_wrapper(async_task, tracer, NonFrameworkSpanHandler(),
                             boto_method_to_wrap, fn, instance, args, kwargs)
             return with_instrumentation
         return instrumented_endpoint_invoke
@@ -328,8 +328,12 @@ def monocle_trace_scope_method(scope_name: str, scope_value:str=None):
         if inspect.iscoroutinefunction(func):
             @wraps(func)
             async def wrapper(*args, **kwargs):
-                result = async_wrapper(func, scope_name, scope_value, None, *args, **kwargs)
-                return result
+                token = start_scope(scope_name, scope_value)
+                try:
+                    result = await func(*args, **kwargs)
+                    return result
+                finally:
+                    stop_scope(token)
             return wrapper
         else:
             @wraps(func)

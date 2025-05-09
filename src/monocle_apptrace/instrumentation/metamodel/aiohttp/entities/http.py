@@ -13,6 +13,11 @@ AIO_HTTP_PROCESSOR = {
                 "attribute": "route",
                 "accessor": lambda arguments: _helper.get_route(arguments['args'])
             },
+            {
+                "_comment": "request method, request URI",
+                "attribute": "body",
+                "accessor": lambda arguments: _helper.get_body(arguments['args'])
+            },
         ]
     ],
     "events": [

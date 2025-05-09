@@ -17,7 +17,6 @@ U = TypeVar('U')
 
 logger = logging.getLogger(__name__)
 
-monocle_tracer_provider: TracerProvider = None
 embedding_model_context = {}
 scope_id_generator = id_generator.RandomIdGenerator()
 http_scopes:dict[str:str] = {}
@@ -42,14 +41,6 @@ class MonocleSpanException(Exception):
     def __str__(self):
         """String representation of the exception."""
         return f"[Monocle Span Error: {self.message} {self.status}"
-
-def set_tracer_provider(tracer_provider: TracerProvider):
-    global monocle_tracer_provider
-    monocle_tracer_provider = tracer_provider
-
-def get_tracer_provider() -> TracerProvider:
-    global monocle_tracer_provider
-    return monocle_tracer_provider
 
 def set_span_attribute(span, name, value):
     if value is not None:

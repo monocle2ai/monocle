@@ -37,7 +37,7 @@ def wrapper_processor(async_task: bool, tracer: Tracer, handler: SpanHandler, to
             add_workflow_span = get_value(ADD_NEW_WORKFLOW) == True
             token = attach(set_value(ADD_NEW_WORKFLOW, False))
             try:
-                return_value = span_processor(name, async_task, tracer, handler, add_workflow_span,
+                return_value, status = span_processor(name, async_task, tracer, handler, add_workflow_span,
                                         to_wrap, wrapped, instance, source_path, args, kwargs)
             finally:
                 detach(token)
@@ -55,7 +55,9 @@ def span_processor(name: str, async_task: bool, tracer: Tracer, handler: SpanHan
         if SpanHandler.is_root_span(span) or add_workflow_span:
             # This is a direct API call of a non-framework type, call the span_processor recursively for the actual span
             SpanHandler.set_workflow_properties(span, to_wrap)
-            return_value = span_processor(name, async_task, tracer, handler, False, to_wrap, wrapped, instance, source_path, args, kwargs)
+            return_value, status = span_processor(name, async_task, tracer, handler, False, to_wrap, wrapped, instance, source_path, args, kwargs)
+            # reflect the starting span status to the workflow span
+            span.set_status(status)
         else:
             with SpanHandler.workflow_type(to_wrap):
                 SpanHandler.set_non_workflow_properties(span)
@@ -64,9 +66,9 @@ def span_processor(name: str, async_task: bool, tracer: Tracer, handler: SpanHan
                     return_value = async_wrapper(wrapped, None, None, None, *args, **kwargs)
                 else:                    
                     return_value = wrapped(*args, **kwargs)
-                handler.hydrate_span(to_wrap, wrapped, instance, args, kwargs, return_value, span)
-                handler.post_task_processing(to_wrap, wrapped, instance, args, kwargs, return_value, span)
-    return return_value
+                detected_error:bool = handler.hydrate_span(to_wrap, wrapped, instance, args, kwargs, return_value, span)
+                handler.post_task_processing(to_wrap, wrapped, instance, detected_error, args, kwargs, return_value, span)
+    return return_value, span.status
 
 @with_tracer_wrapper
 def task_wrapper(tracer: Tracer, handler: SpanHandler, to_wrap, wrapped, instance, source_path, args, kwargs):

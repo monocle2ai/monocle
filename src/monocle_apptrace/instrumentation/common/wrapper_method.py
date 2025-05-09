@@ -17,7 +17,8 @@ from monocle_apptrace.instrumentation.metamodel.requests.methods import (REQUEST
 from monocle_apptrace.instrumentation.metamodel.requests._helper import RequestSpanHandler
 from monocle_apptrace.instrumentation.metamodel.teamsai.methods import (TEAMAI_METHODS, )
 from monocle_apptrace.instrumentation.metamodel.anthropic.methods import (ANTHROPIC_METHODS, )
-
+from monocle_apptrace.instrumentation.metamodel.aiohttp.methods import (AIOHTTP_METHODS, )
+from monocle_apptrace.instrumentation.metamodel.aiohttp._helper import aiohttpSpanHandler
 class WrapperMethod:
     def __init__(
             self,
@@ -63,10 +64,11 @@ class WrapperMethod:
     def get_span_handler(self) -> SpanHandler:
         return self.span_handler()
 
-DEFAULT_METHODS_LIST = LANGCHAIN_METHODS + LLAMAINDEX_METHODS + HAYSTACK_METHODS + BOTOCORE_METHODS + FLASK_METHODS + REQUESTS_METHODS + LANGGRAPH_METHODS + OPENAI_METHODS + TEAMAI_METHODS + ANTHROPIC_METHODS
+DEFAULT_METHODS_LIST = LANGCHAIN_METHODS + LLAMAINDEX_METHODS + HAYSTACK_METHODS + BOTOCORE_METHODS + FLASK_METHODS + REQUESTS_METHODS + LANGGRAPH_METHODS + OPENAI_METHODS + TEAMAI_METHODS + ANTHROPIC_METHODS + AIOHTTP_METHODS
 
 MONOCLE_SPAN_HANDLERS: Dict[str, SpanHandler] = {
     "default": SpanHandler(),
+    "aiohttp_handler": aiohttpSpanHandler(),
     "botocore_handler": BotoCoreSpanHandler(),
     "flask_handler": FlaskSpanHandler(),
     "flask_response_handler": FlaskResponseSpanHandler(),

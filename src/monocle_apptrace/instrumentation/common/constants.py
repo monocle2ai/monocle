@@ -14,10 +14,10 @@ GITHUB_CODESPACE_IDENTIFIER_ENV_NAME = "GITHUB_REPOSITORY"
 # Azure naming reference can be found here
 # https://learn.microsoft.com/en-us/azure/cloud-adoption-framework/ready/azure-best-practices/resource-abbreviations
 # https://docs.aws.amazon.com/resource-explorer/latest/userguide/supported-resource-types.html#services-lookoutmetrics
-AZURE_FUNCTION_NAME = "azure.func"
-AZURE_APP_SERVICE_NAME = "azure.asp"
-AZURE_ML_SERVICE_NAME = "azure.mlw"
-AWS_LAMBDA_SERVICE_NAME = "aws.lambda"
+AZURE_FUNCTION_NAME = "azure_func"
+AZURE_APP_SERVICE_NAME = "azure_webapp"
+AZURE_ML_SERVICE_NAME = "azure_ml"
+AWS_LAMBDA_SERVICE_NAME = "aws_lambda"
 GITHUB_CODESPACE_SERVICE_NAME = "github_codespace"
 
 # Env variables to identify infra service type

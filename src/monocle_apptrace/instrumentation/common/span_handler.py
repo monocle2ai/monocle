@@ -70,16 +70,15 @@ class SpanHandler:
         if workflow_name:
             span.set_attribute("workflow.name", workflow_name)
 
-    def post_task_processing(self, to_wrap, wrapped, instance, detected_error:bool, args, kwargs, result, span:Span):
+    def post_task_processing(self, to_wrap, wrapped, instance, args, kwargs, result, span:Span):
         if span.status.status_code == StatusCode.UNSET:
             span.set_status(StatusCode.OK)
-        if detected_error:
-            span.set_attribute(MONOCLE_DETECTED_SPAN_ERROR, detected_error)
 
     def hydrate_span(self, to_wrap, wrapped, instance, args, kwargs, result, span) -> bool:
         detected_error_in_attribute = self.hydrate_attributes(to_wrap, wrapped, instance, args, kwargs, result, span)
         detected_error_in_event = self.hydrate_events(to_wrap, wrapped, instance, args, kwargs, result, span)
-        return detected_error_in_attribute or detected_error_in_event
+        if detected_error_in_attribute or detected_error_in_event:
+            span.set_attribute(MONOCLE_DETECTED_SPAN_ERROR, True)
 
     def hydrate_attributes(self, to_wrap, wrapped, instance, args, kwargs, result, span:Span) -> bool:
         detected_error:bool = False

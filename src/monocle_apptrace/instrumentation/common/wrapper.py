@@ -54,13 +54,13 @@ def monocle_wrapper_span_processor(tracer: Tracer, handler: SpanHandler, to_wrap
             
             if SpanHandler.is_root_span(span) or add_workflow_span:
                 # Recursive call for the actual span
-                return_value, span_status = monocle_wrapper_span_processor(tracer, handler, to_wrap, wrapped, instance, False, source_path, args, kwargs)
+                return_value, span_status = monocle_wrapper_span_processor(tracer, handler, to_wrap, wrapped, instance, source_path, False, args, kwargs)
                 span.set_status(span_status)
             else:
                 with SpanHandler.workflow_type(to_wrap):
                     return_value = wrapped(*args, **kwargs)
+                post_process_span(handler, to_wrap, wrapped, instance, args, kwargs, return_value, span)
                 span_status = span.status
-            post_process_span(handler, to_wrap, wrapped, instance, args, kwargs, return_value, span)
     else:
         span = tracer.start_span(name)
         
@@ -127,7 +127,7 @@ async def amonocle_wrapper_span_processor(tracer: Tracer, handler: SpanHandler, 
             nonlocal handler, to_wrap, wrapped, instance, args, kwargs, span
             post_process_span(handler, to_wrap, wrapped, instance, args, kwargs, ret_val, span)
             span.end()
-        
+
         with SpanHandler.workflow_type(to_wrap):
             return_value = await wrapped(*args, **kwargs)
            
@@ -166,7 +166,7 @@ async def atask_wrapper(tracer: Tracer, handler: SpanHandler, to_wrap, wrapped, 
     return await amonocle_wrapper(tracer, handler, to_wrap, wrapped, instance, source_path, args, kwargs)
 
 @with_tracer_wrapper
-def scope_wrapper(tracer: Tracer, handler: SpanHandler, to_wrap, wrapped, instance, args, kwargs):
+def scope_wrapper(tracer: Tracer, handler: SpanHandler, to_wrap, wrapped, instance, source_path, args, kwargs):
     scope_name = to_wrap.get('scope_name', None)
     if scope_name:
         token = set_scope(scope_name)
@@ -176,12 +176,12 @@ def scope_wrapper(tracer: Tracer, handler: SpanHandler, to_wrap, wrapped, instan
     return return_value
 
 @with_tracer_wrapper
-async def ascope_wrapper(tracer: Tracer, handler: SpanHandler, to_wrap, wrapped, instance, args, kwargs):
+async def ascope_wrapper(tracer: Tracer, handler: SpanHandler, to_wrap, wrapped, instance, source_path, args, kwargs):
     scope_name = to_wrap.get('scope_name', None)
     scope_value = to_wrap.get('scope_value', None)
     token = None
     try:
-        if scope_name and scope_value:
+        if scope_name:
             token = set_scope(scope_name, scope_value)
         return_value = await wrapped(*args, **kwargs)
         return return_value

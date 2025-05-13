@@ -18,7 +18,6 @@ FLASK_HTTP_PROCESSOR = {
 }
 
 FLASK_RESPONSE_PROCESSOR = {
-    "type": "http.process",
     "events": [
         {
             "name": "data.input",

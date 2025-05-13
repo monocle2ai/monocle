@@ -50,7 +50,7 @@ class SpanHandler:
             set_attribute(QUERY, args[0]['prompt_builder']['question'])
 
     @staticmethod
-    def set_default_monocle_attributes(span: Span, source_path ):
+    def set_default_monocle_attributes(span: Span, source_path = "" ):
         """ Set default monocle attributes for all spans """
         span.set_attribute(MONOCLE_SDK_VERSION, get_monocle_version())
         span.set_attribute(MONOCLE_SDK_LANGUAGE, "python")
@@ -89,7 +89,7 @@ class SpanHandler:
                 'output_processor' in to_wrap and to_wrap["output_processor"] is not None):
             output_processor=to_wrap['output_processor']
             if 'type' in output_processor:
-                        span.set_attribute("span.type", output_processor['type'])
+                span.set_attribute("span.type", output_processor['type'])
             else:
                 logger.warning("type of span not found or incorrect written in entity json")
             if 'attributes' in output_processor:

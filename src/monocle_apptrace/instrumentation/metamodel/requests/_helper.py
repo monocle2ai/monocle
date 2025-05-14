@@ -30,7 +30,7 @@ def extract_response(result) -> str:
     return result.text if hasattr(result, 'text') else str(result)
 
 def extract_status(result) -> str:
-    return f"{result.status_code} {result.reason}"
+    return f"{result.status_code}"
 
 
 def request_pre_task_processor(kwargs):

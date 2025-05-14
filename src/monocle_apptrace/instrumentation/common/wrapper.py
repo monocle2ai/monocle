@@ -6,6 +6,7 @@ from opentelemetry.context import set_value, attach, detach, get_value
 from monocle_apptrace.instrumentation.common.span_handler import SpanHandler
 from monocle_apptrace.instrumentation.common.utils import (
     get_fully_qualified_class_name,
+    set_scopes,
     with_tracer_wrapper,
     set_scope,
     remove_scope
@@ -188,3 +189,43 @@ async def ascope_wrapper(tracer: Tracer, handler: SpanHandler, to_wrap, wrapped,
     finally:
         if token:
             remove_scope(token)
+            
+@with_tracer_wrapper
+def scopes_wrapper(tracer: Tracer, handler: SpanHandler, to_wrap, wrapped, instance, source_path, args, kwargs):
+    scope_values = to_wrap.get('scope_values', None)
+    scope_values = evaluate_scope_values(args, kwargs, scope_values)
+    token = None
+    try:
+        if scope_values:
+            token = set_scopes(scope_values)
+        return_value = wrapped(*args, **kwargs)
+        return return_value
+    finally:
+        if token:
+            remove_scope(token)
+
+@with_tracer_wrapper
+async def ascopes_wrapper(tracer: Tracer, handler: SpanHandler, to_wrap, wrapped, instance, source_path, args, kwargs):
+    scope_values = to_wrap.get('scope_values', None)
+    scope_values = evaluate_scope_values(args, kwargs, scope_values)
+    token = None
+    try:
+        if scope_values:
+            token = set_scopes(scope_values)
+        return_value = await wrapped(*args, **kwargs)
+        return return_value
+    finally:
+        if token:
+            remove_scope(token)
+
+def evaluate_scope_values(args, kwargs, scope_values):
+    if callable(scope_values):
+        try:
+            scope_values = scope_values(args, kwargs)
+        except Exception as e:
+            logger.warning("Warning: Error occurred in evaluate_scope_values: %s", str(e))
+            scope_values = None
+    if isinstance(scope_values, dict):
+        return scope_values
+    return None
+    

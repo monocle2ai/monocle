@@ -2,12 +2,12 @@ import os
 import logging
 import unittest
 from common.dummy_class import DummyClass
-from common.utils import verify_scope, verify_traceID, SCOPE_NAME, SCOPE_VALUE
+from common.utils import verify_scope, verify_traceID, SCOPE_NAME, SCOPE_VALUE, MULTIPLE_SCOPES, verify_multiple_scopes, get_scope_values_from_args
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry, monocle_trace_scope, start_scope, stop_scope, monocle_trace_scope_method
 from monocle_apptrace.instrumentation.common.wrapper_method import WrapperMethod
 from common.custom_exporter import CustomConsoleSpanExporter
-from monocle_apptrace.instrumentation.common.wrapper import task_wrapper
+from monocle_apptrace.instrumentation.common.wrapper import task_wrapper, scopes_wrapper
 from opentelemetry.trace.status import StatusCode
 
 logger = logging.getLogger(__name__)
@@ -44,6 +44,22 @@ class TestHandler(unittest.IsolatedAsyncioTestCase):
                     method="triple_it",
                     span_name="triple_it",
                     wrapper_method= task_wrapper
+                ),
+                WrapperMethod(
+                    package="common.dummy_class",
+                    object_name="DummyClass",
+                    method="scope_values_test_method",
+                    span_name="scope_values_test_method",
+                    scope_values=lambda args, kwargs: MULTIPLE_SCOPES,
+                    wrapper_method=scopes_wrapper
+                ),
+                WrapperMethod(
+                    package="common.dummy_class",
+                    object_name="DummyClass",
+                    method="scope_values_dynamic_test_method",
+                    span_name="scope_values_dynamic_test_method",
+                    scope_values=get_scope_values_from_args,
+                    wrapper_method=scopes_wrapper
                 )
         ])
         return super().setUpClass()
@@ -103,6 +119,26 @@ class TestHandler(unittest.IsolatedAsyncioTestCase):
             assert res == 30
 
         verify_scope(exporter, excepted_span_count=3)
+        
+    # verify nested calls have same scopes set using scope_values
+    def test_nested_scopes_with_scope_values(self):
+        res = self.dummy.scope_values_test_method()
+        assert res == 30
+        verify_multiple_scopes(exporter, MULTIPLE_SCOPES, excepted_span_count=3)
+        
+    # verify nested calls with dynamic scope values extracted from args
+    def test_nested_scopes_with_dynamic_scope_values(self):
+        user_id = "user123"
+        session_id = "session456"
+        
+        expected_scopes = {
+            "user_id": user_id,
+            "session_id": session_id,
+        }
+        
+        res = self.dummy.scope_values_dynamic_test_method(user_id, session_id)
+        assert res == 30
+        verify_multiple_scopes(exporter, expected_scopes, excepted_span_count=3)
 
 if __name__ == '__main__':
     unittest.main()

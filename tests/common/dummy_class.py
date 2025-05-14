@@ -66,4 +66,23 @@ class DummyClass:
 
     async def scope_async_config_test_method(self):
         return await self.add1(10)
-    
+        
+    def get_scope_values(self, args, kwargs):
+        """
+        Returns multiple scopes for testing scope_values functionality
+        """
+        return {
+            "test_scope1": "test_value1",
+            "test_scope2": "test_value2",
+            "test_scope3": "test_value3"
+        }
+        
+    def scope_values_test_method(self):
+        return self.triple_it(10)
+        
+    def scope_values_dynamic_test_method(self, user_id, session_id):
+        """
+        Test method for testing dynamic scope_values
+        """
+        return self.triple_it(10)
+

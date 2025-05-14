@@ -30,7 +30,8 @@ class WrapperMethod:
             wrapper_method = task_wrapper,
             span_handler = 'default',
             scope_name: str = None,
-            span_type: str = None
+            span_type: str = None,
+            scope_values = None,
             ):
         self.package = package
         self.object = object_name
@@ -38,10 +39,11 @@ class WrapperMethod:
         self.span_name = span_name
         self.output_processor=output_processor
         self.span_type = span_type
+        self.scope_values = scope_values
 
         self.span_handler:SpanHandler.__class__ = span_handler
         self.scope_name = scope_name
-        if scope_name:
+        if scope_name and not scope_values:
             self.wrapper_method = scope_wrapper
         else:
             self.wrapper_method = wrapper_method
@@ -57,7 +59,8 @@ class WrapperMethod:
             'wrapper_method': self.wrapper_method,
             'span_handler': self.span_handler,
             'scope_name': self.scope_name,
-            'span_type': self.span_type
+            'span_type': self.span_type,
+            'scope_values': self.scope_values,
         }
         return instance_dict
 

@@ -58,19 +58,19 @@ TEAMAI_OUTPUT_PROCESSOR = {
                 }
             ]
         },
-        {
-            "name": "metadata",
-            "attributes": [
-                {
-                    "_comment": "metadata from Teams AI response",
-                    "accessor": lambda arguments: {
-                        "prompt_tokens": arguments["result"].get("usage", {}).get("prompt_tokens", 0),
-                        "completion_tokens": arguments["result"].get("usage", {}).get("completion_tokens", 0),
-                        "total_tokens": arguments["result"].get("usage", {}).get("total_tokens", 0),
-                        "latency_ms": arguments.get("latency_ms")
-                    }
-                }
-            ]
-        }
+        # {
+        #     "name": "metadata",
+        #     "attributes": [
+        #         {
+        #             "_comment": "metadata from Teams AI response",
+        #             "accessor": lambda arguments: {
+        #                 "prompt_tokens": arguments["result"].get("usage", {}).get("prompt_tokens", 0),
+        #                 "completion_tokens": arguments["result"].get("usage", {}).get("completion_tokens", 0),
+        #                 "total_tokens": arguments["result"].get("usage", {}).get("total_tokens", 0),
+        #                 "latency_ms": arguments.get("latency_ms")
+        #             }
+        #         }
+        #     ]
+        # }
     ]
 }

@@ -25,7 +25,7 @@ from monocle_apptrace.instrumentation.common.wrapper_method import (
     WrapperMethod,
     MONOCLE_SPAN_HANDLERS
 )
-from monocle_apptrace.instrumentation.common.wrapper import scope_wrapper, ascope_wrapper, monocle_wrapper
+from monocle_apptrace.instrumentation.common.wrapper import scope_wrapper, ascope_wrapper, monocle_wrapper, amonocle_wrapper
 from monocle_apptrace.instrumentation.common.utils import (
     set_scope, remove_scope, http_route_handler, load_scopes, http_async_route_handler
 )
@@ -68,13 +68,20 @@ class MonocleInstrumentor(BaseInstrumentor):
 
     def get_instrumentor(self, tracer):
         def instrumented_endpoint_invoke(to_wrap,wrapped, span_name, instance,fn):
-            @wraps(fn)
-            def with_instrumentation(*args, **kwargs):
-                async_task = inspect.iscoroutinefunction(fn)
-                boto_method_to_wrap = to_wrap.copy()
-                boto_method_to_wrap['skip_span'] = False
-                return monocle_wrapper(async_task, tracer, NonFrameworkSpanHandler(),
-                            boto_method_to_wrap, fn, instance, args, kwargs)
+            if inspect.iscoroutinefunction(fn):
+                @wraps(fn)
+                async def with_instrumentation(*args, **kwargs):
+                    boto_method_to_wrap = to_wrap.copy()
+                    boto_method_to_wrap['skip_span'] = False
+                    return await amonocle_wrapper(tracer, NonFrameworkSpanHandler(),
+                            boto_method_to_wrap, fn, instance, "", args, kwargs)
+            else:
+                @wraps(fn)
+                def with_instrumentation(*args, **kwargs):
+                    boto_method_to_wrap = to_wrap.copy()
+                    boto_method_to_wrap['skip_span'] = False
+                    return monocle_wrapper(tracer, NonFrameworkSpanHandler(),
+                            boto_method_to_wrap, fn, instance, "", args, kwargs)
             return with_instrumentation
         return instrumented_endpoint_invoke
 
@@ -241,8 +248,8 @@ def start_trace():
         SpanHandler.set_workflow_properties(span)
         token = attach(updated_span_context)
         return token
-    except:
-        logger.warning("Failed to start trace")
+    except Exception as e:
+        logger.warning("Failed to start trace {e}")
         return None
 
 def stop_trace(token) -> None:

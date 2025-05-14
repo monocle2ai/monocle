@@ -1,3 +1,16 @@
+## Version 0.4.0b1 (2025-05-14)
+
+- Added conversation id in scope for teams ai bot ([#180](https://github.com/monocle2ai/monocle/pull/180))
+- Update inference entity type of TeamsAI SDK ([#178](https://github.com/monocle2ai/monocle/pull/178))
+- Added stream and async for openai ([#177](https://github.com/monocle2ai/monocle/pull/177))
+- Update inference span of TeamsAI ([#176](https://github.com/monocle2ai/monocle/pull/176))
+- Remove Preset span name and Bugfix for Event ([#175](https://github.com/monocle2ai/monocle/pull/175))
+- Add haystack anthropic sample ([#174](https://github.com/monocle2ai/monocle/pull/174))
+- aiohttp auto instrumentation ([#173](https://github.com/monocle2ai/monocle/pull/173))
+- Add source path to spans and fix json syntax in file exporter ([#172](https://github.com/monocle2ai/monocle/pull/172))
+- Added changes for openai streaming ([#171](https://github.com/monocle2ai/monocle/pull/171))
+- Add llama index anthropic sample ([#170](https://github.com/monocle2ai/monocle/pull/170))
+
 ## Version 0.3.1 (2024-04-18)
 
 - Add MetaModel for Anthropic SDK ([#159](https://github.com/monocle2ai/monocle/pull/159))

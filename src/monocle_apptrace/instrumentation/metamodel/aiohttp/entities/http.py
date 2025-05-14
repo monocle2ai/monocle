@@ -1,5 +1,5 @@
-from monocle_apptrace.instrumentation.metamodel.flask import _helper
-FLASK_HTTP_PROCESSOR = {
+from monocle_apptrace.instrumentation.metamodel.aiohttp import _helper
+AIO_HTTP_PROCESSOR = {
     "type": "http.process",
     "attributes": [
         [
@@ -13,11 +13,13 @@ FLASK_HTTP_PROCESSOR = {
                 "attribute": "route",
                 "accessor": lambda arguments: _helper.get_route(arguments['args'])
             },
+            {
+                "_comment": "request method, request URI",
+                "attribute": "body",
+                "accessor": lambda arguments: _helper.get_body(arguments['args'])
+            },
         ]
-    ]
-}
-
-FLASK_RESPONSE_PROCESSOR = {
+    ],
     "events": [
         {
             "name": "data.input",
@@ -27,22 +29,23 @@ FLASK_RESPONSE_PROCESSOR = {
                     "attribute": "params",
                     "accessor": lambda arguments: _helper.get_params(arguments['args'])
                 }
-         ]
-         },
+            ]
+        },
         {
             "name": "data.output",
             "attributes": [
                 {
                     "_comment": "status from HTTP response",
                     "attribute": "status",
-                    "accessor": lambda arguments: _helper.extract_status(arguments['instance'])
+                    "accessor": lambda arguments: _helper.extract_status(arguments['result'])
                 },
                 {
                     "_comment": "this is result from LLM",
                     "attribute": "response",
-                    "accessor": lambda arguments: _helper.extract_response(arguments['instance'])
+                    "accessor": lambda arguments: _helper.extract_response(arguments['result'])
                 }
             ]
         }
+
     ]
 }

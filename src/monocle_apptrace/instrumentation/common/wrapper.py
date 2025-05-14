@@ -36,16 +36,52 @@ def post_process_span(handler, to_wrap, wrapped, instance, args, kwargs, return_
         handler.hydrate_span(to_wrap, wrapped, instance, args, kwargs, return_value, span)
         handler.post_task_processing(to_wrap, wrapped, instance, args, kwargs, return_value, span)
 
-def monocle_wrapper(tracer: Tracer, handler: SpanHandler, to_wrap, wrapped, instance, source_path, args, kwargs):
-    # Some Langchain objects are wrapped elsewhere, so we ignore them here
-    if instance.__class__.__name__ in ("AgentExecutor"):
-        return wrapped(*args, **kwargs)
-
+def get_span_name(to_wrap, instance):
     if to_wrap.get("span_name"):
         name = to_wrap.get("span_name")
     else:
         name = get_fully_qualified_class_name(instance)
+    return name
 
+def monocle_wrapper_span_processor(tracer: Tracer, handler: SpanHandler, to_wrap, wrapped, instance, source_path, add_workflow_span, args, kwargs):
+    # Main span processing logic
+    name = get_span_name(to_wrap, instance)
+    return_value = None
+    span_status = None
+    if(get_auto_close_span(to_wrap, kwargs)):
+        with tracer.start_as_current_span(name) as span:
+            pre_process_span(name, tracer, handler, add_workflow_span, to_wrap, wrapped, instance, args, kwargs, span, source_path)
+            
+            if SpanHandler.is_root_span(span) or add_workflow_span:
+                # Recursive call for the actual span
+                return_value, span_status = monocle_wrapper_span_processor(tracer, handler, to_wrap, wrapped, instance, source_path, False, args, kwargs)
+                span.set_status(span_status)
+            else:
+                with SpanHandler.workflow_type(to_wrap):
+                    return_value = wrapped(*args, **kwargs)
+                post_process_span(handler, to_wrap, wrapped, instance, args, kwargs, return_value, span)
+                span_status = span.status
+    else:
+        span = tracer.start_span(name)
+        
+        pre_process_span(name, tracer, handler, add_workflow_span, to_wrap, wrapped, instance, args, kwargs, span, source_path)
+        
+        def post_process_span_internal(ret_val):
+            nonlocal handler, to_wrap, wrapped, instance, args, kwargs, span
+            post_process_span(handler, to_wrap, wrapped, instance, args, kwargs, ret_val, span)
+            span.end()
+                    
+        with SpanHandler.workflow_type(to_wrap):
+            return_value = wrapped(*args, **kwargs)
+        if to_wrap.get("output_processor") and to_wrap.get("output_processor").get("response_processor"):
+            # Process the stream
+            to_wrap.get("output_processor").get("response_processor")(to_wrap, return_value, post_process_span_internal)
+        else: 
+            span.end()
+        span_status = span.status
+    return return_value, span_status
+
+def monocle_wrapper(tracer: Tracer, handler: SpanHandler, to_wrap, wrapped, instance, source_path, args, kwargs):
     return_value = None
     token = None
     try:
@@ -56,58 +92,54 @@ def monocle_wrapper(tracer: Tracer, handler: SpanHandler, to_wrap, wrapped, inst
             add_workflow_span = get_value(ADD_NEW_WORKFLOW) == True
             token = attach(set_value(ADD_NEW_WORKFLOW, False))
             try:
-                # Main span processing logic
-                if(get_auto_close_span(to_wrap, kwargs)):
-                    with tracer.start_as_current_span(name) as span:
-                        pre_process_span(name, tracer, handler, add_workflow_span, to_wrap, wrapped, instance, args, kwargs, span, source_path)
-                        
-                        if SpanHandler.is_root_span(span) or add_workflow_span:
-                            # Recursive call for the actual span
-                            return_value = monocle_wrapper(tracer, handler, to_wrap, wrapped, instance, source_path, args, kwargs)
-                        else:
-                            with SpanHandler.workflow_type(to_wrap):
-                                return_value = wrapped(*args, **kwargs)
-                        
-                        post_process_span(handler, to_wrap, wrapped, instance, args, kwargs, return_value, span)
-                else:
-                    span = tracer.start_span(name)
-                    
-                    pre_process_span(name, tracer, handler, add_workflow_span, to_wrap, wrapped, instance, args, kwargs, span, source_path)
-                    
-                    def post_process_span_internal(ret_val):
-                        nonlocal handler, to_wrap, wrapped, instance, args, kwargs, span
-                        post_process_span(handler, to_wrap, wrapped, instance, args, kwargs, ret_val, span)
-                        span.end()
-                        
-                    # if SpanHandler.is_root_span(span) or add_workflow_span:
-                    #     # Recursive call for the actual span
-                    #     return_value = monocle_wrapper(async_task, tracer, handler, to_wrap, wrapped, instance, args, kwargs)
-                    # else:
-                    
-                    with SpanHandler.workflow_type(to_wrap):
-                        return_value = wrapped(*args, **kwargs)
-                    if to_wrap.get("output_processor") and to_wrap.get("output_processor").get("response_processor"):
-                        # Process the stream
-                        to_wrap.get("output_processor").get("response_processor")(to_wrap, return_value, post_process_span_internal)
-                    else: 
-                        span.end()
-                   
+                return_value, span_status = monocle_wrapper_span_processor(tracer, handler, to_wrap, wrapped, instance, source_path, add_workflow_span, args, kwargs)
             finally:
                 detach(token)
         return return_value
     finally:
         handler.post_tracing(to_wrap, wrapped, instance, args, kwargs, return_value)
-        
-async def amonocle_wrapper(tracer: Tracer, handler: SpanHandler, to_wrap, wrapped, instance, source_path, args, kwargs):
-    # Some Langchain objects are wrapped elsewhere, so we ignore them here
-    if instance.__class__.__name__ in ("AgentExecutor"):
-        return wrapped(*args, **kwargs)
 
-    if to_wrap.get("span_name"):
-        name = to_wrap.get("span_name")
+
+async def amonocle_wrapper_span_processor(tracer: Tracer, handler: SpanHandler, to_wrap, wrapped, instance, source_path, add_workflow_span, args, kwargs):
+    # Main span processing logic
+    name = get_span_name(to_wrap, instance)
+    return_value = None
+    span_status = None
+    if(get_auto_close_span(to_wrap, kwargs)):
+        with tracer.start_as_current_span(name) as span:
+            pre_process_span(name, tracer, handler, add_workflow_span, to_wrap, wrapped, instance, args, kwargs, span, source_path)
+            
+            if SpanHandler.is_root_span(span) or add_workflow_span:
+                # Recursive call for the actual span
+                return_value, span_status = await amonocle_wrapper_span_processor(tracer, handler, to_wrap, wrapped, instance, source_path, False, args, kwargs)
+                span.set_status(span_status)
+            else:
+                with SpanHandler.workflow_type(to_wrap):
+                    return_value = await wrapped(*args, **kwargs)
+                span_status = span.status
+            post_process_span(handler, to_wrap, wrapped, instance, args, kwargs, return_value, span)
     else:
-        name = get_fully_qualified_class_name(instance)
+        span = tracer.start_span(name)
+        
+        pre_process_span(name, tracer, handler, add_workflow_span, to_wrap, wrapped, instance, args, kwargs, span, source_path)
+        
+        def post_process_span_internal(ret_val):
+            nonlocal handler, to_wrap, wrapped, instance, args, kwargs, span
+            post_process_span(handler, to_wrap, wrapped, instance, args, kwargs, ret_val, span)
+            span.end()
 
+        with SpanHandler.workflow_type(to_wrap):
+            return_value = await wrapped(*args, **kwargs)
+           
+        if to_wrap.get("output_processor") and to_wrap.get("output_processor").get("response_processor"):
+            # Process the stream
+            to_wrap.get("output_processor").get("response_processor")(to_wrap, return_value, post_process_span_internal)
+        else: 
+            span.end()
+        span_status = span.status
+    return return_value, span.status
+
+async def amonocle_wrapper(tracer: Tracer, handler: SpanHandler, to_wrap, wrapped, instance, source_path, args, kwargs):
     return_value = None
     token = None
     try:
@@ -118,43 +150,7 @@ async def amonocle_wrapper(tracer: Tracer, handler: SpanHandler, to_wrap, wrappe
             add_workflow_span = get_value(ADD_NEW_WORKFLOW) == True
             token = attach(set_value(ADD_NEW_WORKFLOW, False))
             try:
-                # Main span processing logic
-                if(get_auto_close_span(to_wrap, kwargs)):
-                    with tracer.start_as_current_span(name) as span:
-                        pre_process_span(name, tracer, handler, add_workflow_span, to_wrap, wrapped, instance, args, kwargs, span, source_path)
-                        
-                        if SpanHandler.is_root_span(span) or add_workflow_span:
-                            # Recursive call for the actual span
-                            return_value = await amonocle_wrapper(tracer, handler, to_wrap, wrapped, instance, source_path, args, kwargs)
-                        else:
-                            with SpanHandler.workflow_type(to_wrap):
-                                return_value = await wrapped(*args, **kwargs)
-                        
-                        post_process_span(handler, to_wrap, wrapped, instance, args, kwargs, return_value, span)
-                else:
-                    span = tracer.start_span(name)
-                    
-                    pre_process_span(name, tracer, handler, add_workflow_span, to_wrap, wrapped, instance, args, kwargs, span, source_path)
-                    
-                    def post_process_span_internal(ret_val):
-                        nonlocal handler, to_wrap, wrapped, instance, args, kwargs, span
-                        post_process_span(handler, to_wrap, wrapped, instance, args, kwargs, ret_val, span)
-                        span.end()
-                        
-                    # if SpanHandler.is_root_span(span) or add_workflow_span:
-                    #     # Recursive call for the actual span
-                    #     return_value = monocle_wrapper(async_task, tracer, handler, to_wrap, wrapped, instance, args, kwargs)
-                    # else:
-                    
-                    with SpanHandler.workflow_type(to_wrap):
-                        return_value = await wrapped(*args, **kwargs)
-                       
-                    if to_wrap.get("output_processor") and to_wrap.get("output_processor").get("response_processor"):
-                        # Process the stream
-                        to_wrap.get("output_processor").get("response_processor")(to_wrap, return_value, post_process_span_internal)
-                    else: 
-                        span.end()
-                   
+                return_value, span_status = await amonocle_wrapper_span_processor(tracer, handler, to_wrap, wrapped, instance, source_path, add_workflow_span, args, kwargs)    
             finally:
                 detach(token)
         return return_value
@@ -170,7 +166,7 @@ async def atask_wrapper(tracer: Tracer, handler: SpanHandler, to_wrap, wrapped, 
     return await amonocle_wrapper(tracer, handler, to_wrap, wrapped, instance, source_path, args, kwargs)
 
 @with_tracer_wrapper
-def scope_wrapper(tracer: Tracer, handler: SpanHandler, to_wrap, wrapped, instance, args, kwargs):
+def scope_wrapper(tracer: Tracer, handler: SpanHandler, to_wrap, wrapped, instance, source_path, args, kwargs):
     scope_name = to_wrap.get('scope_name', None)
     if scope_name:
         token = set_scope(scope_name)
@@ -180,16 +176,15 @@ def scope_wrapper(tracer: Tracer, handler: SpanHandler, to_wrap, wrapped, instan
     return return_value
 
 @with_tracer_wrapper
-async def ascope_wrapper(tracer: Tracer, handler: SpanHandler, to_wrap, wrapped, instance, args, kwargs):
+async def ascope_wrapper(tracer: Tracer, handler: SpanHandler, to_wrap, wrapped, instance, source_path, args, kwargs):
     scope_name = to_wrap.get('scope_name', None)
     scope_value = to_wrap.get('scope_value', None)
     token = None
     try:
-        if scope_name and scope_value:
+        if scope_name:
             token = set_scope(scope_name, scope_value)
         return_value = await wrapped(*args, **kwargs)
         return return_value
     finally:
         if token:
             remove_scope(token)
-    

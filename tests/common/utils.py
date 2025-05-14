@@ -1,4 +1,7 @@
+import logging
 from opentelemetry.trace.status import StatusCode
+
+logger  = logging.getLogger(__name__)
 
 # Constants for scope name and value used across tests
 SCOPE_NAME = "test_scope"
@@ -83,8 +86,8 @@ def verify_multiple_scopes(exporter, scopes_dict, excepted_span_count=None):
     # Verify all spans have the correct scope attributes
     trace_id = None
     for span in spans:
-        print(f"Checking span: {span.name}")
-        print(f"Span attributes: {span.attributes}")
+        logger.info(f"Checking span: {span.name}")
+        logger.info(f"Span attributes: {span.attributes}")
         for scope_name, scope_value in scopes_dict.items():
             scope_attr_name = f"scope.{scope_name}"
             assert span.attributes.get(scope_attr_name) == scope_value, \

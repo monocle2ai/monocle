@@ -10,7 +10,20 @@ from monocle_apptrace.instrumentation.common.utils import (
     get_nested_value,
     try_option,
 )
-
+from opentelemetry.trace.status import StatusCode
+from monocle_apptrace.instrumentation.common.utils import MonocleSpanException
+from monocle_apptrace.instrumentation.common.span_handler import SpanHandler
+from opentelemetry.context import get_value
+from monocle_apptrace.instrumentation.common.constants import WORKFLOW_TYPE_KEY
+from opentelemetry.context import get_current
+from opentelemetry.trace import Span
+from opentelemetry.trace.propagation import _SPAN_KEY
+WORKFLOW_TYPE_MAP = {
+    "llama_index": "workflow.llamaindex",
+    "langchain": "workflow.langchain",
+    "haystack": "workflow.haystack",
+    "teams.ai": "workflow.teams_ai",
+}
 
 logger = logging.getLogger(__name__)
 
@@ -115,3 +128,56 @@ def get_inference_type(instance):
         return 'azure_openai'
     else:
         return 'openai'
+
+def hydrate_event_metadata(to_wrap, wrapped, instance, args, kwargs, result, span):
+    output_processor = to_wrap.get("output_processor")
+    if not output_processor:
+        return
+
+    events = output_processor.get("events", [])
+    context = {"instance": instance, "args": args, "kwargs": kwargs, "result": result}
+
+    for event in events:
+        if event.get("name") != "metadata":
+            continue
+        event_attributes= {}
+        for attribute in event.get("attributes", []):
+            attribute_key = attribute.get("attribute")
+            accessor = attribute.get("accessor")
+            if not accessor:
+                continue
+            try:
+                accessed_value = accessor(context)
+                if isinstance(accessed_value, dict):
+                    accessed_value = {k: v for k, v in accessed_value.items() if v is not None}
+                if accessed_value is not None and isinstance(accessed_value, (str, list, dict)):
+                    if attribute_key:
+                        event_attributes[attribute_key] = accessed_value
+                    else:
+                        if isinstance(accessed_value, dict):
+                            event_attributes.update(accessed_value)
+            except MonocleSpanException as e:
+                span.set_status(StatusCode.ERROR, str(e))
+            except Exception as e:
+                logger.debug(f"[hydrate_event_metadata] Failed to evaluate accessor for '{attribute_key}': {e}")
+
+        span.add_event(name="metadata", attributes=event_attributes)
+
+
+
+class OpenAIFrameworkSpanHandler(SpanHandler):
+
+    def post_tracing(self, to_wrap, wrapped, instance, args, kwargs, return_value):
+        try:
+            # pdb.set_trace()
+            _parent_span_context = get_current()
+            if _parent_span_context is not None:
+                parent_span: Span = _parent_span_context.get(_SPAN_KEY, None)
+                if parent_span is not None and parent_span.name.startswith("teams") == True:
+                    hydrate_event_metadata(to_wrap, wrapped, instance, args, kwargs, return_value, parent_span)
+        except Exception as e:
+            logger.info(f"Failed to propogate flask response: {e}")
+        super().post_tracing(to_wrap, wrapped, instance, args, kwargs, return_value)
+
+    def skip_processor(self, to_wrap, wrapped, instance, args, kwargs) -> bool:
+        return get_value(WORKFLOW_TYPE_KEY) in WORKFLOW_TYPE_MAP.values()

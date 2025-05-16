@@ -135,7 +135,7 @@ def hydrate_event_metadata(to_wrap, wrapped, instance, args, kwargs, result, spa
         return
 
     events = output_processor.get("events", [])
-    context = {"instance": instance, "args": args, "kwargs": kwargs, "result": result}
+    arguments = {"instance": instance, "args": args, "kwargs": kwargs, "result": result}
 
     for event in events:
         if event.get("name") != "metadata":
@@ -147,15 +147,15 @@ def hydrate_event_metadata(to_wrap, wrapped, instance, args, kwargs, result, spa
             if not accessor:
                 continue
             try:
-                accessed_value = accessor(context)
-                if isinstance(accessed_value, dict):
-                    accessed_value = {k: v for k, v in accessed_value.items() if v is not None}
-                if accessed_value is not None and isinstance(accessed_value, (str, list, dict)):
+                result = accessor(arguments)
+
+                if isinstance(result, dict):
+                    result = {k: v for k, v in result.items() if v is not None}
+                if result is not None and isinstance(result, (str, list, dict)):
                     if attribute_key:
-                        event_attributes[attribute_key] = accessed_value
+                        event_attributes[attribute_key] = result
                     else:
-                        if isinstance(accessed_value, dict):
-                            event_attributes.update(accessed_value)
+                        event_attributes.update(result)
             except MonocleSpanException as e:
                 span.set_status(StatusCode.ERROR, str(e))
             except Exception as e:

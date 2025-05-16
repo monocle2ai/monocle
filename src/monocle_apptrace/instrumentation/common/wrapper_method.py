@@ -19,6 +19,7 @@ from monocle_apptrace.instrumentation.metamodel.teamsai.methods import (TEAMAI_M
 from monocle_apptrace.instrumentation.metamodel.anthropic.methods import (ANTHROPIC_METHODS, )
 from monocle_apptrace.instrumentation.metamodel.aiohttp.methods import (AIOHTTP_METHODS, )
 from monocle_apptrace.instrumentation.metamodel.aiohttp._helper import aiohttpSpanHandler
+from monocle_apptrace.instrumentation.metamodel.openai._helper import OpenAIFrameworkSpanHandler
 class WrapperMethod:
     def __init__(
             self,
@@ -76,5 +77,6 @@ MONOCLE_SPAN_HANDLERS: Dict[str, SpanHandler] = {
     "flask_handler": FlaskSpanHandler(),
     "flask_response_handler": FlaskResponseSpanHandler(),
     "request_handler": RequestSpanHandler(),
+    "openai_handler": OpenAIFrameworkSpanHandler(),
     "non_framework_handler": NonFrameworkSpanHandler()
 }

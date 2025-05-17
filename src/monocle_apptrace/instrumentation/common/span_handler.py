@@ -69,10 +69,10 @@ class SpanHandler:
         workflow_name = SpanHandler.get_workflow_name(span=span)
         if workflow_name:
             span.set_attribute("workflow.name", workflow_name)
+        span.set_attribute("span.type", "generic")
 
     def post_task_processing(self, to_wrap, wrapped, instance, args, kwargs, result, span:Span):
-        if span.status.status_code == StatusCode.UNSET:
-            span.set_status(StatusCode.OK)
+        pass
 
     def hydrate_span(self, to_wrap, wrapped, instance, args, kwargs, result, span) -> bool:
         detected_error_in_attribute = self.hydrate_attributes(to_wrap, wrapped, instance, args, kwargs, result, span)
@@ -115,8 +115,6 @@ class SpanHandler:
                     span_index += 1
             else:
                 logger.debug("attributes not found or incorrect written in entity json")
-        else:
-            span.set_attribute("span.type", "generic")
 
         # set scopes as attributes by calling get_scopes()
         # scopes is a Mapping[str:object], iterate directly with .items()
@@ -231,10 +229,12 @@ class SpanHandler:
 
     @staticmethod
     @contextmanager
-    def workflow_type(to_wrap=None):
+    def workflow_type(to_wrap=None, span:Span=None):
         token = SpanHandler.attach_workflow_type(to_wrap)
         try:
             yield
+            if span is not None and span.status.status_code == StatusCode.UNSET:
+                span.set_status(StatusCode.OK)
         finally:
             SpanHandler.detach_workflow_type(token)
 

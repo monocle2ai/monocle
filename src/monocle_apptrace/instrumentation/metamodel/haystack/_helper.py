@@ -121,7 +121,7 @@ def update_span_from_llm_response(response, instance):
     if response is not None and isinstance(response, dict):
         if "meta" in response:
             token_usage = response["meta"][0]["usage"]
-        if "replies" in response:
+        if "replies" in response:  # and "meta" in response["replies"][0]:
             token_usage = response["replies"][0].meta["usage"]
         if token_usage is not None:
             temperature = instance.__dict__.get("temperature", None)

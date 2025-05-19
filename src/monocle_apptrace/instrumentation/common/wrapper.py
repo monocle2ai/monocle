@@ -41,6 +41,7 @@ def post_process_span(handler, to_wrap, wrapped, instance, args, kwargs, return_
             handler.hydrate_span(to_wrap, wrapped, instance, args, kwargs, return_value, span)
         except Exception as e:
             logger.info(f"Warning: Error occurred in hydrate_span: {e}")
+        
         try:
             handler.post_task_processing(to_wrap, wrapped, instance, args, kwargs, return_value, span)
         except Exception as e:

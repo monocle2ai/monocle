@@ -48,7 +48,7 @@ def verify_inferece_span():
     for span in spans:
         span_attributes = span.attributes
         span_events = span.events
-        if span_attributes.get("span.type") == "inference":
+        if span_attributes.get("span.type") == "inference" or span_attributes.get("span.type") == "inference.framework":
             found_inferece_span = True
             break
     assert found_inferece_span

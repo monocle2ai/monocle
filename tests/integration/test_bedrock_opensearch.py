@@ -46,7 +46,8 @@ def test_bedrock_opensearch(setup):
             assert span_attributes["entity.2.name"] == "amazon.titan-embed-text-v1"
             assert span_attributes["entity.2.type"] == "model.embedding.amazon.titan-embed-text-v1"
 
-        if 'span.type' in span_attributes and span_attributes["span.type"] == "inference":
+        if 'span.type' in span_attributes and (
+            span_attributes["span.type"] == "inference" or span_attributes["span.type"] == "inference.framework"):
             # Assertions for all inference attributes
             assert span_attributes["entity.1.type"] == "inference.aws_bedrock"
             if "entity.1.inference_endpoint" in span_attributes.keys():

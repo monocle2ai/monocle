@@ -132,7 +132,7 @@ class Test(IsolatedAsyncioTestCase):
 
             llm_span = [x for x in dataJson["batch"] if "FakeListLLM" in x["name"]][0]
 
-            assert llm_span["attributes"]["span.type"] == "inference"
+            assert llm_span["attributes"]["span.type"] == "inference.framework"
             # assert llm_span["attributes"]["entity.1.provider_name"] == "example.com"
             assert llm_span["attributes"]["entity.1.type"] == "inference.generic"
             assert llm_span["attributes"]["entity.1.inference_endpoint"] == "https://example.com/"

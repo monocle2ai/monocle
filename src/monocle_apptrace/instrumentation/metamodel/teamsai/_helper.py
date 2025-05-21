@@ -4,6 +4,8 @@ from monocle_apptrace.instrumentation.common.utils import (
     get_keys_as_tuple,
     get_nested_value,
     try_option,
+    get_exception_message,
+    get_exception_status_code
 )
 def capture_input(arguments):
     """
@@ -58,13 +60,17 @@ def capture_prompt_info(arguments):
         return f"Error capturing prompt: {str(e)}"
 
 def get_status_code(arguments):
-    if hasattr(arguments["result"], "status"):
-        return arguments["result"].status 
+    if arguments["exception"] is not None:
+        return get_exception_status_code(arguments)
+    elif hasattr(arguments["result"], "status"):
+        return arguments["result"].status
     else:
         return 'success'
 
 def get_status(arguments):
-    if get_status_code(arguments) == 'success':
+    if arguments["exception"] is not None:
+        return 'error'
+    elif get_status_code(arguments) == 'success':
         return 'success'
     else:
         return 'error'
@@ -78,7 +84,9 @@ def get_response(arguments) -> str:
         else:
             response = str(arguments["result"])
     else:
-        if hasattr(arguments["result"], "error"):
+        if arguments["exception"] is not None:
+            response = get_exception_message(arguments)
+        elif hasattr(arguments["result"], "error"):
             response = arguments["result"].error
     return response
 

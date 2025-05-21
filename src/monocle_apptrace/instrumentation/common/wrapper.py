@@ -35,10 +35,10 @@ def pre_process_span(name, tracer, handler, add_workflow_span, to_wrap, wrapped,
         except Exception as e:
             logger.info(f"Warning: Error occurred in pre_task_processing: {e}")
 
-def post_process_span(handler, to_wrap, wrapped, instance, args, kwargs, return_value, span):
+def post_process_span(handler, to_wrap, wrapped, instance, args, kwargs, return_value, span, ex = None):
     if not (SpanHandler.is_root_span(span) or get_value(ADD_NEW_WORKFLOW) == True):
         try:
-            handler.hydrate_span(to_wrap, wrapped, instance, args, kwargs, return_value, span)
+            handler.hydrate_span(to_wrap, wrapped, instance, args, kwargs, return_value, span, ex)
         except Exception as e:
             logger.info(f"Warning: Error occurred in hydrate_span: {e}")
         
@@ -68,11 +68,15 @@ def monocle_wrapper_span_processor(tracer: Tracer, handler: SpanHandler, to_wrap
                 return_value, span_status = monocle_wrapper_span_processor(tracer, handler, to_wrap, wrapped, instance, source_path, False, args, kwargs)
                 span.set_status(span_status)
             else:
+                ex:Exception = None
                 try:
                     with SpanHandler.workflow_type(to_wrap, span):
                         return_value = wrapped(*args, **kwargs)
+                except Exception as e:
+                    ex = e
+                    raise
                 finally:
-                    post_process_span(handler, to_wrap, wrapped, instance, args, kwargs, return_value, span)
+                    post_process_span(handler, to_wrap, wrapped, instance, args, kwargs, return_value, span, ex)
                 span_status = span.status
     else:
         span = tracer.start_span(name)
@@ -134,11 +138,15 @@ async def amonocle_wrapper_span_processor(tracer: Tracer, handler: SpanHandler, 
                 return_value, span_status = await amonocle_wrapper_span_processor(tracer, handler, to_wrap, wrapped, instance, source_path, False, args, kwargs)
                 span.set_status(span_status)
             else:
+                ex:Exception = None
                 try:
                     with SpanHandler.workflow_type(to_wrap, span):
                         return_value = await wrapped(*args, **kwargs)
+                except Exception as e:
+                    ex = e
+                    raise
                 finally:
-                    post_process_span(handler, to_wrap, wrapped, instance, args, kwargs, return_value, span)
+                    post_process_span(handler, to_wrap, wrapped, instance, args, kwargs, return_value, span, ex)
                 span_status = span.status
     else:
         span = tracer.start_span(name)

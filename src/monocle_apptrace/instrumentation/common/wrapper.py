@@ -74,7 +74,7 @@ def monocle_wrapper_span_processor(tracer: Tracer, handler: SpanHandler, to_wrap
                         return_value = wrapped(*args, **kwargs)
                 except Exception as e:
                     ex = e
-                    raise e
+                    raise
                 finally:
                     post_process_span(handler, to_wrap, wrapped, instance, args, kwargs, return_value, span, ex)
                 span_status = span.status
@@ -144,7 +144,7 @@ async def amonocle_wrapper_span_processor(tracer: Tracer, handler: SpanHandler, 
                         return_value = await wrapped(*args, **kwargs)
                 except Exception as e:
                     ex = e
-                    raise e
+                    raise
                 finally:
                     post_process_span(handler, to_wrap, wrapped, instance, args, kwargs, return_value, span, ex)
                 span_status = span.status

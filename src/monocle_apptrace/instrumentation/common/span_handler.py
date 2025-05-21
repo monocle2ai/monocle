@@ -42,8 +42,17 @@ class SpanHandler:
     def skip_span(self, to_wrap, wrapped, instance, args, kwargs) -> bool:
         return False
 
-    def skip_processor(self, to_wrap, wrapped, instance, args, kwargs) -> bool:
-        return False
+    def skip_processor(self, to_wrap, wrapped, instance, span, args, kwargs) -> list[str]:
+        return []
+    
+    def set_span_type(self, to_wrap, wrapped, instance, output_processor, span:Span, args, kwargs) -> str:
+        span_type:str = None
+        if 'type' in output_processor:
+            span_type = output_processor['type']
+            span.set_attribute("span.type", span_type)
+        else:
+            logger.warning("type of span not found or incorrect written in entity json")
+        return span_type
 
     def pre_task_processing(self, to_wrap, wrapped, instance, args,kwargs, span):
         if "pipeline" in to_wrap['package']:
@@ -69,30 +78,32 @@ class SpanHandler:
         workflow_name = SpanHandler.get_workflow_name(span=span)
         if workflow_name:
             span.set_attribute("workflow.name", workflow_name)
+        span.set_attribute("span.type", "generic")
 
     def post_task_processing(self, to_wrap, wrapped, instance, args, kwargs, result, span:Span):
-        if span.status.status_code == StatusCode.UNSET:
-            span.set_status(StatusCode.OK)
+        pass
 
     def hydrate_span(self, to_wrap, wrapped, instance, args, kwargs, result, span) -> bool:
-        detected_error_in_attribute = self.hydrate_attributes(to_wrap, wrapped, instance, args, kwargs, result, span)
-        detected_error_in_event = self.hydrate_events(to_wrap, wrapped, instance, args, kwargs, result, span)
-        if detected_error_in_attribute or detected_error_in_event:
-            span.set_attribute(MONOCLE_DETECTED_SPAN_ERROR, True)
+        try:
+            detected_error_in_attribute = self.hydrate_attributes(to_wrap, wrapped, instance, args, kwargs, result, span)
+            detected_error_in_event = self.hydrate_events(to_wrap, wrapped, instance, args, kwargs, result, span)
+            if detected_error_in_attribute or detected_error_in_event:
+                span.set_attribute(MONOCLE_DETECTED_SPAN_ERROR, True)
+        finally:
+            if span.status.status_code == StatusCode.UNSET:
+                span.set_status(StatusCode.OK)
 
     def hydrate_attributes(self, to_wrap, wrapped, instance, args, kwargs, result, span:Span) -> bool:
         detected_error:bool = False
         span_index = 0
         if SpanHandler.is_root_span(span):
             span_index = 2 # root span will have workflow and hosting entities pre-populated
-        if not self.skip_processor(to_wrap, wrapped, instance, args, kwargs) and (
-                'output_processor' in to_wrap and to_wrap["output_processor"] is not None):
+        if 'output_processor' in to_wrap and to_wrap["output_processor"] is not None:
             output_processor=to_wrap['output_processor']
-            if 'type' in output_processor:
-                span.set_attribute("span.type", output_processor['type'])
-            else:
-                logger.warning("type of span not found or incorrect written in entity json")
-            if 'attributes' in output_processor:
+            self.set_span_type(to_wrap, wrapped, instance, output_processor, span, args, kwargs)
+            skip_processors:list[str] = self.skip_processor(to_wrap, wrapped, instance, span, args, kwargs) or []
+
+            if 'attributes' in output_processor and 'attributes' not in skip_processors:
                 for processors in output_processor["attributes"]:
                     for processor in processors:
                         attribute = processor.get('attribute')
@@ -113,10 +124,6 @@ class SpanHandler:
                         else:
                             logger.debug(f"{' and '.join([key for key in ['attribute', 'accessor'] if not processor.get(key)])} not found or incorrect in entity JSON")
                     span_index += 1
-            else:
-                logger.debug("attributes not found or incorrect written in entity json")
-        else:
-            span.set_attribute("span.type", "generic")
 
         # set scopes as attributes by calling get_scopes()
         # scopes is a Mapping[str:object], iterate directly with .items()
@@ -129,14 +136,17 @@ class SpanHandler:
 
     def hydrate_events(self, to_wrap, wrapped, instance, args, kwargs, ret_result, span) -> bool:
         detected_error:bool = False
-        if not self.skip_processor(to_wrap, wrapped, instance, args, kwargs) and (
-                'output_processor' in to_wrap and to_wrap["output_processor"] is not None):
+        if 'output_processor' in to_wrap and to_wrap["output_processor"] is not None:
             output_processor=to_wrap['output_processor']
+            skip_processors:list[str] = self.skip_processor(to_wrap, wrapped, instance, span, args, kwargs) or []
+
             arguments = {"instance": instance, "args": args, "kwargs": kwargs, "result": ret_result}
-            if 'events' in output_processor:
+            if 'events' in output_processor and 'events' not in skip_processors:
                 events = output_processor['events']
                 for event in events:
                     event_name = event.get("name")
+                    if 'events.'+event_name in skip_processors:
+                        continue
                     event_attributes = {}
                     attributes = event.get("attributes", [])
                     for attribute in attributes:
@@ -231,7 +241,7 @@ class SpanHandler:
 
     @staticmethod
     @contextmanager
-    def workflow_type(to_wrap=None):
+    def workflow_type(to_wrap=None, span:Span=None):
         token = SpanHandler.attach_workflow_type(to_wrap)
         try:
             yield
@@ -241,6 +251,20 @@ class SpanHandler:
 
 class NonFrameworkSpanHandler(SpanHandler):
 
+    def get_workflow_name_in_progress(self) -> str:
+        return get_value(WORKFLOW_TYPE_KEY)
+
+    def is_framework_span_in_progess(self) -> bool:
+        return self.get_workflow_name_in_progress() in WORKFLOW_TYPE_MAP.values()
+
     # If the language framework is being executed, then skip generating direct openAI attributes and events
-    def skip_processor(self, to_wrap, wrapped, instance, args, kwargs) -> bool:
-        return get_value(WORKFLOW_TYPE_KEY) in WORKFLOW_TYPE_MAP.values()
+    def skip_processor(self, to_wrap, wrapped, instance, span, args, kwargs) -> list[str]:
+        if self.is_framework_span_in_progess():
+            return ["attributes", "events"]
+    
+    def set_span_type(self, to_wrap, wrapped, instance, output_processor, span:Span, args, kwargs) -> str:
+        span_type = super().set_span_type(to_wrap, wrapped, instance, output_processor, span, args, kwargs)
+        if self.is_framework_span_in_progess() and span_type is not None:
+            span_type = span_type+".modelapi"
+            span.set_attribute("span.type", span_type)
+        return span_type

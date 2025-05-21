@@ -74,7 +74,8 @@ def test_llama_index_sample(setup):
             assert span_attributes["entity.3.name"] == "text-embedding-3-large"
             assert span_attributes["entity.3.type"] == "model.embedding.text-embedding-3-large"
 
-        if "span.type" in span_attributes and span_attributes["span.type"] == "inference":
+        if "span.type" in span_attributes and (
+            span_attributes["span.type"] == "inference" or span_attributes["span.type"] == "inference.framework"):
             # Assertions for all inference attributes
             assert span_attributes["entity.2.type"] == "inference.azure_openai"
             assert "entity.2.provider_name" in span_attributes

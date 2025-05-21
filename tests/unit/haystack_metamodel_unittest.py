@@ -86,10 +86,10 @@ class TestHandler(unittest.TestCase):
         assert root_attributes["entity.1.name"] == workflow_name
         assert root_attributes["entity.1.type"] == WORKFLOW_TYPE_MAP["haystack"]
 
-        assert len(dataJson['batch']) == 2
+        assert len(dataJson['batch']) == 4
         # llmspan = dataJson["batch"].find
 
-        assert dataJson["batch"][0]["attributes"]["span.type"] == "inference"
+        assert dataJson["batch"][0]["attributes"]["span.type"] == "inference.modelapi"
         span_names: List[str] = [span["name"] for span in dataJson['batch']]
         for name in ["haystack.components.generators.openai.OpenAIGenerator",
                      "haystack.core.pipeline.pipeline.Pipeline"]:

@@ -4,7 +4,7 @@ from monocle_apptrace.instrumentation.metamodel.haystack import (
 from monocle_apptrace.instrumentation.common.utils import get_llm_type
 
 INFERENCE = {
-    "type": "inference",
+    "type": "inference.framework",
     "attributes": [
         [
             {

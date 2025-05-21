@@ -57,11 +57,35 @@ def capture_prompt_info(arguments):
     except Exception as e:
         return f"Error capturing prompt: {str(e)}"
 
-def status_check(arguments):
-    if hasattr(arguments["result"], "error") and arguments["result"].error is not None:
-        error_msg:str = arguments["result"].error
-        error_code:str = arguments["result"].status if hasattr(arguments["result"], "status") else "unknown"
-        raise MonocleSpanException(f"Error: {error_code} - {error_msg}")
+def get_status_code(arguments):
+    if hasattr(arguments["result"], "status"):
+        return arguments["result"].status 
+    else:
+        return 'success'
+
+def get_status(arguments):
+    if get_status_code(arguments) == 'success':
+        return 'success'
+    else:
+        return 'error'
+    
+def get_response(arguments) -> str:
+    status = get_status_code(arguments)
+    response:str = ""
+    if status == 'success':
+        if hasattr(arguments["result"], "message"):
+            response = arguments["result"].message.content 
+        else:
+            response = str(arguments["result"])
+    else:
+        if hasattr(arguments["result"], "error"):
+            response = arguments["result"].error
+    return response
+
+def check_status(arguments):
+    status = get_status_code(arguments)
+    if status != 'success':
+        raise MonocleSpanException(f"{status}")   
 
 def extract_provider_name(instance):
     provider_url: Option[str] = try_option(getattr, instance._client.base_url, 'host')

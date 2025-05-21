@@ -108,7 +108,7 @@ def test_haystack_metamodel_sample(setup):
             assert span_attributes["entity.2.name"] == "sentence-transformers/all-MiniLM-L6-v2"
             assert span_attributes["entity.2.type"] == "model.embedding.sentence-transformers/all-MiniLM-L6-v2"
 
-        elif span_attributes["span.type"] == "inference":
+        elif span_attributes["span.type"] == "inference" or span_attributes["span.type"] == "inference.framework":
             # Assertions for all inference attributes
             assert span_attributes["entity.1.type"] == "inference.openai"
             assert span_attributes["entity.1.inference_endpoint"] == "https://api.openai.com/v1/"

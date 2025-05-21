@@ -94,7 +94,8 @@ def test_langgraph_chat_sample(setup):
     for span in spans:
         span_attributes = span.attributes
 
-        if "span.type" in span_attributes and span_attributes["span.type"] == "inference":
+        if "span.type" in span_attributes and (
+            span_attributes["span.type"] == "inference" or span_attributes["span.type"] == "inference.framework"):
             # Assertions for all inference attributes
             assert span_attributes["entity.1.type"] == "inference.openai"
             assert "entity.1.provider_name" in span_attributes

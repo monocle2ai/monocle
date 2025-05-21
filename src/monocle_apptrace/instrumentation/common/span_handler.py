@@ -83,14 +83,14 @@ class SpanHandler:
     def post_task_processing(self, to_wrap, wrapped, instance, args, kwargs, result, span:Span):
         pass
 
-    def hydrate_span(self, to_wrap, wrapped, instance, args, kwargs, result, span) -> bool:
+    def hydrate_span(self, to_wrap, wrapped, instance, args, kwargs, result, span, ex:Exception = None) -> bool:
         try:
             detected_error_in_attribute = self.hydrate_attributes(to_wrap, wrapped, instance, args, kwargs, result, span)
-            detected_error_in_event = self.hydrate_events(to_wrap, wrapped, instance, args, kwargs, result, span)
+            detected_error_in_event = self.hydrate_events(to_wrap, wrapped, instance, args, kwargs, result, span, ex)
             if detected_error_in_attribute or detected_error_in_event:
                 span.set_attribute(MONOCLE_DETECTED_SPAN_ERROR, True)
         finally:
-            if span.status.status_code == StatusCode.UNSET:
+            if span.status.status_code == StatusCode.UNSET and ex is None:
                 span.set_status(StatusCode.OK)
 
     def hydrate_attributes(self, to_wrap, wrapped, instance, args, kwargs, result, span:Span) -> bool:
@@ -134,13 +134,13 @@ class SpanHandler:
             span.set_attribute("entity.count", span_index)
         return detected_error
 
-    def hydrate_events(self, to_wrap, wrapped, instance, args, kwargs, ret_result, span) -> bool:
+    def hydrate_events(self, to_wrap, wrapped, instance, args, kwargs, ret_result, span, ex:Exception=None) -> bool:
         detected_error:bool = False
         if 'output_processor' in to_wrap and to_wrap["output_processor"] is not None:
             output_processor=to_wrap['output_processor']
             skip_processors:list[str] = self.skip_processor(to_wrap, wrapped, instance, span, args, kwargs) or []
 
-            arguments = {"instance": instance, "args": args, "kwargs": kwargs, "result": ret_result}
+            arguments = {"instance": instance, "args": args, "kwargs": kwargs, "result": ret_result, "exception":ex}
             if 'events' in output_processor and 'events' not in skip_processors:
                 events = output_processor['events']
                 for event in events:

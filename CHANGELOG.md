@@ -1,3 +1,9 @@
+## Version 0.4.0b2 (2025-05-21)
+
+- Add Span error handling ([#186](https://github.com/monocle2ai/monocle/pull/186))
+- Add teams ai enhancements ([#184](https://github.com/monocle2ai/monocle/pull/184))
+
+
 ## Version 0.4.0b1 (2025-05-14)
 
 - Added conversation id in scope for teams ai bot ([#180](https://github.com/monocle2ai/monocle/pull/180))

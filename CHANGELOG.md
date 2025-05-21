@@ -84,3 +84,8 @@
 ## 0.0.1 (Jul 17, 2024)
 
 - First monocle release
+
+- Add Span error handling ([#186](https://github.com/monocle2ai/monocle/pull/186))
+- Add teams ai enhancements ([#184](https://github.com/monocle2ai/monocle/pull/184))
+
+

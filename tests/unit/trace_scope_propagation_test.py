@@ -14,7 +14,8 @@ logger = logging.getLogger(__name__)
 exporter = CustomConsoleSpanExporter()
 class TestHandler(unittest.IsolatedAsyncioTestCase):
     dummy = DummyClass()
-    
+    instrumentor = None
+
     def setUp(self):
         exporter.reset()
 
@@ -23,10 +24,18 @@ class TestHandler(unittest.IsolatedAsyncioTestCase):
         return super().tearDown()
     
     @classmethod
+    def tearDownClass(cls):
+        if cls.instrumentor is not None:
+            cls.instrumentor.uninstrument()
+        cls.instrumentor = None
+        cls.exporter = None
+        super().tearDownClass()
+    
+    @classmethod
     def setUpClass(cls):
         exporter.reset()
-        setup_monocle_telemetry(
-            workflow_name="async_test",
+        cls.instrumentor = setup_monocle_telemetry(
+            workflow_name="scope_test",
             span_processors=[
                     SimpleSpanProcessor(exporter)
                 ],

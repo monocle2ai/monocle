@@ -363,7 +363,7 @@ def get_llm_type(instance):
         pass
 
 def get_exception_status_code(arguments):
-    if arguments['exception'] is not None and hasattr(arguments['exception'], 'code'):
+    if arguments['exception'] is not None and hasattr(arguments['exception'], 'code') and arguments['exception'].code is not None:
         return arguments['exception'].code
     else:
         return 'error'

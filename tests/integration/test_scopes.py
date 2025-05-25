@@ -7,7 +7,7 @@ from common.chain_exec import TestScopes, setup_chain, exec_chain
 from langchain_chroma import Chroma
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry, start_scope, stop_scope, monocle_trace_scope_method, monocle_trace_scope
-from monocle_apptrace.instrumentation.common.utils import get_scopes
+from monocle_apptrace.instrumentation.common.utils import get_scopes, load_scopes
 from monocle_apptrace.instrumentation.common.constants import SCOPE_METHOD_FILE, SCOPE_CONFIG_PATH
 
 CHAT_SCOPE_NAME = "chat"
@@ -157,4 +157,17 @@ def test_scope_with_code_block(setup):
             assert message_scope_id is not None
         else:
             assert message_scope_id == span_attributes.get("scope."+CODE_SCOPE_NAME)
+
+@pytest.mark.integration()
+def test_framework_scopes(setup):
+    """ Test loading and accessing framework_scopes from config file """
+    from monocle_apptrace.instrumentation.common.utils import load_scopes
+    
+    scope_methods, frameworks = load_scopes()
+    
+    # Check if teams.ai framework scopes are loaded correctly
+    assert "teams.ai" in frameworks
+    assert len(frameworks["teams.ai"]) == 2
+    assert "user" in frameworks["teams.ai"]
+    assert "conversation" in frameworks["teams.ai"]
 

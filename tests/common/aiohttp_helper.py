@@ -1,11 +1,8 @@
 from aiohttp import web
 from aiohttp.test_utils import TestServer, TestClient
-
+import aiohttp
 from common.chain_exec import exec_chain
-from threading import Thread
-import requests
-import time
-
+import asyncio
 PORT= 8082
 
 async def chat_handler(request):
@@ -19,7 +16,7 @@ async def chat_handler(request):
         response = "Failure {e}"
     return web.Response(text=response)
 
-def hello():
+def hello(request):
     return web.Response(text="Status:Success")
 
 def create_app():
@@ -34,6 +31,7 @@ async def run_server():
     await runner.setup()
     site = web.TCPSite(runner, 'localhost', PORT)
     await site.start()
+    print(f"AIOHTTP server running on http://localhost:{PORT}")
     return runner
 
 async def stop_server(runner):
@@ -43,18 +41,15 @@ async def stop_server(runner):
 async def check_server():
     for i in range(15):
         try:
-            response = requests.get(get_url()+"/hello")
-            if response.status_code == 200:
-                print("Flask server started")
-                break
+            timeout = aiohttp.ClientTimeout(total=5)
+            async with aiohttp.ClientSession(timeout=timeout) as session:
+                async with session.get(get_url() + "/hello") as response:
+                    if response.status == 200:
+                        print("AIOHTTP server started")
+                        return
         except Exception as e:
             pass
-        time.sleep(1)
+        await asyncio.sleep(1)
 
 def get_url():
     return f"http://localhost:{PORT}"
-
-if __name__ == '__main__':
-    run_server()
-
-

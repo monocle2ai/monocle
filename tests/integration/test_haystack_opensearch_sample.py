@@ -111,7 +111,8 @@ def test_haystack_opensearch_sample(setup):
             assert span_attributes["entity.2.name"] == "sentence-transformers/all-mpnet-base-v2"
             assert span_attributes["entity.2.type"] == "model.embedding.sentence-transformers/all-mpnet-base-v2"
 
-        if "span.type" in span_attributes and span_attributes["span.type"] == "inference":
+        if "span.type" in span_attributes and (
+            span_attributes["span.type"] == "inference" or span_attributes["span.type"] == "inference.framework"):
             # Assertions for all inference attributes
             assert span_attributes["entity.1.type"] == "inference.azure_openai"
             assert "entity.1.inference_endpoint" in span_attributes

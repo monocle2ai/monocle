@@ -4,7 +4,7 @@ from monocle_apptrace.instrumentation.metamodel.llamaindex import (
 from monocle_apptrace.instrumentation.common.utils import resolve_from_alias, get_llm_type
 
 INFERENCE = {
-    "type": "inference",
+    "type": "inference.framework",
     "attributes": [
         [
             {

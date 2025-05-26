@@ -362,6 +362,21 @@ def get_llm_type(instance):
     except:
         pass
 
+def get_exception_status_code(arguments):
+    if arguments['exception'] is not None and hasattr(arguments['exception'], 'code'):
+        return arguments['exception'].code
+    else:
+        return 'error'
+
+def get_exception_message(arguments):
+    if arguments['exception'] is not None:
+        if hasattr(arguments['exception'], 'message'):
+            return arguments['exception'].message
+        else:
+            return arguments['exception'].__str__()
+    else:
+        return ''
+
 def patch_instance_method(obj, method_name, func):
     """
     Patch a special method (like __iter__) for a single instance.

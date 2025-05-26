@@ -28,42 +28,22 @@ ACTIONPLANNER_OUTPUT_PROCESSOR = {
             {
                 "attribute": "tokenizer",
                 "accessor": lambda arguments: arguments["instance"]._options.tokenizer.__class__.__name__ if hasattr(arguments["instance"], "_options") else "GPTTokenizer"
+            },
+            {
+                "attribute": "prompt_name",
+                "accessor": _helper.capture_prompt_info
+            },
+            {
+                "attribute": "validator",
+                "accessor": lambda arguments: arguments["kwargs"].get("validator").__class__.__name__ if arguments.get("kwargs", {}).get("validator") else "DefaultResponseValidator"
+            },
+            {
+                "attribute": "memory_type",
+                "accessor": lambda arguments: arguments["kwargs"].get("memory").__class__.__name__ if arguments.get("kwargs", {}).get("memory") else "unknown"
             }
         ]
     ],
     "events": [
-        {
-            "name": "data.input",
-            "_comment": "input configuration to ActionPlanner",
-            "attributes": [
-                {
-                    "attribute": "prompt_name",
-                    "accessor": _helper.capture_prompt_info
-                },
-                {
-                    "attribute": "validator",
-                    "accessor": lambda arguments: arguments["kwargs"].get("validator").__class__.__name__ if arguments.get("kwargs", {}).get("validator") else "DefaultResponseValidator"
-                },
-                {
-                    "attribute": "memory_type",
-                    "accessor": lambda arguments: arguments["kwargs"].get("memory").__class__.__name__ if arguments.get("kwargs", {}).get("memory") else "unknown"
-                }
-            ]
-        },
-        {
-            "name": "data.output",
-            "_comment": "output from ActionPlanner",
-            "attributes": [
-                {
-                    "attribute": "status",
-                    "accessor": lambda arguments: _helper.status_check(arguments)
-                },
-                {
-                    "attribute": "response",
-                    "accessor": lambda arguments: arguments["result"].message.content if hasattr(arguments["result"], "message") else str(arguments["result"])
-                }
-            ]
-        },
         {
             "name": "metadata",
             "attributes": [

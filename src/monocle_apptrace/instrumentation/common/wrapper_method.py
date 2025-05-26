@@ -10,6 +10,7 @@ from monocle_apptrace.instrumentation.metamodel.langchain.methods import (
 from monocle_apptrace.instrumentation.metamodel.llamaindex.methods import (LLAMAINDEX_METHODS, )
 from monocle_apptrace.instrumentation.metamodel.haystack.methods import (HAYSTACK_METHODS, )
 from monocle_apptrace.instrumentation.metamodel.openai.methods import (OPENAI_METHODS,)
+from monocle_apptrace.instrumentation.metamodel.openai._helper import OpenAISpanHandler
 from monocle_apptrace.instrumentation.metamodel.langgraph.methods import LANGGRAPH_METHODS
 from monocle_apptrace.instrumentation.metamodel.flask.methods import (FLASK_METHODS, )
 from monocle_apptrace.instrumentation.metamodel.flask._helper import FlaskSpanHandler, FlaskResponseSpanHandler
@@ -76,5 +77,6 @@ MONOCLE_SPAN_HANDLERS: Dict[str, SpanHandler] = {
     "flask_handler": FlaskSpanHandler(),
     "flask_response_handler": FlaskResponseSpanHandler(),
     "request_handler": RequestSpanHandler(),
-    "non_framework_handler": NonFrameworkSpanHandler()
+    "non_framework_handler": NonFrameworkSpanHandler(),
+    "openai_handler": OpenAISpanHandler(),
 }

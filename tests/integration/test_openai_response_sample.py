@@ -20,7 +20,7 @@ def setup():
 
 def assert_inference_span(span, expected_type, expected_endpoint_prefix):
     span_attributes = span.attributes
-    assert span_attributes["span.type"] == "inference"
+    assert (span_attributes["span.type"] == "inference" or span_attributes["span.type"] == "inference.framework")
     assert span_attributes["entity.1.type"] == expected_type
     assert span_attributes["entity.1.inference_endpoint"].startswith(expected_endpoint_prefix)
     assert "entity.1.provider_name" in span_attributes
@@ -46,7 +46,7 @@ def test_openai_response_api_sample(setup):
     time.sleep(5)
     print(response.output[0].content[0].text)
     spans = custom_exporter.get_captured_spans()
-    inference_spans = [s for s in spans if s.attributes.get("span.type") == "inference"]
+    inference_spans = [s for s in spans if s.attributes.get("span.type") == "inference" or s.attributes.get("span.type") == "inference.framework"]
     assert any(s.attributes.get("entity.1.type") == "inference.openai" for s in inference_spans)
 
     for span in inference_spans:
@@ -69,7 +69,7 @@ def test_azure_openai_response_api_sample(setup):
     time.sleep(5)
     print(response.output[0].content[0].text)
     spans = custom_exporter.get_captured_spans()
-    inference_spans = [s for s in spans if s.attributes.get("span.type") == "inference"]
+    inference_spans = [s for s in spans if s.attributes.get("span.type") == "inference" or s.attributes.get("span.type") == "inference.framework"]
     assert any(s.attributes.get("entity.1.type") == "inference.azure_openai" for s in inference_spans)
 
     for span in inference_spans:

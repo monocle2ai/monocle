@@ -85,7 +85,8 @@ def verify_spans(expected_langchain_inference_spans:int, expected_openai_inferen
             trace_id = span.context.trace_id
         else:
             assert trace_id == span.context.trace_id
-        if "span.type" in span_attributes and span_attributes["span.type"] == "inference":
+        if "span.type" in span_attributes and (span_attributes["span.type"] == "inference" or 
+                            span_attributes["span.type"] == "inference.framework"):
             # Assertions for all inference attributes
             assert span_attributes["entity.1.type"] == "inference.openai"
             if span.name.lower().startswith("langchain"):

@@ -10,7 +10,7 @@ from monocle_apptrace.instrumentation.common.utils import (
     get_nested_value,
     try_option,
 )
-
+from monocle_apptrace.instrumentation.common.span_handler import NonFrameworkSpanHandler
 
 logger = logging.getLogger(__name__)
 
@@ -115,3 +115,11 @@ def get_inference_type(instance):
         return 'azure_openai'
     else:
         return 'openai'
+
+class OpenAISpanHandler(NonFrameworkSpanHandler):
+    # If openAI is being called by Teams AI SDK, then retain the metadata part of the span events
+    def skip_processor(self, to_wrap, wrapped, instance, span, args, kwargs) -> list[str]:
+        if self.is_framework_span_in_progess() and self.get_workflow_name_in_progress() == "workflow.teams_ai":
+            return ["attributes", "events.data.input", "events.data.output"]
+        else:
+            return super().skip_processor(to_wrap, wrapped, instance, span, args, kwargs)

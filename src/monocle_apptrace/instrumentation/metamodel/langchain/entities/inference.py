@@ -1,7 +1,7 @@
 from monocle_apptrace.instrumentation.metamodel.langchain import (
     _helper,
 )
-from monocle_apptrace.instrumentation.common.utils import resolve_from_alias, get_llm_type
+from monocle_apptrace.instrumentation.common.utils import resolve_from_alias, get_llm_type, get_status, get_status_code
 
 INFERENCE = {
     "type": "inference.framework",
@@ -55,11 +55,11 @@ INFERENCE = {
                 {
                     "_comment": "this is result from LLM",
                     "attribute": "status",
-                    "accessor": lambda arguments: _helper.get_status(arguments)
+                    "accessor": lambda arguments: get_status(arguments)
                 },
                 {
                     "attribute": "status_code",
-                    "accessor": lambda arguments: _helper.get_status_code(arguments)
+                    "accessor": lambda arguments: get_status_code(arguments)
                 },
                 {
                     "attribute": "response",

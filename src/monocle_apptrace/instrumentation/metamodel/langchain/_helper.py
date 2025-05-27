@@ -10,7 +10,7 @@ from monocle_apptrace.instrumentation.common.utils import (
     get_nested_value,
     try_option,
     get_exception_message,
-    get_exception_status_code,
+    get_status_code,
 )
 
 
@@ -36,22 +36,6 @@ def extract_messages(args):
     except Exception as e:
         logger.warning("Warning: Error occurred in extract_messages: %s", str(e))
         return []
-
-def get_status_code(arguments):
-    if arguments["exception"] is not None:
-        return get_exception_status_code(arguments)
-    elif hasattr(arguments["result"], "status"):
-        return arguments["result"].status
-    else:
-        return 'success'
-
-def get_status(arguments):
-    if arguments["exception"] is not None:
-        return 'error'
-    elif get_status_code(arguments) == 'success':
-        return 'success'
-    else:
-        return 'error'
 
 def extract_assistant_message(arguments):
     status = get_status_code(arguments)

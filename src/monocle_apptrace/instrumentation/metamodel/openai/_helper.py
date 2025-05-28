@@ -6,11 +6,11 @@ and assistant messages from various input formats.
 import logging
 from monocle_apptrace.instrumentation.common.utils import (
     Option,
-    get_keys_as_tuple,
-    get_nested_value,
     try_option,
+    get_exception_message,
+    get_parent_span
 )
-from monocle_apptrace.instrumentation.common.span_handler import NonFrameworkSpanHandler
+from monocle_apptrace.instrumentation.common.span_handler import NonFrameworkSpanHandler, WORKFLOW_TYPE_MAP
 
 logger = logging.getLogger(__name__)
 
@@ -34,8 +34,11 @@ def extract_messages(kwargs):
         return []
 
 
-def extract_assistant_message(response):
+def extract_assistant_message(arguments):
     try:
+        if arguments["exception"] is not None:
+            return get_exception_message(arguments)
+        response = arguments["result"]
         if hasattr(response,"output_text") and len(response.output_text):
             return response.output_text
         if response is not None and hasattr(response,"choices") and len(response.choices) >0:
@@ -117,9 +120,19 @@ def get_inference_type(instance):
         return 'openai'
 
 class OpenAISpanHandler(NonFrameworkSpanHandler):
+    def is_teams_span_in_progress(self) -> bool:
+        return self.is_framework_span_in_progess() and self.get_workflow_name_in_progress() == WORKFLOW_TYPE_MAP["teams.ai"]
+
     # If openAI is being called by Teams AI SDK, then retain the metadata part of the span events
     def skip_processor(self, to_wrap, wrapped, instance, span, args, kwargs) -> list[str]:
-        if self.is_framework_span_in_progess() and self.get_workflow_name_in_progress() == "workflow.teams_ai":
+        if self.is_teams_span_in_progress():
             return ["attributes", "events.data.input", "events.data.output"]
         else:
             return super().skip_processor(to_wrap, wrapped, instance, span, args, kwargs)
+
+    def hydrate_events(self, to_wrap, wrapped, instance, args, kwargs, ret_result, span, parent_span=None, ex:Exception=None) -> bool:
+        # If openAI is being called by Teams AI SDK, then copy parent
+        if self.is_teams_span_in_progress() and ex is None:
+            return super().hydrate_events(to_wrap, wrapped, instance, args, kwargs, ret_result, span=parent_span, parent_span=None, ex=ex)
+
+        return super().hydrate_events(to_wrap, wrapped, instance, args, kwargs, ret_result, span, parent_span=parent_span, ex=ex)

@@ -85,7 +85,8 @@ def test_langchain_bedrock_sample(setup):
             assert span_attributes["entity.2.name"] == "text-embedding-ada-002"
             assert span_attributes["entity.2.type"] == "model.embedding.text-embedding-ada-002"
 
-        if 'span.type' in span_attributes and span_attributes["span.type"] == "inference":
+        if 'span.type' in span_attributes and (
+            span_attributes["span.type"] == "inference" or span_attributes["span.type"] == "inference.framework"):
             # Assertions for all inference attributes
             if "entity.1.inference_endpoint" in span_attributes.keys():
                 assert span_attributes["entity.1.type"] == "inference.aws_sagemaker"

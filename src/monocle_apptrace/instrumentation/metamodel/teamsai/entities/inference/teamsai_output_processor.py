@@ -3,7 +3,7 @@ from monocle_apptrace.instrumentation.metamodel.teamsai import (
 )
 from monocle_apptrace.instrumentation.common.utils import get_llm_type
 TEAMAI_OUTPUT_PROCESSOR = {
-    "type": "inference",
+    "type": "inference.framework",
     "attributes": [
         [
             {
@@ -53,24 +53,22 @@ TEAMAI_OUTPUT_PROCESSOR = {
             "_comment": "output from Teams AI",
             "attributes": [
                 {
+                    "attribute": "status",
+                    "accessor": lambda arguments: _helper.get_status(arguments)
+                },
+                {
+                    "attribute": "status_code",
+                    "accessor": lambda arguments: _helper.get_status_code(arguments)
+                },
+                {
                     "attribute": "response",
-                    "accessor": lambda arguments: arguments["result"].message.content if hasattr(arguments["result"], "message") else str(arguments["result"])
+                    "accessor": lambda arguments: _helper.get_response(arguments)
+                },
+                {
+                    "attribute": "check_status",
+                    "accessor": lambda arguments: _helper.check_status(arguments)
                 }
             ]
         },
-        # {
-        #     "name": "metadata",
-        #     "attributes": [
-        #         {
-        #             "_comment": "metadata from Teams AI response",
-        #             "accessor": lambda arguments: {
-        #                 "prompt_tokens": arguments["result"].get("usage", {}).get("prompt_tokens", 0),
-        #                 "completion_tokens": arguments["result"].get("usage", {}).get("completion_tokens", 0),
-        #                 "total_tokens": arguments["result"].get("usage", {}).get("total_tokens", 0),
-        #                 "latency_ms": arguments.get("latency_ms")
-        #             }
-        #         }
-        #     ]
-        # }
     ]
 }

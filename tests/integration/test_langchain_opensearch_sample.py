@@ -140,7 +140,8 @@ def test_langchain_opensearch_sample(setup):
             assert span_attributes["entity.2.name"] == "text-embedding-ada-002"
             assert span_attributes["entity.2.type"] == "model.embedding.text-embedding-ada-002"
 
-        if "span.type" in span_attributes and span_attributes["span.type"] == "inference":
+        if "span.type" in span_attributes and (
+            span_attributes["span.type"] == "inference" or span_attributes["span.type"] == "inference.framework"):
             # Assertions for all inference attributes
             assert span_attributes["entity.1.type"] == "inference.openai"
             assert "entity.1.provider_name" in span_attributes

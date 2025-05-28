@@ -30,12 +30,22 @@ def pre_process_span(name, tracer, handler, add_workflow_span, to_wrap, wrapped,
         SpanHandler.set_workflow_properties(span, to_wrap)
     else:
         SpanHandler.set_non_workflow_properties(span)
-        handler.pre_task_processing(to_wrap, wrapped, instance, args, kwargs, span)
+        try:
+            handler.pre_task_processing(to_wrap, wrapped, instance, args, kwargs, span)
+        except Exception as e:
+            logger.info(f"Warning: Error occurred in pre_task_processing: {e}")
 
-def post_process_span(handler, to_wrap, wrapped, instance, args, kwargs, return_value, span):
+def post_process_span(handler, to_wrap, wrapped, instance, args, kwargs, return_value, span, ex = None):
     if not (SpanHandler.is_root_span(span) or get_value(ADD_NEW_WORKFLOW) == True):
-        handler.hydrate_span(to_wrap, wrapped, instance, args, kwargs, return_value, span)
-        handler.post_task_processing(to_wrap, wrapped, instance, args, kwargs, return_value, span)
+        try:
+            handler.hydrate_span(to_wrap, wrapped, instance, args, kwargs, return_value, span, ex)
+        except Exception as e:
+            logger.info(f"Warning: Error occurred in hydrate_span: {e}")
+        
+        try:
+            handler.post_task_processing(to_wrap, wrapped, instance, args, kwargs, return_value, span)
+        except Exception as e:
+            logger.info(f"Warning: Error occurred in post_task_processing: {e}")
 
 def get_span_name(to_wrap, instance):
     if to_wrap.get("span_name"):
@@ -58,9 +68,15 @@ def monocle_wrapper_span_processor(tracer: Tracer, handler: SpanHandler, to_wrap
                 return_value, span_status = monocle_wrapper_span_processor(tracer, handler, to_wrap, wrapped, instance, source_path, False, args, kwargs)
                 span.set_status(span_status)
             else:
-                with SpanHandler.workflow_type(to_wrap):
-                    return_value = wrapped(*args, **kwargs)
-                post_process_span(handler, to_wrap, wrapped, instance, args, kwargs, return_value, span)
+                ex:Exception = None
+                try:
+                    with SpanHandler.workflow_type(to_wrap, span):
+                        return_value = wrapped(*args, **kwargs)
+                except Exception as e:
+                    ex = e
+                    raise
+                finally:
+                    post_process_span(handler, to_wrap, wrapped, instance, args, kwargs, return_value, span, ex)
                 span_status = span.status
     else:
         span = tracer.start_span(name)
@@ -72,13 +88,15 @@ def monocle_wrapper_span_processor(tracer: Tracer, handler: SpanHandler, to_wrap
             post_process_span(handler, to_wrap, wrapped, instance, args, kwargs, ret_val, span)
             span.end()
                     
-        with SpanHandler.workflow_type(to_wrap):
-            return_value = wrapped(*args, **kwargs)
-        if to_wrap.get("output_processor") and to_wrap.get("output_processor").get("response_processor"):
-            # Process the stream
-            to_wrap.get("output_processor").get("response_processor")(to_wrap, return_value, post_process_span_internal)
-        else: 
-            span.end()
+        try:
+            with SpanHandler.workflow_type(to_wrap, span):
+                return_value = wrapped(*args, **kwargs)
+        finally:
+            if to_wrap.get("output_processor") and to_wrap.get("output_processor").get("response_processor"):
+                # Process the stream
+                to_wrap.get("output_processor").get("response_processor")(to_wrap, return_value, post_process_span_internal)
+            else: 
+                span.end()
         span_status = span.status
     return return_value, span_status
 
@@ -86,7 +104,10 @@ def monocle_wrapper(tracer: Tracer, handler: SpanHandler, to_wrap, wrapped, inst
     return_value = None
     token = None
     try:
-        handler.pre_tracing(to_wrap, wrapped, instance, args, kwargs)
+        try:
+            handler.pre_tracing(to_wrap, wrapped, instance, args, kwargs)
+        except Exception as e:
+            logger.info(f"Warning: Error occurred in pre_tracing: {e}")
         if to_wrap.get('skip_span', False) or handler.skip_span(to_wrap, wrapped, instance, args, kwargs):
             return_value = wrapped(*args, **kwargs)
         else:
@@ -98,8 +119,10 @@ def monocle_wrapper(tracer: Tracer, handler: SpanHandler, to_wrap, wrapped, inst
                 detach(token)
         return return_value
     finally:
-        handler.post_tracing(to_wrap, wrapped, instance, args, kwargs, return_value)
-
+        try:
+            handler.post_tracing(to_wrap, wrapped, instance, args, kwargs, return_value)
+        except Exception as e:
+            logger.info(f"Warning: Error occurred in post_tracing: {e}")
 
 async def amonocle_wrapper_span_processor(tracer: Tracer, handler: SpanHandler, to_wrap, wrapped, instance, source_path, add_workflow_span, args, kwargs):
     # Main span processing logic
@@ -115,10 +138,16 @@ async def amonocle_wrapper_span_processor(tracer: Tracer, handler: SpanHandler, 
                 return_value, span_status = await amonocle_wrapper_span_processor(tracer, handler, to_wrap, wrapped, instance, source_path, False, args, kwargs)
                 span.set_status(span_status)
             else:
-                with SpanHandler.workflow_type(to_wrap):
-                    return_value = await wrapped(*args, **kwargs)
+                ex:Exception = None
+                try:
+                    with SpanHandler.workflow_type(to_wrap, span):
+                        return_value = await wrapped(*args, **kwargs)
+                except Exception as e:
+                    ex = e
+                    raise
+                finally:
+                    post_process_span(handler, to_wrap, wrapped, instance, args, kwargs, return_value, span, ex)
                 span_status = span.status
-            post_process_span(handler, to_wrap, wrapped, instance, args, kwargs, return_value, span)
     else:
         span = tracer.start_span(name)
         
@@ -129,14 +158,15 @@ async def amonocle_wrapper_span_processor(tracer: Tracer, handler: SpanHandler, 
             post_process_span(handler, to_wrap, wrapped, instance, args, kwargs, ret_val, span)
             span.end()
 
-        with SpanHandler.workflow_type(to_wrap):
-            return_value = await wrapped(*args, **kwargs)
-           
-        if to_wrap.get("output_processor") and to_wrap.get("output_processor").get("response_processor"):
-            # Process the stream
-            to_wrap.get("output_processor").get("response_processor")(to_wrap, return_value, post_process_span_internal)
-        else: 
-            span.end()
+        try:
+            with SpanHandler.workflow_type(to_wrap, span):
+                return_value = await wrapped(*args, **kwargs)
+        finally:
+            if to_wrap.get("output_processor") and to_wrap.get("output_processor").get("response_processor"):
+                # Process the stream
+                to_wrap.get("output_processor").get("response_processor")(to_wrap, return_value, post_process_span_internal)
+            else: 
+                span.end()
         span_status = span.status
     return return_value, span.status
 
@@ -144,7 +174,10 @@ async def amonocle_wrapper(tracer: Tracer, handler: SpanHandler, to_wrap, wrappe
     return_value = None
     token = None
     try:
-        handler.pre_tracing(to_wrap, wrapped, instance, args, kwargs)
+        try:
+            handler.pre_tracing(to_wrap, wrapped, instance, args, kwargs)
+        except Exception as e:
+            logger.info(f"Warning: Error occurred in pre_tracing: {e}")
         if to_wrap.get('skip_span', False) or handler.skip_span(to_wrap, wrapped, instance, args, kwargs):
             return_value = await wrapped(*args, **kwargs)
         else:
@@ -156,7 +189,10 @@ async def amonocle_wrapper(tracer: Tracer, handler: SpanHandler, to_wrap, wrappe
                 detach(token)
         return return_value
     finally:
-        handler.post_tracing(to_wrap, wrapped, instance, args, kwargs, return_value)
+        try:
+            handler.post_tracing(to_wrap, wrapped, instance, args, kwargs, return_value)
+        except Exception as e:
+            logger.info(f"Warning: Error occurred in post_tracing: {e}")
 
 @with_tracer_wrapper
 def task_wrapper(tracer: Tracer, handler: SpanHandler, to_wrap, wrapped, instance, source_path, args, kwargs):

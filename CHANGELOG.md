@@ -84,3 +84,8 @@
 ## 0.0.1 (Jul 17, 2024)
 
 - First monocle release
+
+- Record input and errors for inference.modelapi in case of error ([#193](https://github.com/monocle2ai/monocle/pull/193))
+- Removed special handling for streaming in wrapper ([#192](https://github.com/monocle2ai/monocle/pull/192))
+
+

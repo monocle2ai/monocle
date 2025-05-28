@@ -83,10 +83,10 @@ class SpanHandler:
     def post_task_processing(self, to_wrap, wrapped, instance, args, kwargs, result, span:Span):
         pass
 
-    def hydrate_span(self, to_wrap, wrapped, instance, args, kwargs, result, span, ex:Exception = None) -> bool:
+    def hydrate_span(self, to_wrap, wrapped, instance, args, kwargs, result, span, parent_span = None, ex:Exception = None) -> bool:
         try:
             detected_error_in_attribute = self.hydrate_attributes(to_wrap, wrapped, instance, args, kwargs, result, span)
-            detected_error_in_event = self.hydrate_events(to_wrap, wrapped, instance, args, kwargs, result, span, ex)
+            detected_error_in_event = self.hydrate_events(to_wrap, wrapped, instance, args, kwargs, result, span, parent_span, ex)
             if detected_error_in_attribute or detected_error_in_event:
                 span.set_attribute(MONOCLE_DETECTED_SPAN_ERROR, True)
         finally:
@@ -134,18 +134,20 @@ class SpanHandler:
             span.set_attribute("entity.count", span_index)
         return detected_error
 
-    def hydrate_events(self, to_wrap, wrapped, instance, args, kwargs, ret_result, span, ex:Exception=None) -> bool:
+    def hydrate_events(self, to_wrap, wrapped, instance, args, kwargs, ret_result, span, parent_span=None, ex:Exception=None) -> bool:
         detected_error:bool = False
         if 'output_processor' in to_wrap and to_wrap["output_processor"] is not None:
             output_processor=to_wrap['output_processor']
             skip_processors:list[str] = self.skip_processor(to_wrap, wrapped, instance, span, args, kwargs) or []
 
             arguments = {"instance": instance, "args": args, "kwargs": kwargs, "result": ret_result, "exception":ex}
-            if 'events' in output_processor and 'events' not in skip_processors:
+            # Process events if they are defined in the output_processor.
+            # In case of inference.modelapi skip the event processing unless the span has an exception
+            if 'events' in output_processor and ('events' not in skip_processors or ex is not None):
                 events = output_processor['events']
                 for event in events:
                     event_name = event.get("name")
-                    if 'events.'+event_name in skip_processors:
+                    if 'events.'+event_name in skip_processors and ex is None:
                         continue
                     event_attributes = {}
                     attributes = event.get("attributes", [])

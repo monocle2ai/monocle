@@ -8,6 +8,8 @@ from monocle_apptrace.instrumentation.metamodel.openai import (
 from monocle_apptrace.instrumentation.common.utils import (
     patch_instance_method,
     resolve_from_alias,
+    get_status,
+    get_exception_status_code
 )
 
 logger = logging.getLogger(__name__)
@@ -199,8 +201,16 @@ INFERENCE = {
                     "_comment": "this is result from LLM",
                     "attribute": "response",
                     "accessor": lambda arguments: _helper.extract_assistant_message(
-                        arguments["result"]
+                        arguments,
                     ),
+                },
+                {
+                    "attribute": "status",
+                    "accessor": lambda arguments: get_status(arguments)
+                },
+                {
+                    "attribute": "status_code",
+                    "accessor": lambda arguments: get_exception_status_code(arguments)
                 }
             ],
         },

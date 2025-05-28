@@ -1,7 +1,7 @@
 from monocle_apptrace.instrumentation.metamodel.llamaindex import (
     _helper,
 )
-from monocle_apptrace.instrumentation.common.utils import resolve_from_alias, get_llm_type
+from monocle_apptrace.instrumentation.common.utils import resolve_from_alias, get_llm_type, get_status, get_status_code
 
 INFERENCE = {
     "type": "inference.framework",
@@ -55,8 +55,16 @@ INFERENCE = {
             "attributes": [
                 {
                     "_comment": "this is response from LLM",
+                    "attribute": "status",
+                    "accessor": lambda arguments: get_status(arguments)
+                },
+{
+                    "attribute": "status_code",
+                    "accessor": lambda arguments: get_status_code(arguments)
+                },
+                {
                     "attribute": "response",
-                    "accessor": lambda arguments: _helper.extract_assistant_message(arguments['result'])
+                    "accessor": lambda arguments: _helper.extract_assistant_message(arguments)
                 }
             ]
         },

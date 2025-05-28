@@ -11,6 +11,8 @@ from monocle_apptrace.instrumentation.common.utils import (
     get_keys_as_tuple,
     get_nested_value,
     try_option,
+    get_exception_message,
+    get_status_code,
 )
 
 logger = logging.getLogger(__name__)
@@ -60,19 +62,25 @@ def extract_messages(args):
         logger.warning("Error in extract_messages: %s", str(e))
         return []
 
-def extract_assistant_message(response):
-    try:
-        if isinstance(response, str):
-            return [response]
-        if hasattr(response, "content"):
-            return [response.content]
-        if hasattr(response, "message") and hasattr(response.message, "content"):
-            return [response.message.content]
-        if hasattr(response,"response") and isinstance(response.response, str):
-            return [response.response]
-    except Exception as e:
-        logger.warning("Warning: Error occurred in extract_assistant_message: %s", str(e))
-        return []
+def extract_assistant_message(arguments):
+    status = get_status_code(arguments)
+    response: str = ""
+    if status == 'success':
+        if isinstance(arguments['result'], str):
+            response = arguments['result']
+        if hasattr(arguments['result'], "content"):
+            response = arguments['result'].content
+        if hasattr(arguments['result'], "message") and hasattr(arguments['result'].message, "content"):
+            response = arguments['result'].message.content
+        if hasattr(arguments['result'],"response") and isinstance(arguments['result'].response, str):
+            response = arguments['result'].response
+    else:
+        if arguments["exception"] is not None:
+            response = get_exception_message(arguments)
+        elif hasattr(response, "error"):
+            response = arguments['result'].error
+
+    return response
 
 
 def extract_query_from_content(content):

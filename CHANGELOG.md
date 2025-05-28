@@ -1,3 +1,9 @@
+## Version 0.4.0b3 (2025-05-28)
+
+- Record input and errors for inference.modelapi in case of error ([#193](https://github.com/monocle2ai/monocle/pull/193))
+- Removed special handling for streaming in wrapper ([#192](https://github.com/monocle2ai/monocle/pull/192))
+
+
 ## Version 0.4.0b2 (2025-05-21)
 
 - Add Span error handling ([#186](https://github.com/monocle2ai/monocle/pull/186))

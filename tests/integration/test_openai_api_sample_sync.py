@@ -2,11 +2,10 @@ import os
 import time
 import unittest
 import pytest
-import asyncio
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from common.custom_exporter import CustomConsoleSpanExporter
 from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
-from openai import AsyncOpenAI
+from openai import OpenAI
 
 custom_exporter = CustomConsoleSpanExporter()
 
@@ -21,10 +20,9 @@ def setup():
 
 
 @pytest.mark.integration()
-@pytest.mark.asyncio
-async def test_openai_api_sample(setup):
-    openai = AsyncOpenAI()
-    response = await openai.chat.completions.create(
+def test_openai_api_sample(setup):
+    openai = OpenAI()
+    response = openai.chat.completions.create(
         model="gpt-4o-mini",
         messages=[
             {
@@ -34,7 +32,7 @@ async def test_openai_api_sample(setup):
             {"role": "user", "content": "What is an americano?"},
         ],
     )
-    await asyncio.sleep(5)
+    time.sleep(5)
     print(response)
     print(response.choices[0].message.content)
 
@@ -71,10 +69,9 @@ async def test_openai_api_sample(setup):
 
 
 @pytest.mark.integration()
-@pytest.mark.asyncio
-async def test_openai_api_sample_stream(setup):
-    openai = AsyncOpenAI()
-    stream = await openai.chat.completions.create(
+def test_openai_api_sample_stream(setup):
+    openai = OpenAI()
+    stream = openai.chat.completions.create(
         model="gpt-4o-mini",
         messages=[
             {
@@ -90,7 +87,7 @@ async def test_openai_api_sample_stream(setup):
     collected_chunks = []
     collected_messages = []
 
-    async for chunk in stream:
+    for chunk in stream:
         collected_chunks.append(chunk)
         if chunk.choices[0].delta.content is not None:
             collected_messages.append(chunk.choices[0].delta.content)
@@ -99,7 +96,7 @@ async def test_openai_api_sample_stream(setup):
     print("Streamed response:", full_response)
 
     # Wait for spans to be processed
-    await asyncio.sleep(5)
+    time.sleep(5)
 
     spans = custom_exporter.get_captured_spans()
     found_workflow_span = False
@@ -138,7 +135,7 @@ async def test_openai_api_sample_stream(setup):
     assert len(full_response) > 0
 
 
-async def run_test():
+def run_test():
     """Run the test directly without pytest"""
     # Call the setup function directly
     setup_monocle_telemetry(
@@ -149,21 +146,16 @@ async def run_test():
 
     # Call the test functions directly
     print("Running non-streaming test:")
-    # await test_openai_api_sample(None)
+    test_openai_api_sample(None)
 
     # Clear the exporter before the second test
     custom_exporter.reset()
 
     print("\nRunning streaming test:")
-    await test_openai_api_sample_stream(None)
+    test_openai_api_sample_stream(None)
 
     print("All tests completed successfully")
 
 
 if __name__ == "__main__":
-    # Create and run an event loop when the script is executed directly
-    loop = asyncio.get_event_loop()
-    try:
-        loop.run_until_complete(run_test())
-    finally:
-        loop.close()
+    run_test()

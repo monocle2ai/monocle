@@ -4,7 +4,7 @@ import warnings, logging
 from typing import Any, Dict, List, Optional, Union
 import chromadb
 from chromadb import ClientAPI, Collection
-from chromadb.errors import InvalidCollectionException
+# from chromadb.errors import InvalidCollectionException
 from chromadb.utils import embedding_functions
 from openai import OpenAI
 import pytest
@@ -49,8 +49,8 @@ def get_vector_store() -> Collection:
     vector_store:Collection = None
     try:
         vector_store = chroma_client.get_collection(name=COLLECTION_NAME)
-    except InvalidCollectionException as ex :
-        vector_store = setup_embedding(chroma_client)
+    # except InvalidCollectionException as ex :
+    #     vector_store = setup_embedding(chroma_client)
     except ValueError as ex:
         vector_store = setup_embedding(chroma_client)
     return vector_store

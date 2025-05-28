@@ -5,6 +5,8 @@ from monocle_apptrace.instrumentation.common.utils import (
     get_keys_as_tuple,
     get_nested_value,
     try_option,
+    get_exception_message,
+    get_status_code,
 )
 logger = logging.getLogger(__name__)
 
@@ -52,19 +54,25 @@ def extract_question_from_prompt(content):
         logger.warning("Warning: Error occurred in extract_question_from_prompt: %s", str(e))
         return ""
 
-
-def extract_assistant_message(response):
-    try:
-        if "replies" in response:
-            reply = response["replies"][0]
+def extract_assistant_message(arguments):
+    status = get_status_code(arguments)
+    response: str = ""
+    if status == 'success':
+        if "replies" in arguments['result']:
+            reply = arguments['result']["replies"][0]
             if hasattr(reply, 'content'):
-                return [reply.content]
-            if hasattr(reply, 'text'):
-                return [reply.text]
-            return [reply]
-    except Exception as e:
-        logger.warning("Warning: Error occurred in extract_assistant_message: %s", str(e))
-        return []
+                response = reply.content
+            elif hasattr(reply, 'text'):
+                response = reply.text
+            else:
+                response = reply
+    else:
+        if arguments["exception"] is not None:
+            response = get_exception_message(arguments)
+        elif hasattr(response, "error"):
+            response = arguments['result'].error
+
+    return response
 
 
 def get_vectorstore_deployment(my_map):

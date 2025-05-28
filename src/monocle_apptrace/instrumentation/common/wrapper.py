@@ -235,7 +235,7 @@ async def ascopes_wrapper(tracer: Tracer, handler: SpanHandler, to_wrap, wrapped
 def evaluate_scope_values(args, kwargs, to_wrap, scope_values):
     if callable(scope_values):
         try:
-            scope_values = scope_values(args, kwargs, to_wrap)
+            scope_values = scope_values(args, kwargs)
         except Exception as e:
             logger.warning("Warning: Error occurred in evaluate_scope_values: %s", str(e))
             scope_values = None

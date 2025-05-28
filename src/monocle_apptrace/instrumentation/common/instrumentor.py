@@ -103,25 +103,18 @@ class MonocleInstrumentor(BaseInstrumentor):
             elif isinstance(method, WrapperMethod):
                 final_method_list.append(method.to_dict())
 
-        scope_methods, frameworks = load_scopes()
-        for method in scope_methods:
-            if method.get('async_method', False):
+        for method in load_scopes():
+            if method.get('async', False):
                 method['wrapper_method'] = ascope_wrapper
             else:
                 method['wrapper_method'] = scope_wrapper
             final_method_list.append(method)
-                
+        
         for method_config in final_method_list:
             target_package = method_config.get("package", None)
             target_object = method_config.get("object", None)
             target_method = method_config.get("method", None)
             wrapped_by = method_config.get("wrapper_method", None)
-            framework = method_config.get("framework", None)
-            # get any scopes from config for the framework
-            if framework is not None:
-                framework_scopes = frameworks.get(framework, [])
-                method_config['scopes'] = framework_scopes
-
             #get the requisite handler or default one
             handler_key = method_config.get("span_handler",'default')
             try:

@@ -33,9 +33,7 @@ class WrapperMethod:
             scope_name: str = None,
             span_type: str = None,
             scope_values = None,
-            scope_value = None,
-            async_method: bool = False,
-    ):
+            ):
         self.package = package
         self.object = object_name
         self.method = method
@@ -43,12 +41,9 @@ class WrapperMethod:
         self.output_processor=output_processor
         self.span_type = span_type
         self.scope_values = scope_values
-        if scope_value:
-            self.scope_value = scope_value
-            
+
         self.span_handler:SpanHandler.__class__ = span_handler
         self.scope_name = scope_name
-        self.async_method = async_method
         if scope_name and not scope_values:
             self.wrapper_method = scope_wrapper
         else:
@@ -67,8 +62,6 @@ class WrapperMethod:
             'scope_name': self.scope_name,
             'span_type': self.span_type,
             'scope_values': self.scope_values,
-            'scope_value': self.scope_value,
-            
         }
         return instance_dict
 

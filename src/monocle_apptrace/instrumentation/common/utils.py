@@ -175,31 +175,21 @@ def get_keys_as_tuple(dictionary, *keys):
     return tuple(next((value for key, value in dictionary.items() if key.endswith(k) and value is not None), None) for k in keys)
 
 def load_scopes() -> dict:
+    methods_data = []
     scope_methods = []
-    frameworks = {}
     try:
         scope_config_file_path = os.environ.get(SCOPE_CONFIG_PATH, 
                                         os.path.join(os.getcwd(), SCOPE_METHOD_FILE))
         with open(scope_config_file_path) as f:
-            # {"http_scopes": [], "framework_scopes": [], "method_scopes": []}
-            scopes_data = json.load(f)
-            
-        if 'http_scopes' in scopes_data:
-            for method in scopes_data['http_scopes']:
+            methods_data = json.load(f)
+            for method in methods_data:
                 if method.get('http_header'):
                     http_scopes[method.get('http_header')] = method.get('scope_name')
-
-        if 'method_scopes' in scopes_data:
-            for method in scopes_data['method_scopes']:
-                scope_methods.append(method)
-        if 'framework_scopes' in scopes_data:
-            for scope in scopes_data['framework_scopes']:
-                frameworks[scope.get('framework')] = scope.get('scopes', [])
-
+                else:
+                    scope_methods.append(method)
     except Exception as e:
         logger.debug(f"Error loading scope methods from file: {e}")
-        return [], {}
-    return scope_methods, frameworks
+    return scope_methods
 
 def __generate_scope_id() -> str:
     global scope_id_generator

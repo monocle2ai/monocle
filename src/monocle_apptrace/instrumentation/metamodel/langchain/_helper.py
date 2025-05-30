@@ -9,6 +9,8 @@ from monocle_apptrace.instrumentation.common.utils import (
     get_keys_as_tuple,
     get_nested_value,
     try_option,
+    get_exception_message,
+    get_status_code,
 )
 
 
@@ -35,18 +37,23 @@ def extract_messages(args):
         logger.warning("Warning: Error occurred in extract_messages: %s", str(e))
         return []
 
+def extract_assistant_message(arguments):
+    status = get_status_code(arguments)
+    response: str = ""
+    if status == 'success':
+        if isinstance(arguments['result'], str):
+            response = arguments['result']
+        if hasattr(arguments['result'], "content"):
+            response = arguments['result'].content
+        if hasattr(arguments['result'], "message") and hasattr(arguments['result'].message, "content"):
+            response =  arguments['result'].message.content
+    else:
+        if arguments["exception"] is not None:
+            response = get_exception_message(arguments)
+        elif hasattr(arguments["result"], "error"):
+            response = arguments["result"].error
 
-def extract_assistant_message(response):
-    try:
-        if isinstance(response, str):
-            return [response]
-        if hasattr(response, "content"):
-            return [response.content]
-        if hasattr(response, "message") and hasattr(response.message, "content"):
-            return [response.message.content]
-    except Exception as e:
-        logger.warning("Warning: Error occurred in extract_assistant_message: %s", str(e))
-        return []
+    return response
 
 
 def extract_provider_name(instance):
@@ -132,4 +139,3 @@ def update_span_from_llm_response(response, instance):
             meta_dict.update({"prompt_tokens": token_usage.get("prompt_tokens") or token_usage.get("input_tokens")})
             meta_dict.update({"total_tokens": token_usage.get("total_tokens")})
     return meta_dict
-

@@ -1,16 +1,12 @@
-## Version 0.4.0b3 (2025-05-28)
+## Version 0.4.0 (2025-05-31)
 
 - Record input and errors for inference.modelapi in case of error ([#193](https://github.com/monocle2ai/monocle/pull/193))
 - Removed special handling for streaming in wrapper ([#192](https://github.com/monocle2ai/monocle/pull/192))
 
 
-## Version 0.4.0b2 (2025-05-21)
-
 - Add Span error handling ([#186](https://github.com/monocle2ai/monocle/pull/186))
 - Add teams ai enhancements ([#184](https://github.com/monocle2ai/monocle/pull/184))
 
-
-## Version 0.4.0b1 (2025-05-14)
 
 - Added conversation id in scope for teams ai bot ([#180](https://github.com/monocle2ai/monocle/pull/180))
 - Update inference entity type of TeamsAI SDK ([#178](https://github.com/monocle2ai/monocle/pull/178))

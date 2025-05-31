@@ -9,31 +9,54 @@ from monocle_apptrace.instrumentation.metamodel.teamsai.entities.inference.teams
 )
 from monocle_apptrace.instrumentation.metamodel.teamsai.entities.inference.actionplanner_output_processor import (
     ACTIONPLANNER_OUTPUT_PROCESSOR,
-)
-
-
+) 
 def get_id(args, kwargs):
     """
     Extracts the ID from the context.
     """
     scopes: dict[str, dict[str:str]] = {}
     context = kwargs.get("context")
-    if context and context.activity and context.activity.conversation.id:
-        conversation_id = context.activity.conversation.id or ""
-        user_aad_object_id = context.activity.from_property.aad_object_id or ""
-        user_teams_id = context.activity.from_property.id or ""
+    if context and context.activity and context.activity.channel_id:
         channel_id = context.activity.channel_id or ""
-        recipient_id = context.activity.recipient.id or ""
-        recipient_aad_object_id = context.activity.recipient.aad_object_id or ""
-        scopes[f"teams.conversation.conversation.id"] = conversation_id
-        scopes[f"teams.user.from_property.aad_object_id"] = user_aad_object_id
-        scopes[f"teams.user.from_property.id"] = user_teams_id
-        scopes[f"teams.channel.channel_id"] = channel_id
-        scopes[f"teams.channel.recipient.id"] = recipient_id
-        scopes[f"teams.channel.recipient.aad_object_id"] = recipient_aad_object_id
+        if channel_id == "msteams":
+            type_name = context.activity.type or ""
+ 
+            if hasattr(context.activity,"conversation"):
+                conversation_id = context.activity.conversation.id or ""
+                converstion_type = context.activity.conversation.conversation_type or ""
+                conversation_name = context.activity.conversation.name or ""
+            if hasattr(context.activity,"from_property"):
+                user_teams_id = context.activity.from_property.id or ""
+                user_teams_name = context.activity.from_property.name or ""
+                user_teams_role = context.activity.from_property.role or ""
+            if hasattr(context.activity,"recipient"):
+                recipient_id = context.activity.recipient.id or ""
 
+            scopes[f"msteams.activity.type"] = type_name
+            scopes[f"msteams.conversation.id"] = conversation_id
+            scopes[f"msteams.conversation.type"] = converstion_type
+            scopes[f"msteams.conversation.name"] = conversation_name
+            scopes[f"msteams.user.from_property.id"] = user_teams_id
+            scopes[f"msteams.user.from_property.name"] = user_teams_name
+            scopes[f"msteams.user.from_property.role"] = user_teams_role
+            scopes[f"msteams.recipient.id"] = recipient_id
+            if hasattr(context.activity,"channel_data"):
+                if "tenant" in context.activity.channel_data:
+                    tenant_id = context.activity.channel_data['tenant']['id'] or ""
+                    scopes[f"msteams.channel_data.tenant.id"] = tenant_id
+                if "team" in context.activity.channel_data:
+                    team_id = context.activity.channel_data['team']['id'] or ""
+                    scopes[f"msteams.channel_data.team.id"] = team_id
+                    if "name" in context.activity.channel_data['team']:
+                        team_name = context.activity.channel_data['team']['name'] or ""
+                        scopes[f"msteams.channel_data.team.name"] = team_name
+                if "channel" in context.activity.channel_data:
+                    team_channel_id = context.activity.channel_data['channel']['id'] or ""
+                    scopes[f"msteams.channel_data.channel.id"] = team_channel_id
+                    if "name" in context.activity.channel_data['channel']:
+                        team_channel_name = context.activity.channel_data['channel']['name'] or ""
+                        scopes[f"msteams.channel_data.channel.name"] = team_channel_name
     return scopes
-
 
 TEAMAI_METHODS = [
     {
@@ -55,6 +78,6 @@ TEAMAI_METHODS = [
         "object": "ActionPlanner",
         "method": "complete_prompt",
         "scope_values": get_id,
-        "wrapper_method": ascopes_wrapper,
-    },
+        "wrapper_method": ascopes_wrapper,  
+    }
 ]

@@ -1,5 +1,6 @@
-## Version 0.4.0 (2025-05-31)
+## Version 0.4.0 (2025-06-02)
 
+- Update teams scopes ([#200](https://github.com/monocle2ai/monocle/pull/200))
 - Record input and errors for inference.modelapi in case of error ([#193](https://github.com/monocle2ai/monocle/pull/193))
 - Removed special handling for streaming in wrapper ([#192](https://github.com/monocle2ai/monocle/pull/192))
 

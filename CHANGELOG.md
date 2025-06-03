@@ -84,3 +84,24 @@
 ## 0.0.1 (Jul 17, 2024)
 
 - First monocle release
+
+- Update teams scopes ([#200](https://github.com/monocle2ai/monocle/pull/200))
+- Record input and errors for inference.modelapi in case of error ([#193](https://github.com/monocle2ai/monocle/pull/193))
+- Removed special handling for streaming in wrapper ([#192](https://github.com/monocle2ai/monocle/pull/192))
+
+
+- Add Span error handling ([#186](https://github.com/monocle2ai/monocle/pull/186))
+- Add teams ai enhancements ([#184](https://github.com/monocle2ai/monocle/pull/184))
+
+
+- Added conversation id in scope for teams ai bot ([#180](https://github.com/monocle2ai/monocle/pull/180))
+- Update inference entity type of TeamsAI SDK ([#178](https://github.com/monocle2ai/monocle/pull/178))
+- Added stream and async for openai ([#177](https://github.com/monocle2ai/monocle/pull/177))
+- Update inference span of TeamsAI ([#176](https://github.com/monocle2ai/monocle/pull/176))
+- Remove Preset span name and Bugfix for Event ([#175](https://github.com/monocle2ai/monocle/pull/175))
+- Add haystack anthropic sample ([#174](https://github.com/monocle2ai/monocle/pull/174))
+- aiohttp auto instrumentation ([#173](https://github.com/monocle2ai/monocle/pull/173))
+- Add source path to spans and fix json syntax in file exporter ([#172](https://github.com/monocle2ai/monocle/pull/172))
+- Added changes for openai streaming ([#171](https://github.com/monocle2ai/monocle/pull/171))
+- Add llama index anthropic sample ([#170](https://github.com/monocle2ai/monocle/pull/170))
+

@@ -84,7 +84,9 @@ def extract_assistant_message(arguments: Dict[str, Any]) -> str:
         result = arguments.get("result")
         if not result:
             return ""
-
+        if hasattr(result, "output_text"):
+            # If the result has output_text attribute
+            return result.output_text
         if (
             result.choices
             and result.choices[0].message
@@ -170,7 +172,9 @@ def get_model_name(arguments: Dict[str, Any]) -> str:
 
         # Try to get from instance
         instance = arguments.get("instance")
-        if instance:
+        if arguments.get('kwargs') and arguments.get('kwargs').get('model'):
+            return arguments['kwargs'].get('model')
+        if instance and hasattr(instance, "_config") and hasattr(instance._config, "model"):
             return instance._config.endpoint.split("/")[-1]
 
         return ""
@@ -179,8 +183,14 @@ def get_model_name(arguments: Dict[str, Any]) -> str:
         return ""
 
 
-def get_inference_type() -> str:
-    """Get the inference type for azure-ai-inference."""
+def get_inference_type(arguments) -> str:
+    if arguments.get("instance") and arguments["instance"]._config.endpoint:
+        
+        endpoint = arguments["instance"]._config.endpoint
+        if "services.ai.azure.com" in endpoint:
+            return "azure_ai_inference"
+        if "openai.azure.com" in endpoint:
+            return "azure_openai"
     return "azure_ai_inference"
 
 

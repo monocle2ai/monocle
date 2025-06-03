@@ -13,108 +13,115 @@ logger = logging.getLogger(__name__)
 
 
 def process_stream(to_wrap, response, span_processor):
-    """Process streaming responses from Azure AI Inference similar to OpenAI."""
+    """Process streaming responses from Azure AI Inference."""
     waiting_for_first_token = True
     stream_start_time = time.time_ns()
     first_token_time = stream_start_time
     stream_closed_time = None
     accumulated_response = ""
     token_usage = None
-    accumulated_temp_list = []
 
-    if to_wrap and hasattr(response, "__iter__"):
-        original_iter = response.__iter__
+    # For sync iteration - patch __next__ instead of __iter__
+    if to_wrap and hasattr(response, "__next__"):
+        original_next = response.__next__
 
-        def new_iter(self):
+        def new_next(self):
             nonlocal waiting_for_first_token, first_token_time, stream_closed_time, accumulated_response, token_usage
 
-            for item in original_iter():
-                try:
-                    # Handle Azure AI Inference streaming chunks
-                    if hasattr(item, 'choices') and item.choices:
-                        choice = item.choices[0]
-                        if hasattr(choice, 'delta') and hasattr(choice.delta, 'content') and choice.delta.content:
-                            if waiting_for_first_token:
-                                waiting_for_first_token = False
-                                first_token_time = time.time_ns()
+            try:
+                item = original_next()
+                
+                # Handle Azure AI Inference streaming chunks
+                if hasattr(item, 'choices') and item.choices:
+                    choice = item.choices[0]
+                    if hasattr(choice, 'delta') and hasattr(choice.delta, 'content') and choice.delta.content:
+                        if waiting_for_first_token:
+                            waiting_for_first_token = False
+                            first_token_time = time.time_ns()
 
-                            accumulated_response += choice.delta.content
-                    
-                    # Check for usage information at the end of stream
-                    if hasattr(item, 'usage') and item.usage:
-                        token_usage = item.usage
-                        stream_closed_time = time.time_ns()
+                        accumulated_response += choice.delta.content
+                
+                # Check for usage information at the end of stream
+                if hasattr(item, 'usage') and item.usage:
+                    token_usage = item.usage
+                    stream_closed_time = time.time_ns()
 
-                except Exception as e:
-                    logger.warning(
-                        "Warning: Error occurred while processing item in new_iter: %s",
-                        str(e),
+                return item
+
+            except StopIteration:
+                # Stream is complete, process final span
+                if span_processor:
+                    ret_val = SimpleNamespace(
+                        type="stream",
+                        timestamps={
+                            "data.input": int(stream_start_time),
+                            "data.output": int(first_token_time),
+                            "metadata": int(stream_closed_time or time.time_ns()),
+                        },
+                        output_text=accumulated_response,
+                        usage=token_usage,
                     )
-                finally:
-                    accumulated_temp_list.append(item)
-                    yield item
-
-            if span_processor:
-                ret_val = SimpleNamespace(
-                    type="stream",
-                    timestamps={
-                        "data.input": int(stream_start_time),
-                        "data.output": int(first_token_time),
-                        "metadata": int(stream_closed_time or time.time_ns()),
-                    },
-                    output_text=accumulated_response,
-                    usage=token_usage,
+                    span_processor(ret_val)
+                raise
+            except Exception as e:
+                logger.warning(
+                    "Warning: Error occurred while processing item in new_next: %s",
+                    str(e),
                 )
-                span_processor(ret_val)
+                raise
 
-        patch_instance_method(response, "__iter__", new_iter)
+        patch_instance_method(response, "__next__", new_next)
         
-    if to_wrap and hasattr(response, "__aiter__"):
-        original_iter = response.__aiter__
+    # For async iteration - patch __anext__ instead of __aiter__
+    if to_wrap and hasattr(response, "__anext__"):
+        original_anext = response.__anext__
 
-        async def new_aiter(self):
+        async def new_anext(self):
             nonlocal waiting_for_first_token, first_token_time, stream_closed_time, accumulated_response, token_usage
 
-            async for item in original_iter():
-                try:
-                    # Handle Azure AI Inference streaming chunks
-                    if hasattr(item, 'choices') and item.choices:
-                        choice = item.choices[0]
-                        if hasattr(choice, 'delta') and hasattr(choice.delta, 'content') and choice.delta.content:
-                            if waiting_for_first_token:
-                                waiting_for_first_token = False
-                                first_token_time = time.time_ns()
+            try:
+                item = await original_anext()
+                
+                # Handle Azure AI Inference streaming chunks
+                if hasattr(item, 'choices') and item.choices:
+                    choice = item.choices[0]
+                    if hasattr(choice, 'delta') and hasattr(choice.delta, 'content') and choice.delta.content:
+                        if waiting_for_first_token:
+                            waiting_for_first_token = False
+                            first_token_time = time.time_ns()
 
-                            accumulated_response += choice.delta.content
-                    
-                    # Check for usage information at the end of stream
-                    if hasattr(item, 'usage') and item.usage:
-                        token_usage = item.usage
-                        stream_closed_time = time.time_ns()
+                        accumulated_response += choice.delta.content
+                
+                # Check for usage information at the end of stream
+                if hasattr(item, 'usage') and item.usage:
+                    token_usage = item.usage
+                    stream_closed_time = time.time_ns()
 
-                except Exception as e:
-                    logger.warning(
-                        "Warning: Error occurred while processing item in new_aiter: %s",
-                        str(e),
+                return item
+
+            except StopAsyncIteration:
+                # Stream is complete, process final span
+                if span_processor:
+                    ret_val = SimpleNamespace(
+                        type="stream",
+                        timestamps={
+                            "data.input": int(stream_start_time),
+                            "data.output": int(first_token_time),
+                            "metadata": int(stream_closed_time or time.time_ns()),
+                        },
+                        output_text=accumulated_response,
+                        usage=token_usage,
                     )
-                finally:
-                    accumulated_temp_list.append(item)
-                    yield item
-
-            if span_processor:
-                ret_val = SimpleNamespace(
-                    type="stream",
-                    timestamps={
-                        "data.input": int(stream_start_time),
-                        "data.output": int(first_token_time),
-                        "metadata": int(stream_closed_time or time.time_ns()),
-                    },
-                    output_text=accumulated_response,
-                    usage=token_usage,
+                    span_processor(ret_val)
+                raise
+            except Exception as e:
+                logger.warning(
+                    "Warning: Error occurred while processing item in new_anext: %s",
+                    str(e),
                 )
-                span_processor(ret_val)
+                raise
 
-        patch_instance_method(response, "__aiter__", new_aiter)
+        patch_instance_method(response, "__anext__", new_anext)
 
 
 INFERENCE = {
@@ -126,7 +133,7 @@ INFERENCE = {
             {
                 "_comment": "Azure AI Inference provider type, endpoint",
                 "attribute": "type",
-                "accessor": lambda arguments: f"inference.{_helper.get_inference_type()}"
+                "accessor": lambda arguments: f"inference.{_helper.get_inference_type(arguments)}"
             },
             {
                 "attribute": "provider_name",

@@ -378,8 +378,10 @@ def get_status(arguments):
 def get_exception_status_code(arguments):
     if arguments['exception'] is not None and hasattr(arguments['exception'], 'code'):
         return arguments['exception'].code
-    else:
+    elif arguments['exception'] is not None:
         return 'error'
+    else:
+        return 'success'
 
 def get_exception_message(arguments):
     if arguments['exception'] is not None:

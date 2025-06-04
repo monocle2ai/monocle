@@ -1,5 +1,6 @@
 import logging
 from typing import Any, Dict, Optional
+from urllib.parse import urlparse
 from monocle_apptrace.instrumentation.common.utils import (
     resolve_from_alias,
     get_exception_message,
@@ -184,12 +185,18 @@ def get_model_name(arguments: Dict[str, Any]) -> str:
 
 
 def get_inference_type(arguments) -> str:
-    if arguments.get("instance") and arguments["instance"]._config.endpoint:
-        
-        endpoint = arguments["instance"]._config.endpoint
-        if "services.ai.azure.com" in endpoint:
+    instance = arguments.get("instance")
+    if instance and hasattr(instance, "_config") and hasattr(instance._config, "endpoint"):
+        endpoint = instance._config.endpoint
+        try:
+            parsed = urlparse(endpoint)
+            hostname = parsed.hostname or endpoint
+            hostname = hostname.lower()
+        except Exception:
+            hostname = str(endpoint).lower()
+        if hostname.endswith("services.ai.azure.com"):
             return "azure_ai_inference"
-        if "openai.azure.com" in endpoint:
+        if hostname.endswith("openai.azure.com"):
             return "azure_openai"
     return "azure_ai_inference"
 

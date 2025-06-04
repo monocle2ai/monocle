@@ -8,6 +8,7 @@ AZURE_AI_INFERENCE_METHODS = [
         "object": "ChatCompletionsClient",
         "method": "complete",
         "wrapper_method": task_wrapper,
+        "span_handler": "non_framework_handler",
         "output_processor": INFERENCE
     },
     # Chat Completions - Asynchronous
@@ -16,6 +17,7 @@ AZURE_AI_INFERENCE_METHODS = [
         "object": "ChatCompletionsClient",
         "method": "complete",
         "wrapper_method": atask_wrapper,
+        "span_handler": "non_framework_handler",
         "output_processor": INFERENCE
     }
 ]

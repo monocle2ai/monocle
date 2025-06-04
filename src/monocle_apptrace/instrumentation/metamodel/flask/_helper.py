@@ -70,7 +70,7 @@ class FlaskResponseSpanHandler(SpanHandler):
             if _parent_span_context is not None:
                 parent_span: Span = _parent_span_context.get(_SPAN_KEY, None)
                 if parent_span is not None:
-                    self.hydrate_events(to_wrap, wrapped, instance, args, kwargs, return_value, parent_span)
+                    self.hydrate_events(to_wrap, wrapped, instance, args, kwargs, return_value, parent_span=parent_span)
         except Exception as e:
             logger.info(f"Failed to propogate flask response: {e}")
         super().post_tracing(to_wrap, wrapped, instance, args, kwargs, return_value)

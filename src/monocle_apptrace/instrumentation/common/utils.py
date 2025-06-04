@@ -236,6 +236,13 @@ def set_scopes_from_baggage(baggage_context:Context):
             scope_name = scope_key[len(MONOCLE_SCOPE_NAME_PREFIX):]
             set_scope(scope_name, scope_value)
 
+def get_parent_span() -> Span:
+    parent_span: Span = None
+    _parent_span_context = get_current()
+    if _parent_span_context is not None and _parent_span_context.get(_SPAN_KEY, None):
+        parent_span = _parent_span_context.get(_SPAN_KEY, None)    
+    return parent_span
+
 def extract_http_headers(headers) -> object:
     global http_scopes
     trace_context:Context = extract(headers, context=get_current())
@@ -361,6 +368,12 @@ def get_llm_type(instance):
         return llm_type
     except:
         pass
+
+def get_status(arguments):
+    if arguments['exception'] is not None:
+        return 'error'
+    else:
+        return 'success'
 
 def get_exception_status_code(arguments):
     if arguments['exception'] is not None and hasattr(arguments['exception'], 'code') and arguments['exception'].code is not None:

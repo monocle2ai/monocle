@@ -1,0 +1,423 @@
+[{
+    "name": "openai.resources.chat.completions.completions.AsyncCompletions",
+    "context": {
+        "trace_id": "0x32eb33deb30338c7d3fd56fc1c531751",
+        "span_id": "0x60fdbddb6193083f",
+        "trace_state": "[]"
+    },
+    "kind": "SpanKind.INTERNAL",
+    "parent_id": "0xd441811052ae8e86",
+    "start_time": "2025-06-05T11:47:57.259016Z",
+    "end_time": "2025-06-05T11:48:00.404831Z",
+    "status": {
+        "status_code": "OK"
+    },
+    "attributes": {
+        "monocle_apptrace.version": "0.3.1",
+        "monocle_apptrace.language": "python",
+        "span_source": "c:\\Users\\BHLP0106\\Downloads\\test_teams_ai_bot\\teams-ai-basic-bot\\.venv\\Lib\\site-packages\\teams\\ai\\models\\openai_model.py:237",
+        "workflow.name": "teams-ai-bot",
+        "span.type": "generic",
+        "scope.teams.conversation.conversation.id": "personal-chat-id",
+        "scope.teams.user.from_property.aad_object_id": "00000000-0000-0000-0000-0000000000020",
+        "scope.teams.user.from_property.id": "user-id-0",
+        "scope.teams.channel.channel_id": "msteams",
+        "scope.teams.channel.recipient.id": "00000000-0000-0000-0000-00000000000011",
+        "scope.teams.channel.recipient.aad_object_id": ""
+    },
+    "events": [],
+    "links": [],
+    "resource": {
+        "attributes": {
+            "service.name": "teams-ai-bot"
+        },
+        "schema_url": ""
+    }
+}
+
+,{
+    "name": "teams.ai.models.openai_model.OpenAIModel",
+    "context": {
+        "trace_id": "0x32eb33deb30338c7d3fd56fc1c531751",
+        "span_id": "0xd441811052ae8e86",
+        "trace_state": "[]"
+    },
+    "kind": "SpanKind.INTERNAL",
+    "parent_id": "0x542e989c7db002a6",
+    "start_time": "2025-06-05T11:47:57.240912Z",
+    "end_time": "2025-06-05T11:48:00.456221Z",
+    "status": {
+        "status_code": "OK"
+    },
+    "attributes": {
+        "monocle_apptrace.version": "0.3.1",
+        "monocle_apptrace.language": "python",
+        "span_source": "c:\\Users\\BHLP0106\\Downloads\\test_teams_ai_bot\\teams-ai-basic-bot\\.venv\\Lib\\site-packages\\teams\\ai\\clients\\llm_client.py:217",
+        "workflow.name": "teams-ai-bot",
+        "span.type": "inference",
+        "entity.1.type": "inference.azure_openai",
+        "entity.1.provider_name": "okahu-openai-dev.openai.azure.com",
+        "entity.1.inference_endpoint": "https://okahu-openai-dev.openai.azure.com/openai/deployments/gpt-4o-mini/",
+        "entity.2.name": "gpt-4o-mini",
+        "entity.2.type": "model.llm.gpt-4o-mini",
+        "scope.teams.conversation.conversation.id": "personal-chat-id",
+        "scope.teams.user.from_property.aad_object_id": "00000000-0000-0000-0000-0000000000020",
+        "scope.teams.user.from_property.id": "user-id-0",
+        "scope.teams.channel.channel_id": "msteams",
+        "scope.teams.channel.recipient.id": "00000000-0000-0000-0000-00000000000011",
+        "scope.teams.channel.recipient.aad_object_id": "",
+        "entity.count": 2
+    },
+    "events": [
+        {
+            "name": "metadata",
+            "timestamp": "2025-06-05T11:48:00.405806Z",
+            "attributes": {
+                "completion_tokens": 100,
+                "prompt_tokens": 67,
+                "total_tokens": 167
+            }
+        },
+        {
+            "name": "data.input",
+            "timestamp": "2025-06-05T11:48:00.456221Z",
+            "attributes": {
+                "input": "What's the best way to use a French press?"
+            }
+        },
+        {
+            "name": "data.output",
+            "timestamp": "2025-06-05T11:48:00.456221Z",
+            "attributes": {
+                "response": "Ah, the French press! The sophisticated way to brew coffee that makes you feel like a barista in a Parisian caf\u00e9, even if you're just in your kitchen wearing pajamas. Here\u2019s how to master the art of French pressing:\n\n1. **Choose Your Coffee**: Start with coarsely ground coffee. Aim for about 1 ounce (or 28 grams) of coffee for every 15 ounces (or 450 milliliters) of water. This is not a science experiment,"
+            }
+        }
+    ],
+    "links": [],
+    "resource": {
+        "attributes": {
+            "service.name": "teams-ai-bot"
+        },
+        "schema_url": ""
+    }
+}
+
+,{
+    "name": "teams.ai.planners.action_planner.ActionPlanner",
+    "context": {
+        "trace_id": "0x32eb33deb30338c7d3fd56fc1c531751",
+        "span_id": "0x542e989c7db002a6",
+        "trace_state": "[]"
+    },
+    "kind": "SpanKind.INTERNAL",
+    "parent_id": "0x9ef909716eee8cee",
+    "start_time": "2025-06-05T11:47:57.233814Z",
+    "end_time": "2025-06-05T11:48:03.030061Z",
+    "status": {
+        "status_code": "OK"
+    },
+    "attributes": {
+        "monocle_apptrace.version": "0.3.1",
+        "monocle_apptrace.language": "python",
+        "span_source": "c:\\Users\\BHLP0106\\Downloads\\test_teams_ai_bot\\teams-ai-basic-bot\\.venv\\Lib\\site-packages\\monocle_apptrace\\instrumentation\\common\\wrapper.py:215",
+        "workflow.name": "teams-ai-bot",
+        "span.type": "generic",
+        "entity.1.type": "teams.planner",
+        "entity.1.planner_type": "ActionPlanner",
+        "entity.2.model": "OpenAIModel",
+        "entity.2.tokenizer": "GPTTokenizer",
+        "scope.teams.conversation.conversation.id": "personal-chat-id",
+        "scope.teams.user.from_property.aad_object_id": "00000000-0000-0000-0000-0000000000020",
+        "scope.teams.user.from_property.id": "user-id-0",
+        "scope.teams.channel.channel_id": "msteams",
+        "scope.teams.channel.recipient.id": "00000000-0000-0000-0000-00000000000011",
+        "scope.teams.channel.recipient.aad_object_id": "",
+        "entity.count": 2
+    },
+    "events": [
+        {
+            "name": "data.input",
+            "timestamp": "2025-06-05T11:48:02.507752Z",
+            "attributes": {
+                "prompt_template_name": "chat",
+                "template_name": "# Profile\n- Your name is Monocle Bot\n- You are funny.\n- You work for Okahu.ai and know everything about OpenTelemetry and Monocle Apptrace\n- You are coffee chatbot for teamsAI.",
+                "validator": "DefaultAugmentation",
+                "memory_type": "TurnState"
+            }
+        },
+        {
+            "name": "data.output",
+            "timestamp": "2025-06-05T11:48:03.030061Z",
+            "attributes": {
+                "response": "Ah, the French press! The sophisticated way to brew coffee that makes you feel like a barista in a Parisian caf\u00e9, even if you're just in your kitchen wearing pajamas. Here\u2019s how to master the art of French pressing:\n\n1. **Choose Your Coffee**: Start with coarsely ground coffee. Aim for about 1 ounce (or 28 grams) of coffee for every 15 ounces (or 450 milliliters) of water. This is not a science experiment,"
+            }
+        },
+        {
+            "name": "metadata",
+            "timestamp": "2025-06-05T11:48:03.030061Z",
+            "attributes": {
+                "feedback_enabled": true
+            }
+        }
+    ],
+    "links": [],
+    "resource": {
+        "attributes": {
+            "service.name": "teams-ai-bot"
+        },
+        "schema_url": ""
+    }
+}
+
+,{
+    "name": "workflow",
+    "context": {
+        "trace_id": "0x32eb33deb30338c7d3fd56fc1c531751",
+        "span_id": "0x9ef909716eee8cee",
+        "trace_state": "[]"
+    },
+    "kind": "SpanKind.INTERNAL",
+    "parent_id": null,
+    "start_time": "2025-06-05T11:47:57.232290Z",
+    "end_time": "2025-06-05T11:48:03.030061Z",
+    "status": {
+        "status_code": "OK"
+    },
+    "attributes": {
+        "monocle_apptrace.version": "0.3.1",
+        "monocle_apptrace.language": "python",
+        "span_source": "c:\\Users\\BHLP0106\\Downloads\\test_teams_ai_bot\\teams-ai-basic-bot\\.venv\\Lib\\site-packages\\monocle_apptrace\\instrumentation\\common\\wrapper.py:215",
+        "scope.teams.conversation.conversation.id": "personal-chat-id",
+        "scope.teams.user.from_property.aad_object_id": "00000000-0000-0000-0000-0000000000020",
+        "scope.teams.user.from_property.id": "user-id-0",
+        "scope.teams.channel.channel_id": "msteams",
+        "scope.teams.channel.recipient.id": "00000000-0000-0000-0000-00000000000011",
+        "scope.teams.channel.recipient.aad_object_id": "",
+        "span.type": "workflow",
+        "entity.1.name": "teams-ai-bot",
+        "entity.1.type": "workflow.teams_ai",
+        "entity.2.type": "app_hosting.generic",
+        "entity.2.name": "generic"
+    },
+    "events": [],
+    "links": [],
+    "resource": {
+        "attributes": {
+            "service.name": "teams-ai-bot"
+        },
+        "schema_url": ""
+    }
+}
+],
+[{
+    "name": "openai.resources.chat.completions.completions.AsyncCompletions",
+    "context": {
+        "trace_id": "0x9ec84a52c0897f3a1d4917ee46f5832a",
+        "span_id": "0x546a075ce30030d5",
+        "trace_state": "[]"
+    },
+    "kind": "SpanKind.INTERNAL",
+    "parent_id": "0xac6a933ec0aa24ab",
+    "start_time": "2025-06-05T11:48:32.612658Z",
+    "end_time": "2025-06-05T11:48:34.597820Z",
+    "status": {
+        "status_code": "OK"
+    },
+    "attributes": {
+        "monocle_apptrace.version": "0.3.1",
+        "monocle_apptrace.language": "python",
+        "span_source": "c:\\Users\\BHLP0106\\Downloads\\test_teams_ai_bot\\teams-ai-basic-bot\\.venv\\Lib\\site-packages\\teams\\ai\\models\\openai_model.py:237",
+        "workflow.name": "teams-ai-bot",
+        "span.type": "generic",
+        "scope.teams.conversation.conversation.id": "personal-chat-id",
+        "scope.teams.user.from_property.aad_object_id": "00000000-0000-0000-0000-0000000000020",
+        "scope.teams.user.from_property.id": "user-id-0",
+        "scope.teams.channel.channel_id": "msteams",
+        "scope.teams.channel.recipient.id": "00000000-0000-0000-0000-00000000000011",
+        "scope.teams.channel.recipient.aad_object_id": ""
+    },
+    "events": [],
+    "links": [],
+    "resource": {
+        "attributes": {
+            "service.name": "teams-ai-bot"
+        },
+        "schema_url": ""
+    }
+}
+
+,{
+    "name": "teams.ai.models.openai_model.OpenAIModel",
+    "context": {
+        "trace_id": "0x9ec84a52c0897f3a1d4917ee46f5832a",
+        "span_id": "0xac6a933ec0aa24ab",
+        "trace_state": "[]"
+    },
+    "kind": "SpanKind.INTERNAL",
+    "parent_id": "0x0f146f5df1288c0b",
+    "start_time": "2025-06-05T11:48:32.608843Z",
+    "end_time": "2025-06-05T11:48:34.599224Z",
+    "status": {
+        "status_code": "OK"
+    },
+    "attributes": {
+        "monocle_apptrace.version": "0.3.1",
+        "monocle_apptrace.language": "python",
+        "span_source": "c:\\Users\\BHLP0106\\Downloads\\test_teams_ai_bot\\teams-ai-basic-bot\\.venv\\Lib\\site-packages\\teams\\ai\\clients\\llm_client.py:217",
+        "workflow.name": "teams-ai-bot",
+        "span.type": "inference",
+        "entity.1.type": "inference.azure_openai",
+        "entity.1.provider_name": "okahu-openai-dev.openai.azure.com",
+        "entity.1.inference_endpoint": "https://okahu-openai-dev.openai.azure.com/openai/deployments/gpt-4o-mini/",
+        "entity.2.name": "gpt-4o-mini",
+        "entity.2.type": "model.llm.gpt-4o-mini",
+        "scope.teams.conversation.conversation.id": "personal-chat-id",
+        "scope.teams.user.from_property.aad_object_id": "00000000-0000-0000-0000-0000000000020",
+        "scope.teams.user.from_property.id": "user-id-0",
+        "scope.teams.channel.channel_id": "msteams",
+        "scope.teams.channel.recipient.id": "00000000-0000-0000-0000-00000000000011",
+        "scope.teams.channel.recipient.aad_object_id": "",
+        "entity.count": 2
+    },
+    "events": [
+        {
+            "name": "metadata",
+            "timestamp": "2025-06-05T11:48:34.597820Z",
+            "attributes": {
+                "completion_tokens": 68,
+                "prompt_tokens": 37,
+                "total_tokens": 105
+            }
+        },
+        {
+            "name": "data.input",
+            "timestamp": "2025-06-05T11:48:34.599224Z",
+            "attributes": {
+                "input": "how to brew coffee?"
+            }
+        },
+        {
+            "name": "data.output",
+            "timestamp": "2025-06-05T11:48:34.599224Z",
+            "attributes": {
+                "response": "Absolutely! I\u2019d be happy to help you with any home brewing methods or troubleshoot any issues you might be facing. Whether you\u2019re using a French press, pour-over, AeroPress, or any other method, just let me know what you need assistance with, and I\u2019ll provide you with a detailed guide or solutions to your problems!"
+            }
+        }
+    ],
+    "links": [],
+    "resource": {
+        "attributes": {
+            "service.name": "teams-ai-bot"
+        },
+        "schema_url": ""
+    }
+}
+
+,{
+    "name": "teams.ai.planners.action_planner.ActionPlanner",
+    "context": {
+        "trace_id": "0x9ec84a52c0897f3a1d4917ee46f5832a",
+        "span_id": "0x0f146f5df1288c0b",
+        "trace_state": "[]"
+    },
+    "kind": "SpanKind.INTERNAL",
+    "parent_id": "0x75af62eb115c2fd5",
+    "start_time": "2025-06-05T11:48:32.604369Z",
+    "end_time": "2025-06-05T11:48:37.392641Z",
+    "status": {
+        "status_code": "OK"
+    },
+    "attributes": {
+        "monocle_apptrace.version": "0.3.1",
+        "monocle_apptrace.language": "python",
+        "span_source": "c:\\Users\\BHLP0106\\Downloads\\test_teams_ai_bot\\teams-ai-basic-bot\\.venv\\Lib\\site-packages\\monocle_apptrace\\instrumentation\\common\\wrapper.py:215",
+        "workflow.name": "teams-ai-bot",
+        "span.type": "generic",
+        "entity.1.type": "teams.planner",
+        "entity.1.planner_type": "ActionPlanner",
+        "entity.2.model": "OpenAIModel",
+        "entity.2.tokenizer": "GPTTokenizer",
+        "scope.teams.conversation.conversation.id": "personal-chat-id",
+        "scope.teams.user.from_property.aad_object_id": "00000000-0000-0000-0000-0000000000020",
+        "scope.teams.user.from_property.id": "user-id-0",
+        "scope.teams.channel.channel_id": "msteams",
+        "scope.teams.channel.recipient.id": "00000000-0000-0000-0000-00000000000011",
+        "scope.teams.channel.recipient.aad_object_id": "",
+        "entity.count": 2
+    },
+    "events": [
+        {
+            "name": "data.input",
+            "timestamp": "2025-06-05T11:48:36.800007Z",
+            "attributes": {
+                "prompt_template_name": "brewing_guide",
+                "template_name": "You are a coffee brewing expert specializing in home brewing methods. You provide detailed, \n        step-by-step brewing guides and help troubleshoot common brewing problems.",
+                "validator": "DefaultAugmentation",
+                "memory_type": "TurnState"
+            }
+        },
+        {
+            "name": "data.output",
+            "timestamp": "2025-06-05T11:48:37.392641Z",
+            "attributes": {
+                "response": "Absolutely! I\u2019d be happy to help you with any home brewing methods or troubleshoot any issues you might be facing. Whether you\u2019re using a French press, pour-over, AeroPress, or any other method, just let me know what you need assistance with, and I\u2019ll provide you with a detailed guide or solutions to your problems!"
+            }
+        },
+        {
+            "name": "metadata",
+            "timestamp": "2025-06-05T11:48:37.392641Z",
+            "attributes": {
+                "feedback_enabled": true
+            }
+        }
+    ],
+    "links": [],
+    "resource": {
+        "attributes": {
+            "service.name": "teams-ai-bot"
+        },
+        "schema_url": ""
+    }
+}
+
+,{
+    "name": "workflow",
+    "context": {
+        "trace_id": "0x9ec84a52c0897f3a1d4917ee46f5832a",
+        "span_id": "0x75af62eb115c2fd5",
+        "trace_state": "[]"
+    },
+    "kind": "SpanKind.INTERNAL",
+    "parent_id": null,
+    "start_time": "2025-06-05T11:48:32.604369Z",
+    "end_time": "2025-06-05T11:48:37.393755Z",
+    "status": {
+        "status_code": "OK"
+    },
+    "attributes": {
+        "monocle_apptrace.version": "0.3.1",
+        "monocle_apptrace.language": "python",
+        "span_source": "c:\\Users\\BHLP0106\\Downloads\\test_teams_ai_bot\\teams-ai-basic-bot\\.venv\\Lib\\site-packages\\monocle_apptrace\\instrumentation\\common\\wrapper.py:215",
+        "scope.teams.conversation.conversation.id": "personal-chat-id",
+        "scope.teams.user.from_property.aad_object_id": "00000000-0000-0000-0000-0000000000020",
+        "scope.teams.user.from_property.id": "user-id-0",
+        "scope.teams.channel.channel_id": "msteams",
+        "scope.teams.channel.recipient.id": "00000000-0000-0000-0000-00000000000011",
+        "scope.teams.channel.recipient.aad_object_id": "",
+        "span.type": "workflow",
+        "entity.1.name": "teams-ai-bot",
+        "entity.1.type": "workflow.teams_ai",
+        "entity.2.type": "app_hosting.generic",
+        "entity.2.name": "generic"
+    },
+    "events": [],
+    "links": [],
+    "resource": {
+        "attributes": {
+            "service.name": "teams-ai-bot"
+        },
+        "schema_url": ""
+    }
+}
+
+]

@@ -2,6 +2,7 @@
 from typing import Any, Dict
 from monocle_apptrace.instrumentation.common.wrapper import task_wrapper, scope_wrapper
 from monocle_apptrace.instrumentation.common.span_handler import SpanHandler, NonFrameworkSpanHandler
+from monocle_apptrace.instrumentation.metamodel.azureaiinference.methods import AZURE_AI_INFERENCE_METHODS
 from monocle_apptrace.instrumentation.metamodel.botocore.methods import BOTOCORE_METHODS
 from monocle_apptrace.instrumentation.metamodel.botocore.handlers.botocore_span_handler import BotoCoreSpanHandler
 from monocle_apptrace.instrumentation.metamodel.langchain.methods import (
@@ -68,7 +69,7 @@ class WrapperMethod:
     def get_span_handler(self) -> SpanHandler:
         return self.span_handler()
 
-DEFAULT_METHODS_LIST = LANGCHAIN_METHODS + LLAMAINDEX_METHODS + HAYSTACK_METHODS + BOTOCORE_METHODS + FLASK_METHODS + REQUESTS_METHODS + LANGGRAPH_METHODS + OPENAI_METHODS + TEAMAI_METHODS + ANTHROPIC_METHODS + AIOHTTP_METHODS
+DEFAULT_METHODS_LIST = LANGCHAIN_METHODS + LLAMAINDEX_METHODS + HAYSTACK_METHODS + BOTOCORE_METHODS + FLASK_METHODS + REQUESTS_METHODS + LANGGRAPH_METHODS + OPENAI_METHODS + TEAMAI_METHODS + ANTHROPIC_METHODS + AIOHTTP_METHODS + AZURE_AI_INFERENCE_METHODS
 
 MONOCLE_SPAN_HANDLERS: Dict[str, SpanHandler] = {
     "default": SpanHandler(),

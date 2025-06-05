@@ -30,8 +30,12 @@ ACTIONPLANNER_OUTPUT_PROCESSOR = {
                 "accessor": lambda arguments: arguments["instance"]._options.tokenizer.__class__.__name__ if hasattr(arguments["instance"], "_options") else "GPTTokenizer"
             },
             {
-                "attribute": "prompt_name",
+                "attribute": "prompt_template_name",
                 "accessor": _helper.capture_prompt_info
+            },
+            {
+                "attribute": "prompt_template",
+                "accessor": _helper.capture_prompt_template_info
             },
             {
                 "attribute": "validator",

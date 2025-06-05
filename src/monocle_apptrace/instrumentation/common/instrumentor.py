@@ -362,7 +362,7 @@ def monocle_trace_http_route(func):
     if inspect.iscoroutinefunction(func):
         @wraps(func)
         async def wrapper(*args, **kwargs):
-            return http_async_route_handler(func, *args, **kwargs)
+            return await http_async_route_handler(func, *args, **kwargs)
         return wrapper
     else:
         @wraps(func)

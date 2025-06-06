@@ -1,14 +1,14 @@
 [{
     "name": "openai.resources.chat.completions.completions.AsyncCompletions",
     "context": {
-        "trace_id": "0x32eb33deb30338c7d3fd56fc1c531751",
-        "span_id": "0x60fdbddb6193083f",
+        "trace_id": "0x5fa6f3fe651f3269fca7dfce4ca1d7d3",
+        "span_id": "0x68d50c198bed69fd",
         "trace_state": "[]"
     },
     "kind": "SpanKind.INTERNAL",
-    "parent_id": "0xd441811052ae8e86",
-    "start_time": "2025-06-05T11:47:57.259016Z",
-    "end_time": "2025-06-05T11:48:00.404831Z",
+    "parent_id": "0xe755b02bd2d4bda6",
+    "start_time": "2025-06-06T04:18:57.326862Z",
+    "end_time": "2025-06-06T04:18:59.611822Z",
     "status": {
         "status_code": "OK"
     },
@@ -38,14 +38,14 @@
 ,{
     "name": "teams.ai.models.openai_model.OpenAIModel",
     "context": {
-        "trace_id": "0x32eb33deb30338c7d3fd56fc1c531751",
-        "span_id": "0xd441811052ae8e86",
+        "trace_id": "0x5fa6f3fe651f3269fca7dfce4ca1d7d3",
+        "span_id": "0xe755b02bd2d4bda6",
         "trace_state": "[]"
     },
     "kind": "SpanKind.INTERNAL",
-    "parent_id": "0x542e989c7db002a6",
-    "start_time": "2025-06-05T11:47:57.240912Z",
-    "end_time": "2025-06-05T11:48:00.456221Z",
+    "parent_id": "0x151f101b5e65e8c8",
+    "start_time": "2025-06-06T04:18:57.309658Z",
+    "end_time": "2025-06-06T04:18:59.657028Z",
     "status": {
         "status_code": "OK"
     },
@@ -71,7 +71,7 @@
     "events": [
         {
             "name": "metadata",
-            "timestamp": "2025-06-05T11:48:00.405806Z",
+            "timestamp": "2025-06-06T04:18:59.612821Z",
             "attributes": {
                 "completion_tokens": 100,
                 "prompt_tokens": 67,
@@ -80,16 +80,16 @@
         },
         {
             "name": "data.input",
-            "timestamp": "2025-06-05T11:48:00.456221Z",
+            "timestamp": "2025-06-06T04:18:59.657028Z",
             "attributes": {
                 "input": "What's the best way to use a French press?"
             }
         },
         {
             "name": "data.output",
-            "timestamp": "2025-06-05T11:48:00.456221Z",
+            "timestamp": "2025-06-06T04:18:59.657028Z",
             "attributes": {
-                "response": "Ah, the French press! The sophisticated way to brew coffee that makes you feel like a barista in a Parisian caf\u00e9, even if you're just in your kitchen wearing pajamas. Here\u2019s how to master the art of French pressing:\n\n1. **Choose Your Coffee**: Start with coarsely ground coffee. Aim for about 1 ounce (or 28 grams) of coffee for every 15 ounces (or 450 milliliters) of water. This is not a science experiment,"
+                "response": "Ah, the French press! The only thing that can make your morning coffee feel like a fancy Parisian caf\u00e9 experience without the need for a beret or a baguette. Here\u2019s how to use it:\n\n1. **Boil Water**: Start by boiling some water. Aim for about 200\u00b0F (93\u00b0C) \u2013 just off the boil. If you don\u2019t have a thermometer, let it boil and then wait about 30 seconds. \n\n2. **Measure Coffee**: Use"
             }
         }
     ],
@@ -105,14 +105,14 @@
 ,{
     "name": "teams.ai.planners.action_planner.ActionPlanner",
     "context": {
-        "trace_id": "0x32eb33deb30338c7d3fd56fc1c531751",
-        "span_id": "0x542e989c7db002a6",
+        "trace_id": "0x5fa6f3fe651f3269fca7dfce4ca1d7d3",
+        "span_id": "0x151f101b5e65e8c8",
         "trace_state": "[]"
     },
     "kind": "SpanKind.INTERNAL",
-    "parent_id": "0x9ef909716eee8cee",
-    "start_time": "2025-06-05T11:47:57.233814Z",
-    "end_time": "2025-06-05T11:48:03.030061Z",
+    "parent_id": "0xb6f3608411999215",
+    "start_time": "2025-06-06T04:18:57.280723Z",
+    "end_time": "2025-06-06T04:19:01.756444Z",
     "status": {
         "status_code": "OK"
     },
@@ -137,24 +137,24 @@
     "events": [
         {
             "name": "data.input",
-            "timestamp": "2025-06-05T11:48:02.507752Z",
+            "timestamp": "2025-06-06T04:19:01.152808Z",
             "attributes": {
                 "prompt_template_name": "chat",
-                "template_name": "# Profile\n- Your name is Monocle Bot\n- You are funny.\n- You work for Okahu.ai and know everything about OpenTelemetry and Monocle Apptrace\n- You are coffee chatbot for teamsAI.",
+                "prompt_template": "# Profile\n- Your name is Monocle Bot\n- You are funny.\n- You work for Okahu.ai and know everything about OpenTelemetry and Monocle Apptrace\n- You are coffee chatbot for teamsAI.",
                 "validator": "DefaultAugmentation",
                 "memory_type": "TurnState"
             }
         },
         {
             "name": "data.output",
-            "timestamp": "2025-06-05T11:48:03.030061Z",
+            "timestamp": "2025-06-06T04:19:01.756444Z",
             "attributes": {
-                "response": "Ah, the French press! The sophisticated way to brew coffee that makes you feel like a barista in a Parisian caf\u00e9, even if you're just in your kitchen wearing pajamas. Here\u2019s how to master the art of French pressing:\n\n1. **Choose Your Coffee**: Start with coarsely ground coffee. Aim for about 1 ounce (or 28 grams) of coffee for every 15 ounces (or 450 milliliters) of water. This is not a science experiment,"
+                "response": "Ah, the French press! The only thing that can make your morning coffee feel like a fancy Parisian caf\u00e9 experience without the need for a beret or a baguette. Here\u2019s how to use it:\n\n1. **Boil Water**: Start by boiling some water. Aim for about 200\u00b0F (93\u00b0C) \u2013 just off the boil. If you don\u2019t have a thermometer, let it boil and then wait about 30 seconds. \n\n2. **Measure Coffee**: Use"
             }
         },
         {
             "name": "metadata",
-            "timestamp": "2025-06-05T11:48:03.030061Z",
+            "timestamp": "2025-06-06T04:19:01.756444Z",
             "attributes": {
                 "feedback_enabled": true
             }
@@ -172,14 +172,14 @@
 ,{
     "name": "workflow",
     "context": {
-        "trace_id": "0x32eb33deb30338c7d3fd56fc1c531751",
-        "span_id": "0x9ef909716eee8cee",
+        "trace_id": "0x5fa6f3fe651f3269fca7dfce4ca1d7d3",
+        "span_id": "0xb6f3608411999215",
         "trace_state": "[]"
     },
     "kind": "SpanKind.INTERNAL",
     "parent_id": null,
-    "start_time": "2025-06-05T11:47:57.232290Z",
-    "end_time": "2025-06-05T11:48:03.030061Z",
+    "start_time": "2025-06-06T04:18:57.279723Z",
+    "end_time": "2025-06-06T04:19:01.756444Z",
     "status": {
         "status_code": "OK"
     },
@@ -208,18 +208,19 @@
         "schema_url": ""
     }
 }
+
 ],
 [{
     "name": "openai.resources.chat.completions.completions.AsyncCompletions",
     "context": {
-        "trace_id": "0x9ec84a52c0897f3a1d4917ee46f5832a",
-        "span_id": "0x546a075ce30030d5",
+        "trace_id": "0x17c766aac321361ee576cdd39479535a",
+        "span_id": "0x16077e5967b3d4fd",
         "trace_state": "[]"
     },
     "kind": "SpanKind.INTERNAL",
-    "parent_id": "0xac6a933ec0aa24ab",
-    "start_time": "2025-06-05T11:48:32.612658Z",
-    "end_time": "2025-06-05T11:48:34.597820Z",
+    "parent_id": "0xadd7afe172f86141",
+    "start_time": "2025-06-06T04:19:49.625723Z",
+    "end_time": "2025-06-06T04:20:01.291696Z",
     "status": {
         "status_code": "OK"
     },
@@ -249,14 +250,14 @@
 ,{
     "name": "teams.ai.models.openai_model.OpenAIModel",
     "context": {
-        "trace_id": "0x9ec84a52c0897f3a1d4917ee46f5832a",
-        "span_id": "0xac6a933ec0aa24ab",
+        "trace_id": "0x17c766aac321361ee576cdd39479535a",
+        "span_id": "0xadd7afe172f86141",
         "trace_state": "[]"
     },
     "kind": "SpanKind.INTERNAL",
-    "parent_id": "0x0f146f5df1288c0b",
-    "start_time": "2025-06-05T11:48:32.608843Z",
-    "end_time": "2025-06-05T11:48:34.599224Z",
+    "parent_id": "0xbe0fc74d1836350d",
+    "start_time": "2025-06-06T04:19:49.622185Z",
+    "end_time": "2025-06-06T04:20:01.292700Z",
     "status": {
         "status_code": "OK"
     },
@@ -282,25 +283,25 @@
     "events": [
         {
             "name": "metadata",
-            "timestamp": "2025-06-05T11:48:34.597820Z",
+            "timestamp": "2025-06-06T04:20:01.291696Z",
             "attributes": {
-                "completion_tokens": 68,
-                "prompt_tokens": 37,
-                "total_tokens": 105
+                "completion_tokens": 960,
+                "prompt_tokens": 116,
+                "total_tokens": 1076
             }
         },
         {
             "name": "data.input",
-            "timestamp": "2025-06-05T11:48:34.599224Z",
+            "timestamp": "2025-06-06T04:20:01.292700Z",
             "attributes": {
                 "input": "how to brew coffee?"
             }
         },
         {
             "name": "data.output",
-            "timestamp": "2025-06-05T11:48:34.599224Z",
+            "timestamp": "2025-06-06T04:20:01.292700Z",
             "attributes": {
-                "response": "Absolutely! I\u2019d be happy to help you with any home brewing methods or troubleshoot any issues you might be facing. Whether you\u2019re using a French press, pour-over, AeroPress, or any other method, just let me know what you need assistance with, and I\u2019ll provide you with a detailed guide or solutions to your problems!"
+                "response": "Brewing coffee can be a delightful experience, and there are several methods to choose from. Below, I\u2019ll provide a detailed guide for three popular brewing methods: Pour-Over, French Press, and Espresso. Each method has its unique characteristics and requires specific measurements and techniques.\n\n### 1. Pour-Over Coffee\n\n**Equipment Needed:**\n- Pour-over dripper (e.g., Hario V60, Chemex)\n- Coffee filter\n- Kettle (preferably a gooseneck kettle for precision)\n- Scale\n- Coffee grinder\n- Mug or carafe\n\n**Ingredients:**\n- Fresh coffee beans (medium roast recommended)\n- Filtered water\n\n**Measurements:**\n- Coffee: 1 gram of coffee per 15-17 grams of water (e.g., 20g coffee to 300g water)\n\n**Steps:**\n1. **Boil Water:** Heat filtered water to about 200\u00b0F (93\u00b0C).\n2. **Grind Coffee:** Grind your coffee beans to a medium-coarse consistency, similar to sea salt.\n3. **Prepare Filter:** Place the coffee filter in the dripper and rinse it with hot water to eliminate paper taste and preheat the dripper.\n4. **Add Coffee:** Place the ground coffee in the filter and level it out.\n5. **Bloom:** Pour a small amount of hot water (about double the weight of the coffee) over the grounds to saturate them. Let it bloom for 30-45 seconds.\n6. **Brew:** Slowly pour the remaining water in a circular motion, avoiding the edges. Aim to finish pouring in about 2-3 minutes.\n7. **Serve:** Once the water has fully drained, remove the dripper, and enjoy your coffee!\n\n### 2. French Press Coffee\n\n**Equipment Needed:**\n- French press\n- Kettle\n- Coffee grinder\n- Scale\n- Stirring spoon\n\n**Ingredients:**\n- Fresh coffee beans (coarse grind recommended)\n- Filtered water\n\n**Measurements:**\n- Coffee: 1 gram of coffee per 15-17 grams of water (e.g., 30g coffee to 450g water)\n\n**Steps:**\n1. **Boil Water:** Heat filtered water to about 200\u00b0F (93\u00b0C).\n2. **Grind Coffee:** Grind your coffee beans to a coarse consistency, similar to breadcrumbs.\n3. **Add Coffee:** Place the ground coffee in the French press.\n4. **Add Water:** Pour hot water over the coffee grounds, ensuring all grounds are saturated. Stir gently to mix.\n5. **Steep:** Place the lid on the French press and let it steep for 4 minutes.\n6. **Press:** Slowly press the plunger down to separate the grounds from the coffee.\n7. **Serve:** Pour the coffee into your mug and enjoy!\n\n### 3. Espresso\n\n**Equipment Needed:**\n- Espresso machine\n- Coffee grinder\n- Tamper\n- Scale\n- Shot glass or demitasse cup\n\n**Ingredients:**\n- Fresh coffee beans (dark roast recommended)\n- Filtered water\n\n**Measurements:**\n- Coffee: 18-20 grams for a double shot\n- Water: Approximately 36-40 grams (1:2 ratio)\n\n**Steps:**\n1. **Grind Coffee:** Grind your coffee beans to a fine consistency, similar to table salt.\n2. **Dose Coffee:** Measure out 18-20 grams of ground coffee and place it in the portafilter.\n3. **Tamp:** Use a tamper to compress the coffee evenly and firmly.\n4. **Preheat Machine:** Ensure your espresso machine is preheated.\n5. **Brew:** Lock the portafilter into the machine and start the extraction. Aim for a brew time of 25-30 seconds.\n6. **Serve:** Once the espresso is brewed, pour it into a shot glass or cup and enjoy!\n\n### Troubleshooting Common Problems\n\n- **Bitter Coffee:** This can be caused by over-extraction (too long brew time) or too fine a grind. Adjust your grind size or reduce brew time.\n- **Weak Coffee:** This may result from under-extraction (too short brew time) or too coarse a grind. Increase your brew time or adjust your grind size.\n- **Sour Coffee:** This often indicates under-extraction or using water that\u2019s too cool. Ensure your water temperature is around 200\u00b0F (93\u00b0C) and adjust your brew time.\n\n### Conclusion\n\nEach brewing method has its nuances, and experimenting with different variables (grind size, water temperature, brew time) will help you find your perfect cup. Enjoy the process, and happy brewing!"
             }
         }
     ],
@@ -313,17 +314,17 @@
     }
 }
 
-,{
+{
     "name": "teams.ai.planners.action_planner.ActionPlanner",
     "context": {
-        "trace_id": "0x9ec84a52c0897f3a1d4917ee46f5832a",
-        "span_id": "0x0f146f5df1288c0b",
+        "trace_id": "0x17c766aac321361ee576cdd39479535a",
+        "span_id": "0xbe0fc74d1836350d",
         "trace_state": "[]"
     },
     "kind": "SpanKind.INTERNAL",
-    "parent_id": "0x75af62eb115c2fd5",
-    "start_time": "2025-06-05T11:48:32.604369Z",
-    "end_time": "2025-06-05T11:48:37.392641Z",
+    "parent_id": "0x52e85fbf667193d9",
+    "start_time": "2025-06-06T04:19:49.619205Z",
+    "end_time": "2025-06-06T04:20:06.451444Z",
     "status": {
         "status_code": "OK"
     },
@@ -348,24 +349,24 @@
     "events": [
         {
             "name": "data.input",
-            "timestamp": "2025-06-05T11:48:36.800007Z",
+            "timestamp": "2025-06-06T04:20:05.729026Z",
             "attributes": {
                 "prompt_template_name": "brewing_guide",
-                "template_name": "You are a coffee brewing expert specializing in home brewing methods. You provide detailed, \n        step-by-step brewing guides and help troubleshoot common brewing problems.",
+                "prompt_template": "# Profile\n- You are a coffee brewing expert specializing in home brewing methods\n- You provide detailed, step-by-step brewing guides for different methods (pour-over, French press, espresso, etc.)\n- You offer specific measurements, temperatures, and timing for optimal brewing\n- You help troubleshoot common brewing problems\n- You explain how different brewing variables affect the final cup\n- You maintain a clear, methodical teaching style\n- You focus on helping users achieve consistent, high-quality results at home\n",
                 "validator": "DefaultAugmentation",
                 "memory_type": "TurnState"
             }
         },
         {
             "name": "data.output",
-            "timestamp": "2025-06-05T11:48:37.392641Z",
+            "timestamp": "2025-06-06T04:20:06.451444Z",
             "attributes": {
-                "response": "Absolutely! I\u2019d be happy to help you with any home brewing methods or troubleshoot any issues you might be facing. Whether you\u2019re using a French press, pour-over, AeroPress, or any other method, just let me know what you need assistance with, and I\u2019ll provide you with a detailed guide or solutions to your problems!"
+                "response": "Brewing coffee can be a delightful experience, and there are several methods to choose from. Below, I\u2019ll provide a detailed guide for three popular brewing methods: Pour-Over, French Press, and Espresso. Each method has its unique characteristics and requires specific measurements and techniques.\n\n### 1. Pour-Over Coffee\n\n**Equipment Needed:**\n- Pour-over dripper (e.g., Hario V60, Chemex)\n- Coffee filter\n- Kettle (preferably a gooseneck kettle for precision)\n- Scale\n- Coffee grinder\n- Mug or carafe\n\n**Ingredients:**\n- Fresh coffee beans (medium roast recommended)\n- Filtered water\n\n**Measurements:**\n- Coffee: 1 gram of coffee per 15-17 grams of water (e.g., 20g coffee to 300g water)\n\n**Steps:**\n1. **Boil Water:** Heat filtered water to about 200\u00b0F (93\u00b0C).\n2. **Grind Coffee:** Grind your coffee beans to a medium-coarse consistency, similar to sea salt.\n3. **Prepare Filter:** Place the coffee filter in the dripper and rinse it with hot water to eliminate paper taste and preheat the dripper.\n4. **Add Coffee:** Place the ground coffee in the filter and level it out.\n5. **Bloom:** Pour a small amount of hot water (about double the weight of the coffee) over the grounds to saturate them. Let it bloom for 30-45 seconds.\n6. **Brew:** Slowly pour the remaining water in a circular motion, avoiding the edges. Aim to finish pouring in about 2-3 minutes.\n7. **Serve:** Once the water has fully drained, remove the dripper, and enjoy your coffee!\n\n### 2. French Press Coffee\n\n**Equipment Needed:**\n- French press\n- Kettle\n- Coffee grinder\n- Scale\n- Stirring spoon\n\n**Ingredients:**\n- Fresh coffee beans (coarse grind recommended)\n- Filtered water\n\n**Measurements:**\n- Coffee: 1 gram of coffee per 15-17 grams of water (e.g., 30g coffee to 450g water)\n\n**Steps:**\n1. **Boil Water:** Heat filtered water to about 200\u00b0F (93\u00b0C).\n2. **Grind Coffee:** Grind your coffee beans to a coarse consistency, similar to breadcrumbs.\n3. **Add Coffee:** Place the ground coffee in the French press.\n4. **Add Water:** Pour hot water over the coffee grounds, ensuring all grounds are saturated. Stir gently to mix.\n5. **Steep:** Place the lid on the French press and let it steep for 4 minutes.\n6. **Press:** Slowly press the plunger down to separate the grounds from the coffee.\n7. **Serve:** Pour the coffee into your mug and enjoy!\n\n### 3. Espresso\n\n**Equipment Needed:**\n- Espresso machine\n- Coffee grinder\n- Tamper\n- Scale\n- Shot glass or demitasse cup\n\n**Ingredients:**\n- Fresh coffee beans (dark roast recommended)\n- Filtered water\n\n**Measurements:**\n- Coffee: 18-20 grams for a double shot\n- Water: Approximately 36-40 grams (1:2 ratio)\n\n**Steps:**\n1. **Grind Coffee:** Grind your coffee beans to a fine consistency, similar to table salt.\n2. **Dose Coffee:** Measure out 18-20 grams of ground coffee and place it in the portafilter.\n3. **Tamp:** Use a tamper to compress the coffee evenly and firmly.\n4. **Preheat Machine:** Ensure your espresso machine is preheated.\n5. **Brew:** Lock the portafilter into the machine and start the extraction. Aim for a brew time of 25-30 seconds.\n6. **Serve:** Once the espresso is brewed, pour it into a shot glass or cup and enjoy!\n\n### Troubleshooting Common Problems\n\n- **Bitter Coffee:** This can be caused by over-extraction (too long brew time) or too fine a grind. Adjust your grind size or reduce brew time.\n- **Weak Coffee:** This may result from under-extraction (too short brew time) or too coarse a grind. Increase your brew time or adjust your grind size.\n- **Sour Coffee:** This often indicates under-extraction or using water that\u2019s too cool. Ensure your water temperature is around 200\u00b0F (93\u00b0C) and adjust your brew time.\n\n### Conclusion\n\nEach brewing method has its nuances, and experimenting with different variables (grind size, water temperature, brew time) will help you find your perfect cup. Enjoy the process, and happy brewing!"
             }
         },
         {
             "name": "metadata",
-            "timestamp": "2025-06-05T11:48:37.392641Z",
+            "timestamp": "2025-06-06T04:20:06.451444Z",
             "attributes": {
                 "feedback_enabled": true
             }
@@ -383,14 +384,14 @@
 ,{
     "name": "workflow",
     "context": {
-        "trace_id": "0x9ec84a52c0897f3a1d4917ee46f5832a",
-        "span_id": "0x75af62eb115c2fd5",
+        "trace_id": "0x17c766aac321361ee576cdd39479535a",
+        "span_id": "0x52e85fbf667193d9",
         "trace_state": "[]"
     },
     "kind": "SpanKind.INTERNAL",
     "parent_id": null,
-    "start_time": "2025-06-05T11:48:32.604369Z",
-    "end_time": "2025-06-05T11:48:37.393755Z",
+    "start_time": "2025-06-06T04:19:49.619205Z",
+    "end_time": "2025-06-06T04:20:06.451444Z",
     "status": {
         "status_code": "OK"
     },

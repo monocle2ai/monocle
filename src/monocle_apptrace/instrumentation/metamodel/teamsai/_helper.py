@@ -1,3 +1,4 @@
+import logging
 from monocle_apptrace.instrumentation.common.utils import MonocleSpanException
 from monocle_apptrace.instrumentation.common.utils import (
     Option,
@@ -7,6 +8,9 @@ from monocle_apptrace.instrumentation.common.utils import (
     get_exception_message,
     get_exception_status_code
 )
+
+logger = logging.getLogger(__name__)
+
 def capture_input(arguments):
     """
     Captures the input from Teams AI state.
@@ -18,6 +22,7 @@ def capture_input(arguments):
     try:
         # Get the memory object from kwargs
         kwargs = arguments.get("kwargs", {})
+        messages = []
 
         # If memory exists, try to get the input from temp
         if "memory" in kwargs:
@@ -29,14 +34,20 @@ def capture_input(arguments):
                 if temp and hasattr(temp, "get"):
                     input_value = temp.get("input")
                     if input_value:
-                        return str(input_value)
-
+                        messages.append({'user': str(input_value)})
+        system_prompt = ""
+        try:
+            system_prompt = kwargs.get("template").prompt.sections[0].sections[0].template
+            messages.append({'system': system_prompt})
+        except Exception as e:
+            print(f"Debug - Error accessing system prompt: {str(e)}")
+            
         # Try alternative path through context if memory path fails
         context = kwargs.get("context")
         if hasattr(context, "activity") and hasattr(context.activity, "text"):
-            return str(context.activity.text)
+            messages.append({'user': str(context.activity.text)})
 
-        return "No input found in memory or context"
+        return [str(message) for message in messages]
     except Exception as e:
         print(f"Debug - Arguments structure: {str(arguments)}")
         print(f"Debug - kwargs: {str(kwargs)}")

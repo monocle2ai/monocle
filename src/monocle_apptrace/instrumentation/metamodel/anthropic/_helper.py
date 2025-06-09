@@ -9,6 +9,8 @@ from monocle_apptrace.instrumentation.common.utils import (
     get_keys_as_tuple,
     get_nested_value,
     try_option,
+    get_exception_message,
+    get_status_code,
 )
 
 
@@ -40,11 +42,20 @@ def extract_messages(kwargs):
         return []
 
 
-def extract_assistant_message(response):
+def extract_assistant_message(arguments):
     try:
-        if response is not None and hasattr(response,"content") and len(response.content) >0:
-            if hasattr(response.content[0],"text"):
-                return response.content[0].text
+        status = get_status_code(arguments)
+        response: str = ""
+        if status == 'success':
+            if arguments['result'] is not None and hasattr(arguments['result'],"content") and len(arguments['result'].content) >0:
+                if hasattr(arguments['result'].content[0],"text"):
+                    response = arguments['result'].content[0].text
+        else:
+            if arguments["exception"] is not None:
+                response = get_exception_message(arguments)
+            elif hasattr(arguments["result"], "error"):
+                response = arguments["result"].error
+        return response
     except (IndexError, AttributeError) as e:
         logger.warning("Warning: Error occurred in extract_assistant_message: %s", str(e))
         return None

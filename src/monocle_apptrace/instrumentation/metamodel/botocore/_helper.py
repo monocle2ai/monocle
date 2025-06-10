@@ -8,7 +8,7 @@ import json
 from io import BytesIO
 from functools import wraps
 from monocle_apptrace.instrumentation.common.span_handler import SpanHandler
-
+from monocle_apptrace.instrumentation.common.utils import ( get_exception_message,get_status_code)
 logger = logging.getLogger(__name__)
 
 
@@ -31,23 +31,32 @@ def extract_messages(args):
         return []
 
 
-def extract_assistant_message(response):
+def extract_assistant_message(arguments):
     try:
-        if "Body" in response and hasattr(response['Body'], "_raw_stream"):
-            raw_stream = getattr(response['Body'], "_raw_stream")
-            if hasattr(raw_stream, "data"):
-                response_bytes = getattr(raw_stream, "data")
-                response_str = response_bytes.decode('utf-8')
-                response_dict = json.loads(response_str)
-                response['Body'] = BytesIO(response_bytes)
-                return [response_dict["answer"]]
-        if "output" in response:
-            output = response.get("output", {})
-            message = output.get("message", {})
-            content = message.get("content", [])
-            if isinstance(content, list) and len(content) > 0 and "text" in content[0]:
-                reply = content[0]["text"]
-                return [reply]
+        status = get_status_code(arguments)
+        response: str = ""
+        if status == 'success':
+            if "Body" in arguments['result'] and hasattr(arguments['result']['Body'], "_raw_stream"):
+                raw_stream = getattr(arguments['result']['Body'], "_raw_stream")
+                if hasattr(raw_stream, "data"):
+                    response_bytes = getattr(raw_stream, "data")
+                    response_str = response_bytes.decode('utf-8')
+                    response_dict = json.loads(response_str)
+                    arguments['result']['Body'] = BytesIO(response_bytes)
+                    response = response_dict["answer"]
+            if "output" in arguments['result']:
+                output = arguments['result'].get("output", {})
+                message = output.get("message", {})
+                content = message.get("content", [])
+                if isinstance(content, list) and len(content) > 0 and "text" in content[0]:
+                    reply = content[0]["text"]
+                    response = reply
+        else:
+            if arguments["exception"] is not None:
+                response = get_exception_message(arguments)
+            elif hasattr(arguments["result"], "error"):
+                response = arguments["result"].error
+        return response
     except Exception as e:
         logger.warning("Warning: Error occurred in extract_assistant_message: %s", str(e))
         return []

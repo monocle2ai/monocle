@@ -8,7 +8,7 @@ import json
 from io import BytesIO
 from functools import wraps
 from monocle_apptrace.instrumentation.common.span_handler import SpanHandler
-from monocle_apptrace.instrumentation.common.utils import ( get_exception_message,get_status_code)
+from monocle_apptrace.instrumentation.common.utils import ( get_exception_message,)
 logger = logging.getLogger(__name__)
 
 
@@ -30,6 +30,22 @@ def extract_messages(args):
         logger.warning("Warning: Error occurred in extract_messages: %s", str(e))
         return []
 
+def get_exception_status_code(arguments):
+    if arguments['exception'] is not None and hasattr(arguments['exception'], 'response') and arguments['exception'].response is not None:
+        if "ResponseMetadata" in arguments['exception'].response and "HTTPStatusCode" in arguments['exception'].response["ResponseMetadata"]:
+            return arguments['exception'].response["ResponseMetadata"]["HTTPStatusCode"]
+    elif arguments['exception'] is not None:
+        return 'error'
+    else:
+        return 'success'
+
+def get_status_code(arguments):
+    if arguments["exception"] is not None:
+        return get_exception_status_code(arguments)
+    elif hasattr(arguments["result"], "status"):
+        return arguments["result"].status
+    else:
+        return 'success'
 
 def extract_assistant_message(arguments):
     try:

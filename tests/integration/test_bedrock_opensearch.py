@@ -171,11 +171,13 @@ def test_invalid_credentials(setup):
     except ClientError as e:
         logger.error("Authentication error: %s", str(e))
     spans = custom_exporter.get_captured_spans()
+    time.sleep(5)
     for span in spans:
         if 'span.type' in span.attributes and span.attributes["span.type"] == "inference":
             events = [e for e in span.events if e.name == "data.output"]
             assert len(events) > 0
             assert events[0].attributes["status"] == "error"
+            assert "status_code" in events[0].attributes
             assert "UnrecognizedClientException" in events[0].attributes.get("response", "")
 
 # {

@@ -159,7 +159,7 @@ class SpanHandler:
                                 result = accessor(arguments)
                                 if result and isinstance(result, dict):
                                     result = dict((key, value) for key, value in result.items() if value is not None)
-                                if result and isinstance(result, (str, list, dict)):
+                                if result and isinstance(result, (int ,str, list, dict)):
                                     if attribute_key is not None:
                                         event_attributes[attribute_key] = result
                                     else:

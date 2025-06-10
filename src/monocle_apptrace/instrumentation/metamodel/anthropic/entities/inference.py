@@ -60,7 +60,7 @@ INFERENCE = {
                 },
                 {
                     "attribute": "status_code",
-                    "accessor": lambda arguments: get_status_code(arguments)
+                    "accessor": lambda arguments: _helper.get_status_code(arguments)
                 },
                 {
                     "_comment": "this is result from LLM",

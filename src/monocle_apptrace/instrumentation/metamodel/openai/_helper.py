@@ -14,6 +14,13 @@ from monocle_apptrace.instrumentation.common.span_handler import NonFrameworkSpa
 
 logger = logging.getLogger(__name__)
 
+finish_reason_mapping = {
+    "stop": "success",
+    "tool_calls": "success", 
+    "function_call": "success",  # deprecated but still possible
+    "length": "truncated",
+    "content_filter": "content_filter"
+}
 
 def extract_messages(kwargs):
     """Extract system and user messages"""
@@ -136,3 +143,34 @@ class OpenAISpanHandler(NonFrameworkSpanHandler):
             return super().hydrate_events(to_wrap, wrapped, instance, args, kwargs, ret_result, span=parent_span, parent_span=None, ex=ex)
 
         return super().hydrate_events(to_wrap, wrapped, instance, args, kwargs, ret_result, span, parent_span=parent_span, ex=ex)
+
+def extract_finish_reason(arguments):
+    """Extract finish_reason from OpenAI response"""
+    try:
+        if arguments["exception"] is not None:
+            if hasattr(arguments["exception"], "code") and arguments["exception"].code in finish_reason_mapping.keys():
+                return arguments["exception"].code
+        response = arguments["result"]
+        
+        # Handle streaming responses
+        if hasattr(response, "finish_reason") and response.finish_reason:
+            return response.finish_reason
+            
+        # Handle non-streaming responses
+        if response is not None and hasattr(response, "choices") and len(response.choices) > 0:
+            if hasattr(response.choices[0], "finish_reason"):
+                return response.choices[0].finish_reason
+    except (IndexError, AttributeError) as e:
+        logger.warning("Warning: Error occurred in extract_finish_reason: %s", str(e))
+        return None
+    return None
+
+def map_finish_reason_to_finish_type(finish_reason):
+    """Map OpenAI finish_reason to finish_type based on the possible errors mapping"""
+    if not finish_reason:
+        return None
+    
+    # Map OpenAI finish reasons to finish types based on the provided mapping
+
+    
+    return finish_reason_mapping.get(finish_reason, None)

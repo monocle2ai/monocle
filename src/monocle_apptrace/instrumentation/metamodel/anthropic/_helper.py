@@ -62,3 +62,29 @@ def update_span_from_llm_response(response):
             meta_dict.update({"prompt_tokens": getattr(response.usage, "input_tokens", 0)})
             meta_dict.update({"total_tokens": getattr(response.usage, "input_tokens", 0)+getattr(response.usage, "output_tokens", 0)})
     return meta_dict
+
+def extract_finish_reason(arguments):
+    """Extract stop_reason from Anthropic response (Claude)."""
+    try:
+        # Arguments may be a dict with 'result' or just the response object
+        response = arguments.get("result") if isinstance(arguments, dict) else arguments
+        if response is not None and hasattr(response, "stop_reason"):
+            return response.stop_reason
+    except Exception as e:
+        logger.warning("Warning: Error occurred in extract_finish_reason: %s", str(e))
+        return None
+    return None
+
+def map_finish_reason_to_finish_type(finish_reason):
+    """Map Anthropic stop_reason to finish_type, similar to OpenAI mapping."""
+    if not finish_reason:
+        return None
+    finish_reason_mapping = {
+        "end_turn": "success",         # Natural completion
+        "max_tokens": "truncated",     # Hit max_tokens limit
+        "stop_sequence": "success",    # Hit user stop sequence
+        "tool_use": "success",         # Tool use triggered
+        "pause_turn": "success",       # Paused for tool or server action
+        "refusal": "refusal",          # Refused for safety/ethics
+    }
+    return finish_reason_mapping.get(finish_reason, None)

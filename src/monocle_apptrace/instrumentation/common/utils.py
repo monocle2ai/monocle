@@ -70,7 +70,7 @@ def with_tracer_wrapper(func):
     """Helper for providing tracer for wrapper functions."""
 
     def _with_tracer(tracer, handler, to_wrap):
-        def wrapper(wrapped, instance, args, kwargs):
+        def wrapper(wrapped, instance, args, kwargs, source_path=None):
             try:
                 # get and log the parent span context if injected by the application
                 # This is useful for debugging and tracing of Azure functions
@@ -83,12 +83,12 @@ def with_tracer_wrapper(func):
                             f"Parent span is found with trace id {hex(parent_span.get_span_context().trace_id)}")
             except Exception as e:
                 logger.error("Exception in attaching parent context: %s", e)
-
-            if traceback.extract_stack().__len__() > 2:
-                filename, line_number, _, _ = traceback.extract_stack()[-2]
-                source_path = f"{filename}:{line_number}"
-            else:
-                source_path = ""
+            if not source_path:
+                if traceback.extract_stack().__len__() > 2:
+                    filename, line_number, _, _ = traceback.extract_stack()[-2]
+                    source_path = f"{filename}:{line_number}"
+                else:
+                    source_path = ""
             val = func(tracer, handler, to_wrap, wrapped, instance, source_path, args, kwargs)
             return val
 

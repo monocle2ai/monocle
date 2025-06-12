@@ -56,6 +56,16 @@ INFERENCE = {
                     "_comment": "this is result from LLM",
                     "attribute": "response",
                     "accessor": lambda arguments: _helper.extract_assistant_message(arguments['result'])
+                },
+                {
+                    "_comment": "finish reason from Anthropic response",
+                    "attribute": "finish_reason",
+                    "accessor": lambda arguments: _helper.extract_finish_reason(arguments)
+                },
+                {
+                    "_comment": "finish type mapped from finish reason",
+                    "attribute": "finish_type",
+                    "accessor": lambda arguments: _helper.map_finish_reason_to_finish_type(_helper.extract_finish_reason(arguments))
                 }
             ]
         },

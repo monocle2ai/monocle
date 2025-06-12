@@ -23,12 +23,13 @@ def process_stream(to_wrap, response, span_processor):
     accumulated_response = ""
     token_usage = None
     accumulated_temp_list = []
+    finish_reason = None
 
     if to_wrap and hasattr(response, "__iter__"):
         original_iter = response.__iter__
 
         def new_iter(self):
-            nonlocal waiting_for_first_token, first_token_time, stream_closed_time, accumulated_response, token_usage
+            nonlocal waiting_for_first_token, first_token_time, stream_closed_time, accumulated_response, token_usage, finish_reason
 
             for item in original_iter():
                 try:
@@ -47,6 +48,15 @@ def process_stream(to_wrap, response, span_processor):
                         # Handle the case where the response is a chunk
                         token_usage = item.usage
                         stream_closed_time = time.time_ns()
+                    
+                    # Capture finish_reason from the chunk
+                    if (
+                        item.choices
+                        and len(item.choices) > 0
+                        and hasattr(item.choices[0], 'finish_reason')
+                        and item.choices[0].finish_reason
+                    ):
+                        finish_reason = item.choices[0].finish_reason
 
                 except Exception as e:
                     logger.warning(
@@ -67,6 +77,7 @@ def process_stream(to_wrap, response, span_processor):
                     },
                     output_text=accumulated_response,
                     usage=token_usage,
+                    finish_reason=finish_reason,
                 )
                 span_processor(ret_val)
 
@@ -76,7 +87,7 @@ def process_stream(to_wrap, response, span_processor):
         original_iter = response.__aiter__
 
         async def new_aiter(self):
-            nonlocal waiting_for_first_token, first_token_time, stream_closed_time, accumulated_response, token_usage
+            nonlocal waiting_for_first_token, first_token_time, stream_closed_time, accumulated_response, token_usage, finish_reason
 
             async for item in original_iter():
                 try:
@@ -95,6 +106,15 @@ def process_stream(to_wrap, response, span_processor):
                         # Handle the case where the response is a chunk
                         token_usage = item.usage
                         stream_closed_time = time.time_ns()
+
+                    # Capture finish_reason from the chunk
+                    if (
+                        item.choices
+                        and len(item.choices) > 0
+                        and hasattr(item.choices[0], 'finish_reason')
+                        and item.choices[0].finish_reason
+                    ):
+                        finish_reason = item.choices[0].finish_reason
 
                 except Exception as e:
                     logger.warning(
@@ -115,6 +135,7 @@ def process_stream(to_wrap, response, span_processor):
                     },
                     output_text=accumulated_response,
                     usage=token_usage,
+                    finish_reason=finish_reason,
                 )
                 span_processor(ret_val)
 
@@ -211,6 +232,18 @@ INFERENCE = {
                 {
                     "attribute": "status_code",
                     "accessor": lambda arguments: get_exception_status_code(arguments)
+                },
+                {
+                    "_comment": "finish reason from OpenAI response",
+                    "attribute": "finish_reason",
+                    "accessor": lambda arguments: _helper.extract_finish_reason(arguments)
+                },
+                {
+                    "_comment": "finish type mapped from finish reason",
+                    "attribute": "finish_type",
+                    "accessor": lambda arguments: _helper.map_finish_reason_to_finish_type(
+                        _helper.extract_finish_reason(arguments)
+                    )
                 }
             ],
         },

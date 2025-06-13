@@ -1,11 +1,11 @@
 import logging
 import inspect
-from typing import Collection, Dict, List, Union
+from typing import Collection, Dict, List, Union, Optional, Any
 import random
 import uuid
 import inspect
 from opentelemetry import trace
-from contextlib import contextmanager
+from contextlib import contextmanager, asynccontextmanager
 from opentelemetry.context import attach, get_value, set_value, get_current, detach
 from opentelemetry.instrumentation.instrumentor import BaseInstrumentor
 from opentelemetry.instrumentation.utils import unwrap
@@ -25,7 +25,7 @@ from monocle_apptrace.instrumentation.common.wrapper_method import (
     WrapperMethod,
     MONOCLE_SPAN_HANDLERS
 )
-from monocle_apptrace.instrumentation.common.wrapper import scope_wrapper, ascope_wrapper, monocle_wrapper, amonocle_wrapper
+from monocle_apptrace.instrumentation.common.wrapper import atask_wrapper, scope_wrapper, ascope_wrapper, monocle_wrapper, amonocle_wrapper, task_wrapper
 from monocle_apptrace.instrumentation.common.utils import (
     set_scope, remove_scope, http_route_handler, load_scopes, http_async_route_handler
 )
@@ -229,11 +229,49 @@ def on_processor_start(span: Span, parent_context):
 def set_context_properties(properties: dict) -> None:
     attach(set_value(SESSION_PROPERTIES_KEY, properties))
 
-def start_trace():
+def _setup_span_attributes_and_events(
+    span,
+    attributes: Optional[Dict[str, Any]] = None,
+    events: Optional[List[Dict[str, Any]]] = None
+) -> None:
+    """
+    Common method to set attributes and events on a span.
+    
+    Args:
+        span: The span to configure
+        attributes: Optional dictionary of custom attributes to set on the span
+        events: Optional list of events to add to the span
+    """
+    # Set custom attributes if provided
+    if attributes:
+        for key, value in attributes.items():
+            if value is not None:
+                span.set_attribute(key, value)
+    
+    # Add custom events if provided
+    if events:
+        for event in events:
+            event_name = event.get('name')
+            event_attributes = event.get('attributes', {})
+            if event_name:
+                span.add_event(event_name, event_attributes)
+
+def start_trace(
+    span_name: Optional[str] = None,
+    attributes: Optional[Dict[str, Any]] = None,
+    events: Optional[List[Dict[str, Any]]] = None
+):
     """
     Starts a new trace. All the spans created after this call will be part of the same trace. 
+    
+    Args:
+        span_name: Optional custom span name. If None, uses the default span name.
+        attributes: Optional dictionary of custom attributes to set on the span.
+        events: Optional list of events to add to the span. Each event should be a dict with 
+                'name' and optionally 'attributes' keys.
+    
     Returns:
-        Token: A token representing the attached context for the workflow span.
+        Token: A token representing the attached context for the span.
                       This token is to be used later to stop the current trace.
                       Returns None if tracing fails.
     
@@ -242,22 +280,37 @@ def start_trace():
     """
     try:
         tracer = get_tracer(instrumenting_module_name= MONOCLE_INSTRUMENTOR, tracer_provider= get_tracer_provider())
-        span = tracer.start_span(name = "workflow")
+        span_name = span_name or "custom_span"
+        span = tracer.start_span(name=span_name)
         updated_span_context = set_span_in_context(span=span)
+        
+        # Set default monocle attributes
         SpanHandler.set_default_monocle_attributes(span)
-        SpanHandler.set_workflow_properties(span)
+        if SpanHandler.is_root_span(span):
+            SpanHandler.set_workflow_properties(span)
+        
+        # Set custom attributes and events using common method
+        _setup_span_attributes_and_events(span, attributes, events)
+        
         token = attach(updated_span_context)
         return token
     except Exception as e:
-        logger.warning("Failed to start trace {e}")
+        logger.warning(f"Failed to start trace: {e}")
         return None
 
-def stop_trace(token) -> None:
+def stop_trace(
+    token,
+    final_attributes: Optional[Dict[str, Any]] = None,
+    final_events: Optional[List[Dict[str, Any]]] = None
+) -> None:
     """
-    Stop the active trace and detach workflow type if token is provided. All the spans created after this will not be part of the trace.
+    Stop the active trace. All the spans created after this will not be part of the trace.
+    
     Args:
-        token: The token that was returned when the trace was started. Used to detach 
-               workflow type. Can be None in which case only the span is ended.
+        token: The token that was returned when the trace was started. Can be None in which case only the span is ended.
+        final_attributes: Optional dictionary of final attributes to set on the span before ending.
+        final_events: Optional list of final events to add to the span before ending.
+    
     Returns:
         None
     """
@@ -266,11 +319,14 @@ def stop_trace(token) -> None:
         if _parent_span_context is not None:
             parent_span: Span = _parent_span_context.get(_SPAN_KEY, None)
             if parent_span is not None:
+                # Set final attributes and events using common method
+                _setup_span_attributes_and_events(parent_span, final_attributes, final_events)
+                
                 parent_span.end()
         if token is not None:
             detach(token)
-    except:
-        logger.warning("Failed to stop trace")
+    except Exception as e:
+        logger.warning(f"Failed to stop trace: {e}")
 
 def is_valid_trace_id_uuid(traceId: str) -> bool:
     try:
@@ -280,77 +336,242 @@ def is_valid_trace_id_uuid(traceId: str) -> bool:
         pass
     return False
 
-def start_scope(scope_name: str, scope_value:str = None) -> object:
+def start_scope(
+    scope_name: str, 
+    scope_value: Optional[str] = None
+) -> object:
     """
-    Start a new scope with the given name and and optional value. If no value is provided, a random UUID will be generated.
+    Start a new scope with the given name and optional value. If no value is provided, a random UUID will be generated.
     All the spans, across traces created after this call will have the scope attached until the scope is stopped.
+    
     Args:
         scope_name: The name of the scope.
         scope_value: Optional value of the scope. If None, a random UUID will be generated.
+    
     Returns:
         Token: A token representing the attached context for the scope. This token is to be used later to stop the current scope.
     """
-    return set_scope(scope_name, scope_value)
+    try:
+        # Set the scope using existing utility
+        token = set_scope(scope_name, scope_value)
+        return token
+    except Exception as e:
+        logger.warning(f"Failed to start scope: {e}")
+        return None
 
-def stop_scope(token:object) -> None:
+def stop_scope(
+    token: object
+) -> None:
     """
     Stop the active scope. All the spans created after this will not have the scope attached.
+    
     Args:
         token: The token that was returned when the scope was started.
+    
     Returns:
         None
     """
-    remove_scope(token)
+    try:
+        # Remove the scope
+        remove_scope(token)
+    except Exception as e:
+        logger.warning(f"Failed to stop scope: {e}")
     return
 
 @contextmanager
-def monocle_trace():
+def monocle_trace(
+    span_name: Optional[str] = None,
+    attributes: Optional[Dict[str, Any]] = None,
+    events: Optional[List[Dict[str, Any]]] = None
+):
     """
-    Context manager to start and stop a scope. All the spans, across traces created within the encapsulated code will have same trace ID
+    Context manager to start and stop a trace. All the spans, across traces created within the encapsulated code will have same trace ID
+    
+    Args:
+        span_name: Optional custom span name.
+        attributes: Optional dictionary of custom attributes to set on the span.
+        events: Optional list of events to add to the span at start.
     """
-    token = start_trace()
+    try:
+        tracer = get_tracer(instrumenting_module_name=MONOCLE_INSTRUMENTOR, tracer_provider=get_tracer_provider())
+        span_name = span_name or "custom_span"
+                
+        with tracer.start_as_current_span(span_name) as span:
+            # Set default monocle attributes
+            SpanHandler.set_default_monocle_attributes(span)
+            if SpanHandler.is_root_span(span):
+                SpanHandler.set_workflow_properties(span)
+            
+            # Set custom attributes and events using common method
+            _setup_span_attributes_and_events(span, attributes, events)
+            
+            try:
+                yield
+            finally:
+                pass
+
+            
+    except Exception as e:
+        logger.warning(f"Failed in monocle_trace: {e}")
+        yield  # Still yield to not break the context manager
+
+@asynccontextmanager
+async def amonocle_trace(
+    span_name: Optional[str] = None,
+    attributes: Optional[Dict[str, Any]] = None,
+    events: Optional[List[Dict[str, Any]]] = None
+):
+    """
+    Async context manager to start and stop a trace. All the spans, across traces created within the encapsulated code will have same trace ID
+    
+    Args:
+        span_name: Optional custom span name.
+        attributes: Optional dictionary of custom attributes to set on the span.
+        events: Optional list of events to add to the span at start.
+    """
+    try:
+        tracer = get_tracer(instrumenting_module_name=MONOCLE_INSTRUMENTOR, tracer_provider=get_tracer_provider())
+        span_name = span_name or "custom_span"
+
+        with tracer.start_as_current_span(span_name) as span:
+            # Set default monocle attributes
+            SpanHandler.set_default_monocle_attributes(span)
+            if SpanHandler.is_root_span(span):
+                SpanHandler.set_workflow_properties(span)
+            
+            # Set custom attributes and events using common method
+            _setup_span_attributes_and_events(span, attributes, events)
+            
+            try:
+                yield
+            finally:
+                pass
+                
+            
+    except Exception as e:
+        logger.warning(f"Failed in amonocle_trace: {e}")
+        yield  # Still yield to not break the context manager
+
+@contextmanager
+def monocle_trace_scope(
+    scope_name: str, 
+    scope_value: Optional[str] = None
+):
+    """
+    Context manager to start and stop a scope. All the spans, across traces created within the encapsulated code will have the scope attached.
+    
+    Args:
+        scope_name: The name of the scope.
+        scope_value: Optional value of the scope. If None, a random UUID will be generated.
+    """
+    token = start_scope(scope_name, scope_value)
     try:
         yield
     finally:
-        stop_trace(token)
+        stop_scope(token)
 
-@contextmanager
-def monocle_trace_scope(scope_name: str, scope_value:str = None):
+@asynccontextmanager
+async def amonocle_trace_scope(
+    scope_name: str, 
+    scope_value: Optional[str] = None
+):
     """
-    Context manager to start and stop a scope. All the spans, across traces created within the encapsulated code will have the scope attached.
+    Async context manager to start and stop a scope. All the spans, across traces created within the encapsulated code will have the scope attached.
+    
     Args:
         scope_name: The name of the scope.
-        scope_value: Optional value of the scope. If None, a random UUID will be generated."""
+        scope_value: Optional value of the scope. If None, a random UUID will be generated.
+    """
     token = start_scope(scope_name, scope_value)
     try:
         yield
     finally:
         stop_scope(token)
     
-def monocle_trace_scope_method(scope_name: str, scope_value:str=None):
+def monocle_trace_scope_method(
+    scope_name: str, 
+    scope_value: Optional[str] = None
+):
     """
     Decorator to start and stop a scope for a method. All the spans, across traces created in the method will have the scope attached.
+    
+    Args:
+        scope_name: The name of the scope.
+        scope_value: Optional value of the scope. If None, a random UUID will be generated.
     """
     def decorator(func):
         if inspect.iscoroutinefunction(func):
             @wraps(func)
             async def wrapper(*args, **kwargs):
-                token = start_scope(scope_name, scope_value)
-                try:
+                async with amonocle_trace_scope(
+                    scope_name, scope_value
+                ):
                     result = await func(*args, **kwargs)
                     return result
-                finally:
-                    stop_scope(token)
             return wrapper
         else:
             @wraps(func)
             def wrapper(*args, **kwargs):
-                token = start_scope(scope_name, scope_value)
-                try:
+                with monocle_trace_scope(
+                    scope_name, scope_value
+                ):
                     result = func(*args, **kwargs)
                     return result
-                finally:
-                    stop_scope(token)
+            return wrapper
+    return decorator
+
+def monocle_trace_method(
+    span_name: Optional[str] = None
+):
+    """
+    Decorator to start and stop a trace for a method. All the spans created in the method will be part of the same trace.
+    
+    Args:
+        span_name: Optional custom span name. If None, uses the decorated function's name.
+    """
+    
+    def decorator(func):
+        tracer = get_tracer(instrumenting_module_name=MONOCLE_INSTRUMENTOR, tracer_provider=get_tracer_provider())
+        handler = SpanHandler()
+        source_path= func.__code__.co_filename + ":" + str(func.__code__.co_firstlineno)
+        # Use function name as span name if not provided
+        effective_span_name = span_name or func.__name__ or "custom_span"
+
+        if inspect.iscoroutinefunction(func):
+            @wraps(func)
+            async def wrapper(*args, **kwargs):
+                return await atask_wrapper(
+                    tracer=tracer,
+                    handler=handler,
+                    to_wrap={
+                        "span_name": effective_span_name,
+                        "output_processor":{
+                            "type": "custom",
+                        }
+                    }
+                )(  wrapped=func,                        
+                    instance=None,
+                    source_path=source_path,
+                    args=args,
+                    kwargs=kwargs)
+            return wrapper
+        else:
+            @wraps(func)
+            def wrapper(*args, **kwargs):
+                return task_wrapper(
+                    tracer=tracer,
+                    handler=handler,
+                    to_wrap={
+                        "span_name": effective_span_name,
+                        "output_processor":{
+                            "type": "custom",
+                        }
+                    }
+                )(  wrapped=func,                        
+                    instance=None,
+                    source_path=source_path,
+                    args=args,
+                    kwargs=kwargs)
             return wrapper
     return decorator
 
@@ -370,15 +591,4 @@ def monocle_trace_http_route(func):
             return http_route_handler(func, *args, **kwargs)
         return wrapper
 
-class FixedIdGenerator(id_generator.IdGenerator):
-    def __init__(
-            self,
-            trace_id: int) -> None:
-        self.trace_id = trace_id
-
-    def generate_span_id(self) -> int:
-        return random.getrandbits(64)
-
-    def generate_trace_id(self) -> int:
-        return self.trace_id
 

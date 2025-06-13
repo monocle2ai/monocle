@@ -510,3 +510,33 @@ def capture_conversation_state_metadata(arguments):
         return metadata
     except Exception as e:
         return {"error": f"Error capturing metadata: {str(e)}"}
+
+def extract_search_endpoint(instance):
+    if hasattr(instance, '_endpoint') and instance._endpoint is not None:
+        return instance._endpoint
+    else:
+        return None
+
+def extract_index_name(instance):
+    if hasattr(instance, '_index_name') and instance._index_name is not None:
+        return instance._index_name
+    else:
+        return None
+
+def capture_vector_queries(kwargs):
+    try:
+        if 'vector_queries' in kwargs and kwargs['vector_queries'] is not None:
+            vector_queries = kwargs['vector_queries'][0]
+            if hasattr(vector_queries, 'vector') and len(vector_queries.vector) > 0:
+                return vector_queries.vector[:10]
+    except Exception as e:
+        print(f"Debug - Error capturing vector queries: {str(e)}")
+
+def search_input(arguments):
+    pass
+    return {
+        "search_text": get_nested_value(arguments.get("kwargs", {}), ["search_text"]),
+        "select": get_nested_value(arguments.get("kwargs", {}), ["select"]),
+        "vector_queries": capture_vector_queries(arguments["kwargs"])
+    }
+

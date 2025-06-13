@@ -90,6 +90,21 @@ def capture_prompt_template_info(arguments):
     except Exception as e:
         return f"Error capturing prompt: {str(e)}"
 
+def status_check(arguments):
+    if hasattr(arguments["result"], "error") and arguments["result"].error is not None:
+        error_msg:str = arguments["result"].error
+        error_code:str = arguments["result"].status if hasattr(arguments["result"], "status") else "unknown"
+        raise MonocleSpanException(f"Error: {error_code} - {error_msg}")
+
+def get_prompt_template(arguments):
+    pass
+    return {
+        "prompt_template_name": capture_prompt_info(arguments),
+        "prompt_template": capture_prompt_template_info(arguments),
+        "prompt_template_description": get_nested_value(arguments.get("kwargs", {}), ["prompt", "config", "description"]),
+        "prompt_template_type": get_nested_value(arguments.get("kwargs", {}), ["prompt", "config", "type"])
+    }
+
 def get_status_code(arguments):
     if arguments["exception"] is not None:
         return get_exception_status_code(arguments)

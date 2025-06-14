@@ -3,9 +3,16 @@ import time
 import pytest
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from common.custom_exporter import CustomConsoleSpanExporter
+from monocle_apptrace.instrumentation.common.utils import logger
 from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
-from openai import OpenAI
+from openai import OpenAI, OpenAIError
 custom_exporter = CustomConsoleSpanExporter()
+
+@pytest.fixture(autouse=True)
+def clear_spans():
+    """Clear spans before each test"""
+    custom_exporter.reset()
+    yield
 
 @pytest.fixture(scope="module")
 def setup():
@@ -50,3 +57,25 @@ def test_openai_api_sample(setup):
         if "span.type" in span_attributes and span_attributes["span.type"] == "workflow":
             found_workflow_span = True
     assert found_workflow_span
+
+
+@pytest.mark.integration()
+def test_openai_invalid_api_key(setup):
+    try:
+        client = OpenAI(api_key="invalid_key_123")
+        response = client.chat.completions.create(
+            model="gpt-4",
+            messages=[{"role": "user", "content": "test"}]
+        )
+    except OpenAIError as e:
+        logger.error("Authentication error: %s", str(e))
+
+    time.sleep(5)
+    spans = custom_exporter.get_captured_spans()
+    for span in spans:
+        if span.attributes.get("span.type") == "inference" or span.attributes.get("span.type") == "inference.framework":
+            events = [e for e in span.events if e.name == "data.output"]
+            assert len(events) > 0
+            assert events[0].attributes["status"] == "error"
+            assert events[0].attributes["status_code"] == "invalid_api_key"
+            assert "error code: 401" in events[0].attributes.get("response", "").lower()

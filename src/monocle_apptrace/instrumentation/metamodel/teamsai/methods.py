@@ -18,6 +18,7 @@ def get_id(args, kwargs):
     context = kwargs.get("context")
     if context and context.activity and context.activity.channel_id:
         channel_id = context.activity.channel_id or ""
+        scopes[f"teams.channel.channel_id"] = channel_id
         if channel_id == "msteams":
             scopes[f"msteams.activity.type"] = context.activity.type or ""
 

@@ -4,8 +4,15 @@ import time
 import anthropic
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from common.custom_exporter import CustomConsoleSpanExporter
+from monocle_apptrace.instrumentation.common.utils import logger
 from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
 custom_exporter = CustomConsoleSpanExporter()
+
+@pytest.fixture(autouse=True)
+def clear_spans():
+    """Clear spans before each test"""
+    custom_exporter.reset()
+    yield
 
 @pytest.fixture(scope="module")
 def setup():
@@ -52,6 +59,33 @@ def test_anthropic_metamodel_sample(setup):
             assert "completion_tokens" in span_metadata.attributes
             assert "prompt_tokens" in span_metadata.attributes
             assert "total_tokens" in span_metadata.attributes
+
+@pytest.mark.integration()
+def test_anthropic_invalid_api_key(setup):
+    try:
+        client = anthropic.Anthropic(api_key="invalid_key_123")
+        response = client.messages.create(
+            model="claude-3-sonnet-20240620",
+            max_tokens=512,
+            system="You are a helpful assistant to answer questions about coffee.",
+            messages=[
+                {"role": "user", "content": "What is americano?"}
+            ]
+
+        )
+    except anthropic.APIError as e:
+        logger.error("Authentication error: %s", str(e))
+
+    time.sleep(5)
+    spans = custom_exporter.get_captured_spans()
+    for span in spans:
+        if span.attributes.get("span.type") == "inference" or span.attributes.get("span.type") == "inference.framework":
+            events = [e for e in span.events if e.name == "data.output"]
+            assert len(events) > 0
+            assert events[0].attributes["status"] == "error"
+            assert "status_code" in events[0].attributes
+            assert "authentication_error" in events[0].attributes.get("response", "").lower()
+
 
 # {
 #     "name": "anthropic.resources.messages.messages.Messages",

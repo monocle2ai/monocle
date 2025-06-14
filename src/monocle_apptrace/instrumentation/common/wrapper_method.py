@@ -2,6 +2,7 @@
 from typing import Any, Dict
 from monocle_apptrace.instrumentation.common.wrapper import task_wrapper, scope_wrapper
 from monocle_apptrace.instrumentation.common.span_handler import SpanHandler, NonFrameworkSpanHandler
+from monocle_apptrace.instrumentation.metamodel.azureaiinference.methods import AZURE_AI_INFERENCE_METHODS
 from monocle_apptrace.instrumentation.metamodel.botocore.methods import BOTOCORE_METHODS
 from monocle_apptrace.instrumentation.metamodel.botocore.handlers.botocore_span_handler import BotoCoreSpanHandler
 from monocle_apptrace.instrumentation.metamodel.langchain.methods import (
@@ -20,6 +21,8 @@ from monocle_apptrace.instrumentation.metamodel.teamsai.methods import (TEAMAI_M
 from monocle_apptrace.instrumentation.metamodel.anthropic.methods import (ANTHROPIC_METHODS, )
 from monocle_apptrace.instrumentation.metamodel.aiohttp.methods import (AIOHTTP_METHODS, )
 from monocle_apptrace.instrumentation.metamodel.aiohttp._helper import aiohttpSpanHandler
+from monocle_apptrace.instrumentation.metamodel.azfunc._helper import (azureSpanHandler)
+from monocle_apptrace.instrumentation.metamodel.azfunc.methods import AZFUNC_HTTP_METHODS
 class WrapperMethod:
     def __init__(
             self,
@@ -68,7 +71,7 @@ class WrapperMethod:
     def get_span_handler(self) -> SpanHandler:
         return self.span_handler()
 
-DEFAULT_METHODS_LIST = LANGCHAIN_METHODS + LLAMAINDEX_METHODS + HAYSTACK_METHODS + BOTOCORE_METHODS + FLASK_METHODS + REQUESTS_METHODS + LANGGRAPH_METHODS + OPENAI_METHODS + TEAMAI_METHODS + ANTHROPIC_METHODS + AIOHTTP_METHODS
+DEFAULT_METHODS_LIST = LANGCHAIN_METHODS + LLAMAINDEX_METHODS + HAYSTACK_METHODS + BOTOCORE_METHODS + FLASK_METHODS + REQUESTS_METHODS + LANGGRAPH_METHODS + OPENAI_METHODS + TEAMAI_METHODS + ANTHROPIC_METHODS + AIOHTTP_METHODS + AZURE_AI_INFERENCE_METHODS + AZFUNC_HTTP_METHODS
 
 MONOCLE_SPAN_HANDLERS: Dict[str, SpanHandler] = {
     "default": SpanHandler(),
@@ -79,4 +82,5 @@ MONOCLE_SPAN_HANDLERS: Dict[str, SpanHandler] = {
     "request_handler": RequestSpanHandler(),
     "non_framework_handler": NonFrameworkSpanHandler(),
     "openai_handler": OpenAISpanHandler(),
+    "azure_func_handler": azureSpanHandler(),
 }

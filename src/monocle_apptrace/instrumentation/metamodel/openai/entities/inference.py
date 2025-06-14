@@ -9,7 +9,8 @@ from monocle_apptrace.instrumentation.common.utils import (
     patch_instance_method,
     resolve_from_alias,
     get_status,
-    get_exception_status_code
+    get_exception_status_code,
+    get_status_code,
 )
 
 logger = logging.getLogger(__name__)
@@ -210,7 +211,7 @@ INFERENCE = {
                 },
                 {
                     "attribute": "status_code",
-                    "accessor": lambda arguments: get_exception_status_code(arguments)
+                    "accessor": lambda arguments: get_status_code(arguments)
                 }
             ],
         },

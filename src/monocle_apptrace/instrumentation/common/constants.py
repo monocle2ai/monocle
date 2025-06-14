@@ -54,6 +54,9 @@ llm_type_map = {
     "anthropic": "anthropic",
     "chatanthropic":"anthropic",
     "anthropicchatgenerator":"anthropic",
+    "chatcompletionsclient": "azure_ai_inference",
+    "embeddingsclient": "azure_ai_inference",
+    "imageembeddingsclient": "azure_ai_inference",
 }
 
 MONOCLE_INSTRUMENTOR = "monocle_apptrace"

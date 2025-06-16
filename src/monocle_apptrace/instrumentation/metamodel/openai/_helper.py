@@ -261,7 +261,7 @@ class OpenAISpanHandler(NonFrameworkSpanHandler):
     # If openAI is being called by Teams AI SDK, then retain the metadata part of the span events
     def skip_processor(self, to_wrap, wrapped, instance, span, args, kwargs) -> list[str]:
         if self.is_teams_span_in_progress():
-            return ["attributes", "events.data.input", "events.data.output"]
+            return ["attributes", "events.data.output"]
         else:
             return super().skip_processor(to_wrap, wrapped, instance, span, args, kwargs)
 

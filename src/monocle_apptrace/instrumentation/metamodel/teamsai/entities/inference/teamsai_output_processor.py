@@ -39,6 +39,7 @@ TEAMAI_OUTPUT_PROCESSOR = {
         ]
     ],
     "events": [
+<<<<<<< HEAD
         {
             "name": "data.input",
             "_comment": "input to Teams AI",
@@ -49,6 +50,18 @@ TEAMAI_OUTPUT_PROCESSOR = {
                 }
             ]
         },
+=======
+        # {
+        #     "name": "data.input",
+        #     "_comment": "input to Teams AI",
+        #     "attributes": [
+        #         {
+        #             "attribute": "input",
+        #             "accessor": _helper.capture_input
+        #         }
+        #     ]
+        # },
+>>>>>>> 9485974 (added agent)
         {
             "name": "data.output",
             "_comment": "output from Teams AI",

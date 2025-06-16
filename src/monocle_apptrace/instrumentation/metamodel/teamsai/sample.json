@@ -1,22 +1,142 @@
 [{
-    "name": "openai.resources.chat.completions.completions.AsyncCompletions",
+    "name": "openai.resources.embeddings.AsyncEmbeddings",
     "context": {
-        "trace_id": "0x46d6c29b989a9dde96401fc9903e13d1",
-        "span_id": "0x5f9c461a6d3d795a",
+        "trace_id": "0x8efcf07caf318a21e681c58d8f1fd3c6",
+        "span_id": "0x6be7e85af17d2875",
         "trace_state": "[]"
     },
     "kind": "SpanKind.INTERNAL",
-    "parent_id": "0x0206a417e77268a6",
-    "start_time": "2025-06-06T08:59:50.781557Z",
-    "end_time": "2025-06-06T09:00:00.682278Z",
+    "parent_id": "0xc688304f90692142",
+    "start_time": "2025-06-16T14:57:59.103054Z",
+    "end_time": "2025-06-16T14:58:00.248897Z",
     "status": {
         "status_code": "OK"
     },
     "attributes": {
         "monocle_apptrace.version": "0.4.0",
         "monocle_apptrace.language": "python",
-        "span_source": "c:\\Users\\BHLP0106\\Downloads\\test_teams_ai_bot\\teams-ai-basic-bot\\.venv\\Lib\\site-packages\\teams\\ai\\models\\openai_model.py:237",
-        "workflow.name": "teams-ai-bot",
+        "span_source": "c:\\Users\\BHLP0106\\Downloads\\test_teams_ai_bot\\AzureAISearch\\.venv\\Lib\\site-packages\\teams\\ai\\embeddings\\azure_openai_embeddings.py:91",
+        "workflow.name": "teams-agent-api-bot",
+        "span.type": "retrieval.modelapi",
+        "scope.teams.channel.channel_id": "msteams",
+        "scope.msteams.activity.type": "message",
+        "scope.msteams.conversation.id": "personal-chat-id",
+        "scope.msteams.conversation.type": "personal",
+        "scope.msteams.conversation.name": "",
+        "scope.msteams.user.from_property.id": "user-id-0",
+        "scope.msteams.user.from_property.name": "Alex Wilber",
+        "scope.msteams.user.from_property.role": "",
+        "scope.msteams.recipient.id": "00000000-0000-0000-0000-00000000000011",
+        "scope.msteams.channel_data.tenant.id": "00000000-0000-0000-0000-0000000000001"
+    },
+    "events": [],
+    "links": [],
+    "resource": {
+        "attributes": {
+            "service.name": "teams-agent-api-bot"
+        },
+        "schema_url": ""
+    }
+}
+
+,{
+    "name": "azure.search.documents._search_client.SearchClient",
+    "context": {
+        "trace_id": "0x8efcf07caf318a21e681c58d8f1fd3c6",
+        "span_id": "0x376e478411810d82",
+        "trace_state": "[]"
+    },
+    "kind": "SpanKind.INTERNAL",
+    "parent_id": "0xc688304f90692142",
+    "start_time": "2025-06-16T14:58:00.250124Z",
+    "end_time": "2025-06-16T14:58:00.250717Z",
+    "status": {
+        "status_code": "OK"
+    },
+    "attributes": {
+        "monocle_apptrace.version": "0.4.0",
+        "monocle_apptrace.language": "python",
+        "span_source": "C:\\Users\\BHLP0106\\Downloads\\test_teams_ai_bot\\AzureAISearch/src\\azure_ai_search_data_source.py:78",
+        "workflow.name": "teams-agent-api-bot",
+        "span.type": "generic",
+        "entity.1.type": "teams.AzureAISearch",
+        "entity.1.index_name": "contoso-electronics",
+        "entity.1.inference_endpoint": "https://teamsaisearch1.search.windows.net",
+        "scope.teams.channel.channel_id": "msteams",
+        "scope.msteams.activity.type": "message",
+        "scope.msteams.conversation.id": "personal-chat-id",
+        "scope.msteams.conversation.type": "personal",
+        "scope.msteams.conversation.name": "",
+        "scope.msteams.user.from_property.id": "user-id-0",
+        "scope.msteams.user.from_property.name": "Alex Wilber",
+        "scope.msteams.user.from_property.role": "",
+        "scope.msteams.recipient.id": "00000000-0000-0000-0000-00000000000011",
+        "scope.msteams.channel_data.tenant.id": "00000000-0000-0000-0000-0000000000001",
+        "entity.count": 1
+    },
+    "events": [
+        {
+            "name": "data.input",
+            "timestamp": "2025-06-16T14:58:00.250717Z",
+            "attributes": {
+                "search_text": "what is executive vacation?",
+                "select": [
+                    "docTitle",
+                    "description",
+                    "descriptionVector"
+                ],
+                "vector_queries": [
+                    -0.031956613063812256,
+                    0.008909888565540314,
+                    0.008159135468304157,
+                    -0.03405305743217468,
+                    -0.05232612043619156,
+                    0.004497440066188574,
+                    -0.008909888565540314,
+                    0.041107308119535446,
+                    0.03181495890021324,
+                    0.01229536347091198
+                ]
+            }
+        },
+        {
+            "name": "data.output",
+            "timestamp": "2025-06-16T14:58:00.250717Z",
+            "attributes": {
+                "status": "success",
+                "status_code": "success",
+                "response": "<iterator object azure.core.paging.ItemPaged at 0x1f8be702780>"
+            }
+        }
+    ],
+    "links": [],
+    "resource": {
+        "attributes": {
+            "service.name": "teams-agent-api-bot"
+        },
+        "schema_url": ""
+    }
+}
+
+{
+    "name": "openai.resources.chat.completions.completions.AsyncCompletions",
+    "context": {
+        "trace_id": "0x8efcf07caf318a21e681c58d8f1fd3c6",
+        "span_id": "0x1fa04fb65200d5f3",
+        "trace_state": "[]"
+    },
+    "kind": "SpanKind.INTERNAL",
+    "parent_id": "0xc688304f90692142",
+    "start_time": "2025-06-16T14:58:03.279203Z",
+    "end_time": "2025-06-16T14:58:06.089599Z",
+    "status": {
+        "status_code": "OK"
+    },
+    "attributes": {
+        "monocle_apptrace.version": "0.4.0",
+        "monocle_apptrace.language": "python",
+        "span_source": "c:\\Users\\BHLP0106\\Downloads\\test_teams_ai_bot\\AzureAISearch\\.venv\\Lib\\site-packages\\teams\\ai\\models\\openai_model.py:237",
+        "workflow.name": "teams-agent-api-bot",
         "span.type": "inference.modelapi",
         "scope.teams.channel.channel_id": "msteams",
         "scope.msteams.activity.type": "message",
@@ -33,7 +153,7 @@
     "links": [],
     "resource": {
         "attributes": {
-            "service.name": "teams-ai-bot"
+            "service.name": "teams-agent-api-bot"
         },
         "schema_url": ""
     }
@@ -42,22 +162,22 @@
 ,{
     "name": "teams.ai.models.openai_model.OpenAIModel",
     "context": {
-        "trace_id": "0x46d6c29b989a9dde96401fc9903e13d1",
-        "span_id": "0x0206a417e77268a6",
+        "trace_id": "0x8efcf07caf318a21e681c58d8f1fd3c6",
+        "span_id": "0xc688304f90692142",
         "trace_state": "[]"
     },
     "kind": "SpanKind.INTERNAL",
-    "parent_id": "0x989ef3e7186f39cb",
-    "start_time": "2025-06-06T08:59:50.776558Z",
-    "end_time": "2025-06-06T09:00:00.682278Z",
+    "parent_id": "0x62049f00fc037b0b",
+    "start_time": "2025-06-16T14:57:58.646509Z",
+    "end_time": "2025-06-16T14:58:06.090753Z",
     "status": {
         "status_code": "OK"
     },
     "attributes": {
         "monocle_apptrace.version": "0.4.0",
         "monocle_apptrace.language": "python",
-        "span_source": "c:\\Users\\BHLP0106\\Downloads\\test_teams_ai_bot\\teams-ai-basic-bot\\.venv\\Lib\\site-packages\\teams\\ai\\clients\\llm_client.py:217",
-        "workflow.name": "teams-ai-bot",
+        "span_source": "c:\\Users\\BHLP0106\\Downloads\\test_teams_ai_bot\\AzureAISearch\\.venv\\Lib\\site-packages\\teams\\ai\\clients\\llm_client.py:217",
+        "workflow.name": "teams-agent-api-bot",
         "span.type": "inference.framework",
         "entity.1.type": "inference.azure_openai",
         "entity.1.provider_name": "okahu-openai-dev.openai.azure.com",
@@ -79,35 +199,38 @@
     "events": [
         {
             "name": "metadata",
-            "timestamp": "2025-06-06T09:00:00.681277Z",
+            "timestamp": "2025-06-16T14:58:06.089599Z",
             "attributes": {
-                "completion_tokens": 100,
-                "prompt_tokens": 67,
-                "total_tokens": 167
+                "completion_tokens": 106,
+                "prompt_tokens": 2145,
+                "total_tokens": 2251
             }
         },
         {
             "name": "data.input",
-            "timestamp": "2025-06-06T09:00:00.682278Z",
+            "timestamp": "2025-06-16T14:58:06.090753Z",
             "attributes": {
                 "input": [
-                    "{'system': '# Profile\\n- Your name is Monocle Bot\\n- You are funny.\\n- You work for Okahu.ai and know everything about OpenTelemetry and Monocle Apptrace\\n- You are coffee chatbot for teamsAI.'}",
-                    "{'user': \"What's the best way to use a French press?\"}"
+                    "{'system': 'The following is a conversation with an AI assistant, who is an expert on answering questions over the given context.\\nResponses should be in a short journalistic style with no more than 80 words, and provide citations.\\nUse the context provided in the `<context></context>` tags as the source for your answers.\\nResponse should be a json array, list all the answers and citations. \\nIf citationTitle is not empty, citationContent mustn\\'t be empty!!!\\n# citationTitle must be a file name!!!\\nIf the answer no citation, set the citationTitle and citationContent as empty.\\nData format:\\n{\\n    \"results\":[\\n        {\\n            \"answer\":\"{$answer1}\",\\n            \"citationTitle\":\"{$citationTitle1}\",\\n            \"citationContent\":\"{$citationContent1}\"\\n        },\\n        {\\n            \"answer\":\"{$answer2}\",\\n            \"citationTitle\":\"{$citationTitle2}\",\\n            \"citationContent\":\"{$citationContent2}\"\\n        },\\n        ...\\n    ]\\n} '}",
+                    "{'user': 'what is executive vacation?'}"
                 ]
             }
         },
         {
             "name": "data.output",
-            "timestamp": "2025-06-06T09:00:00.682278Z",
+            "timestamp": "2025-06-16T14:58:06.090753Z",
             "attributes": {
                 "response": "Ah, the French press! The only thing more sophisticated than a monocle-wearing cat. Here\u2019s how to brew a cup of coffee that\u2019ll make you feel like you\u2019re sipping in a Parisian caf\u00e9:\n\n1. **Gather Your Gear**: You\u2019ll need coarsely ground coffee, hot water (just off the boil), a French press, and a timer. Optional: a beret for that extra flair.\n\n2. **Measure Your Coffee**: A good rule of thumb is"
+                "status": "success",
+                "status_code": "success",
+                "response": "{\n    \"results\":[\n        {\n            \"answer\":\"The Executive vacation perk at Contoso Electronics offers 6 weeks of vacation, along with a luxury resort getaway for employees and their families. This benefit emphasizes the company's commitment to work-life balance and employee well-being.\",\n            \"citationTitle\":\"Contoso Electronics Company Overview\",\n            \"citationContent\":\"Contoso Electronics provides vacation perks designed to help employees recharge, including a tier for executives that offers 6 weeks of vacation and a luxury resort getaway.\"\n        }\n    ]\n}"
             }
         }
     ],
     "links": [],
     "resource": {
         "attributes": {
-            "service.name": "teams-ai-bot"
+            "service.name": "teams-agent-api-bot"
         },
         "schema_url": ""
     }
@@ -116,22 +239,22 @@
 ,{
     "name": "teams.ai.planners.action_planner.ActionPlanner",
     "context": {
-        "trace_id": "0x46d6c29b989a9dde96401fc9903e13d1",
-        "span_id": "0x989ef3e7186f39cb",
+        "trace_id": "0x8efcf07caf318a21e681c58d8f1fd3c6",
+        "span_id": "0x62049f00fc037b0b",
         "trace_state": "[]"
     },
     "kind": "SpanKind.INTERNAL",
-    "parent_id": "0xeacd6a39ec627910",
-    "start_time": "2025-06-06T08:59:50.773557Z",
-    "end_time": "2025-06-06T09:00:00.683278Z",
+    "parent_id": "0x8e1bf0f63357ed5e",
+    "start_time": "2025-06-16T14:57:58.620528Z",
+    "end_time": "2025-06-16T14:58:06.091330Z",
     "status": {
         "status_code": "OK"
     },
     "attributes": {
         "monocle_apptrace.version": "0.4.0",
         "monocle_apptrace.language": "python",
-        "span_source": "c:\\Users\\BHLP0106\\Downloads\\test_teams_ai_bot\\teams-ai-basic-bot\\.venv\\Lib\\site-packages\\monocle_apptrace\\instrumentation\\common\\wrapper.py:232",
-        "workflow.name": "teams-ai-bot",
+        "span_source": "c:\\Users\\BHLP0106\\Downloads\\test_teams_ai_bot\\AzureAISearch\\.venv\\Lib\\site-packages\\monocle_apptrace\\instrumentation\\common\\wrapper.py:232",
+        "workflow.name": "teams-agent-api-bot",
         "span.type": "generic",
         "entity.1.type": "teams.planner",
         "entity.1.planner_type": "ActionPlanner",
@@ -152,11 +275,11 @@
     "events": [
         {
             "name": "data.input",
-            "timestamp": "2025-06-06T09:00:00.683278Z",
+            "timestamp": "2025-06-16T14:58:06.090753Z",
             "attributes": {
                 "prompt_template_name": "chat",
-                "prompt_template": "# Profile\n- Your name is Monocle Bot\n- You are funny.\n- You work for Okahu.ai and know everything about OpenTelemetry and Monocle Apptrace\n- You are coffee chatbot for teamsAI.",
-                "prompt_template_description": "Chat with Teams AI Bot",
+                "prompt_template": "The following is a conversation with an AI assistant, who is an expert on answering questions over the given context.\nResponses should be in a short journalistic style with no more than 80 words, and provide citations.\nUse the context provided in the `<context></context>` tags as the source for your answers.\nResponse should be a json array, list all the answers and citations. \nIf citationTitle is not empty, citationContent mustn't be empty!!!\n# citationTitle must be a file name!!!\nIf the answer no citation, set the citationTitle and citationContent as empty.\nData format:\n{\n    \"results\":[\n        {\n            \"answer\":\"{$answer1}\",\n            \"citationTitle\":\"{$citationTitle1}\",\n            \"citationContent\":\"{$citationContent1}\"\n        },\n        {\n            \"answer\":\"{$answer2}\",\n            \"citationTitle\":\"{$citationTitle2}\",\n            \"citationContent\":\"{$citationContent2}\"\n        },\n        ...\n    ]\n} ",
+                "prompt_template_description": "Chat with Teams RAG",
                 "prompt_template_type": "completion",
                 "validator": "DefaultAugmentation",
                 "memory_type": "TurnState"
@@ -164,47 +287,95 @@
         },
         {
             "name": "data.output",
-            "timestamp": "2025-06-06T09:00:00.683278Z",
+            "timestamp": "2025-06-16T14:58:06.090753Z",
             "attributes": {
-                "response": "Ah, the French press! The only thing more sophisticated than a monocle-wearing cat. Here\u2019s how to brew a cup of coffee that\u2019ll make you feel like you\u2019re sipping in a Parisian caf\u00e9:\n\n1. **Gather Your Gear**: You\u2019ll need coarsely ground coffee, hot water (just off the boil), a French press, and a timer. Optional: a beret for that extra flair.\n\n2. **Measure Your Coffee**: A good rule of thumb is"
+                "response": "{\n    \"results\":[\n        {\n            \"answer\":\"The Executive vacation perk at Contoso Electronics offers 6 weeks of vacation, along with a luxury resort getaway for employees and their families. This benefit emphasizes the company's commitment to work-life balance and employee well-being.\",\n            \"citationTitle\":\"Contoso Electronics Company Overview\",\n            \"citationContent\":\"Contoso Electronics provides vacation perks designed to help employees recharge, including a tier for executives that offers 6 weeks of vacation and a luxury resort getaway.\"\n        }\n    ]\n}"
             }
         },
         {
             "name": "metadata",
-            "timestamp": "2025-06-06T09:00:00.683278Z",
+            "timestamp": "2025-06-16T14:58:06.091330Z",
             "attributes": {
-                "feedback_enabled": true
+                "feedback_enabled": false
             }
         }
     ],
     "links": [],
     "resource": {
         "attributes": {
-            "service.name": "teams-ai-bot"
+            "service.name": "teams-agent-api-bot"
         },
         "schema_url": ""
     }
 }
+
 ,{
-    "name": "workflow",
+    "name": "aiohttp.web_app.Application",
     "context": {
-        "trace_id": "0x46d6c29b989a9dde96401fc9903e13d1",
-        "span_id": "0x06de92f0cf062643",
+        "trace_id": "0x8efcf07caf318a21e681c58d8f1fd3c6",
+        "span_id": "0x8e1bf0f63357ed5e",
         "trace_state": "[]"
     },
     "kind": "SpanKind.INTERNAL",
-    "parent_id": null,
-    "start_time": "2025-06-06T08:59:50.745950Z",
-    "end_time": "2025-06-06T09:00:00.725839Z",
+    "parent_id": "0xfa138c2d0dd90bd4",
+    "start_time": "2025-06-16T14:57:58.514601Z",
+    "end_time": "2025-06-16T14:58:06.132929Z",
     "status": {
         "status_code": "OK"
     },
     "attributes": {
         "monocle_apptrace.version": "0.4.0",
         "monocle_apptrace.language": "python",
-        "span_source": "c:\\Users\\BHLP0106\\Downloads\\test_teams_ai_bot\\teams-ai-basic-bot\\.venv\\Lib\\site-packages\\aiohttp\\web_protocol.py:462",
+        "span_source": "c:\\Users\\BHLP0106\\Downloads\\test_teams_ai_bot\\AzureAISearch\\.venv\\Lib\\site-packages\\aiohttp\\web_protocol.py:510",
+        "workflow.name": "teams-agent-api-bot",
+        "span.type": "http.process",
+        "entity.1.method": "POST",
+        "entity.1.route": "/api/messages",
+        "entity.count": 1
+    },
+    "events": [
+        {
+            "name": "data.input",
+            "timestamp": "2025-06-16T14:58:06.132929Z",
+            "attributes": {}
+        },
+        {
+            "name": "data.output",
+            "timestamp": "2025-06-16T14:58:06.132929Z",
+            "attributes": {
+                "status": "201"
+            }
+        }
+    ],
+    "links": [],
+    "resource": {
+        "attributes": {
+            "service.name": "teams-agent-api-bot"
+        },
+        "schema_url": ""
+    }
+}
+
+,{
+    "name": "workflow",
+    "context": {
+        "trace_id": "0x8efcf07caf318a21e681c58d8f1fd3c6",
+        "span_id": "0xfa138c2d0dd90bd4",
+        "trace_state": "[]"
+    },
+    "kind": "SpanKind.INTERNAL",
+    "parent_id": null,
+    "start_time": "2025-06-16T14:57:58.513927Z",
+    "end_time": "2025-06-16T14:58:06.132929Z",
+    "status": {
+        "status_code": "OK"
+    },
+    "attributes": {
+        "monocle_apptrace.version": "0.4.0",
+        "monocle_apptrace.language": "python",
+        "span_source": "c:\\Users\\BHLP0106\\Downloads\\test_teams_ai_bot\\AzureAISearch\\.venv\\Lib\\site-packages\\aiohttp\\web_protocol.py:510",
         "span.type": "workflow",
-        "entity.1.name": "teams-ai-bot",
+        "entity.1.name": "teams-agent-api-bot",
         "entity.1.type": "workflow.generic",
         "entity.2.type": "app_hosting.generic",
         "entity.2.name": "generic"
@@ -435,7 +606,7 @@
     "links": [],
     "resource": {
         "attributes": {
-            "service.name": "teams-ai-bot"
+            "service.name": "teams-agent-api-bot"
         },
         "schema_url": ""
     }

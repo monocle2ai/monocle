@@ -376,10 +376,12 @@ def get_status(arguments):
         return 'success'
 
 def get_exception_status_code(arguments):
-    if arguments['exception'] is not None and hasattr(arguments['exception'], 'code'):
+    if arguments['exception'] is not None and hasattr(arguments['exception'], 'code') and arguments['exception'].code is not None:
         return arguments['exception'].code
-    else:
+    elif arguments['exception'] is not None:
         return 'error'
+    else:
+        return 'success'
 
 def get_exception_message(arguments):
     if arguments['exception'] is not None:
@@ -389,6 +391,22 @@ def get_exception_message(arguments):
             return arguments['exception'].__str__()
     else:
         return ''
+
+def get_status_code(arguments):
+    if arguments["exception"] is not None:
+        return get_exception_status_code(arguments)
+    elif hasattr(arguments["result"], "status"):
+        return arguments["result"].status
+    else:
+        return 'success'
+
+def get_status(arguments):
+    if arguments["exception"] is not None:
+        return 'error'
+    elif get_status_code(arguments) == 'success':
+        return 'success'
+    else:
+        return 'error'
 
 def patch_instance_method(obj, method_name, func):
     """

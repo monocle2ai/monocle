@@ -540,3 +540,17 @@ def search_input(arguments):
         "vector_queries": capture_vector_queries(arguments["kwargs"])
     }
 
+def search_output(arguments):
+    try:
+        if hasattr(arguments["result"], "_args") and len(arguments["result"]._args) > 1:
+            if hasattr(arguments["result"]._args[1], "request") and arguments["result"]._args[1].request is not None:
+                request = arguments["result"]._args[1].request
+                return {
+                    "count": request.include_total_result_count,
+                    "coverage": request.minimum_coverage,
+                    "facets": request.facets,
+                    }
+    except Exception as e:
+        print(f"Debug - Error capturing facets: {str(e)}")
+    return None
+

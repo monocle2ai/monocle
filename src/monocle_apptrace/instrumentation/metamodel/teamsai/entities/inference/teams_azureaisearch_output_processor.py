@@ -45,6 +45,10 @@ AZUREAISEARCH_OUTPUT_PROCESSOR = {
                     "accessor": lambda arguments: _helper.get_status_code(arguments)
                 },
                 {
+                    "_comments": "search results",
+                    "accessor": lambda arguments: _helper.search_output(arguments)
+                },
+                {
                     "attribute": "response",
                     "accessor": lambda arguments: _helper.get_response(arguments)
                 },

@@ -1,3 +1,14 @@
+## Version 0.4.1 (2025-06-18)
+
+- Add exception status code for Boto3 ([#211](https://github.com/monocle2ai/monocle/pull/211))
+- Add exception status code for anthropic and openai ([#210](https://github.com/monocle2ai/monocle/pull/210))
+- Add prompt template info in teamsAI ([#209](https://github.com/monocle2ai/monocle/pull/209))
+- TeamsAI : added system prompt ([#208](https://github.com/monocle2ai/monocle/pull/208))
+- Add prompt template info in ActionPlanner for teamsAI ([#207](https://github.com/monocle2ai/monocle/pull/207))
+- Add teams channel id as scope in MS teams instrumentations ([#206](https://github.com/monocle2ai/monocle/pull/206))
+- Azure function wrapper to generate http span ([#205](https://github.com/monocle2ai/monocle/pull/205))
+- Azure ai inference sdk ([#204](https://github.com/monocle2ai/monocle/pull/204))
+
 ## Version 0.3.1 (2024-04-18)
 
 - Add MetaModel for Anthropic SDK ([#159](https://github.com/monocle2ai/monocle/pull/159))

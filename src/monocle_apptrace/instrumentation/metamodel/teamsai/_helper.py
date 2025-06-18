@@ -439,6 +439,16 @@ def capture_conversation_state_key_info(arguments):
     except Exception as e:
         return {"error": f"Error capturing key info: {str(e)}"}
 
+
+def capture_conversation_state(arguments):
+    if arguments.get("result"):
+        result = arguments["result"]
+        # if result is dictionary then create new dictionary with same keys and values, except planner_history key
+        if isinstance(result, dict):
+            result = {k: v for k, v in result.items() if k != 'planner_history'}
+            return str(result)
+    return ''
+
 def capture_conversation_state_load_result(arguments):
     """Captures information about the loaded conversation state"""
     try:

@@ -87,17 +87,9 @@ CONVERSATION_STATE_OUTPUT_PROCESSOR = {
                     "accessor": lambda arguments: _helper.capture_conversation_state_load_result(arguments).get('state_type', '')
                 },
                 {
-                    "attribute": "has_tasks",
-                    "accessor": lambda arguments: _helper.capture_conversation_state_load_result(arguments).get('has_tasks', False)
+                    "attribute": "state_response",
+                    "accessor": lambda arguments: _helper.capture_conversation_state(arguments)
                 },
-                {
-                    "attribute": "task_count",
-                    "accessor": lambda arguments: _helper.capture_conversation_state_load_result(arguments).get('task_count', 0)
-                },
-                {
-                    "attribute": "task_keys",
-                    "accessor": lambda arguments: _helper.capture_conversation_state_load_result(arguments).get('task_keys', [])
-                }
             ]
         },
         {

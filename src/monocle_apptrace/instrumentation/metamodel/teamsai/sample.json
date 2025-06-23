@@ -1,14 +1,14 @@
 [{
     "name": "openai.resources.embeddings.AsyncEmbeddings",
     "context": {
-        "trace_id": "0x8efcf07caf318a21e681c58d8f1fd3c6",
-        "span_id": "0x6be7e85af17d2875",
+        "trace_id": "0x9f65c5138038818eaf9bd08f63c931d9",
+        "span_id": "0x9994c72161662ca6",
         "trace_state": "[]"
     },
     "kind": "SpanKind.INTERNAL",
-    "parent_id": "0xc688304f90692142",
-    "start_time": "2025-06-16T14:57:59.103054Z",
-    "end_time": "2025-06-16T14:58:00.248897Z",
+    "parent_id": "0x64b61a3cb332a6cd",
+    "start_time": "2025-06-23T10:48:58.301586Z",
+    "end_time": "2025-06-23T10:48:59.425704Z",
     "status": {
         "status_code": "OK"
     },
@@ -42,14 +42,14 @@
 ,{
     "name": "azure.search.documents._search_client.SearchClient",
     "context": {
-        "trace_id": "0x8efcf07caf318a21e681c58d8f1fd3c6",
-        "span_id": "0x376e478411810d82",
+        "trace_id": "0x9f65c5138038818eaf9bd08f63c931d9",
+        "span_id": "0x6e286465eb5ef99f",
         "trace_state": "[]"
     },
     "kind": "SpanKind.INTERNAL",
-    "parent_id": "0xc688304f90692142",
-    "start_time": "2025-06-16T14:58:00.250124Z",
-    "end_time": "2025-06-16T14:58:00.250717Z",
+    "parent_id": "0x64b61a3cb332a6cd",
+    "start_time": "2025-06-23T10:48:59.426703Z",
+    "end_time": "2025-06-23T10:48:59.427703Z",
     "status": {
         "status_code": "OK"
     },
@@ -58,8 +58,9 @@
         "monocle_apptrace.language": "python",
         "span_source": "C:\\Users\\BHLP0106\\Downloads\\test_teams_ai_bot\\AzureAISearch/src\\azure_ai_search_data_source.py:78",
         "workflow.name": "teams-agent-api-bot",
-        "span.type": "generic",
-        "entity.1.type": "teams.AzureAISearch",
+        "span.type": "search",
+        "entity.1.type": "azure.search",
+        "entity.1.version_remove_me": "11",
         "entity.1.index_name": "contoso-electronics",
         "entity.1.inference_endpoint": "https://teamsaisearch1.search.windows.net",
         "scope.teams.channel.channel_id": "msteams",
@@ -77,35 +78,23 @@
     "events": [
         {
             "name": "data.input",
-            "timestamp": "2025-06-16T14:58:00.250717Z",
+            "timestamp": "2025-06-23T10:48:59.427703Z",
             "attributes": {
-                "search_text": "what is executive vacation?",
-                "select": [
-                    "docTitle",
-                    "description",
-                    "descriptionVector"
-                ],
-                "vector_queries": [
-                    -0.031956613063812256,
-                    0.008909888565540314,
-                    0.008159135468304157,
-                    -0.03405305743217468,
-                    -0.05232612043619156,
-                    0.004497440066188574,
-                    -0.008909888565540314,
-                    0.041107308119535446,
-                    0.03181495890021324,
-                    0.01229536347091198
-                ]
+                "parameters": "{\"search_text\": \"what is executive vaccation?\", \"select\": [\"docTitle\", \"description\", \"descriptionVector\"], \"vector_queries\": \"{'additional_properties': {}, 'kind': 'vector', 'k_nearest_neighbors': 2, 'fields': 'descriptionVector', 'exhaustive': 'null', 'oversampling': 'null', 'weight': 'null'}\"}"
             }
         },
         {
             "name": "data.output",
-            "timestamp": "2025-06-16T14:58:00.250717Z",
+            "timestamp": "2025-06-23T10:48:59.427703Z",
             "attributes": {
-                "status": "success",
-                "status_code": "success",
-                "response": "<iterator object azure.core.paging.ItemPaged at 0x1f8be702780>"
+                "summary": "{\"count\": \"null\", \"coverage\": \"null\", \"facets\": \"null\"}"
+            }
+        },
+        {
+            "name": "metadata",
+            "timestamp": "2025-06-23T10:48:59.427703Z",
+            "attributes": {
+                "info": "{\"endpoint\": \"https://teamsaisearch1.search.windows.net\", \"index\": \"contoso-electronics\", \"latency_ms\": \"null\"}"
             }
         }
     ],
@@ -119,16 +108,79 @@
 }
 
 {
-    "name": "openai.resources.chat.completions.completions.AsyncCompletions",
+    "name": "azure.search.documents._generated.operations._documents_operations.DocumentsOperations",
     "context": {
-        "trace_id": "0x8efcf07caf318a21e681c58d8f1fd3c6",
-        "span_id": "0x1fa04fb65200d5f3",
+        "trace_id": "0x9f65c5138038818eaf9bd08f63c931d9",
+        "span_id": "0xe7181d3c5173b8fe",
         "trace_state": "[]"
     },
     "kind": "SpanKind.INTERNAL",
-    "parent_id": "0xc688304f90692142",
-    "start_time": "2025-06-16T14:58:03.279203Z",
-    "end_time": "2025-06-16T14:58:06.089599Z",
+    "parent_id": "0x64b61a3cb332a6cd",
+    "start_time": "2025-06-23T10:48:59.428704Z",
+    "end_time": "2025-06-23T10:49:01.209328Z",
+    "status": {
+        "status_code": "OK"
+    },
+    "attributes": {
+        "monocle_apptrace.version": "0.4.0",
+        "monocle_apptrace.language": "python",
+        "span_source": "c:\\Users\\BHLP0106\\Downloads\\test_teams_ai_bot\\AzureAISearch\\.venv\\Lib\\site-packages\\azure\\search\\documents\\_paging.py:125",
+        "workflow.name": "teams-agent-api-bot",
+        "span.type": "search",
+        "scope.teams.channel.channel_id": "msteams",
+        "scope.msteams.activity.type": "message",
+        "scope.msteams.conversation.id": "personal-chat-id",
+        "scope.msteams.conversation.type": "personal",
+        "scope.msteams.conversation.name": "",
+        "scope.msteams.user.from_property.id": "user-id-0",
+        "scope.msteams.user.from_property.name": "Alex Wilber",
+        "scope.msteams.user.from_property.role": "",
+        "scope.msteams.recipient.id": "00000000-0000-0000-0000-00000000000011",
+        "scope.msteams.channel_data.tenant.id": "00000000-0000-0000-0000-0000000000001"
+    },
+    "events": [
+        {
+            "name": "data.input",
+            "timestamp": "2025-06-23T10:49:01.209328Z",
+            "attributes": {
+                "search_text": "what is executive vaccation?"
+            }
+        },
+        {
+            "name": "data.output",
+            "timestamp": "2025-06-23T10:49:01.209328Z",
+            "attributes": {
+                "results": "[{\"docTitle\": \"Contoso_Electronics_PerkPlus_Program\", \"description\": \"# Contoso Electronics PerksPlus Program\\n\\n*Disclaimer: This document contains information generated using a language model (Azure OpenAI). The information contained in this document is only for demonstration purposes and does not reflect the opinions or beliefs of Microsoft. Microsoft makes no representations or warranties of any kind, express or implied, about the completeness, accuracy, reliability, suitability or availability with respect to the information contained in this document. All rights reserved to Microsoft.*\\n\\n## Overview\\nIntroducing PerksPlus - the ultimate benefits program designed to support the health and wellness of employees. With PerksPlus, employees have the opportunity to expense up to $1000 for fitness-related programs, making it easier and more affordable to maintain a healthy lifestyle. PerksPlus is not only designed to support employees' physical health, but also their mental health. Regular exercise has been shown to reduce stress, improve mood, and enhance overall well-being. With PerksPlus, employees can invest in their health and wellness, while enjoying the peace of mind that comes with knowing they are getting the support they need to lead a healthy life.\\nWhat is Covered?\\n\\nPerksPlus covers a wide range of fitness activities, including but not limited to:\\n* Gym memberships\\n* Personal training sessions\\n* Yoga and Pilates classes\\n* Fitness equipment purchases\\n* Sports team fees\\n* Health retreats and spas\\n* Outdoor adventure activities (such as rock climbing, hiking, and kayaking)\\n* Group fitness classes (such as dance, martial arts, and cycling)\\n* Virtual fitness programs (such as online yoga and workout classes)\\n\\nIn addition to the wide range of fitness activities covered by PerksPlus, the program also covers a variety of lessons and experiences that promote health and wellness. Some of the lessons covered under PerksPlus include:\\n* Skiing and snowboarding lessons\\n* Scuba diving lessons\\n* Surfing lessons\\n* Horseback riding lessons\\n\\nThese lessons provide employees with the opportunity to try new things, challenge themselves, and improve their physical skills. They are also a great way to relieve stress and have fun while staying active.\\n\\nWith PerksPlus, employees can choose from a variety of fitness programs to suit their individual needs and preferences. Whether you're looking to improve your physical fitness, reduce stress, or just have some fun, PerksPlus has you covered.\\n\\n## What is Not Covered?\\nIn addition to the wide range of activities covered by PerksPlus, there is also a list of things that are not \\ncovered under the program. These include but are not limited to:\\n* Non-fitness related expenses\\n* Medical treatments and procedures\\n* Travel expenses (unless related to a fitness program)\\n* Food and supplements\", \"@search.score\": 0.03333333507180214, \"@search.reranker_score\": null}, {\"docTitle\": \"Contoso_Electronics_Company_Overview\", \"description\": \"# Contoso Electronics Company Overview\\n\\n*Disclaimer: This document contains information generated using a language model (Azure OpenAI). The information contained in this document is only for demonstration purposes and does not reflect the opinions or beliefs of Microsoft. Microsoft makes no representations or warranties of any kind, express or implied, about the completeness, accuracy, reliability, suitability or availability with respect to the information contained in this document. All rights reserved to Microsoft.*\\n\\n## History\\n\\nContoso Electronics, a pioneering force in the tech industry, was founded in 1985 by visionary entrepreneurs with a passion for innovation. Over the years, the company has played a pivotal role in shaping the landscape of consumer electronics.\\n\\n| Year | Milestone |\\n|------|-----------|\\n| 1985 | Company founded with a focus on cutting-edge technology |\\n| 1990 | Launched the first-ever handheld personal computer |\\n| 2000 | Introduced groundbreaking advancements in AI and robotics |\\n| 2015 | Expansion into sustainable and eco-friendly product lines |\\n\\n## Company Overview\\n\\nAt Contoso Electronics, we take pride in fostering a dynamic and inclusive workplace. Our dedicated team of experts collaborates to create innovative solutions that empower and connect people globally.\\n\\n### Core Values\\n\\n- **Innovation:** Constantly pushing the boundaries of technology.\\n- **Diversity:** Embracing different perspectives for creative excellence.\\n- **Sustainability:** Committed to eco-friendly practices in our products.\\n\\n## Vacation Perks\\n\\nWe believe in work-life balance and understand the importance of well-deserved breaks. Our vacation perks are designed to help our employees recharge and return with renewed enthusiasm.\\n\\n| Vacation Tier | Duration | Additional Benefits |\\n|---------------|----------|---------------------|\\n| Standard      | 2 weeks  | Health and wellness stipend |\\n| Senior        | 4 weeks  | Travel vouchers for a dream destination |\\n| Executive     | 6 weeks  | Luxury resort getaway with family |\\n\\n## Employee Recognition\\n\\nRecognizing the hard work and dedication of our employees is at the core of our culture. Here are some ways we celebrate achievements:\\n\\n- Monthly \\\"Innovator of the Month\\\" awards\\n- Annual gala with awards for outstanding contributions\\n- Team-building retreats for high-performing departments\\n\\n## Join Us!\\n\\nContoso Electronics is always on the lookout for talented individuals who share our passion for innovation. If you're ready to be part of a dynamic team shaping the future of technology, check out our [careers page](http://www.contoso.com) for exciting opportunities.\\n\\n[Learn more about Contoso Electronics!](http://www.contoso.com)\\n\", \"@search.score\": 0.032786883413791656, \"@search.reranker_score\": null}, {\"docTitle\": \"Contoso_Electronics_Plan_Benefits\", \"description\": \"# Contoso Electronics Plan and Benefit Packages\\n\\n*Disclaimer: This document contains information generated using a language model (Azure OpenAI). The information contained in this document is only for demonstration purposes and does not reflect the opinions or beliefs of Microsoft. Microsoft makes no representations or warranties of any kind, express or implied, about the completeness, accuracy, reliability, suitability or availability with respect to the information contained in this document. All rights reserved to Microsoft.*\\n\\n## Northwind Health Plus\\n\\nNorthwind Health Plus is a comprehensive plan that provides comprehensive coverage for medical, vision, and dental services. This plan also offers prescription drug coverage, mental health and substance abuse coverage, and coverage for preventive care services. With Northwind Health Plus, you can choose from a variety of in-network providers, including primary care physicians, specialists, hospitals, and pharmacies. \\n\\nThis plan also offers coverage for emergency services, both in-network and out-of-network.\\n\\n## Northwind Standard\\n\\nNorthwind Standard is a basic plan that provides coverage for medical, vision, and dental services. This plan also offers coverage for preventive care services, as well as prescription drug coverage. With Northwind Standard, you can choose from a variety of in-network providers, including primary care physicians, specialists, hospitals, and pharmacies. This plan does not offer coverage for emergency services, mental health and substance abuse coverage, or out-of-network services.\\n\\n## Comparison of Plans\\n\\nBoth plans offer coverage for routine physicals, well-child visits, immunizations, and other preventive care services. The plans also cover preventive care services such as mammograms, colonoscopies, and other cancer screenings. \\n\\nNorthwind Health Plus offers more comprehensive coverage than Northwind Standard. This plan offers coverage for emergency services, both in-network and out-of-network, as well as mental health and substance abuse coverage. Northwind Standard does not offer coverage for emergency services, mental health and substance abuse coverage, or out-of-network services. \\n\\nBoth plans offer coverage for prescription drugs. Northwind Health Plus offers a wider range of prescription drug coverage than Northwind Standard. Northwind Health Plus covers generic, brand-name, and specialty drugs, while Northwind Standard only covers generic and brand-name drugs. \\n\\nBoth plans offer coverage for vision and dental services. Northwind Health Plus offers coverage for vision exams, glasses, and contact lenses, as well as dental exams, cleanings, and fillings. Northwind Standard only offers coverage for vision exams and glasses. \\n\\nBoth plans offer coverage for medical services. Northwind Health Plus offers coverage for hospital stays, doctor visits, lab tests, and X-rays. Northwind Standard only offers coverage for doctor visits and lab tests. \\n\\nNorthwind Health Plus is a comprehensive plan that offers more coverage than Northwind Standard. Northwind Health Plus offers coverage for emergency services, mental health and substance abuse coverage, and out-of-network services, while Northwind Standard does not. Northwind Health Plus also offers a wider range of prescription drug coverage than Northwind Standard. Both plans offer coverage for vision and dental services, as well as medical services.\\n\\n## Cost Comparison\\n\\nContoso Electronics deducts the employee's portion of the healthcare cost from each paycheck. This means that the cost of the health insurance will be spread out over the course of the year, rather than being paid in one lump sum. The employee's portion of the cost will be calculated based on the selected health plan and the number of people covered by the insurance. The table below shows a cost comparison between the different health plans offered by Contoso Electronics\\n\\n|  | Northwind Standard | NorthWind Health Plus |\\n|---------------|----------|---------------------|\\n| Employee Only      | $45.00  | $55.00 |\\n| Employee +1        | $65.00  | $71.00 |\\n| Employee +2 or more     | $78.00  | $89.00 |\", \"@search.score\": 0.016129031777381897, \"@search.reranker_score\": null}]"
+            }
+        },
+        {
+            "name": "metadata",
+            "timestamp": "2025-06-23T10:49:01.209328Z",
+            "attributes": {
+                "options": "{\"select\": \"docTitle,description,descriptionVector\", \"include_total_result_count\": null, \"facets\": null, \"filter\": null, \"highlight_fields\": null, \"highlight_post_tag\": null, \"highlight_pre_tag\": null, \"minimum_coverage\": null, \"order_by\": null, \"query_type\": null, \"scoring_parameters\": null, \"scoring_profile\": null, \"semantic_query\": null, \"latency_ms\": null}"
+            }
+        }
+    ],
+    "links": [],
+    "resource": {
+        "attributes": {
+            "service.name": "teams-agent-api-bot"
+        },
+        "schema_url": ""
+    }
+}
+
+,{
+    "name": "openai.resources.chat.completions.completions.AsyncCompletions",
+    "context": {
+        "trace_id": "0x9f65c5138038818eaf9bd08f63c931d9",
+        "span_id": "0xef32028746d99a78",
+        "trace_state": "[]"
+    },
+    "kind": "SpanKind.INTERNAL",
+    "parent_id": "0x64b61a3cb332a6cd",
+    "start_time": "2025-06-23T10:49:01.235782Z",
+    "end_time": "2025-06-23T10:49:03.483059Z",
     "status": {
         "status_code": "OK"
     },
@@ -162,14 +214,14 @@
 ,{
     "name": "teams.ai.models.openai_model.OpenAIModel",
     "context": {
-        "trace_id": "0x8efcf07caf318a21e681c58d8f1fd3c6",
-        "span_id": "0xc688304f90692142",
+        "trace_id": "0x9f65c5138038818eaf9bd08f63c931d9",
+        "span_id": "0x64b61a3cb332a6cd",
         "trace_state": "[]"
     },
     "kind": "SpanKind.INTERNAL",
-    "parent_id": "0x62049f00fc037b0b",
-    "start_time": "2025-06-16T14:57:58.646509Z",
-    "end_time": "2025-06-16T14:58:06.090753Z",
+    "parent_id": "0x172599c0d77375ca",
+    "start_time": "2025-06-23T10:48:57.971386Z",
+    "end_time": "2025-06-23T10:49:03.484068Z",
     "status": {
         "status_code": "OK"
     },
@@ -199,26 +251,26 @@
     "events": [
         {
             "name": "metadata",
-            "timestamp": "2025-06-16T14:58:06.089599Z",
+            "timestamp": "2025-06-23T10:49:03.483059Z",
             "attributes": {
                 "completion_tokens": 106,
-                "prompt_tokens": 2145,
-                "total_tokens": 2251
+                "prompt_tokens": 2146,
+                "total_tokens": 2252
             }
         },
         {
             "name": "data.input",
-            "timestamp": "2025-06-16T14:58:06.090753Z",
+            "timestamp": "2025-06-23T10:49:03.484068Z",
             "attributes": {
                 "input": [
                     "{'system': 'The following is a conversation with an AI assistant, who is an expert on answering questions over the given context.\\nResponses should be in a short journalistic style with no more than 80 words, and provide citations.\\nUse the context provided in the `<context></context>` tags as the source for your answers.\\nResponse should be a json array, list all the answers and citations. \\nIf citationTitle is not empty, citationContent mustn\\'t be empty!!!\\n# citationTitle must be a file name!!!\\nIf the answer no citation, set the citationTitle and citationContent as empty.\\nData format:\\n{\\n    \"results\":[\\n        {\\n            \"answer\":\"{$answer1}\",\\n            \"citationTitle\":\"{$citationTitle1}\",\\n            \"citationContent\":\"{$citationContent1}\"\\n        },\\n        {\\n            \"answer\":\"{$answer2}\",\\n            \"citationTitle\":\"{$citationTitle2}\",\\n            \"citationContent\":\"{$citationContent2}\"\\n        },\\n        ...\\n    ]\\n} '}",
-                    "{'user': 'what is executive vacation?'}"
+                    "{'user': 'what is executive vaccation?'}"
                 ]
             }
         },
         {
             "name": "data.output",
-            "timestamp": "2025-06-16T14:58:06.090753Z",
+            "timestamp": "2025-06-23T10:49:03.484068Z",
             "attributes": {
                 "response": "Ah, the French press! The only thing more sophisticated than a monocle-wearing cat. Here\u2019s how to brew a cup of coffee that\u2019ll make you feel like you\u2019re sipping in a Parisian caf\u00e9:\n\n1. **Gather Your Gear**: You\u2019ll need coarsely ground coffee, hot water (just off the boil), a French press, and a timer. Optional: a beret for that extra flair.\n\n2. **Measure Your Coffee**: A good rule of thumb is"
                 "status": "success",
@@ -239,14 +291,14 @@
 ,{
     "name": "teams.ai.planners.action_planner.ActionPlanner",
     "context": {
-        "trace_id": "0x8efcf07caf318a21e681c58d8f1fd3c6",
-        "span_id": "0x62049f00fc037b0b",
+        "trace_id": "0x9f65c5138038818eaf9bd08f63c931d9",
+        "span_id": "0x172599c0d77375ca",
         "trace_state": "[]"
     },
     "kind": "SpanKind.INTERNAL",
-    "parent_id": "0x8e1bf0f63357ed5e",
-    "start_time": "2025-06-16T14:57:58.620528Z",
-    "end_time": "2025-06-16T14:58:06.091330Z",
+    "parent_id": "0xab3da5469d6d9f6b",
+    "start_time": "2025-06-23T10:48:57.955695Z",
+    "end_time": "2025-06-23T10:49:03.485075Z",
     "status": {
         "status_code": "OK"
     },
@@ -275,7 +327,7 @@
     "events": [
         {
             "name": "data.input",
-            "timestamp": "2025-06-16T14:58:06.090753Z",
+            "timestamp": "2025-06-23T10:49:03.485075Z",
             "attributes": {
                 "prompt_template_name": "chat",
                 "prompt_template": "The following is a conversation with an AI assistant, who is an expert on answering questions over the given context.\nResponses should be in a short journalistic style with no more than 80 words, and provide citations.\nUse the context provided in the `<context></context>` tags as the source for your answers.\nResponse should be a json array, list all the answers and citations. \nIf citationTitle is not empty, citationContent mustn't be empty!!!\n# citationTitle must be a file name!!!\nIf the answer no citation, set the citationTitle and citationContent as empty.\nData format:\n{\n    \"results\":[\n        {\n            \"answer\":\"{$answer1}\",\n            \"citationTitle\":\"{$citationTitle1}\",\n            \"citationContent\":\"{$citationContent1}\"\n        },\n        {\n            \"answer\":\"{$answer2}\",\n            \"citationTitle\":\"{$citationTitle2}\",\n            \"citationContent\":\"{$citationContent2}\"\n        },\n        ...\n    ]\n} ",
@@ -287,14 +339,14 @@
         },
         {
             "name": "data.output",
-            "timestamp": "2025-06-16T14:58:06.090753Z",
+            "timestamp": "2025-06-23T10:49:03.485075Z",
             "attributes": {
                 "response": "{\n    \"results\":[\n        {\n            \"answer\":\"The Executive vacation perk at Contoso Electronics offers 6 weeks of vacation, along with a luxury resort getaway for employees and their families. This benefit emphasizes the company's commitment to work-life balance and employee well-being.\",\n            \"citationTitle\":\"Contoso Electronics Company Overview\",\n            \"citationContent\":\"Contoso Electronics provides vacation perks designed to help employees recharge, including a tier for executives that offers 6 weeks of vacation and a luxury resort getaway.\"\n        }\n    ]\n}"
             }
         },
         {
             "name": "metadata",
-            "timestamp": "2025-06-16T14:58:06.091330Z",
+            "timestamp": "2025-06-23T10:49:03.485075Z",
             "attributes": {
                 "feedback_enabled": false
             }
@@ -312,14 +364,14 @@
 ,{
     "name": "aiohttp.web_app.Application",
     "context": {
-        "trace_id": "0x8efcf07caf318a21e681c58d8f1fd3c6",
-        "span_id": "0x8e1bf0f63357ed5e",
+        "trace_id": "0x9f65c5138038818eaf9bd08f63c931d9",
+        "span_id": "0xab3da5469d6d9f6b",
         "trace_state": "[]"
     },
     "kind": "SpanKind.INTERNAL",
-    "parent_id": "0xfa138c2d0dd90bd4",
-    "start_time": "2025-06-16T14:57:58.514601Z",
-    "end_time": "2025-06-16T14:58:06.132929Z",
+    "parent_id": "0x63dd6f516291ef06",
+    "start_time": "2025-06-23T10:48:57.774620Z",
+    "end_time": "2025-06-23T10:49:03.537146Z",
     "status": {
         "status_code": "OK"
     },
@@ -336,12 +388,12 @@
     "events": [
         {
             "name": "data.input",
-            "timestamp": "2025-06-16T14:58:06.132929Z",
+            "timestamp": "2025-06-23T10:49:03.537146Z",
             "attributes": {}
         },
         {
             "name": "data.output",
-            "timestamp": "2025-06-16T14:58:06.132929Z",
+            "timestamp": "2025-06-23T10:49:03.537146Z",
             "attributes": {
                 "status": "201"
             }
@@ -359,14 +411,14 @@
 ,{
     "name": "workflow",
     "context": {
-        "trace_id": "0x8efcf07caf318a21e681c58d8f1fd3c6",
-        "span_id": "0xfa138c2d0dd90bd4",
+        "trace_id": "0x9f65c5138038818eaf9bd08f63c931d9",
+        "span_id": "0x63dd6f516291ef06",
         "trace_state": "[]"
     },
     "kind": "SpanKind.INTERNAL",
     "parent_id": null,
-    "start_time": "2025-06-16T14:57:58.513927Z",
-    "end_time": "2025-06-16T14:58:06.132929Z",
+    "start_time": "2025-06-23T10:48:57.774620Z",
+    "end_time": "2025-06-23T10:49:03.537146Z",
     "status": {
         "status_code": "OK"
     },

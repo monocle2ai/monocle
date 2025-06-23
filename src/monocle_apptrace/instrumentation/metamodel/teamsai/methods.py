@@ -20,8 +20,11 @@ from monocle_apptrace.instrumentation.metamodel.teamsai.entities.state.conversat
     CONVERSATION_STATE_OUTPUT_PROCESSOR,
 )
 
-from monocle_apptrace.instrumentation.metamodel.teamsai.entities.inference.teams_azureaisearch_output_processor import (
-    AZUREAISEARCH_OUTPUT_PROCESSOR,
+from monocle_apptrace.instrumentation.metamodel.teamsai.entities.inference.search_client_processor import (
+    SEARCH_CLIENT_PROCESSOR,
+)
+from monocle_apptrace.instrumentation.metamodel.teamsai.entities.inference.search_post_processor import (
+    SEARCH_POST_PROCESSOR,
 )
 
 
@@ -161,6 +164,13 @@ TEAMAI_METHODS = [
         "object": "SearchClient",
         "method": "search",
         "wrapper_method": task_wrapper,
-        "output_processor": AZUREAISEARCH_OUTPUT_PROCESSOR,
+        "output_processor": SEARCH_CLIENT_PROCESSOR,
     },
+    {
+        "package":"azure.search.documents._generated.operations._documents_operations",
+        "object": "DocumentsOperations",
+        "method": "search_post",
+        "wrapper_method": task_wrapper,
+        "output_processor": SEARCH_POST_PROCESSOR,
+    }
 ]

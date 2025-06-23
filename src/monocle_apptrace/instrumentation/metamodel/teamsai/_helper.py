@@ -8,6 +8,8 @@ from monocle_apptrace.instrumentation.common.utils import (
     get_exception_message,
     get_exception_status_code
 )
+import json
+from typing import Any, Dict
 
 logger = logging.getLogger(__name__)
 
@@ -106,7 +108,8 @@ def get_prompt_template(arguments):
     return {
         "prompt_template_name": capture_prompt_info(arguments),
         "prompt_template": capture_prompt_template_info(arguments),
-        "prompt_template_description": get_nested_value(arguments.get("kwargs", {}), ["prompt", "config", "description"]),
+        "prompt_template_description": get_nested_value(arguments.get("kwargs", {}),
+                                                        ["prompt", "config", "description"]),
         "prompt_template_type": get_nested_value(arguments.get("kwargs", {}), ["prompt", "config", "type"])
     }
 
@@ -504,32 +507,95 @@ def extract_index_name(instance):
 
 def capture_vector_queries(kwargs):
     try:
+        result = {}
         if 'vector_queries' in kwargs and kwargs['vector_queries'] is not None:
-            vector_queries = kwargs['vector_queries'][0]
-            if hasattr(vector_queries, 'vector') and len(vector_queries.vector) > 0:
-                return vector_queries.vector[:10]
+            vector_queries = kwargs['vector_queries'][0].__dict__
+            for key, value in vector_queries.items():
+                if key != 'vector':
+                    result[key] = "null" if value is None else value
+            return str(result)
     except Exception as e:
         print(f"Debug - Error capturing vector queries: {str(e)}")
 
 def search_input(arguments):
-    pass
-    return {
+    parameters = {
         "search_text": get_nested_value(arguments.get("kwargs", {}), ["search_text"]),
         "select": get_nested_value(arguments.get("kwargs", {}), ["select"]),
         "vector_queries": capture_vector_queries(arguments["kwargs"])
     }
+    return _json(parameters)
 
 def search_output(arguments):
     try:
         if hasattr(arguments["result"], "_args") and len(arguments["result"]._args) > 1:
             if hasattr(arguments["result"]._args[1], "request") and arguments["result"]._args[1].request is not None:
                 request = arguments["result"]._args[1].request
-                return {
-                    "count": request.include_total_result_count,
-                    "coverage": request.minimum_coverage,
-                    "facets": request.facets,
-                    }
+                summary = {
+                    "count": "null" if request.include_total_result_count is None else request.include_total_result_count,
+                    "coverage": "null" if request.minimum_coverage is None else request.minimum_coverage,
+                    "facets": "null" if request.facets is None else request.facets,
+                }
+                return _json(summary)
     except Exception as e:
         print(f"Debug - Error capturing facets: {str(e)}")
     return None
 
+def capture_metadata(arguments) -> str:
+    inst = arguments.get("instance", None)
+    meta = {
+        "endpoint": getattr(inst, "_endpoint", "unknown"),
+        "index": getattr(inst, "_index_name", "unknown"),
+        "latency_ms": arguments.get("latency_ms", "null"),
+    }
+    return _json(meta)
+
+
+def _json(value: Any) -> str:
+    try:
+        return json.dumps(value, default=str, ensure_ascii=False)
+    except Exception:
+        return str(value)
+
+def search_post_input(kwargs):
+    try:
+        if 'search_request' in kwargs and kwargs['search_request'] is not None:
+            req = kwargs['search_request']
+            if hasattr(req, "search_text"):
+                return getattr(req, "search_text", "")
+    except Exception as e:
+        print(f"Debug - Error capturing search input: {str(e)}")
+
+def search_post_output(result):
+    try:
+        if not result or not getattr(result, "results", None):
+            return "[]"
+        filtered = []
+        for item in result.results:
+            doc = item.additional_properties or {}
+            filtered.append(
+                {
+                    "docTitle": doc.get("docTitle"),
+                    "description": doc.get("description"),
+                    "@search.score": item.score,
+                    "@search.reranker_score": item.reranker_score,
+                }
+            )
+        return _json(filtered)
+    except Exception as e:
+        print(f"Debug - Error capturing search output: {str(e)}")
+        return "[]"
+
+def search_post_capture_meta(arguments):
+    if 'search_request' in arguments['kwargs']:
+        req = arguments['kwargs']['search_request']
+    else:
+        return "{}"
+    wanted = [
+        "select", "include_total_result_count", "facets", "filter",
+        "highlight_fields", "highlight_post_tag", "highlight_pre_tag",
+        "minimum_coverage", "order_by", "query_type", "scoring_parameters",
+        "scoring_profile", "semantic_query",
+    ]
+    meta = {k: getattr(req, k, None) for k in wanted}
+    meta["latency_ms"] = arguments.get("latency_ms")
+    return _json(meta)

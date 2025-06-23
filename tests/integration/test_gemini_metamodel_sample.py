@@ -37,7 +37,7 @@ def test_langchain_chat_sample(setup):
         if "span.type" in span_attributes and (
                 span_attributes["span.type"] == "inference" or span_attributes["span.type"] == "inference.framework"):
             # Assertions for all inference attributes
-            assert span_attributes["entity.1.type"] == "inference.openai"
+            assert span_attributes["entity.1.type"] == "inference.gemini"
             assert "entity.1.inference_endpoint" in span_attributes
             assert span_attributes["entity.2.name"] == "gemini-2.0-flash"
             assert span_attributes["entity.2.type"] == "model.llm.gemini-2.0-flash"

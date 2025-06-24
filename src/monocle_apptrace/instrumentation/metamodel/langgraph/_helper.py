@@ -33,6 +33,8 @@ def tools(instance):
         if hasattr(tools,'bound') and hasattr(tools.bound,'tools_by_name'):
             return list(tools.bound.tools_by_name.keys())
 
+def extract_tool_response(result):
+    return None
 
 def update_span_from_llm_response(response):
     meta_dict = {}
@@ -46,3 +48,20 @@ def update_span_from_llm_response(response):
             meta_dict.update({"prompt_tokens": token_usage.get('prompt_tokens')})
             meta_dict.update({"total_tokens": token_usage.get('total_tokens')})
     return meta_dict
+
+def extract_response(result):
+    if result is not None and hasattr(result, 'content'):
+        return result.content
+    return None
+
+def get_status(result):
+    if result is not None and hasattr(result, 'status'):
+        return result.status
+    return None
+
+def get_tool_args(arguments):
+    tool_input = arguments['args'][0]
+    if isinstance(tool_input, str):
+        return [tool_input]
+    else:
+        return list(tool_input.values())

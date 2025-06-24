@@ -29,6 +29,31 @@ from monocle_apptrace.instrumentation.metamodel.teamsai.entities.inference.searc
     SEARCH_POST_PROCESSOR,
 )
 
+import json
+from monocle_apptrace.instrumentation.metamodel.teamsai import (
+    _helper,
+)
+
+CONVERSATION_STATE_OUTPUT_PROCESSOR2 = {
+    "type": "state_management",
+    "attributes": [
+        [{
+            "attribute": "name",
+            "accessor": lambda arguments: str(arguments.get("instance").name)
+        },
+        {
+            "attribute": "state",
+            "accessor": lambda arguments: str(arguments.get("args")[1])
+        }]
+    ]
+    ,
+    "events": [
+       
+    ]
+}
+
+
+
 def get_id(args, kwargs):
     """
     Extracts the ID from the context.
@@ -150,5 +175,13 @@ TEAMAI_METHODS = [
         "method": "search_post",
         "wrapper_method": task_wrapper,
         "output_processor": SEARCH_POST_PROCESSOR,
-    }
+    },
+    {
+        "package": "teams.ai.actions.action_entry",
+        "span_name": "teams.ai.actions.action_entry.invoke",
+        "object": "ActionEntry",
+        "method": "invoke",
+        "wrapper_method": atask_wrapper,
+        "output_processor": CONVERSATION_STATE_OUTPUT_PROCESSOR2,
+    },
 ]

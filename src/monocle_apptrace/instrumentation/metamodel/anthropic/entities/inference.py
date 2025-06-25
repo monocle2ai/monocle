@@ -1,7 +1,9 @@
 from monocle_apptrace.instrumentation.metamodel.anthropic import (
     _helper,
 )
-from monocle_apptrace.instrumentation.common.utils import resolve_from_alias, get_llm_type
+from monocle_apptrace.instrumentation.common.utils import (resolve_from_alias, get_llm_type,
+    get_status, get_status_code
+)
 
 INFERENCE = {
     "type": "inference",
@@ -53,9 +55,17 @@ INFERENCE = {
             "name": "data.output",
             "attributes": [
                 {
+                    "attribute": "status",
+                    "accessor": lambda arguments: get_status(arguments)
+                },
+                {
+                    "attribute": "status_code",
+                    "accessor": lambda arguments: _helper.get_status_code(arguments)
+                },
+                {
                     "_comment": "this is result from LLM",
                     "attribute": "response",
-                    "accessor": lambda arguments: _helper.extract_assistant_message(arguments['result'])
+                    "accessor": lambda arguments: _helper.extract_assistant_message(arguments)
                 }
             ]
         },

@@ -8,7 +8,8 @@ from monocle_apptrace.instrumentation.common.utils import (
     Option,
     try_option,
     get_exception_message,
-    get_parent_span
+    get_parent_span,
+    get_status_code,
 )
 from monocle_apptrace.instrumentation.common.span_handler import NonFrameworkSpanHandler, WORKFLOW_TYPE_MAP
 
@@ -36,14 +37,21 @@ def extract_messages(kwargs):
 
 def extract_assistant_message(arguments):
     try:
-        if arguments["exception"] is not None:
-            return get_exception_message(arguments)
-        response = arguments["result"]
-        if hasattr(response,"output_text") and len(response.output_text):
-            return response.output_text
-        if response is not None and hasattr(response,"choices") and len(response.choices) >0:
-            if hasattr(response.choices[0],"message"):
-                return response.choices[0].message.content
+        status = get_status_code(arguments)
+        response: str = ""
+        if status == 'success':
+            response = arguments["result"]
+            if hasattr(response,"output_text") and len(response.output_text):
+                return response.output_text
+            if response is not None and hasattr(response,"choices") and len(response.choices) >0:
+                if hasattr(response.choices[0],"message"):
+                    return response.choices[0].message.content
+        else:
+            if arguments["exception"] is not None:
+                response = get_exception_message(arguments)
+            elif hasattr(arguments["result"], "error"):
+                response = arguments["result"].error
+        return response
     except (IndexError, AttributeError) as e:
         logger.warning("Warning: Error occurred in extract_assistant_message: %s", str(e))
         return None

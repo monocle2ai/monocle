@@ -39,21 +39,24 @@ def extract_messages(args):
 
 def extract_assistant_message(arguments):
     status = get_status_code(arguments)
-    response: str = ""
+    # response: str = ""
+    messages = []
+    role = "assistant"
     if status == 'success':
         if isinstance(arguments['result'], str):
-            response = arguments['result']
+            messages.append({role: arguments['result']})
         if hasattr(arguments['result'], "content"):
-            response = arguments['result'].content
+            role = arguments['result'].type if hasattr(arguments['result'], 'type') else role
+            messages.append({role: arguments['result'].content})
         if hasattr(arguments['result'], "message") and hasattr(arguments['result'].message, "content"):
-            response =  arguments['result'].message.content
+            messages.append({role: arguments['result'].message.content})
     else:
         if arguments["exception"] is not None:
-            response = get_exception_message(arguments)
+            messages.append({role: get_exception_message(arguments)})
         elif hasattr(arguments["result"], "error"):
-            response = arguments["result"].error
+            return arguments["result"].error
 
-    return response
+    return [str(d) for d in messages]
 
 
 def extract_provider_name(instance):

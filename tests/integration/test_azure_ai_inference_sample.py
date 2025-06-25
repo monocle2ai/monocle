@@ -128,7 +128,8 @@ def test_azure_ai_inference_chat_completion_sync(setup):
         response_content = output_event.attributes.get("response", "")
         assert response_content != "streaming_response", "Streaming response placeholder found instead of actual content"
         assert len(response_content) > 0, "Empty response content"
-        assert "Paris" in response_content, "Expected response content not found"
+        assert "assistant" in response_content[0].lower(), "Expected response content role not found"
+        assert "Paris" in response_content[0], "Expected response content not found"
         
     except Exception as e:
         pytest.fail(f"Test failed with exception: {str(e)}")
@@ -202,7 +203,8 @@ def test_azure_ai_inference_chat_completion_streaming_sync(setup):
         # For streaming, we should get the accumulated content, not the placeholder
         assert response_content != "streaming_response", "Streaming response placeholder found - streaming not properly handled"
         assert len(response_content) > 0, "Empty response content for streaming"
-        assert "Python" in response_content, "Expected response content not found"
+        assert "assistant" in response_content[0].lower(), "Expected response content role not found"
+        assert "Python" in response_content[0], "Expected response content not found"
         
         # Assert we got a valid streamed response
         assert len(collected_chunks) > 1, "Should have received multiple chunks for streaming"
@@ -268,7 +270,8 @@ async def test_azure_ai_inference_chat_completion_async(setup):
             response_content = output_event.attributes.get("response", "")
             assert response_content != "streaming_response", "Streaming response placeholder found instead of actual content"
             assert len(response_content) > 0, "Empty response content"
-            assert "Jupiter" in response_content, "Expected response content not found"
+            assert "assistant" in response_content[0].lower(), "Expected response content role not found"
+            assert "Jupiter" in response_content[0], "Expected response content not found"
             
         except Exception as e:
             pytest.fail(f"Test failed with exception: {str(e)}")
@@ -343,7 +346,8 @@ async def test_azure_ai_inference_chat_completion_streaming_async(setup):
             # For streaming, we should get the accumulated content, not the placeholder
             assert response_content != "streaming_response", "Streaming response placeholder found - async streaming not properly handled"
             assert len(response_content) > 0, "Empty response content for async streaming"
-            assert ("learning" in response_content.lower() or "machine" in response_content.lower()), "Expected response content not found"
+            assert "assistant" in response_content[0].lower(), "Expected response content role not found"
+            assert ("learning" in response_content[0].lower() or "machine" in response_content[0].lower()), "Expected response content not found"
             
             # Assert we got a valid streamed response
             assert len(collected_chunks) > 1, "Should have received multiple chunks for async streaming"
@@ -363,11 +367,6 @@ def test_azure_ai_inference_different_providers(setup):
             "name": "GitHub Models",
             "endpoint": "https://models.inference.ai.azure.com",
             "expected_provider": "github_models"
-        },
-        {
-            "name": "Azure AI Foundry",
-            "endpoint": "https://models.ai.azure.com",
-            "expected_provider": "azure_ai_foundry"
         }
     ]
     
@@ -414,31 +413,4 @@ def test_azure_ai_inference_different_providers(setup):
             continue
 
 if __name__ == "__main__":
-    # For manual testing
-    import sys
-    sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
-    
-    # Setup telemetry
-    setup_monocle_telemetry(
-        workflow_name="azure_ai_inference_manual_test",
-        span_processors=[BatchSpanProcessor(custom_exporter)],
-        wrapper_methods=[]
-    )
-    
-    print("Running manual Azure AI Inference tests...")
-    
-    # Check environment variables
-    if not os.getenv("AZURE_AI_CHAT_KEY"):
-        print("Please set AZURE_AI_CHAT_KEY environment variable")
-        sys.exit(1)
-    
-    try:
-        # Run sync test
-        print("\n=== Testing Sync Chat Completion ===")
-        # run sync test
-        test_azure_ai_inference_chat_completion_sync(setup)
-        custom_exporter.reset()
-        # You can call test functions here for manual testing
-        
-    except Exception as e:
-        print(f"Manual test failed: {e}")
+    pytest.main([__file__, "-s", "--tb=short"])

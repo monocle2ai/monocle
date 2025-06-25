@@ -106,10 +106,26 @@ def test_langchain_sample(setup):
             assert span_attributes["entity.2.name"] == "gpt-3.5-turbo-0125"
             assert span_attributes["entity.2.type"] == "model.llm.gpt-3.5-turbo-0125"
             assert not span.name.lower().startswith("openai")
+            
+            events = span.events
+            # find that there one data.input and data.output events
+            assert len(events) >= 2, "Expected at least two events for input and output"
+            data_input_event = [event for event in events if event.name == "data.input"][0]
+            data_output_event = [event for event in events if event.name == "data.output"][0]
+            assert data_input_event.name == "data.input"
+            assert data_output_event.name == "data.output"
+            assert "input" in data_input_event.attributes
+            assert "response" in data_output_event.attributes
+            assert "human" in data_input_event.attributes["input"][0]
+            assert "ai" in data_output_event.attributes["response"][0]
+            assert  "What is Task Decomposition?" in data_input_event.attributes["input"][0]
 
         if not span.parent and span.name == "langchain.workflow":  # Root span
             assert span_attributes["entity.1.name"] == "langchain_app_1"
             assert span_attributes["entity.1.type"] == "workflow.langchain"
+
+if __name__ == "__main__":
+    pytest.main([__file__, "-s", "--tb=short"])
 
 # {
 #     "name": "langchain_core.vectorstores.base.VectorStoreRetriever",
@@ -145,7 +161,7 @@ def test_langchain_sample(setup):
 #             "name": "data.output",
 #             "timestamp": "2024-11-27T04:16:02.531546Z",
 #             "attributes": {
-#                 "response": "Fig. 1. Overview of a LLM-powered autonomous agent system.\nComponent One: Planning#\nA complicated ta..."
+#                 "response": ["{'ai':  'Fig. 1. Overview of a LLM-powered autonomous agent system.\nComponent One: Planning#\nA complicated ta...'}"]
 #             }
 #         }
 #     ],

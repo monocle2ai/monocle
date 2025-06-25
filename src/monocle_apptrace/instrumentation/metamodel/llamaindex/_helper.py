@@ -50,11 +50,12 @@ def extract_messages(args):
         if isinstance(args, (list, tuple)) and args:
             for msg in args[0]:
                 process_message(msg)
+        elif args and isinstance(args, tuple):
+            messages.append(args[0])
         if isinstance(args, dict):
             for msg in args.get("messages", []):
                 process_message(msg)
-        if args and isinstance(args, tuple):
-            messages.append(args[0])
+        
 
         return [str(message) for message in messages]
 
@@ -64,23 +65,27 @@ def extract_messages(args):
 
 def extract_assistant_message(arguments):
     status = get_status_code(arguments)
-    response: str = ""
+    messages = []
+    role = "assistant"
     if status == 'success':
         if isinstance(arguments['result'], str):
-            response = arguments['result']
+            messages.append({role: arguments['result']})
         if hasattr(arguments['result'], "content"):
-            response = arguments['result'].content
+            messages.append({role: arguments['result'].content})
         if hasattr(arguments['result'], "message") and hasattr(arguments['result'].message, "content"):
-            response = arguments['result'].message.content
+            role = getattr(arguments['result'].message, 'role', role)
+            if hasattr(role, 'value'):
+                role = role.value
+            messages.append({role: arguments['result'].message.content})
         if hasattr(arguments['result'],"response") and isinstance(arguments['result'].response, str):
-            response = arguments['result'].response
+            messages.append({role: arguments['result'].response})
     else:
         if arguments["exception"] is not None:
-            response = get_exception_message(arguments)
-        elif hasattr(response, "error"):
-            response = arguments['result'].error
+            return get_exception_message(arguments)
+        elif hasattr(arguments['result'], "error"):
+            return arguments['result'].error
 
-    return response
+    return [str(message) for message in messages]
 
 
 def extract_query_from_content(content):

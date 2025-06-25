@@ -1,6 +1,7 @@
 
 
 import os
+import time
 
 import chromadb
 import pytest
@@ -56,7 +57,7 @@ def test_llama_index_sample(setup):
         temperature=0.1,
         # model="gpt-4",
 
-        model="gpt-3.5-turbo-0125")
+        model="gpt-4o-mini")
 
     # llm = MistralAI(api_key=os.getenv("MISTRAL_API_KEY"))
 
@@ -64,7 +65,7 @@ def test_llama_index_sample(setup):
     response = query_engine.query("What did the author do growing up?")
 
     print(response)
-
+    time.sleep(3)  # Allow time for spans to be captured
     spans = custom_exporter.get_captured_spans()
     for span in spans:
         span_attributes = span.attributes
@@ -82,8 +83,8 @@ def test_llama_index_sample(setup):
             assert span_attributes["entity.1.type"] == "inference.azure_openai"
             assert "entity.1.provider_name" in span_attributes
             assert "entity.1.inference_endpoint" in span_attributes
-            assert span_attributes["entity.2.name"] == "gpt-3.5-turbo-0125"
-            assert span_attributes["entity.2.type"] == "model.llm.gpt-3.5-turbo-0125"
+            assert span_attributes["entity.2.name"] == "gpt-4o-mini"
+            assert span_attributes["entity.2.type"] == "model.llm.gpt-4o-mini"
             assert not span.name.lower().startswith("openai")
 
             # Assertions for metadata
@@ -91,10 +92,27 @@ def test_llama_index_sample(setup):
             assert "completion_tokens" in span_metadata.attributes
             assert "prompt_tokens" in span_metadata.attributes
             assert "total_tokens" in span_metadata.attributes
+            events = span.events
+            # find that there one data.input and data.output events
+            assert len(events) >= 2, "Expected at least two events for input and output"
+            data_input_event = [event for event in events if event.name == "data.input"][0]
+            data_output_event = [event for event in events if event.name == "data.output"][0]
+            assert data_input_event.name == "data.input"
+            assert data_output_event.name == "data.output"
+            assert "input" in data_input_event.attributes
+            assert "response" in data_output_event.attributes
+            assert "user" in data_input_event.attributes["input"][1]
+            assert "assistant" in data_output_event.attributes["response"][0]
+            assert "system" in data_input_event.attributes["input"][0]
+            assert "You are an expert'" in data_input_event.attributes["input"][0]
+            assert "What did the author do growing up?" in data_input_event.attributes["input"][1]
 
         if not span.parent and span.name == "llamaindex.query":  # Root span
             assert span_attributes["entity.1.name"] == "llama_index_1"
             assert span_attributes["entity.1.type"] == "workflow.llamaindex"
+
+if __name__ == "__main__":
+    pytest.main([__file__, "-s", "--tb=short"])
 
 # {
 #     "name": "llamaindex.retrieve",

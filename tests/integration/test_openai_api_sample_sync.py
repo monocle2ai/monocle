@@ -57,6 +57,21 @@ def test_openai_api_sample(setup):
             assert "prompt_tokens" in span_metadata.attributes
             assert "total_tokens" in span_metadata.attributes
             inference_span = span
+            
+            events = span.events
+            # find that there one data.input and data.output events
+            assert len(events) >= 2, "Expected at least two events for input and output"
+            data_input_event = [event for event in events if event.name == "data.input"][0]
+            data_output_event = [event for event in events if event.name == "data.output"][0]
+            assert data_input_event.name == "data.input"
+            assert data_output_event.name == "data.output"
+            assert "input" in data_input_event.attributes
+            assert "response" in data_output_event.attributes
+            assert "user" in data_input_event.attributes["input"][1]
+            assert "assistant" in data_output_event.attributes["response"][0]
+            assert "system" in data_input_event.attributes["input"][0]
+            assert "You are a helpful assistant" in data_input_event.attributes["input"][0]
+            assert "What is an americano?" in data_input_event.attributes["input"][1]
 
 
         if (
@@ -115,6 +130,21 @@ def test_openai_api_sample_stream(setup):
             assert span_attributes["entity.2.name"] == "gpt-4o-mini"
             assert span_attributes["entity.2.type"] == "model.llm.gpt-4o-mini"
             inference_span = span
+            
+            events = span.events
+            # find that there one data.input and data.output events
+            assert len(events) >= 2, "Expected at least two events for input and output"
+            data_input_event = [event for event in events if event.name == "data.input"][0]
+            data_output_event = [event for event in events if event.name == "data.output"][0]
+            assert data_input_event.name == "data.input"
+            assert data_output_event.name == "data.output"
+            assert "input" in data_input_event.attributes
+            assert "response" in data_output_event.attributes
+            assert "user" in data_input_event.attributes["input"][1]
+            assert "assistant" in data_output_event.attributes["response"][0]
+            assert "system" in data_input_event.attributes["input"][0]
+            assert "You are a helpful assistant" in data_input_event.attributes["input"][0]
+            assert "What is an americano?" in data_input_event.attributes["input"][1]
 
             # TODO: Uncomment this when metadata is available
             # span_input, span_output, span_metadata = span.events
@@ -133,29 +163,38 @@ def test_openai_api_sample_stream(setup):
     # Assert we got a valid response
     assert len(collected_chunks) > 0
     assert len(full_response) > 0
-
-
-def run_test():
-    """Run the test directly without pytest"""
-    # Call the setup function directly
-    setup_monocle_telemetry(
-        workflow_name="langchain_app_1",
-        span_processors=[BatchSpanProcessor(custom_exporter)],
-        wrapper_methods=[],
-    )
-
-    # Call the test functions directly
-    print("Running non-streaming test:")
-    test_openai_api_sample(None)
-
-    # Clear the exporter before the second test
+    
+# run something after each test
+@pytest.fixture(autouse=True)
+def teardown_function():
+    """Teardown function to clear the exporter after each test."""
     custom_exporter.reset()
 
-    print("\nRunning streaming test:")
-    test_openai_api_sample_stream(None)
-
-    print("All tests completed successfully")
-
-
 if __name__ == "__main__":
-    run_test()
+    # Run the tests using pytest
+    pytest.main([__file__, "-v", "--tb=short"])
+
+# def run_test():
+#     """Run the test directly without pytest"""
+#     # Call the setup function directly
+#     setup_monocle_telemetry(
+#         workflow_name="langchain_app_1",
+#         span_processors=[BatchSpanProcessor(custom_exporter)],
+#         wrapper_methods=[],
+#     )
+
+#     # Call the test functions directly
+#     print("Running non-streaming test:")
+#     test_openai_api_sample(None)
+
+#     # Clear the exporter before the second test
+#     custom_exporter.reset()
+
+#     print("\nRunning streaming test:")
+#     test_openai_api_sample_stream(None)
+
+#     print("All tests completed successfully")
+
+
+# if __name__ == "__main__":
+#     run_test()

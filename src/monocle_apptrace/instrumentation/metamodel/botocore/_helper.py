@@ -50,7 +50,8 @@ def get_status_code(arguments):
 def extract_assistant_message(arguments):
     try:
         status = get_status_code(arguments)
-        response: str = ""
+        messages = []
+        role = "assistant"
         if status == 'success':
             if "Body" in arguments['result'] and hasattr(arguments['result']['Body'], "_raw_stream"):
                 raw_stream = getattr(arguments['result']['Body'], "_raw_stream")
@@ -59,20 +60,20 @@ def extract_assistant_message(arguments):
                     response_str = response_bytes.decode('utf-8')
                     response_dict = json.loads(response_str)
                     arguments['result']['Body'] = BytesIO(response_bytes)
-                    response = response_dict["answer"]
+                    messages.append({role: response_dict["answer"]})
             if "output" in arguments['result']:
                 output = arguments['result'].get("output", {})
                 message = output.get("message", {})
                 content = message.get("content", [])
                 if isinstance(content, list) and len(content) > 0 and "text" in content[0]:
                     reply = content[0]["text"]
-                    response = reply
+                    messages.append({role: reply})
         else:
             if arguments["exception"] is not None:
-                response = get_exception_message(arguments)
+                return get_exception_message(arguments)
             elif hasattr(arguments["result"], "error"):
-                response = arguments["result"].error
-        return response
+                return arguments["result"].error
+        return [str(message) for message in messages]
     except Exception as e:
         logger.warning("Warning: Error occurred in extract_assistant_message: %s", str(e))
         return []

@@ -59,17 +59,20 @@ def get_status_code(arguments):
 def extract_assistant_message(arguments):
     try:
         status = get_status_code(arguments)
-        response: str = ""
+        response = arguments["result"]
         if status == 'success':
-            if arguments['result'] is not None and hasattr(arguments['result'],"content") and len(arguments['result'].content) >0:
-                if hasattr(arguments['result'].content[0],"text"):
-                    response = arguments['result'].content[0].text
+            messages = []
+            role = response.role if hasattr(response, 'role') else "assistant"
+            if response is not None and hasattr(response,"content") and len(response.content) >0:
+                if hasattr(response.content[0],"text"):
+                    messages.append({role: response.content[0].text})
+            return [str(message) for message in messages]
         else:
             if arguments["exception"] is not None:
-                response = get_exception_message(arguments)
+                return get_exception_message(arguments)
             elif hasattr(arguments["result"], "error"):
-                response = arguments["result"].error
-        return response
+                return arguments["result"].error
+
     except (IndexError, AttributeError) as e:
         logger.warning("Warning: Error occurred in extract_assistant_message: %s", str(e))
         return None

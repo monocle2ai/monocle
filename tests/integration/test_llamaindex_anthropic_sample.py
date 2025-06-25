@@ -50,6 +50,25 @@ def test_llama_index_anthropic_sample(setup):
             assert "completion_tokens" in span_metadata.attributes
             assert "prompt_tokens" in span_metadata.attributes
             assert "total_tokens" in span_metadata.attributes
+            
+            events = span.events
+            # find that there one data.input and data.output events
+            assert len(events) >= 2, "Expected at least two events for input and output"
+            data_input_event = [event for event in events if event.name == "data.input"][0]
+            data_output_event = [event for event in events if event.name == "data.output"][0]
+            assert data_input_event.name == "data.input"
+            assert data_output_event.name == "data.output"
+            assert "input" in data_input_event.attributes
+            assert "response" in data_output_event.attributes
+            assert "user" in data_input_event.attributes["input"][1]
+            assert "assistant" in data_output_event.attributes["response"][0]
+            assert "system" in data_input_event.attributes["input"][0]
+            assert "You are a pirate with a colorful personality'" in data_input_event.attributes["input"][0]
+            assert "Tell me a story" in data_input_event.attributes["input"][1]
+            
+        
+if __name__ == "__main__":
+    pytest.main([__file__, "-s", "--tb=short"])
 
 # {
 #     "name": "anthropic.resources.messages.messages.Messages",

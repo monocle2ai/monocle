@@ -83,20 +83,29 @@ def extract_assistant_message(arguments: Dict[str, Any]) -> str:
             return get_exception_message(arguments)
 
         result = arguments.get("result")
+        role = "assistant"
+        messages = []
         if not result:
             return ""
         if hasattr(result, "output_text"):
             # If the result has output_text attribute
-            return result.output_text
-        if (
-            result.choices
+            role = getattr(result, "role", role)
+            if "assistant" in role.lower():
+                # If the role is assistant, we can assume it's a chat completion
+                role = "assistant"
+            messages.append({role: result.output_text})
+        if (hasattr(result, "choices")
+            and result.choices
             and result.choices[0].message
             and result.choices[0].message.content
         ):
+            role = getattr(result.choices[0].message, "role", role)
+            if "assistant" in role.lower():
+                # If the role is assistant, we can assume it's a chat completion
+                role = "assistant"
             # If the result is a chat completion with content
-            return result.choices[0].message.content
-
-        return str(result)
+            messages.append({role: result.choices[0].message.content})
+        return [str(message) for message in messages]
     except Exception as e:
         logger.warning(
             "Warning: Error occurred in extract_assistant_message: %s", str(e)

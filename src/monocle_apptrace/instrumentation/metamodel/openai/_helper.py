@@ -37,24 +37,38 @@ def extract_messages(kwargs):
 
 def extract_assistant_message(arguments):
     try:
+        messages = []
         status = get_status_code(arguments)
-        response: str = ""
         if status == 'success':
             response = arguments["result"]
-            if hasattr(response,"output_text") and len(response.output_text):
-                return response.output_text
-            if response is not None and hasattr(response,"choices") and len(response.choices) >0:
-                if hasattr(response.choices[0],"message"):
-                    return response.choices[0].message.content
+            if hasattr(response, "output_text") and len(response.output_text):
+                role = response.role if hasattr(response, "role") else "assistant"
+                messages.append({role: response.output_text})
+            if (
+                response is not None
+                and hasattr(response, "choices")
+                and len(response.choices) > 0
+            ):
+                if hasattr(response.choices[0], "message"):
+                    role = (
+                        response.choices[0].message.role
+                        if hasattr(response.choices[0].message, "role")
+                        else "assistant"
+                    )
+                    messages.append({role: response.choices[0].message.content})
+            return [str(message) for message in messages]
         else:
             if arguments["exception"] is not None:
-                response = get_exception_message(arguments)
+                return get_exception_message(arguments)
             elif hasattr(arguments["result"], "error"):
-                response = arguments["result"].error
-        return response
+                return arguments["result"].error
+        
     except (IndexError, AttributeError) as e:
-        logger.warning("Warning: Error occurred in extract_assistant_message: %s", str(e))
+        logger.warning(
+            "Warning: Error occurred in extract_assistant_message: %s", str(e)
+        )
         return None
+
 
 def extract_provider_name(instance):
     provider_url: Option[str] = try_option(getattr, instance._client.base_url, 'host')

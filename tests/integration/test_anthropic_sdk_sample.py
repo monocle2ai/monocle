@@ -33,7 +33,7 @@ def test_anthropic_metamodel_sample(setup):
         temperature=0.7,
         system= "You are a helpful assistant to answer questions about coffee.",
         messages=[
-            {"role": "user", "content": "What is americano?"}
+            {"role": "user", "content": "What is an americano?"}
         ]
     )
 
@@ -59,6 +59,21 @@ def test_anthropic_metamodel_sample(setup):
             assert "completion_tokens" in span_metadata.attributes
             assert "prompt_tokens" in span_metadata.attributes
             assert "total_tokens" in span_metadata.attributes
+            
+            events = span.events
+            # find that there one data.input and data.output events
+            assert len(events) >= 2, "Expected at least two events for input and output"
+            data_input_event = [event for event in events if event.name == "data.input"][0]
+            data_output_event = [event for event in events if event.name == "data.output"][0]
+            assert data_input_event.name == "data.input"
+            assert data_output_event.name == "data.output"
+            assert "input" in data_input_event.attributes
+            assert "response" in data_output_event.attributes
+            assert "user" in data_input_event.attributes["input"][0]
+            assert "assistant" in data_output_event.attributes["response"][0]
+            # assert "system" in data_input_event.attributes["input"][0]
+            # assert "You are a helpful assistant" in data_input_event.attributes["input"][0]
+            assert "What is an americano?" in data_input_event.attributes["input"][0]
 
 @pytest.mark.integration()
 def test_anthropic_invalid_api_key(setup):
@@ -69,7 +84,7 @@ def test_anthropic_invalid_api_key(setup):
             max_tokens=512,
             system="You are a helpful assistant to answer questions about coffee.",
             messages=[
-                {"role": "user", "content": "What is americano?"}
+                {"role": "user", "content": "What is an americano?"}
             ]
 
         )
@@ -86,6 +101,8 @@ def test_anthropic_invalid_api_key(setup):
             assert "status_code" in events[0].attributes
             assert "authentication_error" in events[0].attributes.get("response", "").lower()
 
+if __name__ == "__main__":
+    pytest.main([__file__, "-s", "--tb=short"])
 
 # {
 #     "name": "anthropic.resources.messages.messages.Messages",
@@ -117,7 +134,7 @@ def test_anthropic_invalid_api_key(setup):
 #             "timestamp": "2025-04-09T13:00:23.930124Z",
 #             "attributes": {
 #                 "input": [
-#                     "{'user': 'What is americano?'}"
+#                     "{'user': 'What is an americano?'}"
 #                 ]
 #             }
 #         },

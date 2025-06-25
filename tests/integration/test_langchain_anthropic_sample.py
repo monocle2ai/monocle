@@ -171,7 +171,7 @@ def test_langchain_anthropic_sample(setup):
 #             "timestamp": "2025-04-17T07:52:41.351488Z",
 #             "attributes": {
 #                 "response": [
-#                     "Here's the German translation:\n\nIch liebe Programmieren."
+#                     {'assistant': 'Here\'s the German translation:\n\nIch liebe Programmieren.'}
 #                 ]
 #             }
 #         },

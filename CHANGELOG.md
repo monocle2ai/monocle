@@ -1,3 +1,7 @@
+## Version 0.4.2 (2025-06-26)
+
+- Add gemini instrumentation ([#220](https://github.com/monocle2ai/monocle/pull/220))
+
 ## Version 0.3.1 (2024-04-18)
 
 - Add MetaModel for Anthropic SDK ([#159](https://github.com/monocle2ai/monocle/pull/159))

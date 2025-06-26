@@ -9,6 +9,8 @@ from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from common.custom_exporter import CustomConsoleSpanExporter
 import os
 from google import genai
+from google.genai import types
+
 import pytest
 custom_exporter = CustomConsoleSpanExporter()
 @pytest.fixture(scope="module")
@@ -17,19 +19,43 @@ def setup():
                 workflow_name="gemini_app_1",
                 span_processors=[BatchSpanProcessor(custom_exporter)],
                 wrapper_methods=[])
-# Set the environment variable for the Google GenAI API keyQOP
 
 @pytest.mark.integration()
-def test_langchain_chat_sample(setup):
+def test_gemini_model_sample(setup):
     client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 
     response = client.models.generate_content(
-        model="gemini-2.0-flash",
-        contents="Explain how AI works in a few words",
+        model="gemini-2.5-flash",
+        config=types.GenerateContentConfig(
+            system_instruction="You are a cat. Your name is Neko."),
+            contents="Hello there"
     )
     time.sleep(5)
     print(response.text)
     spans = custom_exporter.get_captured_spans()
+    check_span(spans)
+
+@pytest.mark.integration()
+def test_gemini_chat_sample(setup):
+    client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+
+    chat = client.chats.create(model="gemini-2.5-flash")
+
+    response = chat.send_message("I have 2 dogs in my house.")
+    print(response.text)
+
+    response = chat.send_message("How many paws are in my house?")
+    print(response.text)
+
+    for message in chat.get_history():
+        print(f'role - {message.role}', end=": ")
+        print(message.parts[0].text)
+    time.sleep(5)
+    print(response.text)
+    spans = custom_exporter.get_captured_spans()
+    check_span(spans)
+
+def check_span(spans):
     found_workflow_span = False
     for span in spans:
         span_attributes = span.attributes
@@ -39,8 +65,8 @@ def test_langchain_chat_sample(setup):
             # Assertions for all inference attributes
             assert span_attributes["entity.1.type"] == "inference.gemini"
             assert "entity.1.inference_endpoint" in span_attributes
-            assert span_attributes["entity.2.name"] == "gemini-2.0-flash"
-            assert span_attributes["entity.2.type"] == "model.llm.gemini-2.0-flash"
+            assert span_attributes["entity.2.name"] == "gemini-2.5-flash"
+            assert span_attributes["entity.2.type"] == "model.llm.gemini-2.5-flash"
 
             span_input, span_output, span_metadata = span.events
             assert "completion_tokens" in span_metadata.attributes
@@ -51,58 +77,60 @@ def test_langchain_chat_sample(setup):
             found_workflow_span = True
     assert found_workflow_span
 
+
 # {
 #     "name": "google.genai.models.Models",
 #     "context": {
-#         "trace_id": "0x1b245918f73d03854d517f43651da341",
-#         "span_id": "0x8e6d35d4972c662e",
+#         "trace_id": "0x3d2eaae04c01d8949140ca5e6c2eef8e",
+#         "span_id": "0x3b498a0c89fc2fd2",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0x034482a886b9e40f",
-#     "start_time": "2025-06-12T07:20:38.001825Z",
-#     "end_time": "2025-06-12T07:20:40.124957Z",
+#     "parent_id": "0x9b91e88a04606218",
+#     "start_time": "2025-06-25T14:01:43.849583Z",
+#     "end_time": "2025-06-25T14:01:47.789155Z",
 #     "status": {
 #         "status_code": "OK"
 #     },
 #     "attributes": {
 #         "monocle_apptrace.version": "0.3.1",
 #         "monocle_apptrace.language": "python",
-#         "span_source": "C:\\Users\\BHLP0106\\Desktop\\clone\\monocle\\tests\\integration\\test_gemini_sample.py:26",
+#         "span_source": "C:\\Users\\BHLP0106\\Desktop\\clone\\monocle\\tests\\integration\\test_gemini_metamodel_sample.py:27",
 #         "workflow.name": "gemini_app_1",
 #         "span.type": "inference",
-#         "entity.1.type": "inference.generic",
+#         "entity.1.type": "inference.gemini",
 #         "entity.1.inference_endpoint": "https://generativelanguage.googleapis.com/",
-#         "entity.2.name": "gemini-2.0-flash",
-#         "entity.2.type": "model.llm.gemini-2.0-flash",
+#         "entity.2.name": "gemini-2.5-flash",
+#         "entity.2.type": "model.llm.gemini-2.5-flash",
 #         "entity.count": 2
 #     },
 #     "events": [
 #         {
 #             "name": "data.input",
-#             "timestamp": "2025-06-12T07:20:40.124957Z",
+#             "timestamp": "2025-06-25T14:01:47.789155Z",
 #             "attributes": {
 #                 "input": [
-#                     "{'input': 'Explain how AI works in a few words'}"
+#                     "{'system': 'You are a cat. Your name is Neko.'}",
+#                     "{'input': 'Hello there'}"
 #                 ]
 #             }
 #         },
 #         {
 #             "name": "data.output",
-#             "timestamp": "2025-06-12T07:20:40.124957Z",
+#             "timestamp": "2025-06-25T14:01:47.789155Z",
 #             "attributes": {
 #                 "status": "success",
 #                 "status_code": "success",
-#                 "response": "AI learns patterns from data to make predictions or decisions.\n"
+#                 "response": "Mrow?\n\n(I blink slowly at you, my tail giving a tiny, almost imperceptible twitch on the sunbeam-warmed floor.)"
 #             }
 #         },
 #         {
 #             "name": "metadata",
-#             "timestamp": "2025-06-12T07:20:40.124957Z",
+#             "timestamp": "2025-06-25T14:01:47.789155Z",
 #             "attributes": {
-#                 "completion_tokens": 12,
-#                 "prompt_tokens": 8,
-#                 "total_tokens": 20
+#                 "completion_tokens": 30,
+#                 "prompt_tokens": 15,
+#                 "total_tokens": 357
 #             }
 #         }
 #     ],
@@ -117,21 +145,215 @@ def test_langchain_chat_sample(setup):
 # {
 #     "name": "workflow",
 #     "context": {
-#         "trace_id": "0x1b245918f73d03854d517f43651da341",
-#         "span_id": "0x034482a886b9e40f",
+#         "trace_id": "0x3d2eaae04c01d8949140ca5e6c2eef8e",
+#         "span_id": "0x9b91e88a04606218",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
 #     "parent_id": null,
-#     "start_time": "2025-06-12T07:20:38.001825Z",
-#     "end_time": "2025-06-12T07:20:40.124957Z",
+#     "start_time": "2025-06-25T14:01:43.849583Z",
+#     "end_time": "2025-06-25T14:01:47.789155Z",
 #     "status": {
 #         "status_code": "OK"
 #     },
 #     "attributes": {
 #         "monocle_apptrace.version": "0.3.1",
 #         "monocle_apptrace.language": "python",
-#         "span_source": "C:\\Users\\BHLP0106\\Desktop\\clone\\monocle\\tests\\integration\\test_gemini_sample.py:26",
+#         "span_source": "C:\\Users\\BHLP0106\\Desktop\\clone\\monocle\\tests\\integration\\test_gemini_metamodel_sample.py:27",
+#         "span.type": "workflow",
+#         "entity.1.name": "gemini_app_1",
+#         "entity.1.type": "workflow.generic",
+#         "entity.2.type": "app_hosting.generic",
+#         "entity.2.name": "generic"
+#     },
+#     "events": [],
+#     "links": [],
+#     "resource": {
+#         "attributes": {
+#             "service.name": "gemini_app_1"
+#         },
+#         "schema_url": ""
+#     }
+# }
+# {
+#     "name": "google.genai.models.Models",
+#     "context": {
+#         "trace_id": "0x6ec9add2d431c024246101e05012ec3d",
+#         "span_id": "0xa8f967d5e19b16b0",
+#         "trace_state": "[]"
+#     },
+#     "kind": "SpanKind.INTERNAL",
+#     "parent_id": "0x3e6ee0967e2491eb",
+#     "start_time": "2025-06-25T14:01:52.804929Z",
+#     "end_time": "2025-06-25T14:02:02.135250Z",
+#     "status": {
+#         "status_code": "OK"
+#     },
+#     "attributes": {
+#         "monocle_apptrace.version": "0.3.1",
+#         "monocle_apptrace.language": "python",
+#         "span_source": "C:\\Users\\BHLP0106\\Desktop\\clone\\monocle\\checkvenv\\Lib\\site-packages\\google\\genai\\chats.py:259",
+#         "workflow.name": "gemini_app_1",
+#         "span.type": "inference",
+#         "entity.1.type": "inference.gemini",
+#         "entity.1.inference_endpoint": "https://generativelanguage.googleapis.com/",
+#         "entity.2.name": "gemini-2.5-flash",
+#         "entity.2.type": "model.llm.gemini-2.5-flash",
+#         "entity.count": 2
+#     },
+#     "events": [
+#         {
+#             "name": "data.input",
+#             "timestamp": "2025-06-25T14:02:02.134205Z",
+#             "attributes": {
+#                 "input": [
+#                     "{'user': 'I have 2 dogs in my house.'}"
+#                 ]
+#             }
+#         },
+#         {
+#             "name": "data.output",
+#             "timestamp": "2025-06-25T14:02:02.135250Z",
+#             "attributes": {
+#                 "status": "success",
+#                 "status_code": "success",
+#                 "response": "That's wonderful! Dogs bring so much joy to a home.\n\nDo you want to share anything about them? Like:\n*   **What are their names?**\n*   **What kind of dogs are they?**\n*   **How old are they?**\n*   **Or are you just sharing that fact?**\n\nI'm here if you have any questions about dog care, training, or just want to chat about them!"
+#             }
+#         },
+#         {
+#             "name": "metadata",
+#             "timestamp": "2025-06-25T14:02:02.135250Z",
+#             "attributes": {
+#                 "completion_tokens": 95,
+#                 "prompt_tokens": 10,
+#                 "total_tokens": 1301
+#             }
+#         }
+#     ],
+#     "links": [],
+#     "resource": {
+#         "attributes": {
+#             "service.name": "gemini_app_1"
+#         },
+#         "schema_url": ""
+#     }
+# }
+# {
+#     "name": "workflow",
+#     "context": {
+#         "trace_id": "0x6ec9add2d431c024246101e05012ec3d",
+#         "span_id": "0x3e6ee0967e2491eb",
+#         "trace_state": "[]"
+#     },
+#     "kind": "SpanKind.INTERNAL",
+#     "parent_id": null,
+#     "start_time": "2025-06-25T14:01:52.804929Z",
+#     "end_time": "2025-06-25T14:02:02.135250Z",
+#     "status": {
+#         "status_code": "OK"
+#     },
+#     "attributes": {
+#         "monocle_apptrace.version": "0.3.1",
+#         "monocle_apptrace.language": "python",
+#         "span_source": "C:\\Users\\BHLP0106\\Desktop\\clone\\monocle\\checkvenv\\Lib\\site-packages\\google\\genai\\chats.py:259",
+#         "span.type": "workflow",
+#         "entity.1.name": "gemini_app_1",
+#         "entity.1.type": "workflow.generic",
+#         "entity.2.type": "app_hosting.generic",
+#         "entity.2.name": "generic"
+#     },
+#     "events": [],
+#     "links": [],
+#     "resource": {
+#         "attributes": {
+#             "service.name": "gemini_app_1"
+#         },
+#         "schema_url": ""
+#     }
+# }
+# {
+#     "name": "google.genai.models.Models",
+#     "context": {
+#         "trace_id": "0xa21354200bd96d48a85b3a62e498234b",
+#         "span_id": "0xdcc5d131ade08cfb",
+#         "trace_state": "[]"
+#     },
+#     "kind": "SpanKind.INTERNAL",
+#     "parent_id": "0x9d521b9e427234f4",
+#     "start_time": "2025-06-25T14:02:02.136262Z",
+#     "end_time": "2025-06-25T14:02:05.183003Z",
+#     "status": {
+#         "status_code": "OK"
+#     },
+#     "attributes": {
+#         "monocle_apptrace.version": "0.3.1",
+#         "monocle_apptrace.language": "python",
+#         "span_source": "C:\\Users\\BHLP0106\\Desktop\\clone\\monocle\\checkvenv\\Lib\\site-packages\\google\\genai\\chats.py:259",
+#         "workflow.name": "gemini_app_1",
+#         "span.type": "inference",
+#         "entity.1.type": "inference.gemini",
+#         "entity.1.inference_endpoint": "https://generativelanguage.googleapis.com/",
+#         "entity.2.name": "gemini-2.5-flash",
+#         "entity.2.type": "model.llm.gemini-2.5-flash",
+#         "entity.count": 2
+#     },
+#     "events": [
+#         {
+#             "name": "data.input",
+#             "timestamp": "2025-06-25T14:02:05.183003Z",
+#             "attributes": {
+#                 "input": [
+#                     "{'user': 'I have 2 dogs in my house.'}",
+#                     "{'model': \"That's wonderful! Dogs bring so much joy to a home.\\n\\nDo you want to share anything about them? Like:\\n*   **What are their names?**\\n*   **What kind of dogs are they?**\\n*   **How old are they?**\\n*   **Or are you just sharing that fact?**\\n\\nI'm here if you have any questions about dog care, training, or just want to chat about them!\"}",
+#                     "{'user': 'How many paws are in my house?'}"
+#                 ]
+#             }
+#         },
+#         {
+#             "name": "data.output",
+#             "timestamp": "2025-06-25T14:02:05.183003Z",
+#             "attributes": {
+#                 "status": "success",
+#                 "status_code": "success",
+#                 "response": "Based on the fact that you have 2 dogs, and each dog typically has 4 paws, you would have **8 paws** in your house!"
+#             }
+#         },
+#         {
+#             "name": "metadata",
+#             "timestamp": "2025-06-25T14:02:05.183003Z",
+#             "attributes": {
+#                 "completion_tokens": 31,
+#                 "prompt_tokens": 115,
+#                 "total_tokens": 475
+#             }
+#         }
+#     ],
+#     "links": [],
+#     "resource": {
+#         "attributes": {
+#             "service.name": "gemini_app_1"
+#         },
+#         "schema_url": ""
+#     }
+# }
+# {
+#     "name": "workflow",
+#     "context": {
+#         "trace_id": "0xa21354200bd96d48a85b3a62e498234b",
+#         "span_id": "0x9d521b9e427234f4",
+#         "trace_state": "[]"
+#     },
+#     "kind": "SpanKind.INTERNAL",
+#     "parent_id": null,
+#     "start_time": "2025-06-25T14:02:02.136262Z",
+#     "end_time": "2025-06-25T14:02:05.183003Z",
+#     "status": {
+#         "status_code": "OK"
+#     },
+#     "attributes": {
+#         "monocle_apptrace.version": "0.3.1",
+#         "monocle_apptrace.language": "python",
+#         "span_source": "C:\\Users\\BHLP0106\\Desktop\\clone\\monocle\\checkvenv\\Lib\\site-packages\\google\\genai\\chats.py:259",
 #         "span.type": "workflow",
 #         "entity.1.name": "gemini_app_1",
 #         "entity.1.type": "workflow.generic",

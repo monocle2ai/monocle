@@ -18,8 +18,21 @@ def extract_messages(kwargs):
     """Extract system and user messages"""
     try:
         messages = []
-        if 'contents' in kwargs:
-            messages.append({'input': kwargs.get('contents', {})})
+        config = kwargs.get('config')
+        if config and hasattr(config, 'system_instruction'):
+            system_instructions = getattr(config, 'system_instruction', None)
+            if system_instructions:
+                messages.append({'system': system_instructions})
+
+        contents = kwargs.get('contents')
+        if isinstance(contents, list):
+            for content in contents:
+                if hasattr(content, 'parts') and getattr(content, 'parts'):
+                    part = content.parts[0]
+                    if hasattr(part, 'text'):
+                        messages.append({getattr(content, 'role', 'user'): part.text})
+        elif isinstance(contents, str):
+            messages.append({'input': contents})
 
         return [str(message) for message in messages]
     except Exception as e:

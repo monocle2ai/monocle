@@ -25,8 +25,7 @@ from monocle_apptrace.instrumentation.metamodel.azfunc._helper import (azureSpan
 from monocle_apptrace.instrumentation.metamodel.azfunc.methods import AZFUNC_HTTP_METHODS
 from monocle_apptrace.instrumentation.metamodel.fastapi.methods import FASTAPI_METHODS
 from monocle_apptrace.instrumentation.metamodel.fastapi._helper import FastAPISpanHandler
-from monocle_apptrace.instrumentation.metamodel.gemini.entities import GEMINI_METHODS
-
+from monocle_apptrace.instrumentation.metamodel.gemini.methods import GEMINI_METHODS
 class WrapperMethod:
     def __init__(
             self,

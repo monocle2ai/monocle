@@ -1,7 +1,7 @@
-from monocle_apptrace.instrumentation.metamodel.botocore import (
+from monocle_apptrace.instrumentation.metamodel.gemini import (
     _helper,
 )
-from monocle_apptrace.instrumentation.common.utils import (get_llm_type, get_status,)
+from monocle_apptrace.instrumentation.common.utils import get_llm_type, get_status, get_status_code
 INFERENCE = {
     "type": "inference",
     "attributes": [
@@ -9,11 +9,11 @@ INFERENCE = {
             {
                 "_comment": "provider type  , inference_endpoint",
                 "attribute": "type",
-                "accessor": lambda arguments: 'inference.'+(get_llm_type(arguments['instance']) or 'generic')
+                "accessor": lambda arguments: 'inference.gemini'
             },
             {
                 "attribute": "inference_endpoint",
-                "accessor": lambda arguments: arguments['instance'].meta.endpoint_url
+                "accessor": lambda arguments: _helper.extract_inference_endpoint(arguments['instance'])
             }
         ],
         [
@@ -21,18 +21,20 @@ INFERENCE = {
                 "_comment": "LLM Model",
                 "attribute": "name",
                 "accessor": lambda arguments: _helper.resolve_from_alias(arguments['kwargs'],
-                                                                         ['EndpointName', 'modelId'])
+                                                                         ['model'])
             },
             {
                 "attribute": "type",
                 "accessor": lambda arguments: 'model.llm.' + _helper.resolve_from_alias(arguments['kwargs'],
-                                                                                        ['EndpointName', 'modelId'])
+                                                                                        ['model'])
             }
         ]
     ],
     "events": [
-        {"name": "data.input",
+        {
+         "name": "data.input",
          "attributes": [
+
              {
                  "_comment": "this is instruction and user query to LLM",
                  "attribute": "input",
@@ -43,17 +45,16 @@ INFERENCE = {
         {
             "name": "data.output",
             "attributes": [
-            {
+                {
                     "_comment": "this is result from LLM",
                     "attribute": "status",
                     "accessor": lambda arguments: get_status(arguments)
                 },
                 {
                     "attribute": "status_code",
-                    "accessor": lambda arguments: _helper.get_status_code(arguments)
+                    "accessor": lambda arguments: get_status_code(arguments)
                 },
                 {
-                    "_comment": "this is response from LLM",
                     "attribute": "response",
                     "accessor": lambda arguments: _helper.extract_assistant_message(arguments)
                 }
@@ -64,10 +65,11 @@ INFERENCE = {
             "attributes": [
                 {
                     "_comment": "this is metadata usage from LLM",
-                    "accessor": lambda arguments: _helper.update_span_from_llm_response(arguments['result'],
-                                                                                        arguments['instance'])
+                    "accessor": lambda arguments: _helper.update_span_from_llm_response(arguments['result'], arguments['instance'])
                 }
             ]
         }
+
+
     ]
 }

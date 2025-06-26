@@ -1,3 +1,8 @@
+
+## Version 0.4.2 (2025-06-26)
+
+- Add gemini instrumentation ([#220](https://github.com/monocle2ai/monocle/pull/220))
+
 ## Version 0.4.1 (2025-06-17)
 
 - Add exception status code for Boto3 ([#211](https://github.com/monocle2ai/monocle/pull/211))

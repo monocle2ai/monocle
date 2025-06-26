@@ -42,16 +42,19 @@ def extract_messages(kwargs):
 def extract_assistant_message(arguments):
     try:
         status = get_status_code(arguments)
-        response: str = ""
+        messages = []
+        role = "assistant"
+        if hasattr(arguments['result'], "candidates") and len(arguments['result'].candidates) > 0 and hasattr(arguments['result'].candidates[0], "content") and hasattr(arguments['result'].candidates[0].content, "role"):
+                role = arguments["result"].candidates[0].content.role
         if status == 'success':
             if hasattr(arguments['result'], "text") and len(arguments['result'].text):
-                response = arguments['result'].text
+                messages.append({role: arguments['result'].text})
         else:
             if arguments["exception"] is not None:
-                response = get_exception_message(arguments)
+                return get_exception_message(arguments)
             elif hasattr(arguments["result"], "error"):
-                response = arguments["result"].error
-        return response
+                return arguments["result"].error
+        return [str(message) for message in messages]
     except (IndexError, AttributeError) as e:
         logger.warning("Warning: Error occurred in extract_assistant_message: %s", str(e))
         return None

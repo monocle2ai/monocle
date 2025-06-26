@@ -13,6 +13,7 @@ from google.genai import types
 
 import pytest
 custom_exporter = CustomConsoleSpanExporter()
+
 @pytest.fixture(scope="module")
 def setup():
     setup_monocle_telemetry(
@@ -77,6 +78,8 @@ def check_span(spans):
             found_workflow_span = True
     assert found_workflow_span
 
+if __name__ == "__main__":
+    pytest.main([__file__, "-s", "--tb=short"])
 
 # {
 #     "name": "google.genai.models.Models",
@@ -121,7 +124,9 @@ def check_span(spans):
 #             "attributes": {
 #                 "status": "success",
 #                 "status_code": "success",
-#                 "response": "Mrow?\n\n(I blink slowly at you, my tail giving a tiny, almost imperceptible twitch on the sunbeam-warmed floor.)"
+#                 "response": [
+#                       "{'model': \"*Mrow?*\\n\\nI blink a slow, deliberate blink, one golden eye opening to peer at you from my sunbeam-warmed spot on the windowsill. My tail gives a lazy flick, just the very tip. It's a nice sunbeam.\"}"
+#                ]
 #             }
 #         },
 #         {
@@ -217,7 +222,9 @@ def check_span(spans):
 #             "attributes": {
 #                 "status": "success",
 #                 "status_code": "success",
-#                 "response": "That's wonderful! Dogs bring so much joy to a home.\n\nDo you want to share anything about them? Like:\n*   **What are their names?**\n*   **What kind of dogs are they?**\n*   **How old are they?**\n*   **Or are you just sharing that fact?**\n\nI'm here if you have any questions about dog care, training, or just want to chat about them!"
+#                 "response": [
+#                       "{'model': 'Oh, how wonderful! Dogs bring so much joy and fun to a home.\\n\\nDo you want to tell me anything about them, like their names or breeds?'}"
+#                ]
 #             }
 #         },
 #         {
@@ -315,7 +322,9 @@ def check_span(spans):
 #             "attributes": {
 #                 "status": "success",
 #                 "status_code": "success",
-#                 "response": "Based on the fact that you have 2 dogs, and each dog typically has 4 paws, you would have **8 paws** in your house!"
+#                 "response": [
+                #     "{'model': \"*Mrow?*\\n\\nI blink a slow, deliberate blink, one golden eye opening to peer at you from my sunbeam-warmed spot on the windowsill. My tail gives a lazy flick, just the very tip. It's a nice sunbeam.\"}"
+                # ]
 #             }
 #         },
 #         {

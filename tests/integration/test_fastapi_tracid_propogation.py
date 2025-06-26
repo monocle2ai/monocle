@@ -6,22 +6,30 @@ from monocle_apptrace.instrumentation.common.constants import SCOPE_METHOD_FILE,
 custom_exporter = CustomConsoleSpanExporter()
 import pytest , pytest_asyncio
 import aiohttp
-from tests.common import aiohttp_helper
+from tests.common import fastapi_helper
 import uuid
 import os
 
+# Check if FastAPI is available
+try:
+    from tests.common.fastapi_helper import FASTAPI_AVAILABLE
+except ImportError:
+    FASTAPI_AVAILABLE = False
+
+pytestmark = pytest.mark.skipif(not FASTAPI_AVAILABLE, reason="FastAPI and uvicorn not available")
+
 @pytest_asyncio.fixture
-async def aiohttp_server(scope="module"):
-    print("Setting up aiohttp server")
-    os.environ[TRACE_PROPOGATION_URLS] = "http://localhost:8081"
+async def fastapi_server(scope="module"):
+    print("Setting up FastAPI server")
+    os.environ[TRACE_PROPOGATION_URLS] = "http://localhost:8083"
     os.environ[SCOPE_CONFIG_PATH] = os.path.join(os.path.dirname(os.path.abspath(__file__)), SCOPE_METHOD_FILE)
 
     setup_monocle_telemetry(
-        workflow_name="aiohttp_test",
+        workflow_name="fastapi_test",
         span_processors=[SimpleSpanProcessor(custom_exporter)]
     )
 
-    runner = await aiohttp_helper.run_server()
+    runner = await fastapi_helper.run_server()
 
     yield
     await runner.cleanup()
@@ -29,13 +37,13 @@ async def aiohttp_server(scope="module"):
 @pytest_asyncio.fixture(autouse=True)
 def pre_test():
     # clear old spans
-   custom_exporter.reset()
-
-@pytest.mark.asyncio
-async def test_chat_endpoint(aiohttp_server):
     custom_exporter.reset()
 
-    url = aiohttp_helper.get_url()
+@pytest.mark.asyncio
+async def test_chat_endpoint(fastapi_server):
+    custom_exporter.reset()
+
+    url = fastapi_helper.get_url()
     timeout = aiohttp.ClientTimeout(total=60)
     headers = {"client-id": str(uuid.uuid4())}
     question = "What is Task Decomposition?"

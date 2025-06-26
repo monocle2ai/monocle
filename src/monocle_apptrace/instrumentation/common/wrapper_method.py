@@ -23,6 +23,8 @@ from monocle_apptrace.instrumentation.metamodel.aiohttp.methods import (AIOHTTP_
 from monocle_apptrace.instrumentation.metamodel.aiohttp._helper import aiohttpSpanHandler
 from monocle_apptrace.instrumentation.metamodel.azfunc._helper import (azureSpanHandler)
 from monocle_apptrace.instrumentation.metamodel.azfunc.methods import AZFUNC_HTTP_METHODS
+from monocle_apptrace.instrumentation.metamodel.fastapi.methods import FASTAPI_METHODS
+from monocle_apptrace.instrumentation.metamodel.fastapi._helper import FastAPISpanHandler
 from monocle_apptrace.instrumentation.metamodel.gemini.methods import GEMINI_METHODS
 class WrapperMethod:
     def __init__(
@@ -72,7 +74,7 @@ class WrapperMethod:
     def get_span_handler(self) -> SpanHandler:
         return self.span_handler()
 
-DEFAULT_METHODS_LIST = LANGCHAIN_METHODS + LLAMAINDEX_METHODS + HAYSTACK_METHODS + BOTOCORE_METHODS + FLASK_METHODS + REQUESTS_METHODS + LANGGRAPH_METHODS + OPENAI_METHODS + TEAMAI_METHODS + ANTHROPIC_METHODS + AIOHTTP_METHODS + AZURE_AI_INFERENCE_METHODS + AZFUNC_HTTP_METHODS + GEMINI_METHODS
+DEFAULT_METHODS_LIST = LANGCHAIN_METHODS + LLAMAINDEX_METHODS + HAYSTACK_METHODS + BOTOCORE_METHODS + FLASK_METHODS + REQUESTS_METHODS + LANGGRAPH_METHODS + OPENAI_METHODS + TEAMAI_METHODS + ANTHROPIC_METHODS + AIOHTTP_METHODS + AZURE_AI_INFERENCE_METHODS + AZFUNC_HTTP_METHODS + GEMINI_METHODS + FASTAPI_METHODS
 
 MONOCLE_SPAN_HANDLERS: Dict[str, SpanHandler] = {
     "default": SpanHandler(),
@@ -84,4 +86,5 @@ MONOCLE_SPAN_HANDLERS: Dict[str, SpanHandler] = {
     "non_framework_handler": NonFrameworkSpanHandler(),
     "openai_handler": OpenAISpanHandler(),
     "azure_func_handler": azureSpanHandler(),
+    "fastapi_handler": FastAPISpanHandler()
 }

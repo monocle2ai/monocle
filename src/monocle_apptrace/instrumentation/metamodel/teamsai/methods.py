@@ -9,7 +9,13 @@ from monocle_apptrace.instrumentation.metamodel.teamsai.entities.inference.teams
 )
 from monocle_apptrace.instrumentation.metamodel.teamsai.entities.inference.actionplanner_output_processor import (
     ACTIONPLANNER_OUTPUT_PROCESSOR,
-) 
+)
+from monocle_apptrace.instrumentation.metamodel.teamsai.entities.inference.search_client_processor import (
+    SEARCH_CLIENT_PROCESSOR,
+)
+from monocle_apptrace.instrumentation.metamodel.teamsai.entities.inference.search_post_processor import (
+    SEARCH_POST_PROCESSOR,
+)
 def get_id(args, kwargs):
     """
     Extracts the ID from the context.
@@ -69,5 +75,19 @@ TEAMAI_METHODS = [
         "method": "complete_prompt",
         "scope_values": get_id,
         "wrapper_method": ascopes_wrapper,  
+    },
+    {
+        "package": "azure.search.documents",
+        "object": "SearchClient",
+        "method": "search",
+        "wrapper_method": task_wrapper,
+        "output_processor": SEARCH_CLIENT_PROCESSOR,
+    },
+    {
+        "package":"azure.search.documents._generated.operations._documents_operations",
+        "object": "DocumentsOperations",
+        "method": "search_post",
+        "wrapper_method": task_wrapper,
+        "output_processor": SEARCH_POST_PROCESSOR,
     }
 ]

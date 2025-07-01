@@ -2,7 +2,7 @@ from monocle_apptrace.instrumentation.metamodel.langgraph import (
     _helper
 )
 AGENT = {
-      "type": "agent",
+      "type": "agentic.invocation",
       "attributes": [
         [
               {
@@ -13,7 +13,7 @@ AGENT = {
               {
                 "_comment": "name of the agent",
                 "attribute": "name",
-                "accessor": lambda arguments:arguments['instance'].name
+                "accessor": lambda arguments: _helper.get_name(arguments['instance'])
               }
         ]
       ],
@@ -34,7 +34,7 @@ AGENT = {
             {
                 "_comment": "this is response from LLM",
                 "attribute": "response",
-                "accessor": lambda arguments: _helper.handle_openai_response(arguments['result'])
+                "accessor": lambda arguments: _helper.handle_response(arguments['result'])
             }
           ]
         }
@@ -42,7 +42,7 @@ AGENT = {
     }
 
 TOOLS = {
-      "type": "agent.tool",
+      "type": "agentic.tool",
       "attributes": [
         [
               {
@@ -53,7 +53,7 @@ TOOLS = {
               {
                 "_comment": "name of the tool",
                 "attribute": "name",
-                "accessor": lambda arguments:arguments['instance'].name
+                "accessor": lambda arguments: _helper.get_name(arguments['instance'])
               },
               {
                   "_comment": "tool description",
@@ -88,5 +88,26 @@ TOOLS = {
             }
           ]
         }
+      ]
+}
+
+AGENT_REQUEST = AGENT.copy()
+AGENT_REQUEST["type"] = "agentic.request"
+
+AGENT_DELEGATION = {
+      "type": "agentic.request",
+      "attributes": [
+        [
+              {
+                "_comment": "agent type",
+                "attribute": "type",
+                "accessor": lambda arguments:'agent.langgraph'
+              },              
+              {
+                "_comment": "name of the agent called",
+                "attribute": "name",
+                "accessor": lambda arguments: _helper.format_agent_name(arguments['instance'])               
+              }
+        ]
       ]
 }

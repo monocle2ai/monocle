@@ -2,7 +2,10 @@ from monocle_apptrace.instrumentation.common.utils import resolve_from_alias
 import logging
 logger = logging.getLogger(__name__)
 
-def handle_openai_response(response):
+DELEGATION_NAME_PREFIX = 'transfer_to_'
+ROOT_AGENT_NAME = 'LangGraph'
+
+def handle_response(response):
     try:
         if 'messages' in response:
             output = response["messages"][-1]
@@ -65,3 +68,15 @@ def get_tool_args(arguments):
         return [tool_input]
     else:
         return list(tool_input.values())
+
+def get_name(instance):
+    return instance.name if hasattr(instance, 'name') else ""
+
+def is_delegation_tool(instance) -> bool:
+    return get_name(instance).startswith(DELEGATION_NAME_PREFIX)
+
+def format_agent_name(instance) -> str:
+    return get_name(instance).replace(DELEGATION_NAME_PREFIX, '', 1)
+
+def is_root_agent_name(instance) -> bool:
+    return get_name(instance) == ROOT_AGENT_NAME

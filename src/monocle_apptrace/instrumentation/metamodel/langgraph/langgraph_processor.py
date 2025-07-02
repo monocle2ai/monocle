@@ -18,17 +18,17 @@ class LanggraphAgentHandler(SpanHandler):
             agent_request_wrapper = to_wrap
             if hasattr(instance, 'name') and parent_span is not None and not SpanHandler.is_root_span(parent_span):
                 parent_span.set_attribute("parent.agent.span", True)
-        result = super().hydrate_span(agent_request_wrapper, wrapped, instance, args, kwargs, result, span, parent_span, ex)
+        return super().hydrate_span(agent_request_wrapper, wrapped, instance, args, kwargs, result, span, parent_span, ex)
 
 class LanggraphToolHandler(SpanHandler):
     # LangGraph uses an internal tool to initate delegation to other agents. The method is tool invoke() with tool name as `transfer_to_<agent_name>`.
     # Hence we usea different output processor for tool invoke() to format the span as agentic.delegation.
-    def hydrate_attributes(self, to_wrap, wrapped, instance, args, kwargs, result, span, parent_span) -> bool:
+    def hydrate_span(self, to_wrap, wrapped, instance, args, kwargs, result, span, parent_span = None, ex:Exception = None) -> bool:
         if is_delegation_tool(instance):
             agent_request_wrapper = to_wrap.copy()
             agent_request_wrapper["output_processor"] = AGENT_DELEGATION
         else:
             agent_request_wrapper = to_wrap
 
-        return super().hydrate_attributes(agent_request_wrapper, wrapped, instance, args, kwargs, result, span, parent_span)
+        return super().hydrate_span(agent_request_wrapper, wrapped, instance, args, kwargs, result, span, parent_span, ex)
     

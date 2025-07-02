@@ -1,6 +1,7 @@
 from monocle_apptrace.instrumentation.metamodel.langgraph import (
     _helper
 )
+
 AGENT = {
       "type": "agentic.invocation",
       "attributes": [
@@ -91,11 +92,14 @@ TOOLS = {
       ]
 }
 
-AGENT_REQUEST = AGENT.copy()
-AGENT_REQUEST["type"] = "agentic.request"
+AGENT_GENERIC = {
+      "type": "generic",
+      "attributes": [],
+      "events": []
+}
 
 AGENT_DELEGATION = {
-      "type": "agentic.request",
+      "type": "agentic.delegation",
       "attributes": [
         [
               {

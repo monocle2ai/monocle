@@ -70,6 +70,9 @@ def get_tool_args(arguments):
         return list(tool_input.values())
 
 def get_name(instance):
+#    if is_root_agent_name(instance):
+
+
     return instance.name if hasattr(instance, 'name') else ""
 
 def is_delegation_tool(instance) -> bool:

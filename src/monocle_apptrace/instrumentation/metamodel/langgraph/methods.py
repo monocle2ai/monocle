@@ -26,5 +26,13 @@ LANGGRAPH_METHODS = [
          "wrapper_method": task_wrapper,
         "span_handler":"langgraph_tool_handler",
          "output_processor": TOOLS
+    },
+    {
+        "package": "langchain_core.tools.base",
+         "object": "BaseTool",
+         "method": "arun",
+         "wrapper_method": atask_wrapper,
+        "span_handler":"langgraph_tool_handler",
+         "output_processor": TOOLS
     },    
 ]

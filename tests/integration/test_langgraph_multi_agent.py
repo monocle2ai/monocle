@@ -23,7 +23,7 @@ def setup():
     setup_monocle_telemetry(
             workflow_name="langchain_agent_1",
             span_processors=[SimpleSpanProcessor(memory_exporter)]
-                )
+)
 
 def book_hotel(hotel_name: str):
     """Book a hotel"""

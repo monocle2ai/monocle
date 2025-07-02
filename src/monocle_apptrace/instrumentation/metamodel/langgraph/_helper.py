@@ -7,12 +7,12 @@ ROOT_AGENT_NAME = 'LangGraph'
 
 def handle_response(response):
     try:
-        if 'messages' in response:
+        if response is not None and 'messages' in response:
             output = response["messages"][-1]
             return str(output.content)
     except Exception as e:
-        logger.warning("Warning: Error occurred in handle_openai_response: %s", str(e))
-        return ""
+        logger.warning("Warning: Error occurred in handle_response: %s", str(e))
+    return ""
 
 def agent_instructions(arguments):
     if callable(arguments['kwargs']['agent'].instructions):
@@ -21,10 +21,12 @@ def agent_instructions(arguments):
         return arguments['kwargs']['agent'].instructions
 
 def extract_input(arguments):
-    history = arguments['result']['messages']
-    for message in history:
-        if hasattr(message, 'content') and hasattr(message, 'type') and message.type == "human":  # Check if the message is a HumanMessage
-            return message.content
+    if arguments['result'] is not None and 'messages' in arguments['result']:
+        history = arguments['result']['messages']
+        for message in history:
+            if hasattr(message, 'content') and hasattr(message, 'type') and message.type == "human":  # Check if the message is a HumanMessage
+                return message.content
+    return None
 
 def get_inference_endpoint(arguments):
     inference_endpoint = resolve_from_alias(arguments['instance'].client.__dict__, ['azure_endpoint', 'api_base', '_base_url'])
@@ -70,9 +72,6 @@ def get_tool_args(arguments):
         return list(tool_input.values())
 
 def get_name(instance):
-#    if is_root_agent_name(instance):
-
-
     return instance.name if hasattr(instance, 'name') else ""
 
 def is_delegation_tool(instance) -> bool:

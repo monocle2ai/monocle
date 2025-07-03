@@ -147,8 +147,8 @@ def test_langchain_sample(setup):
     validate_inference_span_events(
         span=inference_spans[0],
         expected_event_count=3,
-        input_patterns=[r"^\{'human': '.+'\}$"],  # Pattern for human message
-        output_pattern=r"^\{'ai': '.+'\}$",  # Pattern for AI response
+        input_patterns=[r"^\{\"human\": \".+\"\}$"],  # Pattern for human message
+        output_pattern=r"^\{\"ai\": \".+\"\}$",  # Pattern for AI response
         metadata_requirements={
             "temperature": float,
             "completion_tokens": int,
@@ -423,7 +423,7 @@ if __name__ == "__main__":
 #             "timestamp": "2025-07-02T15:46:03.025669Z",
 #             "attributes": {
 #                 "input": [
-#                     "{'human': 'You are an assistant for question-answering tasks. Use the following pieces of retrieved context to answer the question. If you don\\'t know the answer, just say that you don\\'t know. Use three sentences maximum and keep the answer concise.\\nQuestion: What is Task Decomposition? \\nContext: Component One: Planning#\\nA complicated task usually involves many steps. An agent needs to know what they are and plan ahead.\\nTask Decomposition#\\nChain of thought (CoT; Wei et al. 2022) has become a standard prompting technique for enhancing model performance on complex tasks. The model is instructed to \u201cthink step by step\u201d to utilize more test-time computation to decompose hard tasks into smaller and simpler steps. CoT transforms big tasks into multiple manageable tasks and shed lights into an interpretation of the model\u2019s thinking process.\\nTree of Thoughts (Yao et al. 2023) extends CoT by exploring multiple reasoning possibilities at each step. It first decomposes the problem into multiple thought steps and generates multiple thoughts per step, creating a tree structure. The search process can be BFS (breadth-first search) or DFS (depth-first search) with each state evaluated by a classifier (via a prompt) or majority vote.\\n\\nTask decomposition can be done (1) by LLM with simple prompting like \"Steps for XYZ.\\\\n1.\", \"What are the subgoals for achieving XYZ?\", (2) by using task-specific instructions; e.g. \"Write a story outline.\" for writing a novel, or (3) with human inputs.\\nAnother quite distinct approach, LLM+P (Liu et al. 2023), involves relying on an external classical planner to do long-horizon planning. This approach utilizes the Planning Domain Definition Language (PDDL) as an intermediate interface to describe the planning problem. In this process, LLM (1) translates the problem into \u201cProblem PDDL\u201d, then (2) requests a classical planner to generate a PDDL plan based on an existing \u201cDomain PDDL\u201d, and finally (3) translates the PDDL plan back into natural language. Essentially, the planning step is outsourced to an external tool, assuming the availability of domain-specific PDDL and a suitable planner which is common in certain robotic setups but not in many other domains.\\nSelf-Reflection#\\n\\nIllustration of how HuggingGPT works. (Image source: Shen et al. 2023)\\n\\nThe system comprises of 4 stages:\\n(1) Task planning: LLM works as the brain and parses the user requests into multiple tasks. There are four attributes associated with each task: task type, ID, dependencies, and arguments. They use few-shot examples to guide LLM to do task parsing and planning.\\nInstruction:\\n\\nResources:\\n1. Internet access for searches and information gathering.\\n2. Long Term memory management.\\n3. GPT-3.5 powered Agents for delegation of simple tasks.\\n4. File output.\\n\\nPerformance Evaluation:\\n1. Continuously review and analyze your actions to ensure you are performing to the best of your abilities.\\n2. Constructively self-criticize your big-picture behavior constantly.\\n3. Reflect on past decisions and strategies to refine your approach.\\n4. Every command has a cost, so be smart and efficient. Aim to complete tasks in the least number of steps. \\nAnswer:'}"
+#                     "{\"human\": \"You are an assistant for question-answering tasks. Use the following pieces of retrieved ... \"}"
 #                 ]
 #             }
 #         },
@@ -433,7 +433,7 @@ if __name__ == "__main__":
 #             "attributes": {
 #                 "status": "success",
 #                 "status_code": "success",
-#                 "response": "{'ai': 'Task Decomposition is a technique used to break down complex tasks into smaller and simpler steps, allowing for easier execution and understanding. This approach can be implemented through various methods such as simple prompting, task-specific instructions, or relying on external classical planners. By decomposing tasks, agents can effectively plan ahead and improve performance on challenging tasks.'}"
+#                 "response": "{\"ai\": \"Task Decomposition is a technique used to break down complex tasks into smaller and simpler steps, allowing for easier execution and understanding. This approach can be implemented through various methods such as simple prompting, task-specific instructions, or relying on external classical planners. By decomposing tasks, agents can effectively plan ahead and improve performance on challenging tasks.\"}"
 #             }
 #         },
 #         {

@@ -113,8 +113,8 @@ def test_llama_index_sample(setup: None):
         span=inference_spans[0],
         expected_event_count=3,
         input_patterns=[
-            r"^\{'system': \".+\"\}$",  # Pattern for system message
-            r"^\{'user': '.+'\}$",  # Pattern for user message
+            r"^\{\"system': \".+\"\}$",  # Pattern for system message
+            r"^\{\"user\": \".+\"\}$",  # Pattern for user message
         ],
         output_pattern=r"^\{'assistant': '.+'\}$",  # Pattern for assistant response
         metadata_requirements={
@@ -363,8 +363,8 @@ if __name__ == "__main__":
 #             "timestamp": "2025-07-02T20:48:24.823536Z",
 #             "attributes": {
 #                 "input": [
-#                     "{'system': \"You are an expert Q&A system that is trusted around the world.\\nAlways answer the query using the provided context information, and not prior knowledge.\\nSome rules to follow:\\n1. Never directly reference the given context in your answer.\\n2. Avoid statements like 'Based on the context, ...' or 'The context information ...' or anything along those lines.\"}",
-#                     "{'user': 'What did the author do growing up?'}"
+#                     "{\"system\": \"You are an expert Q&A system that is trusted around the world.\\nAlways answer the query using the provided context information, and not prior knowledge.\\nSome rules to follow:\\n1. Never directly reference the given context in your answer.\\n2. Avoid statements like 'Based on the context, ...' or 'The context information ...' or anything along those lines.\"}",
+#                     "{\"user\": \"What did the author do growing up?\"}"
 #                 ]
 #             }
 #         },
@@ -374,7 +374,7 @@ if __name__ == "__main__":
 #             "attributes": {
 #                 "status": "success",
 #                 "status_code": "success",
-#                 "response": "{'assistant': 'The author grew up reading and writing.'}"
+#                 "response": "{\"assistant\": \"The author grew up reading and writing.\"}"
 #             }
 #         },
 #         {

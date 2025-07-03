@@ -93,10 +93,11 @@ def test_azure_ai_inference_chat_completion_sync(setup):
         span=inference_spans[0],
         expected_event_count=3,
         input_patterns=[
-            r"^\{'system': '.+'\}$",  # Pattern for system
-            r"^\{'user': '.+'\}$",  # Pattern for user input
+            r"^\{\"system\": \".+\"\}$",  # Pattern for system
+            r"^\{\"user\": \".+\"\}$",  # Pattern for user input
         ],
-        output_pattern=r"^\{'assistant': '.+'\}$",  # Pattern for AI response
+        output_pattern=r"^\{\"assistant\": \".+\"\}$",  # Pattern for AI response
+        # TODO: Uncomment when metadata is available
         metadata_requirements={
             "completion_tokens": int,
             "prompt_tokens": int,
@@ -190,10 +191,10 @@ def test_azure_ai_inference_chat_completion_streaming_sync(setup):
         span=inference_spans[0],
         expected_event_count=3,
         input_patterns=[
-            r"^\{'system': '.+'\}$",  # Pattern for system
-            r"^\{'user': '.+'\}$",  # Pattern for user input
+            r"^\{\"system\": \".+\"\}$",  # Pattern for system
+            r"^\{\"user\": \".+\"\}$",  # Pattern for user input
         ],
-        output_pattern=r"^\{'assistant': '.+'\}$",  # Pattern for AI response
+        output_pattern=r"^\{\"assistant\": \".+\"\}$",  # Pattern for AI response
         # TODO: Uncomment when metadata is available
         metadata_requirements={
             "completion_tokens": int,
@@ -278,10 +279,10 @@ async def test_azure_ai_inference_chat_completion_async(setup):
             span=inference_spans[0],
             expected_event_count=3,
             input_patterns=[
-                r"^\{'system': '.+'\}$",  # Pattern for system
-                r"^\{'user': '.+'\}$",  # Pattern for user input
+                r"^\{\"system\": \".+\"\}$",  # Pattern for system
+                r"^\{\"user\": \".+\"\}$",  # Pattern for user input
             ],
-            output_pattern=r"^\{'assistant': '.+'\}$",  # Pattern for AI response
+            output_pattern=r"^\{\"assistant\": \".+\"\}$",  # Pattern for AI response
             # TODO: Uncomment when metadata is available
             metadata_requirements={
                 "completion_tokens": int,
@@ -342,7 +343,7 @@ async def test_azure_ai_inference_chat_completion_streaming_async(setup):
         print(f"Async streamed response: {full_response}")
         
         # Wait for spans to be processed
-        await asyncio.sleep(3)
+        await asyncio.sleep(5)
         
         spans = custom_exporter.get_captured_spans()
         print(f"Captured {len(spans)} spans")
@@ -378,10 +379,10 @@ async def test_azure_ai_inference_chat_completion_streaming_async(setup):
             span=inference_spans[0],
             expected_event_count=3,
             input_patterns=[
-                r"^\{'system': '.+'\}$",  # Pattern for system
-                r"^\{'user': '.+'\}$",  # Pattern for user input
+                r"^\{\"system\": \".+\"\}$",  # Pattern for system
+                r"^\{\"user\": \".+\"\}$",  # Pattern for user input
             ],
-            output_pattern=r"^\{'assistant': '.+'\}$",  # Pattern for AI response
+            output_pattern=r"^\{\"assistant\": \".+\"\}$",  # Pattern for AI response
             # TODO: Uncomment when metadata is available
             metadata_requirements={
                 "completion_tokens": int,
@@ -435,7 +436,7 @@ def test_azure_ai_inference_different_providers(setup):
                 max_tokens=20
             )
             
-            time.sleep(2)
+            time.sleep(5)
             spans = custom_exporter.get_captured_spans()
             
             if len(spans) > 0:
@@ -491,8 +492,8 @@ if __name__ == "__main__":
 #             "timestamp": "2025-07-02T15:36:11.668250Z",
 #             "attributes": {
 #                 "input": [
-#                     "{'system': 'You are a helpful assistant that provides concise answers.'}",
-#                     "{'user': 'What is the largest planet in our solar system? Please answer in one sentence.'}"
+#                     "{\"system\": \"You are a helpful assistant that provides concise answers.\"}",
+#                     "{\"user\": \"What is the largest planet in our solar system? Please answer in one sentence.\"}"
 #                 ]
 #             }
 #         },
@@ -500,7 +501,7 @@ if __name__ == "__main__":
 #             "name": "data.output",
 #             "timestamp": "2025-07-02T15:36:11.668306Z",
 #             "attributes": {
-#                 "response": "{'assistant': 'Jupiter is the largest planet in our solar system.'}",
+#                 "response": "{\"assistant\": \"Jupiter is the largest planet in our solar system.\"}",
 #                 "status": "success",
 #                 "status_code": "success"
 #             }

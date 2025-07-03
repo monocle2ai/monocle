@@ -82,10 +82,10 @@ def test_openai_api_sample(setup):
         span=inference_spans[0],
         expected_event_count=3,
         input_patterns=[
-            r"^\{'system': '.+'\}$",  # Pattern for system
-            r"^\{'user': '.+'\}$",  # Pattern for user input
+            r"^\{\"system\": \".+\"\}$",  # Pattern for system
+            r"^\{\"user\": \".+\"\}$",  # Pattern for user input
         ],
-        output_pattern=r"^\{'assistant': '.+'\}$",  # Pattern for AI response
+        output_pattern=r"^\{\"assistant\": \".+\"\}$",  # Pattern for AI response
         metadata_requirements={
             "completion_tokens": int,
             "prompt_tokens": int,
@@ -164,8 +164,8 @@ if __name__ == "__main__":
 #             "timestamp": "2025-07-03T00:01:51.483660Z",
 #             "attributes": {
 #                 "input": [
-#                     "{'system': 'You are a helpful assistant to answer coffee related questions'}",
-#                     "{'user': 'What is an americano?'}"
+#                     "{\"system\": \"You are a helpful assistant to answer coffee related questions\"}",
+#                     "{\"user\": \"What is an americano?\"}"
 #                 ]
 #             }
 #         },
@@ -173,7 +173,7 @@ if __name__ == "__main__":
 #             "name": "data.output",
 #             "timestamp": "2025-07-03T00:01:51.483746Z",
 #             "attributes": {
-#                 "response": "{'assistant': 'An Americano is a type of coffee drink that consists of espresso diluted with hot water. The typical ratio is usually one part espresso to two parts water, but this can vary based on personal preference. The result is a coffee that has a similar strength to brewed coffee but retains the distinct flavors of the espresso. The Americano is known for its smooth, rich taste and is often enjoyed black, but it can also be customized with milk, cream, or sweeteners according to individual taste. It is believed to have originated during World War II, when American soldiers in Europe would dilute espresso to resemble the coffee they were accustomed to back home.'}",
+#                 "response": "{\"assistant\": \"An Americano is a type of coffee drink that consists of espresso diluted with hot water. \"}",
 #                 "status": "success",
 #                 "status_code": "success"
 #             }

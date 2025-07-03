@@ -3,9 +3,11 @@ This module provides utility functions for extracting system, user,
 and assistant messages from various input formats.
 """
 
+import json
 import logging
 from monocle_apptrace.instrumentation.common.utils import (
     Option,
+    get_json_dumps,
     get_keys_as_tuple,
     get_nested_value,
     try_option,
@@ -36,7 +38,7 @@ def extract_messages(kwargs):
             for msg in kwargs['messages']:
                 if msg.get('content') and msg.get('role'):
                     messages.append({msg['role']: msg['content']})
-        return [str(message) for message in messages]
+        return [get_json_dumps(message) for message in messages]
     except Exception as e:
         logger.warning("Warning: Error occurred in extract_messages: %s", str(e))
         return []
@@ -68,7 +70,7 @@ def extract_assistant_message(arguments):
                 if hasattr(response.content[0],"text"):
                     messages.append({role: response.content[0].text})
             # return first message if list is not empty
-            return [str(message) for message in messages][0] if messages else ""
+            return get_json_dumps(messages[0]) if messages else ""
         else:
             if arguments["exception"] is not None:
                 return get_exception_message(arguments)

@@ -6,6 +6,7 @@ and assistant messages from various input formats.
 import logging
 from monocle_apptrace.instrumentation.common.utils import (
     Option,
+    get_json_dumps,
     get_keys_as_tuple,
     get_nested_value,
     try_option,
@@ -32,7 +33,7 @@ def extract_messages(args):
                 for msg in args[0].messages:
                     if hasattr(msg, 'content') and hasattr(msg, 'type'):
                         messages.append({msg.type: msg.content})
-        return [str(d) for d in messages]
+        return [get_json_dumps(d) for d in messages]
     except Exception as e:
         logger.warning("Warning: Error occurred in extract_messages: %s", str(e))
         return []
@@ -55,7 +56,7 @@ def extract_assistant_message(arguments):
             messages.append({role: get_exception_message(arguments)})
         elif hasattr(arguments["result"], "error"):
             return arguments["result"].error
-    return [str(message) for message in messages][0] if messages else ""
+    return get_json_dumps(messages[0]) if messages else ""
 
 def extract_provider_name(instance):
     provider_url: Option[str] = Option(None)

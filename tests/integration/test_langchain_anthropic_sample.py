@@ -87,10 +87,10 @@ def test_langchain_anthropic_sample(setup):
         span=inference_spans[0],
         expected_event_count=3,
         input_patterns=[
-            r"^\{'system': '.+'\}$",  # Pattern for system message
-            r"^\{'human': '.+'\}$",  # Pattern for human message
+            r"^\{\"system\": \".+\"\}$",  # Pattern for system message
+            r"^\{\"human\": \".+\"\}$",  # Pattern for human message
         ],
-        output_pattern=r"^\{'ai': \".+\"\}$",  # Pattern for AI response
+        output_pattern=r"^\{\"ai\": \".+\"\}$",  # Pattern for AI response
         metadata_requirements={
             "temperature": float,
             "completion_tokens": int,
@@ -201,8 +201,8 @@ if __name__ == "__main__":
 #             "timestamp": "2025-04-17T07:52:41.351488Z",
 #             "attributes": {
 #                 "input": [
-#                     "{'system': 'You are a helpful assistant that translates English to German.'}",
-#                     "{'human': 'I love programming.'}"
+#                     "{\"system\": \"You are a helpful assistant that translates English to German.\"}",
+#                     "{\"human\": \"I love programming.\"}"
 #                 ]
 #             }
 #         },
@@ -212,7 +212,7 @@ if __name__ == "__main__":
 #             "attributes": {
 #                 "status": "success",
 #                 "status_code": "success",
-#                 "response": "{'ai': \"Here's the German translation:\\n\\nIch liebe Programmieren.\"}"
+#                 "response": "{\"ai\": \"Here's the German translation:\\n\\nIch liebe Programmieren.\"}"
 #             }
 #         },
 #         {

@@ -8,6 +8,7 @@ from urllib.parse import urlparse
 from opentelemetry.sdk.trace import Span
 from monocle_apptrace.instrumentation.common.utils import (
     Option,
+    get_json_dumps,
     get_keys_as_tuple,
     get_nested_value,
     try_option,
@@ -57,7 +58,7 @@ def extract_messages(args):
                 process_message(msg)
         
 
-        return [str(message) for message in messages]
+        return [get_json_dumps(message) for message in messages]
 
     except Exception as e:
         logger.warning("Error in extract_messages: %s", str(e))
@@ -85,7 +86,7 @@ def extract_assistant_message(arguments):
         elif hasattr(arguments['result'], "error"):
             return arguments['result'].error
 
-    return [str(message) for message in messages][0] if messages else ""
+    return get_json_dumps(messages[0]) if messages else ""
 
 def extract_query_from_content(content):
     try:

@@ -74,11 +74,11 @@ async def test_openai_response_api_sample_async(setup):
         span=inference_spans[0],
         expected_event_count=3,
         input_patterns=[
-            r"^\{'system': '.+'\}$",  # Pattern for system instructions
-            r"^\{'system': '.+'\}$",  # Pattern for system instructions
-            r"^\{'user': '.+'\}$",  # Pattern for user input
+            r"^\{\"system\": \".+\"\}$",  # Pattern for system instructions
+            r"^\{\"system\": \".+\"\}$",  # Pattern for system instructions
+            r"^\{\"user\": \".+\"\}$",  # Pattern for user input
         ],
-        output_pattern=r"^\{'assistant': '.+'\}$",  # Pattern for AI response
+        output_pattern=r"^\{\"assistant\": \".+\"\}$",  # Pattern for AI response
         metadata_requirements={
             "completion_tokens": int,
             "prompt_tokens": int,
@@ -144,11 +144,11 @@ async def test_openai_response_api_sample_async_stream(setup):
         span=inference_spans[0],
         expected_event_count=3,
         input_patterns=[
-            r"^\{'system': '.+'\}$",  # Pattern for system instructions
-            r"^\{'system': '.+'\}$",  # Pattern for system instructions
-            r"^\{'user': '.+'\}$",  # Pattern for user input
+            r"^\{\"system\": \".+\"\}$",  # Pattern for system instructions
+            r"^\{\"system\": \".+\"\}$",  # Pattern for system instructions
+            r"^\{\"user\": \".+\"\}$",  # Pattern for user input
         ],
-        output_pattern=r"^\{'assistant': '.+'\}$",  # Pattern for AI response
+        output_pattern=r"^\{\"assistant\": \".+\"\}$",  # Pattern for AI response
         metadata_requirements={
             "completion_tokens": int,
             "prompt_tokens": int,
@@ -211,11 +211,11 @@ def test_openai_response_api_sample(setup):
         span=inference_spans[0],
         expected_event_count=3,
         input_patterns=[
-            r"^\{'system': '.+'\}$",  # Pattern for system instructions
-            r"^\{'system': '.+'\}$",  # Pattern for system instructions
-            r"^\{'user': '.+'\}$",  # Pattern for user input
+            r"^\{\"system\": \".+\"\}$",  # Pattern for system instructions
+            r"^\{\"system\": \".+\"\}$",  # Pattern for system instructions
+            r"^\{\"user\": \".+\"\}$",  # Pattern for user input
         ],
-        output_pattern=r"^\{'assistant': '.+'\}$",  # Pattern for AI response
+        output_pattern=r"^\{\"assistant\": \".+\"\}$",  # Pattern for AI response
         metadata_requirements={
             "completion_tokens": int,
             "prompt_tokens": int,
@@ -279,10 +279,10 @@ def test_azure_openai_response_api_sample(setup):
         span=inference_spans[0],
         expected_event_count=3,
         input_patterns=[
-            r"^\{'system': '.+'\}$",  # Pattern for system instructions
-            r"^\{'user': '.+'\}$",  # Pattern for user input
+            r"^\{\"system\": \".+\"\}$",  # Pattern for system instructions
+            r"^\{\"user\": \".+\"\}$",  # Pattern for user input
         ],
-        output_pattern=r"^\{'assistant': '.+'\}$",  # Pattern for AI response
+        output_pattern=r"^\{\"assistant\": \".+\"\}$",  # Pattern for AI response
         metadata_requirements={
             "completion_tokens": int,
             "prompt_tokens": int,
@@ -334,9 +334,9 @@ if __name__ == "__main__":
 #             "timestamp": "2025-07-02T23:41:21.637371Z",
 #             "attributes": {
 #                 "input": [
-#                     "{'system': 'Answer in 3 words.'}",
-#                     "{'system': 'You are a coding assistant that talks like shakespeare.'}",
-#                     "{'user': 'How do I check if a Python object is an instance of a class?'}"
+#                     "{\"system\": \"Answer in 3 words.\"}",
+#                     "{\"system\": \"You are a coding assistant that talks like shakespeare.\"}",
+#                     "{\"user\": \"How do I check if a Python object is an instance of a class?\"}"
 #                 ]
 #             }
 #         },
@@ -344,7 +344,7 @@ if __name__ == "__main__":
 #             "name": "data.output",
 #             "timestamp": "2025-07-02T23:41:21.637482Z",
 #             "attributes": {
-#                 "response": "{'assistant': 'Utilize `isinstance` function.'}",
+#                 "response": "{\"assistant\": \"Utilize `isinstance` function.\"}",
 #                 "status": "error",
 #                 "status_code": "completed"
 #             }
@@ -466,9 +466,9 @@ if __name__ == "__main__":
 #             "timestamp": "2025-07-02T23:41:27.101936Z",
 #             "attributes": {
 #                 "input": [
-#                     "{'system': 'Answer in 6 words.'}",
-#                     "{'system': 'You are a coding assistant that talks like shakespeare.'}",
-#                     "{'user': 'How do I check if a Python object is an instance of a class?'}"
+#                     "{\"system\": \"Answer in 6 words.\"}",
+#                     "{\"system\": \"You are a coding assistant that talks like shakespeare.\"}",
+#                     "{\"user\": \"How do I check if a Python object is an instance of a class?\"}"
 #                 ]
 #             }
 #         },
@@ -476,7 +476,7 @@ if __name__ == "__main__":
 #             "name": "data.output",
 #             "timestamp": "2025-07-02T23:41:32.809336Z",
 #             "attributes": {
-#                 "response": "{'assistant': 'Use `isinstance(object, ClassName)` fair.'}",
+#                 "response": "{\"assistant\": \"Use `isinstance(object, ClassName)` fair.\"}",
 #                 "status": "success",
 #                 "status_code": "success"
 #             }
@@ -532,9 +532,9 @@ if __name__ == "__main__":
 #             "timestamp": "2025-07-02T23:42:25.060438Z",
 #             "attributes": {
 #                 "input": [
-#                     "{'system': 'Answer in 5 words.'}",
-#                     "{'system': 'You are a coding assistant that talks like shakespeare.'}",
-#                     "{'user': 'How do I check if a Python object is an instance of a class?'}"
+#                     "{\"system\": \"Answer in 5 words.\"}",
+#                     "{\"system\": \"You are a coding assistant that talks like shakespeare.\"}",
+#                     "{\"user\": \"How do I check if a Python object is an instance of a class?\"}"
 #                 ]
 #             }
 #         },
@@ -542,7 +542,7 @@ if __name__ == "__main__":
 #             "name": "data.output",
 #             "timestamp": "2025-07-02T23:42:25.060543Z",
 #             "attributes": {
-#                 "response": "{'assistant': 'Use \"isinstance(object, ClassName).\"'}",
+#                 "response": "{\"assistant\": \"Use isinstance(object, ClassName).\"}",
 #                 "status": "error",
 #                 "status_code": "completed"
 #             }
@@ -631,8 +631,8 @@ if __name__ == "__main__":
 #             "timestamp": "2025-07-02T23:42:32.025084Z",
 #             "attributes": {
 #                 "input": [
-#                     "{'system': 'You are a coding assistant that talks like a pirate. Answer is 10 words'}",
-#                     "{'user': 'How do I check if a Python object is an instance of a class?'}"
+#                     "{\"system\": \"You are a coding assistant that talks like a pirate. Answer is 10 words\"}",
+#                     "{\"user\": \"How do I check if a Python object is an instance of a class?\"}"
 #                 ]
 #             }
 #         },
@@ -640,7 +640,7 @@ if __name__ == "__main__":
 #             "name": "data.output",
 #             "timestamp": "2025-07-02T23:42:32.025238Z",
 #             "attributes": {
-#                 "response": "{'assistant': \"Use 'isinstance(your_object, YourClass)' to check, matey!\"}",
+#                 "response": "{\"assistant\": \"Use 'isinstance(your_object, YourClass)' to check, matey!\"}",
 #                 "status": "error",
 #                 "status_code": "completed"
 #             }

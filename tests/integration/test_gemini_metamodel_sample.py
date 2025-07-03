@@ -107,10 +107,10 @@ def check_span(spans):
         span=inference_spans[0],
         expected_event_count=3,
         input_patterns=[
-            r"^\{'system': '.+'\}$",  # Pattern for system message
-            r"^\{'user': '.+'\}$",  # Pattern for user message
+            r"^\{\"system\": \".+\"\}$",  # Pattern for system message
+            r"^\{\"user\": \".+\"\}$",  # Pattern for user message
         ],
-        # output_pattern=r"^\{'model': '.+'\}$",  # Pattern for AI response
+        output_pattern=r"^\{\"model\": \".+\"\}$",  # Pattern for AI response
         metadata_requirements={
             "completion_tokens": int,
             "prompt_tokens": int,
@@ -150,13 +150,13 @@ def check_span_chat(spans):
         # Validate events using the generic function with regex patterns
         if len(span.events[0].attributes.get("input")) == 1:
             # This is the first message with user input
-            input_patterns = [r"^\{'user': '.+'\}$"]  # Pattern for user message
+            input_patterns = [r"^\{\"user\": \".+\"\}$"]  # Pattern for user message
         else:
             # This is the second message with user input and AI response
             input_patterns = [
-                r"^\{'user': '.+'\}$",  # Pattern for user message
-                r"^\{'model': \".+\"\}$",  # Pattern for AI response
-                r"^\{'user': '.+'\}$",  # Pattern for user message
+                r"^\{\"user\": \".+\"\}$",  # Pattern for user message
+                r"^\{\"model\": \".+\"\}$",  # Pattern for AI response
+                r"^\{\"user\": \".+\"\}$",  # Pattern for user message
             ]
         validate_inference_span_events(
             span=span,

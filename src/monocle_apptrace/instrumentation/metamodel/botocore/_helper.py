@@ -8,7 +8,7 @@ import json
 from io import BytesIO
 from functools import wraps
 from monocle_apptrace.instrumentation.common.span_handler import SpanHandler
-from monocle_apptrace.instrumentation.common.utils import ( get_exception_message,)
+from monocle_apptrace.instrumentation.common.utils import ( get_exception_message, get_json_dumps,)
 logger = logging.getLogger(__name__)
 
 
@@ -25,7 +25,7 @@ def extract_messages(args):
                 role = args['messages'][0]['role']
                 user_message = extract_query_from_content(args['messages'][0]['content'][0]['text'])
                 messages.append({role: user_message})
-        return [str(d) for d in messages]
+        return [get_json_dumps(message) for message in messages]
     except Exception as e:
         logger.warning("Warning: Error occurred in extract_messages: %s", str(e))
         return []
@@ -73,7 +73,7 @@ def extract_assistant_message(arguments):
                 return get_exception_message(arguments)
             elif hasattr(arguments["result"], "error"):
                 return arguments["result"].error
-        return [str(message) for message in messages][0] if messages else ""
+        return get_json_dumps(messages[0]) if messages else ""
     except Exception as e:
         logger.warning("Warning: Error occurred in extract_assistant_message: %s", str(e))
         return []

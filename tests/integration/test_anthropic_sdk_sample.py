@@ -76,10 +76,10 @@ def test_anthropic_metamodel_sample(setup):
         span=inference_spans[0],
         expected_event_count=3,
         input_patterns=[
-            r"^\{'system': '.+'\}$",  # Pattern for system
-            r"^\{'user': '.+'\}$",  # Pattern for user input
+            r"^\{\"system\": \".+\"\}$",  # Pattern for system
+            r"^\{\"user\": \".+\"\}$",  # Pattern for user input
         ],
-        output_pattern=r"^\{'assistant': '.+'\}$",  # Pattern for AI response
+        output_pattern=r"^\{\"assistant\": \".+\"\}$",  # Pattern for AI response
         metadata_requirements={
             "completion_tokens": int,
             "prompt_tokens": int,
@@ -157,8 +157,8 @@ if __name__ == "__main__":
 #             "timestamp": "2025-07-02T14:46:19.319781Z",
 #             "attributes": {
 #                 "input": [
-#                     "{'system': 'You are a helpful assistant to answer questions about coffee.'}",
-#                     "{'user': 'What is an americano?'}"
+#                     "{\"system\": \"You are a helpful assistant to answer questions about coffee.\"}",
+#                     "{\"user\": \"What is an americano?\"}"
 #                 ]
 #             }
 #         },
@@ -168,7 +168,7 @@ if __name__ == "__main__":
 #             "attributes": {
 #                 "status": "success",
 #                 "status_code": "success",
-#                 "response": "{'assistant': \"An Americano is a popular coffee drink that consists of espresso diluted with hot water. Here are some key points about Americanos:\\n\\n1. Composition: It's typically made by adding hot water to one or two shots of espresso.\\n\\n2. Origin: The drink is said to have originated during World War II when American soldiers in Italy would dilute espresso to make it more similar to the drip coffee they were used to back home.\\n\\n3. Strength: The strength of an Americano can be adjusted by varying the ratio of espresso to water.\\n\\n4. Flavor: It has a similar strength to drip coffee but with a different flavor profile, retaining some of the richness and complexity of espresso.\\n\\n5. Serving: It's usually served hot, but can also be enjoyed over ice as an Iced Americano.\\n\\n6. Customization: Like many coffee drinks, it can be customized with milk, cream, or sweeteners according to personal preference.\\n\\n7. Caffeine content: An Americano typically has about the same amount of caffeine as a regular cup of drip coffee, though this can vary based on the number of espresso shots used.\\n\\nAmericanos are a popular choice for those who enjoy the flavor of espresso but prefer a larger, less concentrated drink.\"}"
+#                 "response": "{\"assistant\": \"An Americano is a popular coffee drink. \"}"
 #             }
 #         },
 #         {
@@ -256,8 +256,8 @@ if __name__ == "__main__":
 #             "timestamp": "2025-07-02T14:46:24.764332Z",
 #             "attributes": {
 #                 "input": [
-#                     "{'system': 'You are a helpful assistant to answer questions about coffee.'}",
-#                     "{'user': 'What is an americano?'}"
+#                     "{\"system\": \"You are a helpful assistant to answer questions about coffee.\"}",
+#                     "{\"user\": \"What is an americano?\"}"
 #                 ]
 #             }
 #         },

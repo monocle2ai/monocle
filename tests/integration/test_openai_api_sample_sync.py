@@ -70,10 +70,10 @@ def test_openai_api_sample(setup):
         span=inference_spans[0],
         expected_event_count=3,
         input_patterns=[
-            r"^\{'system': '.+'\}$",  # Pattern for system
-            r"^\{'user': '.+'\}$",  # Pattern for user input
+            r"^\{\"system\": \".+\"\}$",  # Pattern for system
+            r"^\{\"user\": \".+\"\}$",  # Pattern for user input
         ],
-        output_pattern=r"^\{'assistant': '.+'\}$",  # Pattern for AI response
+        output_pattern=r"^\{\"assistant\": \".+\"\}$",  # Pattern for AI response
         metadata_requirements={
             "completion_tokens": int,
             "prompt_tokens": int,
@@ -154,10 +154,10 @@ def test_openai_api_sample_stream(setup):
         span=inference_spans[0],
         expected_event_count=3,
         input_patterns=[
-            r"^\{'system': '.+'\}$",  # Pattern for system
-            r"^\{'user': '.+'\}$",  # Pattern for user input
+            r"^\{\"system\": \".+\"\}$",  # Pattern for system
+            r"^\{\"user\": \".+\"\}$",  # Pattern for user input
         ],
-        output_pattern=r"^\{'assistant': '.+'\}$",  # Pattern for AI response
+        output_pattern=r"^\{\"assistant\": \".+\"\}$",  # Pattern for AI response
         metadata_requirements={
             "completion_tokens": int,
             "prompt_tokens": int,
@@ -216,8 +216,8 @@ if __name__ == "__main__":
 #             "timestamp": "2025-07-02T21:07:30.196826Z",
 #             "attributes": {
 #                 "input": [
-#                     "{'system': 'You are a helpful assistant to answer coffee related questions'}",
-#                     "{'user': 'What is an americano?'}"
+#                     "{\"system\": \"You are a helpful assistant to answer coffee related questions\"}",
+#                     "{\"user\": \"What is an americano?\"}"
 #                 ]
 #             }
 #         },
@@ -225,7 +225,7 @@ if __name__ == "__main__":
 #             "name": "data.output",
 #             "timestamp": "2025-07-02T21:07:30.196905Z",
 #             "attributes": {
-#                 "response": "{'assistant': 'An Americano is a type of coffee drink made by diluting a shot (or shots) of espresso with hot water. This process results in a beverage that has a similar strength to brewed coffee but retains the unique flavor profile of espresso. The typical ratio is one part espresso to two parts hot water, but this can vary based on personal preference. The drink is popular among those who enjoy the taste of espresso but prefer a milder flavor similar to that of traditional drip coffee.'}",
+#                 "response": "{\"assistant\": \"An Americano is a type of coffee drink made by diluting a shot (or shots) of espresso. \"}",
 #                 "status": "success",
 #                 "status_code": "success"
 #             }

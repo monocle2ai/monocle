@@ -73,51 +73,6 @@ def test_llama_index_sample(setup):
     response = query_engine.query("What did the author do growing up?")
 
     time.sleep(5)  # Allow time for spans to be captured
-    # spans = custom_exporter.get_captured_spans()
-    # for span in spans:
-    #     span_attributes = span.attributes
-    #     if "span.type" in span_attributes and span_attributes["span.type"] == "retrieval":
-    #         # Assertions for all retrieval attributes
-    #         assert span_attributes["entity.1.name"] == "ChromaVectorStore"
-    #         assert span_attributes["entity.1.type"] == "vectorstore.ChromaVectorStore"
-    #         assert span_attributes["entity.2.name"] == "text-embedding-3-large"
-    #         assert span_attributes["entity.2.type"] == "model.embedding.text-embedding-3-large"
-    #         assert not span.name.lower().startswith("openai")
-
-    #     if "span.type" in span_attributes and (
-    #         span_attributes["span.type"] == "inference" or span_attributes["span.type"] == "inference.framework"):
-    #         # Assertions for all inference attributes
-    #         assert span_attributes["entity.1.type"] == "inference.azure_openai"
-    #         assert "entity.1.provider_name" in span_attributes
-    #         assert "entity.1.inference_endpoint" in span_attributes
-    #         assert span_attributes["entity.2.name"] == "gpt-4o-mini"
-    #         assert span_attributes["entity.2.type"] == "model.llm.gpt-4o-mini"
-    #         assert not span.name.lower().startswith("openai")
-
-    #         # Assertions for metadata
-    #         span_input, span_output, span_metadata = span.events
-    #         assert "completion_tokens" in span_metadata.attributes
-    #         assert "prompt_tokens" in span_metadata.attributes
-    #         assert "total_tokens" in span_metadata.attributes
-    #         events = span.events
-    #         # find that there one data.input and data.output events
-    #         assert len(events) >= 2, "Expected at least two events for input and output"
-    #         data_input_event = [event for event in events if event.name == "data.input"][0]
-    #         data_output_event = [event for event in events if event.name == "data.output"][0]
-    #         assert data_input_event.name == "data.input"
-    #         assert data_output_event.name == "data.output"
-    #         assert "input" in data_input_event.attributes
-    #         assert "response" in data_output_event.attributes
-    #         assert "user" in data_input_event.attributes["input"][1]
-    #         assert "assistant" in data_output_event.attributes["response"][0]
-    #         assert "system" in data_input_event.attributes["input"][0]
-    #         assert "You are an expert'" in data_input_event.attributes["input"][0]
-    #         assert "What did the author do growing up?" in data_input_event.attributes["input"][1]
-
-    #     if not span.parent and span.name == "llamaindex.query":  # Root span
-    #         assert span_attributes["entity.1.name"] == "llama_index_1"
-    #         assert span_attributes["entity.1.type"] == "workflow.llamaindex"
-
     spans = custom_exporter.get_captured_spans()
 
     assert len(spans) > 0, "No spans captured for the LangChain Anthropic sample"
@@ -167,10 +122,10 @@ def test_llama_index_sample(setup):
         span=inference_spans[0],
         expected_event_count=3,
         input_patterns=[
-            r"^\{'system': \".+\"\}$",  # Pattern for system message
-            r"^\{'user': '.+'\}$",  # Pattern for user message
+            r"^\{\"system\": \".+\"\}$",  # Pattern for system message
+            r"^\{\"user\": \".+\"\}$",  # Pattern for user message
         ],
-        output_pattern=r"^\{'assistant': '.+'\}$",  # Pattern for assistant response
+        output_pattern=r"^\{\"assistant\": \".+\"\}$",  # Pattern for assistant response
         metadata_requirements={
             "temperature": float,
             "completion_tokens": int,
@@ -417,8 +372,8 @@ if __name__ == "__main__":
 #             "timestamp": "2025-07-02T15:56:08.013297Z",
 #             "attributes": {
 #                 "input": [
-#                     "{'system': \"You are an expert Q&A system that is trusted around the world.\\nAlways answer the query using the provided context information, and not prior knowledge.\\nSome rules to follow:\\n1. Never directly reference the given context in your answer.\\n2. Avoid statements like 'Based on the context, ...' or 'The context information ...' or anything along those lines.\"}",
-#                     "{'user': 'What did the author do growing up?'}"
+#                     "{\"system\": \"You are an expert Q&A system that is trusted around the world.\\nAlways answer the query using the provided context information, and not prior knowledge.\\nSome rules to follow:\\n1. Never directly reference the given context in your answer.\\n2. Avoid statements like 'Based on the context, ...' or 'The context information ...' or anything along those lines.\"}",
+#                     "{\"user\": \"What did the author do growing up?\"}"
 #                 ]
 #             }
 #         },
@@ -428,7 +383,7 @@ if __name__ == "__main__":
 #             "attributes": {
 #                 "status": "success",
 #                 "status_code": "success",
-#                 "response": "{'assistant': 'The author grew up in a location where they had access to a file named \"sample.txt\" containing some sample text.'}"
+#                 "response": "{\"assistant\": \"The author grew up in a location where they had access to a file named \\\"sample.txt\\\" containing some sample text.\"}"
 #             }
 #         },
 #         {

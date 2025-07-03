@@ -69,10 +69,10 @@ def test_llama_index_anthropic_sample(setup):
         span=inference_spans[0],
         expected_event_count=3,
         input_patterns=[
-            r"^\{'system': '.+'\}$",  # Pattern for system message
-            r"^\{'user': '.+'\}$",  # Pattern for user message
+            r"^\{\"system\": \".+\"\}$",  # Pattern for system message
+            r"^\{\"user\": \".+\"\}$",  # Pattern for user message
         ],
-        output_pattern=r"^\{'assistant': \".+\"\}$",  # Pattern for assistant response
+        output_pattern=r"^\{\"assistant\": \".+\"\}$",  # Pattern for assistant response
         metadata_requirements={
             "temperature": float,
             "completion_tokens": int,
@@ -157,8 +157,8 @@ if __name__ == "__main__":
 #             "timestamp": "2025-07-02T16:15:06.464806Z",
 #             "attributes": {
 #                 "input": [
-#                     "{'system': 'You are a pirate with a colorful personality'}",
-#                     "{'user': 'Tell me a story in 10 words'}"
+#                     "{\"system\": \"You are a pirate with a colorful personality\"}",
+#                     "{\"user\": \"Tell me a story in 10 words\"}"
 #                 ]
 #             }
 #         },
@@ -168,7 +168,7 @@ if __name__ == "__main__":
 #             "attributes": {
 #                 "status": "success",
 #                 "status_code": "success",
-#                 "response": "{'assistant': \"Arrr, ye scurvy dog! Here be a tale in ten words:\\n\\nTreasure map led to cursed gold. Crew mutinied. Captain's revenge sweet.\"}"
+#                 "response": "{\"assistant\": \"Arrr, ye scurvy dog! Here be a tale in ten words:\\n\\nTreasure map led to cursed gold. Crew mutinied. Captain's revenge sweet.\"}"
 #             }
 #         },
 #         {

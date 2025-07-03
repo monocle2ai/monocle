@@ -7,18 +7,29 @@ from monocle_apptrace.instrumentation.common.instrumentor import (
 )
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from common.custom_exporter import CustomConsoleSpanExporter
+from common.helpers import (
+    validate_inference_span_events,
+    verify_inference_span,
+    find_span_by_type,
+    find_spans_by_type,
+)
 import os
 from google import genai
 from google.genai import types
 
 import pytest
+
 custom_exporter = CustomConsoleSpanExporter()
+
+
 @pytest.fixture(scope="module")
 def setup():
     setup_monocle_telemetry(
-                workflow_name="gemini_app_1",
-                span_processors=[BatchSpanProcessor(custom_exporter)],
-                wrapper_methods=[])
+        workflow_name="gemini_app_1",
+        span_processors=[BatchSpanProcessor(custom_exporter)],
+        wrapper_methods=[],
+    )
+
 
 @pytest.mark.integration()
 def test_gemini_model_sample(setup):
@@ -27,13 +38,21 @@ def test_gemini_model_sample(setup):
     response = client.models.generate_content(
         model="gemini-2.5-flash",
         config=types.GenerateContentConfig(
-            system_instruction="You are a cat. Your name is Neko."),
-            contents="Hello there"
+            system_instruction="You are a cat. Your name is Neko."
+        ),
+        contents="Hello there",
     )
     time.sleep(5)
     print(response.text)
     spans = custom_exporter.get_captured_spans()
     check_span(spans)
+
+
+@pytest.fixture(autouse=True)
+def pre_test():
+    # clear old spans
+    custom_exporter.reset()
+
 
 @pytest.mark.integration()
 def test_gemini_chat_sample(setup):
@@ -48,54 +67,133 @@ def test_gemini_chat_sample(setup):
     print(response.text)
 
     for message in chat.get_history():
-        print(f'role - {message.role}', end=": ")
+        print(f"role - {message.role}", end=": ")
         print(message.parts[0].text)
     time.sleep(5)
     print(response.text)
     spans = custom_exporter.get_captured_spans()
-    check_span(spans)
+    check_span_chat(spans)
+
 
 def check_span(spans):
-    found_workflow_span = False
-    for span in spans:
-        span_attributes = span.attributes
+    """Verify spans using flexible utilities."""
+    # Find workflow span
+    workflow_span = find_span_by_type(spans, "workflow")
+    assert workflow_span is not None, "Expected to find workflow span"
 
-        if "span.type" in span_attributes and (
-                span_attributes["span.type"] == "inference" or span_attributes["span.type"] == "inference.framework"):
-            # Assertions for all inference attributes
-            assert span_attributes["entity.1.type"] == "inference.gemini"
-            assert "entity.1.inference_endpoint" in span_attributes
-            assert span_attributes["entity.2.name"] == "gemini-2.5-flash"
-            assert span_attributes["entity.2.type"] == "model.llm.gemini-2.5-flash"
+    inference_spans = find_spans_by_type(spans, "inference")
+    if not inference_spans:
+        # Also check for inference.framework spans
+        inference_spans = find_spans_by_type(spans, "inference.framework")
 
-            span_input, span_output, span_metadata = span.events
-            assert "completion_tokens" in span_metadata.attributes
-            assert "prompt_tokens" in span_metadata.attributes
-            assert "total_tokens" in span_metadata.attributes
+    assert len(inference_spans) > 0, "Expected to find at least one inference span"
 
-        if "span.type" in span_attributes and span_attributes["span.type"] == "workflow":
-            found_workflow_span = True
-    assert found_workflow_span
+    # Verify each inference span
+    for span in inference_spans:
+        verify_inference_span(
+            span=span,
+            entity_type="inference.gemini",
+            model_name="gemini-2.5-flash",
+            model_type="model.llm.gemini-2.5-flash",
+            check_metadata=True,
+            check_input_output=True,
+        )
+    assert (
+        len(inference_spans) == 1
+    ), "Expected exactly one inference span for the LLM call"
 
+    # Validate events using the generic function with regex patterns
+    validate_inference_span_events(
+        span=inference_spans[0],
+        expected_event_count=3,
+        input_patterns=[
+            r"^\{\"system\": \".+\"\}$",  # Pattern for system message
+            r"^\{\"user\": \".+\"\}$",  # Pattern for user message
+        ],
+        output_pattern=r"^\{\"model\": \".+\"\}$",  # Pattern for AI response
+        metadata_requirements={
+            "completion_tokens": int,
+            "prompt_tokens": int,
+            "total_tokens": int,
+        },
+    )
+
+
+def check_span_chat(spans):
+    """Verify spans using flexible utilities."""
+    # Find workflow span
+    workflow_span = find_span_by_type(spans, "workflow")
+    assert workflow_span is not None, "Expected to find workflow span"
+
+    inference_spans = find_spans_by_type(spans, "inference")
+    if not inference_spans:
+        # Also check for inference.framework spans
+        inference_spans = find_spans_by_type(spans, "inference.framework")
+
+    assert len(inference_spans) > 0, "Expected to find at least one inference span"
+
+    # Verify each inference span
+    for span in inference_spans:
+        verify_inference_span(
+            span=span,
+            entity_type="inference.gemini",
+            model_name="gemini-2.5-flash",
+            model_type="model.llm.gemini-2.5-flash",
+            check_metadata=True,
+            check_input_output=True,
+        )
+    assert (
+        len(inference_spans) == 2
+    ), "Expected exactly two inference spans for the LLM call"
+
+    for span in inference_spans:
+        # Validate events using the generic function with regex patterns
+        if len(span.events[0].attributes.get("input")) == 1:
+            # This is the first message with user input
+            input_patterns = [r"^\{\"user\": \".+\"\}$"]  # Pattern for user message
+        else:
+            # This is the second message with user input and AI response
+            input_patterns = [
+                r"^\{\"user\": \".+\"\}$",  # Pattern for user message
+                r"^\{\"model\": \".+\"\}$",  # Pattern for AI response
+                r"^\{\"user\": \".+\"\}$",  # Pattern for user message
+            ]
+        validate_inference_span_events(
+            span=span,
+            expected_event_count=3,
+            input_patterns=input_patterns,
+            # TODO fix all outputs and make sure that we dont use python str
+            # then we can uncomment this line
+            # output_pattern=r"^\{'model': '.+'\}$",  # Pattern for AI response
+            metadata_requirements={
+                "completion_tokens": int,
+                "prompt_tokens": int,
+                "total_tokens": int,
+            },
+        )
+
+
+if __name__ == "__main__":
+    pytest.main([__file__, "-s", "--tb=short"])
 
 # {
 #     "name": "google.genai.models.Models",
 #     "context": {
-#         "trace_id": "0x3d2eaae04c01d8949140ca5e6c2eef8e",
-#         "span_id": "0x3b498a0c89fc2fd2",
+#         "trace_id": "0x7edc939ce276e102e9107df90e651d55",
+#         "span_id": "0x50b3cac64e540bd8",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0x9b91e88a04606218",
-#     "start_time": "2025-06-25T14:01:43.849583Z",
-#     "end_time": "2025-06-25T14:01:47.789155Z",
+#     "parent_id": "0x18a69db9a742ffa0",
+#     "start_time": "2025-07-02T08:29:33.522346Z",
+#     "end_time": "2025-07-02T08:29:42.084545Z",
 #     "status": {
 #         "status_code": "OK"
 #     },
 #     "attributes": {
-#         "monocle_apptrace.version": "0.3.1",
+#         "monocle_apptrace.version": "0.4.0",
 #         "monocle_apptrace.language": "python",
-#         "span_source": "C:\\Users\\BHLP0106\\Desktop\\clone\\monocle\\tests\\integration\\test_gemini_metamodel_sample.py:27",
+#         "span_source": "/Users/kshitizvijayvargiya/monocle-ksh/tests/integration/test_gemini_metamodel_sample.py:33",
 #         "workflow.name": "gemini_app_1",
 #         "span.type": "inference",
 #         "entity.1.type": "inference.gemini",
@@ -107,30 +205,30 @@ def check_span(spans):
 #     "events": [
 #         {
 #             "name": "data.input",
-#             "timestamp": "2025-06-25T14:01:47.789155Z",
+#             "timestamp": "2025-07-02T08:29:42.083976Z",
 #             "attributes": {
 #                 "input": [
 #                     "{'system': 'You are a cat. Your name is Neko.'}",
-#                     "{'input': 'Hello there'}"
+#                     "{'user': 'Hello there'}"
 #                 ]
 #             }
 #         },
 #         {
 #             "name": "data.output",
-#             "timestamp": "2025-06-25T14:01:47.789155Z",
+#             "timestamp": "2025-07-02T08:29:42.084230Z",
 #             "attributes": {
 #                 "status": "success",
 #                 "status_code": "success",
-#                 "response": "Mrow?\n\n(I blink slowly at you, my tail giving a tiny, almost imperceptible twitch on the sunbeam-warmed floor.)"
+#                 "response": "{'model': 'Mrrrrow?\\n\\nI slowly blink one eye open, then the other, looking up at you from my sunbeam-warmed spot on the rug. My tail gives a lazy flick, just the very tip. Are you going to offer me head scratches? Or, perhaps, a treat? These are important questions.'}"
 #             }
 #         },
 #         {
 #             "name": "metadata",
-#             "timestamp": "2025-06-25T14:01:47.789155Z",
+#             "timestamp": "2025-07-02T08:29:42.084338Z",
 #             "attributes": {
-#                 "completion_tokens": 30,
+#                 "completion_tokens": 65,
 #                 "prompt_tokens": 15,
-#                 "total_tokens": 357
+#                 "total_tokens": 419
 #             }
 #         }
 #     ],
@@ -145,21 +243,21 @@ def check_span(spans):
 # {
 #     "name": "workflow",
 #     "context": {
-#         "trace_id": "0x3d2eaae04c01d8949140ca5e6c2eef8e",
-#         "span_id": "0x9b91e88a04606218",
+#         "trace_id": "0x7edc939ce276e102e9107df90e651d55",
+#         "span_id": "0x18a69db9a742ffa0",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
 #     "parent_id": null,
-#     "start_time": "2025-06-25T14:01:43.849583Z",
-#     "end_time": "2025-06-25T14:01:47.789155Z",
+#     "start_time": "2025-07-02T08:29:33.522282Z",
+#     "end_time": "2025-07-02T08:29:42.084684Z",
 #     "status": {
 #         "status_code": "OK"
 #     },
 #     "attributes": {
-#         "monocle_apptrace.version": "0.3.1",
+#         "monocle_apptrace.version": "0.4.0",
 #         "monocle_apptrace.language": "python",
-#         "span_source": "C:\\Users\\BHLP0106\\Desktop\\clone\\monocle\\tests\\integration\\test_gemini_metamodel_sample.py:27",
+#         "span_source": "/Users/kshitizvijayvargiya/monocle-ksh/tests/integration/test_gemini_metamodel_sample.py:33",
 #         "span.type": "workflow",
 #         "entity.1.name": "gemini_app_1",
 #         "entity.1.type": "workflow.generic",
@@ -178,21 +276,21 @@ def check_span(spans):
 # {
 #     "name": "google.genai.models.Models",
 #     "context": {
-#         "trace_id": "0x6ec9add2d431c024246101e05012ec3d",
-#         "span_id": "0xa8f967d5e19b16b0",
+#         "trace_id": "0x9a3f55b8f2971f5c4f1f5b5586f24a5c",
+#         "span_id": "0x9e8a98cd95dcc8dc",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0x3e6ee0967e2491eb",
-#     "start_time": "2025-06-25T14:01:52.804929Z",
-#     "end_time": "2025-06-25T14:02:02.135250Z",
+#     "parent_id": "0x194d38ab088a7e73",
+#     "start_time": "2025-07-02T08:29:47.125008Z",
+#     "end_time": "2025-07-02T08:29:54.668281Z",
 #     "status": {
 #         "status_code": "OK"
 #     },
 #     "attributes": {
-#         "monocle_apptrace.version": "0.3.1",
+#         "monocle_apptrace.version": "0.4.0",
 #         "monocle_apptrace.language": "python",
-#         "span_source": "C:\\Users\\BHLP0106\\Desktop\\clone\\monocle\\checkvenv\\Lib\\site-packages\\google\\genai\\chats.py:259",
+#         "span_source": "/Users/kshitizvijayvargiya/monocle-ksh/.venv/lib/python3.11/site-packages/google/genai/chats.py:254",
 #         "workflow.name": "gemini_app_1",
 #         "span.type": "inference",
 #         "entity.1.type": "inference.gemini",
@@ -204,7 +302,7 @@ def check_span(spans):
 #     "events": [
 #         {
 #             "name": "data.input",
-#             "timestamp": "2025-06-25T14:02:02.134205Z",
+#             "timestamp": "2025-07-02T08:29:54.668057Z",
 #             "attributes": {
 #                 "input": [
 #                     "{'user': 'I have 2 dogs in my house.'}"
@@ -213,20 +311,20 @@ def check_span(spans):
 #         },
 #         {
 #             "name": "data.output",
-#             "timestamp": "2025-06-25T14:02:02.135250Z",
+#             "timestamp": "2025-07-02T08:29:54.668188Z",
 #             "attributes": {
 #                 "status": "success",
 #                 "status_code": "success",
-#                 "response": "That's wonderful! Dogs bring so much joy to a home.\n\nDo you want to share anything about them? Like:\n*   **What are their names?**\n*   **What kind of dogs are they?**\n*   **How old are they?**\n*   **Or are you just sharing that fact?**\n\nI'm here if you have any questions about dog care, training, or just want to chat about them!"
+#                 "response": "{'model': \"Oh, how wonderful! Two dogs must bring so much joy (and probably some fun chaos!) to your home.\\n\\nDo they have names, or what breeds are they? I'd love to hear more about them if you'd like to share!\"}"
 #             }
 #         },
 #         {
 #             "name": "metadata",
-#             "timestamp": "2025-06-25T14:02:02.135250Z",
+#             "timestamp": "2025-07-02T08:29:54.668225Z",
 #             "attributes": {
-#                 "completion_tokens": 95,
+#                 "completion_tokens": 52,
 #                 "prompt_tokens": 10,
-#                 "total_tokens": 1301
+#                 "total_tokens": 764
 #             }
 #         }
 #     ],
@@ -241,21 +339,21 @@ def check_span(spans):
 # {
 #     "name": "workflow",
 #     "context": {
-#         "trace_id": "0x6ec9add2d431c024246101e05012ec3d",
-#         "span_id": "0x3e6ee0967e2491eb",
+#         "trace_id": "0x9a3f55b8f2971f5c4f1f5b5586f24a5c",
+#         "span_id": "0x194d38ab088a7e73",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
 #     "parent_id": null,
-#     "start_time": "2025-06-25T14:01:52.804929Z",
-#     "end_time": "2025-06-25T14:02:02.135250Z",
+#     "start_time": "2025-07-02T08:29:47.124930Z",
+#     "end_time": "2025-07-02T08:29:54.668356Z",
 #     "status": {
 #         "status_code": "OK"
 #     },
 #     "attributes": {
-#         "monocle_apptrace.version": "0.3.1",
+#         "monocle_apptrace.version": "0.4.0",
 #         "monocle_apptrace.language": "python",
-#         "span_source": "C:\\Users\\BHLP0106\\Desktop\\clone\\monocle\\checkvenv\\Lib\\site-packages\\google\\genai\\chats.py:259",
+#         "span_source": "/Users/kshitizvijayvargiya/monocle-ksh/.venv/lib/python3.11/site-packages/google/genai/chats.py:254",
 #         "span.type": "workflow",
 #         "entity.1.name": "gemini_app_1",
 #         "entity.1.type": "workflow.generic",
@@ -274,21 +372,21 @@ def check_span(spans):
 # {
 #     "name": "google.genai.models.Models",
 #     "context": {
-#         "trace_id": "0xa21354200bd96d48a85b3a62e498234b",
-#         "span_id": "0xdcc5d131ade08cfb",
+#         "trace_id": "0x119dfcbdc017d5d51fa402fd1fd12e6a",
+#         "span_id": "0x827bc8b7cea9d934",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0x9d521b9e427234f4",
-#     "start_time": "2025-06-25T14:02:02.136262Z",
-#     "end_time": "2025-06-25T14:02:05.183003Z",
+#     "parent_id": "0x8bbc9be1407efc75",
+#     "start_time": "2025-07-02T08:29:54.669597Z",
+#     "end_time": "2025-07-02T08:29:56.169612Z",
 #     "status": {
 #         "status_code": "OK"
 #     },
 #     "attributes": {
-#         "monocle_apptrace.version": "0.3.1",
+#         "monocle_apptrace.version": "0.4.0",
 #         "monocle_apptrace.language": "python",
-#         "span_source": "C:\\Users\\BHLP0106\\Desktop\\clone\\monocle\\checkvenv\\Lib\\site-packages\\google\\genai\\chats.py:259",
+#         "span_source": "/Users/kshitizvijayvargiya/monocle-ksh/.venv/lib/python3.11/site-packages/google/genai/chats.py:254",
 #         "workflow.name": "gemini_app_1",
 #         "span.type": "inference",
 #         "entity.1.type": "inference.gemini",
@@ -300,31 +398,31 @@ def check_span(spans):
 #     "events": [
 #         {
 #             "name": "data.input",
-#             "timestamp": "2025-06-25T14:02:05.183003Z",
+#             "timestamp": "2025-07-02T08:29:56.169316Z",
 #             "attributes": {
 #                 "input": [
 #                     "{'user': 'I have 2 dogs in my house.'}",
-#                     "{'model': \"That's wonderful! Dogs bring so much joy to a home.\\n\\nDo you want to share anything about them? Like:\\n*   **What are their names?**\\n*   **What kind of dogs are they?**\\n*   **How old are they?**\\n*   **Or are you just sharing that fact?**\\n\\nI'm here if you have any questions about dog care, training, or just want to chat about them!\"}",
+#                     "{'model': \"Oh, how wonderful! Two dogs must bring so much joy (and probably some fun chaos!) to your home.\\n\\nDo they have names, or what breeds are they? I'd love to hear more about them if you'd like to share!\"}",
 #                     "{'user': 'How many paws are in my house?'}"
 #                 ]
 #             }
 #         },
 #         {
 #             "name": "data.output",
-#             "timestamp": "2025-06-25T14:02:05.183003Z",
+#             "timestamp": "2025-07-02T08:29:56.169459Z",
 #             "attributes": {
 #                 "status": "success",
 #                 "status_code": "success",
-#                 "response": "Based on the fact that you have 2 dogs, and each dog typically has 4 paws, you would have **8 paws** in your house!"
+#                 "response": "{'model': \"Okay, let's do the math!\\n\\nSince each dog has 4 paws, and you have 2 dogs:\\n\\n2 dogs * 4 paws/dog = **8 paws**\\n\\nSo, there are 8 paws in your house!\"}"
 #             }
 #         },
 #         {
 #             "name": "metadata",
-#             "timestamp": "2025-06-25T14:02:05.183003Z",
+#             "timestamp": "2025-07-02T08:29:56.169502Z",
 #             "attributes": {
-#                 "completion_tokens": 31,
-#                 "prompt_tokens": 115,
-#                 "total_tokens": 475
+#                 "completion_tokens": 51,
+#                 "prompt_tokens": 72,
+#                 "total_tokens": 204
 #             }
 #         }
 #     ],
@@ -339,21 +437,21 @@ def check_span(spans):
 # {
 #     "name": "workflow",
 #     "context": {
-#         "trace_id": "0xa21354200bd96d48a85b3a62e498234b",
-#         "span_id": "0x9d521b9e427234f4",
+#         "trace_id": "0x119dfcbdc017d5d51fa402fd1fd12e6a",
+#         "span_id": "0x8bbc9be1407efc75",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
 #     "parent_id": null,
-#     "start_time": "2025-06-25T14:02:02.136262Z",
-#     "end_time": "2025-06-25T14:02:05.183003Z",
+#     "start_time": "2025-07-02T08:29:54.669424Z",
+#     "end_time": "2025-07-02T08:29:56.169696Z",
 #     "status": {
 #         "status_code": "OK"
 #     },
 #     "attributes": {
-#         "monocle_apptrace.version": "0.3.1",
+#         "monocle_apptrace.version": "0.4.0",
 #         "monocle_apptrace.language": "python",
-#         "span_source": "C:\\Users\\BHLP0106\\Desktop\\clone\\monocle\\checkvenv\\Lib\\site-packages\\google\\genai\\chats.py:259",
+#         "span_source": "/Users/kshitizvijayvargiya/monocle-ksh/.venv/lib/python3.11/site-packages/google/genai/chats.py:254",
 #         "span.type": "workflow",
 #         "entity.1.name": "gemini_app_1",
 #         "entity.1.type": "workflow.generic",

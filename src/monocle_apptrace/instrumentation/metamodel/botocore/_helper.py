@@ -73,7 +73,7 @@ def extract_assistant_message(arguments):
                 return get_exception_message(arguments)
             elif hasattr(arguments["result"], "error"):
                 return arguments["result"].error
-        return [str(message) for message in messages]
+        return [str(message) for message in messages][0] if messages else ""
     except Exception as e:
         logger.warning("Warning: Error occurred in extract_assistant_message: %s", str(e))
         return []

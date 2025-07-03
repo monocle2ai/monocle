@@ -55,25 +55,27 @@ def extract_assistant_message(arguments):
             messages.append({role: get_exception_message(arguments)})
         elif hasattr(arguments["result"], "error"):
             return arguments["result"].error
-
-    return [str(d) for d in messages]
-
+    return [str(message) for message in messages][0] if messages else ""
 
 def extract_provider_name(instance):
-    provider_url: Option[str] = None
-    if hasattr(instance,'client'):
+    provider_url: Option[str] = Option(None)
+    if hasattr(instance,'client') and hasattr(instance.client, '_client') and hasattr(instance.client._client, 'base_url'):
+        # If the client has a base_url, extract the host from it
         provider_url: Option[str] = try_option(getattr, instance.client._client.base_url, 'host')
-    if hasattr(instance, '_client'):
+    if hasattr(instance, '_client') and hasattr(instance._client, 'base_url'):
         provider_url = try_option(getattr, instance._client.base_url, 'host')
     return provider_url.unwrap_or(None)
 
 
 def extract_inference_endpoint(instance):
     inference_endpoint: Option[str] = None
-    if hasattr(instance,'client'):
+    # instance.client.meta.endpoint_url
+    if hasattr(instance, 'client') and hasattr(instance.client, 'meta') and hasattr(instance.client.meta, 'endpoint_url'):
+        inference_endpoint: Option[str] = try_option(getattr, instance.client.meta, 'endpoint_url').map(str)
+
+    if hasattr(instance,'client') and hasattr(instance.client, '_client'):
         inference_endpoint: Option[str] = try_option(getattr, instance.client._client, 'base_url').map(str)
-        if inference_endpoint.is_none() and "meta" in instance.client.__dict__:
-            inference_endpoint = try_option(getattr, instance.client.meta, 'endpoint_url').map(str)
+
     if hasattr(instance,'_client'):
         inference_endpoint = try_option(getattr, instance._client, 'base_url').map(str)
 

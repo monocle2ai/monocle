@@ -21,9 +21,24 @@ def extract_messages(kwargs):
     try:
         messages = []
         if 'instructions' in kwargs:
-            messages.append({'instructions': kwargs.get('instructions', {})})
+            messages.append({'system': kwargs.get('instructions', {})})
         if 'input' in kwargs:
-            messages.append({'input': kwargs.get('input', {})})
+            if isinstance(kwargs['input'], str): 
+                messages.append({'user': kwargs.get('input', "")})
+            # [
+            #     {
+            #         "role": "developer",
+            #         "content": "Talk like a pirate."
+            #     },
+            #     {
+            #         "role": "user",
+            #         "content": "Are semicolons optional in JavaScript?"
+            #     }
+            # ]
+            if isinstance(kwargs['input'], list):
+                for item in kwargs['input']:
+                    if isinstance(item, dict) and 'role' in item and 'content' in item:
+                        messages.append({item['role']: item['content']})
         if 'messages' in kwargs and len(kwargs['messages']) >0:
             for msg in kwargs['messages']:
                 if msg.get('content') and msg.get('role'):
@@ -39,7 +54,7 @@ def extract_assistant_message(arguments):
     try:
         messages = []
         status = get_status_code(arguments)
-        if status == 'success':
+        if status == 'success' or status == 'completed':
             response = arguments["result"]
             if hasattr(response, "output_text") and len(response.output_text):
                 role = response.role if hasattr(response, "role") else "assistant"
@@ -56,7 +71,7 @@ def extract_assistant_message(arguments):
                         else "assistant"
                     )
                     messages.append({role: response.choices[0].message.content})
-            return [str(message) for message in messages]
+            return [str(message) for message in messages][0] if messages else ""
         else:
             if arguments["exception"] is not None:
                 return get_exception_message(arguments)

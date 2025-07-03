@@ -180,6 +180,9 @@ def test_invalid_credentials(setup):
             assert "status_code" in events[0].attributes
             assert "UnrecognizedClientException" in events[0].attributes.get("response", "")
 
+if __name__ == "__main__":
+    pytest.main([__file__, "-s", "--tb=short"])
+
 # {
 #     "name": "langchain_core.vectorstores.base.VectorStoreRetriever",
 #     "context": {

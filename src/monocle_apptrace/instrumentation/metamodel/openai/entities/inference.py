@@ -19,8 +19,19 @@ logger = logging.getLogger(__name__)
 def _process_stream_item(item, state):
     """Process a single stream item and update state."""
     try:
-        if (
-            item.choices
+        if hasattr(item, "type") and isinstance(item.type, str) and item.type.startswith("response."):
+            if state["waiting_for_first_token"]:
+                state["waiting_for_first_token"] = False
+                state["first_token_time"] = time.time_ns()
+            if item.type == "response.output_text.delta":
+                state["accumulated_response"] += item.delta
+            if item.type == "response.completed":
+                state["stream_closed_time"] = time.time_ns()
+                if hasattr(item, "response") and hasattr(item.response, "usage"):
+                    state["token_usage"] = item.response.usage
+        elif (
+            hasattr(item, "choices")
+            and item.choices
             and item.choices[0].delta
             and item.choices[0].delta.content
         ):
@@ -31,7 +42,7 @@ def _process_stream_item(item, state):
                 state["first_token_time"] = time.time_ns()
 
             state["accumulated_response"] += item.choices[0].delta.content
-        elif item.object == "chat.completion.chunk" and item.usage:
+        elif hasattr(item, "object") and item.object == "chat.completion.chunk" and item.usage:
             # Handle the case where the response is a chunk
             state["token_usage"] = item.usage
             state["stream_closed_time"] = time.time_ns()

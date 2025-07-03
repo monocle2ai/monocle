@@ -6,14 +6,25 @@ from common.custom_exporter import CustomConsoleSpanExporter
 from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_anthropic import ChatAnthropic
+
+from tests.common.helpers import (
+    find_span_by_type,
+    find_spans_by_type,
+    verify_inference_span,
+    validate_inference_span_events,
+)
+
 custom_exporter = CustomConsoleSpanExporter()
+
 
 @pytest.fixture(scope="module")
 def setup():
     setup_monocle_telemetry(
-                workflow_name="langchain_app_1",
-                span_processors=[BatchSpanProcessor(custom_exporter)],
-                wrapper_methods=[])
+        workflow_name="langchain_app_1",
+        span_processors=[BatchSpanProcessor(custom_exporter)],
+        wrapper_methods=[],
+    )
+
 
 @pytest.mark.integration()
 def test_langchain_anthropic_sample(setup):
@@ -44,32 +55,61 @@ def test_langchain_anthropic_sample(setup):
         }
     )
     time.sleep(5)
-    print(ai_answer)
 
     spans = custom_exporter.get_captured_spans()
+    assert len(spans) > 0, "No spans captured for the LangChain Anthropic sample"
 
-    for span in spans:
-        span_attributes = span.attributes
+    workflow_span = None
 
-        if "span.type" in span_attributes and (
-            span_attributes["span.type"] == "inference" or span_attributes["span.type"] == "inference.framework"):
-            # Assertions for all inference attributes
+    inference_spans = find_spans_by_type(spans, "inference")
+    if not inference_spans:
+        # Also check for inference.framework spans
+        inference_spans = find_spans_by_type(spans, "inference.framework")
 
-            assert span_attributes["entity.1.type"] == "inference.anthropic"
-            assert "entity.1.provider_name" in span_attributes
-            assert "entity.1.inference_endpoint" in span_attributes
-            assert span_attributes["entity.2.name"] == "claude-3-5-sonnet-20240620"
-            assert span_attributes["entity.2.type"] == "model.llm.claude-3-5-sonnet-20240620"
+    assert len(inference_spans) > 0, "Expected to find at least one inference span"
 
-            # Assertions for metadata
-            span_input, span_output, span_metadata = span.events
-            assert "completion_tokens" in span_metadata.attributes
-            assert "prompt_tokens" in span_metadata.attributes
-            assert "total_tokens" in span_metadata.attributes
+    # Verify each inference span
+    for span in inference_spans:
+        verify_inference_span(
+            span=span,
+            entity_type="inference.anthropic",
+            model_name="claude-3-5-sonnet-20240620",
+            model_type="model.llm.claude-3-5-sonnet-20240620",
+            check_metadata=True,
+            check_input_output=True,
+        )
+    assert (
+        len(inference_spans) == 1
+    ), "Expected exactly one inference span for the LLM call"
 
-        if not span.parent and span.name == "workflow":
-            assert span_attributes["entity.1.name"] == "langchain_app_1"
-            assert span_attributes["entity.1.type"] == "workflow.langchain"
+    # Validate events using the generic function with regex patterns
+    validate_inference_span_events(
+        span=inference_spans[0],
+        expected_event_count=3,
+        input_patterns=[
+            r"^\{'system': '.+'\}$",  # Pattern for system message
+            r"^\{'human': '.+'\}$",  # Pattern for human message
+        ],
+        output_pattern=r"^\{'ai': \".+\"\}$",  # Pattern for AI response
+        metadata_requirements={
+            "temperature": float,
+            "completion_tokens": int,
+            "prompt_tokens": int,
+            "total_tokens": int,
+        },
+    )
+
+    workflow_span = find_span_by_type(spans, "workflow")
+
+    assert workflow_span is not None, "Expected to find workflow span"
+
+    assert workflow_span.attributes["span.type"] == "workflow"
+    assert workflow_span.attributes["entity.1.name"] == "langchain_app_1"
+    assert workflow_span.attributes["entity.1.type"] == "workflow.langchain"
+
+
+if __name__ == "__main__":
+    pytest.main([__file__, "-s", "--tb=short"])
 
 # {
 #     "name": "langchain_core.prompts.chat.ChatPromptTemplate",
@@ -170,9 +210,9 @@ def test_langchain_anthropic_sample(setup):
 #             "name": "data.output",
 #             "timestamp": "2025-04-17T07:52:41.351488Z",
 #             "attributes": {
-#                 "response": [
-#                     {'assistant': 'Here\'s the German translation:\n\nIch liebe Programmieren.'}
-#                 ]
+#                 "status": "success",
+#                 "status_code": "success",
+#                 "response": "{'ai': \"Here's the German translation:\\n\\nIch liebe Programmieren.\"}"
 #             }
 #         },
 #         {

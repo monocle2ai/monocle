@@ -30,11 +30,12 @@ def extract_messages(kwargs):
     """Extract system and user messages"""
     try:
         messages = []
+        if "system" in kwargs and isinstance(kwargs["system"], str):
+            messages.append({"system": kwargs["system"]})
         if 'messages' in kwargs and len(kwargs['messages']) >0:
             for msg in kwargs['messages']:
                 if msg.get('content') and msg.get('role'):
                     messages.append({msg['role']: msg['content']})
-
         return [str(message) for message in messages]
     except Exception as e:
         logger.warning("Warning: Error occurred in extract_messages: %s", str(e))
@@ -66,7 +67,8 @@ def extract_assistant_message(arguments):
             if response is not None and hasattr(response,"content") and len(response.content) >0:
                 if hasattr(response.content[0],"text"):
                     messages.append({role: response.content[0].text})
-            return [str(message) for message in messages]
+            # return first message if list is not empty
+            return [str(message) for message in messages][0] if messages else ""
         else:
             if arguments["exception"] is not None:
                 return get_exception_message(arguments)

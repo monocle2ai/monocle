@@ -105,7 +105,7 @@ def extract_assistant_message(arguments: Dict[str, Any]) -> str:
                 role = "assistant"
             # If the result is a chat completion with content
             messages.append({role: result.choices[0].message.content})
-        return [str(message) for message in messages]
+        return [str(message) for message in messages][0] if messages else ""
     except Exception as e:
         logger.warning(
             "Warning: Error occurred in extract_assistant_message: %s", str(e)

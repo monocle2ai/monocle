@@ -32,7 +32,7 @@ def extract_messages(kwargs):
                     if hasattr(part, 'text'):
                         messages.append({getattr(content, 'role', 'user'): part.text})
         elif isinstance(contents, str):
-            messages.append({'input': contents})
+            messages.append({'user': contents})
 
         return [str(message) for message in messages]
     except Exception as e:
@@ -54,7 +54,7 @@ def extract_assistant_message(arguments):
                 return get_exception_message(arguments)
             elif hasattr(arguments["result"], "error"):
                 return arguments["result"].error
-        return [str(message) for message in messages]
+        return [str(message) for message in messages][0] if messages else ""
     except (IndexError, AttributeError) as e:
         logger.warning("Warning: Error occurred in extract_assistant_message: %s", str(e))
         return None

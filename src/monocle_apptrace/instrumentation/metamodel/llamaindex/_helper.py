@@ -85,8 +85,7 @@ def extract_assistant_message(arguments):
         elif hasattr(arguments['result'], "error"):
             return arguments['result'].error
 
-    return [str(message) for message in messages]
-
+    return [str(message) for message in messages][0] if messages else ""
 
 def extract_query_from_content(content):
     try:

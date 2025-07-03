@@ -6,15 +6,24 @@ from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_t
 from llama_index.core.llms import ChatMessage
 from llama_index.llms.anthropic import Anthropic
 
+from tests.common.helpers import (
+    find_span_by_type,
+    find_spans_by_type,
+    validate_inference_span_events,
+    verify_inference_span,
+)
+
 custom_exporter = CustomConsoleSpanExporter()
+
 
 @pytest.fixture(scope="module")
 def setup():
     setup_monocle_telemetry(
         workflow_name="llama_index_1",
         span_processors=[BatchSpanProcessor(custom_exporter)],
-        wrapper_methods=[]
+        wrapper_methods=[],
     )
+
 
 @pytest.mark.integration()
 def test_llama_index_anthropic_sample(setup):
@@ -22,7 +31,7 @@ def test_llama_index_anthropic_sample(setup):
         ChatMessage(
             role="system", content="You are a pirate with a colorful personality"
         ),
-        ChatMessage(role="user", content="Tell me a story"),
+        ChatMessage(role="user", content="Tell me a story in 10 words"),
     ]
     llm = Anthropic(model="claude-3-5-sonnet-20240620")
 
@@ -32,63 +41,79 @@ def test_llama_index_anthropic_sample(setup):
     time.sleep(5)
     spans = custom_exporter.get_captured_spans()
 
-    llama_index_spans = [span for span in spans if span.name.startswith("llama")]
-    for span in llama_index_spans:
-        span_attributes = span.attributes
+    assert len(spans) > 0, "No spans captured for the LangChain Anthropic sample"
 
-        if "span.type" in span_attributes and (
-            span_attributes["span.type"] == "inference" or span_attributes["span.type"] == "inference.framework"):
-            # Assertions for all inference attributes
-            assert span_attributes["entity.1.type"] == "inference.anthropic"
-            assert "entity.1.provider_name" in span_attributes
-            assert "entity.1.inference_endpoint" in span_attributes
-            assert span_attributes["entity.2.name"] == "claude-3-5-sonnet-20240620"
-            assert span_attributes["entity.2.type"] == "model.llm.claude-3-5-sonnet-20240620"
+    inference_spans = find_spans_by_type(spans, "inference")
+    if not inference_spans:
+        # Also check for inference.framework spans
+        inference_spans = find_spans_by_type(spans, "inference.framework")
 
-            # Assertions for metadata
-            span_input, span_output, span_metadata = span.events
-            assert "completion_tokens" in span_metadata.attributes
-            assert "prompt_tokens" in span_metadata.attributes
-            assert "total_tokens" in span_metadata.attributes
-            
-            events = span.events
-            # find that there one data.input and data.output events
-            assert len(events) >= 2, "Expected at least two events for input and output"
-            data_input_event = [event for event in events if event.name == "data.input"][0]
-            data_output_event = [event for event in events if event.name == "data.output"][0]
-            assert data_input_event.name == "data.input"
-            assert data_output_event.name == "data.output"
-            assert "input" in data_input_event.attributes
-            assert "response" in data_output_event.attributes
-            assert "user" in data_input_event.attributes["input"][1]
-            assert "assistant" in data_output_event.attributes["response"][0]
-            assert "system" in data_input_event.attributes["input"][0]
-            assert "You are a pirate with a colorful personality'" in data_input_event.attributes["input"][0]
-            assert "Tell me a story" in data_input_event.attributes["input"][1]
-            
-        
+    assert len(inference_spans) > 0, "Expected to find at least one inference span"
+
+    # Verify each inference span
+    for span in inference_spans:
+        verify_inference_span(
+            span=span,
+            entity_type="inference.anthropic",
+            model_name="claude-3-5-sonnet-20240620",
+            model_type="model.llm.claude-3-5-sonnet-20240620",
+            check_metadata=True,
+            check_input_output=True,
+        )
+    assert (
+        len(inference_spans) == 1
+    ), "Expected exactly one inference span for the LLM call"
+
+    # Validate events using the generic function with regex patterns
+    validate_inference_span_events(
+        span=inference_spans[0],
+        expected_event_count=3,
+        input_patterns=[
+            r"^\{'system': '.+'\}$",  # Pattern for system message
+            r"^\{'user': '.+'\}$",  # Pattern for user message
+        ],
+        output_pattern=r"^\{'assistant': \".+\"\}$",  # Pattern for assistant response
+        metadata_requirements={
+            "temperature": float,
+            "completion_tokens": int,
+            "prompt_tokens": int,
+            "total_tokens": int,
+        },
+    )
+    # pick the last span as there is are two workflow spans:
+    # one for openai embedding one for llamaindex query
+    workflow_span = find_span_by_type(spans, "workflow")
+
+    assert workflow_span is not None, "Expected to find workflow span"
+
+    assert workflow_span.attributes["span.type"] == "workflow"
+    assert workflow_span.attributes["entity.1.name"] == "llama_index_1"
+    assert workflow_span.attributes["entity.1.type"] == "workflow.llamaindex"
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-s", "--tb=short"])
 
 # {
 #     "name": "anthropic.resources.messages.messages.Messages",
 #     "context": {
-#         "trace_id": "0x7ab43b043c1aa01f1c8c1d5b22adb6ff",
-#         "span_id": "0x8959543cd1720205",
+#         "trace_id": "0xa3596e9a520629d8593e58a3fc7f7906",
+#         "span_id": "0xb20d818676f27716",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0xed9bc4b4b808a5aa",
-#     "start_time": "2025-04-23T17:25:05.034521Z",
-#     "end_time": "2025-04-23T17:25:12.501520Z",
+#     "parent_id": "0x6dd852b403c2eedf",
+#     "start_time": "2025-07-02T16:15:03.906536Z",
+#     "end_time": "2025-07-02T16:15:06.464481Z",
 #     "status": {
 #         "status_code": "OK"
 #     },
 #     "attributes": {
-#         "monocle_apptrace.version": "0.3.0",
+#         "monocle_apptrace.version": "0.4.0",
 #         "monocle_apptrace.language": "python",
+#         "span_source": "/Users/kshitizvijayvargiya/monocle-ksh/.venv/lib/python3.11/site-packages/llama_index/llms/anthropic/base.py:352",
 #         "workflow.name": "llama_index_1",
-#         "span.type": "generic"
+#         "span.type": "inference.modelapi"
 #     },
 #     "events": [],
 #     "links": [],
@@ -102,22 +127,23 @@ if __name__ == "__main__":
 # {
 #     "name": "llama_index.llms.anthropic.base.Anthropic",
 #     "context": {
-#         "trace_id": "0x7ab43b043c1aa01f1c8c1d5b22adb6ff",
-#         "span_id": "0xed9bc4b4b808a5aa",
+#         "trace_id": "0xa3596e9a520629d8593e58a3fc7f7906",
+#         "span_id": "0x6dd852b403c2eedf",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0xaeb53d7404840d1e",
-#     "start_time": "2025-04-23T17:25:05.034521Z",
-#     "end_time": "2025-04-23T17:25:12.502521Z",
+#     "parent_id": "0x0ff2fb9e9cada346",
+#     "start_time": "2025-07-02T16:15:03.905191Z",
+#     "end_time": "2025-07-02T16:15:06.464850Z",
 #     "status": {
 #         "status_code": "OK"
 #     },
 #     "attributes": {
-#         "monocle_apptrace.version": "0.3.0",
+#         "monocle_apptrace.version": "0.4.0",
 #         "monocle_apptrace.language": "python",
+#         "span_source": "/Users/kshitizvijayvargiya/monocle-ksh/tests/integration/test_llamaindex_anthropic_sample.py:31",
 #         "workflow.name": "llama_index_1",
-#         "span.type": "inference",
+#         "span.type": "inference.framework",
 #         "entity.1.type": "inference.anthropic",
 #         "entity.1.provider_name": "api.anthropic.com",
 #         "entity.1.inference_endpoint": "https://api.anthropic.com",
@@ -128,32 +154,31 @@ if __name__ == "__main__":
 #     "events": [
 #         {
 #             "name": "data.input",
-#             "timestamp": "2025-04-23T17:25:12.502521Z",
+#             "timestamp": "2025-07-02T16:15:06.464806Z",
 #             "attributes": {
 #                 "input": [
 #                     "{'system': 'You are a pirate with a colorful personality'}",
-#                     "{'user': 'Tell me a story'}",
-#                     "[ChatMessage(role=<MessageRole.SYSTEM: 'system'>, additional_kwargs={}, blocks=[TextBlock(block_type='text', text='You are a pirate with a colorful personality')]), ChatMessage(role=<MessageRole.USER: 'user'>, additional_kwargs={}, blocks=[TextBlock(block_type='text', text='Tell me a story')])]"
+#                     "{'user': 'Tell me a story in 10 words'}"
 #                 ]
 #             }
 #         },
 #         {
 #             "name": "data.output",
-#             "timestamp": "2025-04-23T17:25:12.502521Z",
+#             "timestamp": "2025-07-02T16:15:06.464829Z",
 #             "attributes": {
-#                 "response": [
-#                     "Ahoy there, matey! Gather 'round and listen close, for I've got a tale that'll make yer bones rattle and yer teeth chatter!\n\n'Twas a dark and stormy night, the kind that makes even the bravest of sea dogs quiver in their boots. Me ship, the Salty Siren, was battlin' against waves as tall as mountains and winds that howled like banshees.\n\nAs we fought to keep our vessel afloat, a flash of lightnin' lit up the sky, and there, off the starboard bow, we spied a ghostly galleon emergin' from the mist. Its sails were tattered and its hull was covered in barnacles, but it moved with an unnatural speed.\n\nMe crew and I watched in horror as the phantom ship drew closer. Just as we thought all hope was lost, I remembered the enchanted compass I'd won in a game of chance in Tortuga. With a steady hand, I held it aloft and shouted a secret incantation.\n\nIn the blink of an eye, the compass began to glow with an eerie blue light. The ghostly ship suddenly veered away, disappearin' back into the mist from whence it came.\n\nAs the storm began to calm, me crew let out a cheer that could be heard for leagues. We'd faced death itself and lived to tell the tale!\n\nAnd that, me hearties, is why ye should never sail these treacherous waters without a bit o' magic in yer pocket. Now, who's buyin' the next round of grog?"
-#                 ]
+#                 "status": "success",
+#                 "status_code": "success",
+#                 "response": "{'assistant': \"Arrr, ye scurvy dog! Here be a tale in ten words:\\n\\nTreasure map led to cursed gold. Crew mutinied. Captain's revenge sweet.\"}"
 #             }
 #         },
 #         {
 #             "name": "metadata",
-#             "timestamp": "2025-04-23T17:25:12.502521Z",
+#             "timestamp": "2025-07-02T16:15:06.464845Z",
 #             "attributes": {
 #                 "temperature": 0.1,
-#                 "completion_tokens": 361,
-#                 "prompt_tokens": 21,
-#                 "total_tokens": 382
+#                 "completion_tokens": 42,
+#                 "prompt_tokens": 26,
+#                 "total_tokens": 68
 #             }
 #         }
 #     ],
@@ -168,20 +193,21 @@ if __name__ == "__main__":
 # {
 #     "name": "workflow",
 #     "context": {
-#         "trace_id": "0x7ab43b043c1aa01f1c8c1d5b22adb6ff",
-#         "span_id": "0xaeb53d7404840d1e",
+#         "trace_id": "0xa3596e9a520629d8593e58a3fc7f7906",
+#         "span_id": "0x0ff2fb9e9cada346",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
 #     "parent_id": null,
-#     "start_time": "2025-04-23T17:25:05.033484Z",
-#     "end_time": "2025-04-23T17:25:12.502521Z",
+#     "start_time": "2025-07-02T16:15:03.905133Z",
+#     "end_time": "2025-07-02T16:15:06.464857Z",
 #     "status": {
 #         "status_code": "OK"
 #     },
 #     "attributes": {
-#         "monocle_apptrace.version": "0.3.0",
+#         "monocle_apptrace.version": "0.4.0",
 #         "monocle_apptrace.language": "python",
+#         "span_source": "/Users/kshitizvijayvargiya/monocle-ksh/tests/integration/test_llamaindex_anthropic_sample.py:31",
 #         "span.type": "workflow",
 #         "entity.1.name": "llama_index_1",
 #         "entity.1.type": "workflow.llamaindex",

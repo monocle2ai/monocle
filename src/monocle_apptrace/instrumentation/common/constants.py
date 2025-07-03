@@ -57,6 +57,7 @@ llm_type_map = {
     "chatcompletionsclient": "azure_ai_inference",
     "embeddingsclient": "azure_ai_inference",
     "imageembeddingsclient": "azure_ai_inference",
+    "chatbedrockconverse": "aws_bedrock",
 }
 
 MONOCLE_INSTRUMENTOR = "monocle_apptrace"

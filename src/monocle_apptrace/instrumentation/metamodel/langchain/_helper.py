@@ -33,6 +33,10 @@ def extract_messages(args):
                 for msg in args[0].messages:
                     if hasattr(msg, 'content') and hasattr(msg, 'type'):
                         messages.append({msg.type: msg.content})
+            else:
+                for msg in args[0]:
+                    if hasattr(msg, 'content') and hasattr(msg, 'type'):
+                        messages.append({msg.type: msg.content})
         return [get_json_dumps(d) for d in messages]
     except Exception as e:
         logger.warning("Warning: Error occurred in extract_messages: %s", str(e))
@@ -40,16 +44,16 @@ def extract_messages(args):
 
 def extract_assistant_message(arguments):
     status = get_status_code(arguments)
-    # response: str = ""
     messages = []
     role = "assistant"
     if status == 'success':
         if isinstance(arguments['result'], str):
             messages.append({role: arguments['result']})
-        if hasattr(arguments['result'], "content"):
+        elif hasattr(arguments['result'], "content") and arguments['result'].content != "":
             role = arguments['result'].type if hasattr(arguments['result'], 'type') else role
             messages.append({role: arguments['result'].content})
-        if hasattr(arguments['result'], "message") and hasattr(arguments['result'].message, "content"):
+        elif hasattr(arguments['result'], "message") and hasattr(arguments['result'].message, "content") and arguments['result'].message.content != "":
+            role = arguments['result'].type if hasattr(arguments['result'], 'type') else role
             messages.append({role: arguments['result'].message.content})
     else:
         if arguments["exception"] is not None:

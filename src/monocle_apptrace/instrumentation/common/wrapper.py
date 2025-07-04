@@ -52,7 +52,7 @@ def get_span_name(to_wrap, instance):
     if to_wrap.get("span_name"):
         name = to_wrap.get("span_name")
     else:
-        name = get_fully_qualified_class_name(instance)
+        name = to_wrap.get("package", "") + "." + to_wrap.get("object", "") + "." + to_wrap.get("method", "")
     return name
 
 def monocle_wrapper_span_processor(tracer: Tracer, handler: SpanHandler, to_wrap, wrapped, instance, source_path, add_workflow_span, args, kwargs):

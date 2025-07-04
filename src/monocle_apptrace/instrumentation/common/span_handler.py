@@ -20,7 +20,7 @@ WORKFLOW_TYPE_MAP = {
     "langchain": "workflow.langchain",
     "haystack": "workflow.haystack",
     "teams.ai": "workflow.teams_ai",
-    "langgraph": "agentic.langgraph",
+    "langgraph": "workflow.langgraph",
 }
 
 class SpanHandler:

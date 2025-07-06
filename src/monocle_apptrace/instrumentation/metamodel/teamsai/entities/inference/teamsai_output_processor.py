@@ -44,7 +44,7 @@ TEAMAI_OUTPUT_PROCESSOR = {
             "attributes": [
                 {
                     "attribute": "input",
-                    "accessor": _helper.capture_input
+                    "accessor": _helper.extract_messages
                 }
             ]
         },
@@ -62,7 +62,7 @@ TEAMAI_OUTPUT_PROCESSOR = {
                 },
                 {
                     "attribute": "response",
-                    "accessor": lambda arguments: _helper.get_response(arguments)
+                    "accessor": lambda arguments: _helper.extract_assistant_message(arguments)
                 },
                 {
                     "attribute": "check_status",

@@ -6,6 +6,7 @@ and assistant messages from various input formats.
 import logging
 from monocle_apptrace.instrumentation.common.utils import (
     Option,
+    get_json_dumps,
     get_keys_as_tuple,
     get_nested_value,
     try_option,
@@ -32,45 +33,50 @@ def extract_messages(args):
                 for msg in args[0].messages:
                     if hasattr(msg, 'content') and hasattr(msg, 'type'):
                         messages.append({msg.type: msg.content})
-        return [str(d) for d in messages]
+        return [get_json_dumps(d) for d in messages]
     except Exception as e:
         logger.warning("Warning: Error occurred in extract_messages: %s", str(e))
         return []
 
 def extract_assistant_message(arguments):
     status = get_status_code(arguments)
-    response: str = ""
+    # response: str = ""
+    messages = []
+    role = "assistant"
     if status == 'success':
         if isinstance(arguments['result'], str):
-            response = arguments['result']
+            messages.append({role: arguments['result']})
         if hasattr(arguments['result'], "content"):
-            response = arguments['result'].content
+            role = arguments['result'].type if hasattr(arguments['result'], 'type') else role
+            messages.append({role: arguments['result'].content})
         if hasattr(arguments['result'], "message") and hasattr(arguments['result'].message, "content"):
-            response =  arguments['result'].message.content
+            messages.append({role: arguments['result'].message.content})
     else:
         if arguments["exception"] is not None:
-            response = get_exception_message(arguments)
+            messages.append({role: get_exception_message(arguments)})
         elif hasattr(arguments["result"], "error"):
-            response = arguments["result"].error
-
-    return response
-
+            return arguments["result"].error
+    return get_json_dumps(messages[0]) if messages else ""
 
 def extract_provider_name(instance):
-    provider_url: Option[str] = None
-    if hasattr(instance,'client'):
+    provider_url: Option[str] = Option(None)
+    if hasattr(instance,'client') and hasattr(instance.client, '_client') and hasattr(instance.client._client, 'base_url'):
+        # If the client has a base_url, extract the host from it
         provider_url: Option[str] = try_option(getattr, instance.client._client.base_url, 'host')
-    if hasattr(instance, '_client'):
+    if hasattr(instance, '_client') and hasattr(instance._client, 'base_url'):
         provider_url = try_option(getattr, instance._client.base_url, 'host')
     return provider_url.unwrap_or(None)
 
 
 def extract_inference_endpoint(instance):
     inference_endpoint: Option[str] = None
-    if hasattr(instance,'client'):
+    # instance.client.meta.endpoint_url
+    if hasattr(instance, 'client') and hasattr(instance.client, 'meta') and hasattr(instance.client.meta, 'endpoint_url'):
+        inference_endpoint: Option[str] = try_option(getattr, instance.client.meta, 'endpoint_url').map(str)
+
+    if hasattr(instance,'client') and hasattr(instance.client, '_client'):
         inference_endpoint: Option[str] = try_option(getattr, instance.client._client, 'base_url').map(str)
-        if inference_endpoint.is_none() and "meta" in instance.client.__dict__:
-            inference_endpoint = try_option(getattr, instance.client.meta, 'endpoint_url').map(str)
+
     if hasattr(instance,'_client'):
         inference_endpoint = try_option(getattr, instance._client, 'base_url').map(str)
 

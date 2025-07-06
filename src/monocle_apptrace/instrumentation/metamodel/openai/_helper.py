@@ -6,6 +6,7 @@ and assistant messages from various input formats.
 import logging
 from monocle_apptrace.instrumentation.common.utils import (
     Option,
+    get_json_dumps,
     try_option,
     get_exception_message,
     get_parent_span,
@@ -21,15 +22,30 @@ def extract_messages(kwargs):
     try:
         messages = []
         if 'instructions' in kwargs:
-            messages.append({'instructions': kwargs.get('instructions', {})})
+            messages.append({'system': kwargs.get('instructions', {})})
         if 'input' in kwargs:
-            messages.append({'input': kwargs.get('input', {})})
+            if isinstance(kwargs['input'], str): 
+                messages.append({'user': kwargs.get('input', "")})
+            # [
+            #     {
+            #         "role": "developer",
+            #         "content": "Talk like a pirate."
+            #     },
+            #     {
+            #         "role": "user",
+            #         "content": "Are semicolons optional in JavaScript?"
+            #     }
+            # ]
+            if isinstance(kwargs['input'], list):
+                for item in kwargs['input']:
+                    if isinstance(item, dict) and 'role' in item and 'content' in item:
+                        messages.append({item['role']: item['content']})
         if 'messages' in kwargs and len(kwargs['messages']) >0:
             for msg in kwargs['messages']:
                 if msg.get('content') and msg.get('role'):
                     messages.append({msg['role']: msg['content']})
 
-        return [str(message) for message in messages]
+        return [get_json_dumps(message) for message in messages]
     except Exception as e:
         logger.warning("Warning: Error occurred in extract_messages: %s", str(e))
         return []
@@ -37,24 +53,38 @@ def extract_messages(kwargs):
 
 def extract_assistant_message(arguments):
     try:
+        messages = []
         status = get_status_code(arguments)
-        response: str = ""
-        if status == 'success':
+        if status == 'success' or status == 'completed':
             response = arguments["result"]
-            if hasattr(response,"output_text") and len(response.output_text):
-                return response.output_text
-            if response is not None and hasattr(response,"choices") and len(response.choices) >0:
-                if hasattr(response.choices[0],"message"):
-                    return response.choices[0].message.content
+            if hasattr(response, "output_text") and len(response.output_text):
+                role = response.role if hasattr(response, "role") else "assistant"
+                messages.append({role: response.output_text})
+            if (
+                response is not None
+                and hasattr(response, "choices")
+                and len(response.choices) > 0
+            ):
+                if hasattr(response.choices[0], "message"):
+                    role = (
+                        response.choices[0].message.role
+                        if hasattr(response.choices[0].message, "role")
+                        else "assistant"
+                    )
+                    messages.append({role: response.choices[0].message.content})
+            return get_json_dumps(messages[0]) if messages else ""
         else:
             if arguments["exception"] is not None:
-                response = get_exception_message(arguments)
+                return get_exception_message(arguments)
             elif hasattr(arguments["result"], "error"):
-                response = arguments["result"].error
-        return response
+                return arguments["result"].error
+        
     except (IndexError, AttributeError) as e:
-        logger.warning("Warning: Error occurred in extract_assistant_message: %s", str(e))
+        logger.warning(
+            "Warning: Error occurred in extract_assistant_message: %s", str(e)
+        )
         return None
+
 
 def extract_provider_name(instance):
     provider_url: Option[str] = try_option(getattr, instance._client.base_url, 'host')

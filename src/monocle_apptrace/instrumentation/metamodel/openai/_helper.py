@@ -13,16 +13,12 @@ from monocle_apptrace.instrumentation.common.utils import (
     get_status_code,
 )
 from monocle_apptrace.instrumentation.common.span_handler import NonFrameworkSpanHandler, WORKFLOW_TYPE_MAP
+from monocle_apptrace.instrumentation.metamodel.finish_types import (
+    map_openai_finish_reason_to_finish_type,
+    OPENAI_FINISH_REASON_MAPPING
+)
 
 logger = logging.getLogger(__name__)
-
-finish_reason_mapping = {
-    "stop": "success",
-    "tool_calls": "success", 
-    "function_call": "success",  # deprecated but still possible
-    "length": "truncated",
-    "content_filter": "content_filter"
-}
 
 def extract_messages(kwargs):
     """Extract system and user messages"""
@@ -186,7 +182,7 @@ def extract_finish_reason(arguments):
     """Extract finish_reason from OpenAI response"""
     try:
         if arguments["exception"] is not None:
-            if hasattr(arguments["exception"], "code") and arguments["exception"].code in finish_reason_mapping.keys():
+            if hasattr(arguments["exception"], "code") and arguments["exception"].code in OPENAI_FINISH_REASON_MAPPING.keys():
                 return arguments["exception"].code
         response = arguments["result"]
         
@@ -205,10 +201,4 @@ def extract_finish_reason(arguments):
 
 def map_finish_reason_to_finish_type(finish_reason):
     """Map OpenAI finish_reason to finish_type based on the possible errors mapping"""
-    if not finish_reason:
-        return None
-    
-    # Map OpenAI finish reasons to finish types based on the provided mapping
-
-    
-    return finish_reason_mapping.get(finish_reason, None)
+    return map_openai_finish_reason_to_finish_type(finish_reason)

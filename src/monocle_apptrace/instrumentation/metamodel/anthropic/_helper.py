@@ -13,6 +13,7 @@ from monocle_apptrace.instrumentation.common.utils import (
     try_option,
     get_exception_message,
 )
+from monocle_apptrace.instrumentation.metamodel.finish_types import map_anthropic_finish_reason_to_finish_type
 
 
 logger = logging.getLogger(__name__)
@@ -109,14 +110,4 @@ def extract_finish_reason(arguments):
 
 def map_finish_reason_to_finish_type(finish_reason):
     """Map Anthropic stop_reason to finish_type, similar to OpenAI mapping."""
-    if not finish_reason:
-        return None
-    finish_reason_mapping = {
-        "end_turn": "success",         # Natural completion
-        "max_tokens": "truncated",     # Hit max_tokens limit
-        "stop_sequence": "success",    # Hit user stop sequence
-        "tool_use": "success",         # Tool use triggered
-        "pause_turn": "success",       # Paused for tool or server action
-        "refusal": "refusal",          # Refused for safety/ethics
-    }
-    return finish_reason_mapping.get(finish_reason, None)
+    return map_anthropic_finish_reason_to_finish_type(finish_reason)

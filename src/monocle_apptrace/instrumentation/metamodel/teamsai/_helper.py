@@ -1,5 +1,5 @@
 import logging
-from monocle_apptrace.instrumentation.common.utils import MonocleSpanException
+from monocle_apptrace.instrumentation.common.utils import MonocleSpanException, get_json_dumps
 from monocle_apptrace.instrumentation.common.utils import (
     Option,
     get_keys_as_tuple,
@@ -11,7 +11,7 @@ from monocle_apptrace.instrumentation.common.utils import (
 
 logger = logging.getLogger(__name__)
 
-def capture_input(arguments):
+def extract_messages(arguments):
     """
     Captures the input from Teams AI state.
     Args:
@@ -47,7 +47,7 @@ def capture_input(arguments):
         if hasattr(context, "activity") and hasattr(context.activity, "text"):
             messages.append({'user': str(context.activity.text)})
 
-        return [str(message) for message in messages]
+        return [get_json_dumps(message) for message in messages]
     except Exception as e:
         print(f"Debug - Arguments structure: {str(arguments)}")
         print(f"Debug - kwargs: {str(kwargs)}")
@@ -120,21 +120,22 @@ def get_status(arguments):
         return 'success'
     else:
         return 'error'
-    
-def get_response(arguments) -> str:
+
+def extract_assistant_message(arguments) -> str:
     status = get_status_code(arguments)
-    response:str = ""
+    messages = []
+    role = "assistant"
     if status == 'success':
         if hasattr(arguments["result"], "message"):
-            response = arguments["result"].message.content 
+            messages.append({role: arguments["result"].message.content})
         else:
-            response = str(arguments["result"])
+            messages.append({role: str(arguments["result"])})
     else:
         if arguments["exception"] is not None:
-            response = get_exception_message(arguments)
+            return get_exception_message(arguments)
         elif hasattr(arguments["result"], "error"):
-            response = arguments["result"].error
-    return response
+            return arguments["result"].error
+    return get_json_dumps(messages[0]) if messages else ""
 
 def check_status(arguments):
     status = get_status_code(arguments)

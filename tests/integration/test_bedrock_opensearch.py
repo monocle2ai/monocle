@@ -11,6 +11,7 @@ from langchain_community.vectorstores import OpenSearchVectorSearch
 from opensearchpy import RequestsHttpConnection
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
 from requests_aws4auth import AWS4Auth
+from monocle_apptrace.instrumentation.common.utils import logger
 
 from monocle_apptrace.instrumentation.common.instrumentor import (
     set_context_properties,
@@ -18,6 +19,12 @@ from monocle_apptrace.instrumentation.common.instrumentor import (
 )
 from monocle_apptrace.instrumentation.metamodel.botocore.handlers.botocore_span_handler import BotoCoreSpanHandler
 custom_exporter = CustomConsoleSpanExporter()
+
+@pytest.fixture(autouse=True)
+def clear_spans():
+    """Clear spans before each test"""
+    custom_exporter.reset()
+    yield
 
 @pytest.fixture(scope="module")
 def setup():
@@ -137,6 +144,44 @@ def search_similar_documents_opensearch(query):
     docs = retriever.get_relevant_documents(query)
     print(f"Retrieved docs: {docs}")
     return [doc.page_content for doc in docs]
+
+@pytest.mark.integration()
+def test_invalid_credentials(setup):
+    try:
+        boto3.setup_default_session(
+            aws_access_key_id='invalid_key',
+            aws_secret_access_key='invalid_secret',
+            region_name='us-east-1'
+        )
+
+        client = boto3.client("bedrock-runtime")
+        query="how?"
+        user_message = f' Answer this Query: {query}'
+        conversation = [
+            {
+                "role": "user",
+                "content": [{"text": user_message}],
+            }
+        ]
+        response = client.converse(
+            modelId="anthropic.claude-v2:1",
+            messages=conversation,
+            inferenceConfig={"maxTokens": 512}
+        )
+    except ClientError as e:
+        logger.error("Authentication error: %s", str(e))
+    spans = custom_exporter.get_captured_spans()
+    time.sleep(5)
+    for span in spans:
+        if 'span.type' in span.attributes and span.attributes["span.type"] == "inference":
+            events = [e for e in span.events if e.name == "data.output"]
+            assert len(events) > 0
+            assert events[0].attributes["status"] == "error"
+            assert "status_code" in events[0].attributes
+            assert "UnrecognizedClientException" in events[0].attributes.get("response", "")
+
+if __name__ == "__main__":
+    pytest.main([__file__, "-s", "--tb=short"])
 
 # {
 #     "name": "langchain_core.vectorstores.base.VectorStoreRetriever",

@@ -8,7 +8,7 @@ import json
 from io import BytesIO
 from functools import wraps
 from monocle_apptrace.instrumentation.common.span_handler import SpanHandler
-
+from monocle_apptrace.instrumentation.common.utils import ( get_exception_message, get_json_dumps,)
 logger = logging.getLogger(__name__)
 
 
@@ -25,29 +25,55 @@ def extract_messages(args):
                 role = args['messages'][0]['role']
                 user_message = extract_query_from_content(args['messages'][0]['content'][0]['text'])
                 messages.append({role: user_message})
-        return [str(d) for d in messages]
+        return [get_json_dumps(message) for message in messages]
     except Exception as e:
         logger.warning("Warning: Error occurred in extract_messages: %s", str(e))
         return []
 
+def get_exception_status_code(arguments):
+    if arguments['exception'] is not None and hasattr(arguments['exception'], 'response') and arguments['exception'].response is not None:
+        if "ResponseMetadata" in arguments['exception'].response and "HTTPStatusCode" in arguments['exception'].response["ResponseMetadata"]:
+            return arguments['exception'].response["ResponseMetadata"]["HTTPStatusCode"]
+    elif arguments['exception'] is not None:
+        return 'error'
+    else:
+        return 'success'
 
-def extract_assistant_message(response):
+def get_status_code(arguments):
+    if arguments["exception"] is not None:
+        return get_exception_status_code(arguments)
+    elif hasattr(arguments["result"], "status"):
+        return arguments["result"].status
+    else:
+        return 'success'
+
+def extract_assistant_message(arguments):
     try:
-        if "Body" in response and hasattr(response['Body'], "_raw_stream"):
-            raw_stream = getattr(response['Body'], "_raw_stream")
-            if hasattr(raw_stream, "data"):
-                response_bytes = getattr(raw_stream, "data")
-                response_str = response_bytes.decode('utf-8')
-                response_dict = json.loads(response_str)
-                response['Body'] = BytesIO(response_bytes)
-                return [response_dict["answer"]]
-        if "output" in response:
-            output = response.get("output", {})
-            message = output.get("message", {})
-            content = message.get("content", [])
-            if isinstance(content, list) and len(content) > 0 and "text" in content[0]:
-                reply = content[0]["text"]
-                return [reply]
+        status = get_status_code(arguments)
+        messages = []
+        role = "assistant"
+        if status == 'success':
+            if "Body" in arguments['result'] and hasattr(arguments['result']['Body'], "_raw_stream"):
+                raw_stream = getattr(arguments['result']['Body'], "_raw_stream")
+                if hasattr(raw_stream, "data"):
+                    response_bytes = getattr(raw_stream, "data")
+                    response_str = response_bytes.decode('utf-8')
+                    response_dict = json.loads(response_str)
+                    arguments['result']['Body'] = BytesIO(response_bytes)
+                    messages.append({role: response_dict["answer"]})
+            if "output" in arguments['result']:
+                output = arguments['result'].get("output", {})
+                message = output.get("message", {})
+                content = message.get("content", [])
+                if isinstance(content, list) and len(content) > 0 and "text" in content[0]:
+                    reply = content[0]["text"]
+                    messages.append({role: reply})
+        else:
+            if arguments["exception"] is not None:
+                return get_exception_message(arguments)
+            elif hasattr(arguments["result"], "error"):
+                return arguments["result"].error
+        return get_json_dumps(messages[0]) if messages else ""
     except Exception as e:
         logger.warning("Warning: Error occurred in extract_assistant_message: %s", str(e))
         return []

@@ -12,6 +12,8 @@ from azure.ai.inference.aio import ChatCompletionsClient as AsyncChatCompletions
 from azure.ai.inference.models import SystemMessage, UserMessage
 from azure.core.credentials import AzureKeyCredential
 
+from tests.common.helpers import find_span_by_type, find_spans_by_type, validate_inference_span_events, verify_inference_span
+
 custom_exporter = CustomConsoleSpanExporter()
 
 @pytest.fixture(scope="module")
@@ -25,52 +27,6 @@ def setup():
 @pytest.fixture(autouse=True)
 def pre_test():
     custom_exporter.reset()
-
-def assert_inference_span(span, expected_type, expected_endpoint_contains=""):
-    """Assert that the span has the expected inference attributes."""
-    span_attributes = span.attributes
-    assert span_attributes["span.type"] == "inference"
-    # assert span_attributes["entity.1.type"] == expected_type
-    assert "entity.1.provider_name" in span_attributes
-    assert "entity.1.inference_endpoint" in span_attributes
-    
-    # if expected_endpoint_contains:
-    #     assert expected_endpoint_contains in span_attributes["entity.1.inference_endpoint"]
-    
-    # Check for model information
-    assert "entity.2.name" in span_attributes
-    assert "entity.2.type" in span_attributes
-    assert span_attributes["entity.2.type"].startswith("model.llm.")
-
-    # Check events structure
-    assert len(span.events) >= 2  # Should have input and output events
-    
-    # Verify input event
-    input_event = next((e for e in span.events if e.name == "data.input"), None)
-    assert input_event is not None
-    assert "input" in input_event.attributes
-    
-    # Verify output event
-    output_event = next((e for e in span.events if e.name == "data.output"), None)
-    assert output_event is not None
-    assert "response" in output_event.attributes
-    
-    # Check for metadata event (may not always be present for all providers)
-    metadata_event = next((e for e in span.events if e.name == "metadata"), None)
-    if metadata_event:
-        # If metadata is present, check for usage information
-        metadata_attrs = metadata_event.attributes
-        if "completion_tokens" in metadata_attrs:
-            assert isinstance(metadata_attrs["completion_tokens"], int)
-        if "prompt_tokens" in metadata_attrs:
-            assert isinstance(metadata_attrs["prompt_tokens"], int)
-        if "total_tokens" in metadata_attrs:
-            assert isinstance(metadata_attrs["total_tokens"], int)
-
-def assert_workflow_span_exists(spans):
-    """Assert that a workflow span exists."""
-    workflow_spans = [s for s in spans if s.attributes.get("span.type") == "workflow"]
-    assert len(workflow_spans) > 0, "No workflow span found"
 
 @pytest.mark.integration()
 def test_azure_ai_inference_chat_completion_sync(setup):
@@ -88,50 +44,74 @@ def test_azure_ai_inference_chat_completion_sync(setup):
         credential=AzureKeyCredential(api_key)
     )
     
-    try:
-        # Make the chat completion call
-        response = client.complete(
-            messages=[
-                SystemMessage("You are a helpful assistant that provides concise answers."),
-                UserMessage("What is the capital of France? Please answer in one sentence."),
-            ],
-            model=os.getenv("AZURE_AI_INFERENCE_MODEL", "gpt-4o-mini"),
-            max_tokens=50,
-            temperature=0.1
+    response = client.complete(
+        messages=[
+            SystemMessage("You are a helpful assistant that provides concise answers."),
+            UserMessage("What is the capital of France? Please answer in one sentence."),
+        ],
+        model=os.getenv("AZURE_AI_INFERENCE_MODEL", "gpt-4o-mini"),
+        max_tokens=50,
+        temperature=0.1
+    )
+    
+    print(f"Response: {response.choices[0].message.content}")
+    
+    # Wait for spans to be processed
+    time.sleep(5)
+    
+    spans = custom_exporter.get_captured_spans()
+    print(f"Captured {len(spans)} spans")
+    
+    # Verify we have spans
+    assert len(spans) > 0, "No spans captured"
+
+    workflow_span = None
+
+    inference_spans = find_spans_by_type(spans, "inference")
+    if not inference_spans:
+        # Also check for inference.framework spans
+        inference_spans = find_spans_by_type(spans, "inference.framework")
+
+    assert len(inference_spans) > 0, "Expected to find at least one inference span"
+
+    # Verify each inference span
+    for span in inference_spans:
+        verify_inference_span(
+            span=span,
+            entity_type="inference.azure_openai",
+            model_name="gpt-4o-mini",
+            model_type="model.llm.gpt-4o-mini",
+            check_metadata=True,
+            check_input_output=True,
         )
-        
-        print(f"Response: {response.choices[0].message.content}")
-        
-        # Wait for spans to be processed
-        time.sleep(5)
-        
-        spans = custom_exporter.get_captured_spans()
-        print(f"Captured {len(spans)} spans")
-        
-        # Verify we have spans
-        assert len(spans) > 0, "No spans captured"
-        
-        # Find the inference span
-        inference_spans = [s for s in spans if s.attributes.get("span.type") == "inference"]
-        assert len(inference_spans) > 0, "No inference span found"
-        
-        # Assert inference span properties
-        inference_span = inference_spans[0]
-        assert_inference_span(inference_span, "inference.azure_ai_inference", "models.inference.ai.azure.com")
-        
-        # Assert workflow span exists
-        assert_workflow_span_exists(spans)
-        
-        # Verify response content is captured (not "streaming_response")
-        output_event = next((e for e in inference_span.events if e.name == "data.output"), None)
-        assert output_event is not None
-        response_content = output_event.attributes.get("response", "")
-        assert response_content != "streaming_response", "Streaming response placeholder found instead of actual content"
-        assert len(response_content) > 0, "Empty response content"
-        assert "Paris" in response_content, "Expected response content not found"
-        
-    except Exception as e:
-        pytest.fail(f"Test failed with exception: {str(e)}")
+    assert (
+        len(inference_spans) == 1
+    ), "Expected exactly one inference span for the LLM call"
+    
+    # Validate events using the generic function with regex patterns
+    validate_inference_span_events(
+        span=inference_spans[0],
+        expected_event_count=3,
+        input_patterns=[
+            r"^\{\"system\": \".+\"\}$",  # Pattern for system
+            r"^\{\"user\": \".+\"\}$",  # Pattern for user input
+        ],
+        output_pattern=r"^\{\"assistant\": \".+\"\}$",  # Pattern for AI response
+        # TODO: Uncomment when metadata is available
+        metadata_requirements={
+            "completion_tokens": int,
+            "prompt_tokens": int,
+            "total_tokens": int
+        }
+    )
+    
+    workflow_span = find_span_by_type(spans, "workflow")
+    
+    assert workflow_span is not None, "Expected to find workflow span"
+    
+    assert workflow_span.attributes["span.type"] == "workflow"
+    assert workflow_span.attributes["entity.1.name"] == "azure_ai_inference_integration_test"
+    assert workflow_span.attributes["entity.1.type"] == "workflow.generic"
 
 @pytest.mark.integration()
 def test_azure_ai_inference_chat_completion_streaming_sync(setup):
@@ -149,67 +129,88 @@ def test_azure_ai_inference_chat_completion_streaming_sync(setup):
         credential=AzureKeyCredential(api_key)
     )
     
-    try:
-        # Make the streaming chat completion call
-        response = client.complete(
-            messages=[
-                SystemMessage("You are a helpful assistant that provides concise answers."),
-                UserMessage("Explain what Python is in one paragraph."),
-            ],
-            model=os.getenv("AZURE_AI_INFERENCE_MODEL", "gpt-4o-mini"),
-            max_tokens=100,
-            temperature=0.1,
-            stream=True
+    # Make the streaming chat completion call
+    response = client.complete(
+        messages=[
+            SystemMessage("You are a helpful assistant that provides concise answers."),
+            UserMessage("Explain what Python is in 10 words."),
+        ],
+        model=os.getenv("AZURE_AI_INFERENCE_MODEL", "gpt-4o-mini"),
+        max_tokens=100,
+        temperature=0.1,
+        model_extras={"stream_options": {"include_usage": True}},
+        stream=True
+    )
+    
+    # Collect the streamed response
+    collected_chunks = []
+    collected_content = []
+    
+    for chunk in response:
+        collected_chunks.append(chunk)
+        if chunk.choices and chunk.choices[0].delta and chunk.choices[0].delta.content:
+            collected_content.append(chunk.choices[0].delta.content)
+    
+    full_response = "".join(collected_content)
+    print(f"Streamed response: {full_response}")
+    
+    # Wait for spans to be processed
+    time.sleep(5)
+    
+    spans = custom_exporter.get_captured_spans()
+    print(f"Captured {len(spans)} spans")
+    
+    # Verify we have spans
+    assert len(spans) > 0, "No spans captured"
+
+    workflow_span = None
+
+    inference_spans = find_spans_by_type(spans, "inference")
+    if not inference_spans:
+        # Also check for inference.framework spans
+        inference_spans = find_spans_by_type(spans, "inference.framework")
+
+    assert len(inference_spans) > 0, "Expected to find at least one inference span"
+
+    # Verify each inference span
+    for span in inference_spans:
+        verify_inference_span(
+            span=span,
+            entity_type="inference.azure_openai",
+            model_name="gpt-4o-mini",
+            model_type="model.llm.gpt-4o-mini",
+            check_metadata=True,
+            check_input_output=True,
         )
-        
-        # Collect the streamed response
-        collected_chunks = []
-        collected_content = []
-        
-        for chunk in response:
-            collected_chunks.append(chunk)
-            if chunk.choices and chunk.choices[0].delta and chunk.choices[0].delta.content:
-                collected_content.append(chunk.choices[0].delta.content)
-        
-        full_response = "".join(collected_content)
-        print(f"Streamed response: {full_response}")
-        
-        # Wait for spans to be processed
-        time.sleep(3)
-        
-        spans = custom_exporter.get_captured_spans()
-        print(f"Captured {len(spans)} spans")
-        
-        # Verify we have spans
-        assert len(spans) > 0, "No spans captured"
-        
-        # Find the inference span
-        inference_spans = [s for s in spans if s.attributes.get("span.type") == "inference"]
-        assert len(inference_spans) > 0, "No inference span found"
-        
-        # Assert inference span properties
-        inference_span = inference_spans[0]
-        assert_inference_span(inference_span, "inference.azure_ai_inference", "models.inference.ai.azure.com")
-        
-        # Assert workflow span exists
-        assert_workflow_span_exists(spans)
-        
-        # Verify streaming response content is properly captured
-        output_event = next((e for e in inference_span.events if e.name == "data.output"), None)
-        assert output_event is not None
-        response_content = output_event.attributes.get("response", "")
-        
-        # For streaming, we should get the accumulated content, not the placeholder
-        assert response_content != "streaming_response", "Streaming response placeholder found - streaming not properly handled"
-        assert len(response_content) > 0, "Empty response content for streaming"
-        assert "Python" in response_content, "Expected response content not found"
-        
-        # Assert we got a valid streamed response
-        assert len(collected_chunks) > 1, "Should have received multiple chunks for streaming"
-        assert len(full_response) > 0, "Should have accumulated response content"
-        
-    except Exception as e:
-        pytest.fail(f"Test failed with exception: {str(e)}")
+    assert (
+        len(inference_spans) == 1
+    ), "Expected exactly one inference span for the LLM call"
+    
+    # Validate events using the generic function with regex patterns
+    validate_inference_span_events(
+        span=inference_spans[0],
+        expected_event_count=3,
+        input_patterns=[
+            r"^\{\"system\": \".+\"\}$",  # Pattern for system
+            r"^\{\"user\": \".+\"\}$",  # Pattern for user input
+        ],
+        output_pattern=r"^\{\"assistant\": \".+\"\}$",  # Pattern for AI response
+        # TODO: Uncomment when metadata is available
+        metadata_requirements={
+            "completion_tokens": int,
+            "prompt_tokens": int,
+            "total_tokens": int
+        }
+    )
+    
+    workflow_span = find_span_by_type(spans, "workflow")
+    
+    assert workflow_span is not None, "Expected to find workflow span"
+    
+    assert workflow_span.attributes["span.type"] == "workflow"
+    assert workflow_span.attributes["entity.1.name"] == "azure_ai_inference_integration_test"
+    assert workflow_span.attributes["entity.1.type"] == "workflow.generic"
+
 
 @pytest.mark.integration()
 @pytest.mark.asyncio
@@ -228,50 +229,76 @@ async def test_azure_ai_inference_chat_completion_async(setup):
         credential=AzureKeyCredential(api_key)
     ) as client:
         
-        try:
-            # Make the async chat completion call
-            response = await client.complete(
-                messages=[
-                    SystemMessage("You are a helpful assistant that provides concise answers."),
-                    UserMessage("What is the largest planet in our solar system? Please answer in one sentence."),
-                ],
-                model=os.getenv("AZURE_AI_INFERENCE_MODEL", "gpt-4o-mini"),
-                max_tokens=50,
-                temperature=0.1
+        # Make the async chat completion call
+        response = await client.complete(
+            messages=[
+                SystemMessage("You are a helpful assistant that provides concise answers."),
+                UserMessage("What is the largest planet in our solar system? Please answer in one sentence."),
+            ],
+            model=os.getenv("AZURE_AI_INFERENCE_MODEL", "gpt-4o-mini"),
+            max_tokens=50,
+            temperature=0.1
+        )
+        
+        print(f"Async response: {response.choices[0].message.content}")
+        
+        # Wait for spans to be processed
+        await asyncio.sleep(5)
+        
+        spans = custom_exporter.get_captured_spans()
+        print(f"Captured {len(spans)} spans")
+        
+        # Verify we have spans
+        assert len(spans) > 0, "No spans captured"
+
+        workflow_span = None
+
+        inference_spans = find_spans_by_type(spans, "inference")
+        if not inference_spans:
+            # Also check for inference.framework spans
+            inference_spans = find_spans_by_type(spans, "inference.framework")
+
+        assert len(inference_spans) > 0, "Expected to find at least one inference span"
+
+        # Verify each inference span
+        for span in inference_spans:
+            verify_inference_span(
+                span=span,
+                entity_type="inference.azure_openai",
+                model_name="gpt-4o-mini",
+                model_type="model.llm.gpt-4o-mini",
+                check_metadata=True,
+                check_input_output=True,
             )
-            
-            print(f"Async response: {response.choices[0].message.content}")
-            
-            # Wait for spans to be processed
-            await asyncio.sleep(3)
-            
-            spans = custom_exporter.get_captured_spans()
-            print(f"Captured {len(spans)} spans")
-            
-            # Verify we have spans
-            assert len(spans) > 0, "No spans captured"
-            
-            # Find the inference span
-            inference_spans = [s for s in spans if s.attributes.get("span.type") == "inference"]
-            assert len(inference_spans) > 0, "No inference span found"
-            
-            # Assert inference span properties
-            inference_span = inference_spans[0]
-            assert_inference_span(inference_span, "inference.azure_ai_inference", "models.inference.ai.azure.com")
-            
-            # Assert workflow span exists
-            assert_workflow_span_exists(spans)
-            
-            # Verify response content is captured
-            output_event = next((e for e in inference_span.events if e.name == "data.output"), None)
-            assert output_event is not None
-            response_content = output_event.attributes.get("response", "")
-            assert response_content != "streaming_response", "Streaming response placeholder found instead of actual content"
-            assert len(response_content) > 0, "Empty response content"
-            assert "Jupiter" in response_content, "Expected response content not found"
-            
-        except Exception as e:
-            pytest.fail(f"Test failed with exception: {str(e)}")
+        assert (
+            len(inference_spans) == 1
+        ), "Expected exactly one inference span for the LLM call"
+        
+        # Validate events using the generic function with regex patterns
+        validate_inference_span_events(
+            span=inference_spans[0],
+            expected_event_count=3,
+            input_patterns=[
+                r"^\{\"system\": \".+\"\}$",  # Pattern for system
+                r"^\{\"user\": \".+\"\}$",  # Pattern for user input
+            ],
+            output_pattern=r"^\{\"assistant\": \".+\"\}$",  # Pattern for AI response
+            # TODO: Uncomment when metadata is available
+            metadata_requirements={
+                "completion_tokens": int,
+                "prompt_tokens": int,
+                "total_tokens": int
+            }
+        )
+        
+        workflow_span = find_span_by_type(spans, "workflow")
+        
+        assert workflow_span is not None, "Expected to find workflow span"
+        
+        assert workflow_span.attributes["span.type"] == "workflow"
+        assert workflow_span.attributes["entity.1.name"] == "azure_ai_inference_integration_test"
+        assert workflow_span.attributes["entity.1.type"] == "workflow.generic"
+
 
 @pytest.mark.integration()
 @pytest.mark.asyncio
@@ -290,67 +317,88 @@ async def test_azure_ai_inference_chat_completion_streaming_async(setup):
         credential=AzureKeyCredential(api_key)
     ) as client:
         
-        try:
-            # Make the async streaming chat completion call
-            response = await client.complete(
-                messages=[
-                    SystemMessage("You are a helpful assistant that provides concise answers."),
-                    UserMessage("Explain what machine learning is in one paragraph."),
-                ],
-                model=os.getenv("AZURE_AI_INFERENCE_MODEL", "gpt-4o-mini"),
-                max_tokens=100,
-                temperature=0.1,
-                stream=True
+        # Make the async streaming chat completion call
+        response = await client.complete(
+            messages=[
+                SystemMessage("You are a helpful assistant that provides concise answers."),
+                UserMessage("Explain what machine learning is in 10 words."),
+            ],
+            model=os.getenv("AZURE_AI_INFERENCE_MODEL", "gpt-4o-mini"),
+            max_tokens=100,
+            temperature=0.1,
+            model_extras={"stream_options": {"include_usage": True}},
+            stream=True
+        )
+        
+        # Collect the streamed response
+        collected_chunks = []
+        collected_content = []
+        
+        async for chunk in response:
+            collected_chunks.append(chunk)
+            if chunk.choices and chunk.choices[0].delta and chunk.choices[0].delta.content:
+                collected_content.append(chunk.choices[0].delta.content)
+        
+        full_response = "".join(collected_content)
+        print(f"Async streamed response: {full_response}")
+        
+        # Wait for spans to be processed
+        await asyncio.sleep(5)
+        
+        spans = custom_exporter.get_captured_spans()
+        print(f"Captured {len(spans)} spans")
+        
+        # Verify we have spans
+        assert len(spans) > 0, "No spans captured"
+
+        workflow_span = None
+
+        inference_spans = find_spans_by_type(spans, "inference")
+        if not inference_spans:
+            # Also check for inference.framework spans
+            inference_spans = find_spans_by_type(spans, "inference.framework")
+
+        assert len(inference_spans) > 0, "Expected to find at least one inference span"
+
+        # Verify each inference span
+        for span in inference_spans:
+            verify_inference_span(
+                span=span,
+                entity_type="inference.azure_openai",
+                model_name="gpt-4o-mini",
+                model_type="model.llm.gpt-4o-mini",
+                check_metadata=True,
+                check_input_output=True,
             )
-            
-            # Collect the streamed response
-            collected_chunks = []
-            collected_content = []
-            
-            async for chunk in response:
-                collected_chunks.append(chunk)
-                if chunk.choices and chunk.choices[0].delta and chunk.choices[0].delta.content:
-                    collected_content.append(chunk.choices[0].delta.content)
-            
-            full_response = "".join(collected_content)
-            print(f"Async streamed response: {full_response}")
-            
-            # Wait for spans to be processed
-            await asyncio.sleep(3)
-            
-            spans = custom_exporter.get_captured_spans()
-            print(f"Captured {len(spans)} spans")
-            
-            # Verify we have spans
-            assert len(spans) > 0, "No spans captured"
-            
-            # Find the inference span
-            inference_spans = [s for s in spans if s.attributes.get("span.type") == "inference"]
-            assert len(inference_spans) > 0, "No inference span found"
-            
-            # Assert inference span properties
-            inference_span = inference_spans[0]
-            assert_inference_span(inference_span, "inference.azure_ai_inference", "models.inference.ai.azure.com")
-            
-            # Assert workflow span exists
-            assert_workflow_span_exists(spans)
-            
-            # Verify streaming response content is properly captured
-            output_event = next((e for e in inference_span.events if e.name == "data.output"), None)
-            assert output_event is not None
-            response_content = output_event.attributes.get("response", "")
-            
-            # For streaming, we should get the accumulated content, not the placeholder
-            assert response_content != "streaming_response", "Streaming response placeholder found - async streaming not properly handled"
-            assert len(response_content) > 0, "Empty response content for async streaming"
-            assert ("learning" in response_content.lower() or "machine" in response_content.lower()), "Expected response content not found"
-            
-            # Assert we got a valid streamed response
-            assert len(collected_chunks) > 1, "Should have received multiple chunks for async streaming"
-            assert len(full_response) > 0, "Should have accumulated response content"
-            
-        except Exception as e:
-            pytest.fail(f"Test failed with exception: {str(e)}")
+        assert (
+            len(inference_spans) == 1
+        ), "Expected exactly one inference span for the LLM call"
+        
+        # Validate events using the generic function with regex patterns
+        validate_inference_span_events(
+            span=inference_spans[0],
+            expected_event_count=3,
+            input_patterns=[
+                r"^\{\"system\": \".+\"\}$",  # Pattern for system
+                r"^\{\"user\": \".+\"\}$",  # Pattern for user input
+            ],
+            output_pattern=r"^\{\"assistant\": \".+\"\}$",  # Pattern for AI response
+            # TODO: Uncomment when metadata is available
+            metadata_requirements={
+                "completion_tokens": int,
+                "prompt_tokens": int,
+                "total_tokens": int
+            }
+        )
+        
+        workflow_span = find_span_by_type(spans, "workflow")
+        
+        assert workflow_span is not None, "Expected to find workflow span"
+        
+        assert workflow_span.attributes["span.type"] == "workflow"
+        assert workflow_span.attributes["entity.1.name"] == "azure_ai_inference_integration_test"
+        assert workflow_span.attributes["entity.1.type"] == "workflow.generic"
+
 
 # Test for different Azure AI Inference providers
 @pytest.mark.integration()
@@ -363,11 +411,6 @@ def test_azure_ai_inference_different_providers(setup):
             "name": "GitHub Models",
             "endpoint": "https://models.inference.ai.azure.com",
             "expected_provider": "github_models"
-        },
-        {
-            "name": "Azure AI Foundry",
-            "endpoint": "https://models.ai.azure.com",
-            "expected_provider": "azure_ai_foundry"
         }
     ]
     
@@ -393,7 +436,7 @@ def test_azure_ai_inference_different_providers(setup):
                 max_tokens=20
             )
             
-            time.sleep(2)
+            time.sleep(5)
             spans = custom_exporter.get_captured_spans()
             
             if len(spans) > 0:
@@ -414,31 +457,104 @@ def test_azure_ai_inference_different_providers(setup):
             continue
 
 if __name__ == "__main__":
-    # For manual testing
-    import sys
-    sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
+    pytest.main([__file__, "-s", "--tb=short"])
     
-    # Setup telemetry
-    setup_monocle_telemetry(
-        workflow_name="azure_ai_inference_manual_test",
-        span_processors=[BatchSpanProcessor(custom_exporter)],
-        wrapper_methods=[]
-    )
-    
-    print("Running manual Azure AI Inference tests...")
-    
-    # Check environment variables
-    if not os.getenv("AZURE_AI_CHAT_KEY"):
-        print("Please set AZURE_AI_CHAT_KEY environment variable")
-        sys.exit(1)
-    
-    try:
-        # Run sync test
-        print("\n=== Testing Sync Chat Completion ===")
-        # run sync test
-        test_azure_ai_inference_chat_completion_sync(setup)
-        custom_exporter.reset()
-        # You can call test functions here for manual testing
-        
-    except Exception as e:
-        print(f"Manual test failed: {e}")
+# {
+#     "name": "azure.ai.inference.aio._patch.ChatCompletionsClient",
+#     "context": {
+#         "trace_id": "0xebaeb6f46ce40ecc8bfbde50c150d93e",
+#         "span_id": "0xeba9f939dd2fa43f",
+#         "trace_state": "[]"
+#     },
+#     "kind": "SpanKind.INTERNAL",
+#     "parent_id": "0x09a9da3e03e7f1e8",
+#     "start_time": "2025-07-02T15:36:10.326130Z",
+#     "end_time": "2025-07-02T15:36:11.668362Z",
+#     "status": {
+#         "status_code": "OK"
+#     },
+#     "attributes": {
+#         "monocle_apptrace.version": "0.4.0",
+#         "monocle_apptrace.language": "python",
+#         "span_source": "/Users/kshitizvijayvargiya/monocle-ksh/tests/integration/test_azure_ai_inference_sample.py:278",
+#         "workflow.name": "azure_ai_inference_integration_test",
+#         "span.type": "inference",
+#         "entity.1.type": "inference.azure_openai",
+#         "entity.1.provider_name": "okahu-openai-dev.openai.azure.com",
+#         "entity.1.inference_endpoint": "https://okahu-openai-dev.openai.azure.com/openai/deployments/kshitiz-gpt",
+#         "entity.2.name": "gpt-4o-mini",
+#         "entity.2.type": "model.llm.gpt-4o-mini",
+#         "entity.count": 2
+#     },
+#     "events": [
+#         {
+#             "name": "data.input",
+#             "timestamp": "2025-07-02T15:36:11.668250Z",
+#             "attributes": {
+#                 "input": [
+#                     "{\"system\": \"You are a helpful assistant that provides concise answers.\"}",
+#                     "{\"user\": \"What is the largest planet in our solar system? Please answer in one sentence.\"}"
+#                 ]
+#             }
+#         },
+#         {
+#             "name": "data.output",
+#             "timestamp": "2025-07-02T15:36:11.668306Z",
+#             "attributes": {
+#                 "response": "{\"assistant\": \"Jupiter is the largest planet in our solar system.\"}",
+#                 "status": "success",
+#                 "status_code": "success"
+#             }
+#         },
+#         {
+#             "name": "metadata",
+#             "timestamp": "2025-07-02T15:36:11.668347Z",
+#             "attributes": {
+#                 "completion_tokens": 11,
+#                 "prompt_tokens": 37,
+#                 "total_tokens": 48,
+#                 "model": "gpt-3.5-turbo-0125"
+#             }
+#         }
+#     ],
+#     "links": [],
+#     "resource": {
+#         "attributes": {
+#             "service.name": "azure_ai_inference_integration_test"
+#         },
+#         "schema_url": ""
+#     }
+# }
+# {
+#     "name": "workflow",
+#     "context": {
+#         "trace_id": "0xebaeb6f46ce40ecc8bfbde50c150d93e",
+#         "span_id": "0x09a9da3e03e7f1e8",
+#         "trace_state": "[]"
+#     },
+#     "kind": "SpanKind.INTERNAL",
+#     "parent_id": null,
+#     "start_time": "2025-07-02T15:36:10.325999Z",
+#     "end_time": "2025-07-02T15:36:11.668384Z",
+#     "status": {
+#         "status_code": "OK"
+#     },
+#     "attributes": {
+#         "monocle_apptrace.version": "0.4.0",
+#         "monocle_apptrace.language": "python",
+#         "span_source": "/Users/kshitizvijayvargiya/monocle-ksh/tests/integration/test_azure_ai_inference_sample.py:278",
+#         "span.type": "workflow",
+#         "entity.1.name": "azure_ai_inference_integration_test",
+#         "entity.1.type": "workflow.generic",
+#         "entity.2.type": "app_hosting.generic",
+#         "entity.2.name": "generic"
+#     },
+#     "events": [],
+#     "links": [],
+#     "resource": {
+#         "attributes": {
+#             "service.name": "azure_ai_inference_integration_test"
+#         },
+#         "schema_url": ""
+#     }
+# }

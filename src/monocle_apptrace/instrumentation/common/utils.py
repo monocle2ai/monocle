@@ -330,6 +330,12 @@ def add_monocle_trace_state(headers:dict[str:str]) -> None:
     else:
         headers['tracestate'] = monocle_trace_state
 
+def get_json_dumps(obj) -> str:
+    try:
+        return json.dumps(obj)
+    except TypeError as e:
+        return str(obj)
+
 class Option(Generic[T]):
     def __init__(self, value: Optional[T]):
         self.value = value

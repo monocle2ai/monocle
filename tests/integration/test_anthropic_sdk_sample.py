@@ -4,8 +4,16 @@ import time
 import anthropic
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from common.custom_exporter import CustomConsoleSpanExporter
+from monocle_apptrace.instrumentation.common.utils import logger
 from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
+from tests.common.helpers import find_span_by_type, find_spans_by_type, validate_inference_span_events, verify_inference_span
 custom_exporter = CustomConsoleSpanExporter()
+
+@pytest.fixture(autouse=True)
+def clear_spans():
+    """Clear spans before each test"""
+    custom_exporter.reset()
+    yield
 
 @pytest.fixture(scope="module")
 def setup():
@@ -26,7 +34,7 @@ def test_anthropic_metamodel_sample(setup):
         temperature=0.7,
         system= "You are a helpful assistant to answer questions about coffee.",
         messages=[
-            {"role": "user", "content": "What is americano?"}
+            {"role": "user", "content": "What is an americano?"}
         ]
     )
 
@@ -37,40 +45,106 @@ def test_anthropic_metamodel_sample(setup):
     time.sleep(5)
     spans = custom_exporter.get_captured_spans()
 
-    for span in spans:
-        span_attributes = span.attributes
-        if span_attributes["span.type"] == "inference" or span_attributes["span.type"] == "inference.framework":
-            # Assertions for all inference attributes
-            assert span_attributes["entity.1.type"] == "inference.generic"
-            assert span_attributes["entity.1.provider_name"] == "api.anthropic.com"
-            assert span_attributes["entity.1.inference_endpoint"] == "https://api.anthropic.com"
-            assert span_attributes["entity.2.name"] == "claude-3-5-sonnet-20240620"
-            assert span_attributes["entity.2.type"] == "model.llm.claude-3-5-sonnet-20240620"
 
-            # Assertions for metadata
-            span_input, span_output, span_metadata = span.events
-            assert "completion_tokens" in span_metadata.attributes
-            assert "prompt_tokens" in span_metadata.attributes
-            assert "total_tokens" in span_metadata.attributes
+    assert len(spans) > 0, "No spans captured for the LangChain Anthropic sample"
+
+    workflow_span = None
+
+    inference_spans = find_spans_by_type(spans, "inference")
+    if not inference_spans:
+        # Also check for inference.framework spans
+        inference_spans = find_spans_by_type(spans, "inference.framework")
+
+    assert len(inference_spans) > 0, "Expected to find at least one inference span"
+
+    # Verify each inference span
+    for span in inference_spans:
+        verify_inference_span(
+            span=span,
+            entity_type="inference.anthropic",
+            model_name="claude-3-5-sonnet-20240620",
+            model_type="model.llm.claude-3-5-sonnet-20240620",
+            check_metadata=True,
+            check_input_output=True,
+        )
+    assert (
+        len(inference_spans) == 1
+    ), "Expected exactly one inference span for the LLM call"
+    
+    # Validate events using the generic function with regex patterns
+    validate_inference_span_events(
+        span=inference_spans[0],
+        expected_event_count=3,
+        input_patterns=[
+            r"^\{\"system\": \".+\"\}$",  # Pattern for system
+            r"^\{\"user\": \".+\"\}$",  # Pattern for user input
+        ],
+        output_pattern=r"^\{\"assistant\": \".+\"\}$",  # Pattern for AI response
+        metadata_requirements={
+            "completion_tokens": int,
+            "prompt_tokens": int,
+            "total_tokens": int
+        }
+    )
+    
+    workflow_span = find_span_by_type(spans, "workflow")
+    
+    assert workflow_span is not None, "Expected to find workflow span"
+    
+    assert workflow_span.attributes["span.type"] == "workflow"
+    assert workflow_span.attributes["entity.1.name"] == "anthropic_app_1"
+    assert workflow_span.attributes["entity.1.type"] == "workflow.generic"
+
+@pytest.mark.integration()
+def test_anthropic_invalid_api_key(setup):
+    try:
+        client = anthropic.Anthropic(api_key="invalid_key_123")
+        response = client.messages.create(
+            model="claude-3-sonnet-20240620",
+            max_tokens=512,
+            system="You are a helpful assistant to answer questions about coffee.",
+            messages=[
+                {"role": "user", "content": "What is an americano?"}
+            ]
+
+        )
+    except anthropic.APIError as e:
+        logger.error("Authentication error: %s", str(e))
+
+    time.sleep(5)
+    spans = custom_exporter.get_captured_spans()
+    for span in spans:
+        if span.attributes.get("span.type") == "inference" or span.attributes.get("span.type") == "inference.framework":
+            events = [e for e in span.events if e.name == "data.output"]
+            assert len(events) > 0
+            assert events[0].attributes["status"] == "error"
+            assert "status_code" in events[0].attributes
+            assert "authentication_error" in events[0].attributes.get("response", "").lower()
+
+if __name__ == "__main__":
+    pytest.main([__file__, "-s", "--tb=short"])
 
 # {
 #     "name": "anthropic.resources.messages.messages.Messages",
 #     "context": {
-#         "trace_id": "0x956a8a3a60ec8f6758b328cd468cbcff",
-#         "span_id": "0xe9c9dd0443bce9df",
+#         "trace_id": "0xa4f952152900a57c15968c339127175c",
+#         "span_id": "0x24defb2fe4c0f83b",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0x9c16e8be5ba00c98",
-#     "start_time": "2025-04-09T13:00:19.040529Z",
-#     "end_time": "2025-04-09T13:00:23.930124Z",
+#     "parent_id": "0xc0726ead9ef7cfb1",
+#     "start_time": "2025-07-02T14:46:12.975954Z",
+#     "end_time": "2025-07-02T14:46:19.319905Z",
 #     "status": {
 #         "status_code": "OK"
 #     },
 #     "attributes": {
-#         "monocle_apptrace.version": "0.3.0",
+#         "monocle_apptrace.version": "0.4.0",
+#         "monocle_apptrace.language": "python",
+#         "span_source": "/Users/kshitizvijayvargiya/monocle-ksh/tests/integration/test_anthropic_sdk_sample.py:31",
+#         "workflow.name": "anthropic_app_1",
 #         "span.type": "inference",
-#         "entity.1.type": "inference.generic",
+#         "entity.1.type": "inference.anthropic",
 #         "entity.1.provider_name": "api.anthropic.com",
 #         "entity.1.inference_endpoint": "https://api.anthropic.com",
 #         "entity.2.name": "claude-3-5-sonnet-20240620",
@@ -80,27 +154,30 @@ def test_anthropic_metamodel_sample(setup):
 #     "events": [
 #         {
 #             "name": "data.input",
-#             "timestamp": "2025-04-09T13:00:23.930124Z",
+#             "timestamp": "2025-07-02T14:46:19.319781Z",
 #             "attributes": {
 #                 "input": [
-#                     "{'user': 'What is americano?'}"
+#                     "{\"system\": \"You are a helpful assistant to answer questions about coffee.\"}",
+#                     "{\"user\": \"What is an americano?\"}"
 #                 ]
 #             }
 #         },
 #         {
 #             "name": "data.output",
-#             "timestamp": "2025-04-09T13:00:23.930124Z",
+#             "timestamp": "2025-07-02T14:46:19.319832Z",
 #             "attributes": {
-#                 "response": "An Americano is a popular coffee drink that consists of espresso diluted with hot water. Here are some key points about Americano:\n\n1. Origin: It's believed to have originated during World War II when American soldiers in Italy diluted espresso with hot water to make it similar to the coffee they were used to back home.\n\n2. Preparation: It's typically made by adding hot water to one or two shots of espresso.\n\n3. Ratio: The usual ratio is about 1:2 or 1:3 of espresso to water, but this can vary based on personal preference.\n\n4. Taste: An Americano has a similar strength to drip coffee but with a different flavor profile due to the espresso base.\n\n5. Caffeine content: It generally contains the same amount of caffeine as the espresso shots used to make it.\n\n6. Variations: It can be served hot or over ice (Iced Americano).\n\n7. Customization: Some people add milk, cream, or sweeteners to their Americano, though traditionally it's served black.\n\nAmericanos are popular among those who enjoy the flavor of espresso but prefer a larger, less intense drink compared to straight espresso shots."
+#                 "status": "success",
+#                 "status_code": "success",
+#                 "response": "{\"assistant\": \"An Americano is a popular coffee drink. \"}"
 #             }
 #         },
 #         {
 #             "name": "metadata",
-#             "timestamp": "2025-04-09T13:00:23.930124Z",
+#             "timestamp": "2025-07-02T14:46:19.319855Z",
 #             "attributes": {
-#                 "completion_tokens": 274,
-#                 "prompt_tokens": 23,
-#                 "total_tokens": 297
+#                 "completion_tokens": 288,
+#                 "prompt_tokens": 24,
+#                 "total_tokens": 312
 #             }
 #         }
 #     ],
@@ -113,21 +190,23 @@ def test_anthropic_metamodel_sample(setup):
 #     }
 # }
 # {
-#     "name": "anthropic.resources.messages.messages.Messages",
+#     "name": "workflow",
 #     "context": {
-#         "trace_id": "0x956a8a3a60ec8f6758b328cd468cbcff",
-#         "span_id": "0x9c16e8be5ba00c98",
+#         "trace_id": "0xa4f952152900a57c15968c339127175c",
+#         "span_id": "0xc0726ead9ef7cfb1",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
 #     "parent_id": null,
-#     "start_time": "2025-04-09T13:00:19.039530Z",
-#     "end_time": "2025-04-09T13:00:23.930124Z",
+#     "start_time": "2025-07-02T14:46:12.975899Z",
+#     "end_time": "2025-07-02T14:46:19.319952Z",
 #     "status": {
 #         "status_code": "OK"
 #     },
 #     "attributes": {
-#         "monocle_apptrace.version": "0.3.0",
+#         "monocle_apptrace.version": "0.4.0",
+#         "monocle_apptrace.language": "python",
+#         "span_source": "/Users/kshitizvijayvargiya/monocle-ksh/tests/integration/test_anthropic_sdk_sample.py:31",
 #         "span.type": "workflow",
 #         "entity.1.name": "anthropic_app_1",
 #         "entity.1.type": "workflow.generic",
@@ -135,6 +214,123 @@ def test_anthropic_metamodel_sample(setup):
 #         "entity.2.name": "generic"
 #     },
 #     "events": [],
+#     "links": [],
+#     "resource": {
+#         "attributes": {
+#             "service.name": "anthropic_app_1"
+#         },
+#         "schema_url": ""
+#     }
+# }
+# F{
+#     "name": "anthropic.resources.messages.messages.Messages",
+#     "context": {
+#         "trace_id": "0x6765541e4dd7f7cd2fa69c1765a77b3a",
+#         "span_id": "0x97c91c8db5330c3c",
+#         "trace_state": "[]"
+#     },
+#     "kind": "SpanKind.INTERNAL",
+#     "parent_id": "0x584454580931341d",
+#     "start_time": "2025-07-02T14:46:24.347372Z",
+#     "end_time": "2025-07-02T14:46:24.770248Z",
+#     "status": {
+#         "status_code": "ERROR",
+#         "description": "AuthenticationError: Error code: 401 - {'type': 'error', 'error': {'type': 'authentication_error', 'message': 'invalid x-api-key'}}"
+#     },
+#     "attributes": {
+#         "monocle_apptrace.version": "0.4.0",
+#         "monocle_apptrace.language": "python",
+#         "span_source": "/Users/kshitizvijayvargiya/monocle-ksh/tests/integration/test_anthropic_sdk_sample.py:102",
+#         "workflow.name": "anthropic_app_1",
+#         "span.type": "inference",
+#         "entity.1.type": "inference.anthropic",
+#         "entity.1.provider_name": "api.anthropic.com",
+#         "entity.1.inference_endpoint": "https://api.anthropic.com",
+#         "entity.2.name": "claude-3-sonnet-20240620",
+#         "entity.2.type": "model.llm.claude-3-sonnet-20240620",
+#         "entity.count": 2
+#     },
+#     "events": [
+#         {
+#             "name": "data.input",
+#             "timestamp": "2025-07-02T14:46:24.764332Z",
+#             "attributes": {
+#                 "input": [
+#                     "{\"system\": \"You are a helpful assistant to answer questions about coffee.\"}",
+#                     "{\"user\": \"What is an americano?\"}"
+#                 ]
+#             }
+#         },
+#         {
+#             "name": "data.output",
+#             "timestamp": "2025-07-02T14:46:24.764380Z",
+#             "attributes": {
+#                 "status": "error",
+#                 "status_code": 401,
+#                 "response": "Error code: 401 - {'type': 'error', 'error': {'type': 'authentication_error', 'message': 'invalid x-api-key'}}"
+#             }
+#         },
+#         {
+#             "name": "metadata",
+#             "timestamp": "2025-07-02T14:46:24.764393Z",
+#             "attributes": {}
+#         },
+#         {
+#             "name": "exception",
+#             "timestamp": "2025-07-02T14:46:24.770215Z",
+#             "attributes": {
+#                 "exception.type": "anthropic.AuthenticationError",
+#                 "exception.message": "Error code: 401 - {'type': 'error', 'error': {'type': 'authentication_error', 'message': 'invalid x-api-key'}}",
+#                 "exception.stacktrace": "Traceback (most recent call last):\n  File \"/Users/kshitizvijayvargiya/monocle-ksh/.venv/lib/python3.11/site-packages/opentelemetry/trace/__init__.py\", line 587, in use_span\n    yield span\n  File \"/Users/kshitizvijayvargiya/monocle-ksh/.venv/lib/python3.11/site-packages/opentelemetry/sdk/trace/__init__.py\", line 1105, in start_as_current_span\n    yield span\n  File \"/Users/kshitizvijayvargiya/monocle-ksh/src/monocle_apptrace/instrumentation/common/wrapper.py\", line 78, in monocle_wrapper_span_processor\n    return_value = wrapped(*args, **kwargs)\n                   ^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/kshitizvijayvargiya/monocle-ksh/.venv/lib/python3.11/site-packages/anthropic/_utils/_utils.py\", line 283, in wrapper\n    return func(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/kshitizvijayvargiya/monocle-ksh/.venv/lib/python3.11/site-packages/anthropic/resources/messages/messages.py\", line 978, in create\n    return self._post(\n           ^^^^^^^^^^^\n  File \"/Users/kshitizvijayvargiya/monocle-ksh/.venv/lib/python3.11/site-packages/anthropic/_base_client.py\", line 1290, in post\n    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))\n                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/kshitizvijayvargiya/monocle-ksh/.venv/lib/python3.11/site-packages/anthropic/_base_client.py\", line 1085, in request\n    raise self._make_status_error_from_response(err.response) from None\nanthropic.AuthenticationError: Error code: 401 - {'type': 'error', 'error': {'type': 'authentication_error', 'message': 'invalid x-api-key'}}\n",
+#                 "exception.escaped": "False"
+#             }
+#         }
+#     ],
+#     "links": [],
+#     "resource": {
+#         "attributes": {
+#             "service.name": "anthropic_app_1"
+#         },
+#         "schema_url": ""
+#     }
+# }
+# {
+#     "name": "workflow",
+#     "context": {
+#         "trace_id": "0x6765541e4dd7f7cd2fa69c1765a77b3a",
+#         "span_id": "0x584454580931341d",
+#         "trace_state": "[]"
+#     },
+#     "kind": "SpanKind.INTERNAL",
+#     "parent_id": null,
+#     "start_time": "2025-07-02T14:46:24.347260Z",
+#     "end_time": "2025-07-02T14:46:24.771251Z",
+#     "status": {
+#         "status_code": "ERROR",
+#         "description": "AuthenticationError: Error code: 401 - {'type': 'error', 'error': {'type': 'authentication_error', 'message': 'invalid x-api-key'}}"
+#     },
+#     "attributes": {
+#         "monocle_apptrace.version": "0.4.0",
+#         "monocle_apptrace.language": "python",
+#         "span_source": "/Users/kshitizvijayvargiya/monocle-ksh/tests/integration/test_anthropic_sdk_sample.py:102",
+#         "span.type": "workflow",
+#         "entity.1.name": "anthropic_app_1",
+#         "entity.1.type": "workflow.generic",
+#         "entity.2.type": "app_hosting.generic",
+#         "entity.2.name": "generic"
+#     },
+#     "events": [
+#         {
+#             "name": "exception",
+#             "timestamp": "2025-07-02T14:46:24.771232Z",
+#             "attributes": {
+#                 "exception.type": "anthropic.AuthenticationError",
+#                 "exception.message": "Error code: 401 - {'type': 'error', 'error': {'type': 'authentication_error', 'message': 'invalid x-api-key'}}",
+#                 "exception.stacktrace": "Traceback (most recent call last):\n  File \"/Users/kshitizvijayvargiya/monocle-ksh/.venv/lib/python3.11/site-packages/opentelemetry/trace/__init__.py\", line 587, in use_span\n    yield span\n  File \"/Users/kshitizvijayvargiya/monocle-ksh/.venv/lib/python3.11/site-packages/opentelemetry/sdk/trace/__init__.py\", line 1105, in start_as_current_span\n    yield span\n  File \"/Users/kshitizvijayvargiya/monocle-ksh/src/monocle_apptrace/instrumentation/common/wrapper.py\", line 70, in monocle_wrapper_span_processor\n    return_value, span_status = monocle_wrapper_span_processor(tracer, handler, to_wrap, wrapped, instance, source_path, False, args, kwargs)\n                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/kshitizvijayvargiya/monocle-ksh/src/monocle_apptrace/instrumentation/common/wrapper.py\", line 78, in monocle_wrapper_span_processor\n    return_value = wrapped(*args, **kwargs)\n                   ^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/kshitizvijayvargiya/monocle-ksh/.venv/lib/python3.11/site-packages/anthropic/_utils/_utils.py\", line 283, in wrapper\n    return func(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/kshitizvijayvargiya/monocle-ksh/.venv/lib/python3.11/site-packages/anthropic/resources/messages/messages.py\", line 978, in create\n    return self._post(\n           ^^^^^^^^^^^\n  File \"/Users/kshitizvijayvargiya/monocle-ksh/.venv/lib/python3.11/site-packages/anthropic/_base_client.py\", line 1290, in post\n    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))\n                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/kshitizvijayvargiya/monocle-ksh/.venv/lib/python3.11/site-packages/anthropic/_base_client.py\", line 1085, in request\n    raise self._make_status_error_from_response(err.response) from None\nanthropic.AuthenticationError: Error code: 401 - {'type': 'error', 'error': {'type': 'authentication_error', 'message': 'invalid x-api-key'}}\n",
+#                 "exception.escaped": "False"
+#             }
+#         }
+#     ],
 #     "links": [],
 #     "resource": {
 #         "attributes": {

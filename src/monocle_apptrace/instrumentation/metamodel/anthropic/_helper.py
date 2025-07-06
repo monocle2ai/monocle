@@ -3,12 +3,15 @@ This module provides utility functions for extracting system, user,
 and assistant messages from various input formats.
 """
 
+import json
 import logging
 from monocle_apptrace.instrumentation.common.utils import (
     Option,
+    get_json_dumps,
     get_keys_as_tuple,
     get_nested_value,
     try_option,
+    get_exception_message,
 )
 
 
@@ -29,22 +32,51 @@ def extract_messages(kwargs):
     """Extract system and user messages"""
     try:
         messages = []
+        if "system" in kwargs and isinstance(kwargs["system"], str):
+            messages.append({"system": kwargs["system"]})
         if 'messages' in kwargs and len(kwargs['messages']) >0:
             for msg in kwargs['messages']:
                 if msg.get('content') and msg.get('role'):
                     messages.append({msg['role']: msg['content']})
-
-        return [str(message) for message in messages]
+        return [get_json_dumps(message) for message in messages]
     except Exception as e:
         logger.warning("Warning: Error occurred in extract_messages: %s", str(e))
         return []
 
+def get_exception_status_code(arguments):
+    if arguments['exception'] is not None and hasattr(arguments['exception'], 'status_code') and arguments['exception'].status_code is not None:
+        return arguments['exception'].status_code
+    elif arguments['exception'] is not None:
+        return 'error'
+    else:
+        return 'success'
 
-def extract_assistant_message(response):
+def get_status_code(arguments):
+    if arguments["exception"] is not None:
+        return get_exception_status_code(arguments)
+    elif hasattr(arguments["result"], "status"):
+        return arguments["result"].status
+    else:
+        return 'success'
+
+def extract_assistant_message(arguments):
     try:
-        if response is not None and hasattr(response,"content") and len(response.content) >0:
-            if hasattr(response.content[0],"text"):
-                return response.content[0].text
+        status = get_status_code(arguments)
+        response = arguments["result"]
+        if status == 'success':
+            messages = []
+            role = response.role if hasattr(response, 'role') else "assistant"
+            if response is not None and hasattr(response,"content") and len(response.content) >0:
+                if hasattr(response.content[0],"text"):
+                    messages.append({role: response.content[0].text})
+            # return first message if list is not empty
+            return get_json_dumps(messages[0]) if messages else ""
+        else:
+            if arguments["exception"] is not None:
+                return get_exception_message(arguments)
+            elif hasattr(arguments["result"], "error"):
+                return arguments["result"].error
+
     except (IndexError, AttributeError) as e:
         logger.warning("Warning: Error occurred in extract_assistant_message: %s", str(e))
         return None

@@ -1,6 +1,5 @@
 import os
 import time
-import unittest
 import pytest
 import asyncio
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
@@ -8,17 +7,24 @@ from common.custom_exporter import CustomConsoleSpanExporter
 from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
 from openai import AsyncOpenAI
 
+from tests.common.helpers import find_span_by_type, find_spans_by_type, validate_inference_span_events, verify_inference_span
+
 custom_exporter = CustomConsoleSpanExporter()
 
 
 @pytest.fixture(scope="module")
 def setup():
     setup_monocle_telemetry(
-        workflow_name="langchain_app_1",
+        workflow_name="generic_openai_1",
         span_processors=[BatchSpanProcessor(custom_exporter)],
         wrapper_methods=[],
     )
 
+@pytest.fixture(autouse=True)
+def clear_spans():
+    """Clear spans before each test"""
+    custom_exporter.reset()
+    yield
 
 @pytest.mark.integration()
 @pytest.mark.asyncio
@@ -29,45 +35,65 @@ async def test_openai_api_sample(setup):
         messages=[
             {
                 "role": "system",
-                "content": "You are a helpful assistant to answer coffee related questions",
+                "content": "You are a helpful assistant to answer coffee related questions in 10 words or less",
             },
             {"role": "user", "content": "What is an americano?"},
         ],
     )
     await asyncio.sleep(5)
-    print(response)
-    print(response.choices[0].message.content)
 
     spans = custom_exporter.get_captured_spans()
-    found_workflow_span = False
-    inference_span = None
-    for span in spans:
-        span_attributes = span.attributes
+    print(f"Captured {len(spans)} spans")
+    
+    # Verify we have spans
+    assert len(spans) > 0, "No spans captured"
 
-        if "span.type" in span_attributes and (
-            span_attributes["span.type"] == "inference"
-            or span_attributes["span.type"] == "inference.framework"
-        ):
-            # Assertions for all inference attributes
-            assert span_attributes["entity.1.type"] == "inference.openai"
-            assert "entity.1.provider_name" in span_attributes
-            assert "entity.1.inference_endpoint" in span_attributes
-            assert span_attributes["entity.2.name"] == "gpt-4o-mini"
-            assert span_attributes["entity.2.type"] == "model.llm.gpt-4o-mini"
-            span_input, span_output, span_metadata = span.events
-            assert "completion_tokens" in span_metadata.attributes
-            assert "prompt_tokens" in span_metadata.attributes
-            assert "total_tokens" in span_metadata.attributes
-            inference_span = span
+    workflow_span = None
 
+    inference_spans = find_spans_by_type(spans, "inference")
+    if not inference_spans:
+        # Also check for inference.framework spans
+        inference_spans = find_spans_by_type(spans, "inference.framework")
 
-        if (
-            "span.type" in span_attributes
-            and span_attributes["span.type"] == "workflow"
-        ):
-            found_workflow_span = True
-    assert found_workflow_span
-    assert inference_span is not None
+    assert len(inference_spans) > 0, "Expected to find at least one inference span"
+
+    # Verify each inference span
+    for span in inference_spans:
+        verify_inference_span(
+            span=span,
+            entity_type="inference.openai",
+            model_name="gpt-4o-mini",
+            model_type="model.llm.gpt-4o-mini",
+            check_metadata=True,
+            check_input_output=True,
+        )
+    assert (
+        len(inference_spans) == 1
+    ), "Expected exactly one inference span for the LLM call"
+    
+    # Validate events using the generic function with regex patterns
+    validate_inference_span_events(
+        span=inference_spans[0],
+        expected_event_count=3,
+        input_patterns=[
+            r"^\{\"system\": \".+\"\}$",  # Pattern for system
+            r"^\{\"user\": \".+\"\}$",  # Pattern for user input
+        ],
+        output_pattern=r"^\{\"assistant\": \".+\"\}$",  # Pattern for AI response
+        metadata_requirements={
+            "completion_tokens": int,
+            "prompt_tokens": int,
+            "total_tokens": int
+        }
+    )
+    
+    workflow_span = find_span_by_type(spans, "workflow")
+    
+    assert workflow_span is not None, "Expected to find workflow span"
+    
+    assert workflow_span.attributes["span.type"] == "workflow"
+    assert workflow_span.attributes["entity.1.name"] == "generic_openai_1"
+    assert workflow_span.attributes["entity.1.type"] == "workflow.generic"
 
 
 @pytest.mark.integration()
@@ -79,11 +105,12 @@ async def test_openai_api_sample_stream(setup):
         messages=[
             {
                 "role": "system",
-                "content": "You are a helpful assistant to answer coffee related questions",
+                "content": "You are a helpful assistant to answer coffee related questions and answer in 10 words or less",
             },
             {"role": "user", "content": "What is an americano?"},
         ],
         stream=True,
+        stream_options= {"include_usage": True},
     )
 
     # Collect the streamed response
@@ -92,7 +119,7 @@ async def test_openai_api_sample_stream(setup):
 
     async for chunk in stream:
         collected_chunks.append(chunk)
-        if chunk.choices[0].delta.content is not None:
+        if chunk.choices and chunk.choices[0].delta.content is not None:
             collected_messages.append(chunk.choices[0].delta.content)
 
     full_response = "".join(collected_messages)
@@ -102,68 +129,260 @@ async def test_openai_api_sample_stream(setup):
     await asyncio.sleep(5)
 
     spans = custom_exporter.get_captured_spans()
-    found_workflow_span = False
-    inference_span = None
-    for span in spans:
-        span_attributes = span.attributes
+    print(f"Captured {len(spans)} spans")
+    
+    # Verify we have spans
+    assert len(spans) > 0, "No spans captured"
 
-        if "span.type" in span_attributes and (
-            span_attributes["span.type"] == "inference"
-            or span_attributes["span.type"] == "inference.framework"
-        ):
-            # Assertions for all inference attributes
-            assert span_attributes["entity.1.type"] == "inference.openai"
-            assert "entity.1.provider_name" in span_attributes
-            assert "entity.1.inference_endpoint" in span_attributes
-            assert span_attributes["entity.2.name"] == "gpt-4o-mini"
-            assert span_attributes["entity.2.type"] == "model.llm.gpt-4o-mini"
-            inference_span = span
+    workflow_span = None
 
-            # TODO: Uncomment this when metadata is available
-            # span_input, span_output, span_metadata = span.events
-            # assert "completion_tokens" in span_metadata.attributes
-            # assert "prompt_tokens" in span_metadata.attributes
-            # assert "total_tokens" in span_metadata.attributes
+    inference_spans = find_spans_by_type(spans, "inference")
+    if not inference_spans:
+        # Also check for inference.framework spans
+        inference_spans = find_spans_by_type(spans, "inference.framework")
 
-        if (
-            "span.type" in span_attributes
-            and span_attributes["span.type"] == "workflow"
-        ):
-            found_workflow_span = True
-    assert found_workflow_span
-    assert inference_span is not None
+    assert len(inference_spans) > 0, "Expected to find at least one inference span"
+
+    # Verify each inference span
+    for span in inference_spans:
+        verify_inference_span(
+            span=span,
+            entity_type="inference.openai",
+            model_name="gpt-4o-mini",
+            model_type="model.llm.gpt-4o-mini",
+            check_metadata=True,
+            check_input_output=True,
+        )
+    assert (
+        len(inference_spans) == 1
+    ), "Expected exactly one inference span for the LLM call"
+    
+    # Validate events using the generic function with regex patterns
+    validate_inference_span_events(
+        span=inference_spans[0],
+        expected_event_count=3,
+        input_patterns=[
+            r"^\{\"system\": \".+\"\}$",  # Pattern for system
+            r"^\{\"user\": \".+\"\}$",  # Pattern for user input
+        ],
+        output_pattern=r"^\{\"assistant\": \".+\"\}$",  # Pattern for AI response
+        metadata_requirements={
+            "completion_tokens": int,
+            "prompt_tokens": int,
+            "total_tokens": int
+        }
+    )
+    
+    workflow_span = find_span_by_type(spans, "workflow")
+    
+    assert workflow_span is not None, "Expected to find workflow span"
+    
+    assert workflow_span.attributes["span.type"] == "workflow"
+    assert workflow_span.attributes["entity.1.name"] == "generic_openai_1"
+    assert workflow_span.attributes["entity.1.type"] == "workflow.generic"
 
     # Assert we got a valid response
     assert len(collected_chunks) > 0
     assert len(full_response) > 0
-
-
-async def run_test():
-    """Run the test directly without pytest"""
-    # Call the setup function directly
-    setup_monocle_telemetry(
-        workflow_name="langchain_app_1",
-        span_processors=[BatchSpanProcessor(custom_exporter)],
-        wrapper_methods=[],
-    )
-
-    # Call the test functions directly
-    print("Running non-streaming test:")
-    # await test_openai_api_sample(None)
-
-    # Clear the exporter before the second test
-    custom_exporter.reset()
-
-    print("\nRunning streaming test:")
-    await test_openai_api_sample_stream(None)
-
-    print("All tests completed successfully")
+    
 
 
 if __name__ == "__main__":
-    # Create and run an event loop when the script is executed directly
-    loop = asyncio.get_event_loop()
-    try:
-        loop.run_until_complete(run_test())
-    finally:
-        loop.close()
+    pytest.main([__file__, "-s", "--tb=short"])
+
+# {
+#     "name": "openai.resources.chat.completions.completions.AsyncCompletions",
+#     "context": {
+#         "trace_id": "0x06eecf4252ac8b67f1cb39822a5d40ca",
+#         "span_id": "0x135a7782f4551c33",
+#         "trace_state": "[]"
+#     },
+#     "kind": "SpanKind.INTERNAL",
+#     "parent_id": "0xbc618fdf7a1dbde8",
+#     "start_time": "2025-07-02T21:00:11.304848Z",
+#     "end_time": "2025-07-02T21:00:13.922418Z",
+#     "status": {
+#         "status_code": "OK"
+#     },
+#     "attributes": {
+#         "monocle_apptrace.version": "0.4.0",
+#         "monocle_apptrace.language": "python",
+#         "span_source": "/Users/kshitizvijayvargiya/monocle-ksh/tests/integration/test_openai_api_sample_stream.py:33",
+#         "workflow.name": "generic_openai_1",
+#         "span.type": "inference",
+#         "entity.1.type": "inference.openai",
+#         "entity.1.provider_name": "api.openai.com",
+#         "entity.1.inference_endpoint": "https://api.openai.com/v1/",
+#         "entity.2.name": "gpt-4o-mini",
+#         "entity.2.type": "model.llm.gpt-4o-mini",
+#         "entity.count": 2
+#     },
+#     "events": [
+#         {
+#             "name": "data.input",
+#             "timestamp": "2025-07-02T21:00:13.922309Z",
+#             "attributes": {
+#                 "input": [
+#                     "{\"system\": \"You are a helpful assistant to answer coffee related questions\"}",
+#                     "{\"user\": \"What is an americano?\"}"
+#                 ]
+#             }
+#         },
+#         {
+#             "name": "data.output",
+#             "timestamp": "2025-07-02T21:00:13.922357Z",
+#             "attributes": {
+#                 "response": "{\"assistant\": \"An Americano is a type of coffee drink made by diluting espresso with hot water. \"}",
+#                 "status": "success",
+#                 "status_code": "success"
+#             }
+#         },
+#         {
+#             "name": "metadata",
+#             "timestamp": "2025-07-02T21:00:13.922379Z",
+#             "attributes": {
+#                 "completion_tokens": 125,
+#                 "prompt_tokens": 26,
+#                 "total_tokens": 151
+#             }
+#         }
+#     ],
+#     "links": [],
+#     "resource": {
+#         "attributes": {
+#             "service.name": "generic_openai_1"
+#         },
+#         "schema_url": ""
+#     }
+# }
+# {
+#     "name": "workflow",
+#     "context": {
+#         "trace_id": "0x06eecf4252ac8b67f1cb39822a5d40ca",
+#         "span_id": "0xbc618fdf7a1dbde8",
+#         "trace_state": "[]"
+#     },
+#     "kind": "SpanKind.INTERNAL",
+#     "parent_id": null,
+#     "start_time": "2025-07-02T21:00:11.304797Z",
+#     "end_time": "2025-07-02T21:00:13.922465Z",
+#     "status": {
+#         "status_code": "OK"
+#     },
+#     "attributes": {
+#         "monocle_apptrace.version": "0.4.0",
+#         "monocle_apptrace.language": "python",
+#         "span_source": "/Users/kshitizvijayvargiya/monocle-ksh/tests/integration/test_openai_api_sample_stream.py:33",
+#         "span.type": "workflow",
+#         "entity.1.name": "generic_openai_1",
+#         "entity.1.type": "workflow.generic",
+#         "entity.2.type": "app_hosting.generic",
+#         "entity.2.name": "generic"
+#     },
+#     "events": [],
+#     "links": [],
+#     "resource": {
+#         "attributes": {
+#             "service.name": "generic_openai_1"
+#         },
+#         "schema_url": ""
+#     }
+# }
+# {
+#     "name": "workflow",
+#     "context": {
+#         "trace_id": "0xafa38b0906415d29025076ee05e8dc96",
+#         "span_id": "0x62549e039822fcfa",
+#         "trace_state": "[]"
+#     },
+#     "kind": "SpanKind.INTERNAL",
+#     "parent_id": null,
+#     "start_time": "2025-07-02T21:00:18.948688Z",
+#     "end_time": "2025-07-02T21:00:20.232554Z",
+#     "status": {
+#         "status_code": "UNSET"
+#     },
+#     "attributes": {
+#         "monocle_apptrace.version": "0.4.0",
+#         "monocle_apptrace.language": "python",
+#         "span_source": "/Users/kshitizvijayvargiya/monocle-ksh/tests/integration/test_openai_api_sample_stream.py:103",
+#         "span.type": "workflow",
+#         "entity.1.name": "generic_openai_1",
+#         "entity.1.type": "workflow.generic",
+#         "entity.2.type": "app_hosting.generic",
+#         "entity.2.name": "generic"
+#     },
+#     "events": [],
+#     "links": [],
+#     "resource": {
+#         "attributes": {
+#             "service.name": "generic_openai_1"
+#         },
+#         "schema_url": ""
+#     }
+# }
+# {
+#     "name": "openai.resources.chat.completions.completions.AsyncCompletions",
+#     "context": {
+#         "trace_id": "0xafa38b0906415d29025076ee05e8dc96",
+#         "span_id": "0xd8b9486a219e3f36",
+#         "trace_state": "[]"
+#     },
+#     "kind": "SpanKind.INTERNAL",
+#     "parent_id": "0x62549e039822fcfa",
+#     "start_time": "2025-07-02T21:00:18.948810Z",
+#     "end_time": "2025-07-02T21:00:20.351935Z",
+#     "status": {
+#         "status_code": "OK"
+#     },
+#     "attributes": {
+#         "monocle_apptrace.version": "0.4.0",
+#         "monocle_apptrace.language": "python",
+#         "span_source": "/Users/kshitizvijayvargiya/monocle-ksh/tests/integration/test_openai_api_sample_stream.py:103",
+#         "workflow.name": "generic_openai_1",
+#         "span.type": "inference",
+#         "entity.1.type": "inference.openai",
+#         "entity.1.provider_name": "api.openai.com",
+#         "entity.1.inference_endpoint": "https://api.openai.com/v1/",
+#         "entity.2.name": "gpt-4o-mini",
+#         "entity.2.type": "model.llm.gpt-4o-mini",
+#         "entity.count": 2
+#     },
+#     "events": [
+#         {
+#             "name": "data.input",
+#             "timestamp": "2025-07-02T21:00:20.232405Z",
+#             "attributes": {
+#                 "input": [
+#                     "{\"system\": \"You are a helpful assistant to answer coffee related questions and answer in 10 words or less\"}",
+#                     "{\"user\": \"What is an americano?\"}"
+#                 ]
+#             }
+#         },
+#         {
+#             "name": "data.output",
+#             "timestamp": "2025-07-02T21:00:20.234867Z",
+#             "attributes": {
+#                 "response": "{'assistant': 'Espresso diluted with hot water.'}",
+#                 "status": "success",
+#                 "status_code": "success"
+#             }
+#         },
+#         {
+#             "name": "metadata",
+#             "timestamp": "2025-07-02T21:00:20.347901Z",
+#             "attributes": {
+#                 "completion_tokens": 7,
+#                 "prompt_tokens": 34,
+#                 "total_tokens": 41
+#             }
+#         }
+#     ],
+#     "links": [],
+#     "resource": {
+#         "attributes": {
+#             "service.name": "generic_openai_1"
+#         },
+#         "schema_url": ""
+#     }
+# }

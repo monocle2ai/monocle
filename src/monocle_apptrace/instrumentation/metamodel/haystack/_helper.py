@@ -56,23 +56,27 @@ def extract_question_from_prompt(content):
 
 def extract_assistant_message(arguments):
     status = get_status_code(arguments)
-    response: str = ""
+    messages = []
+    role = "assistant"
     if status == 'success':
+        response = ""
         if "replies" in arguments['result']:
             reply = arguments['result']["replies"][0]
+            if hasattr(reply, role) and hasattr(reply,role, "value") and isinstance(reply.role.value, str):
+                role = reply.role.value or role
             if hasattr(reply, 'content'):
                 response = reply.content
             elif hasattr(reply, 'text'):
                 response = reply.text
             else:
                 response = reply
+        messages.append({role: response})
+        return messages
     else:
         if arguments["exception"] is not None:
-            response = get_exception_message(arguments)
+            return get_exception_message(arguments)
         elif hasattr(response, "error"):
-            response = arguments['result'].error
-
-    return response
+            return arguments['result'].error
 
 
 def get_vectorstore_deployment(my_map):

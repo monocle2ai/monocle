@@ -4,7 +4,7 @@ from monocle_apptrace.instrumentation.metamodel.openai import (
 from monocle_apptrace.instrumentation.common.utils import resolve_from_alias
 
 RETRIEVAL = {
-    "type": "retrieval",
+    "type": "embedding",
     "attributes": [
         [
             {

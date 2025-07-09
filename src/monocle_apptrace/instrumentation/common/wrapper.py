@@ -93,10 +93,11 @@ def monocle_wrapper_span_processor(tracer: Tracer, handler: SpanHandler, to_wrap
 
 def monocle_wrapper(tracer: Tracer, handler: SpanHandler, to_wrap, wrapped, instance, source_path, args, kwargs):
     return_value = None
+    pre_trace_token = None
     token = None
     try:
         try:
-            handler.pre_tracing(to_wrap, wrapped, instance, args, kwargs)
+            pre_trace_token = handler.pre_tracing(to_wrap, wrapped, instance, args, kwargs)
         except Exception as e:
             logger.info(f"Warning: Error occurred in pre_tracing: {e}")
         if to_wrap.get('skip_span', False) or handler.skip_span(to_wrap, wrapped, instance, args, kwargs):
@@ -111,7 +112,7 @@ def monocle_wrapper(tracer: Tracer, handler: SpanHandler, to_wrap, wrapped, inst
         return return_value
     finally:
         try:
-            handler.post_tracing(to_wrap, wrapped, instance, args, kwargs, return_value)
+            handler.post_tracing(to_wrap, wrapped, instance, args, kwargs, return_value, token=pre_trace_token)
         except Exception as e:
             logger.info(f"Warning: Error occurred in post_tracing: {e}")
 
@@ -154,9 +155,10 @@ async def amonocle_wrapper_span_processor(tracer: Tracer, handler: SpanHandler, 
 async def amonocle_wrapper(tracer: Tracer, handler: SpanHandler, to_wrap, wrapped, instance, source_path, args, kwargs):
     return_value = None
     token = None
+    pre_trace_token = None
     try:
         try:
-            handler.pre_tracing(to_wrap, wrapped, instance, args, kwargs)
+            pre_trace_token = handler.pre_tracing(to_wrap, wrapped, instance, args, kwargs)
         except Exception as e:
             logger.info(f"Warning: Error occurred in pre_tracing: {e}")
         if to_wrap.get('skip_span', False) or handler.skip_span(to_wrap, wrapped, instance, args, kwargs):
@@ -171,7 +173,7 @@ async def amonocle_wrapper(tracer: Tracer, handler: SpanHandler, to_wrap, wrappe
         return return_value
     finally:
         try:
-            handler.post_tracing(to_wrap, wrapped, instance, args, kwargs, return_value)
+            handler.post_tracing(to_wrap, wrapped, instance, args, kwargs, return_value, pre_trace_token)
         except Exception as e:
             logger.info(f"Warning: Error occurred in post_tracing: {e}")
 

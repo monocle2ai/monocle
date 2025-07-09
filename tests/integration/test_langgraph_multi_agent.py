@@ -21,8 +21,8 @@ span_processors=[SimpleSpanProcessor(memory_exporter)]
 def setup():
     memory_exporter.clear()
     setup_monocle_telemetry(
-            workflow_name="langchain_agent_1",
-            span_processors=[SimpleSpanProcessor(memory_exporter)]
+            workflow_name="langchain_agent_1", monocle_exporters_list='file'
+#            span_processors=[SimpleSpanProcessor(memory_exporter)]
 )
 
 def book_hotel(hotel_name: str):

@@ -37,7 +37,7 @@ class SpanHandler:
     def pre_tracing(self, to_wrap, wrapped, instance, args, kwargs):
         pass
 
-    def post_tracing(self, to_wrap, wrapped, instance, args, kwargs, return_value):
+    def post_tracing(self, to_wrap, wrapped, instance, args, kwargs, return_value, token=None):
         pass
 
     def skip_span(self, to_wrap, wrapped, instance, args, kwargs) -> bool:
@@ -113,7 +113,7 @@ class SpanHandler:
                         if attribute and accessor:
                             attribute_name = f"entity.{span_index+1}.{attribute}"
                             try:
-                                arguments = {"instance":instance, "args":args, "kwargs":kwargs, "result":result}
+                                arguments = {"instance":instance, "args":args, "kwargs":kwargs, "result":result, "parent_span":parent_span}
                                 result = accessor(arguments)
                                 if result and isinstance(result, (str, list)):
                                     span.set_attribute(attribute_name, result)
@@ -141,7 +141,7 @@ class SpanHandler:
             output_processor=to_wrap['output_processor']
             skip_processors:list[str] = self.skip_processor(to_wrap, wrapped, instance, span, args, kwargs) or []
 
-            arguments = {"instance": instance, "args": args, "kwargs": kwargs, "result": ret_result, "exception":ex}
+            arguments = {"instance": instance, "args": args, "kwargs": kwargs, "result": ret_result, "exception":ex, "parent_span":parent_span}
             # Process events if they are defined in the output_processor.
             # In case of inference.modelapi skip the event processing unless the span has an exception
             if 'events' in output_processor and ('events' not in skip_processors or ex is not None):

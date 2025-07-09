@@ -6,6 +6,7 @@ and assistant messages from various input formats.
 import logging
 from urllib.parse import urlparse
 from opentelemetry.sdk.trace import Span
+from opentelemetry.context import get_value
 from monocle_apptrace.instrumentation.common.utils import (
     Option,
     get_json_dumps,
@@ -17,8 +18,13 @@ from monocle_apptrace.instrumentation.common.utils import (
 )
 from monocle_apptrace.instrumentation.metamodel.finish_types import map_llamaindex_finish_reason_to_finish_type
 
+LLAMAINDEX_AGENT_NAME_KEY = "_active_agent_name"
 logger = logging.getLogger(__name__)
 
+def get_status(result):
+    if result is not None and hasattr(result, 'status'):
+        return result.status
+    return None
 
 def extract_tools(instance):
     tools = []
@@ -36,6 +42,45 @@ def extract_tools(instance):
                 tools.append(tool_name)
     return tools
 
+def get_tool_name(instance):
+    if hasattr(instance, 'metadata') and hasattr(instance.metadata, 'name'):
+        return instance.metadata.name
+    return ""
+
+def get_tool_description(instance):
+    if hasattr(instance, 'metadata') and hasattr(instance.metadata, 'description'):
+        return instance.metadata.description
+    return ""
+
+def get_tool_args(arguments):
+    tool_args = []
+    for key, value in arguments['kwargs'].items():
+        # check if value is builtin type or a string
+        if value is not None and isinstance(value, (str, int, float, bool)):
+            tool_args.append({key, value})
+    return tool_args
+
+def get_tool_response(response):
+    if hasattr(response, 'raw_output'):
+        return response.raw_output
+    return ""
+
+def is_delegation_tool(instance) -> bool:
+    return get_tool_name(instance) == "handoff"
+
+def get_agent_name(instance) -> str:
+    if hasattr(instance, 'name'):
+        return instance.name
+    else:
+        return instance.__class__.__name__
+
+def get_source_agent_name(parent_span:Span) -> str:
+    return parent_span.attributes.get(LLAMAINDEX_AGENT_NAME_KEY, "")
+
+def get_delegated_agent_name(kwargs) -> str:
+    if "to_agent" in kwargs:
+        return kwargs["to_agent"]
+    return ""
 
 def extract_messages(args):
     """Extract system and user messages"""
@@ -64,6 +109,33 @@ def extract_messages(args):
     except Exception as e:
         logger.warning("Error in extract_messages: %s", str(e))
         return []
+
+def extract_agent_args(args):
+    if isinstance(args, (list, tuple)):
+        input_args = []
+        for arg in args:
+            if isinstance(arg, (str, dict)):
+                input_args.append(arg)
+            elif hasattr(arg, 'raw'):
+                input_args.append(arg.raw)
+        return input_args
+    elif isinstance(args, str):
+        return [args]
+    return ""
+
+def extract_agent_response(arguments):
+    status = get_status_code(arguments)
+    if status == 'success':
+        if hasattr(arguments['result'], 'response'):
+            if hasattr(arguments['result'].response, 'content'):
+                return arguments['result'].response.content
+            return arguments['result'].response
+        return ""
+    else:
+        if arguments["exception"] is not None:
+            return get_exception_message(arguments)
+        elif hasattr(arguments['result'], "error"):
+            return arguments['result'].error
 
 def extract_assistant_message(arguments):
     status = get_status_code(arguments)

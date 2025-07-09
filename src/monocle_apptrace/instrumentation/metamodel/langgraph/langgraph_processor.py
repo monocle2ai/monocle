@@ -1,12 +1,21 @@
+from opentelemetry.context import set_value, attach, detach
 from monocle_apptrace.instrumentation.common.span_handler import SpanHandler
 from monocle_apptrace.instrumentation.metamodel.langgraph._helper import (
-   get_name, is_root_agent_name, is_delegation_tool
+   get_name, is_root_agent_name, is_delegation_tool, LANGGRAPTH_AGENT_NAME_KEY
+
 )
 from monocle_apptrace.instrumentation.metamodel.langgraph.entities.inference import (
      AGENT_GENERIC, AGENT_DELEGATION
 )
 
 class LanggraphAgentHandler(SpanHandler):
+    def pre_tracing(self, to_wrap, wrapped, instance, args, kwargs):
+        return attach(set_value(LANGGRAPTH_AGENT_NAME_KEY, get_name(instance)))
+
+    def post_tracing(self, to_wrap, wrapped, instance, args, kwargs, result, token):
+        if token is not None:
+            detach(token)
+
     # In multi agent scenarios, the root agent is the one that orchestrates the other agents. LangGraph generates an extra root level invoke()
     # call on top of the supervisor agent invoke().
     # This span handler resets the parent invoke call as generic type to avoid duplicate attributes/events in supervisor span and this root span.

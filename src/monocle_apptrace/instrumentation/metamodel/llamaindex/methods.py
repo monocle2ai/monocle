@@ -2,7 +2,7 @@ from monocle_apptrace.instrumentation.common.wrapper import atask_wrapper, task_
 from monocle_apptrace.instrumentation.metamodel.llamaindex.entities.inference import (
     INFERENCE,
 )
-from monocle_apptrace.instrumentation.metamodel.llamaindex.entities.agent import AGENT
+from monocle_apptrace.instrumentation.metamodel.llamaindex.entities.agent import AGENT, TOOLS
 from monocle_apptrace.instrumentation.metamodel.llamaindex.entities.retrieval import (
     RETRIEVAL,
 )
@@ -79,6 +79,13 @@ LLAMAINDEX_METHODS = [
         "output_processor": INFERENCE
     },
     {
+        "package": "llama_index.core.agent.workflow.multi_agent_workflow",
+        "object": "AgentWorkflow",
+        "method": "run",
+        "span_handler": "llamaindex_agent_handler",
+        "wrapper_method": atask_wrapper
+    },
+    {
         "package": "llama_index.core.agent",
         "object": "ReActAgent",
         "method": "chat",
@@ -86,6 +93,43 @@ LLAMAINDEX_METHODS = [
         "output_processor": AGENT
     },
     {
+        "package": "llama_index.core.agent",
+        "object": "ReActAgent",
+        "method": "achat",
+        "wrapper_method": atask_wrapper,
+        "output_processor": AGENT
+    },
+    {
+        "package": "llama_index.core.agent.workflow.function_agent",
+        "object": "FunctionAgent",
+        "method": "finalize",
+        "wrapper_method": atask_wrapper,
+        "output_processor": AGENT
+    },
+    {
+        "package": "llama_index.core.agent.workflow.function_agent",
+        "object": "FunctionAgent",
+        "method": "take_step",
+        "span_handler": "llamaindex_agent_handler",
+        "wrapper_method": atask_wrapper
+    },
+    
+    {
+        "package": "llama_index.core.tools.function_tool",
+        "object": "FunctionTool",
+        "method": "call",
+        "wrapper_method": task_wrapper,
+        "span_handler": "llamaindex_tool_handler",
+        "output_processor": TOOLS
+    },
+    {
+        "package": "llama_index.core.tools.function_tool",
+        "object": "FunctionTool",
+        "method": "acall",
+        "span_handler": "llamaindex_tool_handler",
+        "wrapper_method": atask_wrapper,
+        "output_processor": TOOLS
+    },    {
         "package": "llama_index.llms.anthropic",
         "object": "Anthropic",
         "method": "chat",

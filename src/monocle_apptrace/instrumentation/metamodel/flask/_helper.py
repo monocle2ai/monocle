@@ -11,8 +11,6 @@ from opentelemetry.trace.propagation import _SPAN_KEY
 
 logger = logging.getLogger(__name__)
 MAX_DATA_LENGTH = 1000
-token_data = local()
-token_data.current_token = None
 
 def get_route(args) -> str:
     return args[0]['PATH_INFO'] if 'PATH_INFO' in args[0] else ""
@@ -47,21 +45,18 @@ def flask_pre_tracing(args):
         if key.startswith("HTTP_"):
             new_key = key[5:].lower().replace("_", "-")
             headers[new_key] = value
-    token_data.current_token = extract_http_headers(headers)
+    return extract_http_headers(headers)
 
-def flask_post_tracing():
-    clear_http_scopes(token_data.current_token)
-    token_data.current_token = None
+def flask_post_tracing(token):
+    clear_http_scopes(token)
 
 class FlaskSpanHandler(SpanHandler):
 
     def pre_tracing(self, to_wrap, wrapped, instance, args, kwargs):
-        flask_pre_tracing(args)
-        return super().pre_tracing(to_wrap, wrapped, instance, args, kwargs)
+        return flask_pre_tracing(args)
     
-    def post_tracing(self, to_wrap, wrapped, instance, args, kwargs, return_value):
-        flask_post_tracing()
-        return super().post_tracing(to_wrap, wrapped, instance, args, kwargs, return_value)
+    def post_tracing(self, to_wrap, wrapped, instance, args, kwargs, return_value, token):
+        flask_post_tracing(token)
 
 class FlaskResponseSpanHandler(SpanHandler):
     def post_tracing(self, to_wrap, wrapped, instance, args, kwargs, return_value):

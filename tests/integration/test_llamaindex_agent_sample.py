@@ -1,18 +1,18 @@
 import time
-from tests.common.custom_exporter import CustomConsoleSpanExporter
+from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from llama_index.core.tools import FunctionTool
 from llama_index.llms.openai import OpenAI
 from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
-from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from opentelemetry.sdk.trace.export import BatchSpanProcessor, SimpleSpanProcessor
 from llama_index.core.agent import ReActAgent
 import pytest
-custom_exporter = CustomConsoleSpanExporter()
+memory_exporter = InMemorySpanExporter()
+span_processors=[SimpleSpanProcessor(memory_exporter)]
 @pytest.fixture(scope="module")
 def setup():
     setup_monocle_telemetry(
-        workflow_name="llama_index_1",
-        span_processors=[BatchSpanProcessor(custom_exporter)],
-        wrapper_methods=[]
+        workflow_name="llama_index_1", monocle_exporters_list='file',
+## UNCOMMENT        span_processors=[SimpleSpanProcessor(memory_exporter)]
     )
 
 # Define coffee menu
@@ -55,12 +55,12 @@ agent = ReActAgent.from_tools([coffee_menu_tool, order_tool], llm=llm)
 
 def test_llamaindex_agent(setup):
     print("Welcome to the Coffee Bot! ")
-    user_input = "Please order 3 expresso coffees"
+    user_input = "Please order 3 espresso coffees"
     response = agent.chat(user_input)
     time.sleep(5)
     print(f"Bot: {response}")
 
-    spans = custom_exporter.get_captured_spans()
+    spans = memory_exporter.get_captured_spans()
     for span in spans:
         span_attributes = span.attributes
 

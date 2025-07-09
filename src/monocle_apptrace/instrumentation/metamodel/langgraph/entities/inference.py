@@ -106,11 +106,16 @@ AGENT_DELEGATION = {
                 "_comment": "agent type",
                 "attribute": "type",
                 "accessor": lambda arguments:'agent.langgraph'
-              },              
+              },
+              {
+                "_comment": "name of the agent",
+                "attribute": "from_agent",
+                "accessor": lambda arguments: _helper.get_from_agent()
+              },
               {
                 "_comment": "name of the agent called",
-                "attribute": "name",
-                "accessor": lambda arguments: _helper.format_agent_name(arguments['instance'])               
+                "attribute": "to_agent",
+                "accessor": lambda arguments: _helper.get_name(arguments['instance'])
               }
         ]
       ]

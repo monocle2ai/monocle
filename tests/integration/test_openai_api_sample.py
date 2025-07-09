@@ -99,6 +99,7 @@ def test_openai_api_sample(setup):
     
     assert workflow_span.attributes["span.type"] == "workflow"
     assert workflow_span.attributes["entity.1.name"] == "generic_openai_1"
+    assert workflow_span.attributes["workflow.name"] == "generic_openai_1"
     assert workflow_span.attributes["entity.1.type"] == "workflow.generic"
 
 

@@ -15,6 +15,7 @@ from monocle_apptrace.instrumentation.common.utils import (
     get_exception_message,
     get_status_code,
 )
+from monocle_apptrace.instrumentation.metamodel.finish_types import map_llamaindex_finish_reason_to_finish_type
 
 logger = logging.getLogger(__name__)
 
@@ -187,3 +188,80 @@ def update_span_from_llm_response(response, instance):
                 meta_dict.update({"prompt_tokens": getattr(token_usage, "prompt_tokens",None) or getattr(token_usage,"input_tokens",None)})
                 meta_dict.update({"total_tokens": getattr(token_usage, "total_tokens",None) or getattr(token_usage,"output_tokens",None)+getattr(token_usage,"input_tokens",None)})
     return meta_dict
+
+
+def extract_finish_reason(arguments):
+    """Extract finish_reason from LlamaIndex response."""
+    try:
+        # Handle exception cases first
+        if arguments.get("exception") is not None:
+            return "error"
+        
+        response = arguments.get("result")
+        if response is None:
+            return None
+            
+        # Check various possible locations for finish_reason in LlamaIndex responses
+        
+        # Direct finish_reason attribute
+        if hasattr(response, "finish_reason") and response.finish_reason:
+            return response.finish_reason
+            
+        # Check if response has raw attribute (common in LlamaIndex)
+        if hasattr(response, "raw") and response.raw:
+            raw_response = response.raw
+            if isinstance(raw_response, dict):
+                # Check for finish_reason in raw response
+                if "finish_reason" in raw_response:
+                    return raw_response["finish_reason"]
+                if "stop_reason" in raw_response:
+                    return raw_response["stop_reason"]
+                # Check for choices structure (OpenAI-style)
+                if "choices" in raw_response and raw_response["choices"]:
+                    choice = raw_response["choices"][0]
+                    if isinstance(choice, dict) and "finish_reason" in choice:
+                        return choice["finish_reason"]
+            elif hasattr(raw_response, "choices") and raw_response.choices:
+                # Handle object-style raw response
+                choice = raw_response.choices[0]
+                if hasattr(choice, "finish_reason"):
+                    return choice.finish_reason
+        
+        # Check for additional metadata
+        if hasattr(response, "additional_kwargs") and response.additional_kwargs:
+            kwargs = response.additional_kwargs
+            if isinstance(kwargs, dict):
+                for key in ["finish_reason", "stop_reason"]:
+                    if key in kwargs:
+                        return kwargs[key]
+        
+        # Check for response metadata
+        if hasattr(response, "response_metadata") and response.response_metadata:
+            metadata = response.response_metadata
+            if isinstance(metadata, dict):
+                for key in ["finish_reason", "stop_reason"]:
+                    if key in metadata:
+                        return metadata[key]
+        
+        # Check for source nodes or other LlamaIndex-specific attributes
+        if hasattr(response, "source_nodes") and response.source_nodes:
+            # If we have source nodes, it's likely a successful retrieval
+            return "stop"
+        
+        # If no specific finish reason found, infer from status
+        status_code = get_status_code(arguments)
+        if status_code == 'success':
+            return "stop"  # Default success finish reason
+        elif status_code == 'error':
+            return "error"
+            
+    except Exception as e:
+        logger.warning("Warning: Error occurred in extract_finish_reason: %s", str(e))
+        return None
+    
+    return None
+
+
+def map_finish_reason_to_finish_type(finish_reason):
+    """Map LlamaIndex finish_reason to finish_type."""
+    return map_llamaindex_finish_reason_to_finish_type(finish_reason)

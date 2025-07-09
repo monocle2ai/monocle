@@ -13,6 +13,7 @@ from monocle_apptrace.instrumentation.common.utils import (
     get_exception_message,
     get_status_code,
 )
+from monocle_apptrace.instrumentation.metamodel.finish_types import map_langchain_finish_reason_to_finish_type
 
 
 logger = logging.getLogger(__name__)
@@ -145,3 +146,90 @@ def update_span_from_llm_response(response, instance):
             meta_dict.update({"prompt_tokens": token_usage.get("prompt_tokens") or token_usage.get("input_tokens")})
             meta_dict.update({"total_tokens": token_usage.get("total_tokens")})
     return meta_dict
+
+def extract_finish_reason(arguments):
+    """Extract finish_reason from LangChain response."""
+    try:
+        # Handle exception cases first
+        if arguments.get("exception") is not None:
+            # If there's an exception, it's typically an error finish type
+            return "error"
+        
+        response = arguments.get("result")
+        if response is None:
+            return None
+            
+        # Check various possible locations for finish_reason in LangChain responses
+        
+        # Direct finish_reason attribute
+        if hasattr(response, "finish_reason") and response.finish_reason:
+            return response.finish_reason
+            
+        # Response metadata (common in LangChain)
+        if hasattr(response, "response_metadata") and response.response_metadata:
+            metadata = response.response_metadata
+            if isinstance(metadata, dict):
+                # Check for finish_reason in metadata
+                if "finish_reason" in metadata:
+                    return metadata["finish_reason"]
+                # Check for stop_reason (Anthropic style through LangChain)
+                if "stop_reason" in metadata:
+                    return metadata["stop_reason"]
+                # Check for other common finish reason keys
+                for key in ["completion_reason", "end_reason", "status"]:
+                    if key in metadata:
+                        return metadata[key]
+        
+        # Check if response has generation_info (some LangChain models)
+        if hasattr(response, "generation_info") and response.generation_info:
+            gen_info = response.generation_info
+            if isinstance(gen_info, dict):
+                for key in ["finish_reason", "stop_reason", "completion_reason"]:
+                    if key in gen_info:
+                        return gen_info[key]
+        
+        # Check if response has llm_output (batch responses)
+        if hasattr(response, "llm_output") and response.llm_output:
+            llm_output = response.llm_output
+            if isinstance(llm_output, dict):
+                for key in ["finish_reason", "stop_reason"]:
+                    if key in llm_output:
+                        return llm_output[key]
+        
+        # For AIMessage responses, check additional_kwargs
+        if hasattr(response, "additional_kwargs") and response.additional_kwargs:
+            kwargs = response.additional_kwargs
+            if isinstance(kwargs, dict):
+                for key in ["finish_reason", "stop_reason"]:
+                    if key in kwargs:
+                        return kwargs[key]
+        
+        # For generation responses with choices (similar to OpenAI structure)
+        if hasattr(response, "generations") and response.generations:
+            generations = response.generations
+            if isinstance(generations, list) and len(generations) > 0:
+                for generation in generations:
+                    if hasattr(generation, "generation_info") and generation.generation_info:
+                        gen_info = generation.generation_info
+                        if isinstance(gen_info, dict):
+                            for key in ["finish_reason", "stop_reason"]:
+                                if key in gen_info:
+                                    return gen_info[key]
+        
+        # If no specific finish reason found, infer from status
+        status_code = get_status_code(arguments)
+        if status_code == 'success':
+            return "stop"  # Default success finish reason
+        elif status_code == 'error':
+            return "error"
+            
+    except Exception as e:
+        logger.warning("Warning: Error occurred in extract_finish_reason: %s", str(e))
+        return None
+    
+    return None
+
+
+def map_finish_reason_to_finish_type(finish_reason):
+    """Map LangChain finish_reason to finish_type."""
+    return map_langchain_finish_reason_to_finish_type(finish_reason)

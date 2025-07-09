@@ -196,6 +196,16 @@ INFERENCE = {
                 {
                     "attribute": "status_code",
                     "accessor": lambda arguments: get_exception_status_code(arguments)
+                },
+                {
+                    "attribute": "finish_reason",
+                    "accessor": lambda arguments: _helper.extract_finish_reason(arguments)
+                },
+                {
+                    "attribute": "finish_type",
+                    "accessor": lambda arguments: _helper.map_finish_reason_to_finish_type(
+                        _helper.extract_finish_reason(arguments)
+                    )
                 }
             ]
         },

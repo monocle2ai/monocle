@@ -216,6 +216,7 @@ if __name__ == "__main__":
 #         "monocle_apptrace.language": "python",
 #         "span_source": "/Users/kshitizvijayvargiya/monocle-ksh/tests/integration/test_openai_api_sample.py:39",
 #         "span.type": "workflow",
+#         "workflow.name": "generic_openai_1",
 #         "entity.1.name": "generic_openai_1",
 #         "entity.1.type": "workflow.generic",
 #         "entity.2.type": "app_hosting.generic",

@@ -55,6 +55,9 @@ def extract_assistant_message(arguments):
         elif hasattr(arguments['result'], "message") and hasattr(arguments['result'].message, "content") and arguments['result'].message.content != "":
             role = arguments['result'].type if hasattr(arguments['result'], 'type') else role
             messages.append({role: arguments['result'].message.content})
+        elif hasattr(arguments['result'], "tool_calls"):
+            role = arguments['result'].type if hasattr(arguments['result'], 'type') else role
+            messages.append({role: arguments['result'].tool_calls[0]})
     else:
         if arguments["exception"] is not None:
             messages.append({role: get_exception_message(arguments)})

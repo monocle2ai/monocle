@@ -61,6 +61,18 @@ TOOLS = {
                   "attribute": "description",
                   "accessor": lambda arguments: arguments['instance'].description
               }
+        ],
+        [             
+              {
+                "_comment": "name of the agent",
+                "attribute": "name",
+                "accessor": lambda arguments: _helper.get_from_agent()
+              },          
+              {
+                "_comment": "agent type",
+                "attribute": "type",
+                "accessor": lambda arguments:'agent.langgraph'
+              }
         ]
       ],
       "events": [
@@ -71,7 +83,7 @@ TOOLS = {
                 "_comment": "this is Tool input",
                 "attribute": "Inputs",
                 "accessor": lambda arguments: _helper.get_tool_args(arguments) 
-            }
+            },
           ]
         },
         {
@@ -115,7 +127,7 @@ AGENT_DELEGATION = {
               {
                 "_comment": "name of the agent called",
                 "attribute": "to_agent",
-                "accessor": lambda arguments: _helper.get_name(arguments['instance'])
+                "accessor": lambda arguments: _helper.format_agent_name(arguments['instance'])
               }
         ]
       ]

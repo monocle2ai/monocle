@@ -13,6 +13,7 @@ from monocle_apptrace.instrumentation.metamodel.haystack.methods import (HAYSTAC
 from monocle_apptrace.instrumentation.metamodel.openai.methods import (OPENAI_METHODS,)
 from monocle_apptrace.instrumentation.metamodel.openai._helper import OpenAISpanHandler
 from monocle_apptrace.instrumentation.metamodel.langgraph.methods import LANGGRAPH_METHODS
+from monocle_apptrace.instrumentation.metamodel.langgraph.langgraph_processor import LanggraphAgentHandler, LanggraphToolHandler
 from monocle_apptrace.instrumentation.metamodel.flask.methods import (FLASK_METHODS, )
 from monocle_apptrace.instrumentation.metamodel.flask._helper import FlaskSpanHandler, FlaskResponseSpanHandler
 from monocle_apptrace.instrumentation.metamodel.requests.methods import (REQUESTS_METHODS, )
@@ -88,4 +89,6 @@ MONOCLE_SPAN_HANDLERS: Dict[str, SpanHandler] = {
     "azure_func_handler": azureSpanHandler(),
     "fastapi_handler": FastAPISpanHandler(),
     "fastapi_response_handler": FastAPIResponseSpanHandler(),
+    "langgraph_agent_handler": LanggraphAgentHandler(),
+    "langgraph_tool_handler": LanggraphToolHandler(),
 }

@@ -1,6 +1,6 @@
 import sys, os
 import runpy
-from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
+from monocle_apptrace import setup_monocle_telemetry
 
 def main():
     if len(sys.argv) < 2 or not sys.argv[1].endswith(".py"):

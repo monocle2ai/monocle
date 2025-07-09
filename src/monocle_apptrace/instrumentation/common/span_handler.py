@@ -20,6 +20,7 @@ WORKFLOW_TYPE_MAP = {
     "langchain": "workflow.langchain",
     "haystack": "workflow.haystack",
     "teams.ai": "workflow.teams_ai",
+    "langgraph": "workflow.langgraph",
 }
 
 class SpanHandler:
@@ -85,7 +86,7 @@ class SpanHandler:
 
     def hydrate_span(self, to_wrap, wrapped, instance, args, kwargs, result, span, parent_span = None, ex:Exception = None) -> bool:
         try:
-            detected_error_in_attribute = self.hydrate_attributes(to_wrap, wrapped, instance, args, kwargs, result, span)
+            detected_error_in_attribute = self.hydrate_attributes(to_wrap, wrapped, instance, args, kwargs, result, span, parent_span)
             detected_error_in_event = self.hydrate_events(to_wrap, wrapped, instance, args, kwargs, result, span, parent_span, ex)
             if detected_error_in_attribute or detected_error_in_event:
                 span.set_attribute(MONOCLE_DETECTED_SPAN_ERROR, True)
@@ -93,7 +94,7 @@ class SpanHandler:
             if span.status.status_code == StatusCode.UNSET and ex is None:
                 span.set_status(StatusCode.OK)
 
-    def hydrate_attributes(self, to_wrap, wrapped, instance, args, kwargs, result, span:Span) -> bool:
+    def hydrate_attributes(self, to_wrap, wrapped, instance, args, kwargs, result, span:Span, parent_span:Span) -> bool:
         detected_error:bool = False
         span_index = 0
         if SpanHandler.is_root_span(span):

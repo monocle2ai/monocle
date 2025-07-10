@@ -1,4 +1,3 @@
-from opentelemetry.context import set_value, attach, detach
 from monocle_apptrace.instrumentation.common.span_handler import SpanHandler
 from monocle_apptrace.instrumentation.metamodel.llamaindex._helper import (
     is_delegation_tool, LLAMAINDEX_AGENT_NAME_KEY, get_agent_name

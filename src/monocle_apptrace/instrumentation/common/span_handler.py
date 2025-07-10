@@ -16,6 +16,7 @@ from monocle_apptrace.instrumentation.common.constants import WORKFLOW_TYPE_KEY,
 logger = logging.getLogger(__name__)
 
 WORKFLOW_TYPE_MAP = {
+    "llama_index.core.agent.workflow": WORKFLOW_TYPE_GENERIC,
     "llama_index": "workflow.llamaindex",
     "langchain": "workflow.langchain",
     "haystack": "workflow.haystack",

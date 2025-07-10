@@ -100,7 +100,7 @@ AGENT_DELEGATION = {
               {
                 "_comment": "agent type",
                 "attribute": "type",
-                "accessor": lambda arguments:'agent.langgraph'
+                "accessor": lambda arguments:'agent.llamaindex'
               },
               {
                 "_comment": "name of the agent",

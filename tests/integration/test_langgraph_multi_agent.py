@@ -21,8 +21,8 @@ span_processors=[SimpleSpanProcessor(memory_exporter)]
 def setup():
     memory_exporter.clear()
     setup_monocle_telemetry(
-            workflow_name="langchain_agent_1", monocle_exporters_list='file'
-#            span_processors=[SimpleSpanProcessor(memory_exporter)]
+            workflow_name="langchain_agent_1", # monocle_exporters_list='file'
+            span_processors=[SimpleSpanProcessor(memory_exporter)]
 )
 
 def book_hotel(hotel_name: str):
@@ -148,11 +148,12 @@ def verify_spans():
 
         if "span.type" in span_attributes and span_attributes["span.type"] == "agentic.delegation":
             assert "entity.1.type" in span_attributes
-            assert "entity.1.name" in span_attributes
+            assert "entity.1.from_agent" in span_attributes
+            assert "entity.1.to_agent" in span_attributes
             assert span_attributes["entity.1.type"] == "agent.langgraph"
-            if span_attributes["entity.1.name"] == "flight_assistant":
+            if span_attributes["entity.1.to_agent"] == "flight_assistant":
                 found_book_flight_delegation = True
-            elif span_attributes["entity.1.name"] == "hotel_assistant":
+            elif span_attributes["entity.1.to_agent"] == "hotel_assistant":
                 found_book_hotel_delegation = True
 
     assert found_inference, "Inference span not found"

@@ -57,7 +57,7 @@ def get_tool_args(arguments):
         # check if value is builtin type or a string
         if value is not None and isinstance(value, (str, int, float, bool)):
             tool_args.append({key, value})
-    return tool_args
+    return [get_json_dumps(tool_arg) for tool_arg in tool_args]
 
 def get_tool_response(response):
     if hasattr(response, 'raw_output'):
@@ -115,7 +115,7 @@ def extract_agent_args(args):
         for arg in args:
             if isinstance(arg, (str, dict)):
                 input_args.append(arg)
-            elif hasattr(arg, 'raw'):
+            elif hasattr(arg, 'raw') and isinstance(arg.raw, str):
                 input_args.append(arg.raw)
         return input_args
     elif isinstance(args, str):

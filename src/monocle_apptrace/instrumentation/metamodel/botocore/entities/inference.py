@@ -43,19 +43,20 @@ INFERENCE = {
         {
             "name": "data.output",
             "attributes": [
-            {
-                    "_comment": "this is result from LLM",
-                    "attribute": "status",
-                    "accessor": lambda arguments: get_status(arguments)
-                },
-                {
-                    "attribute": "status_code",
-                    "accessor": lambda arguments: _helper.get_status_code(arguments)
-                },
                 {
                     "_comment": "this is response from LLM",
                     "attribute": "response",
                     "accessor": lambda arguments: _helper.extract_assistant_message(arguments)
+                },
+                {
+                    "attribute": "finish_reason",
+                    "accessor": lambda arguments: _helper.extract_finish_reason(arguments)
+                },
+                {
+                    "attribute": "finish_type",
+                    "accessor": lambda arguments: _helper.map_finish_reason_to_finish_type(
+                        _helper.extract_finish_reason(arguments)
+                    )
                 }
             ]
         },

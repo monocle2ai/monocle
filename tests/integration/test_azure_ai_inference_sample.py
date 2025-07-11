@@ -502,8 +502,6 @@ if __name__ == "__main__":
 #             "timestamp": "2025-07-02T15:36:11.668306Z",
 #             "attributes": {
 #                 "response": "{\"assistant\": \"Jupiter is the largest planet in our solar system.\"}",
-#                 "status": "success",
-#                 "status_code": "success"
 #             }
 #         },
 #         {

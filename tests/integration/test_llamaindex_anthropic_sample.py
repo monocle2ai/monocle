@@ -166,8 +166,6 @@ if __name__ == "__main__":
 #             "name": "data.output",
 #             "timestamp": "2025-07-02T16:15:06.464829Z",
 #             "attributes": {
-#                 "status": "success",
-#                 "status_code": "success",
 #                 "response": "{\"assistant\": \"Arrr, ye scurvy dog! Here be a tale in ten words:\\n\\nTreasure map led to cursed gold. Crew mutinied. Captain's revenge sweet.\"}"
 #             }
 #         },

@@ -233,8 +233,6 @@ if __name__ == "__main__":
 #             "timestamp": "2025-07-02T21:00:13.922357Z",
 #             "attributes": {
 #                 "response": "{\"assistant\": \"An Americano is a type of coffee drink made by diluting espresso with hot water. \"}",
-#                 "status": "success",
-#                 "status_code": "success"
 #             }
 #         },
 #         {
@@ -364,8 +362,6 @@ if __name__ == "__main__":
 #             "timestamp": "2025-07-02T21:00:20.234867Z",
 #             "attributes": {
 #                 "response": "{'assistant': 'Espresso diluted with hot water.'}",
-#                 "status": "success",
-#                 "status_code": "success"
 #             }
 #         },
 #         {

@@ -217,8 +217,6 @@ if __name__ == "__main__":
 #             "name": "data.output",
 #             "timestamp": "2025-07-02T08:29:42.084230Z",
 #             "attributes": {
-#                 "status": "success",
-#                 "status_code": "success",
 #                 "response": "{'model': 'Mrrrrow?\\n\\nI slowly blink one eye open, then the other, looking up at you from my sunbeam-warmed spot on the rug. My tail gives a lazy flick, just the very tip. Are you going to offer me head scratches? Or, perhaps, a treat? These are important questions.'}"
 #             }
 #         },
@@ -313,8 +311,7 @@ if __name__ == "__main__":
 #             "name": "data.output",
 #             "timestamp": "2025-07-02T08:29:54.668188Z",
 #             "attributes": {
-#                 "status": "success",
-#                 "status_code": "success",
+#                 "": "success",
 #                 "response": "{'model': \"Oh, how wonderful! Two dogs must bring so much joy (and probably some fun chaos!) to your home.\\n\\nDo they have names, or what breeds are they? I'd love to hear more about them if you'd like to share!\"}"
 #             }
 #         },
@@ -411,8 +408,6 @@ if __name__ == "__main__":
 #             "name": "data.output",
 #             "timestamp": "2025-07-02T08:29:56.169459Z",
 #             "attributes": {
-#                 "status": "success",
-#                 "status_code": "success",
 #                 "response": "{'model': \"Okay, let's do the math!\\n\\nSince each dog has 4 paws, and you have 2 dogs:\\n\\n2 dogs * 4 paws/dog = **8 paws**\\n\\nSo, there are 8 paws in your house!\"}"
 #             }
 #         },

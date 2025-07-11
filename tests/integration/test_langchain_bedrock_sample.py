@@ -343,8 +343,6 @@ if __name__ == "__main__":
 #             "name": "data.output",
 #             "timestamp": "2025-07-02T20:46:44.524755Z",
 #             "attributes": {
-#                 "status": "success",
-#                 "status_code": "success",
 #                 "response": "{'ai': ' Task decomposition is the process of breaking down a complex task into smaller, more manageable steps. This can be done using various methods, such as using large language models (LLMs) with simple prompts, task-specific instructions, or even human inputs. Another approach involves using an external classical planner to perform long-horizon planning, which utilizes the Planning Domain Definition Language (PDDL) as an intermediate interface.'}"
 #             }
 #         },

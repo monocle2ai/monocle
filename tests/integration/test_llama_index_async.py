@@ -372,8 +372,6 @@ if __name__ == "__main__":
 #             "name": "data.output",
 #             "timestamp": "2025-07-02T20:48:24.823603Z",
 #             "attributes": {
-#                 "status": "success",
-#                 "status_code": "success",
 #                 "response": "{\"assistant\": \"The author grew up reading and writing.\"}"
 #             }
 #         },

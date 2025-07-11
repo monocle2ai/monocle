@@ -21,8 +21,8 @@ span_processors=[SimpleSpanProcessor(memory_exporter)]
 def setup():
     memory_exporter.clear()
     setup_monocle_telemetry(
-            workflow_name="llamaindex_agent_1", # monocle_exporters_list='file',
-           span_processors=[SimpleSpanProcessor(memory_exporter)]
+        workflow_name="llamaindex_agent_1",  # monocle_exporters_list='file'
+       span_processors=[SimpleSpanProcessor(memory_exporter)]
 )
 
 def book_hotel(hotel_name: str):
@@ -34,7 +34,7 @@ def book_flight(from_airport: str, to_airport: str):
     return f"Successfully booked a flight from {from_airport} to {to_airport}."
 
 def setup_agents():
-    llm = OpenAI(model="gpt-4o-mini")
+    llm = OpenAI(model="gpt-4")
 
     flight_tool = FunctionTool.from_defaults(
         fn=book_flight,
@@ -43,8 +43,7 @@ def setup_agents():
     )
     flight_agent = FunctionAgent(name="flight_booking_agent", tools=[flight_tool], llm=llm,
                             system_prompt="You are a flight booking agent who books flights as per the request. Once you complete the task, you handoff to the coordinator agent only.",
-                            description="Flight booking agent",
-                            can_handoff_to=["coordinator"])
+                            description="Flight booking agent")
 
     hotel_tool = FunctionTool.from_defaults(
         fn=book_hotel,
@@ -53,8 +52,7 @@ def setup_agents():
     )
     hotel_agent = FunctionAgent(name="hotel_booking_agent", tools=[hotel_tool], llm=llm,
                             system_prompt="You are a hotel booking agent who books hotels as per the request. Once you complete the task, you handoff to the coordinator agent only.",
-                            description="Hotel booking agent",
-                            can_handoff_to=["coordinator"])
+                            description="Hotel booking agent")
 
     coordinator = FunctionAgent(name="coordinator", tools=[], llm=llm,
                             system_prompt=
@@ -100,8 +98,8 @@ def verify_spans():
             assert span_attributes["entity.1.type"] == "inference.openai"
             assert "entity.1.provider_name" in span_attributes
             assert "entity.1.inference_endpoint" in span_attributes
-            assert span_attributes["entity.2.name"] == "gpt-4o-mini"
-            assert span_attributes["entity.2.type"] == "model.llm.gpt-4o-mini"
+            assert span_attributes["entity.2.name"] == "gpt-4"
+            assert span_attributes["entity.2.type"] == "model.llm.gpt-4"
 
             # Assertions for metadata
             span_input, span_output, span_metadata = span.events
@@ -179,8 +177,8 @@ def verify_spans():
 #         "entity.1.type": "inference.openai",
 #         "entity.1.provider_name": "api.openai.com",
 #         "entity.1.inference_endpoint": "https://api.openai.com/v1/",
-#         "entity.2.name": "gpt-4o-mini",
-#         "entity.2.type": "model.llm.gpt-4o-mini",
+#         "entity.2.name": "gpt-4",
+#         "entity.2.type": "model.llm.gpt-4",
 #         "entity.count": 2
 #     },
 #     "events": [
@@ -387,8 +385,8 @@ def verify_spans():
 #         "entity.1.type": "inference.openai",
 #         "entity.1.provider_name": "api.openai.com",
 #         "entity.1.inference_endpoint": "https://api.openai.com/v1/",
-#         "entity.2.name": "gpt-4o-mini",
-#         "entity.2.type": "model.llm.gpt-4o-mini",
+#         "entity.2.name": "gpt-4",
+#         "entity.2.type": "model.llm.gpt-4",
 #         "entity.count": 2
 #     },
 #     "events": [
@@ -531,8 +529,8 @@ def verify_spans():
 #         "entity.1.type": "inference.openai",
 #         "entity.1.provider_name": "api.openai.com",
 #         "entity.1.inference_endpoint": "https://api.openai.com/v1/",
-#         "entity.2.name": "gpt-4o-mini",
-#         "entity.2.type": "model.llm.gpt-4o-mini",
+#         "entity.2.name": "gpt-4",
+#         "entity.2.type": "model.llm.gpt-4",
 #         "entity.count": 2
 #     },
 #     "events": [
@@ -708,8 +706,8 @@ def verify_spans():
 #         "entity.1.type": "inference.openai",
 #         "entity.1.provider_name": "api.openai.com",
 #         "entity.1.inference_endpoint": "https://api.openai.com/v1/",
-#         "entity.2.name": "gpt-4o-mini",
-#         "entity.2.type": "model.llm.gpt-4o-mini",
+#         "entity.2.name": "gpt-4",
+#         "entity.2.type": "model.llm.gpt-4",
 #         "entity.count": 2
 #     },
 #     "events": [
@@ -886,8 +884,8 @@ def verify_spans():
 #         "entity.1.type": "inference.openai",
 #         "entity.1.provider_name": "api.openai.com",
 #         "entity.1.inference_endpoint": "https://api.openai.com/v1/",
-#         "entity.2.name": "gpt-4o-mini",
-#         "entity.2.type": "model.llm.gpt-4o-mini",
+#         "entity.2.name": "gpt-4",
+#         "entity.2.type": "model.llm.gpt-4",
 #         "entity.count": 2
 #     },
 #     "events": [
@@ -1065,8 +1063,8 @@ def verify_spans():
 #         "entity.1.type": "inference.openai",
 #         "entity.1.provider_name": "api.openai.com",
 #         "entity.1.inference_endpoint": "https://api.openai.com/v1/",
-#         "entity.2.name": "gpt-4o-mini",
-#         "entity.2.type": "model.llm.gpt-4o-mini",
+#         "entity.2.name": "gpt-4",
+#         "entity.2.type": "model.llm.gpt-4",
 #         "entity.count": 2
 #     },
 #     "events": [

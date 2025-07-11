@@ -19,6 +19,8 @@ class LlamaIndexToolHandler(SpanHandler):
         return super().hydrate_span(agent_request_wrapper, wrapped, instance, args, kwargs, result, span, parent_span, ex)
 
 class LlamaIndexAgentHandler(SpanHandler):
+    # LlamaIndex uses direct OpenAI call for agent inferences. Given that the workflow type is set to llamaindex, the openAI inference does not record the input/output events.
+    # To avoid this, we set the workflow type to generic for agent inference spans so we can capture the prompts and responses.
     def hydrate_span(self, to_wrap, wrapped, instance, args, kwargs, result, span, parent_span = None, ex:Exception = None) -> bool:
         retval = super().hydrate_span(to_wrap, wrapped, instance, args, kwargs, result, span, parent_span, ex)
         if SpanHandler.is_root_span(parent_span):

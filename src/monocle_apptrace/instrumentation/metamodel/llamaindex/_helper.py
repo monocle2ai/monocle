@@ -74,6 +74,11 @@ def get_agent_name(instance) -> str:
     else:
         return instance.__class__.__name__
 
+def get_agent_description(instance) -> str:
+    if hasattr(instance, 'description'):
+        return instance.description
+    return ""
+
 def get_source_agent_name(parent_span:Span) -> str:
     return parent_span.attributes.get(LLAMAINDEX_AGENT_NAME_KEY, "")
 
@@ -278,7 +283,6 @@ def update_span_from_llm_response(response, instance):
 
     return meta_dict
 
-
 def extract_finish_reason(arguments):
     """Extract finish_reason from LlamaIndex response."""
     try:
@@ -354,3 +358,17 @@ def extract_finish_reason(arguments):
 def map_finish_reason_to_finish_type(finish_reason):
     """Map LlamaIndex finish_reason to finish_type."""
     return map_llamaindex_finish_reason_to_finish_type(finish_reason)
+
+def extract_agent_request_input(kwargs):
+    if "user_msg" in kwargs:
+        return kwargs["user_msg"]
+    return ""
+
+def extract_agent_request_output(arguments):
+    if hasattr(arguments['result'], 'response'):
+        if hasattr(arguments['result'].response, 'content'):
+            return arguments['result'].response.content
+        return arguments['result'].response
+    elif hasattr(arguments['result'], 'raw_output'):
+        return arguments['result'].raw_output
+    return ""

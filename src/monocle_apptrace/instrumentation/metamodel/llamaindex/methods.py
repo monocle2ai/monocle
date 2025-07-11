@@ -2,7 +2,7 @@ from monocle_apptrace.instrumentation.common.wrapper import atask_wrapper, task_
 from monocle_apptrace.instrumentation.metamodel.llamaindex.entities.inference import (
     INFERENCE,
 )
-from monocle_apptrace.instrumentation.metamodel.llamaindex.entities.agent import AGENT, TOOLS
+from monocle_apptrace.instrumentation.metamodel.llamaindex.entities.agent import AGENT, TOOLS, AGENT_REQUEST
 from monocle_apptrace.instrumentation.metamodel.llamaindex.entities.retrieval import (
     RETRIEVAL,
 )
@@ -83,7 +83,8 @@ LLAMAINDEX_METHODS = [
         "object": "AgentWorkflow",
         "method": "run",
         "span_handler": "llamaindex_agent_handler",
-        "wrapper_method": atask_wrapper
+        "wrapper_method": atask_wrapper,
+        "output_processor": AGENT_REQUEST
     },
     {
         "package": "llama_index.core.agent",

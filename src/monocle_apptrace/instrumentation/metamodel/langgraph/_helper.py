@@ -89,3 +89,7 @@ def get_from_agent() -> str:
     """Get the name of the agent that initiated the request."""
     from_agent = get_value(LANGGRAPTH_AGENT_NAME_KEY)
     return from_agent if from_agent is not None else ""
+
+def get_agent_description(instance) -> str:
+    """Get the description of the agent."""
+    return instance.description if hasattr(instance, 'description') else ""

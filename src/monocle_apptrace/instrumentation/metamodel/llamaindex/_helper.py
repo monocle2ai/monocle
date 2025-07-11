@@ -73,6 +73,11 @@ def get_agent_name(instance) -> str:
     else:
         return instance.__class__.__name__
 
+def get_agent_description(instance) -> str:
+    if hasattr(instance, 'description'):
+        return instance.description
+    return ""
+
 def get_source_agent_name(parent_span:Span) -> str:
     return parent_span.attributes.get(LLAMAINDEX_AGENT_NAME_KEY, "")
 
@@ -259,3 +264,17 @@ def update_span_from_llm_response(response, instance):
                 meta_dict.update({"prompt_tokens": getattr(token_usage, "prompt_tokens",None) or getattr(token_usage,"input_tokens",None)})
                 meta_dict.update({"total_tokens": getattr(token_usage, "total_tokens",None) or getattr(token_usage,"output_tokens",None)+getattr(token_usage,"input_tokens",None)})
     return meta_dict
+
+def extract_agent_request_input(kwargs):
+    if "user_msg" in kwargs:
+        return kwargs["user_msg"]
+    return ""
+
+def extract_agent_request_output(arguments):
+    if hasattr(arguments['result'], 'response'):
+        if hasattr(arguments['result'].response, 'content'):
+            return arguments['result'].response.content
+        return arguments['result'].response
+    elif hasattr(arguments['result'], 'raw_output'):
+        return arguments['result'].raw_output
+    return ""

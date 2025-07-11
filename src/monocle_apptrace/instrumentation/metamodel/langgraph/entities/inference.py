@@ -15,6 +15,11 @@ AGENT = {
                 "_comment": "name of the agent",
                 "attribute": "name",
                 "accessor": lambda arguments: _helper.get_name(arguments['instance'])
+              },
+              {
+                "_comment": "agent description",
+                "attribute": "description",
+                "accessor": lambda arguments: _helper.get_agent_description(arguments['instance'])
               }
         ]
       ],
@@ -41,6 +46,41 @@ AGENT = {
         }
       ]
     }
+
+AGENT_REQUEST = {
+      "type": "agentic.request",
+      "attributes": [
+        [
+              {
+                "_comment": "agent type",
+                "attribute": "type",
+                "accessor": lambda arguments:'agent.langgraph'
+              }
+        ],
+      ],
+      "events": [
+        {
+          "name":"data.input",
+          "attributes": [
+            {
+                "_comment": "this is Agent input",
+                "attribute": "input",
+                "accessor": lambda arguments: _helper.extract_input(arguments)
+            }
+          ]
+        },
+        {
+          "name":"data.output",
+          "attributes": [
+            {
+                "_comment": "this is response from LLM",
+                "attribute": "response",
+                "accessor": lambda arguments: _helper.handle_response(arguments['result'])
+            }
+          ]
+        }
+      ]
+}
 
 TOOLS = {
       "type": "agentic.tool",
@@ -102,12 +142,6 @@ TOOLS = {
           ]
         }
       ]
-}
-
-AGENT_GENERIC = {
-      "type": "generic",
-      "attributes": [],
-      "events": []
 }
 
 AGENT_DELEGATION = {

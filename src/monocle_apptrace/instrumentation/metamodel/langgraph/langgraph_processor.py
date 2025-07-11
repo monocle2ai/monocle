@@ -5,7 +5,7 @@ from monocle_apptrace.instrumentation.metamodel.langgraph._helper import (
 
 )
 from monocle_apptrace.instrumentation.metamodel.langgraph.entities.inference import (
-     AGENT_GENERIC, AGENT_DELEGATION
+    AGENT_DELEGATION, AGENT_REQUEST
 )
 
 class LanggraphAgentHandler(SpanHandler):
@@ -22,7 +22,7 @@ class LanggraphAgentHandler(SpanHandler):
     def hydrate_span(self, to_wrap, wrapped, instance, args, kwargs, result, span, parent_span = None, ex:Exception = None) -> bool:
         if is_root_agent_name(instance) and "parent.agent.span" in span.attributes:
             agent_request_wrapper = to_wrap.copy()
-            agent_request_wrapper["output_processor"] = AGENT_GENERIC
+            agent_request_wrapper["output_processor"] = AGENT_REQUEST
         else:
             agent_request_wrapper = to_wrap
             if hasattr(instance, 'name') and parent_span is not None and not SpanHandler.is_root_span(parent_span):

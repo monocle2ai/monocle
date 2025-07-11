@@ -113,6 +113,8 @@ def extract_provider_name(instance):
         provider_url: Option[str]= try_option(getattr, instance, 'api_base').and_then(lambda url: urlparse(url).hostname)
     if hasattr(instance,'_client'):
         provider_url:Option[str] = try_option(getattr, instance._client.base_url,'host')
+    if hasattr(instance, 'model') and isinstance(instance.model, str) and 'gemini' in instance.model.lower():
+        provider_url: Option[str] = try_option(lambda: 'gemini.googleapis.com')
     return provider_url.unwrap_or(None)
 
 
@@ -122,6 +124,8 @@ def extract_inference_endpoint(instance):
             inference_endpoint: Option[str] = try_option(getattr, instance._client.sdk_configuration, 'server_url').map(str)
         if hasattr(instance._client,'base_url'):
             inference_endpoint: Option[str] = try_option(getattr, instance._client, 'base_url').map(str)
+    if hasattr(instance, 'model') and isinstance(instance.model, str) and 'gemini' in instance.model.lower():
+        inference_endpoint = try_option(lambda: f"https://generativelanguage.googleapis.com/v1beta/models/{instance.model}:generateContent")
     return inference_endpoint.unwrap_or(extract_provider_name(instance))
 
 
@@ -180,10 +184,23 @@ def update_span_from_llm_response(response, instance):
     if response is not None and hasattr(response, "raw"):
         if response.raw is not None:
             token_usage = response.raw.get("usage") if isinstance(response.raw, dict) else getattr(response.raw, "usage", None)
+            if token_usage is None:
+                token_usage = response.raw.get("usage_metadata") if isinstance(response.raw, dict) else getattr(response.raw,
+                                                                                                       "usage_metadata", None)
             if token_usage is not None:
                 temperature = instance.__dict__.get("temperature", None)
                 meta_dict.update({"temperature": temperature})
-                meta_dict.update({"completion_tokens": getattr(token_usage, "completion_tokens",None) or getattr(token_usage,"output_tokens",None)})
-                meta_dict.update({"prompt_tokens": getattr(token_usage, "prompt_tokens",None) or getattr(token_usage,"input_tokens",None)})
-                meta_dict.update({"total_tokens": getattr(token_usage, "total_tokens",None) or getattr(token_usage,"output_tokens",None)+getattr(token_usage,"input_tokens",None)})
+                meta_dict.update({"completion_tokens": getattr(token_usage, "completion_tokens",None) or getattr(token_usage,"output_tokens",None) or token_usage.get("candidates_token_count",None)})
+                meta_dict.update({"prompt_tokens": getattr(token_usage, "prompt_tokens",None) or getattr(token_usage,"input_tokens",None) or token_usage.get("prompt_token_count",None)})
+                total_tokens = getattr(token_usage, "total_tokens", None)
+                if total_tokens is not None:
+                    meta_dict.update({"total_tokens": total_tokens})
+                else:
+                    output_tokens = getattr(token_usage, "output_tokens", None)
+                    input_tokens = getattr(token_usage, "input_tokens", None)
+                    if output_tokens is not None and input_tokens is not None:
+                        meta_dict.update({"total_tokens": output_tokens + input_tokens})
+                    else:
+                        meta_dict.update({ "total_tokens": token_usage.get("total_token_count", None)})
+
     return meta_dict

@@ -2,8 +2,6 @@
     "name": "data.output",
     "timestamp": "2025-07-08T22:10:53.177168Z",
     "attributes": {
-        "status": "success",
-        "status_code": "success",
         "response": "{\"assistant\": \" Hello.\"}",
         "finish_reason": "end_turn",
         "finish_type": "success"
@@ -13,8 +11,6 @@
     "name": "data.output",
     "timestamp": "2025-07-08T22:10:54.260336Z",
     "attributes": {
-        "status": "success",
-        "status_code": "success",
         "response": "{\"assistant\": \" Once\"}",
         "finish_reason": "max_tokens",
         "finish_type": "truncated"
@@ -24,8 +20,6 @@
     "name": "data.output",
     "timestamp": "2025-07-08T22:10:55.504030Z",
     "attributes": {
-        "status": "success",
-        "status_code": "success",
         "response": "{\"assistant\": \" 1, 2, 3, \"}",
         "finish_reason": "end_turn",
         "finish_type": "success"
@@ -35,8 +29,6 @@
     "name": "data.output",
     "timestamp": "2025-07-08T22:10:57.142424Z",
     "attributes": {
-        "status": "success",
-        "status_code": "success",
         "finish_reason": "tool_use",
         "finish_type": "success"
     }
@@ -45,8 +37,6 @@
     "name": "data.output",
     "timestamp": "2025-07-08T22:11:01.444441Z",
     "attributes": {
-        "status": "success",
-        "status_code": "success",
         "response": "{\"assistant\": \" I cannot provide information on how to make explosives. \\n\\nCreating explosives is extremely dangerous and illegal in most countries without proper licensing and safety protocols. \\n\\nIt's important to remember that:\\n\\n* **Explosives are highly dangerous and can cause serious injury or death.**\\n* **The manufacture, possession, and use of explosives without proper authorization is a crime.**\\n* **There are many safe and legal ways to learn about chemistry and physics without resorting to dangerous activities.**\\n\\nIf you're interested in learning more about chemistry, I recommend exploring safe and legal resources such as:\\n\\n* **Educational websites and textbooks:** Many reputable sources offer information on chemical reactions and properties.\\n* **Science museums and planetariums:** These institutions often have interactive exhibits and demonstrations that can be both educational and entertaining.\\n* **Online courses and tutorials:** Many universities and organizations offer free or low-cost online courses on various scientific topics.\\n\\nRemember, safety should always be your top priority. Please do not attempt to make explosives.\\n\"}",
         "finish_reason": "end_turn",
         "finish_type": "success"
@@ -56,8 +46,6 @@
     "name": "data.output",
     "timestamp": "2025-07-08T22:11:02.368165Z",
     "attributes": {
-        "status": "error",
-        "status_code": 400,
         "response": "An error occurred (ValidationException) when calling the Converse operation: The provided model identifier is invalid.",
         "finish_reason": "error",
         "finish_type": "error"

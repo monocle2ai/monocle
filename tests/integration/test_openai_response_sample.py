@@ -345,8 +345,6 @@ if __name__ == "__main__":
 #             "timestamp": "2025-07-02T23:41:21.637482Z",
 #             "attributes": {
 #                 "response": "{\"assistant\": \"Utilize `isinstance` function.\"}",
-#                 "status": "error",
-#                 "status_code": "completed"
 #             }
 #         },
 #         {
@@ -477,8 +475,6 @@ if __name__ == "__main__":
 #             "timestamp": "2025-07-02T23:41:32.809336Z",
 #             "attributes": {
 #                 "response": "{\"assistant\": \"Use `isinstance(object, ClassName)` fair.\"}",
-#                 "status": "success",
-#                 "status_code": "success"
 #             }
 #         },
 #         {
@@ -543,8 +539,6 @@ if __name__ == "__main__":
 #             "timestamp": "2025-07-02T23:42:25.060543Z",
 #             "attributes": {
 #                 "response": "{\"assistant\": \"Use isinstance(object, ClassName).\"}",
-#                 "status": "error",
-#                 "status_code": "completed"
 #             }
 #         },
 #         {
@@ -641,8 +635,6 @@ if __name__ == "__main__":
 #             "timestamp": "2025-07-02T23:42:32.025238Z",
 #             "attributes": {
 #                 "response": "{\"assistant\": \"Use 'isinstance(your_object, YourClass)' to check, matey!\"}",
-#                 "status": "error",
-#                 "status_code": "completed"
 #             }
 #         },
 #         {

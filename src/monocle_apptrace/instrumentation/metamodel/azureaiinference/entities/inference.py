@@ -190,14 +190,6 @@ INFERENCE = {
                     "accessor": lambda arguments: _helper.extract_assistant_message(arguments)
                 },
                 {
-                    "attribute": "status",
-                    "accessor": lambda arguments: get_status(arguments)
-                },
-                {
-                    "attribute": "status_code",
-                    "accessor": lambda arguments: get_exception_status_code(arguments)
-                },
-                {
                     "attribute": "finish_reason",
                     "accessor": lambda arguments: _helper.extract_finish_reason(arguments)
                 },

@@ -5,6 +5,8 @@ for different AI providers (OpenAI, Anthropic, Gemini, LangChain, LlamaIndex, Az
 
 from enum import Enum
 
+from monocle_apptrace.instrumentation.common.utils import MonocleSpanException
+
 
 class FinishType(Enum):
     """Enum for standardized finish types across all AI providers."""
@@ -230,21 +232,39 @@ def map_openai_finish_reason_to_finish_type(finish_reason):
     """Map OpenAI finish_reason to standardized finish_type."""
     if not finish_reason:
         return None
-    return OPENAI_FINISH_REASON_MAPPING.get(finish_reason, None)
+    
+    finish_type = OPENAI_FINISH_REASON_MAPPING.get(finish_reason, None)
+    if finish_type is FinishType.ERROR.value:
+        raise MonocleSpanException(
+            "OpenAI finish_reason indicates an error: {}".format(finish_reason)
+        )
+    return finish_type
 
 
 def map_anthropic_finish_reason_to_finish_type(finish_reason):
     """Map Anthropic stop_reason to standardized finish_type."""
     if not finish_reason:
         return None
-    return ANTHROPIC_FINISH_REASON_MAPPING.get(finish_reason, None)
+    
+    finish_type = ANTHROPIC_FINISH_REASON_MAPPING.get(finish_reason, None)
+    if finish_type is FinishType.ERROR.value:
+        raise MonocleSpanException(
+            "Anthropic finish_reason not recognized: {}".format(finish_reason)
+        )
+    return finish_type
 
 
 def map_gemini_finish_reason_to_finish_type(finish_reason):
     """Map Gemini finish_reason to standardized finish_type."""
     if not finish_reason:
         return None
-    return GEMINI_FINISH_REASON_MAPPING.get(finish_reason, None)
+
+    finish_type = GEMINI_FINISH_REASON_MAPPING.get(finish_reason, None)
+    if finish_type is FinishType.ERROR.value:
+        raise MonocleSpanException(
+            "Gemini finish_reason not recognized: {}".format(finish_reason)
+        )
+    return finish_type
 
 
 def map_langchain_finish_reason_to_finish_type(finish_reason):
@@ -254,26 +274,30 @@ def map_langchain_finish_reason_to_finish_type(finish_reason):
     
     # Convert to lowercase for case-insensitive matching
     finish_reason_lower = finish_reason.lower() if isinstance(finish_reason, str) else str(finish_reason).lower()
-    
+    finish_type = FinishType.SUCCESS.value
     # Try direct mapping first
     if finish_reason in LANGCHAIN_FINISH_REASON_MAPPING:
-        return LANGCHAIN_FINISH_REASON_MAPPING[finish_reason]
-    
+        finish_type = LANGCHAIN_FINISH_REASON_MAPPING[finish_reason]
+
     # Try lowercase mapping
     if finish_reason_lower in LANGCHAIN_FINISH_REASON_MAPPING:
-        return LANGCHAIN_FINISH_REASON_MAPPING[finish_reason_lower]
-    
+        finish_type = LANGCHAIN_FINISH_REASON_MAPPING[finish_reason_lower]
+
     # If no direct mapping, try to infer from common patterns
     if any(keyword in finish_reason_lower for keyword in ['stop', 'complete', 'success', 'done']):
-        return FinishType.SUCCESS.value
+        finish_type = FinishType.SUCCESS.value
     elif any(keyword in finish_reason_lower for keyword in ['length', 'token', 'limit', 'truncat']):
-        return FinishType.TRUNCATED.value
+        finish_type = FinishType.TRUNCATED.value
     elif any(keyword in finish_reason_lower for keyword in ['filter', 'safety', 'block']):
-        return FinishType.CONTENT_FILTER.value
+        finish_type = FinishType.CONTENT_FILTER.value
     elif any(keyword in finish_reason_lower for keyword in ['error', 'fail', 'exception']):
-        return FinishType.ERROR.value
-    
-    return None
+        finish_type = FinishType.ERROR.value
+
+    if finish_type is FinishType.ERROR.value:
+        raise MonocleSpanException(
+            "LangChain finish_reason not recognized: {}".format(finish_reason)
+        )
+    return finish_type
 
 
 def map_llamaindex_finish_reason_to_finish_type(finish_reason):
@@ -284,25 +308,32 @@ def map_llamaindex_finish_reason_to_finish_type(finish_reason):
     # Convert to lowercase for case-insensitive matching
     finish_reason_lower = finish_reason.lower() if isinstance(finish_reason, str) else str(finish_reason).lower()
     
+    finish_type = FinishType.SUCCESS.value
+    
     # Try direct mapping first
     if finish_reason in LLAMAINDEX_FINISH_REASON_MAPPING:
-        return LLAMAINDEX_FINISH_REASON_MAPPING[finish_reason]
+        finish_type = LLAMAINDEX_FINISH_REASON_MAPPING[finish_reason]
     
     # Try lowercase mapping
     if finish_reason_lower in LLAMAINDEX_FINISH_REASON_MAPPING:
-        return LLAMAINDEX_FINISH_REASON_MAPPING[finish_reason_lower]
+        finish_type = LLAMAINDEX_FINISH_REASON_MAPPING[finish_reason_lower]
     
     # If no direct mapping, try to infer from common patterns
     if any(keyword in finish_reason_lower for keyword in ['stop', 'complete', 'success', 'done', 'finish']):
-        return FinishType.SUCCESS.value
+        finish_type = FinishType.SUCCESS.value
     elif any(keyword in finish_reason_lower for keyword in ['length', 'token', 'limit', 'truncat']):
-        return FinishType.TRUNCATED.value
+        finish_type = FinishType.TRUNCATED.value
     elif any(keyword in finish_reason_lower for keyword in ['filter', 'safety', 'block']):
-        return FinishType.CONTENT_FILTER.value
+        finish_type = FinishType.CONTENT_FILTER.value
     elif any(keyword in finish_reason_lower for keyword in ['error', 'fail', 'exception']):
-        return FinishType.ERROR.value
+        finish_type = FinishType.ERROR.value
+
+    if finish_type is FinishType.ERROR.value:
+        raise MonocleSpanException(
+            "LlamaIndex finish_reason not recognized: {}".format(finish_reason)
+        )
     
-    return None
+    return finish_type
 
 
 def map_azure_ai_inference_finish_reason_to_finish_type(finish_reason):
@@ -312,26 +343,31 @@ def map_azure_ai_inference_finish_reason_to_finish_type(finish_reason):
     
     # Convert to lowercase for case-insensitive matching
     finish_reason_lower = finish_reason.lower() if isinstance(finish_reason, str) else str(finish_reason).lower()
-    
+    finish_type = FinishType.SUCCESS.value
     # Try direct mapping first
     if finish_reason in AZURE_AI_INFERENCE_FINISH_REASON_MAPPING:
-        return AZURE_AI_INFERENCE_FINISH_REASON_MAPPING[finish_reason]
-    
+        finish_type = AZURE_AI_INFERENCE_FINISH_REASON_MAPPING[finish_reason]
+
     # Try lowercase mapping
     if finish_reason_lower in AZURE_AI_INFERENCE_FINISH_REASON_MAPPING:
-        return AZURE_AI_INFERENCE_FINISH_REASON_MAPPING[finish_reason_lower]
-    
+        finish_type = AZURE_AI_INFERENCE_FINISH_REASON_MAPPING[finish_reason_lower]
+
     # If no direct mapping, try to infer from common patterns
     if any(keyword in finish_reason_lower for keyword in ['stop', 'complete', 'success', 'done', 'finish']):
-        return FinishType.SUCCESS.value
+        finish_type = FinishType.SUCCESS.value
     elif any(keyword in finish_reason_lower for keyword in ['length', 'token', 'limit', 'truncat']):
-        return FinishType.TRUNCATED.value
+        finish_type = FinishType.TRUNCATED.value
     elif any(keyword in finish_reason_lower for keyword in ['filter', 'safety', 'block', 'responsible_ai', 'content_filter']):
-        return FinishType.CONTENT_FILTER.value
+        finish_type = FinishType.CONTENT_FILTER.value
     elif any(keyword in finish_reason_lower for keyword in ['error', 'fail', 'exception', 'timeout', 'unavailable', 'rate_limit']):
-        return FinishType.ERROR.value
-    
-    return None
+        finish_type = FinishType.ERROR.value
+
+    if finish_type is FinishType.ERROR.value:
+        raise MonocleSpanException(
+            "Azure AI Inference finish_reason not recognized: {}".format(finish_reason)
+        )
+
+    return finish_type
 
 
 def map_bedrock_finish_reason_to_finish_type(finish_reason):
@@ -342,22 +378,29 @@ def map_bedrock_finish_reason_to_finish_type(finish_reason):
     # Convert to lowercase for case-insensitive matching
     finish_reason_lower = finish_reason.lower() if isinstance(finish_reason, str) else str(finish_reason).lower()
     
+    finish_type = FinishType.SUCCESS.value
+    
     # Try direct mapping first
     if finish_reason in BEDROCK_FINISH_REASON_MAPPING:
-        return BEDROCK_FINISH_REASON_MAPPING[finish_reason]
-    
+        finish_type = BEDROCK_FINISH_REASON_MAPPING[finish_reason]
+
     # Try lowercase mapping
     if finish_reason_lower in BEDROCK_FINISH_REASON_MAPPING:
-        return BEDROCK_FINISH_REASON_MAPPING[finish_reason_lower]
-    
+        finish_type = BEDROCK_FINISH_REASON_MAPPING[finish_reason_lower]
+
     # If no direct mapping, try to infer from common patterns
     if any(keyword in finish_reason_lower for keyword in ['stop', 'complete', 'success', 'done', 'finish', 'end_turn', 'endoftext']):
-        return FinishType.SUCCESS.value
+        finish_type = FinishType.SUCCESS.value
     elif any(keyword in finish_reason_lower for keyword in ['length', 'token', 'limit', 'truncat', 'max_tokens']):
-        return FinishType.TRUNCATED.value
+        finish_type = FinishType.TRUNCATED.value
     elif any(keyword in finish_reason_lower for keyword in ['filter', 'safety', 'block', 'guardrails', 'content_filter']):
-        return FinishType.CONTENT_FILTER.value
+        finish_type = FinishType.CONTENT_FILTER.value
     elif any(keyword in finish_reason_lower for keyword in ['error', 'fail', 'exception', 'timeout', 'unavailable', 'rate_limit', 'throttled', 'validation']):
-        return FinishType.ERROR.value
-    
-    return None
+        finish_type = FinishType.ERROR.value
+
+    if finish_type is FinishType.ERROR.value:
+        raise MonocleSpanException(
+            "AWS Bedrock finish_reason not recognized: {}".format(finish_reason)
+        )
+
+    return finish_type

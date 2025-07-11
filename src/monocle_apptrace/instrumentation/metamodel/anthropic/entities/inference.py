@@ -55,14 +55,6 @@ INFERENCE = {
             "name": "data.output",
             "attributes": [
                 {
-                    "attribute": "status",
-                    "accessor": lambda arguments: get_status(arguments)
-                },
-                {
-                    "attribute": "status_code",
-                    "accessor": lambda arguments: _helper.get_status_code(arguments)
-                },
-                {
                     "_comment": "this is result from LLM",
                     "attribute": "response",
                     "accessor": lambda arguments: _helper.extract_assistant_message(arguments)

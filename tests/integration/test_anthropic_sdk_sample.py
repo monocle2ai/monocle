@@ -117,8 +117,7 @@ def test_anthropic_invalid_api_key(setup):
         if span.attributes.get("span.type") == "inference" or span.attributes.get("span.type") == "inference.framework":
             events = [e for e in span.events if e.name == "data.output"]
             assert len(events) > 0
-            assert events[0].attributes["status"] == "error"
-            assert "status_code" in events[0].attributes
+            assert span.status.status_code.value == 2  # ERROR status code
             assert "authentication_error" in events[0].attributes.get("response", "").lower()
 
 if __name__ == "__main__":
@@ -166,8 +165,6 @@ if __name__ == "__main__":
 #             "name": "data.output",
 #             "timestamp": "2025-07-02T14:46:19.319832Z",
 #             "attributes": {
-#                 "status": "success",
-#                 "status_code": "success",
 #                 "response": "{\"assistant\": \"An Americano is a popular coffee drink. \"}"
 #             }
 #         },
@@ -265,8 +262,6 @@ if __name__ == "__main__":
 #             "name": "data.output",
 #             "timestamp": "2025-07-02T14:46:24.764380Z",
 #             "attributes": {
-#                 "status": "error",
-#                 "status_code": 401,
 #                 "response": "Error code: 401 - {'type': 'error', 'error': {'type': 'authentication_error', 'message': 'invalid x-api-key'}}"
 #             }
 #         },

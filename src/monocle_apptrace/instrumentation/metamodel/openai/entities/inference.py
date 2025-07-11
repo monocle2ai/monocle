@@ -210,14 +210,6 @@ INFERENCE = {
                     ),
                 },
                 {
-                    "attribute": "status",
-                    "accessor": lambda arguments: get_status(arguments)
-                },
-                {
-                    "attribute": "status_code",
-                    "accessor": lambda arguments: get_status_code(arguments)
-                },
-                {
                     "_comment": "finish reason from OpenAI response",
                     "attribute": "finish_reason",
                     "accessor": lambda arguments: _helper.extract_finish_reason(arguments)

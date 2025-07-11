@@ -210,8 +210,6 @@ if __name__ == "__main__":
 #             "name": "data.output",
 #             "timestamp": "2025-04-17T07:52:41.351488Z",
 #             "attributes": {
-#                 "status": "success",
-#                 "status_code": "success",
 #                 "response": "{\"ai\": \"Here's the German translation:\\n\\nIch liebe Programmieren.\"}"
 #             }
 #         },

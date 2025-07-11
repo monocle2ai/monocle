@@ -55,7 +55,7 @@ ACTIONPLANNER_OUTPUT_PROCESSOR = {
             "_comment": "output from ActionPlanner",
             "attributes": [
                 {
-                    "attribute": "status",
+                    "attribute": "status_placeholder",
                     "accessor": lambda arguments: _helper.status_check(arguments)
                 },
                 {

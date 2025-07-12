@@ -21,8 +21,8 @@ span_processors=[SimpleSpanProcessor(memory_exporter)]
 def setup():
     memory_exporter.clear()
     setup_monocle_telemetry(
-        workflow_name="llamaindex_agent_1",  # monocle_exporters_list='file'
-       span_processors=[SimpleSpanProcessor(memory_exporter)]
+        workflow_name="llamaindex_agent_1",
+        span_processors=[SimpleSpanProcessor(memory_exporter)]
 )
 
 def book_hotel(hotel_name: str):
@@ -157,14 +157,14 @@ def verify_spans():
 # [{
 #     "name": "openai.resources.chat.completions.AsyncCompletions.create",
 #     "context": {
-#         "trace_id": "0x59dbb00c47c537978bee083bfad1a753",
-#         "span_id": "0x7b8b9824bec67d59",
+#         "trace_id": "0xf0780895df20f97a5ab8bb7bcbf7d808",
+#         "span_id": "0xa0261e2d36f1531d",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0x9a438bed8c10cf77",
-#     "start_time": "2025-07-10T03:42:17.016843Z",
-#     "end_time": "2025-07-10T03:42:19.292420Z",
+#     "parent_id": "0xc4e0715cd30445ec",
+#     "start_time": "2025-07-12T19:14:25.492849Z",
+#     "end_time": "2025-07-12T19:14:27.368728Z",
 #     "status": {
 #         "status_code": "OK"
 #     },
@@ -184,7 +184,7 @@ def verify_spans():
 #     "events": [
 #         {
 #             "name": "data.input",
-#             "timestamp": "2025-07-10T03:42:19.250602Z",
+#             "timestamp": "2025-07-12T19:14:26.497740Z",
 #             "attributes": {
 #                 "input": [
 #                     "{\"system\": \"You are a coordinator agent who manages the flight and hotel booking agents. Separate hotel booking and flight booking tasks clearly from the input query. \\n                            Delegate only hotel booking to the hotel booking agent and only flight booking to the flight booking agent.\\n                            Once they complete their tasks, you collect their responses and provide consolidated response to the user.\"}",
@@ -194,7 +194,7 @@ def verify_spans():
 #         },
 #         {
 #             "name": "data.output",
-#             "timestamp": "2025-07-10T03:42:19.250602Z",
+#             "timestamp": "2025-07-12T19:14:26.497740Z",
 #             "attributes": {
 #                 "status": "success",
 #                 "status_code": "success"
@@ -202,7 +202,7 @@ def verify_spans():
 #         },
 #         {
 #             "name": "metadata",
-#             "timestamp": "2025-07-10T03:42:19.292081Z",
+#             "timestamp": "2025-07-12T19:14:27.366010Z",
 #             "attributes": {}
 #         }
 #     ],
@@ -217,14 +217,14 @@ def verify_spans():
 # ,{
 #     "name": "llama_index.core.agent.workflow.function_agent.FunctionAgent.take_step",
 #     "context": {
-#         "trace_id": "0x59dbb00c47c537978bee083bfad1a753",
-#         "span_id": "0x9a438bed8c10cf77",
+#         "trace_id": "0xf0780895df20f97a5ab8bb7bcbf7d808",
+#         "span_id": "0xc4e0715cd30445ec",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0xd19b4d682cee8bc5",
-#     "start_time": "2025-07-10T03:42:16.998216Z",
-#     "end_time": "2025-07-10T03:42:19.292738Z",
+#     "parent_id": "0x65d0e590c144c230",
+#     "start_time": "2025-07-12T19:14:25.455919Z",
+#     "end_time": "2025-07-12T19:14:27.369562Z",
 #     "status": {
 #         "status_code": "OK"
 #     },
@@ -243,59 +243,25 @@ def verify_spans():
 #         },
 #         "schema_url": ""
 #     }
-# }
-# ,{
-#     "name": "llama_index.core.tools.function_tool.FunctionTool.acall",
+# },
+# {
+#     "name": "llama_index.core.agent.workflow.multi_agent_workflow.AgentWorkflow._call_tool",
 #     "context": {
-#         "trace_id": "0x59dbb00c47c537978bee083bfad1a753",
-#         "span_id": "0x7ea0ac2ad325684e",
+#         "trace_id": "0xf0780895df20f97a5ab8bb7bcbf7d808",
+#         "span_id": "0x2110abe36f79da64",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0xd19b4d682cee8bc5",
-#     "start_time": "2025-07-10T03:42:19.294883Z",
-#     "end_time": "2025-07-10T03:42:19.295147Z",
+#     "parent_id": "0x65d0e590c144c230",
+#     "start_time": "2025-07-12T19:14:33.472275Z",
+#     "end_time": "2025-07-12T19:14:55.930356Z",
 #     "status": {
 #         "status_code": "OK"
 #     },
 #     "attributes": {
 #         "monocle_apptrace.version": "0.4.0",
 #         "monocle_apptrace.language": "python",
-#         "span_source": "/Users/prasad/repos/monocle2ai/monocle-prasad/.env/lib/python3.12/site-packages/llama_index/core/agent/workflow/multi_agent_workflow.py:280",
-#         "workflow.name": "llamaindex_agent_1",
-#         "span.type": "agentic.delegation",
-#         "entity.1.type": "agent.llamaindex",
-#         "entity.1.from_agent": "coordinator",
-#         "entity.1.to_agent": "hotel_booking_agent",
-#         "entity.count": 1
-#     },
-#     "events": [],
-#     "links": [],
-#     "resource": {
-#         "attributes": {
-#             "service.name": "llamaindex_agent_1"
-#         },
-#         "schema_url": ""
-#     }
-# }
-# ,{
-#     "name": "llama_index.core.tools.function_tool.FunctionTool.acall",
-#     "context": {
-#         "trace_id": "0x59dbb00c47c537978bee083bfad1a753",
-#         "span_id": "0x2c9de76864165da9",
-#         "trace_state": "[]"
-#     },
-#     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0xd19b4d682cee8bc5",
-#     "start_time": "2025-07-10T03:42:19.296080Z",
-#     "end_time": "2025-07-10T03:42:19.296270Z",
-#     "status": {
-#         "status_code": "OK"
-#     },
-#     "attributes": {
-#         "monocle_apptrace.version": "0.4.0",
-#         "monocle_apptrace.language": "python",
-#         "span_source": "/Users/prasad/repos/monocle2ai/monocle-prasad/.env/lib/python3.12/site-packages/llama_index/core/agent/workflow/multi_agent_workflow.py:280",
+#         "span_source": "/Users/prasad/repos/monocle2ai/monocle-prasad/.env/lib/python3.12/site-packages/llama_index/core/agent/workflow/multi_agent_workflow.py:447",
 #         "workflow.name": "llamaindex_agent_1",
 #         "span.type": "agentic.delegation",
 #         "entity.1.type": "agent.llamaindex",
@@ -311,18 +277,18 @@ def verify_spans():
 #         },
 #         "schema_url": ""
 #     }
-# }
-# ,{
+# },
+# {
 #     "name": "llama_index.core.agent.workflow.function_agent.FunctionAgent.finalize",
 #     "context": {
-#         "trace_id": "0x59dbb00c47c537978bee083bfad1a753",
-#         "span_id": "0xfa1f625a18fe4fdc",
+#         "trace_id": "0xf0780895df20f97a5ab8bb7bcbf7d808",
+#         "span_id": "0x40ca4d9b4754e462",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0xd19b4d682cee8bc5",
-#     "start_time": "2025-07-10T03:42:19.297019Z",
-#     "end_time": "2025-07-10T03:42:19.297432Z",
+#     "parent_id": "0x65d0e590c144c230",
+#     "start_time": "2025-07-12T19:15:02.484539Z",
+#     "end_time": "2025-07-12T19:15:02.488984Z",
 #     "status": {
 #         "status_code": "OK"
 #     },
@@ -333,24 +299,25 @@ def verify_spans():
 #         "workflow.name": "llamaindex_agent_1",
 #         "span.type": "agentic.invocation",
 #         "entity.1.name": "coordinator",
+#         "entity.1.description": "Travel booking coordinator agent",
 #         "entity.1.type": "agent.llamaindex",
 #         "entity.count": 1
 #     },
 #     "events": [
 #         {
 #             "name": "data.input",
-#             "timestamp": "2025-07-10T03:42:19.297393Z",
+#             "timestamp": "2025-07-12T19:15:02.488361Z",
 #             "attributes": {
 #                 "input": [
-#                     "Agent hotel_booking_agent is now handling the request due to the following reason: User requested to book a hotel stay at McKittrick Hotel..\nPlease continue with the current request."
+#                     "Agent flight_booking_agent is now handling the request due to the following reason: Book a flight from BOS to JFK.\nPlease continue with the current request."
 #                 ]
 #             }
 #         },
 #         {
 #             "name": "data.output",
-#             "timestamp": "2025-07-10T03:42:19.297421Z",
+#             "timestamp": "2025-07-12T19:15:02.488851Z",
 #             "attributes": {
-#                 "response": "Agent hotel_booking_agent is now handling the request due to the following reason: User requested to book a hotel stay at McKittrick Hotel..\nPlease continue with the current request."
+#                 "response": "Agent flight_booking_agent is now handling the request due to the following reason: Book a flight from BOS to JFK.\nPlease continue with the current request."
 #             }
 #         }
 #     ],
@@ -365,14 +332,14 @@ def verify_spans():
 # ,{
 #     "name": "openai.resources.chat.completions.AsyncCompletions.create",
 #     "context": {
-#         "trace_id": "0x59dbb00c47c537978bee083bfad1a753",
-#         "span_id": "0x5a9851c529526cbd",
+#         "trace_id": "0xf0780895df20f97a5ab8bb7bcbf7d808",
+#         "span_id": "0x086f4caf7fc5ad38",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0xce3daae0484d05a5",
-#     "start_time": "2025-07-10T03:42:19.301079Z",
-#     "end_time": "2025-07-10T03:42:20.046911Z",
+#     "parent_id": "0xbb6779a172894c29",
+#     "start_time": "2025-07-12T19:15:02.503153Z",
+#     "end_time": "2025-07-12T19:15:04.231581Z",
 #     "status": {
 #         "status_code": "OK"
 #     },
@@ -392,19 +359,18 @@ def verify_spans():
 #     "events": [
 #         {
 #             "name": "data.input",
-#             "timestamp": "2025-07-10T03:42:19.862499Z",
+#             "timestamp": "2025-07-12T19:15:03.435830Z",
 #             "attributes": {
 #                 "input": [
 #                     "{\"system\": \"You are a flight booking agent who books flights as per the request. Once you complete the task, you handoff to the coordinator agent only.\"}",
 #                     "{\"user\": \"book a flight from BOS to JFK and a book hotel stay at McKittrick Hotel\"}",
-#                     "{\"tool\": \"Agent hotel_booking_agent is now handling the request due to the following reason: User requested to book a hotel stay at McKittrick Hotel..\\nPlease continue with the current request.\"}",
-#                     "{\"tool\": \"Agent flight_booking_agent is now handling the request due to the following reason: User requested to book a flight from BOS to JFK..\\nPlease continue with the current request.\"}"
+#                     "{\"tool\": \"Agent flight_booking_agent is now handling the request due to the following reason: Book a flight from BOS to JFK.\\nPlease continue with the current request.\"}"
 #                 ]
 #             }
 #         },
 #         {
 #             "name": "data.output",
-#             "timestamp": "2025-07-10T03:42:19.862499Z",
+#             "timestamp": "2025-07-12T19:15:03.435830Z",
 #             "attributes": {
 #                 "status": "success",
 #                 "status_code": "success"
@@ -412,7 +378,7 @@ def verify_spans():
 #         },
 #         {
 #             "name": "metadata",
-#             "timestamp": "2025-07-10T03:42:20.046433Z",
+#             "timestamp": "2025-07-12T19:15:04.230045Z",
 #             "attributes": {}
 #         }
 #     ],
@@ -427,14 +393,14 @@ def verify_spans():
 # ,{
 #     "name": "llama_index.core.agent.workflow.function_agent.FunctionAgent.take_step",
 #     "context": {
-#         "trace_id": "0x59dbb00c47c537978bee083bfad1a753",
-#         "span_id": "0xce3daae0484d05a5",
+#         "trace_id": "0xf0780895df20f97a5ab8bb7bcbf7d808",
+#         "span_id": "0xbb6779a172894c29",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0xd19b4d682cee8bc5",
-#     "start_time": "2025-07-10T03:42:19.299324Z",
-#     "end_time": "2025-07-10T03:42:20.047516Z",
+#     "parent_id": "0x65d0e590c144c230",
+#     "start_time": "2025-07-12T19:15:02.498010Z",
+#     "end_time": "2025-07-12T19:15:04.232132Z",
 #     "status": {
 #         "status_code": "OK"
 #     },
@@ -455,23 +421,23 @@ def verify_spans():
 #     }
 # }
 # ,{
-#     "name": "llama_index.core.tools.function_tool.FunctionTool.acall",
+#     "name": "llama_index.core.agent.workflow.multi_agent_workflow.AgentWorkflow._call_tool",
 #     "context": {
-#         "trace_id": "0x59dbb00c47c537978bee083bfad1a753",
-#         "span_id": "0x09e2c0051be8a88f",
+#         "trace_id": "0xf0780895df20f97a5ab8bb7bcbf7d808",
+#         "span_id": "0xc9555cba56e85d18",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0xd19b4d682cee8bc5",
-#     "start_time": "2025-07-10T03:42:20.050850Z",
-#     "end_time": "2025-07-10T03:42:20.051529Z",
+#     "parent_id": "0x65d0e590c144c230",
+#     "start_time": "2025-07-12T19:15:04.236079Z",
+#     "end_time": "2025-07-12T19:15:09.718235Z",
 #     "status": {
 #         "status_code": "OK"
 #     },
 #     "attributes": {
 #         "monocle_apptrace.version": "0.4.0",
 #         "monocle_apptrace.language": "python",
-#         "span_source": "/Users/prasad/repos/monocle2ai/monocle-prasad/.env/lib/python3.12/site-packages/llama_index/core/agent/workflow/multi_agent_workflow.py:282",
+#         "span_source": "/Users/prasad/repos/monocle2ai/monocle-prasad/.env/lib/python3.12/site-packages/llama_index/core/agent/workflow/multi_agent_workflow.py:447",
 #         "workflow.name": "llamaindex_agent_1",
 #         "span.type": "agentic.tool",
 #         "entity.1.type": "tool.llamaindex",
@@ -482,17 +448,17 @@ def verify_spans():
 #     "events": [
 #         {
 #             "name": "data.input",
-#             "timestamp": "2025-07-10T03:42:20.051488Z",
+#             "timestamp": "2025-07-12T19:15:09.717311Z",
 #             "attributes": {
 #                 "Inputs": [
-#                     "{'from_airport', 'BOS'}",
+#                     "{'BOS', 'from_airport'}",
 #                     "{'JFK', 'to_airport'}"
 #                 ]
 #             }
 #         },
 #         {
 #             "name": "data.output",
-#             "timestamp": "2025-07-10T03:42:20.051516Z",
+#             "timestamp": "2025-07-12T19:15:09.718054Z",
 #             "attributes": {
 #                 "response": "Successfully booked a flight from BOS to JFK."
 #             }
@@ -505,18 +471,18 @@ def verify_spans():
 #         },
 #         "schema_url": ""
 #     }
-# }
-# ,{
+# },
+# {
 #     "name": "openai.resources.chat.completions.AsyncCompletions.create",
 #     "context": {
-#         "trace_id": "0x59dbb00c47c537978bee083bfad1a753",
-#         "span_id": "0x774ae1f8399d46a6",
+#         "trace_id": "0xf0780895df20f97a5ab8bb7bcbf7d808",
+#         "span_id": "0x2ff2cfd23044e376",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0x9e50d75f212ad521",
-#     "start_time": "2025-07-10T03:42:20.057563Z",
-#     "end_time": "2025-07-10T03:42:20.756206Z",
+#     "parent_id": "0x021c9a78df1ae705",
+#     "start_time": "2025-07-12T19:15:09.738026Z",
+#     "end_time": "2025-07-12T19:15:11.228498Z",
 #     "status": {
 #         "status_code": "OK"
 #     },
@@ -536,20 +502,19 @@ def verify_spans():
 #     "events": [
 #         {
 #             "name": "data.input",
-#             "timestamp": "2025-07-10T03:42:20.476194Z",
+#             "timestamp": "2025-07-12T19:15:10.405812Z",
 #             "attributes": {
 #                 "input": [
 #                     "{\"system\": \"You are a flight booking agent who books flights as per the request. Once you complete the task, you handoff to the coordinator agent only.\"}",
 #                     "{\"user\": \"book a flight from BOS to JFK and a book hotel stay at McKittrick Hotel\"}",
-#                     "{\"tool\": \"Agent hotel_booking_agent is now handling the request due to the following reason: User requested to book a hotel stay at McKittrick Hotel..\\nPlease continue with the current request.\"}",
-#                     "{\"tool\": \"Agent flight_booking_agent is now handling the request due to the following reason: User requested to book a flight from BOS to JFK..\\nPlease continue with the current request.\"}",
+#                     "{\"tool\": \"Agent flight_booking_agent is now handling the request due to the following reason: Book a flight from BOS to JFK.\\nPlease continue with the current request.\"}",
 #                     "{\"tool\": \"Successfully booked a flight from BOS to JFK.\"}"
 #                 ]
 #             }
 #         },
 #         {
 #             "name": "data.output",
-#             "timestamp": "2025-07-10T03:42:20.476194Z",
+#             "timestamp": "2025-07-12T19:15:10.405812Z",
 #             "attributes": {
 #                 "status": "success",
 #                 "status_code": "success"
@@ -557,7 +522,7 @@ def verify_spans():
 #         },
 #         {
 #             "name": "metadata",
-#             "timestamp": "2025-07-10T03:42:20.755865Z",
+#             "timestamp": "2025-07-12T19:15:11.227508Z",
 #             "attributes": {}
 #         }
 #     ],
@@ -572,14 +537,14 @@ def verify_spans():
 # ,{
 #     "name": "llama_index.core.agent.workflow.function_agent.FunctionAgent.take_step",
 #     "context": {
-#         "trace_id": "0x59dbb00c47c537978bee083bfad1a753",
-#         "span_id": "0x9e50d75f212ad521",
+#         "trace_id": "0xf0780895df20f97a5ab8bb7bcbf7d808",
+#         "span_id": "0x021c9a78df1ae705",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0xd19b4d682cee8bc5",
-#     "start_time": "2025-07-10T03:42:20.054832Z",
-#     "end_time": "2025-07-10T03:42:20.756532Z",
+#     "parent_id": "0x65d0e590c144c230",
+#     "start_time": "2025-07-12T19:15:09.733525Z",
+#     "end_time": "2025-07-12T19:15:11.229033Z",
 #     "status": {
 #         "status_code": "OK"
 #     },
@@ -598,386 +563,29 @@ def verify_spans():
 #         },
 #         "schema_url": ""
 #     }
-# }
-# ,{
-#     "name": "llama_index.core.tools.function_tool.FunctionTool.acall",
+# },
+# {
+#     "name": "llama_index.core.agent.workflow.multi_agent_workflow.AgentWorkflow._call_tool",
 #     "context": {
-#         "trace_id": "0x59dbb00c47c537978bee083bfad1a753",
-#         "span_id": "0x71cd9966b76e5f26",
+#         "trace_id": "0xf0780895df20f97a5ab8bb7bcbf7d808",
+#         "span_id": "0xddf090fd8e8e8a42",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0xd19b4d682cee8bc5",
-#     "start_time": "2025-07-10T03:42:20.759297Z",
-#     "end_time": "2025-07-10T03:42:20.759619Z",
+#     "parent_id": "0x65d0e590c144c230",
+#     "start_time": "2025-07-12T19:15:11.233315Z",
+#     "end_time": "2025-07-12T19:15:22.206629Z",
 #     "status": {
 #         "status_code": "OK"
 #     },
 #     "attributes": {
 #         "monocle_apptrace.version": "0.4.0",
 #         "monocle_apptrace.language": "python",
-#         "span_source": "/Users/prasad/repos/monocle2ai/monocle-prasad/.env/lib/python3.12/site-packages/llama_index/core/agent/workflow/multi_agent_workflow.py:280",
+#         "span_source": "/Users/prasad/repos/monocle2ai/monocle-prasad/.env/lib/python3.12/site-packages/llama_index/core/agent/workflow/multi_agent_workflow.py:447",
 #         "workflow.name": "llamaindex_agent_1",
 #         "span.type": "agentic.delegation",
 #         "entity.1.type": "agent.llamaindex",
 #         "entity.1.from_agent": "flight_booking_agent",
-#         "entity.1.to_agent": "coordinator",
-#         "entity.count": 1
-#     },
-#     "events": [],
-#     "links": [],
-#     "resource": {
-#         "attributes": {
-#             "service.name": "llamaindex_agent_1"
-#         },
-#         "schema_url": ""
-#     }
-# }
-# ,{
-#     "name": "llama_index.core.agent.workflow.function_agent.FunctionAgent.finalize",
-#     "context": {
-#         "trace_id": "0x59dbb00c47c537978bee083bfad1a753",
-#         "span_id": "0xbd1aa982cf20ad9d",
-#         "trace_state": "[]"
-#     },
-#     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0xd19b4d682cee8bc5",
-#     "start_time": "2025-07-10T03:42:20.761003Z",
-#     "end_time": "2025-07-10T03:42:20.761635Z",
-#     "status": {
-#         "status_code": "OK"
-#     },
-#     "attributes": {
-#         "monocle_apptrace.version": "0.4.0",
-#         "monocle_apptrace.language": "python",
-#         "span_source": "/Users/prasad/repos/monocle2ai/monocle-prasad/.env/lib/python3.12/site-packages/llama_index/core/agent/workflow/multi_agent_workflow.py:522",
-#         "workflow.name": "llamaindex_agent_1",
-#         "span.type": "agentic.invocation",
-#         "entity.1.name": "flight_booking_agent",
-#         "entity.1.type": "agent.llamaindex",
-#         "entity.count": 1
-#     },
-#     "events": [
-#         {
-#             "name": "data.input",
-#             "timestamp": "2025-07-10T03:42:20.761595Z",
-#             "attributes": {
-#                 "input": [
-#                     "Agent coordinator is now handling the request due to the following reason: Flight from BOS to JFK has been successfully booked, handing off to the coordinator..\nPlease continue with the current request."
-#                 ]
-#             }
-#         },
-#         {
-#             "name": "data.output",
-#             "timestamp": "2025-07-10T03:42:20.761623Z",
-#             "attributes": {
-#                 "response": "Agent coordinator is now handling the request due to the following reason: Flight from BOS to JFK has been successfully booked, handing off to the coordinator..\nPlease continue with the current request."
-#             }
-#         }
-#     ],
-#     "links": [],
-#     "resource": {
-#         "attributes": {
-#             "service.name": "llamaindex_agent_1"
-#         },
-#         "schema_url": ""
-#     }
-# }
-# ,{
-#     "name": "openai.resources.chat.completions.AsyncCompletions.create",
-#     "context": {
-#         "trace_id": "0x59dbb00c47c537978bee083bfad1a753",
-#         "span_id": "0x4d9f057051f26bba",
-#         "trace_state": "[]"
-#     },
-#     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0x13b06f4d0c2970df",
-#     "start_time": "2025-07-10T03:42:20.766444Z",
-#     "end_time": "2025-07-10T03:42:21.736665Z",
-#     "status": {
-#         "status_code": "OK"
-#     },
-#     "attributes": {
-#         "monocle_apptrace.version": "0.4.0",
-#         "monocle_apptrace.language": "python",
-#         "span_source": "/Users/prasad/repos/monocle2ai/monocle-prasad/.env/lib/python3.12/site-packages/llama_index/llms/openai/base.py:783",
-#         "workflow.name": "llamaindex_agent_1",
-#         "span.type": "inference",
-#         "entity.1.type": "inference.openai",
-#         "entity.1.provider_name": "api.openai.com",
-#         "entity.1.inference_endpoint": "https://api.openai.com/v1/",
-#         "entity.2.name": "gpt-4",
-#         "entity.2.type": "model.llm.gpt-4",
-#         "entity.count": 2
-#     },
-#     "events": [
-#         {
-#             "name": "data.input",
-#             "timestamp": "2025-07-10T03:42:21.500345Z",
-#             "attributes": {
-#                 "input": [
-#                     "{\"system\": \"You are a coordinator agent who manages the flight and hotel booking agents. Separate hotel booking and flight booking tasks clearly from the input query. \\n                            Delegate only hotel booking to the hotel booking agent and only flight booking to the flight booking agent.\\n                            Once they complete their tasks, you collect their responses and provide consolidated response to the user.\"}",
-#                     "{\"user\": \"book a flight from BOS to JFK and a book hotel stay at McKittrick Hotel\"}",
-#                     "{\"tool\": \"Agent hotel_booking_agent is now handling the request due to the following reason: User requested to book a hotel stay at McKittrick Hotel..\\nPlease continue with the current request.\"}",
-#                     "{\"tool\": \"Agent flight_booking_agent is now handling the request due to the following reason: User requested to book a flight from BOS to JFK..\\nPlease continue with the current request.\"}",
-#                     "{\"tool\": \"Successfully booked a flight from BOS to JFK.\"}",
-#                     "{\"tool\": \"Agent coordinator is now handling the request due to the following reason: Flight from BOS to JFK has been successfully booked, handing off to the coordinator..\\nPlease continue with the current request.\"}"
-#                 ]
-#             }
-#         },
-#         {
-#             "name": "data.output",
-#             "timestamp": "2025-07-10T03:42:21.500345Z",
-#             "attributes": {
-#                 "status": "success",
-#                 "status_code": "success"
-#             }
-#         },
-#         {
-#             "name": "metadata",
-#             "timestamp": "2025-07-10T03:42:21.736472Z",
-#             "attributes": {}
-#         }
-#     ],
-#     "links": [],
-#     "resource": {
-#         "attributes": {
-#             "service.name": "llamaindex_agent_1"
-#         },
-#         "schema_url": ""
-#     }
-# }
-# ,{
-#     "name": "llama_index.core.agent.workflow.function_agent.FunctionAgent.take_step",
-#     "context": {
-#         "trace_id": "0x59dbb00c47c537978bee083bfad1a753",
-#         "span_id": "0x13b06f4d0c2970df",
-#         "trace_state": "[]"
-#     },
-#     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0xd19b4d682cee8bc5",
-#     "start_time": "2025-07-10T03:42:20.764317Z",
-#     "end_time": "2025-07-10T03:42:21.736832Z",
-#     "status": {
-#         "status_code": "OK"
-#     },
-#     "attributes": {
-#         "monocle_apptrace.version": "0.4.0",
-#         "monocle_apptrace.language": "python",
-#         "span_source": "/Users/prasad/repos/monocle2ai/monocle-prasad/.env/lib/python3.12/site-packages/llama_index/core/agent/workflow/multi_agent_workflow.py:382",
-#         "workflow.name": "llamaindex_agent_1",
-#         "span.type": "generic"
-#     },
-#     "events": [],
-#     "links": [],
-#     "resource": {
-#         "attributes": {
-#             "service.name": "llamaindex_agent_1"
-#         },
-#         "schema_url": ""
-#     }
-# }
-# ,{
-#     "name": "llama_index.core.tools.function_tool.FunctionTool.acall",
-#     "context": {
-#         "trace_id": "0x59dbb00c47c537978bee083bfad1a753",
-#         "span_id": "0x25b3ef5b99a96d64",
-#         "trace_state": "[]"
-#     },
-#     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0xd19b4d682cee8bc5",
-#     "start_time": "2025-07-10T03:42:21.738509Z",
-#     "end_time": "2025-07-10T03:42:21.738699Z",
-#     "status": {
-#         "status_code": "OK"
-#     },
-#     "attributes": {
-#         "monocle_apptrace.version": "0.4.0",
-#         "monocle_apptrace.language": "python",
-#         "span_source": "/Users/prasad/repos/monocle2ai/monocle-prasad/.env/lib/python3.12/site-packages/llama_index/core/agent/workflow/multi_agent_workflow.py:280",
-#         "workflow.name": "llamaindex_agent_1",
-#         "span.type": "agentic.delegation",
-#         "entity.1.type": "agent.llamaindex",
-#         "entity.1.from_agent": "coordinator",
-#         "entity.1.to_agent": "coordinator",
-#         "entity.count": 1
-#     },
-#     "events": [],
-#     "links": [],
-#     "resource": {
-#         "attributes": {
-#             "service.name": "llamaindex_agent_1"
-#         },
-#         "schema_url": ""
-#     }
-# }
-# ,{
-#     "name": "llama_index.core.agent.workflow.function_agent.FunctionAgent.finalize",
-#     "context": {
-#         "trace_id": "0x59dbb00c47c537978bee083bfad1a753",
-#         "span_id": "0x8e5b71ec74a0a675",
-#         "trace_state": "[]"
-#     },
-#     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0xd19b4d682cee8bc5",
-#     "start_time": "2025-07-10T03:42:21.739325Z",
-#     "end_time": "2025-07-10T03:42:21.739681Z",
-#     "status": {
-#         "status_code": "OK"
-#     },
-#     "attributes": {
-#         "monocle_apptrace.version": "0.4.0",
-#         "monocle_apptrace.language": "python",
-#         "span_source": "/Users/prasad/repos/monocle2ai/monocle-prasad/.env/lib/python3.12/site-packages/llama_index/core/agent/workflow/multi_agent_workflow.py:522",
-#         "workflow.name": "llamaindex_agent_1",
-#         "span.type": "agentic.invocation",
-#         "entity.1.name": "coordinator",
-#         "entity.1.type": "agent.llamaindex",
-#         "entity.count": 1
-#     },
-#     "events": [
-#         {
-#             "name": "data.input",
-#             "timestamp": "2025-07-10T03:42:21.739649Z",
-#             "attributes": {
-#                 "input": [
-#                     "Agent coordinator cannot hand off to coordinator. Please select a valid agent to hand off to."
-#                 ]
-#             }
-#         },
-#         {
-#             "name": "data.output",
-#             "timestamp": "2025-07-10T03:42:21.739671Z",
-#             "attributes": {
-#                 "response": "Agent coordinator cannot hand off to coordinator. Please select a valid agent to hand off to."
-#             }
-#         }
-#     ],
-#     "links": [],
-#     "resource": {
-#         "attributes": {
-#             "service.name": "llamaindex_agent_1"
-#         },
-#         "schema_url": ""
-#     }
-# }
-# ,{
-#     "name": "openai.resources.chat.completions.AsyncCompletions.create",
-#     "context": {
-#         "trace_id": "0x59dbb00c47c537978bee083bfad1a753",
-#         "span_id": "0xc7c622f803084aa3",
-#         "trace_state": "[]"
-#     },
-#     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0x5381694df36fd4a4",
-#     "start_time": "2025-07-10T03:42:21.742668Z",
-#     "end_time": "2025-07-10T03:42:22.660935Z",
-#     "status": {
-#         "status_code": "OK"
-#     },
-#     "attributes": {
-#         "monocle_apptrace.version": "0.4.0",
-#         "monocle_apptrace.language": "python",
-#         "span_source": "/Users/prasad/repos/monocle2ai/monocle-prasad/.env/lib/python3.12/site-packages/llama_index/llms/openai/base.py:783",
-#         "workflow.name": "llamaindex_agent_1",
-#         "span.type": "inference",
-#         "entity.1.type": "inference.openai",
-#         "entity.1.provider_name": "api.openai.com",
-#         "entity.1.inference_endpoint": "https://api.openai.com/v1/",
-#         "entity.2.name": "gpt-4",
-#         "entity.2.type": "model.llm.gpt-4",
-#         "entity.count": 2
-#     },
-#     "events": [
-#         {
-#             "name": "data.input",
-#             "timestamp": "2025-07-10T03:42:22.334229Z",
-#             "attributes": {
-#                 "input": [
-#                     "{\"system\": \"You are a coordinator agent who manages the flight and hotel booking agents. Separate hotel booking and flight booking tasks clearly from the input query. \\n                            Delegate only hotel booking to the hotel booking agent and only flight booking to the flight booking agent.\\n                            Once they complete their tasks, you collect their responses and provide consolidated response to the user.\"}",
-#                     "{\"user\": \"book a flight from BOS to JFK and a book hotel stay at McKittrick Hotel\"}",
-#                     "{\"tool\": \"Agent hotel_booking_agent is now handling the request due to the following reason: User requested to book a hotel stay at McKittrick Hotel..\\nPlease continue with the current request.\"}",
-#                     "{\"tool\": \"Agent flight_booking_agent is now handling the request due to the following reason: User requested to book a flight from BOS to JFK..\\nPlease continue with the current request.\"}",
-#                     "{\"tool\": \"Successfully booked a flight from BOS to JFK.\"}",
-#                     "{\"tool\": \"Agent coordinator is now handling the request due to the following reason: Flight from BOS to JFK has been successfully booked, handing off to the coordinator..\\nPlease continue with the current request.\"}",
-#                     "{\"tool\": \"Agent coordinator cannot hand off to coordinator. Please select a valid agent to hand off to.\"}"
-#                 ]
-#             }
-#         },
-#         {
-#             "name": "data.output",
-#             "timestamp": "2025-07-10T03:42:22.334229Z",
-#             "attributes": {
-#                 "status": "success",
-#                 "status_code": "success"
-#             }
-#         },
-#         {
-#             "name": "metadata",
-#             "timestamp": "2025-07-10T03:42:22.660621Z",
-#             "attributes": {}
-#         }
-#     ],
-#     "links": [],
-#     "resource": {
-#         "attributes": {
-#             "service.name": "llamaindex_agent_1"
-#         },
-#         "schema_url": ""
-#     }
-# }
-# ,{
-#     "name": "llama_index.core.agent.workflow.function_agent.FunctionAgent.take_step",
-#     "context": {
-#         "trace_id": "0x59dbb00c47c537978bee083bfad1a753",
-#         "span_id": "0x5381694df36fd4a4",
-#         "trace_state": "[]"
-#     },
-#     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0xd19b4d682cee8bc5",
-#     "start_time": "2025-07-10T03:42:21.741521Z",
-#     "end_time": "2025-07-10T03:42:22.661240Z",
-#     "status": {
-#         "status_code": "OK"
-#     },
-#     "attributes": {
-#         "monocle_apptrace.version": "0.4.0",
-#         "monocle_apptrace.language": "python",
-#         "span_source": "/Users/prasad/repos/monocle2ai/monocle-prasad/.env/lib/python3.12/site-packages/llama_index/core/agent/workflow/multi_agent_workflow.py:382",
-#         "workflow.name": "llamaindex_agent_1",
-#         "span.type": "generic"
-#     },
-#     "events": [],
-#     "links": [],
-#     "resource": {
-#         "attributes": {
-#             "service.name": "llamaindex_agent_1"
-#         },
-#         "schema_url": ""
-#     }
-# }
-# ,{
-#     "name": "llama_index.core.tools.function_tool.FunctionTool.acall",
-#     "context": {
-#         "trace_id": "0x59dbb00c47c537978bee083bfad1a753",
-#         "span_id": "0x399244d286822b3f",
-#         "trace_state": "[]"
-#     },
-#     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0xd19b4d682cee8bc5",
-#     "start_time": "2025-07-10T03:42:22.663657Z",
-#     "end_time": "2025-07-10T03:42:22.663993Z",
-#     "status": {
-#         "status_code": "OK"
-#     },
-#     "attributes": {
-#         "monocle_apptrace.version": "0.4.0",
-#         "monocle_apptrace.language": "python",
-#         "span_source": "/Users/prasad/repos/monocle2ai/monocle-prasad/.env/lib/python3.12/site-packages/llama_index/core/agent/workflow/multi_agent_workflow.py:280",
-#         "workflow.name": "llamaindex_agent_1",
-#         "span.type": "agentic.delegation",
-#         "entity.1.type": "agent.llamaindex",
-#         "entity.1.from_agent": "coordinator",
 #         "entity.1.to_agent": "hotel_booking_agent",
 #         "entity.count": 1
 #     },
@@ -993,14 +601,14 @@ def verify_spans():
 # ,{
 #     "name": "llama_index.core.agent.workflow.function_agent.FunctionAgent.finalize",
 #     "context": {
-#         "trace_id": "0x59dbb00c47c537978bee083bfad1a753",
-#         "span_id": "0x255fec60d0220470",
+#         "trace_id": "0xf0780895df20f97a5ab8bb7bcbf7d808",
+#         "span_id": "0x844bb735a4fd7e65",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0xd19b4d682cee8bc5",
-#     "start_time": "2025-07-10T03:42:22.665284Z",
-#     "end_time": "2025-07-10T03:42:22.665776Z",
+#     "parent_id": "0x65d0e590c144c230",
+#     "start_time": "2025-07-12T19:15:22.215985Z",
+#     "end_time": "2025-07-12T19:15:22.220066Z",
 #     "status": {
 #         "status_code": "OK"
 #     },
@@ -1010,25 +618,26 @@ def verify_spans():
 #         "span_source": "/Users/prasad/repos/monocle2ai/monocle-prasad/.env/lib/python3.12/site-packages/llama_index/core/agent/workflow/multi_agent_workflow.py:522",
 #         "workflow.name": "llamaindex_agent_1",
 #         "span.type": "agentic.invocation",
-#         "entity.1.name": "coordinator",
+#         "entity.1.name": "flight_booking_agent",
+#         "entity.1.description": "Flight booking agent",
 #         "entity.1.type": "agent.llamaindex",
 #         "entity.count": 1
 #     },
 #     "events": [
 #         {
 #             "name": "data.input",
-#             "timestamp": "2025-07-10T03:42:22.665739Z",
+#             "timestamp": "2025-07-12T19:15:22.219502Z",
 #             "attributes": {
 #                 "input": [
-#                     "Agent hotel_booking_agent is now handling the request due to the following reason: Hotel stay at McKittrick Hotel has been successfully booked, handing off to the hotel booking agent..\nPlease continue with the current request."
+#                     "Agent hotel_booking_agent is now handling the request due to the following reason: Book a hotel stay at McKittrick Hotel.\nPlease continue with the current request."
 #                 ]
 #             }
 #         },
 #         {
 #             "name": "data.output",
-#             "timestamp": "2025-07-10T03:42:22.665765Z",
+#             "timestamp": "2025-07-12T19:15:22.220040Z",
 #             "attributes": {
-#                 "response": "Agent hotel_booking_agent is now handling the request due to the following reason: Hotel stay at McKittrick Hotel has been successfully booked, handing off to the hotel booking agent..\nPlease continue with the current request."
+#                 "response": "Agent hotel_booking_agent is now handling the request due to the following reason: Book a hotel stay at McKittrick Hotel.\nPlease continue with the current request."
 #             }
 #         }
 #     ],
@@ -1043,14 +652,14 @@ def verify_spans():
 # ,{
 #     "name": "openai.resources.chat.completions.AsyncCompletions.create",
 #     "context": {
-#         "trace_id": "0x59dbb00c47c537978bee083bfad1a753",
-#         "span_id": "0x469adccbad56e596",
+#         "trace_id": "0xf0780895df20f97a5ab8bb7bcbf7d808",
+#         "span_id": "0xbb0d054c3365cc20",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0x9a4cdc07a205d067",
-#     "start_time": "2025-07-10T03:42:22.669850Z",
-#     "end_time": "2025-07-10T03:42:23.675884Z",
+#     "parent_id": "0x841d9d55e2cd0d5a",
+#     "start_time": "2025-07-12T19:15:22.232836Z",
+#     "end_time": "2025-07-12T19:15:23.686724Z",
 #     "status": {
 #         "status_code": "OK"
 #     },
@@ -1070,32 +679,28 @@ def verify_spans():
 #     "events": [
 #         {
 #             "name": "data.input",
-#             "timestamp": "2025-07-10T03:42:23.241538Z",
+#             "timestamp": "2025-07-12T19:15:23.093350Z",
 #             "attributes": {
 #                 "input": [
 #                     "{\"system\": \"You are a hotel booking agent who books hotels as per the request. Once you complete the task, you handoff to the coordinator agent only.\"}",
 #                     "{\"user\": \"book a flight from BOS to JFK and a book hotel stay at McKittrick Hotel\"}",
-#                     "{\"tool\": \"Agent hotel_booking_agent is now handling the request due to the following reason: User requested to book a hotel stay at McKittrick Hotel..\\nPlease continue with the current request.\"}",
-#                     "{\"tool\": \"Agent flight_booking_agent is now handling the request due to the following reason: User requested to book a flight from BOS to JFK..\\nPlease continue with the current request.\"}",
+#                     "{\"tool\": \"Agent flight_booking_agent is now handling the request due to the following reason: Book a flight from BOS to JFK.\\nPlease continue with the current request.\"}",
 #                     "{\"tool\": \"Successfully booked a flight from BOS to JFK.\"}",
-#                     "{\"tool\": \"Agent coordinator is now handling the request due to the following reason: Flight from BOS to JFK has been successfully booked, handing off to the coordinator..\\nPlease continue with the current request.\"}",
-#                     "{\"tool\": \"Agent coordinator cannot hand off to coordinator. Please select a valid agent to hand off to.\"}",
-#                     "{\"tool\": \"Agent hotel_booking_agent is now handling the request due to the following reason: Hotel stay at McKittrick Hotel has been successfully booked, handing off to the hotel booking agent..\\nPlease continue with the current request.\"}"
+#                     "{\"tool\": \"Agent hotel_booking_agent is now handling the request due to the following reason: Book a hotel stay at McKittrick Hotel.\\nPlease continue with the current request.\"}"
 #                 ]
 #             }
 #         },
 #         {
 #             "name": "data.output",
-#             "timestamp": "2025-07-10T03:42:23.243349Z",
+#             "timestamp": "2025-07-12T19:15:23.093350Z",
 #             "attributes": {
-#                 "response": "{\"assistant\": \"I have successfully booked a flight from BOS to JFK. However, I need to hand off the hotel booking for the McKittrick Hotel to the hotel booking agent. Please wait a moment while I do that.\"}",
 #                 "status": "success",
 #                 "status_code": "success"
 #             }
 #         },
 #         {
 #             "name": "metadata",
-#             "timestamp": "2025-07-10T03:42:23.675469Z",
+#             "timestamp": "2025-07-12T19:15:23.685462Z",
 #             "attributes": {}
 #         }
 #     ],
@@ -1110,14 +715,340 @@ def verify_spans():
 # ,{
 #     "name": "llama_index.core.agent.workflow.function_agent.FunctionAgent.take_step",
 #     "context": {
-#         "trace_id": "0x59dbb00c47c537978bee083bfad1a753",
-#         "span_id": "0x9a4cdc07a205d067",
+#         "trace_id": "0xf0780895df20f97a5ab8bb7bcbf7d808",
+#         "span_id": "0x841d9d55e2cd0d5a",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0xd19b4d682cee8bc5",
-#     "start_time": "2025-07-10T03:42:22.667875Z",
-#     "end_time": "2025-07-10T03:42:23.676218Z",
+#     "parent_id": "0x65d0e590c144c230",
+#     "start_time": "2025-07-12T19:15:22.227957Z",
+#     "end_time": "2025-07-12T19:15:23.687101Z",
+#     "status": {
+#         "status_code": "OK"
+#     },
+#     "attributes": {
+#         "monocle_apptrace.version": "0.4.0",
+#         "monocle_apptrace.language": "python",
+#         "span_source": "/Users/prasad/repos/monocle2ai/monocle-prasad/.env/lib/python3.12/site-packages/llama_index/core/agent/workflow/multi_agent_workflow.py:382",
+#         "workflow.name": "llamaindex_agent_1",
+#         "span.type": "generic"
+#     },
+#     "events": [],
+#     "links": [],
+#     "resource": {
+#         "attributes": {
+#             "service.name": "llamaindex_agent_1"
+#         },
+#         "schema_url": ""
+#     }
+# }
+# ,{
+#     "name": "llama_index.core.agent.workflow.multi_agent_workflow.AgentWorkflow._call_tool",
+#     "context": {
+#         "trace_id": "0xf0780895df20f97a5ab8bb7bcbf7d808",
+#         "span_id": "0xdcb0f293307f3df8",
+#         "trace_state": "[]"
+#     },
+#     "kind": "SpanKind.INTERNAL",
+#     "parent_id": "0x65d0e590c144c230",
+#     "start_time": "2025-07-12T19:15:23.689802Z",
+#     "end_time": "2025-07-12T19:15:23.691317Z",
+#     "status": {
+#         "status_code": "OK"
+#     },
+#     "attributes": {
+#         "monocle_apptrace.version": "0.4.0",
+#         "monocle_apptrace.language": "python",
+#         "span_source": "/Users/prasad/repos/monocle2ai/monocle-prasad/.env/lib/python3.12/site-packages/llama_index/core/agent/workflow/multi_agent_workflow.py:447",
+#         "workflow.name": "llamaindex_agent_1",
+#         "span.type": "agentic.tool",
+#         "entity.1.type": "tool.llamaindex",
+#         "entity.1.name": "book_hotel",
+#         "entity.1.description": "Books a hotel stay.",
+#         "entity.count": 1
+#     },
+#     "events": [
+#         {
+#             "name": "data.input",
+#             "timestamp": "2025-07-12T19:15:23.690987Z",
+#             "attributes": {
+#                 "Inputs": [
+#                     "{'hotel_name', 'McKittrick Hotel'}"
+#                 ]
+#             }
+#         },
+#         {
+#             "name": "data.output",
+#             "timestamp": "2025-07-12T19:15:23.691300Z",
+#             "attributes": {
+#                 "response": "Successfully booked a stay at McKittrick Hotel."
+#             }
+#         }
+#     ],
+#     "links": [],
+#     "resource": {
+#         "attributes": {
+#             "service.name": "llamaindex_agent_1"
+#         },
+#         "schema_url": ""
+#     }
+# }
+# ,{
+#     "name": "openai.resources.chat.completions.AsyncCompletions.create",
+#     "context": {
+#         "trace_id": "0xf0780895df20f97a5ab8bb7bcbf7d808",
+#         "span_id": "0xfca4258cf8b6e1c9",
+#         "trace_state": "[]"
+#     },
+#     "kind": "SpanKind.INTERNAL",
+#     "parent_id": "0x868d927795b406bc",
+#     "start_time": "2025-07-12T19:15:23.696385Z",
+#     "end_time": "2025-07-12T19:15:25.490879Z",
+#     "status": {
+#         "status_code": "OK"
+#     },
+#     "attributes": {
+#         "monocle_apptrace.version": "0.4.0",
+#         "monocle_apptrace.language": "python",
+#         "span_source": "/Users/prasad/repos/monocle2ai/monocle-prasad/.env/lib/python3.12/site-packages/llama_index/llms/openai/base.py:783",
+#         "workflow.name": "llamaindex_agent_1",
+#         "span.type": "inference",
+#         "entity.1.type": "inference.openai",
+#         "entity.1.provider_name": "api.openai.com",
+#         "entity.1.inference_endpoint": "https://api.openai.com/v1/",
+#         "entity.2.name": "gpt-4",
+#         "entity.2.type": "model.llm.gpt-4",
+#         "entity.count": 2
+#     },
+#     "events": [
+#         {
+#             "name": "data.input",
+#             "timestamp": "2025-07-12T19:15:24.934043Z",
+#             "attributes": {
+#                 "input": [
+#                     "{\"system\": \"You are a hotel booking agent who books hotels as per the request. Once you complete the task, you handoff to the coordinator agent only.\"}",
+#                     "{\"user\": \"book a flight from BOS to JFK and a book hotel stay at McKittrick Hotel\"}",
+#                     "{\"tool\": \"Agent flight_booking_agent is now handling the request due to the following reason: Book a flight from BOS to JFK.\\nPlease continue with the current request.\"}",
+#                     "{\"tool\": \"Successfully booked a flight from BOS to JFK.\"}",
+#                     "{\"tool\": \"Agent hotel_booking_agent is now handling the request due to the following reason: Book a hotel stay at McKittrick Hotel.\\nPlease continue with the current request.\"}",
+#                     "{\"tool\": \"Successfully booked a stay at McKittrick Hotel.\"}"
+#                 ]
+#             }
+#         },
+#         {
+#             "name": "data.output",
+#             "timestamp": "2025-07-12T19:15:24.934043Z",
+#             "attributes": {
+#                 "status": "success",
+#                 "status_code": "success"
+#             }
+#         },
+#         {
+#             "name": "metadata",
+#             "timestamp": "2025-07-12T19:15:25.490309Z",
+#             "attributes": {}
+#         }
+#     ],
+#     "links": [],
+#     "resource": {
+#         "attributes": {
+#             "service.name": "llamaindex_agent_1"
+#         },
+#         "schema_url": ""
+#     }
+# }
+# ,{
+#     "name": "llama_index.core.agent.workflow.function_agent.FunctionAgent.take_step",
+#     "context": {
+#         "trace_id": "0xf0780895df20f97a5ab8bb7bcbf7d808",
+#         "span_id": "0x868d927795b406bc",
+#         "trace_state": "[]"
+#     },
+#     "kind": "SpanKind.INTERNAL",
+#     "parent_id": "0x65d0e590c144c230",
+#     "start_time": "2025-07-12T19:15:23.694390Z",
+#     "end_time": "2025-07-12T19:15:25.491124Z",
+#     "status": {
+#         "status_code": "OK"
+#     },
+#     "attributes": {
+#         "monocle_apptrace.version": "0.4.0",
+#         "monocle_apptrace.language": "python",
+#         "span_source": "/Users/prasad/repos/monocle2ai/monocle-prasad/.env/lib/python3.12/site-packages/llama_index/core/agent/workflow/multi_agent_workflow.py:382",
+#         "workflow.name": "llamaindex_agent_1",
+#         "span.type": "generic"
+#     },
+#     "events": [],
+#     "links": [],
+#     "resource": {
+#         "attributes": {
+#             "service.name": "llamaindex_agent_1"
+#         },
+#         "schema_url": ""
+#     }
+# }
+# ,{
+#     "name": "llama_index.core.agent.workflow.multi_agent_workflow.AgentWorkflow._call_tool",
+#     "context": {
+#         "trace_id": "0xf0780895df20f97a5ab8bb7bcbf7d808",
+#         "span_id": "0xb7924d54de8ac529",
+#         "trace_state": "[]"
+#     },
+#     "kind": "SpanKind.INTERNAL",
+#     "parent_id": "0x65d0e590c144c230",
+#     "start_time": "2025-07-12T19:15:25.493581Z",
+#     "end_time": "2025-07-12T19:15:25.494505Z",
+#     "status": {
+#         "status_code": "OK"
+#     },
+#     "attributes": {
+#         "monocle_apptrace.version": "0.4.0",
+#         "monocle_apptrace.language": "python",
+#         "span_source": "/Users/prasad/repos/monocle2ai/monocle-prasad/.env/lib/python3.12/site-packages/llama_index/core/agent/workflow/multi_agent_workflow.py:447",
+#         "workflow.name": "llamaindex_agent_1",
+#         "span.type": "agentic.delegation",
+#         "entity.1.type": "agent.llamaindex",
+#         "entity.1.from_agent": "hotel_booking_agent",
+#         "entity.1.to_agent": "coordinator",
+#         "entity.count": 1
+#     },
+#     "events": [],
+#     "links": [],
+#     "resource": {
+#         "attributes": {
+#             "service.name": "llamaindex_agent_1"
+#         },
+#         "schema_url": ""
+#     }
+# }
+# ,{
+#     "name": "llama_index.core.agent.workflow.function_agent.FunctionAgent.finalize",
+#     "context": {
+#         "trace_id": "0xf0780895df20f97a5ab8bb7bcbf7d808",
+#         "span_id": "0x0f9a1cabc3260a45",
+#         "trace_state": "[]"
+#     },
+#     "kind": "SpanKind.INTERNAL",
+#     "parent_id": "0x65d0e590c144c230",
+#     "start_time": "2025-07-12T19:15:25.495953Z",
+#     "end_time": "2025-07-12T19:15:25.497021Z",
+#     "status": {
+#         "status_code": "OK"
+#     },
+#     "attributes": {
+#         "monocle_apptrace.version": "0.4.0",
+#         "monocle_apptrace.language": "python",
+#         "span_source": "/Users/prasad/repos/monocle2ai/monocle-prasad/.env/lib/python3.12/site-packages/llama_index/core/agent/workflow/multi_agent_workflow.py:522",
+#         "workflow.name": "llamaindex_agent_1",
+#         "span.type": "agentic.invocation",
+#         "entity.1.name": "hotel_booking_agent",
+#         "entity.1.description": "Hotel booking agent",
+#         "entity.1.type": "agent.llamaindex",
+#         "entity.count": 1
+#     },
+#     "events": [
+#         {
+#             "name": "data.input",
+#             "timestamp": "2025-07-12T19:15:25.496769Z",
+#             "attributes": {
+#                 "input": [
+#                     "Agent coordinator is now handling the request due to the following reason: Completed booking tasks.\nPlease continue with the current request."
+#                 ]
+#             }
+#         },
+#         {
+#             "name": "data.output",
+#             "timestamp": "2025-07-12T19:15:25.497008Z",
+#             "attributes": {
+#                 "response": "Agent coordinator is now handling the request due to the following reason: Completed booking tasks.\nPlease continue with the current request."
+#             }
+#         }
+#     ],
+#     "links": [],
+#     "resource": {
+#         "attributes": {
+#             "service.name": "llamaindex_agent_1"
+#         },
+#         "schema_url": ""
+#     }
+# }
+# ,{
+#     "name": "openai.resources.chat.completions.AsyncCompletions.create",
+#     "context": {
+#         "trace_id": "0xf0780895df20f97a5ab8bb7bcbf7d808",
+#         "span_id": "0x37a38e9e7d4b9417",
+#         "trace_state": "[]"
+#     },
+#     "kind": "SpanKind.INTERNAL",
+#     "parent_id": "0x93c4b3bf0591fbeb",
+#     "start_time": "2025-07-12T19:15:25.501062Z",
+#     "end_time": "2025-07-12T19:15:27.132931Z",
+#     "status": {
+#         "status_code": "OK"
+#     },
+#     "attributes": {
+#         "monocle_apptrace.version": "0.4.0",
+#         "monocle_apptrace.language": "python",
+#         "span_source": "/Users/prasad/repos/monocle2ai/monocle-prasad/.env/lib/python3.12/site-packages/llama_index/llms/openai/base.py:783",
+#         "workflow.name": "llamaindex_agent_1",
+#         "span.type": "inference",
+#         "entity.1.type": "inference.openai",
+#         "entity.1.provider_name": "api.openai.com",
+#         "entity.1.inference_endpoint": "https://api.openai.com/v1/",
+#         "entity.2.name": "gpt-4",
+#         "entity.2.type": "model.llm.gpt-4",
+#         "entity.count": 2
+#     },
+#     "events": [
+#         {
+#             "name": "data.input",
+#             "timestamp": "2025-07-12T19:15:26.223975Z",
+#             "attributes": {
+#                 "input": [
+#                     "{\"system\": \"You are a coordinator agent who manages the flight and hotel booking agents. Separate hotel booking and flight booking tasks clearly from the input query. \\n                            Delegate only hotel booking to the hotel booking agent and only flight booking to the flight booking agent.\\n                            Once they complete their tasks, you collect their responses and provide consolidated response to the user.\"}",
+#                     "{\"user\": \"book a flight from BOS to JFK and a book hotel stay at McKittrick Hotel\"}",
+#                     "{\"tool\": \"Agent flight_booking_agent is now handling the request due to the following reason: Book a flight from BOS to JFK.\\nPlease continue with the current request.\"}",
+#                     "{\"tool\": \"Successfully booked a flight from BOS to JFK.\"}",
+#                     "{\"tool\": \"Agent hotel_booking_agent is now handling the request due to the following reason: Book a hotel stay at McKittrick Hotel.\\nPlease continue with the current request.\"}",
+#                     "{\"tool\": \"Successfully booked a stay at McKittrick Hotel.\"}",
+#                     "{\"tool\": \"Agent coordinator is now handling the request due to the following reason: Completed booking tasks.\\nPlease continue with the current request.\"}"
+#                 ]
+#             }
+#         },
+#         {
+#             "name": "data.output",
+#             "timestamp": "2025-07-12T19:15:26.359208Z",
+#             "attributes": {
+#                 "response": "{\"assistant\": \"I have successfully booked your flight from BOS to JFK and your stay at the McKittrick Hotel. Safe travels!\"}",
+#                 "status": "success",
+#                 "status_code": "success"
+#             }
+#         },
+#         {
+#             "name": "metadata",
+#             "timestamp": "2025-07-12T19:15:27.132207Z",
+#             "attributes": {}
+#         }
+#     ],
+#     "links": [],
+#     "resource": {
+#         "attributes": {
+#             "service.name": "llamaindex_agent_1"
+#         },
+#         "schema_url": ""
+#     }
+# }
+# ,{
+#     "name": "llama_index.core.agent.workflow.function_agent.FunctionAgent.take_step",
+#     "context": {
+#         "trace_id": "0xf0780895df20f97a5ab8bb7bcbf7d808",
+#         "span_id": "0x93c4b3bf0591fbeb",
+#         "trace_state": "[]"
+#     },
+#     "kind": "SpanKind.INTERNAL",
+#     "parent_id": "0x65d0e590c144c230",
+#     "start_time": "2025-07-12T19:15:25.499512Z",
+#     "end_time": "2025-07-12T19:15:27.133331Z",
 #     "status": {
 #         "status_code": "OK"
 #     },
@@ -1140,14 +1071,14 @@ def verify_spans():
 # ,{
 #     "name": "llama_index.core.agent.workflow.function_agent.FunctionAgent.finalize",
 #     "context": {
-#         "trace_id": "0x59dbb00c47c537978bee083bfad1a753",
-#         "span_id": "0x21bc2d77aaacdfe5",
+#         "trace_id": "0xf0780895df20f97a5ab8bb7bcbf7d808",
+#         "span_id": "0xdb263020b407e4eb",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0xd19b4d682cee8bc5",
-#     "start_time": "2025-07-10T03:42:23.677795Z",
-#     "end_time": "2025-07-10T03:42:23.678388Z",
+#     "parent_id": "0x65d0e590c144c230",
+#     "start_time": "2025-07-12T19:15:27.135107Z",
+#     "end_time": "2025-07-12T19:15:27.136725Z",
 #     "status": {
 #         "status_code": "OK"
 #     },
@@ -1157,21 +1088,22 @@ def verify_spans():
 #         "span_source": "/Users/prasad/repos/monocle2ai/monocle-prasad/.env/lib/python3.12/site-packages/llama_index/core/agent/workflow/multi_agent_workflow.py:399",
 #         "workflow.name": "llamaindex_agent_1",
 #         "span.type": "agentic.invocation",
-#         "entity.1.name": "hotel_booking_agent",
+#         "entity.1.name": "coordinator",
+#         "entity.1.description": "Travel booking coordinator agent",
 #         "entity.1.type": "agent.llamaindex",
 #         "entity.count": 1
 #     },
 #     "events": [
 #         {
 #             "name": "data.input",
-#             "timestamp": "2025-07-10T03:42:23.678343Z",
+#             "timestamp": "2025-07-12T19:15:27.136356Z",
 #             "attributes": {}
 #         },
 #         {
 #             "name": "data.output",
-#             "timestamp": "2025-07-10T03:42:23.678374Z",
+#             "timestamp": "2025-07-12T19:15:27.136703Z",
 #             "attributes": {
-#                 "response": "I have successfully booked a flight from BOS to JFK. However, I need to hand off the hotel booking for the McKittrick Hotel to the hotel booking agent. Please wait a moment while I do that."
+#                 "response": "I have successfully booked your flight from BOS to JFK and your stay at the McKittrick Hotel. Safe travels!"
 #             }
 #         }
 #     ],
@@ -1186,26 +1118,43 @@ def verify_spans():
 # ,{
 #     "name": "llama_index.core.agent.workflow.multi_agent_workflow.AgentWorkflow.run",
 #     "context": {
-#         "trace_id": "0x59dbb00c47c537978bee083bfad1a753",
-#         "span_id": "0xd19b4d682cee8bc5",
+#         "trace_id": "0xf0780895df20f97a5ab8bb7bcbf7d808",
+#         "span_id": "0x65d0e590c144c230",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0xd927af865b6685f7",
-#     "start_time": "2025-07-10T03:42:16.931616Z",
-#     "end_time": "2025-07-10T03:42:23.679868Z",
+#     "parent_id": "0x681ccb3ecd5a7f13",
+#     "start_time": "2025-07-12T19:14:25.388664Z",
+#     "end_time": "2025-07-12T19:15:52.103310Z",
 #     "status": {
 #         "status_code": "OK"
 #     },
 #     "attributes": {
 #         "monocle_apptrace.version": "0.4.0",
 #         "monocle_apptrace.language": "python",
-#         "span_source": "/Users/prasad/repos/monocle2ai/monocle-prasad/tests/integration/test_llamaindex_multi_agent.py:77",
+#         "span_source": "/Users/prasad/repos/monocle2ai/monocle-prasad/tests/integration/test_llamaindex_multi_agent.py:75",
 #         "workflow.name": "llamaindex_agent_1",
-#         "span.type": "generic",
+#         "span.type": "agentic.request",
+#         "entity.1.type": "agent.llamaindex",
+#         "entity.count": 1,
 #         "_active_agent_name": ""
 #     },
-#     "events": [],
+#     "events": [
+#         {
+#             "name": "data.input",
+#             "timestamp": "2025-07-12T19:15:39.862247Z",
+#             "attributes": {
+#                 "input": "book a flight from BOS to JFK and a book hotel stay at McKittrick Hotel"
+#             }
+#         },
+#         {
+#             "name": "data.output",
+#             "timestamp": "2025-07-12T19:15:52.102484Z",
+#             "attributes": {
+#                 "response": "I have successfully booked your flight from BOS to JFK and your stay at the McKittrick Hotel. Safe travels!"
+#             }
+#         }
+#     ],
 #     "links": [],
 #     "resource": {
 #         "attributes": {
@@ -1217,21 +1166,21 @@ def verify_spans():
 # ,{
 #     "name": "workflow",
 #     "context": {
-#         "trace_id": "0x59dbb00c47c537978bee083bfad1a753",
-#         "span_id": "0xd927af865b6685f7",
+#         "trace_id": "0xf0780895df20f97a5ab8bb7bcbf7d808",
+#         "span_id": "0x681ccb3ecd5a7f13",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
 #     "parent_id": null,
-#     "start_time": "2025-07-10T03:42:16.931567Z",
-#     "end_time": "2025-07-10T03:42:23.679901Z",
+#     "start_time": "2025-07-12T19:14:25.388158Z",
+#     "end_time": "2025-07-12T19:15:52.103710Z",
 #     "status": {
 #         "status_code": "OK"
 #     },
 #     "attributes": {
 #         "monocle_apptrace.version": "0.4.0",
 #         "monocle_apptrace.language": "python",
-#         "span_source": "/Users/prasad/repos/monocle2ai/monocle-prasad/tests/integration/test_llamaindex_multi_agent.py:77",
+#         "span_source": "/Users/prasad/repos/monocle2ai/monocle-prasad/tests/integration/test_llamaindex_multi_agent.py:75",
 #         "span.type": "workflow",
 #         "entity.1.name": "llamaindex_agent_1",
 #         "entity.1.type": "workflow.generic",

@@ -41,19 +41,24 @@ def extract_tools(instance):
                 tools.append(tool_name)
     return tools
 
-def get_tool_name(instance):
+def get_tool_name(args):
+    if hasattr(args[1], 'metadata') and hasattr(args[1].metadata, 'name'):
+        return args[1].metadata.name
+    return ""
+
+def get_tool_name_from_instance(instance):
     if hasattr(instance, 'metadata') and hasattr(instance.metadata, 'name'):
         return instance.metadata.name
     return ""
 
-def get_tool_description(instance):
-    if hasattr(instance, 'metadata') and hasattr(instance.metadata, 'description'):
-        return instance.metadata.description
+def get_tool_description(args):
+    if hasattr(args[1], 'metadata') and hasattr(args[1].metadata, 'description'):
+        return args[1].metadata.description
     return ""
 
-def get_tool_args(arguments):
+def get_tool_args(args):
     tool_args = []
-    for key, value in arguments['kwargs'].items():
+    for key, value in args[2].items():
         # check if value is builtin type or a string
         if value is not None and isinstance(value, (str, int, float, bool)):
             tool_args.append({key, value})
@@ -64,8 +69,8 @@ def get_tool_response(response):
         return response.raw_output
     return ""
 
-def is_delegation_tool(instance) -> bool:
-    return get_tool_name(instance) == "handoff"
+def is_delegation_tool(args) -> bool:
+    return get_tool_name(args) == "handoff"
 
 def get_agent_name(instance) -> str:
     if hasattr(instance, 'name'):
@@ -81,9 +86,9 @@ def get_agent_description(instance) -> str:
 def get_source_agent_name(parent_span:Span) -> str:
     return parent_span.attributes.get(LLAMAINDEX_AGENT_NAME_KEY, "")
 
-def get_delegated_agent_name(kwargs) -> str:
-    if "to_agent" in kwargs:
-        return kwargs["to_agent"]
+def get_delegated_agent_name(results) -> str:
+    if hasattr(results, 'raw_input'):
+        return results.raw_input.get('kwargs', {}).get("to_agent", "")
     return ""
 
 def extract_messages(args):

@@ -114,23 +114,15 @@ LLAMAINDEX_METHODS = [
         "span_handler": "llamaindex_agent_handler",
         "wrapper_method": atask_wrapper
     },
-    
     {
-        "package": "llama_index.core.tools.function_tool",
-        "object": "FunctionTool",
-        "method": "call",
-        "wrapper_method": task_wrapper,
-        "span_handler": "llamaindex_tool_handler",
-        "output_processor": TOOLS
-    },
-    {
-        "package": "llama_index.core.tools.function_tool",
-        "object": "FunctionTool",
-        "method": "acall",
+        "package": "llama_index.core.agent.workflow.multi_agent_workflow",
+        "object": "AgentWorkflow",
+        "method": "_call_tool",
         "span_handler": "llamaindex_tool_handler",
         "wrapper_method": atask_wrapper,
         "output_processor": TOOLS
-    },    {
+    },
+    {
         "package": "llama_index.llms.anthropic",
         "object": "Anthropic",
         "method": "chat",

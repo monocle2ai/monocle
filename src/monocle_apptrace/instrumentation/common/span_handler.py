@@ -106,6 +106,7 @@ class SpanHandler:
             skip_processors:list[str] = self.skip_processor(to_wrap, wrapped, instance, span, args, kwargs) or []
 
             if 'attributes' in output_processor and 'attributes' not in skip_processors:
+                arguments = {"instance":instance, "args":args, "kwargs":kwargs, "result":result, "parent_span":parent_span}
                 for processors in output_processor["attributes"]:
                     for processor in processors:
                         attribute = processor.get('attribute')
@@ -114,10 +115,9 @@ class SpanHandler:
                         if attribute and accessor:
                             attribute_name = f"entity.{span_index+1}.{attribute}"
                             try:
-                                arguments = {"instance":instance, "args":args, "kwargs":kwargs, "result":result, "parent_span":parent_span}
-                                result = accessor(arguments)
-                                if result and isinstance(result, (str, list)):
-                                    span.set_attribute(attribute_name, result)
+                                processor_result = accessor(arguments)
+                                if processor_result and isinstance(processor_result, (str, list)):
+                                    span.set_attribute(attribute_name, processor_result)
                             except MonocleSpanException as e:
                                 span.set_status(StatusCode.ERROR, e.message)
                                 detected_error = True

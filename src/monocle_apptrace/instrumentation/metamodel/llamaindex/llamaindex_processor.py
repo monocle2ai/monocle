@@ -10,7 +10,7 @@ class LlamaIndexToolHandler(SpanHandler):
     # LlamaIndex uses an internal tool to initate delegation to other agents. The method is tool invoke() with tool name as `transfer_to_<agent_name>`.
     # Hence we usea different output processor for tool invoke() to format the span as agentic.delegation.
     def hydrate_span(self, to_wrap, wrapped, instance, args, kwargs, result, span, parent_span = None, ex:Exception = None) -> bool:
-        if is_delegation_tool(instance):
+        if is_delegation_tool(args):
             agent_request_wrapper = to_wrap.copy()
             agent_request_wrapper["output_processor"] = AGENT_DELEGATION
         else:

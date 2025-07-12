@@ -95,12 +95,12 @@ TOOLS = {
               {
                 "_comment": "name of the tool",
                 "attribute": "name",
-                "accessor": lambda arguments: _helper.get_tool_name(arguments['instance'])
+                "accessor": lambda arguments: _helper.get_tool_name(arguments['args'])
               },
               {
                   "_comment": "tool description",
                   "attribute": "description",
-                  "accessor": lambda arguments: _helper.get_tool_description(arguments['instance'])
+                  "accessor": lambda arguments: _helper.get_tool_description(arguments['args'])
               }
         ]
       ],
@@ -111,7 +111,7 @@ TOOLS = {
             {
                 "_comment": "this is Tool input",
                 "attribute": "Inputs",
-                "accessor": lambda arguments: _helper.get_tool_args(arguments) 
+                "accessor": lambda arguments: _helper.get_tool_args(arguments['args']) 
             }
           ]
         },
@@ -150,7 +150,7 @@ AGENT_DELEGATION = {
               {
                 "_comment": "name of the agent called",
                 "attribute": "to_agent",
-                "accessor": lambda arguments: _helper.get_delegated_agent_name(arguments['kwargs'])
+                "accessor": lambda arguments: _helper.get_delegated_agent_name(arguments['result'])
               }
         ]
       ]

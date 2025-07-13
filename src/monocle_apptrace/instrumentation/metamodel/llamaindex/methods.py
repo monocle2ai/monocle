@@ -64,20 +64,6 @@ LLAMAINDEX_METHODS = [
         "wrapper_method": atask_wrapper,
         "output_processor": INFERENCE
     },
-        {
-        "package": "llama_index.llms.openai.base",
-        "object": "OpenAI",
-        "method": "chat",
-        "wrapper_method": task_wrapper,
-        "output_processor": INFERENCE
-    },
-    {
-        "package": "llama_index.llms.openai.base",
-        "object": "OpenAI",
-        "method": "achat",
-        "wrapper_method": atask_wrapper,
-        "output_processor": INFERENCE
-    },
     {
         "package": "llama_index.llms.mistralai.base",
         "object": "MistralAI",

@@ -3,6 +3,7 @@ import time
 from types import SimpleNamespace
 from monocle_apptrace.instrumentation.metamodel.azureaiinference import _helper
 from monocle_apptrace.instrumentation.common.utils import (
+    get_error_message,
     resolve_from_alias, 
     patch_instance_method,
     get_status,
@@ -188,6 +189,10 @@ INFERENCE = {
                     "_comment": "Response from Azure AI Inference",
                     "attribute": "response",
                     "accessor": lambda arguments: _helper.extract_assistant_message(arguments)
+                },
+                {
+                    "attribute": "error_code",
+                    "accessor": lambda arguments: get_error_message(arguments)
                 },
                 {
                     "attribute": "finish_reason",

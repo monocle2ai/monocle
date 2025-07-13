@@ -1,7 +1,7 @@
 from monocle_apptrace.instrumentation.metamodel.botocore import (
     _helper,
 )
-from monocle_apptrace.instrumentation.common.utils import (get_llm_type, get_status,)
+from monocle_apptrace.instrumentation.common.utils import (get_error_message, get_llm_type, get_status,)
 INFERENCE = {
     "type": "inference",
     "attributes": [
@@ -43,6 +43,10 @@ INFERENCE = {
         {
             "name": "data.output",
             "attributes": [
+                {
+                    "attribute": "error_code",
+                    "accessor": lambda arguments: get_error_message(arguments)
+                },
                 {
                     "_comment": "this is response from LLM",
                     "attribute": "response",

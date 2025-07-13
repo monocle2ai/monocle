@@ -122,7 +122,7 @@ def test_openai_invalid_api_key(setup):
             events = [e for e in span.events if e.name == "data.output"]
             assert len(events) > 0
             assert span.status.status_code.value == 2  # ERROR status code
-            assert "invalid_api_key" in span.status.description
+            assert events[0].attributes["error_code"] == "invalid_api_key"
             assert "error code: 401" in events[0].attributes.get("response", "").lower()
 
 

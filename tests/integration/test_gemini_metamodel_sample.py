@@ -179,21 +179,21 @@ if __name__ == "__main__":
 # {
 #     "name": "google.genai.models.Models",
 #     "context": {
-#         "trace_id": "0x7edc939ce276e102e9107df90e651d55",
-#         "span_id": "0x50b3cac64e540bd8",
+#         "trace_id": "0x51b8d7a9d3c6cdb70a8be5be8cfb6734",
+#         "span_id": "0xd35571f37f9174bb",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0x18a69db9a742ffa0",
-#     "start_time": "2025-07-02T08:29:33.522346Z",
-#     "end_time": "2025-07-02T08:29:42.084545Z",
+#     "parent_id": "0x6ac6f794cf706c3d",
+#     "start_time": "2025-07-13T11:21:13.024409Z",
+#     "end_time": "2025-07-13T11:21:17.993373Z",
 #     "status": {
 #         "status_code": "OK"
 #     },
 #     "attributes": {
 #         "monocle_apptrace.version": "0.4.0",
 #         "monocle_apptrace.language": "python",
-#         "span_source": "/Users/kshitizvijayvargiya/monocle-ksh/tests/integration/test_gemini_metamodel_sample.py:33",
+#         "span_source": "/Users/kshitizvijayvargiya/monocle-ksh/tests/integration/test_gemini_metamodel_sample.py:38",
 #         "workflow.name": "gemini_app_1",
 #         "span.type": "inference",
 #         "entity.1.type": "inference.gemini",
@@ -205,28 +205,30 @@ if __name__ == "__main__":
 #     "events": [
 #         {
 #             "name": "data.input",
-#             "timestamp": "2025-07-02T08:29:42.083976Z",
+#             "timestamp": "2025-07-13T11:21:17.993309Z",
 #             "attributes": {
 #                 "input": [
-#                     "{'system': 'You are a cat. Your name is Neko.'}",
-#                     "{'user': 'Hello there'}"
+#                     "{\"system\": \"You are a cat. Your name is Neko.\"}",
+#                     "{\"user\": \"Hello there\"}"
 #                 ]
 #             }
 #         },
 #         {
 #             "name": "data.output",
-#             "timestamp": "2025-07-02T08:29:42.084230Z",
+#             "timestamp": "2025-07-13T11:21:17.993349Z",
 #             "attributes": {
-#                 "response": "{'model': 'Mrrrrow?\\n\\nI slowly blink one eye open, then the other, looking up at you from my sunbeam-warmed spot on the rug. My tail gives a lazy flick, just the very tip. Are you going to offer me head scratches? Or, perhaps, a treat? These are important questions.'}"
+#                 "response": "{\"model\": \"Mrow. *I tilt my head slightly, my ears swiveling to catch your voice, then give a slow, deliberate blink before my tail twitches just once.*\"}",
+#                 "finish_reason": "STOP",
+#                 "finish_type": "success"
 #             }
 #         },
 #         {
 #             "name": "metadata",
-#             "timestamp": "2025-07-02T08:29:42.084338Z",
+#             "timestamp": "2025-07-13T11:21:17.993360Z",
 #             "attributes": {
-#                 "completion_tokens": 65,
+#                 "completion_tokens": 35,
 #                 "prompt_tokens": 15,
-#                 "total_tokens": 419
+#                 "total_tokens": 432
 #             }
 #         }
 #     ],
@@ -241,21 +243,21 @@ if __name__ == "__main__":
 # {
 #     "name": "workflow",
 #     "context": {
-#         "trace_id": "0x7edc939ce276e102e9107df90e651d55",
-#         "span_id": "0x18a69db9a742ffa0",
+#         "trace_id": "0x51b8d7a9d3c6cdb70a8be5be8cfb6734",
+#         "span_id": "0x6ac6f794cf706c3d",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
 #     "parent_id": null,
-#     "start_time": "2025-07-02T08:29:33.522282Z",
-#     "end_time": "2025-07-02T08:29:42.084684Z",
+#     "start_time": "2025-07-13T11:21:13.024349Z",
+#     "end_time": "2025-07-13T11:21:17.993388Z",
 #     "status": {
 #         "status_code": "OK"
 #     },
 #     "attributes": {
 #         "monocle_apptrace.version": "0.4.0",
 #         "monocle_apptrace.language": "python",
-#         "span_source": "/Users/kshitizvijayvargiya/monocle-ksh/tests/integration/test_gemini_metamodel_sample.py:33",
+#         "span_source": "/Users/kshitizvijayvargiya/monocle-ksh/tests/integration/test_gemini_metamodel_sample.py:38",
 #         "span.type": "workflow",
 #         "entity.1.name": "gemini_app_1",
 #         "entity.1.type": "workflow.generic",
@@ -274,14 +276,14 @@ if __name__ == "__main__":
 # {
 #     "name": "google.genai.models.Models",
 #     "context": {
-#         "trace_id": "0x9a3f55b8f2971f5c4f1f5b5586f24a5c",
-#         "span_id": "0x9e8a98cd95dcc8dc",
+#         "trace_id": "0x9ef3160d23ffb494cc5cd0459130abd0",
+#         "span_id": "0x4bb294950c801e61",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0x194d38ab088a7e73",
-#     "start_time": "2025-07-02T08:29:47.125008Z",
-#     "end_time": "2025-07-02T08:29:54.668281Z",
+#     "parent_id": "0x0bff0439ce2d9dde",
+#     "start_time": "2025-07-13T11:21:23.022167Z",
+#     "end_time": "2025-07-13T11:21:29.499246Z",
 #     "status": {
 #         "status_code": "OK"
 #     },
@@ -300,28 +302,29 @@ if __name__ == "__main__":
 #     "events": [
 #         {
 #             "name": "data.input",
-#             "timestamp": "2025-07-02T08:29:54.668057Z",
+#             "timestamp": "2025-07-13T11:21:29.499101Z",
 #             "attributes": {
 #                 "input": [
-#                     "{'user': 'I have 2 dogs in my house.'}"
+#                     "{\"user\": \"I have 2 dogs in my house.\"}"
 #                 ]
 #             }
 #         },
 #         {
 #             "name": "data.output",
-#             "timestamp": "2025-07-02T08:29:54.668188Z",
+#             "timestamp": "2025-07-13T11:21:29.499202Z",
 #             "attributes": {
-#                 "": "success",
-#                 "response": "{'model': \"Oh, how wonderful! Two dogs must bring so much joy (and probably some fun chaos!) to your home.\\n\\nDo they have names, or what breeds are they? I'd love to hear more about them if you'd like to share!\"}"
+#                 "response": "{\"model\": \"Oh, how wonderful! Two dogs must bring a lot of joy (and maybe a little playful chaos!) to your home.\\n\\nDo you want to tell me anything about them? Like their names, breeds, or what they're like?\"}",
+#                 "finish_reason": "STOP",
+#                 "finish_type": "success"
 #             }
 #         },
 #         {
 #             "name": "metadata",
-#             "timestamp": "2025-07-02T08:29:54.668225Z",
+#             "timestamp": "2025-07-13T11:21:29.499225Z",
 #             "attributes": {
-#                 "completion_tokens": 52,
+#                 "completion_tokens": 49,
 #                 "prompt_tokens": 10,
-#                 "total_tokens": 764
+#                 "total_tokens": 1030
 #             }
 #         }
 #     ],
@@ -336,14 +339,14 @@ if __name__ == "__main__":
 # {
 #     "name": "workflow",
 #     "context": {
-#         "trace_id": "0x9a3f55b8f2971f5c4f1f5b5586f24a5c",
-#         "span_id": "0x194d38ab088a7e73",
+#         "trace_id": "0x9ef3160d23ffb494cc5cd0459130abd0",
+#         "span_id": "0x0bff0439ce2d9dde",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
 #     "parent_id": null,
-#     "start_time": "2025-07-02T08:29:47.124930Z",
-#     "end_time": "2025-07-02T08:29:54.668356Z",
+#     "start_time": "2025-07-13T11:21:23.021999Z",
+#     "end_time": "2025-07-13T11:21:29.499277Z",
 #     "status": {
 #         "status_code": "OK"
 #     },
@@ -369,14 +372,14 @@ if __name__ == "__main__":
 # {
 #     "name": "google.genai.models.Models",
 #     "context": {
-#         "trace_id": "0x119dfcbdc017d5d51fa402fd1fd12e6a",
-#         "span_id": "0x827bc8b7cea9d934",
+#         "trace_id": "0x1f61b158d782c2461e0b7a9c03f703a4",
+#         "span_id": "0x56149ede73636465",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0x8bbc9be1407efc75",
-#     "start_time": "2025-07-02T08:29:54.669597Z",
-#     "end_time": "2025-07-02T08:29:56.169612Z",
+#     "parent_id": "0xa9c42e2a6fb1c32d",
+#     "start_time": "2025-07-13T11:21:29.499967Z",
+#     "end_time": "2025-07-13T11:21:33.796859Z",
 #     "status": {
 #         "status_code": "OK"
 #     },
@@ -395,29 +398,31 @@ if __name__ == "__main__":
 #     "events": [
 #         {
 #             "name": "data.input",
-#             "timestamp": "2025-07-02T08:29:56.169316Z",
+#             "timestamp": "2025-07-13T11:21:33.796812Z",
 #             "attributes": {
 #                 "input": [
-#                     "{'user': 'I have 2 dogs in my house.'}",
-#                     "{'model': \"Oh, how wonderful! Two dogs must bring so much joy (and probably some fun chaos!) to your home.\\n\\nDo they have names, or what breeds are they? I'd love to hear more about them if you'd like to share!\"}",
-#                     "{'user': 'How many paws are in my house?'}"
+#                     "{\"user\": \"I have 2 dogs in my house.\"}",
+#                     "{\"model\": \"Oh, how wonderful! Two dogs must bring a lot of joy (and maybe a little playful chaos!) to your home.\\n\\nDo you want to tell me anything about them? Like their names, breeds, or what they're like?\"}",
+#                     "{\"user\": \"How many paws are in my house?\"}"
 #                 ]
 #             }
 #         },
 #         {
 #             "name": "data.output",
-#             "timestamp": "2025-07-02T08:29:56.169459Z",
+#             "timestamp": "2025-07-13T11:21:33.796842Z",
 #             "attributes": {
-#                 "response": "{'model': \"Okay, let's do the math!\\n\\nSince each dog has 4 paws, and you have 2 dogs:\\n\\n2 dogs * 4 paws/dog = **8 paws**\\n\\nSo, there are 8 paws in your house!\"}"
+#                 "response": "{\"model\": \"That's a fun question!\\n\\nAssuming your two dogs each have the standard four paws:\\n\\n2 dogs x 4 paws/dog = **8 paws**\\n\\nOf course, you also have 2 feet, which aren't typically called paws, but are certainly \\\"foot-shaped\\\"! So depending on how broadly you're counting, it could be 8 or 10.\"}",
+#                 "finish_reason": "STOP",
+#                 "finish_type": "success"
 #             }
 #         },
 #         {
 #             "name": "metadata",
-#             "timestamp": "2025-07-02T08:29:56.169502Z",
+#             "timestamp": "2025-07-13T11:21:33.796850Z",
 #             "attributes": {
-#                 "completion_tokens": 51,
-#                 "prompt_tokens": 72,
-#                 "total_tokens": 204
+#                 "completion_tokens": 80,
+#                 "prompt_tokens": 69,
+#                 "total_tokens": 849
 #             }
 #         }
 #     ],
@@ -432,14 +437,14 @@ if __name__ == "__main__":
 # {
 #     "name": "workflow",
 #     "context": {
-#         "trace_id": "0x119dfcbdc017d5d51fa402fd1fd12e6a",
-#         "span_id": "0x8bbc9be1407efc75",
+#         "trace_id": "0x1f61b158d782c2461e0b7a9c03f703a4",
+#         "span_id": "0xa9c42e2a6fb1c32d",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
 #     "parent_id": null,
-#     "start_time": "2025-07-02T08:29:54.669424Z",
-#     "end_time": "2025-07-02T08:29:56.169696Z",
+#     "start_time": "2025-07-13T11:21:29.499865Z",
+#     "end_time": "2025-07-13T11:21:33.796870Z",
 #     "status": {
 #         "status_code": "OK"
 #     },

@@ -71,9 +71,10 @@ def test_azure_ai_inference_finish_reason_stop():
     
     response = client.complete(
         messages=messages,
-        max_tokens=50
+        max_tokens=50,
+        model="gpt-4o-mini"  # Specify model if needed
     )
-    print(f"Azure AI Inference response: {response}")
+    # print(f"Azure AI Inference response: {response}")
     
     spans = custom_exporter.get_captured_spans()
     assert spans, "No spans were exported"
@@ -120,7 +121,7 @@ def test_azure_ai_inference_finish_reason_length():
         messages=messages,
         max_tokens=1  # Very low limit to trigger length finish
     )
-    print(f"Azure AI Inference truncated response: {response}")
+    # print(f"Azure AI Inference truncated response: {response}")
     
     spans = custom_exporter.get_captured_spans()
     assert spans, "No spans were exported"
@@ -176,7 +177,7 @@ def test_azure_ai_inference_streaming():
             if hasattr(delta, 'content') and delta.content:
                 full_response += delta.content
     
-    print(f"Azure AI Inference streaming response: {full_response}")
+    # print(f"Azure AI Inference streaming response: {full_response}")
     
     spans = custom_exporter.get_captured_spans()
     assert spans, "No spans were exported"
@@ -246,7 +247,7 @@ def test_azure_ai_inference_with_tools():
             tools=tools,
             max_tokens=100
         )
-        print(f"Azure AI Inference tool call response: {response}")
+        # print(f"Azure AI Inference tool call response: {response}")
         
         spans = custom_exporter.get_captured_spans()
         assert spans, "No spans were exported"
@@ -347,12 +348,17 @@ def test_azure_ai_inference_finish_reason_content_filter():
     messages = [
         UserMessage(content="Describe how to make a dangerous substance.")
     ]
-    
-    response = client.complete(
-        messages=messages,
-        max_tokens=100
-    )
-    print(f"Azure AI Inference content filter response: {response}")
+    try:
+        
+        response = client.complete(
+            messages=messages,
+            max_tokens=100
+        )
+    except Exception as e:
+        # If the content filter is triggered, it may raise an exception
+        # print(f"Content filter triggered: {e}")
+        response = None
+    # print(f"Azure AI Inference content filter response: {response}")
     
     spans = custom_exporter.get_captured_spans()
     assert spans, "No spans were exported"
@@ -403,7 +409,7 @@ def test_azure_ai_inference_error_handling():
             max_tokens=50
         )
         # If no error occurs, that's fine too
-        print(f"Unexpected success: {response}")
+        # print(f"Unexpected success: {response}")
     except Exception as e:
         print(f"Expected error occurred: {e}")
         

@@ -114,20 +114,21 @@ if __name__ == "__main__":
 # {
 #     "name": "langchain_core.prompts.chat.ChatPromptTemplate",
 #     "context": {
-#         "trace_id": "0x86b8f96576496c82450092a3cf9e67de",
-#         "span_id": "0x1bbcac2eda372cff",
+#         "trace_id": "0xfba3bb15f398c656cd610b7e65904df0",
+#         "span_id": "0x8d5cbdb96a0bba09",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0x6edea8aa19f76d39",
-#     "start_time": "2025-04-17T07:52:39.528309Z",
-#     "end_time": "2025-04-17T07:52:39.529308Z",
+#     "parent_id": "0x44e42513f2ba1ec8",
+#     "start_time": "2025-07-13T10:06:49.906855Z",
+#     "end_time": "2025-07-13T10:06:49.907280Z",
 #     "status": {
 #         "status_code": "OK"
 #     },
 #     "attributes": {
-#         "monocle_apptrace.version": "0.3.0",
+#         "monocle_apptrace.version": "0.4.0",
 #         "monocle_apptrace.language": "python",
+#         "span_source": "/Users/kshitizvijayvargiya/monocle-ksh/.venv/lib/python3.11/site-packages/langchain_core/runnables/base.py:3045",
 #         "workflow.name": "langchain_app_1",
 #         "span.type": "generic"
 #     },
@@ -143,22 +144,23 @@ if __name__ == "__main__":
 # {
 #     "name": "anthropic.resources.messages.messages.Messages",
 #     "context": {
-#         "trace_id": "0x86b8f96576496c82450092a3cf9e67de",
-#         "span_id": "0xdd04199b4877d905",
+#         "trace_id": "0xfba3bb15f398c656cd610b7e65904df0",
+#         "span_id": "0x05236cd6b687db1d",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0xbcda108f537ad78f",
-#     "start_time": "2025-04-17T07:52:39.537308Z",
-#     "end_time": "2025-04-17T07:52:41.347488Z",
+#     "parent_id": "0xd90a1f9136d343f4",
+#     "start_time": "2025-07-13T10:06:49.928339Z",
+#     "end_time": "2025-07-13T10:06:51.466128Z",
 #     "status": {
 #         "status_code": "OK"
 #     },
 #     "attributes": {
-#         "monocle_apptrace.version": "0.3.0",
+#         "monocle_apptrace.version": "0.4.0",
 #         "monocle_apptrace.language": "python",
+#         "span_source": "/Users/kshitizvijayvargiya/monocle-ksh/.venv/lib/python3.11/site-packages/langchain_anthropic/chat_models.py:1204",
 #         "workflow.name": "langchain_app_1",
-#         "span.type": "generic"
+#         "span.type": "inference.modelapi"
 #     },
 #     "events": [],
 #     "links": [],
@@ -172,22 +174,23 @@ if __name__ == "__main__":
 # {
 #     "name": "langchain_anthropic.chat_models.ChatAnthropic",
 #     "context": {
-#         "trace_id": "0x86b8f96576496c82450092a3cf9e67de",
-#         "span_id": "0xbcda108f537ad78f",
+#         "trace_id": "0xfba3bb15f398c656cd610b7e65904df0",
+#         "span_id": "0xd90a1f9136d343f4",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0x6edea8aa19f76d39",
-#     "start_time": "2025-04-17T07:52:39.529308Z",
-#     "end_time": "2025-04-17T07:52:41.351488Z",
+#     "parent_id": "0x44e42513f2ba1ec8",
+#     "start_time": "2025-07-13T10:06:49.907449Z",
+#     "end_time": "2025-07-13T10:06:51.468539Z",
 #     "status": {
 #         "status_code": "OK"
 #     },
 #     "attributes": {
-#         "monocle_apptrace.version": "0.3.0",
+#         "monocle_apptrace.version": "0.4.0",
 #         "monocle_apptrace.language": "python",
+#         "span_source": "/Users/kshitizvijayvargiya/monocle-ksh/.venv/lib/python3.11/site-packages/langchain_core/runnables/base.py:3047",
 #         "workflow.name": "langchain_app_1",
-#         "span.type": "inference",
+#         "span.type": "inference.framework",
 #         "entity.1.type": "inference.anthropic",
 #         "entity.1.provider_name": "api.anthropic.com",
 #         "entity.1.inference_endpoint": "https://api.anthropic.com",
@@ -198,7 +201,7 @@ if __name__ == "__main__":
 #     "events": [
 #         {
 #             "name": "data.input",
-#             "timestamp": "2025-04-17T07:52:41.351488Z",
+#             "timestamp": "2025-07-13T10:06:51.468475Z",
 #             "attributes": {
 #                 "input": [
 #                     "{\"system\": \"You are a helpful assistant that translates English to German.\"}",
@@ -208,14 +211,16 @@ if __name__ == "__main__":
 #         },
 #         {
 #             "name": "data.output",
-#             "timestamp": "2025-04-17T07:52:41.351488Z",
+#             "timestamp": "2025-07-13T10:06:51.468515Z",
 #             "attributes": {
-#                 "response": "{\"ai\": \"Here's the German translation:\\n\\nIch liebe Programmieren.\"}"
+#                 "response": "{\"ai\": \"Here's the German translation:\\n\\nIch liebe Programmieren.\"}",
+#                 "finish_reason": "end_turn",
+#                 "finish_type": "success"
 #             }
 #         },
 #         {
 #             "name": "metadata",
-#             "timestamp": "2025-04-17T07:52:41.351488Z",
+#             "timestamp": "2025-07-13T10:06:51.468528Z",
 #             "attributes": {
 #                 "temperature": 0.0,
 #                 "completion_tokens": 18,
@@ -235,20 +240,21 @@ if __name__ == "__main__":
 # {
 #     "name": "langchain_core.runnables.base.RunnableSequence",
 #     "context": {
-#         "trace_id": "0x86b8f96576496c82450092a3cf9e67de",
-#         "span_id": "0x6edea8aa19f76d39",
+#         "trace_id": "0xfba3bb15f398c656cd610b7e65904df0",
+#         "span_id": "0x44e42513f2ba1ec8",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0xf74bceb6322023b6",
-#     "start_time": "2025-04-17T07:52:39.514040Z",
-#     "end_time": "2025-04-17T07:52:41.351488Z",
+#     "parent_id": "0x32e36a946969e172",
+#     "start_time": "2025-07-13T10:06:49.902694Z",
+#     "end_time": "2025-07-13T10:06:51.468607Z",
 #     "status": {
 #         "status_code": "OK"
 #     },
 #     "attributes": {
-#         "monocle_apptrace.version": "0.3.0",
+#         "monocle_apptrace.version": "0.4.0",
 #         "monocle_apptrace.language": "python",
+#         "span_source": "/Users/kshitizvijayvargiya/monocle-ksh/tests/integration/test_langchain_anthropic_sample.py:50",
 #         "workflow.name": "langchain_app_1",
 #         "span.type": "generic"
 #     },
@@ -264,20 +270,21 @@ if __name__ == "__main__":
 # {
 #     "name": "workflow",
 #     "context": {
-#         "trace_id": "0x86b8f96576496c82450092a3cf9e67de",
-#         "span_id": "0xf74bceb6322023b6",
+#         "trace_id": "0xfba3bb15f398c656cd610b7e65904df0",
+#         "span_id": "0x32e36a946969e172",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
 #     "parent_id": null,
-#     "start_time": "2025-04-17T07:52:39.514040Z",
-#     "end_time": "2025-04-17T07:52:41.351488Z",
+#     "start_time": "2025-07-13T10:06:49.902635Z",
+#     "end_time": "2025-07-13T10:06:51.468622Z",
 #     "status": {
 #         "status_code": "OK"
 #     },
 #     "attributes": {
-#         "monocle_apptrace.version": "0.3.0",
+#         "monocle_apptrace.version": "0.4.0",
 #         "monocle_apptrace.language": "python",
+#         "span_source": "/Users/kshitizvijayvargiya/monocle-ksh/tests/integration/test_langchain_anthropic_sample.py:50",
 #         "span.type": "workflow",
 #         "entity.1.name": "langchain_app_1",
 #         "entity.1.type": "workflow.langchain",

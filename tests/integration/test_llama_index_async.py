@@ -29,7 +29,8 @@ def setup():
     )
 
 @pytest.mark.integration()
-def test_llama_index_sample(setup: None):    
+@pytest.mark.asyncio
+async def test_llama_index_sample(setup: None):    
     # Creating a Chroma client
     # EphemeralClient operates purely in-memory, PersistentClient will also save to disk
     chroma_client = chromadb.EphemeralClient()
@@ -62,7 +63,7 @@ def test_llama_index_sample(setup: None):
     # llm = MistralAI(api_key=os.getenv("MISTRAL_API_KEY"))
 
     query_engine = index.as_query_engine(llm= llm, )
-    response = asyncio.run(query_engine.aquery("What did the author do growing up?"))
+    response = await query_engine.aquery("What did the author do growing up?")
     time.sleep(5)  # Allow time for spans to be captured
     spans = custom_exporter.get_captured_spans()
 
@@ -113,10 +114,10 @@ def test_llama_index_sample(setup: None):
         span=inference_spans[0],
         expected_event_count=3,
         input_patterns=[
-            r"^\{\"system': \".+\"\}$",  # Pattern for system message
+            r"^\{\"system\": \".+\"\}$",  # Pattern for system message
             r"^\{\"user\": \".+\"\}$",  # Pattern for user message
         ],
-        output_pattern=r"^\{'assistant': '.+'\}$",  # Pattern for assistant response
+        output_pattern=r"^\{\"assistant\": \".+\"\}$",  # Pattern for assistant response
         metadata_requirements={
             "temperature": float,
             "completion_tokens": int,
@@ -142,14 +143,14 @@ if __name__ == "__main__":
 # {
 #     "name": "openai.resources.embeddings.Embeddings",
 #     "context": {
-#         "trace_id": "0x8f46b23ce45e4c7ab19247ce936b84ba",
-#         "span_id": "0x56a21d58e0e1306c",
+#         "trace_id": "0xd088da37b102ff5b2c82a2bc18211d4e",
+#         "span_id": "0x7f30fa175269fdb3",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0x9c930de804e361ad",
-#     "start_time": "2025-07-02T20:48:22.203605Z",
-#     "end_time": "2025-07-02T20:48:23.032892Z",
+#     "parent_id": "0x318eac24edf80bb1",
+#     "start_time": "2025-07-13T11:38:38.066446Z",
+#     "end_time": "2025-07-13T11:38:38.835045Z",
 #     "status": {
 #         "status_code": "OK"
 #     },
@@ -166,14 +167,14 @@ if __name__ == "__main__":
 #     "events": [
 #         {
 #             "name": "data.input",
-#             "timestamp": "2025-07-02T20:48:23.030698Z",
+#             "timestamp": "2025-07-13T11:38:38.834092Z",
 #             "attributes": {
 #                 "input": "file_path: /Users/kshitizvijayvargiya/monocle-ksh/tests/integration/../data/sample.txt  this is some sample text"
 #             }
 #         },
 #         {
 #             "name": "data.output",
-#             "timestamp": "2025-07-02T20:48:23.032821Z",
+#             "timestamp": "2025-07-13T11:38:38.835033Z",
 #             "attributes": {
 #                 "response": "index=0, embedding=[0.010904251597821712, 0.006519173737615347, -0.006850976962596178, 0.03867012634..."
 #             }
@@ -190,14 +191,14 @@ if __name__ == "__main__":
 # {
 #     "name": "workflow",
 #     "context": {
-#         "trace_id": "0x8f46b23ce45e4c7ab19247ce936b84ba",
-#         "span_id": "0x9c930de804e361ad",
+#         "trace_id": "0xd088da37b102ff5b2c82a2bc18211d4e",
+#         "span_id": "0x318eac24edf80bb1",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
 #     "parent_id": null,
-#     "start_time": "2025-07-02T20:48:22.203550Z",
-#     "end_time": "2025-07-02T20:48:23.032982Z",
+#     "start_time": "2025-07-13T11:38:38.066391Z",
+#     "end_time": "2025-07-13T11:38:38.835063Z",
 #     "status": {
 #         "status_code": "OK"
 #     },
@@ -223,14 +224,14 @@ if __name__ == "__main__":
 # {
 #     "name": "openai.resources.embeddings.AsyncEmbeddings",
 #     "context": {
-#         "trace_id": "0x13e49d8ff3e6744795abcc5b05146143",
-#         "span_id": "0xb3dcd25acabdfe18",
+#         "trace_id": "0xdccde13c79fcf94bc79f4beb0519aa95",
+#         "span_id": "0x0cbf1f96f7bbd5a0",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0xf3546fbcefba9f83",
-#     "start_time": "2025-07-02T20:48:23.066565Z",
-#     "end_time": "2025-07-02T20:48:23.666874Z",
+#     "parent_id": "0x9408c49c5c84923d",
+#     "start_time": "2025-07-13T11:38:38.847868Z",
+#     "end_time": "2025-07-13T11:38:39.619944Z",
 #     "status": {
 #         "status_code": "OK"
 #     },
@@ -253,14 +254,14 @@ if __name__ == "__main__":
 # {
 #     "name": "llama_index.core.indices.vector_store.retrievers.retriever.VectorIndexRetriever",
 #     "context": {
-#         "trace_id": "0x13e49d8ff3e6744795abcc5b05146143",
-#         "span_id": "0xf3546fbcefba9f83",
+#         "trace_id": "0xdccde13c79fcf94bc79f4beb0519aa95",
+#         "span_id": "0x9408c49c5c84923d",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0xded6ee5d79ebd5d6",
-#     "start_time": "2025-07-02T20:48:23.057045Z",
-#     "end_time": "2025-07-02T20:48:23.676253Z",
+#     "parent_id": "0xd7a6646f91aacf97",
+#     "start_time": "2025-07-13T11:38:38.842216Z",
+#     "end_time": "2025-07-13T11:38:39.622559Z",
 #     "status": {
 #         "status_code": "OK"
 #     },
@@ -279,14 +280,14 @@ if __name__ == "__main__":
 #     "events": [
 #         {
 #             "name": "data.input",
-#             "timestamp": "2025-07-02T20:48:23.676206Z",
+#             "timestamp": "2025-07-13T11:38:39.622544Z",
 #             "attributes": {
 #                 "input": "What did the author do growing up?"
 #             }
 #         },
 #         {
 #             "name": "data.output",
-#             "timestamp": "2025-07-02T20:48:23.676233Z",
+#             "timestamp": "2025-07-13T11:38:39.622553Z",
 #             "attributes": {
 #                 "response": "this is some sample text"
 #             }
@@ -303,14 +304,14 @@ if __name__ == "__main__":
 # {
 #     "name": "openai.resources.chat.completions.completions.AsyncCompletions",
 #     "context": {
-#         "trace_id": "0x13e49d8ff3e6744795abcc5b05146143",
-#         "span_id": "0x38854e96ae93a682",
+#         "trace_id": "0xdccde13c79fcf94bc79f4beb0519aa95",
+#         "span_id": "0x2b309060ee41e7d0",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0x71ee0311cb5bb852",
-#     "start_time": "2025-07-02T20:48:23.693076Z",
-#     "end_time": "2025-07-02T20:48:24.822180Z",
+#     "parent_id": "0x5b0eaecfe99a42ba",
+#     "start_time": "2025-07-13T11:38:39.631365Z",
+#     "end_time": "2025-07-13T11:38:40.811177Z",
 #     "status": {
 #         "status_code": "OK"
 #     },
@@ -333,14 +334,14 @@ if __name__ == "__main__":
 # {
 #     "name": "llama_index.llms.azure_openai.base.AzureOpenAI",
 #     "context": {
-#         "trace_id": "0x13e49d8ff3e6744795abcc5b05146143",
-#         "span_id": "0x71ee0311cb5bb852",
+#         "trace_id": "0xdccde13c79fcf94bc79f4beb0519aa95",
+#         "span_id": "0x5b0eaecfe99a42ba",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0xded6ee5d79ebd5d6",
-#     "start_time": "2025-07-02T20:48:23.681665Z",
-#     "end_time": "2025-07-02T20:48:24.823654Z",
+#     "parent_id": "0xd7a6646f91aacf97",
+#     "start_time": "2025-07-13T11:38:39.625196Z",
+#     "end_time": "2025-07-13T11:38:40.811689Z",
 #     "status": {
 #         "status_code": "OK"
 #     },
@@ -360,7 +361,7 @@ if __name__ == "__main__":
 #     "events": [
 #         {
 #             "name": "data.input",
-#             "timestamp": "2025-07-02T20:48:24.823536Z",
+#             "timestamp": "2025-07-13T11:38:40.811642Z",
 #             "attributes": {
 #                 "input": [
 #                     "{\"system\": \"You are an expert Q&A system that is trusted around the world.\\nAlways answer the query using the provided context information, and not prior knowledge.\\nSome rules to follow:\\n1. Never directly reference the given context in your answer.\\n2. Avoid statements like 'Based on the context, ...' or 'The context information ...' or anything along those lines.\"}",
@@ -370,19 +371,21 @@ if __name__ == "__main__":
 #         },
 #         {
 #             "name": "data.output",
-#             "timestamp": "2025-07-02T20:48:24.823603Z",
+#             "timestamp": "2025-07-13T11:38:40.811673Z",
 #             "attributes": {
-#                 "response": "{\"assistant\": \"The author grew up reading and writing.\"}"
+#                 "response": "{\"assistant\": \"The author grew up in a specific location.\"}",
+#                 "finish_reason": "stop",
+#                 "finish_type": "success"
 #             }
 #         },
 #         {
 #             "name": "metadata",
-#             "timestamp": "2025-07-02T20:48:24.823630Z",
+#             "timestamp": "2025-07-13T11:38:40.811684Z",
 #             "attributes": {
 #                 "temperature": 0.1,
-#                 "completion_tokens": 8,
+#                 "completion_tokens": 9,
 #                 "prompt_tokens": 152,
-#                 "total_tokens": 160
+#                 "total_tokens": 161
 #             }
 #         }
 #     ],
@@ -397,21 +400,21 @@ if __name__ == "__main__":
 # {
 #     "name": "llama_index.core.query_engine.retriever_query_engine.RetrieverQueryEngine",
 #     "context": {
-#         "trace_id": "0x13e49d8ff3e6744795abcc5b05146143",
-#         "span_id": "0xded6ee5d79ebd5d6",
+#         "trace_id": "0xdccde13c79fcf94bc79f4beb0519aa95",
+#         "span_id": "0xd7a6646f91aacf97",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0xe97ff8ec80b2924d",
-#     "start_time": "2025-07-02T20:48:23.053762Z",
-#     "end_time": "2025-07-02T20:48:24.823947Z",
+#     "parent_id": "0xa18fb6773d0b2eba",
+#     "start_time": "2025-07-13T11:38:38.841332Z",
+#     "end_time": "2025-07-13T11:38:40.811789Z",
 #     "status": {
 #         "status_code": "OK"
 #     },
 #     "attributes": {
 #         "monocle_apptrace.version": "0.4.0",
 #         "monocle_apptrace.language": "python",
-#         "span_source": "/Users/kshitizvijayvargiya/monocle-ksh/tests/integration/test_llama_index_async.py:65",
+#         "span_source": "/Users/kshitizvijayvargiya/monocle-ksh/tests/integration/test_llama_index_async.py:66",
 #         "workflow.name": "llama_index_1",
 #         "span.type": "generic"
 #     },
@@ -427,21 +430,21 @@ if __name__ == "__main__":
 # {
 #     "name": "workflow",
 #     "context": {
-#         "trace_id": "0x13e49d8ff3e6744795abcc5b05146143",
-#         "span_id": "0xe97ff8ec80b2924d",
+#         "trace_id": "0xdccde13c79fcf94bc79f4beb0519aa95",
+#         "span_id": "0xa18fb6773d0b2eba",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
 #     "parent_id": null,
-#     "start_time": "2025-07-02T20:48:23.053687Z",
-#     "end_time": "2025-07-02T20:48:24.823967Z",
+#     "start_time": "2025-07-13T11:38:38.841277Z",
+#     "end_time": "2025-07-13T11:38:40.811797Z",
 #     "status": {
 #         "status_code": "OK"
 #     },
 #     "attributes": {
 #         "monocle_apptrace.version": "0.4.0",
 #         "monocle_apptrace.language": "python",
-#         "span_source": "/Users/kshitizvijayvargiya/monocle-ksh/tests/integration/test_llama_index_async.py:65",
+#         "span_source": "/Users/kshitizvijayvargiya/monocle-ksh/tests/integration/test_llama_index_async.py:66",
 #         "span.type": "workflow",
 #         "entity.1.name": "llama_index_1",
 #         "entity.1.type": "workflow.llamaindex",

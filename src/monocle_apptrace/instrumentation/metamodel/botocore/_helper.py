@@ -8,7 +8,7 @@ import json
 from io import BytesIO
 from functools import wraps
 from monocle_apptrace.instrumentation.common.span_handler import SpanHandler
-from monocle_apptrace.instrumentation.common.utils import ( get_exception_message, get_json_dumps,)
+from monocle_apptrace.instrumentation.common.utils import ( get_exception_message, get_json_dumps, get_status_code,)
 from monocle_apptrace.instrumentation.metamodel.finish_types import map_bedrock_finish_reason_to_finish_type
 logger = logging.getLogger(__name__)
 
@@ -37,14 +37,6 @@ def get_exception_status_code(arguments):
             return arguments['exception'].response["ResponseMetadata"]["HTTPStatusCode"]
     elif arguments['exception'] is not None:
         return 'error'
-    else:
-        return 'success'
-
-def get_status_code(arguments):
-    if arguments["exception"] is not None:
-        return get_exception_status_code(arguments)
-    elif hasattr(arguments["result"], "status"):
-        return arguments["result"].status
     else:
         return 'success'
 

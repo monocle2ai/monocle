@@ -118,6 +118,8 @@ def test_anthropic_invalid_api_key(setup):
             events = [e for e in span.events if e.name == "data.output"]
             assert len(events) > 0
             assert span.status.status_code.value == 2  # ERROR status code
+            assert events[0].attributes["error_code"] == 2
+            assert "error_code" in events[0].attributes
             assert "authentication_error" in events[0].attributes.get("response", "").lower()
 
 if __name__ == "__main__":
@@ -262,6 +264,7 @@ if __name__ == "__main__":
 #             "name": "data.output",
 #             "timestamp": "2025-07-02T14:46:24.764380Z",
 #             "attributes": {
+#                 "error_code": 401,
 #                 "response": "Error code: 401 - {'type': 'error', 'error': {'type': 'authentication_error', 'message': 'invalid x-api-key'}}"
 #             }
 #         },

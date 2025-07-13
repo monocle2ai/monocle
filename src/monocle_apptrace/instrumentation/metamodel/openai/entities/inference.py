@@ -6,11 +6,9 @@ from monocle_apptrace.instrumentation.metamodel.openai import (
     _helper,
 )
 from monocle_apptrace.instrumentation.common.utils import (
+    get_error_message,
     patch_instance_method,
-    resolve_from_alias,
-    get_status,
-    get_exception_status_code,
-    get_status_code,
+    resolve_from_alias
 )
 
 logger = logging.getLogger(__name__)
@@ -202,6 +200,11 @@ INFERENCE = {
         {
             "name": "data.output",
             "attributes": [
+
+                {
+                    "attribute": "error_code",
+                    "accessor": lambda arguments: get_error_message(arguments)
+                },
                 {
                     "_comment": "this is result from LLM",
                     "attribute": "response",

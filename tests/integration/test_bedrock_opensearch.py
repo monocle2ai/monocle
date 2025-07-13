@@ -176,7 +176,8 @@ def test_invalid_credentials(setup):
         if 'span.type' in span.attributes and span.attributes["span.type"] == "inference":
             events = [e for e in span.events if e.name == "data.output"]
             assert len(events) > 0
-            assert span.status.status_code.value == 2  # ERROR status code
+            assert events[0].attributes["status"] == "error"
+            assert "error_code" in events[0].attributes
             assert "UnrecognizedClientException" in events[0].attributes.get("response", "")
 
 if __name__ == "__main__":

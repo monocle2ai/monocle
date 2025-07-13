@@ -4,7 +4,6 @@ from typing import Any, Dict, Optional
 from urllib.parse import urlparse
 from monocle_apptrace.instrumentation.common.utils import (
     get_json_dumps,
-    resolve_from_alias,
     get_exception_message,
     get_status_code,
 )
@@ -234,6 +233,11 @@ def extract_finish_reason(arguments: Dict[str, Any]) -> Optional[str]:
     try:
         # Handle exception cases first
         if arguments.get("exception") is not None:
+            ex = arguments["exception"]
+            if hasattr(ex, "message") and isinstance(ex.message, str):
+                message = ex.message
+                if "content_filter" in message.lower():
+                    return "content_filter"
             return "error"
         
         result = arguments.get("result")

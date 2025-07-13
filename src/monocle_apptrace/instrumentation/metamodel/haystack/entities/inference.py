@@ -1,7 +1,7 @@
 from monocle_apptrace.instrumentation.metamodel.haystack import (
     _helper,
 )
-from monocle_apptrace.instrumentation.common.utils import get_llm_type, get_status, get_status_code
+from monocle_apptrace.instrumentation.common.utils import get_error_message, get_llm_type
 
 INFERENCE = {
     "type": "inference.framework",
@@ -58,6 +58,10 @@ INFERENCE = {
         {
             "name": "data.output",
             "attributes": [
+                {
+                    "attribute": "error_code",
+                    "accessor": lambda arguments: get_error_message(arguments)
+                },
                 {
                     "attribute": "response",
                     "accessor": lambda arguments: _helper.extract_assistant_message(arguments)

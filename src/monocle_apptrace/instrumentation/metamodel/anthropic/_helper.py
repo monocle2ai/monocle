@@ -10,6 +10,7 @@ from monocle_apptrace.instrumentation.common.utils import (
     get_json_dumps,
     get_keys_as_tuple,
     get_nested_value,
+    get_status_code,
     try_option,
     get_exception_message,
 )
@@ -49,14 +50,6 @@ def get_exception_status_code(arguments):
         return arguments['exception'].status_code
     elif arguments['exception'] is not None:
         return 'error'
-    else:
-        return 'success'
-
-def get_status_code(arguments):
-    if arguments["exception"] is not None:
-        return get_exception_status_code(arguments)
-    elif hasattr(arguments["result"], "status"):
-        return arguments["result"].status
     else:
         return 'success'
 

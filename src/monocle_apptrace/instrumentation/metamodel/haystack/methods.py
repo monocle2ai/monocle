@@ -44,4 +44,11 @@ HAYSTACK_METHODS = [
         "wrapper_method": task_wrapper,
         "output_processor": INFERENCE
     },
+    {
+        "package": "haystack_integrations.components.generators.google_ai",
+        "object": "GoogleAIGeminiChatGenerator",
+        "method": "run",
+        "wrapper_method": task_wrapper,
+        "output_processor": INFERENCE
+    },
 ]

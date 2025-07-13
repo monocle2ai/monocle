@@ -1,9 +1,11 @@
+from opentelemetry.context import get_value
 from monocle_apptrace.instrumentation.common.utils import resolve_from_alias
 import logging
 logger = logging.getLogger(__name__)
 
 DELEGATION_NAME_PREFIX = 'transfer_to_'
 ROOT_AGENT_NAME = 'LangGraph'
+LANGGRAPTH_AGENT_NAME_KEY = "agent.langgraph"
 
 def handle_response(response):
     try:
@@ -82,3 +84,12 @@ def format_agent_name(instance) -> str:
 
 def is_root_agent_name(instance) -> bool:
     return get_name(instance) == ROOT_AGENT_NAME
+
+def get_from_agent() -> str:
+    """Get the name of the agent that initiated the request."""
+    from_agent = get_value(LANGGRAPTH_AGENT_NAME_KEY)
+    return from_agent if from_agent is not None else ""
+
+def get_agent_description(instance) -> str:
+    """Get the description of the agent."""
+    return instance.description if hasattr(instance, 'description') else ""

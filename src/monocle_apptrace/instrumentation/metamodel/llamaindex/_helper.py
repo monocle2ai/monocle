@@ -6,6 +6,7 @@ and assistant messages from various input formats.
 import logging
 from urllib.parse import urlparse
 from opentelemetry.sdk.trace import Span
+from opentelemetry.context import get_value
 from monocle_apptrace.instrumentation.common.utils import (
     Option,
     get_json_dumps,
@@ -16,8 +17,13 @@ from monocle_apptrace.instrumentation.common.utils import (
     get_status_code,
 )
 
+LLAMAINDEX_AGENT_NAME_KEY = "_active_agent_name"
 logger = logging.getLogger(__name__)
 
+def get_status(result):
+    if result is not None and hasattr(result, 'status'):
+        return result.status
+    return None
 
 def extract_tools(instance):
     tools = []
@@ -35,6 +41,55 @@ def extract_tools(instance):
                 tools.append(tool_name)
     return tools
 
+def get_tool_name(args):
+    if hasattr(args[1], 'metadata') and hasattr(args[1].metadata, 'name'):
+        return args[1].metadata.name
+    return ""
+
+def get_tool_name_from_instance(instance):
+    if hasattr(instance, 'metadata') and hasattr(instance.metadata, 'name'):
+        return instance.metadata.name
+    return ""
+
+def get_tool_description(args):
+    if hasattr(args[1], 'metadata') and hasattr(args[1].metadata, 'description'):
+        return args[1].metadata.description
+    return ""
+
+def get_tool_args(args):
+    tool_args = []
+    for key, value in args[2].items():
+        # check if value is builtin type or a string
+        if value is not None and isinstance(value, (str, int, float, bool)):
+            tool_args.append({key, value})
+    return [get_json_dumps(tool_arg) for tool_arg in tool_args]
+
+def get_tool_response(response):
+    if hasattr(response, 'raw_output'):
+        return response.raw_output
+    return ""
+
+def is_delegation_tool(args) -> bool:
+    return get_tool_name(args) == "handoff"
+
+def get_agent_name(instance) -> str:
+    if hasattr(instance, 'name'):
+        return instance.name
+    else:
+        return instance.__class__.__name__
+
+def get_agent_description(instance) -> str:
+    if hasattr(instance, 'description'):
+        return instance.description
+    return ""
+
+def get_source_agent_name(parent_span:Span) -> str:
+    return parent_span.attributes.get(LLAMAINDEX_AGENT_NAME_KEY, "")
+
+def get_delegated_agent_name(results) -> str:
+    if hasattr(results, 'raw_input'):
+        return results.raw_input.get('kwargs', {}).get("to_agent", "")
+    return ""
 
 def extract_messages(args):
     """Extract system and user messages"""
@@ -63,6 +118,33 @@ def extract_messages(args):
     except Exception as e:
         logger.warning("Error in extract_messages: %s", str(e))
         return []
+
+def extract_agent_args(args):
+    if isinstance(args, (list, tuple)):
+        input_args = []
+        for arg in args:
+            if isinstance(arg, (str, dict)):
+                input_args.append(arg)
+            elif hasattr(arg, 'raw') and isinstance(arg.raw, str):
+                input_args.append(arg.raw)
+        return input_args
+    elif isinstance(args, str):
+        return [args]
+    return ""
+
+def extract_agent_response(arguments):
+    status = get_status_code(arguments)
+    if status == 'success':
+        if hasattr(arguments['result'], 'response'):
+            if hasattr(arguments['result'].response, 'content'):
+                return arguments['result'].response.content
+            return arguments['result'].response
+        return ""
+    else:
+        if arguments["exception"] is not None:
+            return get_exception_message(arguments)
+        elif hasattr(arguments['result'], "error"):
+            return arguments['result'].error
 
 def extract_assistant_message(arguments):
     status = get_status_code(arguments)
@@ -187,3 +269,17 @@ def update_span_from_llm_response(response, instance):
                 meta_dict.update({"prompt_tokens": getattr(token_usage, "prompt_tokens",None) or getattr(token_usage,"input_tokens",None)})
                 meta_dict.update({"total_tokens": getattr(token_usage, "total_tokens",None) or getattr(token_usage,"output_tokens",None)+getattr(token_usage,"input_tokens",None)})
     return meta_dict
+
+def extract_agent_request_input(kwargs):
+    if "user_msg" in kwargs:
+        return kwargs["user_msg"]
+    return ""
+
+def extract_agent_request_output(arguments):
+    if hasattr(arguments['result'], 'response'):
+        if hasattr(arguments['result'].response, 'content'):
+            return arguments['result'].response.content
+        return arguments['result'].response
+    elif hasattr(arguments['result'], 'raw_output'):
+        return arguments['result'].raw_output
+    return ""

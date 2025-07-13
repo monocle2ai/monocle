@@ -1,19 +1,28 @@
+from opentelemetry.context import set_value, attach, detach
 from monocle_apptrace.instrumentation.common.span_handler import SpanHandler
 from monocle_apptrace.instrumentation.metamodel.langgraph._helper import (
-   get_name, is_root_agent_name, is_delegation_tool
+   get_name, is_root_agent_name, is_delegation_tool, LANGGRAPTH_AGENT_NAME_KEY
+
 )
 from monocle_apptrace.instrumentation.metamodel.langgraph.entities.inference import (
-     AGENT_GENERIC, AGENT_DELEGATION
+    AGENT_DELEGATION, AGENT_REQUEST
 )
 
 class LanggraphAgentHandler(SpanHandler):
+    def pre_tracing(self, to_wrap, wrapped, instance, args, kwargs):
+        return attach(set_value(LANGGRAPTH_AGENT_NAME_KEY, get_name(instance)))
+
+    def post_tracing(self, to_wrap, wrapped, instance, args, kwargs, result, token):
+        if token is not None:
+            detach(token)
+
     # In multi agent scenarios, the root agent is the one that orchestrates the other agents. LangGraph generates an extra root level invoke()
     # call on top of the supervisor agent invoke().
     # This span handler resets the parent invoke call as generic type to avoid duplicate attributes/events in supervisor span and this root span.
     def hydrate_span(self, to_wrap, wrapped, instance, args, kwargs, result, span, parent_span = None, ex:Exception = None) -> bool:
         if is_root_agent_name(instance) and "parent.agent.span" in span.attributes:
             agent_request_wrapper = to_wrap.copy()
-            agent_request_wrapper["output_processor"] = AGENT_GENERIC
+            agent_request_wrapper["output_processor"] = AGENT_REQUEST
         else:
             agent_request_wrapper = to_wrap
             if hasattr(instance, 'name') and parent_span is not None and not SpanHandler.is_root_span(parent_span):

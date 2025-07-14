@@ -115,6 +115,20 @@ LLAMAINDEX_METHODS = [
         "wrapper_method": atask_wrapper
     },
     {
+        "package": "llama_index.core.tools.function_tool",
+        "object": "FunctionTool",
+        "method": "call",
+        "wrapper_method": task_wrapper,
+        "output_processor": TOOLS
+    },
+    {
+        "package": "llama_index.core.tools.function_tool",
+        "object": "FunctionTool",
+        "method": "acall",
+        "wrapper_method": atask_wrapper,
+        "output_processor": TOOLS
+    },
+    {
         "package": "llama_index.core.agent.workflow.multi_agent_workflow",
         "object": "AgentWorkflow",
         "method": "_call_tool",

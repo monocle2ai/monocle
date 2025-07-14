@@ -7,6 +7,11 @@ AGENT = {
     "attributes": [
         [
             {
+                "_comment": "agent type",
+                "attribute": "type",
+                "accessor": lambda arguments:'agent.llamaindex'
+            },
+            {
                 "_comment": "Agent name, type and Tools.",
                 "attribute": "name",
                 "accessor": lambda arguments: _helper.get_agent_name(arguments['instance'])
@@ -15,11 +20,6 @@ AGENT = {
                 "_comment": "agent description",
                 "attribute": "description",
                 "accessor": lambda arguments: _helper.get_agent_description(arguments['instance'])
-            },
-            {
-                "_comment": "agent type",
-                "attribute": "type",
-                "accessor": lambda arguments:'agent.llamaindex'
             }
         ]
 
@@ -31,7 +31,7 @@ AGENT = {
              {
                  "_comment": "this is instruction and user query to LLM",
                  "attribute": "input",
-                 "accessor": lambda arguments: _helper.extract_agent_args(arguments['args'])
+                 "accessor": lambda arguments: _helper.extract_agent_input(arguments['args'])
              }
          ]
          },
@@ -95,12 +95,24 @@ TOOLS = {
               {
                 "_comment": "name of the tool",
                 "attribute": "name",
-                "accessor": lambda arguments: _helper.get_tool_name(arguments['args'])
+                "accessor": lambda arguments: _helper.get_tool_name(arguments)
               },
               {
                   "_comment": "tool description",
                   "attribute": "description",
-                  "accessor": lambda arguments: _helper.get_tool_description(arguments['args'])
+                  "accessor": lambda arguments: _helper.get_tool_description(arguments)
+              }
+        ],
+        [             
+              {
+                "_comment": "name of the agent",
+                "attribute": "name",
+                "accessor": lambda arguments: _helper.get_source_agent(arguments['parent_span'])
+              },          
+              {
+                "_comment": "agent type",
+                "attribute": "type",
+                "accessor": lambda arguments:'agent.llamaindex'
               }
         ]
       ],
@@ -111,7 +123,7 @@ TOOLS = {
             {
                 "_comment": "this is Tool input",
                 "attribute": "Inputs",
-                "accessor": lambda arguments: _helper.get_tool_args(arguments['args']) 
+                "accessor": lambda arguments: _helper.extract_tool_args(arguments) 
             }
           ]
         },
@@ -121,13 +133,8 @@ TOOLS = {
             {
                 "_comment": "this is response from Tool",
                 "attribute": "response",
-                "accessor": lambda arguments: _helper.get_tool_response(arguments['result'])
-            },
-            {
-                "_comment": "this is status from Tool",
-                "attribute": "status",
-                "accessor": lambda arguments: _helper.get_status(arguments['result'])
-            }
+                "accessor": lambda arguments: _helper.extract_tool_response(arguments['result'])
+             }
           ]
         }
       ]
@@ -145,12 +152,12 @@ AGENT_DELEGATION = {
               {
                 "_comment": "name of the agent",
                 "attribute": "from_agent",
-                "accessor": lambda arguments: _helper.get_source_agent_name(arguments['parent_span'])
+                "accessor": lambda arguments: _helper.get_source_agent(arguments['parent_span'])
               },
               {
                 "_comment": "name of the agent called",
                 "attribute": "to_agent",
-                "accessor": lambda arguments: _helper.get_delegated_agent_name(arguments['result'])
+                "accessor": lambda arguments: _helper.get_target_agent(arguments['result'])
               }
         ]
       ]

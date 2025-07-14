@@ -68,6 +68,9 @@ class SpanHandler:
         span.set_attribute("span_source", source_path)
         for scope_key, scope_value in get_scopes().items():
             span.set_attribute(f"scope.{scope_key}", scope_value)
+        workflow_name = SpanHandler.get_workflow_name(span=span)
+        if workflow_name:
+            span.set_attribute("workflow.name", workflow_name)
 
     @staticmethod
     def set_workflow_properties(span: Span, to_wrap = None):
@@ -77,9 +80,6 @@ class SpanHandler:
 
     @staticmethod
     def set_non_workflow_properties(span: Span, to_wrap = None):
-        workflow_name = SpanHandler.get_workflow_name(span=span)
-        if workflow_name:
-            span.set_attribute("workflow.name", workflow_name)
         span.set_attribute("span.type", "generic")
 
     def post_task_processing(self, to_wrap, wrapped, instance, args, kwargs, result, span:Span):

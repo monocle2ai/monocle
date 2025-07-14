@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "monocle_apptrace"
-version = "0.5.0"
+version = "0.5.0a11"
 authors = []
 description = "package with monocle genAI tracing"
 readme = "README.md"
@@ -74,11 +74,12 @@ dev = [
   'langgraph==0.3.5',
   'langgraph-supervisor==0.0.25',
   'opendal==0.45.14',
-  'anthropic==0.52.0',
+  'anthropic==0.57.1',
   'anthropic-haystack',
   'pytest-asyncio==0.26.0',
   'llama-index-llms-anthropic==0.6.19',
-  'langchain-anthropic==0.3.13'
+  'langchain-anthropic==0.3.13',
+  'langchain-mcp-adapters==0.1.8'
 ]
 
 azure = [

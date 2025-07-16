@@ -11,7 +11,7 @@ span_processors=[SimpleSpanProcessor(memory_exporter)]
 @pytest.fixture(scope="module")
 def setup():
     setup_monocle_telemetry(
-        workflow_name="llama_index_1", #monocle_exporters_list='file',
+        workflow_name="llama_index_1",
         span_processors=[SimpleSpanProcessor(memory_exporter)]
     )
 
@@ -100,14 +100,14 @@ def test_llamaindex_agent(setup):
 # [{
 #     "name": "openai.resources.chat.completions.Completions.create",
 #     "context": {
-#         "trace_id": "0x9d84d16404a5efd4a86080055f8d7aba",
-#         "span_id": "0x5dfd78080fc45e51",
+#         "trace_id": "0x1d1e25b96aa3c89ebd7f9a58163069e8",
+#         "span_id": "0x1aadf28593ef4f40",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0x81d6cb8df1ebfda0",
-#     "start_time": "2025-07-10T03:32:02.291201Z",
-#     "end_time": "2025-07-10T03:32:05.373105Z",
+#     "parent_id": "0x6d62171ae9854915",
+#     "start_time": "2025-07-14T03:09:24.838303Z",
+#     "end_time": "2025-07-14T03:09:27.094057Z",
 #     "status": {
 #         "status_code": "OK"
 #     },
@@ -130,14 +130,14 @@ def test_llamaindex_agent(setup):
 # ,{
 #     "name": "llama_index.llms.openai.base.OpenAI.chat",
 #     "context": {
-#         "trace_id": "0x9d84d16404a5efd4a86080055f8d7aba",
-#         "span_id": "0x81d6cb8df1ebfda0",
+#         "trace_id": "0x1d1e25b96aa3c89ebd7f9a58163069e8",
+#         "span_id": "0x6d62171ae9854915",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0x20e58991e5dc5ffc",
-#     "start_time": "2025-07-10T03:32:02.273417Z",
-#     "end_time": "2025-07-10T03:32:05.374473Z",
+#     "parent_id": "0xdb87968eb29baf13",
+#     "start_time": "2025-07-14T03:09:24.819159Z",
+#     "end_time": "2025-07-14T03:09:27.094947Z",
 #     "status": {
 #         "status_code": "OK"
 #     },
@@ -157,7 +157,7 @@ def test_llamaindex_agent(setup):
 #     "events": [
 #         {
 #             "name": "data.input",
-#             "timestamp": "2025-07-10T03:32:05.374331Z",
+#             "timestamp": "2025-07-14T03:09:27.094830Z",
 #             "attributes": {
 #                 "input": [
 #                     "{\"system\": \"You are designed to help with a variety of tasks, from answering questions to providing summaries to other types of analyses.\\n\\n## Tools\\n\\nYou have access to a wide variety of tools. You are responsible for using the tools in any sequence you deem appropriate to complete the task at hand.\\nThis may require breaking the task into subtasks and using different tools to complete each subtask.\\n\\nYou have access to the following tools:\\n> Tool Name: get_coffee_menu\\nTool Description: Provides a list of available coffee options with prices.\\nTool Args: {\\\"properties\\\": {}, \\\"type\\\": \\\"object\\\"}\\n\\n> Tool Name: place_order\\nTool Description: Takes a coffee order and provides the total cost.\\nTool Args: {\\\"properties\\\": {\\\"coffee_type\\\": {\\\"title\\\": \\\"Coffee Type\\\", \\\"type\\\": \\\"string\\\"}, \\\"quantity\\\": {\\\"title\\\": \\\"Quantity\\\", \\\"type\\\": \\\"integer\\\"}}, \\\"required\\\": [\\\"coffee_type\\\", \\\"quantity\\\"], \\\"type\\\": \\\"object\\\"}\\n\\n\\n\\n## Output Format\\n\\nPlease answer in the same language as the question and use the following format:\\n\\n```\\nThought: The current language of the user is: (user's language). I need to use a tool to help me answer the question.\\nAction: tool name (one of get_coffee_menu, place_order) if using a tool.\\nAction Input: the input to the tool, in a JSON format representing the kwargs (e.g. {\\\"input\\\": \\\"hello world\\\", \\\"num_beams\\\": 5})\\n```\\n\\nPlease ALWAYS start with a Thought.\\n\\nNEVER surround your response with markdown code markers. You may use code markers within your response if you need to.\\n\\nPlease use a valid JSON format for the Action Input. Do NOT do this {'input': 'hello world', 'num_beams': 5}. If you include the \\\"Action:\\\" line, then you MUST include the \\\"Action Input:\\\" line too, even if the tool does not need kwargs, in that case you MUST use \\\"Action Input: {}\\\".\\n\\nIf this format is used, the tool will respond in the following format:\\n\\n```\\nObservation: tool response\\n```\\n\\nYou should keep repeating the above format till you have enough information to answer the question without using any more tools. At that point, you MUST respond in one of the following two formats:\\n\\n```\\nThought: I can answer without using any more tools. I'll use the user's language to answer\\nAnswer: [your answer here (In the same language as the user's question)]\\n```\\n\\n```\\nThought: I cannot answer the question with the provided tools.\\nAnswer: [your answer here (In the same language as the user's question)]\\n```\\n\\n## Current Conversation\\n\\nBelow is the current conversation consisting of interleaving human and assistant messages.\\n\"}",
@@ -167,7 +167,7 @@ def test_llamaindex_agent(setup):
 #         },
 #         {
 #             "name": "data.output",
-#             "timestamp": "2025-07-10T03:32:05.374410Z",
+#             "timestamp": "2025-07-14T03:09:27.094902Z",
 #             "attributes": {
 #                 "status": "success",
 #                 "status_code": "success",
@@ -176,7 +176,7 @@ def test_llamaindex_agent(setup):
 #         },
 #         {
 #             "name": "metadata",
-#             "timestamp": "2025-07-10T03:32:05.374443Z",
+#             "timestamp": "2025-07-14T03:09:27.094931Z",
 #             "attributes": {
 #                 "temperature": 0.1,
 #                 "completion_tokens": 50,
@@ -196,14 +196,14 @@ def test_llamaindex_agent(setup):
 # ,{
 #     "name": "llama_index.core.tools.function_tool.FunctionTool.call",
 #     "context": {
-#         "trace_id": "0x9d84d16404a5efd4a86080055f8d7aba",
-#         "span_id": "0xb714c24f45c4786f",
+#         "trace_id": "0x1d1e25b96aa3c89ebd7f9a58163069e8",
+#         "span_id": "0xbda02dee2aa62c83",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0x20e58991e5dc5ffc",
-#     "start_time": "2025-07-10T03:32:05.382864Z",
-#     "end_time": "2025-07-10T03:32:05.383193Z",
+#     "parent_id": "0xdb87968eb29baf13",
+#     "start_time": "2025-07-14T03:09:27.101919Z",
+#     "end_time": "2025-07-14T03:09:27.102249Z",
 #     "status": {
 #         "status_code": "OK"
 #     },
@@ -216,22 +216,24 @@ def test_llamaindex_agent(setup):
 #         "entity.1.type": "tool.llamaindex",
 #         "entity.1.name": "place_order",
 #         "entity.1.description": "Takes a coffee order and provides the total cost.",
-#         "entity.count": 1
+#         "entity.2.name": "ReactAgent",
+#         "entity.2.type": "agent.llamaindex",
+#         "entity.count": 2
 #     },
 #     "events": [
 #         {
 #             "name": "data.input",
-#             "timestamp": "2025-07-10T03:32:05.383164Z",
+#             "timestamp": "2025-07-14T03:09:27.102222Z",
 #             "attributes": {
 #                 "Inputs": [
 #                     "{'espresso', 'coffee_type'}",
-#                     "{3, 'quantity'}"
+#                     "{'quantity', 3}"
 #                 ]
 #             }
 #         },
 #         {
 #             "name": "data.output",
-#             "timestamp": "2025-07-10T03:32:05.383183Z",
+#             "timestamp": "2025-07-14T03:09:27.102237Z",
 #             "attributes": {
 #                 "response": "Your order for 3 espresso(s) is confirmed. Total cost: $7.50"
 #             }
@@ -244,18 +246,18 @@ def test_llamaindex_agent(setup):
 #         },
 #         "schema_url": ""
 #     }
-# },
-# {
+# }
+# ,{
 #     "name": "openai.resources.chat.completions.Completions.create",
 #     "context": {
-#         "trace_id": "0x9d84d16404a5efd4a86080055f8d7aba",
-#         "span_id": "0xbab634712749ce3e",
+#         "trace_id": "0x1d1e25b96aa3c89ebd7f9a58163069e8",
+#         "span_id": "0xb2b5e0bd9fcee9ab",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0xedf37df69ba74af7",
-#     "start_time": "2025-07-10T03:32:05.385773Z",
-#     "end_time": "2025-07-10T03:32:09.278965Z",
+#     "parent_id": "0x3862ec222f3341cd",
+#     "start_time": "2025-07-14T03:09:27.104057Z",
+#     "end_time": "2025-07-14T03:09:29.349061Z",
 #     "status": {
 #         "status_code": "OK"
 #     },
@@ -278,14 +280,14 @@ def test_llamaindex_agent(setup):
 # ,{
 #     "name": "llama_index.llms.openai.base.OpenAI.chat",
 #     "context": {
-#         "trace_id": "0x9d84d16404a5efd4a86080055f8d7aba",
-#         "span_id": "0xedf37df69ba74af7",
+#         "trace_id": "0x1d1e25b96aa3c89ebd7f9a58163069e8",
+#         "span_id": "0x3862ec222f3341cd",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0x20e58991e5dc5ffc",
-#     "start_time": "2025-07-10T03:32:05.384594Z",
-#     "end_time": "2025-07-10T03:32:09.280074Z",
+#     "parent_id": "0xdb87968eb29baf13",
+#     "start_time": "2025-07-14T03:09:27.103473Z",
+#     "end_time": "2025-07-14T03:09:29.350108Z",
 #     "status": {
 #         "status_code": "OK"
 #     },
@@ -305,7 +307,7 @@ def test_llamaindex_agent(setup):
 #     "events": [
 #         {
 #             "name": "data.input",
-#             "timestamp": "2025-07-10T03:32:09.279887Z",
+#             "timestamp": "2025-07-14T03:09:29.349966Z",
 #             "attributes": {
 #                 "input": [
 #                     "{\"system\": \"You are designed to help with a variety of tasks, from answering questions to providing summaries to other types of analyses.\\n\\n## Tools\\n\\nYou have access to a wide variety of tools. You are responsible for using the tools in any sequence you deem appropriate to complete the task at hand.\\nThis may require breaking the task into subtasks and using different tools to complete each subtask.\\n\\nYou have access to the following tools:\\n> Tool Name: get_coffee_menu\\nTool Description: Provides a list of available coffee options with prices.\\nTool Args: {\\\"properties\\\": {}, \\\"type\\\": \\\"object\\\"}\\n\\n> Tool Name: place_order\\nTool Description: Takes a coffee order and provides the total cost.\\nTool Args: {\\\"properties\\\": {\\\"coffee_type\\\": {\\\"title\\\": \\\"Coffee Type\\\", \\\"type\\\": \\\"string\\\"}, \\\"quantity\\\": {\\\"title\\\": \\\"Quantity\\\", \\\"type\\\": \\\"integer\\\"}}, \\\"required\\\": [\\\"coffee_type\\\", \\\"quantity\\\"], \\\"type\\\": \\\"object\\\"}\\n\\n\\n\\n## Output Format\\n\\nPlease answer in the same language as the question and use the following format:\\n\\n```\\nThought: The current language of the user is: (user's language). I need to use a tool to help me answer the question.\\nAction: tool name (one of get_coffee_menu, place_order) if using a tool.\\nAction Input: the input to the tool, in a JSON format representing the kwargs (e.g. {\\\"input\\\": \\\"hello world\\\", \\\"num_beams\\\": 5})\\n```\\n\\nPlease ALWAYS start with a Thought.\\n\\nNEVER surround your response with markdown code markers. You may use code markers within your response if you need to.\\n\\nPlease use a valid JSON format for the Action Input. Do NOT do this {'input': 'hello world', 'num_beams': 5}. If you include the \\\"Action:\\\" line, then you MUST include the \\\"Action Input:\\\" line too, even if the tool does not need kwargs, in that case you MUST use \\\"Action Input: {}\\\".\\n\\nIf this format is used, the tool will respond in the following format:\\n\\n```\\nObservation: tool response\\n```\\n\\nYou should keep repeating the above format till you have enough information to answer the question without using any more tools. At that point, you MUST respond in one of the following two formats:\\n\\n```\\nThought: I can answer without using any more tools. I'll use the user's language to answer\\nAnswer: [your answer here (In the same language as the user's question)]\\n```\\n\\n```\\nThought: I cannot answer the question with the provided tools.\\nAnswer: [your answer here (In the same language as the user's question)]\\n```\\n\\n## Current Conversation\\n\\nBelow is the current conversation consisting of interleaving human and assistant messages.\\n\"}",
@@ -317,16 +319,16 @@ def test_llamaindex_agent(setup):
 #         },
 #         {
 #             "name": "data.output",
-#             "timestamp": "2025-07-10T03:32:09.279997Z",
+#             "timestamp": "2025-07-14T03:09:29.350030Z",
 #             "attributes": {
 #                 "status": "success",
 #                 "status_code": "success",
-#                 "response": "{\"assistant\": \"Thought: I can answer without using any more tools. I'll use the user's language to answer.\\nAnswer: Your order for 3 espresso coffees is confirmed. The total cost is $7.50.\"}"
+#                 "response": "{\"assistant\": \"Thought: I can answer without using any more tools. I'll use the user's language to answer\\nAnswer: Your order for 3 espresso coffees is confirmed. The total cost is $7.50.\"}"
 #             }
 #         },
 #         {
 #             "name": "metadata",
-#             "timestamp": "2025-07-10T03:32:09.280051Z",
+#             "timestamp": "2025-07-14T03:09:29.350089Z",
 #             "attributes": {
 #                 "temperature": 0.1,
 #                 "completion_tokens": 43,
@@ -346,14 +348,14 @@ def test_llamaindex_agent(setup):
 # ,{
 #     "name": "llama_index.core.agent.ReActAgent.chat",
 #     "context": {
-#         "trace_id": "0x9d84d16404a5efd4a86080055f8d7aba",
-#         "span_id": "0x20e58991e5dc5ffc",
+#         "trace_id": "0x1d1e25b96aa3c89ebd7f9a58163069e8",
+#         "span_id": "0xdb87968eb29baf13",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0x217c933a7ef9383b",
-#     "start_time": "2025-07-10T03:32:02.270913Z",
-#     "end_time": "2025-07-10T03:32:09.281623Z",
+#     "parent_id": "0xb3f2e3475e27b14e",
+#     "start_time": "2025-07-14T03:09:24.816570Z",
+#     "end_time": "2025-07-14T03:09:29.353637Z",
 #     "status": {
 #         "status_code": "OK"
 #     },
@@ -363,14 +365,14 @@ def test_llamaindex_agent(setup):
 #         "span_source": "/Users/prasad/repos/monocle2ai/monocle-prasad/tests/integration/test_llamaindex_agent_sample.py:59",
 #         "workflow.name": "llama_index_1",
 #         "span.type": "agentic.invocation",
-#         "entity.1.name": "ReActAgent",
 #         "entity.1.type": "agent.llamaindex",
+#         "entity.1.name": "ReActAgent",
 #         "entity.count": 1
 #     },
 #     "events": [
 #         {
 #             "name": "data.input",
-#             "timestamp": "2025-07-10T03:32:09.281573Z",
+#             "timestamp": "2025-07-14T03:09:29.353557Z",
 #             "attributes": {
 #                 "input": [
 #                     "Please order 3 espresso coffees"
@@ -379,7 +381,7 @@ def test_llamaindex_agent(setup):
 #         },
 #         {
 #             "name": "data.output",
-#             "timestamp": "2025-07-10T03:32:09.281604Z",
+#             "timestamp": "2025-07-14T03:09:29.353604Z",
 #             "attributes": {
 #                 "response": "Your order for 3 espresso coffees is confirmed. The total cost is $7.50."
 #             }
@@ -396,14 +398,14 @@ def test_llamaindex_agent(setup):
 # ,{
 #     "name": "workflow",
 #     "context": {
-#         "trace_id": "0x9d84d16404a5efd4a86080055f8d7aba",
-#         "span_id": "0x217c933a7ef9383b",
+#         "trace_id": "0x1d1e25b96aa3c89ebd7f9a58163069e8",
+#         "span_id": "0xb3f2e3475e27b14e",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
 #     "parent_id": null,
-#     "start_time": "2025-07-10T03:32:02.270861Z",
-#     "end_time": "2025-07-10T03:32:09.281660Z",
+#     "start_time": "2025-07-14T03:09:24.816519Z",
+#     "end_time": "2025-07-14T03:09:29.353801Z",
 #     "status": {
 #         "status_code": "OK"
 #     },

@@ -91,11 +91,11 @@ MONOCLE_SPAN_HANDLERS: Dict[str, SpanHandler] = {
     "non_framework_handler": NonFrameworkSpanHandler(),
     "openai_handler": OpenAISpanHandler(),
     "azure_func_handler": azureSpanHandler(),
-    "fastapi_handler": FastAPISpanHandler(),
-    "fastapi_response_handler": FastAPIResponseSpanHandler(),
     "langgraph_agent_handler": LanggraphAgentHandler(),
     "langgraph_tool_handler": LanggraphToolHandler(),
     "llamaindex_tool_handler": LlamaIndexToolHandler(),
     "llamaindex_agent_handler": LlamaIndexAgentHandler(),
     "mcp_agent_handler": MCPAgentHandler(),
+    "fastapi_handler": FastAPISpanHandler(),
+    "fastapi_response_handler": FastAPIResponseSpanHandler(),
 }

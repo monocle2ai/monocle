@@ -122,7 +122,7 @@ def test_langgraph_chat_sample(setup):
             assert span_attributes["entity.1.type"] == "agent.langgraph"
             found_agent = True
 
-        if "span.type" in span_attributes and span_attributes["span.type"] == "agentic.tool":
+        if "span.type" in span_attributes and span_attributes["span.type"] == "agentic.tool.invocation":
             assert "entity.1.type" in span_attributes
             assert "entity.1.name" in span_attributes
             assert span_attributes["entity.1.name"] == "OrderCoffee"

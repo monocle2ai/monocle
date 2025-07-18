@@ -83,7 +83,7 @@ AGENT_REQUEST = {
 }
 
 TOOLS = {
-      "type": "agentic.tool",
+      "type": "agentic.tool.invocation",
       "attributes": [
         [
               {

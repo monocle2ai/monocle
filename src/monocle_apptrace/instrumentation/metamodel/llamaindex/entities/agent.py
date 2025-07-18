@@ -84,7 +84,7 @@ AGENT_REQUEST = {
 }
 
 TOOLS = {
-      "type": "agentic.tool",
+      "type": "agentic.tool.invocation",
       "attributes": [
         [
               {
@@ -95,7 +95,7 @@ TOOLS = {
               {
                 "_comment": "name of the tool",
                 "attribute": "name",
-                "accessor": lambda arguments: _helper.get_tool_name(arguments)
+                "accessor": lambda arguments: _helper.get_tool_name(arguments['args'], arguments['instance'])
               },
               {
                   "_comment": "tool description",

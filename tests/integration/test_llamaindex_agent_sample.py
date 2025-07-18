@@ -87,7 +87,7 @@ def test_llamaindex_agent(setup):
             assert span_attributes["entity.1.type"] == "agent.llamaindex"
             found_agent_span = True
 
-        if "span.type" in span_attributes and span_attributes["span.type"] == "agentic.tool":
+        if "span.type" in span_attributes and span_attributes["span.type"] == "agentic.tool.invocation":
             assert span_attributes["entity.1.type"] == "tool.llamaindex"
             assert span_attributes["entity.1.name"] == "place_order"
             found_tool_span = True
@@ -212,7 +212,7 @@ def test_llamaindex_agent(setup):
 #         "monocle_apptrace.language": "python",
 #         "span_source": "/Users/prasad/repos/monocle2ai/monocle-prasad/.env/lib/python3.12/site-packages/llama_index/core/agent/react/step.py:302",
 #         "workflow.name": "llama_index_1",
-#         "span.type": "agentic.tool",
+#         "span.type": "agentic.tool.invocation",
 #         "entity.1.type": "tool.llamaindex",
 #         "entity.1.name": "place_order",
 #         "entity.1.description": "Takes a coffee order and provides the total cost.",

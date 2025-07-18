@@ -118,6 +118,7 @@ LLAMAINDEX_METHODS = [
         "package": "llama_index.core.tools.function_tool",
         "object": "FunctionTool",
         "method": "call",
+        "span_handler": "llamaindex_single_agent_tool_handler",
         "wrapper_method": task_wrapper,
         "output_processor": TOOLS
     },
@@ -125,6 +126,7 @@ LLAMAINDEX_METHODS = [
         "package": "llama_index.core.tools.function_tool",
         "object": "FunctionTool",
         "method": "acall",
+        "span_handler": "llamaindex_single_agent_tool_handler",
         "wrapper_method": atask_wrapper,
         "output_processor": TOOLS
     },

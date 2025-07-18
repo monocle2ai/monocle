@@ -1,0 +1,972 @@
+[
+    {
+        "name": "anthropic.resources.messages.messages.Messages",
+        "context": {
+            "trace_id": "0xfaa65a4b6fdeabb83e02f48c72ebf343",
+            "span_id": "0xa20dd58432ad3ac8",
+            "trace_state": "[]"
+        },
+        "kind": "SpanKind.INTERNAL",
+        "parent_id": "0xeb677e58246f49d2",
+        "start_time": "2025-07-13T07:57:01.389245Z",
+        "end_time": "2025-07-13T07:57:02.340353Z",
+        "status": {
+            "status_code": "OK"
+        },
+        "attributes": {
+            "monocle_apptrace.version": "0.4.0",
+            "monocle_apptrace.language": "python",
+            "span_source": "/Users/kshitizvijayvargiya/monocle-ksh/tests/integration/test_anthropic_finish_reason_integration.py:51",
+            "workflow.name": "anthropic_integration_tests",
+            "span.type": "inference",
+            "entity.1.type": "inference.anthropic",
+            "entity.1.provider_name": "api.anthropic.com",
+            "entity.1.inference_endpoint": "https://api.anthropic.com",
+            "entity.2.name": "claude-3-5-haiku-latest",
+            "entity.2.type": "model.llm.claude-3-5-haiku-latest",
+            "entity.count": 2
+        },
+        "events": [
+            {
+                "name": "data.input",
+                "timestamp": "2025-07-13T07:57:02.340269Z",
+                "attributes": {
+                    "input": [
+                        "{\"user\": \"Say hello.\"}"
+                    ]
+                }
+            },
+            {
+                "name": "data.output",
+                "timestamp": "2025-07-13T07:57:02.340306Z",
+                "attributes": {
+                    "response": "{\"assistant\": \"Hello there!\"}",
+                    "finish_reason": "end_turn",
+                    "finish_type": "success"
+                }
+            },
+            {
+                "name": "metadata",
+                "timestamp": "2025-07-13T07:57:02.340321Z",
+                "attributes": {
+                    "completion_tokens": 6,
+                    "prompt_tokens": 10,
+                    "total_tokens": 16
+                }
+            }
+        ],
+        "links": [],
+        "resource": {
+            "attributes": {
+                "service.name": "anthropic_integration_tests"
+            },
+            "schema_url": ""
+        }
+    },
+    {
+        "name": "anthropic.resources.messages.messages.Messages",
+        "context": {
+            "trace_id": "0xfaa65a4b6fdeabb83e02f48c72ebf343",
+            "span_id": "0xa20dd58432ad3ac8",
+            "trace_state": "[]"
+        },
+        "kind": "SpanKind.INTERNAL",
+        "parent_id": "0xeb677e58246f49d2",
+        "start_time": "2025-07-13T07:57:01.389245Z",
+        "end_time": "2025-07-13T07:57:02.340353Z",
+        "status": {
+            "status_code": "OK"
+        },
+        "attributes": {
+            "monocle_apptrace.version": "0.4.0",
+            "monocle_apptrace.language": "python",
+            "span_source": "/Users/kshitizvijayvargiya/monocle-ksh/tests/integration/test_anthropic_finish_reason_integration.py:51",
+            "workflow.name": "anthropic_integration_tests",
+            "span.type": "inference",
+            "entity.1.type": "inference.anthropic",
+            "entity.1.provider_name": "api.anthropic.com",
+            "entity.1.inference_endpoint": "https://api.anthropic.com",
+            "entity.2.name": "claude-3-5-haiku-latest",
+            "entity.2.type": "model.llm.claude-3-5-haiku-latest",
+            "entity.count": 2
+        },
+        "events": [
+            {
+                "name": "data.input",
+                "timestamp": "2025-07-13T07:57:02.340269Z",
+                "attributes": {
+                    "input": [
+                        "{\"user\": \"Say hello.\"}"
+                    ]
+                }
+            },
+            {
+                "name": "data.output",
+                "timestamp": "2025-07-13T07:57:02.340306Z",
+                "attributes": {
+                    "response": "{\"assistant\": \"Hello there!\"}",
+                    "finish_reason": "end_turn",
+                    "finish_type": "success"
+                }
+            },
+            {
+                "name": "metadata",
+                "timestamp": "2025-07-13T07:57:02.340321Z",
+                "attributes": {
+                    "completion_tokens": 6,
+                    "prompt_tokens": 10,
+                    "total_tokens": 16
+                }
+            }
+        ],
+        "links": [],
+        "resource": {
+            "attributes": {
+                "service.name": "anthropic_integration_tests"
+            },
+            "schema_url": ""
+        }
+    },
+    {
+        "name": "workflow",
+        "context": {
+            "trace_id": "0xfaa65a4b6fdeabb83e02f48c72ebf343",
+            "span_id": "0xeb677e58246f49d2",
+            "trace_state": "[]"
+        },
+        "kind": "SpanKind.INTERNAL",
+        "parent_id": null,
+        "start_time": "2025-07-13T07:57:01.389190Z",
+        "end_time": "2025-07-13T07:57:02.341109Z",
+        "status": {
+            "status_code": "OK"
+        },
+        "attributes": {
+            "monocle_apptrace.version": "0.4.0",
+            "monocle_apptrace.language": "python",
+            "span_source": "/Users/kshitizvijayvargiya/monocle-ksh/tests/integration/test_anthropic_finish_reason_integration.py:51",
+            "span.type": "workflow",
+            "entity.1.name": "anthropic_integration_tests",
+            "entity.1.type": "workflow.generic",
+            "entity.2.type": "app_hosting.generic",
+            "entity.2.name": "generic"
+        },
+        "events": [],
+        "links": [],
+        "resource": {
+            "attributes": {
+                "service.name": "anthropic_integration_tests"
+            },
+            "schema_url": ""
+        }
+    },
+    {
+        "name": "workflow",
+        "context": {
+            "trace_id": "0xfaa65a4b6fdeabb83e02f48c72ebf343",
+            "span_id": "0xeb677e58246f49d2",
+            "trace_state": "[]"
+        },
+        "kind": "SpanKind.INTERNAL",
+        "parent_id": null,
+        "start_time": "2025-07-13T07:57:01.389190Z",
+        "end_time": "2025-07-13T07:57:02.341109Z",
+        "status": {
+            "status_code": "OK"
+        },
+        "attributes": {
+            "monocle_apptrace.version": "0.4.0",
+            "monocle_apptrace.language": "python",
+            "span_source": "/Users/kshitizvijayvargiya/monocle-ksh/tests/integration/test_anthropic_finish_reason_integration.py:51",
+            "span.type": "workflow",
+            "entity.1.name": "anthropic_integration_tests",
+            "entity.1.type": "workflow.generic",
+            "entity.2.type": "app_hosting.generic",
+            "entity.2.name": "generic"
+        },
+        "events": [],
+        "links": [],
+        "resource": {
+            "attributes": {
+                "service.name": "anthropic_integration_tests"
+            },
+            "schema_url": ""
+        }
+    },
+    {
+        "name": "anthropic.resources.messages.messages.Messages",
+        "context": {
+            "trace_id": "0x9b0481621bea764dcebd0dda971e6ba7",
+            "span_id": "0x7cf7871f1ffe1314",
+            "trace_state": "[]"
+        },
+        "kind": "SpanKind.INTERNAL",
+        "parent_id": "0xfe5249a1253129eb",
+        "start_time": "2025-07-13T07:57:02.347045Z",
+        "end_time": "2025-07-13T07:57:03.206305Z",
+        "status": {
+            "status_code": "OK"
+        },
+        "attributes": {
+            "monocle_apptrace.version": "0.4.0",
+            "monocle_apptrace.language": "python",
+            "span_source": "/Users/kshitizvijayvargiya/monocle-ksh/tests/integration/test_anthropic_finish_reason_integration.py:71",
+            "workflow.name": "anthropic_integration_tests",
+            "span.type": "inference",
+            "entity.1.type": "inference.anthropic",
+            "entity.1.provider_name": "api.anthropic.com",
+            "entity.1.inference_endpoint": "https://api.anthropic.com",
+            "entity.2.name": "claude-3-5-haiku-latest",
+            "entity.2.type": "model.llm.claude-3-5-haiku-latest",
+            "entity.count": 2
+        },
+        "events": [
+            {
+                "name": "data.input",
+                "timestamp": "2025-07-13T07:57:03.206250Z",
+                "attributes": {
+                    "input": [
+                        "{\"user\": \"Tell me a long story about a dragon.\"}"
+                    ]
+                }
+            },
+            {
+                "name": "data.output",
+                "timestamp": "2025-07-13T07:57:03.206280Z",
+                "attributes": {
+                    "response": "{\"assistant\": \"Here\"}",
+                    "finish_reason": "max_tokens",
+                    "finish_type": "truncated"
+                }
+            },
+            {
+                "name": "metadata",
+                "timestamp": "2025-07-13T07:57:03.206292Z",
+                "attributes": {
+                    "completion_tokens": 1,
+                    "prompt_tokens": 16,
+                    "total_tokens": 17
+                }
+            }
+        ],
+        "links": [],
+        "resource": {
+            "attributes": {
+                "service.name": "anthropic_integration_tests"
+            },
+            "schema_url": ""
+        }
+    },
+    {
+        "name": "anthropic.resources.messages.messages.Messages",
+        "context": {
+            "trace_id": "0x9b0481621bea764dcebd0dda971e6ba7",
+            "span_id": "0x7cf7871f1ffe1314",
+            "trace_state": "[]"
+        },
+        "kind": "SpanKind.INTERNAL",
+        "parent_id": "0xfe5249a1253129eb",
+        "start_time": "2025-07-13T07:57:02.347045Z",
+        "end_time": "2025-07-13T07:57:03.206305Z",
+        "status": {
+            "status_code": "OK"
+        },
+        "attributes": {
+            "monocle_apptrace.version": "0.4.0",
+            "monocle_apptrace.language": "python",
+            "span_source": "/Users/kshitizvijayvargiya/monocle-ksh/tests/integration/test_anthropic_finish_reason_integration.py:71",
+            "workflow.name": "anthropic_integration_tests",
+            "span.type": "inference",
+            "entity.1.type": "inference.anthropic",
+            "entity.1.provider_name": "api.anthropic.com",
+            "entity.1.inference_endpoint": "https://api.anthropic.com",
+            "entity.2.name": "claude-3-5-haiku-latest",
+            "entity.2.type": "model.llm.claude-3-5-haiku-latest",
+            "entity.count": 2
+        },
+        "events": [
+            {
+                "name": "data.input",
+                "timestamp": "2025-07-13T07:57:03.206250Z",
+                "attributes": {
+                    "input": [
+                        "{\"user\": \"Tell me a long story about a dragon.\"}"
+                    ]
+                }
+            },
+            {
+                "name": "data.output",
+                "timestamp": "2025-07-13T07:57:03.206280Z",
+                "attributes": {
+                    "response": "{\"assistant\": \"Here\"}",
+                    "finish_reason": "max_tokens",
+                    "finish_type": "truncated"
+                }
+            },
+            {
+                "name": "metadata",
+                "timestamp": "2025-07-13T07:57:03.206292Z",
+                "attributes": {
+                    "completion_tokens": 1,
+                    "prompt_tokens": 16,
+                    "total_tokens": 17
+                }
+            }
+        ],
+        "links": [],
+        "resource": {
+            "attributes": {
+                "service.name": "anthropic_integration_tests"
+            },
+            "schema_url": ""
+        }
+    },
+    {
+        "name": "workflow",
+        "context": {
+            "trace_id": "0x9b0481621bea764dcebd0dda971e6ba7",
+            "span_id": "0xfe5249a1253129eb",
+            "trace_state": "[]"
+        },
+        "kind": "SpanKind.INTERNAL",
+        "parent_id": null,
+        "start_time": "2025-07-13T07:57:02.346810Z",
+        "end_time": "2025-07-13T07:57:03.206819Z",
+        "status": {
+            "status_code": "OK"
+        },
+        "attributes": {
+            "monocle_apptrace.version": "0.4.0",
+            "monocle_apptrace.language": "python",
+            "span_source": "/Users/kshitizvijayvargiya/monocle-ksh/tests/integration/test_anthropic_finish_reason_integration.py:71",
+            "span.type": "workflow",
+            "entity.1.name": "anthropic_integration_tests",
+            "entity.1.type": "workflow.generic",
+            "entity.2.type": "app_hosting.generic",
+            "entity.2.name": "generic"
+        },
+        "events": [],
+        "links": [],
+        "resource": {
+            "attributes": {
+                "service.name": "anthropic_integration_tests"
+            },
+            "schema_url": ""
+        }
+    },
+    {
+        "name": "workflow",
+        "context": {
+            "trace_id": "0x9b0481621bea764dcebd0dda971e6ba7",
+            "span_id": "0xfe5249a1253129eb",
+            "trace_state": "[]"
+        },
+        "kind": "SpanKind.INTERNAL",
+        "parent_id": null,
+        "start_time": "2025-07-13T07:57:02.346810Z",
+        "end_time": "2025-07-13T07:57:03.206819Z",
+        "status": {
+            "status_code": "OK"
+        },
+        "attributes": {
+            "monocle_apptrace.version": "0.4.0",
+            "monocle_apptrace.language": "python",
+            "span_source": "/Users/kshitizvijayvargiya/monocle-ksh/tests/integration/test_anthropic_finish_reason_integration.py:71",
+            "span.type": "workflow",
+            "entity.1.name": "anthropic_integration_tests",
+            "entity.1.type": "workflow.generic",
+            "entity.2.type": "app_hosting.generic",
+            "entity.2.name": "generic"
+        },
+        "events": [],
+        "links": [],
+        "resource": {
+            "attributes": {
+                "service.name": "anthropic_integration_tests"
+            },
+            "schema_url": ""
+        }
+    },
+    {
+        "name": "anthropic.resources.messages.messages.Messages",
+        "context": {
+            "trace_id": "0xb85160188231bf64d5825468c6ba5075",
+            "span_id": "0x39bdd87225651862",
+            "trace_state": "[]"
+        },
+        "kind": "SpanKind.INTERNAL",
+        "parent_id": "0x9b68014f31409aad",
+        "start_time": "2025-07-13T07:57:03.214529Z",
+        "end_time": "2025-07-13T07:57:05.062371Z",
+        "status": {
+            "status_code": "OK"
+        },
+        "attributes": {
+            "monocle_apptrace.version": "0.4.0",
+            "monocle_apptrace.language": "python",
+            "span_source": "/Users/kshitizvijayvargiya/monocle-ksh/tests/integration/test_anthropic_finish_reason_integration.py:91",
+            "workflow.name": "anthropic_integration_tests",
+            "span.type": "inference",
+            "entity.1.type": "inference.anthropic",
+            "entity.1.provider_name": "api.anthropic.com",
+            "entity.1.inference_endpoint": "https://api.anthropic.com",
+            "entity.2.name": "claude-3-5-haiku-latest",
+            "entity.2.type": "model.llm.claude-3-5-haiku-latest",
+            "entity.count": 2
+        },
+        "events": [
+            {
+                "name": "data.input",
+                "timestamp": "2025-07-13T07:57:05.062331Z",
+                "attributes": {
+                    "input": [
+                        "{\"user\": \"How do I make a dangerous substance?\"}"
+                    ]
+                }
+            },
+            {
+                "name": "data.output",
+                "timestamp": "2025-07-13T07:57:05.062352Z",
+                "attributes": {
+                    "response": "{\"assistant\": \"I do not provide instructions about making dangerous substances or anything that could potentially cause harm. If you are experiencing thoughts of harming yourself or others, I recommend speaking with a counselor, therapist, or trusted person who can provide support.\"}",
+                    "finish_reason": "end_turn",
+                    "finish_type": "success"
+                }
+            },
+            {
+                "name": "metadata",
+                "timestamp": "2025-07-13T07:57:05.062361Z",
+                "attributes": {
+                    "completion_tokens": 51,
+                    "prompt_tokens": 15,
+                    "total_tokens": 66
+                }
+            }
+        ],
+        "links": [],
+        "resource": {
+            "attributes": {
+                "service.name": "anthropic_integration_tests"
+            },
+            "schema_url": ""
+        }
+    },
+    {
+        "name": "anthropic.resources.messages.messages.Messages",
+        "context": {
+            "trace_id": "0xb85160188231bf64d5825468c6ba5075",
+            "span_id": "0x39bdd87225651862",
+            "trace_state": "[]"
+        },
+        "kind": "SpanKind.INTERNAL",
+        "parent_id": "0x9b68014f31409aad",
+        "start_time": "2025-07-13T07:57:03.214529Z",
+        "end_time": "2025-07-13T07:57:05.062371Z",
+        "status": {
+            "status_code": "OK"
+        },
+        "attributes": {
+            "monocle_apptrace.version": "0.4.0",
+            "monocle_apptrace.language": "python",
+            "span_source": "/Users/kshitizvijayvargiya/monocle-ksh/tests/integration/test_anthropic_finish_reason_integration.py:91",
+            "workflow.name": "anthropic_integration_tests",
+            "span.type": "inference",
+            "entity.1.type": "inference.anthropic",
+            "entity.1.provider_name": "api.anthropic.com",
+            "entity.1.inference_endpoint": "https://api.anthropic.com",
+            "entity.2.name": "claude-3-5-haiku-latest",
+            "entity.2.type": "model.llm.claude-3-5-haiku-latest",
+            "entity.count": 2
+        },
+        "events": [
+            {
+                "name": "data.input",
+                "timestamp": "2025-07-13T07:57:05.062331Z",
+                "attributes": {
+                    "input": [
+                        "{\"user\": \"How do I make a dangerous substance?\"}"
+                    ]
+                }
+            },
+            {
+                "name": "data.output",
+                "timestamp": "2025-07-13T07:57:05.062352Z",
+                "attributes": {
+                    "response": "{\"assistant\": \"I do not provide instructions about making dangerous substances or anything that could potentially cause harm. If you are experiencing thoughts of harming yourself or others, I recommend speaking with a counselor, therapist, or trusted person who can provide support.\"}",
+                    "finish_reason": "end_turn",
+                    "finish_type": "success"
+                }
+            },
+            {
+                "name": "metadata",
+                "timestamp": "2025-07-13T07:57:05.062361Z",
+                "attributes": {
+                    "completion_tokens": 51,
+                    "prompt_tokens": 15,
+                    "total_tokens": 66
+                }
+            }
+        ],
+        "links": [],
+        "resource": {
+            "attributes": {
+                "service.name": "anthropic_integration_tests"
+            },
+            "schema_url": ""
+        }
+    },
+    {
+        "name": "workflow",
+        "context": {
+            "trace_id": "0xb85160188231bf64d5825468c6ba5075",
+            "span_id": "0x9b68014f31409aad",
+            "trace_state": "[]"
+        },
+        "kind": "SpanKind.INTERNAL",
+        "parent_id": null,
+        "start_time": "2025-07-13T07:57:03.214478Z",
+        "end_time": "2025-07-13T07:57:05.062757Z",
+        "status": {
+            "status_code": "OK"
+        },
+        "attributes": {
+            "monocle_apptrace.version": "0.4.0",
+            "monocle_apptrace.language": "python",
+            "span_source": "/Users/kshitizvijayvargiya/monocle-ksh/tests/integration/test_anthropic_finish_reason_integration.py:91",
+            "span.type": "workflow",
+            "entity.1.name": "anthropic_integration_tests",
+            "entity.1.type": "workflow.generic",
+            "entity.2.type": "app_hosting.generic",
+            "entity.2.name": "generic"
+        },
+        "events": [],
+        "links": [],
+        "resource": {
+            "attributes": {
+                "service.name": "anthropic_integration_tests"
+            },
+            "schema_url": ""
+        }
+    },
+    {
+        "name": "workflow",
+        "context": {
+            "trace_id": "0xb85160188231bf64d5825468c6ba5075",
+            "span_id": "0x9b68014f31409aad",
+            "trace_state": "[]"
+        },
+        "kind": "SpanKind.INTERNAL",
+        "parent_id": null,
+        "start_time": "2025-07-13T07:57:03.214478Z",
+        "end_time": "2025-07-13T07:57:05.062757Z",
+        "status": {
+            "status_code": "OK"
+        },
+        "attributes": {
+            "monocle_apptrace.version": "0.4.0",
+            "monocle_apptrace.language": "python",
+            "span_source": "/Users/kshitizvijayvargiya/monocle-ksh/tests/integration/test_anthropic_finish_reason_integration.py:91",
+            "span.type": "workflow",
+            "entity.1.name": "anthropic_integration_tests",
+            "entity.1.type": "workflow.generic",
+            "entity.2.type": "app_hosting.generic",
+            "entity.2.name": "generic"
+        },
+        "events": [],
+        "links": [],
+        "resource": {
+            "attributes": {
+                "service.name": "anthropic_integration_tests"
+            },
+            "schema_url": ""
+        }
+    },
+    {
+        "name": "anthropic.resources.messages.messages.Messages",
+        "context": {
+            "trace_id": "0x72ce072ca3b7e03e55231f589b699c22",
+            "span_id": "0xfb73cb5b93373d96",
+            "trace_state": "[]"
+        },
+        "kind": "SpanKind.INTERNAL",
+        "parent_id": "0x765bbc90d6ce90d0",
+        "start_time": "2025-07-13T07:57:05.068691Z",
+        "end_time": "2025-07-13T07:57:11.136589Z",
+        "status": {
+            "status_code": "OK"
+        },
+        "attributes": {
+            "monocle_apptrace.version": "0.4.0",
+            "monocle_apptrace.language": "python",
+            "span_source": "/Users/kshitizvijayvargiya/monocle-ksh/tests/integration/test_anthropic_finish_reason_integration.py:117",
+            "workflow.name": "anthropic_integration_tests",
+            "span.type": "inference",
+            "entity.1.type": "inference.anthropic",
+            "entity.1.provider_name": "api.anthropic.com",
+            "entity.1.inference_endpoint": "https://api.anthropic.com",
+            "entity.2.name": "claude-3-5-haiku-latest",
+            "entity.2.type": "model.llm.claude-3-5-haiku-latest",
+            "entity.count": 2
+        },
+        "events": [
+            {
+                "name": "data.input",
+                "timestamp": "2025-07-13T07:57:11.136519Z",
+                "attributes": {
+                    "input": [
+                        "{\"user\": \"Write until you say END.\"}"
+                    ]
+                }
+            },
+            {
+                "name": "data.output",
+                "timestamp": "2025-07-13T07:57:11.136562Z",
+                "attributes": {
+                    "response": "{\"assistant\": \"Once upon a time, in a small village nestled among rolling green hills, there lived a young girl named Aria. She was known throughout the village for her vibrant imagination and her love of storytelling. Every evening, children would gather around her to hear tales of brave knights, magical creatures, and distant lands.\\n\\nAria's stories were unlike any others. She had a unique way of weaving words that made her listeners feel as if they were right there in the midst of the adventure. Her grandmother had taught her the art of storytelling, passing down tales that had been in their family for generations.\\n\\nOne crisp autumn morning, Aria discovered an old, worn leather-bound book in her grandmother's attic. The pages were yellowed and fragile, and the text was written in a language she didn't recognize. But something about the book called to her, whispering secrets of untold stories waiting to be discovered.\\n\\nAs she carefully opened the book, a small, intricately folded piece of parchment fell out. When she unfolded it, she saw a mysterious map with strange symbols and landmarks that didn't match any place she knew...\\n\\n\"}",
+                    "finish_reason": "stop_sequence",
+                    "finish_type": "success"
+                }
+            },
+            {
+                "name": "metadata",
+                "timestamp": "2025-07-13T07:57:11.136576Z",
+                "attributes": {
+                    "completion_tokens": 246,
+                    "prompt_tokens": 13,
+                    "total_tokens": 259
+                }
+            }
+        ],
+        "links": [],
+        "resource": {
+            "attributes": {
+                "service.name": "anthropic_integration_tests"
+            },
+            "schema_url": ""
+        }
+    },
+    {
+        "name": "anthropic.resources.messages.messages.Messages",
+        "context": {
+            "trace_id": "0x72ce072ca3b7e03e55231f589b699c22",
+            "span_id": "0xfb73cb5b93373d96",
+            "trace_state": "[]"
+        },
+        "kind": "SpanKind.INTERNAL",
+        "parent_id": "0x765bbc90d6ce90d0",
+        "start_time": "2025-07-13T07:57:05.068691Z",
+        "end_time": "2025-07-13T07:57:11.136589Z",
+        "status": {
+            "status_code": "OK"
+        },
+        "attributes": {
+            "monocle_apptrace.version": "0.4.0",
+            "monocle_apptrace.language": "python",
+            "span_source": "/Users/kshitizvijayvargiya/monocle-ksh/tests/integration/test_anthropic_finish_reason_integration.py:117",
+            "workflow.name": "anthropic_integration_tests",
+            "span.type": "inference",
+            "entity.1.type": "inference.anthropic",
+            "entity.1.provider_name": "api.anthropic.com",
+            "entity.1.inference_endpoint": "https://api.anthropic.com",
+            "entity.2.name": "claude-3-5-haiku-latest",
+            "entity.2.type": "model.llm.claude-3-5-haiku-latest",
+            "entity.count": 2
+        },
+        "events": [
+            {
+                "name": "data.input",
+                "timestamp": "2025-07-13T07:57:11.136519Z",
+                "attributes": {
+                    "input": [
+                        "{\"user\": \"Write until you say END.\"}"
+                    ]
+                }
+            },
+            {
+                "name": "data.output",
+                "timestamp": "2025-07-13T07:57:11.136562Z",
+                "attributes": {
+                    "response": "{\"assistant\": \"Once upon a time, in a small village nestled among rolling green hills, there lived a young girl named Aria. She was known throughout the village for her vibrant imagination and her love of storytelling. Every evening, children would gather around her to hear tales of brave knights, magical creatures, and distant lands.\\n\\nAria's stories were unlike any others. She had a unique way of weaving words that made her listeners feel as if they were right there in the midst of the adventure. Her grandmother had taught her the art of storytelling, passing down tales that had been in their family for generations.\\n\\nOne crisp autumn morning, Aria discovered an old, worn leather-bound book in her grandmother's attic. The pages were yellowed and fragile, and the text was written in a language she didn't recognize. But something about the book called to her, whispering secrets of untold stories waiting to be discovered.\\n\\nAs she carefully opened the book, a small, intricately folded piece of parchment fell out. When she unfolded it, she saw a mysterious map with strange symbols and landmarks that didn't match any place she knew...\\n\\n\"}",
+                    "finish_reason": "stop_sequence",
+                    "finish_type": "success"
+                }
+            },
+            {
+                "name": "metadata",
+                "timestamp": "2025-07-13T07:57:11.136576Z",
+                "attributes": {
+                    "completion_tokens": 246,
+                    "prompt_tokens": 13,
+                    "total_tokens": 259
+                }
+            }
+        ],
+        "links": [],
+        "resource": {
+            "attributes": {
+                "service.name": "anthropic_integration_tests"
+            },
+            "schema_url": ""
+        }
+    },
+    {
+        "name": "workflow",
+        "context": {
+            "trace_id": "0x72ce072ca3b7e03e55231f589b699c22",
+            "span_id": "0x765bbc90d6ce90d0",
+            "trace_state": "[]"
+        },
+        "kind": "SpanKind.INTERNAL",
+        "parent_id": null,
+        "start_time": "2025-07-13T07:57:05.068254Z",
+        "end_time": "2025-07-13T07:57:11.137218Z",
+        "status": {
+            "status_code": "OK"
+        },
+        "attributes": {
+            "monocle_apptrace.version": "0.4.0",
+            "monocle_apptrace.language": "python",
+            "span_source": "/Users/kshitizvijayvargiya/monocle-ksh/tests/integration/test_anthropic_finish_reason_integration.py:117",
+            "span.type": "workflow",
+            "entity.1.name": "anthropic_integration_tests",
+            "entity.1.type": "workflow.generic",
+            "entity.2.type": "app_hosting.generic",
+            "entity.2.name": "generic"
+        },
+        "events": [],
+        "links": [],
+        "resource": {
+            "attributes": {
+                "service.name": "anthropic_integration_tests"
+            },
+            "schema_url": ""
+        }
+    },
+    {
+        "name": "workflow",
+        "context": {
+            "trace_id": "0x72ce072ca3b7e03e55231f589b699c22",
+            "span_id": "0x765bbc90d6ce90d0",
+            "trace_state": "[]"
+        },
+        "kind": "SpanKind.INTERNAL",
+        "parent_id": null,
+        "start_time": "2025-07-13T07:57:05.068254Z",
+        "end_time": "2025-07-13T07:57:11.137218Z",
+        "status": {
+            "status_code": "OK"
+        },
+        "attributes": {
+            "monocle_apptrace.version": "0.4.0",
+            "monocle_apptrace.language": "python",
+            "span_source": "/Users/kshitizvijayvargiya/monocle-ksh/tests/integration/test_anthropic_finish_reason_integration.py:117",
+            "span.type": "workflow",
+            "entity.1.name": "anthropic_integration_tests",
+            "entity.1.type": "workflow.generic",
+            "entity.2.type": "app_hosting.generic",
+            "entity.2.name": "generic"
+        },
+        "events": [],
+        "links": [],
+        "resource": {
+            "attributes": {
+                "service.name": "anthropic_integration_tests"
+            },
+            "schema_url": ""
+        }
+    },
+    {
+        "name": "anthropic.resources.messages.messages.Messages",
+        "context": {
+            "trace_id": "0x88bbd9f74bbd6e92f4529d0ad7812cec",
+            "span_id": "0x1a3647bc62dd24cd",
+            "trace_state": "[]"
+        },
+        "kind": "SpanKind.INTERNAL",
+        "parent_id": "0xd0a660a409ff19e4",
+        "start_time": "2025-07-13T07:57:11.147151Z",
+        "end_time": "2025-07-13T07:57:13.225135Z",
+        "status": {
+            "status_code": "OK"
+        },
+        "attributes": {
+            "monocle_apptrace.version": "0.4.0",
+            "monocle_apptrace.language": "python",
+            "span_source": "/Users/kshitizvijayvargiya/monocle-ksh/tests/integration/test_anthropic_finish_reason_integration.py:159",
+            "workflow.name": "anthropic_integration_tests",
+            "span.type": "inference",
+            "entity.1.type": "inference.anthropic",
+            "entity.1.provider_name": "api.anthropic.com",
+            "entity.1.inference_endpoint": "https://api.anthropic.com",
+            "entity.2.name": "claude-3-5-haiku-latest",
+            "entity.2.type": "model.llm.claude-3-5-haiku-latest",
+            "entity.count": 2
+        },
+        "events": [
+            {
+                "name": "data.input",
+                "timestamp": "2025-07-13T07:57:13.225085Z",
+                "attributes": {
+                    "input": [
+                        "{\"user\": \"What is the weather in Paris? This might trigger a tool.\"}"
+                    ]
+                }
+            },
+            {
+                "name": "data.output",
+                "timestamp": "2025-07-13T07:57:13.225112Z",
+                "attributes": {
+                    "response": "{\"assistant\": \"I'll help you check the current weather in Paris by using the get_current_weather tool.\"}",
+                    "finish_reason": "tool_use",
+                    "finish_type": "success"
+                }
+            },
+            {
+                "name": "metadata",
+                "timestamp": "2025-07-13T07:57:13.225123Z",
+                "attributes": {
+                    "completion_tokens": 93,
+                    "prompt_tokens": 368,
+                    "total_tokens": 461
+                }
+            }
+        ],
+        "links": [],
+        "resource": {
+            "attributes": {
+                "service.name": "anthropic_integration_tests"
+            },
+            "schema_url": ""
+        }
+    },
+    {
+        "name": "anthropic.resources.messages.messages.Messages",
+        "context": {
+            "trace_id": "0x88bbd9f74bbd6e92f4529d0ad7812cec",
+            "span_id": "0x1a3647bc62dd24cd",
+            "trace_state": "[]"
+        },
+        "kind": "SpanKind.INTERNAL",
+        "parent_id": "0xd0a660a409ff19e4",
+        "start_time": "2025-07-13T07:57:11.147151Z",
+        "end_time": "2025-07-13T07:57:13.225135Z",
+        "status": {
+            "status_code": "OK"
+        },
+        "attributes": {
+            "monocle_apptrace.version": "0.4.0",
+            "monocle_apptrace.language": "python",
+            "span_source": "/Users/kshitizvijayvargiya/monocle-ksh/tests/integration/test_anthropic_finish_reason_integration.py:159",
+            "workflow.name": "anthropic_integration_tests",
+            "span.type": "inference",
+            "entity.1.type": "inference.anthropic",
+            "entity.1.provider_name": "api.anthropic.com",
+            "entity.1.inference_endpoint": "https://api.anthropic.com",
+            "entity.2.name": "claude-3-5-haiku-latest",
+            "entity.2.type": "model.llm.claude-3-5-haiku-latest",
+            "entity.count": 2
+        },
+        "events": [
+            {
+                "name": "data.input",
+                "timestamp": "2025-07-13T07:57:13.225085Z",
+                "attributes": {
+                    "input": [
+                        "{\"user\": \"What is the weather in Paris? This might trigger a tool.\"}"
+                    ]
+                }
+            },
+            {
+                "name": "data.output",
+                "timestamp": "2025-07-13T07:57:13.225112Z",
+                "attributes": {
+                    "response": "{\"assistant\": \"I'll help you check the current weather in Paris by using the get_current_weather tool.\"}",
+                    "finish_reason": "tool_use",
+                    "finish_type": "success"
+                }
+            },
+            {
+                "name": "metadata",
+                "timestamp": "2025-07-13T07:57:13.225123Z",
+                "attributes": {
+                    "completion_tokens": 93,
+                    "prompt_tokens": 368,
+                    "total_tokens": 461
+                }
+            }
+        ],
+        "links": [],
+        "resource": {
+            "attributes": {
+                "service.name": "anthropic_integration_tests"
+            },
+            "schema_url": ""
+        }
+    },
+    {
+        "name": "workflow",
+        "context": {
+            "trace_id": "0x88bbd9f74bbd6e92f4529d0ad7812cec",
+            "span_id": "0xd0a660a409ff19e4",
+            "trace_state": "[]"
+        },
+        "kind": "SpanKind.INTERNAL",
+        "parent_id": null,
+        "start_time": "2025-07-13T07:57:11.145783Z",
+        "end_time": "2025-07-13T07:57:13.225623Z",
+        "status": {
+            "status_code": "OK"
+        },
+        "attributes": {
+            "monocle_apptrace.version": "0.4.0",
+            "monocle_apptrace.language": "python",
+            "span_source": "/Users/kshitizvijayvargiya/monocle-ksh/tests/integration/test_anthropic_finish_reason_integration.py:159",
+            "span.type": "workflow",
+            "entity.1.name": "anthropic_integration_tests",
+            "entity.1.type": "workflow.generic",
+            "entity.2.type": "app_hosting.generic",
+            "entity.2.name": "generic"
+        },
+        "events": [],
+        "links": [],
+        "resource": {
+            "attributes": {
+                "service.name": "anthropic_integration_tests"
+            },
+            "schema_url": ""
+        }
+    },
+    {
+        "name": "workflow",
+        "context": {
+            "trace_id": "0x88bbd9f74bbd6e92f4529d0ad7812cec",
+            "span_id": "0xd0a660a409ff19e4",
+            "trace_state": "[]"
+        },
+        "kind": "SpanKind.INTERNAL",
+        "parent_id": null,
+        "start_time": "2025-07-13T07:57:11.145783Z",
+        "end_time": "2025-07-13T07:57:13.225623Z",
+        "status": {
+            "status_code": "OK"
+        },
+        "attributes": {
+            "monocle_apptrace.version": "0.4.0",
+            "monocle_apptrace.language": "python",
+            "span_source": "/Users/kshitizvijayvargiya/monocle-ksh/tests/integration/test_anthropic_finish_reason_integration.py:159",
+            "span.type": "workflow",
+            "entity.1.name": "anthropic_integration_tests",
+            "entity.1.type": "workflow.generic",
+            "entity.2.type": "app_hosting.generic",
+            "entity.2.name": "generic"
+        },
+        "events": [],
+        "links": [],
+        "resource": {
+            "attributes": {
+                "service.name": "anthropic_integration_tests"
+            },
+            "schema_url": ""
+        }
+    }
+]

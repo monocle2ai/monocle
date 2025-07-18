@@ -193,6 +193,9 @@ def check_span(spans, exception):
             assert span_attributes["entity.1.name"] == "langchain_app_1"
             assert span_attributes["entity.1.type"] == "workflow.langchain"
 
+if __name__ == "__main__":
+    pytest.main([__file__, "-s", "--tb=short"])
+
 # {
 #     "name": "langchain_core.vectorstores.base.VectorStoreRetriever",
 #     "context": {

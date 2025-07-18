@@ -1,7 +1,7 @@
 from monocle_apptrace.instrumentation.metamodel.teamsai import (
     _helper,
 )
-from monocle_apptrace.instrumentation.common.utils import get_llm_type
+from monocle_apptrace.instrumentation.common.utils import get_error_message, get_llm_type
 TEAMAI_OUTPUT_PROCESSOR = {
     "type": "inference.framework",
     "attributes": [
@@ -53,12 +53,8 @@ TEAMAI_OUTPUT_PROCESSOR = {
             "_comment": "output from Teams AI",
             "attributes": [
                 {
-                    "attribute": "status",
-                    "accessor": lambda arguments: _helper.get_status(arguments)
-                },
-                {
-                    "attribute": "status_code",
-                    "accessor": lambda arguments: _helper.get_status_code(arguments)
+                    "attribute": "error_code",
+                    "accessor": lambda arguments: get_error_message(arguments)
                 },
                 {
                     "attribute": "response",

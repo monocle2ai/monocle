@@ -136,7 +136,7 @@ def verify_spans():
                 found_supervisor_agent = True
             found_agent = True
 
-        if "span.type" in span_attributes and span_attributes["span.type"] == "agentic.tool":
+        if "span.type" in span_attributes and span_attributes["span.type"] == "agentic.tool.invocation":
             assert "entity.1.type" in span_attributes
             assert "entity.1.name" in span_attributes
             assert span_attributes["entity.1.type"] == "tool.langgraph"
@@ -525,7 +525,7 @@ def verify_spans():
 #         "monocle_apptrace.language": "python",
 #         "span_source": "/Users/prasad/repos/monocle2ai/monocle-prasad/.env/lib/python3.12/site-packages/langchain_core/tools/base.py:599",
 #         "workflow.name": "langchain_agent_1",
-#         "span.type": "agentic.tool",
+#         "span.type": "agentic.tool.invocation",
 #         "entity.1.type": "tool.langgraph",
 #         "entity.1.name": "book_flight",
 #         "entity.1.description": "Book a flight",
@@ -1104,7 +1104,7 @@ def verify_spans():
 #         "monocle_apptrace.language": "python",
 #         "span_source": "/Users/prasad/repos/monocle2ai/monocle-prasad/.env/lib/python3.12/site-packages/langchain_core/tools/base.py:599",
 #         "workflow.name": "langchain_agent_1",
-#         "span.type": "agentic.tool",
+#         "span.type": "agentic.tool.invocation",
 #         "entity.1.type": "tool.langgraph",
 #         "entity.1.name": "book_hotel",
 #         "entity.1.description": "Book a hotel",

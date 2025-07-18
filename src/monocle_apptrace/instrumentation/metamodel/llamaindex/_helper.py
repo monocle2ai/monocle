@@ -43,14 +43,14 @@ def extract_tools(instance):
                 tools.append(tool_name)
     return tools
 
-def get_tool_name(arguments):
-    if len(arguments['args']) > 1:
-        if hasattr(arguments['args'][1], 'metadata') and hasattr(arguments['args'][1].metadata, 'name'):
-            return arguments['args'][1].metadata.name
+def get_tool_name(args, instance):
+    if len(args) > 1:
+        if hasattr(args[1], 'metadata') and hasattr(args[1].metadata, 'name'):
+            return args[1].metadata.name
         return ""
     else:
-        if hasattr(arguments['instance'], 'metadata') and hasattr(arguments['instance'].metadata, 'name'):
-            return arguments['instance'].metadata.name
+        if hasattr(instance, 'metadata') and hasattr(instance.metadata, 'name'):
+            return instance.metadata.name
         return ""
 
 def get_tool_description(arguments):
@@ -82,8 +82,8 @@ def extract_tool_response(response):
         return response.raw_output
     return ""
 
-def is_delegation_tool(args) -> bool:
-    return get_tool_name(args) == "handoff"
+def is_delegation_tool(args, instance) -> bool:
+    return get_tool_name(args, instance) == "handoff"
 
 def get_agent_name(instance) -> str:
     if hasattr(instance, 'name'):

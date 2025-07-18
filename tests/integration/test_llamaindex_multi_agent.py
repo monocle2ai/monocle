@@ -121,7 +121,7 @@ def verify_spans():
                 found_supervisor_agent = True
             found_agent = True
 
-        if "span.type" in span_attributes and span_attributes["span.type"] == "agentic.tool":
+        if "span.type" in span_attributes and span_attributes["span.type"] == "agentic.tool.invocation":
             assert "entity.1.type" in span_attributes
             assert "entity.1.name" in span_attributes
             assert "entity.2.type" in span_attributes
@@ -441,7 +441,7 @@ def verify_spans():
 #         "monocle_apptrace.language": "python",
 #         "span_source": "/Users/prasad/repos/monocle2ai/monocle-prasad/.env/lib/python3.12/site-packages/llama_index/core/agent/workflow/multi_agent_workflow.py:447",
 #         "workflow.name": "llamaindex_agent_1",
-#         "span.type": "agentic.tool",
+#         "span.type": "agentic.tool.invocation",
 #         "entity.1.type": "tool.llamaindex",
 #         "entity.1.name": "book_flight",
 #         "entity.1.description": "Books a flight from one airport to another.",
@@ -765,7 +765,7 @@ def verify_spans():
 #         "monocle_apptrace.language": "python",
 #         "span_source": "/Users/prasad/repos/monocle2ai/monocle-prasad/.env/lib/python3.12/site-packages/llama_index/core/agent/workflow/multi_agent_workflow.py:447",
 #         "workflow.name": "llamaindex_agent_1",
-#         "span.type": "agentic.tool",
+#         "span.type": "agentic.tool.invocation",
 #         "entity.1.type": "tool.llamaindex",
 #         "entity.1.name": "book_hotel",
 #         "entity.1.description": "Books a hotel stay.",

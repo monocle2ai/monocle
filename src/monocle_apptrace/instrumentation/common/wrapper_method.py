@@ -9,7 +9,7 @@ from monocle_apptrace.instrumentation.metamodel.langchain.methods import (
     LANGCHAIN_METHODS,
 )
 from monocle_apptrace.instrumentation.metamodel.llamaindex.methods import (LLAMAINDEX_METHODS, )
-from monocle_apptrace.instrumentation.metamodel.llamaindex.llamaindex_processor import LlamaIndexToolHandler, LlamaIndexAgentHandler
+from monocle_apptrace.instrumentation.metamodel.llamaindex.llamaindex_processor import LlamaIndexToolHandler, LlamaIndexAgentHandler, LlamaIndexSingleAgenttToolHandlerWrapper
 from monocle_apptrace.instrumentation.metamodel.haystack.methods import (HAYSTACK_METHODS, )
 from monocle_apptrace.instrumentation.metamodel.openai.methods import (OPENAI_METHODS,)
 from monocle_apptrace.instrumentation.metamodel.openai._helper import OpenAISpanHandler
@@ -94,4 +94,5 @@ MONOCLE_SPAN_HANDLERS: Dict[str, SpanHandler] = {
     "langgraph_tool_handler": LanggraphToolHandler(),
     "llamaindex_tool_handler": LlamaIndexToolHandler(),
     "llamaindex_agent_handler": LlamaIndexAgentHandler(),
+    "llamaindex_single_agent_tool_handler": LlamaIndexSingleAgenttToolHandlerWrapper(),
 }

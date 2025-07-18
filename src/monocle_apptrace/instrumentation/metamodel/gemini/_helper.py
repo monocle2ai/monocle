@@ -64,6 +64,18 @@ def extract_assistant_message(arguments):
         logger.warning("Warning: Error occurred in extract_assistant_message: %s", str(e))
         return None
 
+def update_input_span_events(kwargs):
+    if 'contents' in kwargs and isinstance(kwargs['contents'], list) and len(kwargs['contents']) > 0:
+        query = kwargs['contents'][0]
+        return query
+
+def update_output_span_events(results):
+    if hasattr(results,'embeddings') and isinstance(results.embeddings, list) and len(results.embeddings) > 0:
+        embeddings = results.embeddings[0]
+        if hasattr(embeddings, 'values') and isinstance(embeddings.values, list) and len(embeddings.values) > 100:
+            output = str(results.embeddings[0].values[:100]) + "..."
+            return output
+
 def extract_inference_endpoint(instance):
     try:
         if hasattr(instance,'_api_client') and hasattr(instance._api_client, '_http_options'):

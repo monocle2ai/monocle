@@ -61,6 +61,8 @@ def extract_assistant_message(arguments):
 
 def extract_provider_name(instance):
     provider_url: Option[str] = Option(None)
+    if hasattr(instance, 'client'):
+        provider_url: Option[str] = try_option(getattr, instance.client, 'universe_domain')
     if hasattr(instance,'client') and hasattr(instance.client, '_client') and hasattr(instance.client._client, 'base_url'):
         # If the client has a base_url, extract the host from it
         provider_url: Option[str] = try_option(getattr, instance.client._client.base_url, 'host')
@@ -72,6 +74,9 @@ def extract_provider_name(instance):
 def extract_inference_endpoint(instance):
     inference_endpoint: Option[str] = None
     # instance.client.meta.endpoint_url
+    if hasattr(instance, 'client') and hasattr(instance.client, 'transport'):
+        inference_endpoint: Option[str] = try_option(getattr, instance.client.transport, 'host')
+
     if hasattr(instance, 'client') and hasattr(instance.client, 'meta') and hasattr(instance.client.meta, 'endpoint_url'):
         inference_endpoint: Option[str] = try_option(getattr, instance.client.meta, 'endpoint_url').map(str)
 

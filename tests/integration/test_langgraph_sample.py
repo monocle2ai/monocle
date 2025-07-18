@@ -3,6 +3,8 @@ from langchain_openai import ChatOpenAI
 from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
 from tests.common.custom_exporter import CustomConsoleSpanExporter
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from langchain_core.messages import HumanMessage, ToolMessage
 from langchain.tools import Tool
 from langchain_core.pydantic_v1 import BaseModel, Field
@@ -14,15 +16,16 @@ import logging
 logger = logging.getLogger(__name__)
 
 import time
-custom_exporter = CustomConsoleSpanExporter()
-
+memory_exporter = InMemorySpanExporter()
+span_processors=[SimpleSpanProcessor(memory_exporter)]
 
 @pytest.fixture(scope="module")
 def setup():
+    memory_exporter.clear()
     setup_monocle_telemetry(
-                workflow_name="langchain_app_1",
-                span_processors=[BatchSpanProcessor(custom_exporter)],
-                wrapper_methods=[])
+                workflow_name="langchain_agent_1",
+                span_processors=[SimpleSpanProcessor(memory_exporter)]
+                )
 
 coffee_menu = {
     "espresso": "A strong and bold coffee shot.",
@@ -80,7 +83,7 @@ def test_langgraph_chat_sample(setup):
     # Use the agent
     config = {"configurable": {"thread_id": "abc123"}}
 
-    question = "order 1 espresso"
+    question = "order an espresso"
     chunk = agent_executor.invoke({"messages": [HumanMessage(content=question)]})
     if len(chunk["messages"]) > 2:
         tool_msg: ToolMessage = chunk["messages"][2]
@@ -89,7 +92,9 @@ def test_langgraph_chat_sample(setup):
 
         print("Sorry, I can't help you with " + question)
     time.sleep(5)
-    spans = custom_exporter.get_captured_spans()
+    spans = memory_exporter.get_finished_spans()
+
+    found_inference = found_agent = found_tool = False
 
     for span in spans:
         span_attributes = span.attributes
@@ -108,19 +113,22 @@ def test_langgraph_chat_sample(setup):
             assert "completion_tokens" in span_metadata.attributes
             assert "prompt_tokens" in span_metadata.attributes
             assert "total_tokens" in span_metadata.attributes
+            found_inference = True
 
-        if "span.type" in span_attributes and span_attributes["span.type"] == "agent":
+        if "span.type" in span_attributes and span_attributes["span.type"] == "agentic.invocation":
             assert "entity.1.type" in span_attributes
             assert "entity.1.name" in span_attributes
-            assert "entity.1.tools" in span_attributes
             assert span_attributes["entity.1.name"] == "LangGraph"
-            assert span_attributes["entity.1.type"] == "agent.oai"
-            assert span_attributes["entity.1.tools"]  == ('GetCoffeeMenu', 'OrderCoffee', 'GetCoffeeDetails')
+            assert span_attributes["entity.1.type"] == "agent.langgraph"
+            found_agent = True
 
-            # Assertions for metadata
-            span_input, span_output, span_metadata = span.events
-            assert "completion_tokens" in span_metadata.attributes
-            assert "prompt_tokens" in span_metadata.attributes
-            assert "total_tokens" in span_metadata.attributes
+        if "span.type" in span_attributes and span_attributes["span.type"] == "agentic.tool.invocation":
+            assert "entity.1.type" in span_attributes
+            assert "entity.1.name" in span_attributes
+            assert span_attributes["entity.1.name"] == "OrderCoffee"
+            assert span_attributes["entity.1.type"] == "tool.langgraph"
+            found_tool = True
 
-
+    assert found_inference, "Inference span not found"
+    assert found_agent, "Agent span not found"
+    assert found_tool, "Tool span not found"

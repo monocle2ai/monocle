@@ -62,7 +62,11 @@ class FileSpanExporter(SpanExporterBase):
                 first_span = False
             else:
                 self.out_handle.write(",")
-            self.out_handle.write(self.formatter(span))
+            try:
+                self.out_handle.write(self.formatter(span))
+            except Exception as e:
+                print(f"Error formatting span {span.context.span_id}: {e}")
+                continue
         if is_root_span:
             self.reset_handle()
         else:

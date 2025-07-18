@@ -16,10 +16,12 @@ from monocle_apptrace.instrumentation.common.constants import WORKFLOW_TYPE_KEY,
 logger = logging.getLogger(__name__)
 
 WORKFLOW_TYPE_MAP = {
+    "llama_index.core.agent.workflow": WORKFLOW_TYPE_GENERIC,
     "llama_index": "workflow.llamaindex",
     "langchain": "workflow.langchain",
     "haystack": "workflow.haystack",
     "teams.ai": "workflow.teams_ai",
+    "langgraph": "workflow.langgraph",
 }
 
 class SpanHandler:
@@ -36,7 +38,7 @@ class SpanHandler:
     def pre_tracing(self, to_wrap, wrapped, instance, args, kwargs):
         pass
 
-    def post_tracing(self, to_wrap, wrapped, instance, args, kwargs, return_value):
+    def post_tracing(self, to_wrap, wrapped, instance, args, kwargs, return_value, token=None):
         pass
 
     def skip_span(self, to_wrap, wrapped, instance, args, kwargs) -> bool:
@@ -85,7 +87,7 @@ class SpanHandler:
 
     def hydrate_span(self, to_wrap, wrapped, instance, args, kwargs, result, span, parent_span = None, ex:Exception = None) -> bool:
         try:
-            detected_error_in_attribute = self.hydrate_attributes(to_wrap, wrapped, instance, args, kwargs, result, span)
+            detected_error_in_attribute = self.hydrate_attributes(to_wrap, wrapped, instance, args, kwargs, result, span, parent_span)
             detected_error_in_event = self.hydrate_events(to_wrap, wrapped, instance, args, kwargs, result, span, parent_span, ex)
             if detected_error_in_attribute or detected_error_in_event:
                 span.set_attribute(MONOCLE_DETECTED_SPAN_ERROR, True)
@@ -93,7 +95,7 @@ class SpanHandler:
             if span.status.status_code == StatusCode.UNSET and ex is None:
                 span.set_status(StatusCode.OK)
 
-    def hydrate_attributes(self, to_wrap, wrapped, instance, args, kwargs, result, span:Span) -> bool:
+    def hydrate_attributes(self, to_wrap, wrapped, instance, args, kwargs, result, span:Span, parent_span:Span) -> bool:
         detected_error:bool = False
         span_index = 0
         if SpanHandler.is_root_span(span):
@@ -104,6 +106,7 @@ class SpanHandler:
             skip_processors:list[str] = self.skip_processor(to_wrap, wrapped, instance, span, args, kwargs) or []
 
             if 'attributes' in output_processor and 'attributes' not in skip_processors:
+                arguments = {"instance":instance, "args":args, "kwargs":kwargs, "result":result, "parent_span":parent_span}
                 for processors in output_processor["attributes"]:
                     for processor in processors:
                         attribute = processor.get('attribute')
@@ -112,10 +115,9 @@ class SpanHandler:
                         if attribute and accessor:
                             attribute_name = f"entity.{span_index+1}.{attribute}"
                             try:
-                                arguments = {"instance":instance, "args":args, "kwargs":kwargs, "result":result}
-                                result = accessor(arguments)
-                                if result and isinstance(result, (str, list)):
-                                    span.set_attribute(attribute_name, result)
+                                processor_result = accessor(arguments)
+                                if processor_result and isinstance(processor_result, (str, list)):
+                                    span.set_attribute(attribute_name, processor_result)
                             except MonocleSpanException as e:
                                 span.set_status(StatusCode.ERROR, e.message)
                                 detected_error = True
@@ -140,7 +142,7 @@ class SpanHandler:
             output_processor=to_wrap['output_processor']
             skip_processors:list[str] = self.skip_processor(to_wrap, wrapped, instance, span, args, kwargs) or []
 
-            arguments = {"instance": instance, "args": args, "kwargs": kwargs, "result": ret_result, "exception":ex}
+            arguments = {"instance": instance, "args": args, "kwargs": kwargs, "result": ret_result, "exception":ex, "parent_span":parent_span}
             # Process events if they are defined in the output_processor.
             # In case of inference.modelapi skip the event processing unless the span has an exception
             if 'events' in output_processor and ('events' not in skip_processors or ex is not None):

@@ -8,8 +8,6 @@ from urllib.parse import unquote, urlparse, ParseResult
 
 logger = logging.getLogger(__name__)
 MAX_DATA_LENGTH = 1000
-token_data = local()
-token_data.current_token = None
 
 def get_url(kwargs) -> ParseResult:
     url_str = try_option(getattr, kwargs['req'], 'url')
@@ -61,18 +59,15 @@ def extract_status(result) -> str:
 
 def azure_func_pre_tracing(kwargs):
     headers = kwargs['req'].headers if hasattr(kwargs['req'], 'headers') else {}
-    token_data.current_token = extract_http_headers(headers)
+    return extract_http_headers(headers)
 
-def azure_func_post_tracing():
-    clear_http_scopes(token_data.current_token)
-    token_data.current_token = None
+def azure_func_post_tracing(token):
+    clear_http_scopes(token)
 
 class azureSpanHandler(SpanHandler):
 
     def pre_tracing(self, to_wrap, wrapped, instance, args, kwargs):
-        azure_func_pre_tracing(kwargs)
-        return super().pre_tracing(to_wrap, wrapped, instance, args, kwargs)
+        return azure_func_pre_tracing(kwargs)
     
-    def post_tracing(self, to_wrap, wrapped, instance, args, kwargs, return_value):
-        azure_func_post_tracing()
-        return super().post_tracing(to_wrap, wrapped, instance, args, kwargs, return_value)
+    def post_tracing(self, to_wrap, wrapped, instance, args, kwargs, return_value, token):
+        azure_func_post_tracing(token)

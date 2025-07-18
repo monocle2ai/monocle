@@ -7,8 +7,6 @@ from urllib.parse import unquote
 
 logger = logging.getLogger(__name__)
 MAX_DATA_LENGTH = 1000
-token_data = local()
-token_data.current_token = None
 
 def get_route(args) -> str:
     route_path: Option[str] = try_option(getattr, args[0], 'path')
@@ -41,11 +39,10 @@ def extract_status(result) -> str:
     return status
 
 def aiohttp_pre_tracing(args):
-    token_data.current_token = extract_http_headers(args[0].headers)
+    return extract_http_headers(args[0].headers)
 
-def aiohttp_post_tracing():
-    clear_http_scopes(token_data.current_token)
-    token_data.current_token = None
+def aiohttp_post_tracing(token):
+    clear_http_scopes(token)
 
 def aiohttp_skip_span(args) -> bool:
     if get_method(args) == "HEAD":
@@ -55,12 +52,10 @@ def aiohttp_skip_span(args) -> bool:
 class aiohttpSpanHandler(SpanHandler):
 
     def pre_tracing(self, to_wrap, wrapped, instance, args, kwargs):
-        aiohttp_pre_tracing(args)
-        return super().pre_tracing(to_wrap, wrapped, instance, args, kwargs)
+        return aiohttp_pre_tracing(args)
     
-    def post_tracing(self, to_wrap, wrapped, instance, args, kwargs, return_value):
-        aiohttp_post_tracing()
-        return super().post_tracing(to_wrap, wrapped, instance, args, kwargs, return_value)
+    def post_tracing(self, to_wrap, wrapped, instance, args, kwargs, return_value, token):
+        aiohttp_post_tracing(token)
 
     def skip_span(self, to_wrap, wrapped, instance, args, kwargs) -> bool:
         return aiohttp_skip_span(args)

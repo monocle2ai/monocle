@@ -4,9 +4,10 @@ from typing import Any, Dict, Optional
 from urllib.parse import urlparse
 from monocle_apptrace.instrumentation.common.utils import (
     get_json_dumps,
-    resolve_from_alias,
     get_exception_message,
+    get_status_code,
 )
+from monocle_apptrace.instrumentation.metamodel.finish_types import map_azure_ai_inference_finish_reason_to_finish_type
 
 logger = logging.getLogger(__name__)
 
@@ -225,3 +226,71 @@ def get_provider_name(instance: Any) -> str:
     except Exception as e:
         logger.warning("Warning: Error occurred in get_provider_name: %s", str(e))
         return "azure_ai_inference"
+
+
+def extract_finish_reason(arguments: Dict[str, Any]) -> Optional[str]:
+    """Extract finish_reason from Azure AI Inference response."""
+    try:
+        # Handle exception cases first
+        if arguments.get("exception") is not None:
+            ex = arguments["exception"]
+            if hasattr(ex, "message") and isinstance(ex.message, str):
+                message = ex.message
+                if "content_filter" in message.lower():
+                    return "content_filter"
+            return "error"
+        
+        result = arguments.get("result")
+        if result is None:
+            return None
+            
+        # Check various possible locations for finish_reason in Azure AI Inference responses
+        
+        # Direct finish_reason attribute
+        if hasattr(result, "finish_reason") and result.finish_reason:
+            return result.finish_reason
+            
+        # Check for choices structure (OpenAI-compatible format)
+        if hasattr(result, "choices") and result.choices:
+            choice = result.choices[0]
+            if hasattr(choice, "finish_reason") and choice.finish_reason:
+                return choice.finish_reason
+        
+        # Check for additional metadata or response attributes
+        if hasattr(result, "additional_kwargs") and result.additional_kwargs:
+            kwargs = result.additional_kwargs
+            if isinstance(kwargs, dict):
+                for key in ["finish_reason", "stop_reason"]:
+                    if key in kwargs:
+                        return kwargs[key]
+        
+        # Check for response metadata
+        if hasattr(result, "response_metadata") and result.response_metadata:
+            metadata = result.response_metadata
+            if isinstance(metadata, dict):
+                for key in ["finish_reason", "stop_reason"]:
+                    if key in metadata:
+                        return metadata[key]
+        
+        # Check for streaming response with accumulated finish reason
+        if hasattr(result, "type") and result.type == "stream":
+            # For streaming responses, default to stop if completed successfully
+            return "stop"
+        
+        # If no specific finish reason found, infer from status
+        status_code = get_status_code(arguments)
+        if status_code == 'success':
+            return "stop"  # Default success finish reason
+        elif status_code == 'error':
+            return "error"
+            
+    except Exception as e:
+        logger.warning("Warning: Error occurred in extract_finish_reason: %s", str(e))
+        return None
+    
+    return None
+
+
+def map_finish_reason_to_finish_type(finish_reason: Optional[str]) -> Optional[str]:
+    """Map Azure AI Inference finish_reason to finish_type."""
+    return map_azure_ai_inference_finish_reason_to_finish_type(finish_reason)

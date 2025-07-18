@@ -398,6 +398,13 @@ def get_exception_message(arguments):
     else:
         return ''
 
+def get_error_message(arguments):
+    status_code = get_status_code(arguments)
+    if status_code == 'success':
+        return ''
+    else:
+        return status_code
+
 def get_status_code(arguments):
     if arguments["exception"] is not None:
         return get_exception_status_code(arguments)

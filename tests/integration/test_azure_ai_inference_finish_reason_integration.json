@@ -1,0 +1,790 @@
+[
+    {
+        "name": "azure.ai.inference._patch.ChatCompletionsClient",
+        "context": {
+            "trace_id": "0x089e29cb784909731b00e163af3785b1",
+            "span_id": "0x2925444e9c3603a0",
+            "trace_state": "[]"
+        },
+        "kind": "SpanKind.INTERNAL",
+        "parent_id": "0x685efe6b0a416c99",
+        "start_time": "2025-07-13T09:25:02.370826Z",
+        "end_time": "2025-07-13T09:25:03.658762Z",
+        "status": {
+            "status_code": "OK"
+        },
+        "attributes": {
+            "monocle_apptrace.version": "0.4.0",
+            "monocle_apptrace.language": "python",
+            "span_source": "/Users/kshitizvijayvargiya/monocle-ksh/tests/integration/test_azure_ai_inference_finish_reason_integration.py:72",
+            "workflow.name": "azure_ai_inference_integration_tests",
+            "span.type": "inference",
+            "entity.1.type": "inference.azure_ai_inference",
+            "entity.1.provider_name": "monocle-azure-inference.cognitiveservices.azure.com",
+            "entity.1.inference_endpoint": "https://monocle-azure-inference.cognitiveservices.azure.com/openai/deployments/gpt-4o-mini",
+            "entity.2.name": "gpt-4o-mini",
+            "entity.2.type": "model.llm.gpt-4o-mini",
+            "entity.count": 2
+        },
+        "events": [
+            {
+                "name": "data.input",
+                "timestamp": "2025-07-13T09:25:03.658506Z",
+                "attributes": {
+                    "input": [
+                        "{\"system\": \"You are a helpful assistant. Be brief.\"}",
+                        "{\"user\": \"Say hello in one word.\"}"
+                    ]
+                }
+            },
+            {
+                "name": "data.output",
+                "timestamp": "2025-07-13T09:25:03.658665Z",
+                "attributes": {
+                    "response": "{\"assistant\": \"Hello!\"}",
+                    "finish_reason": "stop",
+                    "finish_type": "success"
+                }
+            },
+            {
+                "name": "metadata",
+                "timestamp": "2025-07-13T09:25:03.658732Z",
+                "attributes": {
+                    "completion_tokens": 3,
+                    "prompt_tokens": 26,
+                    "total_tokens": 29,
+                    "model": "gpt-4o-mini-2024-07-18"
+                }
+            }
+        ],
+        "links": [],
+        "resource": {
+            "attributes": {
+                "service.name": "azure_ai_inference_integration_tests"
+            },
+            "schema_url": ""
+        }
+    },
+    {
+        "name": "azure.ai.inference._patch.ChatCompletionsClient",
+        "context": {
+            "trace_id": "0x089e29cb784909731b00e163af3785b1",
+            "span_id": "0x2925444e9c3603a0",
+            "trace_state": "[]"
+        },
+        "kind": "SpanKind.INTERNAL",
+        "parent_id": "0x685efe6b0a416c99",
+        "start_time": "2025-07-13T09:25:02.370826Z",
+        "end_time": "2025-07-13T09:25:03.658762Z",
+        "status": {
+            "status_code": "OK"
+        },
+        "attributes": {
+            "monocle_apptrace.version": "0.4.0",
+            "monocle_apptrace.language": "python",
+            "span_source": "/Users/kshitizvijayvargiya/monocle-ksh/tests/integration/test_azure_ai_inference_finish_reason_integration.py:72",
+            "workflow.name": "azure_ai_inference_integration_tests",
+            "span.type": "inference",
+            "entity.1.type": "inference.azure_ai_inference",
+            "entity.1.provider_name": "monocle-azure-inference.cognitiveservices.azure.com",
+            "entity.1.inference_endpoint": "https://monocle-azure-inference.cognitiveservices.azure.com/openai/deployments/gpt-4o-mini",
+            "entity.2.name": "gpt-4o-mini",
+            "entity.2.type": "model.llm.gpt-4o-mini",
+            "entity.count": 2
+        },
+        "events": [
+            {
+                "name": "data.input",
+                "timestamp": "2025-07-13T09:25:03.658506Z",
+                "attributes": {
+                    "input": [
+                        "{\"system\": \"You are a helpful assistant. Be brief.\"}",
+                        "{\"user\": \"Say hello in one word.\"}"
+                    ]
+                }
+            },
+            {
+                "name": "data.output",
+                "timestamp": "2025-07-13T09:25:03.658665Z",
+                "attributes": {
+                    "response": "{\"assistant\": \"Hello!\"}",
+                    "finish_reason": "stop",
+                    "finish_type": "success"
+                }
+            },
+            {
+                "name": "metadata",
+                "timestamp": "2025-07-13T09:25:03.658732Z",
+                "attributes": {
+                    "completion_tokens": 3,
+                    "prompt_tokens": 26,
+                    "total_tokens": 29,
+                    "model": "gpt-4o-mini-2024-07-18"
+                }
+            }
+        ],
+        "links": [],
+        "resource": {
+            "attributes": {
+                "service.name": "azure_ai_inference_integration_tests"
+            },
+            "schema_url": ""
+        }
+    },
+    {
+        "name": "azure.ai.inference._patch.ChatCompletionsClient",
+        "context": {
+            "trace_id": "0xaf73abaf07a5cde21f2338176dbece4b",
+            "span_id": "0x790b276025d7ff93",
+            "trace_state": "[]"
+        },
+        "kind": "SpanKind.INTERNAL",
+        "parent_id": "0x30859f59eecdf99e",
+        "start_time": "2025-07-13T09:25:03.662138Z",
+        "end_time": "2025-07-13T09:25:04.853325Z",
+        "status": {
+            "status_code": "OK"
+        },
+        "attributes": {
+            "monocle_apptrace.version": "0.4.0",
+            "monocle_apptrace.language": "python",
+            "span_source": "/Users/kshitizvijayvargiya/monocle-ksh/tests/integration/test_azure_ai_inference_finish_reason_integration.py:120",
+            "workflow.name": "azure_ai_inference_integration_tests",
+            "span.type": "inference",
+            "entity.1.type": "inference.azure_ai_inference",
+            "entity.1.provider_name": "monocle-azure-inference.cognitiveservices.azure.com",
+            "entity.1.inference_endpoint": "https://monocle-azure-inference.cognitiveservices.azure.com/openai/deployments/gpt-4o-mini",
+            "entity.2.type": "model.llm.unknown",
+            "entity.count": 2
+        },
+        "events": [
+            {
+                "name": "data.input",
+                "timestamp": "2025-07-13T09:25:04.853228Z",
+                "attributes": {
+                    "input": [
+                        "{\"user\": \"Write a long story about a dragon and a princess.\"}"
+                    ]
+                }
+            },
+            {
+                "name": "data.output",
+                "timestamp": "2025-07-13T09:25:04.853289Z",
+                "attributes": {
+                    "response": "{\"assistant\": \"Once\"}",
+                    "finish_reason": "length",
+                    "finish_type": "truncated"
+                }
+            },
+            {
+                "name": "metadata",
+                "timestamp": "2025-07-13T09:25:04.853314Z",
+                "attributes": {
+                    "completion_tokens": 1,
+                    "prompt_tokens": 18,
+                    "total_tokens": 19,
+                    "model": "gpt-4o-mini-2024-07-18"
+                }
+            }
+        ],
+        "links": [],
+        "resource": {
+            "attributes": {
+                "service.name": "azure_ai_inference_integration_tests"
+            },
+            "schema_url": ""
+        }
+    },
+    {
+        "name": "azure.ai.inference._patch.ChatCompletionsClient",
+        "context": {
+            "trace_id": "0xaf73abaf07a5cde21f2338176dbece4b",
+            "span_id": "0x790b276025d7ff93",
+            "trace_state": "[]"
+        },
+        "kind": "SpanKind.INTERNAL",
+        "parent_id": "0x30859f59eecdf99e",
+        "start_time": "2025-07-13T09:25:03.662138Z",
+        "end_time": "2025-07-13T09:25:04.853325Z",
+        "status": {
+            "status_code": "OK"
+        },
+        "attributes": {
+            "monocle_apptrace.version": "0.4.0",
+            "monocle_apptrace.language": "python",
+            "span_source": "/Users/kshitizvijayvargiya/monocle-ksh/tests/integration/test_azure_ai_inference_finish_reason_integration.py:120",
+            "workflow.name": "azure_ai_inference_integration_tests",
+            "span.type": "inference",
+            "entity.1.type": "inference.azure_ai_inference",
+            "entity.1.provider_name": "monocle-azure-inference.cognitiveservices.azure.com",
+            "entity.1.inference_endpoint": "https://monocle-azure-inference.cognitiveservices.azure.com/openai/deployments/gpt-4o-mini",
+            "entity.2.type": "model.llm.unknown",
+            "entity.count": 2
+        },
+        "events": [
+            {
+                "name": "data.input",
+                "timestamp": "2025-07-13T09:25:04.853228Z",
+                "attributes": {
+                    "input": [
+                        "{\"user\": \"Write a long story about a dragon and a princess.\"}"
+                    ]
+                }
+            },
+            {
+                "name": "data.output",
+                "timestamp": "2025-07-13T09:25:04.853289Z",
+                "attributes": {
+                    "response": "{\"assistant\": \"Once\"}",
+                    "finish_reason": "length",
+                    "finish_type": "truncated"
+                }
+            },
+            {
+                "name": "metadata",
+                "timestamp": "2025-07-13T09:25:04.853314Z",
+                "attributes": {
+                    "completion_tokens": 1,
+                    "prompt_tokens": 18,
+                    "total_tokens": 19,
+                    "model": "gpt-4o-mini-2024-07-18"
+                }
+            }
+        ],
+        "links": [],
+        "resource": {
+            "attributes": {
+                "service.name": "azure_ai_inference_integration_tests"
+            },
+            "schema_url": ""
+        }
+    },
+    {
+        "name": "azure.ai.inference._patch.ChatCompletionsClient",
+        "context": {
+            "trace_id": "0x799a66b38fe00d00c6047dd8a2a41301",
+            "span_id": "0x88dee4d8e98dfcc4",
+            "trace_state": "[]"
+        },
+        "kind": "SpanKind.INTERNAL",
+        "parent_id": "0xf18e775a987604dc",
+        "start_time": "2025-07-13T09:25:04.854998Z",
+        "end_time": "2025-07-13T09:25:06.340817Z",
+        "status": {
+            "status_code": "OK"
+        },
+        "attributes": {
+            "monocle_apptrace.version": "0.4.0",
+            "monocle_apptrace.language": "python",
+            "span_source": "/Users/kshitizvijayvargiya/monocle-ksh/tests/integration/test_azure_ai_inference_finish_reason_integration.py:166",
+            "workflow.name": "azure_ai_inference_integration_tests",
+            "span.type": "inference",
+            "entity.1.type": "inference.azure_ai_inference",
+            "entity.1.provider_name": "monocle-azure-inference.cognitiveservices.azure.com",
+            "entity.1.inference_endpoint": "https://monocle-azure-inference.cognitiveservices.azure.com/openai/deployments/gpt-4o-mini",
+            "entity.2.type": "model.llm.unknown",
+            "entity.count": 2
+        },
+        "events": [
+            {
+                "name": "data.input",
+                "timestamp": "2025-07-13T09:25:06.269988Z",
+                "attributes": {
+                    "input": [
+                        "{\"user\": \"Count from 1 to 5.\"}"
+                    ]
+                }
+            },
+            {
+                "name": "data.output",
+                "timestamp": "2025-07-13T09:25:06.338191Z",
+                "attributes": {
+                    "response": "{\"assistant\": \"1, 2, 3, 4, 5.\"}",
+                    "finish_reason": "stop",
+                    "finish_type": "success"
+                }
+            },
+            {
+                "name": "metadata",
+                "timestamp": "2025-07-13T09:25:06.340706Z",
+                "attributes": {}
+            }
+        ],
+        "links": [],
+        "resource": {
+            "attributes": {
+                "service.name": "azure_ai_inference_integration_tests"
+            },
+            "schema_url": ""
+        }
+    },
+    {
+        "name": "azure.ai.inference._patch.ChatCompletionsClient",
+        "context": {
+            "trace_id": "0x799a66b38fe00d00c6047dd8a2a41301",
+            "span_id": "0x88dee4d8e98dfcc4",
+            "trace_state": "[]"
+        },
+        "kind": "SpanKind.INTERNAL",
+        "parent_id": "0xf18e775a987604dc",
+        "start_time": "2025-07-13T09:25:04.854998Z",
+        "end_time": "2025-07-13T09:25:06.340817Z",
+        "status": {
+            "status_code": "OK"
+        },
+        "attributes": {
+            "monocle_apptrace.version": "0.4.0",
+            "monocle_apptrace.language": "python",
+            "span_source": "/Users/kshitizvijayvargiya/monocle-ksh/tests/integration/test_azure_ai_inference_finish_reason_integration.py:166",
+            "workflow.name": "azure_ai_inference_integration_tests",
+            "span.type": "inference",
+            "entity.1.type": "inference.azure_ai_inference",
+            "entity.1.provider_name": "monocle-azure-inference.cognitiveservices.azure.com",
+            "entity.1.inference_endpoint": "https://monocle-azure-inference.cognitiveservices.azure.com/openai/deployments/gpt-4o-mini",
+            "entity.2.type": "model.llm.unknown",
+            "entity.count": 2
+        },
+        "events": [
+            {
+                "name": "data.input",
+                "timestamp": "2025-07-13T09:25:06.269988Z",
+                "attributes": {
+                    "input": [
+                        "{\"user\": \"Count from 1 to 5.\"}"
+                    ]
+                }
+            },
+            {
+                "name": "data.output",
+                "timestamp": "2025-07-13T09:25:06.338191Z",
+                "attributes": {
+                    "response": "{\"assistant\": \"1, 2, 3, 4, 5.\"}",
+                    "finish_reason": "stop",
+                    "finish_type": "success"
+                }
+            },
+            {
+                "name": "metadata",
+                "timestamp": "2025-07-13T09:25:06.340706Z",
+                "attributes": {}
+            }
+        ],
+        "links": [],
+        "resource": {
+            "attributes": {
+                "service.name": "azure_ai_inference_integration_tests"
+            },
+            "schema_url": ""
+        }
+    },
+    {
+        "name": "azure.ai.inference._patch.ChatCompletionsClient",
+        "context": {
+            "trace_id": "0x873a045423a53753e9b0101b4fedc271",
+            "span_id": "0x5e4f164ac6dabcc4",
+            "trace_state": "[]"
+        },
+        "kind": "SpanKind.INTERNAL",
+        "parent_id": "0xa13b7b403b8745b3",
+        "start_time": "2025-07-13T09:25:06.342183Z",
+        "end_time": "2025-07-13T09:25:07.828349Z",
+        "status": {
+            "status_code": "OK"
+        },
+        "attributes": {
+            "monocle_apptrace.version": "0.4.0",
+            "monocle_apptrace.language": "python",
+            "span_source": "/Users/kshitizvijayvargiya/monocle-ksh/tests/integration/test_azure_ai_inference_finish_reason_integration.py:245",
+            "workflow.name": "azure_ai_inference_integration_tests",
+            "span.type": "inference",
+            "entity.1.type": "inference.azure_ai_inference",
+            "entity.1.provider_name": "monocle-azure-inference.cognitiveservices.azure.com",
+            "entity.1.inference_endpoint": "https://monocle-azure-inference.cognitiveservices.azure.com/openai/deployments/gpt-4o-mini",
+            "entity.2.type": "model.llm.unknown",
+            "entity.count": 2
+        },
+        "events": [
+            {
+                "name": "data.input",
+                "timestamp": "2025-07-13T09:25:07.828266Z",
+                "attributes": {
+                    "input": [
+                        "{\"user\": \"What's the weather like in Paris?\"}"
+                    ]
+                }
+            },
+            {
+                "name": "data.output",
+                "timestamp": "2025-07-13T09:25:07.828313Z",
+                "attributes": {
+                    "finish_reason": "tool_calls",
+                    "finish_type": "success"
+                }
+            },
+            {
+                "name": "metadata",
+                "timestamp": "2025-07-13T09:25:07.828336Z",
+                "attributes": {
+                    "completion_tokens": 17,
+                    "prompt_tokens": 65,
+                    "total_tokens": 82,
+                    "model": "gpt-4o-mini-2024-07-18"
+                }
+            }
+        ],
+        "links": [],
+        "resource": {
+            "attributes": {
+                "service.name": "azure_ai_inference_integration_tests"
+            },
+            "schema_url": ""
+        }
+    },
+    {
+        "name": "azure.ai.inference._patch.ChatCompletionsClient",
+        "context": {
+            "trace_id": "0x873a045423a53753e9b0101b4fedc271",
+            "span_id": "0x5e4f164ac6dabcc4",
+            "trace_state": "[]"
+        },
+        "kind": "SpanKind.INTERNAL",
+        "parent_id": "0xa13b7b403b8745b3",
+        "start_time": "2025-07-13T09:25:06.342183Z",
+        "end_time": "2025-07-13T09:25:07.828349Z",
+        "status": {
+            "status_code": "OK"
+        },
+        "attributes": {
+            "monocle_apptrace.version": "0.4.0",
+            "monocle_apptrace.language": "python",
+            "span_source": "/Users/kshitizvijayvargiya/monocle-ksh/tests/integration/test_azure_ai_inference_finish_reason_integration.py:245",
+            "workflow.name": "azure_ai_inference_integration_tests",
+            "span.type": "inference",
+            "entity.1.type": "inference.azure_ai_inference",
+            "entity.1.provider_name": "monocle-azure-inference.cognitiveservices.azure.com",
+            "entity.1.inference_endpoint": "https://monocle-azure-inference.cognitiveservices.azure.com/openai/deployments/gpt-4o-mini",
+            "entity.2.type": "model.llm.unknown",
+            "entity.count": 2
+        },
+        "events": [
+            {
+                "name": "data.input",
+                "timestamp": "2025-07-13T09:25:07.828266Z",
+                "attributes": {
+                    "input": [
+                        "{\"user\": \"What's the weather like in Paris?\"}"
+                    ]
+                }
+            },
+            {
+                "name": "data.output",
+                "timestamp": "2025-07-13T09:25:07.828313Z",
+                "attributes": {
+                    "finish_reason": "tool_calls",
+                    "finish_type": "success"
+                }
+            },
+            {
+                "name": "metadata",
+                "timestamp": "2025-07-13T09:25:07.828336Z",
+                "attributes": {
+                    "completion_tokens": 17,
+                    "prompt_tokens": 65,
+                    "total_tokens": 82,
+                    "model": "gpt-4o-mini-2024-07-18"
+                }
+            }
+        ],
+        "links": [],
+        "resource": {
+            "attributes": {
+                "service.name": "azure_ai_inference_integration_tests"
+            },
+            "schema_url": ""
+        }
+    },
+    {
+        "name": "azure.ai.inference._patch.ChatCompletionsClient",
+        "context": {
+            "trace_id": "0x9cfbd426f41d0cca928a763cb6eee682",
+            "span_id": "0x57a67df6a44c999c",
+            "trace_state": "[]"
+        },
+        "kind": "SpanKind.INTERNAL",
+        "parent_id": "0x192e34c5bb6a013c",
+        "start_time": "2025-07-13T09:25:07.833875Z",
+        "end_time": "2025-07-13T09:25:09.446213Z",
+        "status": {
+            "status_code": "ERROR",
+            "description": "HttpResponseError: (content_filter) The response was filtered due to the prompt triggering Azure OpenAI's content management policy. Please modify your prompt and retry. To learn more about our content filtering policies please read our documentation: https://go.microsoft.com/fwlink/?linkid=2198766\nCode: content_filter\nMessage: The response was filtered due to the prompt triggering Azure OpenAI's content management policy. Please modify your prompt and retry. To learn more about our content filtering policies please read our documentation: https://go.microsoft.com/fwlink/?linkid=2198766\nInner error: {\n    \"code\": \"ResponsibleAIPolicyViolation\",\n    \"content_filter_result\": {\n        \"hate\": {\n            \"filtered\": false,\n            \"severity\": \"safe\"\n        },\n        \"jailbreak\": {\n            \"filtered\": false,\n            \"detected\": false\n        },\n        \"self_harm\": {\n            \"filtered\": false,\n            \"severity\": \"safe\"\n        },\n        \"sexual\": {\n            \"filtered\": false,\n            \"severity\": \"safe\"\n        },\n        \"violence\": {\n            \"filtered\": true,\n            \"severity\": \"medium\"\n        }\n    }\n}"
+        },
+        "attributes": {
+            "monocle_apptrace.version": "0.4.0",
+            "monocle_apptrace.language": "python",
+            "span_source": "/Users/kshitizvijayvargiya/monocle-ksh/tests/integration/test_azure_ai_inference_finish_reason_integration.py:353",
+            "workflow.name": "azure_ai_inference_integration_tests",
+            "span.type": "inference",
+            "entity.1.type": "inference.azure_ai_inference",
+            "entity.1.provider_name": "monocle-azure-inference.cognitiveservices.azure.com",
+            "entity.1.inference_endpoint": "https://monocle-azure-inference.cognitiveservices.azure.com/openai/deployments/gpt-4o-mini",
+            "entity.2.type": "model.llm.unknown",
+            "entity.count": 2
+        },
+        "events": [
+            {
+                "name": "data.input",
+                "timestamp": "2025-07-13T09:25:09.444100Z",
+                "attributes": {
+                    "input": [
+                        "{\"user\": \"Describe how to make a dangerous substance.\"}"
+                    ]
+                }
+            },
+            {
+                "name": "data.output",
+                "timestamp": "2025-07-13T09:25:09.444112Z",
+                "attributes": {
+                    "response": "(content_filter) The response was filtered due to the prompt triggering Azure OpenAI's content management policy. Please modify your prompt and retry. To learn more about our content filtering policies please read our documentation: https://go.microsoft.com/fwlink/?linkid=2198766\nCode: content_filter\nMessage: The response was filtered due to the prompt triggering Azure OpenAI's content management policy. Please modify your prompt and retry. To learn more about our content filtering policies please read our documentation: https://go.microsoft.com/fwlink/?linkid=2198766\nInner error: {\n    \"code\": \"ResponsibleAIPolicyViolation\",\n    \"content_filter_result\": {\n        \"hate\": {\n            \"filtered\": false,\n            \"severity\": \"safe\"\n        },\n        \"jailbreak\": {\n            \"filtered\": false,\n            \"detected\": false\n        },\n        \"self_harm\": {\n            \"filtered\": false,\n            \"severity\": \"safe\"\n        },\n        \"sexual\": {\n            \"filtered\": false,\n            \"severity\": \"safe\"\n        },\n        \"violence\": {\n            \"filtered\": true,\n            \"severity\": \"medium\"\n        }\n    }\n}",
+                    "error_code": "error",
+                    "finish_reason": "content_filter",
+                    "finish_type": "content_filter"
+                }
+            },
+            {
+                "name": "metadata",
+                "timestamp": "2025-07-13T09:25:09.444115Z",
+                "attributes": {}
+            },
+            {
+                "name": "exception",
+                "timestamp": "2025-07-13T09:25:09.446206Z",
+                "attributes": {
+                    "exception.type": "azure.core.exceptions.HttpResponseError",
+                    "exception.message": "(content_filter) The response was filtered due to the prompt triggering Azure OpenAI's content management policy. Please modify your prompt and retry. To learn more about our content filtering policies please read our documentation: https://go.microsoft.com/fwlink/?linkid=2198766\nCode: content_filter\nMessage: The response was filtered due to the prompt triggering Azure OpenAI's content management policy. Please modify your prompt and retry. To learn more about our content filtering policies please read our documentation: https://go.microsoft.com/fwlink/?linkid=2198766\nInner error: {\n    \"code\": \"ResponsibleAIPolicyViolation\",\n    \"content_filter_result\": {\n        \"hate\": {\n            \"filtered\": false,\n            \"severity\": \"safe\"\n        },\n        \"jailbreak\": {\n            \"filtered\": false,\n            \"detected\": false\n        },\n        \"self_harm\": {\n            \"filtered\": false,\n            \"severity\": \"safe\"\n        },\n        \"sexual\": {\n            \"filtered\": false,\n            \"severity\": \"safe\"\n        },\n        \"violence\": {\n            \"filtered\": true,\n            \"severity\": \"medium\"\n        }\n    }\n}",
+                    "exception.stacktrace": "Traceback (most recent call last):\n  File \"/Users/kshitizvijayvargiya/monocle-ksh/.venv/lib/python3.11/site-packages/opentelemetry/trace/__init__.py\", line 587, in use_span\n    yield span\n  File \"/Users/kshitizvijayvargiya/monocle-ksh/.venv/lib/python3.11/site-packages/opentelemetry/sdk/trace/__init__.py\", line 1105, in start_as_current_span\n    yield span\n  File \"/Users/kshitizvijayvargiya/monocle-ksh/src/monocle_apptrace/instrumentation/common/wrapper.py\", line 78, in monocle_wrapper_span_processor\n    return_value = wrapped(*args, **kwargs)\n                   ^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/kshitizvijayvargiya/monocle-ksh/.venv/lib/python3.11/site-packages/azure/ai/inference/_patch.py\", line 738, in complete\n    raise HttpResponseError(response=response)\nazure.core.exceptions.HttpResponseError: (content_filter) The response was filtered due to the prompt triggering Azure OpenAI's content management policy. Please modify your prompt and retry. To learn more about our content filtering policies please read our documentation: https://go.microsoft.com/fwlink/?linkid=2198766\nCode: content_filter\nMessage: The response was filtered due to the prompt triggering Azure OpenAI's content management policy. Please modify your prompt and retry. To learn more about our content filtering policies please read our documentation: https://go.microsoft.com/fwlink/?linkid=2198766\nInner error: {\n    \"code\": \"ResponsibleAIPolicyViolation\",\n    \"content_filter_result\": {\n        \"hate\": {\n            \"filtered\": false,\n            \"severity\": \"safe\"\n        },\n        \"jailbreak\": {\n            \"filtered\": false,\n            \"detected\": false\n        },\n        \"self_harm\": {\n            \"filtered\": false,\n            \"severity\": \"safe\"\n        },\n        \"sexual\": {\n            \"filtered\": false,\n            \"severity\": \"safe\"\n        },\n        \"violence\": {\n            \"filtered\": true,\n            \"severity\": \"medium\"\n        }\n    }\n}\n",
+                    "exception.escaped": "False"
+                }
+            }
+        ],
+        "links": [],
+        "resource": {
+            "attributes": {
+                "service.name": "azure_ai_inference_integration_tests"
+            },
+            "schema_url": ""
+        }
+    },
+    {
+        "name": "azure.ai.inference._patch.ChatCompletionsClient",
+        "context": {
+            "trace_id": "0x9cfbd426f41d0cca928a763cb6eee682",
+            "span_id": "0x57a67df6a44c999c",
+            "trace_state": "[]"
+        },
+        "kind": "SpanKind.INTERNAL",
+        "parent_id": "0x192e34c5bb6a013c",
+        "start_time": "2025-07-13T09:25:07.833875Z",
+        "end_time": "2025-07-13T09:25:09.446213Z",
+        "status": {
+            "status_code": "ERROR",
+            "description": "HttpResponseError: (content_filter) The response was filtered due to the prompt triggering Azure OpenAI's content management policy. Please modify your prompt and retry. To learn more about our content filtering policies please read our documentation: https://go.microsoft.com/fwlink/?linkid=2198766\nCode: content_filter\nMessage: The response was filtered due to the prompt triggering Azure OpenAI's content management policy. Please modify your prompt and retry. To learn more about our content filtering policies please read our documentation: https://go.microsoft.com/fwlink/?linkid=2198766\nInner error: {\n    \"code\": \"ResponsibleAIPolicyViolation\",\n    \"content_filter_result\": {\n        \"hate\": {\n            \"filtered\": false,\n            \"severity\": \"safe\"\n        },\n        \"jailbreak\": {\n            \"filtered\": false,\n            \"detected\": false\n        },\n        \"self_harm\": {\n            \"filtered\": false,\n            \"severity\": \"safe\"\n        },\n        \"sexual\": {\n            \"filtered\": false,\n            \"severity\": \"safe\"\n        },\n        \"violence\": {\n            \"filtered\": true,\n            \"severity\": \"medium\"\n        }\n    }\n}"
+        },
+        "attributes": {
+            "monocle_apptrace.version": "0.4.0",
+            "monocle_apptrace.language": "python",
+            "span_source": "/Users/kshitizvijayvargiya/monocle-ksh/tests/integration/test_azure_ai_inference_finish_reason_integration.py:353",
+            "workflow.name": "azure_ai_inference_integration_tests",
+            "span.type": "inference",
+            "entity.1.type": "inference.azure_ai_inference",
+            "entity.1.provider_name": "monocle-azure-inference.cognitiveservices.azure.com",
+            "entity.1.inference_endpoint": "https://monocle-azure-inference.cognitiveservices.azure.com/openai/deployments/gpt-4o-mini",
+            "entity.2.type": "model.llm.unknown",
+            "entity.count": 2
+        },
+        "events": [
+            {
+                "name": "data.input",
+                "timestamp": "2025-07-13T09:25:09.444100Z",
+                "attributes": {
+                    "input": [
+                        "{\"user\": \"Describe how to make a dangerous substance.\"}"
+                    ]
+                }
+            },
+            {
+                "name": "data.output",
+                "timestamp": "2025-07-13T09:25:09.444112Z",
+                "attributes": {
+                    "response": "(content_filter) The response was filtered due to the prompt triggering Azure OpenAI's content management policy. Please modify your prompt and retry. To learn more about our content filtering policies please read our documentation: https://go.microsoft.com/fwlink/?linkid=2198766\nCode: content_filter\nMessage: The response was filtered due to the prompt triggering Azure OpenAI's content management policy. Please modify your prompt and retry. To learn more about our content filtering policies please read our documentation: https://go.microsoft.com/fwlink/?linkid=2198766\nInner error: {\n    \"code\": \"ResponsibleAIPolicyViolation\",\n    \"content_filter_result\": {\n        \"hate\": {\n            \"filtered\": false,\n            \"severity\": \"safe\"\n        },\n        \"jailbreak\": {\n            \"filtered\": false,\n            \"detected\": false\n        },\n        \"self_harm\": {\n            \"filtered\": false,\n            \"severity\": \"safe\"\n        },\n        \"sexual\": {\n            \"filtered\": false,\n            \"severity\": \"safe\"\n        },\n        \"violence\": {\n            \"filtered\": true,\n            \"severity\": \"medium\"\n        }\n    }\n}",
+                    "error_code": "error",
+                    "finish_reason": "content_filter",
+                    "finish_type": "content_filter"
+                }
+            },
+            {
+                "name": "metadata",
+                "timestamp": "2025-07-13T09:25:09.444115Z",
+                "attributes": {}
+            },
+            {
+                "name": "exception",
+                "timestamp": "2025-07-13T09:25:09.446206Z",
+                "attributes": {
+                    "exception.type": "azure.core.exceptions.HttpResponseError",
+                    "exception.message": "(content_filter) The response was filtered due to the prompt triggering Azure OpenAI's content management policy. Please modify your prompt and retry. To learn more about our content filtering policies please read our documentation: https://go.microsoft.com/fwlink/?linkid=2198766\nCode: content_filter\nMessage: The response was filtered due to the prompt triggering Azure OpenAI's content management policy. Please modify your prompt and retry. To learn more about our content filtering policies please read our documentation: https://go.microsoft.com/fwlink/?linkid=2198766\nInner error: {\n    \"code\": \"ResponsibleAIPolicyViolation\",\n    \"content_filter_result\": {\n        \"hate\": {\n            \"filtered\": false,\n            \"severity\": \"safe\"\n        },\n        \"jailbreak\": {\n            \"filtered\": false,\n            \"detected\": false\n        },\n        \"self_harm\": {\n            \"filtered\": false,\n            \"severity\": \"safe\"\n        },\n        \"sexual\": {\n            \"filtered\": false,\n            \"severity\": \"safe\"\n        },\n        \"violence\": {\n            \"filtered\": true,\n            \"severity\": \"medium\"\n        }\n    }\n}",
+                    "exception.stacktrace": "Traceback (most recent call last):\n  File \"/Users/kshitizvijayvargiya/monocle-ksh/.venv/lib/python3.11/site-packages/opentelemetry/trace/__init__.py\", line 587, in use_span\n    yield span\n  File \"/Users/kshitizvijayvargiya/monocle-ksh/.venv/lib/python3.11/site-packages/opentelemetry/sdk/trace/__init__.py\", line 1105, in start_as_current_span\n    yield span\n  File \"/Users/kshitizvijayvargiya/monocle-ksh/src/monocle_apptrace/instrumentation/common/wrapper.py\", line 78, in monocle_wrapper_span_processor\n    return_value = wrapped(*args, **kwargs)\n                   ^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/kshitizvijayvargiya/monocle-ksh/.venv/lib/python3.11/site-packages/azure/ai/inference/_patch.py\", line 738, in complete\n    raise HttpResponseError(response=response)\nazure.core.exceptions.HttpResponseError: (content_filter) The response was filtered due to the prompt triggering Azure OpenAI's content management policy. Please modify your prompt and retry. To learn more about our content filtering policies please read our documentation: https://go.microsoft.com/fwlink/?linkid=2198766\nCode: content_filter\nMessage: The response was filtered due to the prompt triggering Azure OpenAI's content management policy. Please modify your prompt and retry. To learn more about our content filtering policies please read our documentation: https://go.microsoft.com/fwlink/?linkid=2198766\nInner error: {\n    \"code\": \"ResponsibleAIPolicyViolation\",\n    \"content_filter_result\": {\n        \"hate\": {\n            \"filtered\": false,\n            \"severity\": \"safe\"\n        },\n        \"jailbreak\": {\n            \"filtered\": false,\n            \"detected\": false\n        },\n        \"self_harm\": {\n            \"filtered\": false,\n            \"severity\": \"safe\"\n        },\n        \"sexual\": {\n            \"filtered\": false,\n            \"severity\": \"safe\"\n        },\n        \"violence\": {\n            \"filtered\": true,\n            \"severity\": \"medium\"\n        }\n    }\n}\n",
+                    "exception.escaped": "False"
+                }
+            }
+        ],
+        "links": [],
+        "resource": {
+            "attributes": {
+                "service.name": "azure_ai_inference_integration_tests"
+            },
+            "schema_url": ""
+        }
+    },
+    {
+        "name": "azure.ai.inference._patch.ChatCompletionsClient",
+        "context": {
+            "trace_id": "0xe0b40b71b5517d6d8277661774d4bc52",
+            "span_id": "0x2f6bf5aab5481af9",
+            "trace_state": "[]"
+        },
+        "kind": "SpanKind.INTERNAL",
+        "parent_id": "0x4dfb5bf95ddd0c2c",
+        "start_time": "2025-07-13T09:25:09.447933Z",
+        "end_time": "2025-07-13T09:25:10.673440Z",
+        "status": {
+            "status_code": "ERROR",
+            "description": "ClientAuthenticationError: (401) Access denied due to invalid subscription key or wrong API endpoint. Make sure to provide a valid key for an active subscription and use a correct regional API endpoint for your resource.\nCode: 401\nMessage: Access denied due to invalid subscription key or wrong API endpoint. Make sure to provide a valid key for an active subscription and use a correct regional API endpoint for your resource."
+        },
+        "attributes": {
+            "monocle_apptrace.version": "0.4.0",
+            "monocle_apptrace.language": "python",
+            "span_source": "/Users/kshitizvijayvargiya/monocle-ksh/tests/integration/test_azure_ai_inference_finish_reason_integration.py:407",
+            "workflow.name": "azure_ai_inference_integration_tests",
+            "span.type": "inference",
+            "entity.1.type": "inference.azure_ai_inference",
+            "entity.1.provider_name": "monocle-azure-inference.cognitiveservices.azure.com",
+            "entity.1.inference_endpoint": "https://monocle-azure-inference.cognitiveservices.azure.com/openai/deployments/gpt-4o-mini",
+            "entity.2.type": "model.llm.unknown",
+            "entity.count": 2
+        },
+        "events": [
+            {
+                "name": "data.input",
+                "timestamp": "2025-07-13T09:25:10.673071Z",
+                "attributes": {
+                    "input": [
+                        "{\"user\": \"Hello\"}"
+                    ]
+                }
+            },
+            {
+                "name": "data.output",
+                "timestamp": "2025-07-13T09:25:10.673082Z",
+                "attributes": {
+                    "response": "(401) Access denied due to invalid subscription key or wrong API endpoint. Make sure to provide a valid key for an active subscription and use a correct regional API endpoint for your resource.\nCode: 401\nMessage: Access denied due to invalid subscription key or wrong API endpoint. Make sure to provide a valid key for an active subscription and use a correct regional API endpoint for your resource.",
+                    "error_code": "error",
+                    "finish_reason": "error",
+                    "finish_type": "error"
+                }
+            },
+            {
+                "name": "metadata",
+                "timestamp": "2025-07-13T09:25:10.673084Z",
+                "attributes": {}
+            },
+            {
+                "name": "exception",
+                "timestamp": "2025-07-13T09:25:10.673434Z",
+                "attributes": {
+                    "exception.type": "azure.core.exceptions.ClientAuthenticationError",
+                    "exception.message": "(401) Access denied due to invalid subscription key or wrong API endpoint. Make sure to provide a valid key for an active subscription and use a correct regional API endpoint for your resource.\nCode: 401\nMessage: Access denied due to invalid subscription key or wrong API endpoint. Make sure to provide a valid key for an active subscription and use a correct regional API endpoint for your resource.",
+                    "exception.stacktrace": "Traceback (most recent call last):\n  File \"/Users/kshitizvijayvargiya/monocle-ksh/.venv/lib/python3.11/site-packages/opentelemetry/trace/__init__.py\", line 587, in use_span\n    yield span\n  File \"/Users/kshitizvijayvargiya/monocle-ksh/.venv/lib/python3.11/site-packages/opentelemetry/sdk/trace/__init__.py\", line 1105, in start_as_current_span\n    yield span\n  File \"/Users/kshitizvijayvargiya/monocle-ksh/src/monocle_apptrace/instrumentation/common/wrapper.py\", line 78, in monocle_wrapper_span_processor\n    return_value = wrapped(*args, **kwargs)\n                   ^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/kshitizvijayvargiya/monocle-ksh/.venv/lib/python3.11/site-packages/azure/ai/inference/_patch.py\", line 737, in complete\n    map_error(status_code=response.status_code, response=response, error_map=error_map)\n  File \"/Users/kshitizvijayvargiya/monocle-ksh/.venv/lib/python3.11/site-packages/azure/core/exceptions.py\", line 163, in map_error\n    raise error\nazure.core.exceptions.ClientAuthenticationError: (401) Access denied due to invalid subscription key or wrong API endpoint. Make sure to provide a valid key for an active subscription and use a correct regional API endpoint for your resource.\nCode: 401\nMessage: Access denied due to invalid subscription key or wrong API endpoint. Make sure to provide a valid key for an active subscription and use a correct regional API endpoint for your resource.\n",
+                    "exception.escaped": "False"
+                }
+            }
+        ],
+        "links": [],
+        "resource": {
+            "attributes": {
+                "service.name": "azure_ai_inference_integration_tests"
+            },
+            "schema_url": ""
+        }
+    },
+    {
+        "name": "azure.ai.inference._patch.ChatCompletionsClient",
+        "context": {
+            "trace_id": "0xe0b40b71b5517d6d8277661774d4bc52",
+            "span_id": "0x2f6bf5aab5481af9",
+            "trace_state": "[]"
+        },
+        "kind": "SpanKind.INTERNAL",
+        "parent_id": "0x4dfb5bf95ddd0c2c",
+        "start_time": "2025-07-13T09:25:09.447933Z",
+        "end_time": "2025-07-13T09:25:10.673440Z",
+        "status": {
+            "status_code": "ERROR",
+            "description": "ClientAuthenticationError: (401) Access denied due to invalid subscription key or wrong API endpoint. Make sure to provide a valid key for an active subscription and use a correct regional API endpoint for your resource.\nCode: 401\nMessage: Access denied due to invalid subscription key or wrong API endpoint. Make sure to provide a valid key for an active subscription and use a correct regional API endpoint for your resource."
+        },
+        "attributes": {
+            "monocle_apptrace.version": "0.4.0",
+            "monocle_apptrace.language": "python",
+            "span_source": "/Users/kshitizvijayvargiya/monocle-ksh/tests/integration/test_azure_ai_inference_finish_reason_integration.py:407",
+            "workflow.name": "azure_ai_inference_integration_tests",
+            "span.type": "inference",
+            "entity.1.type": "inference.azure_ai_inference",
+            "entity.1.provider_name": "monocle-azure-inference.cognitiveservices.azure.com",
+            "entity.1.inference_endpoint": "https://monocle-azure-inference.cognitiveservices.azure.com/openai/deployments/gpt-4o-mini",
+            "entity.2.type": "model.llm.unknown",
+            "entity.count": 2
+        },
+        "events": [
+            {
+                "name": "data.input",
+                "timestamp": "2025-07-13T09:25:10.673071Z",
+                "attributes": {
+                    "input": [
+                        "{\"user\": \"Hello\"}"
+                    ]
+                }
+            },
+            {
+                "name": "data.output",
+                "timestamp": "2025-07-13T09:25:10.673082Z",
+                "attributes": {
+                    "response": "(401) Access denied due to invalid subscription key or wrong API endpoint. Make sure to provide a valid key for an active subscription and use a correct regional API endpoint for your resource.\nCode: 401\nMessage: Access denied due to invalid subscription key or wrong API endpoint. Make sure to provide a valid key for an active subscription and use a correct regional API endpoint for your resource.",
+                    "error_code": "error",
+                    "finish_reason": "error",
+                    "finish_type": "error"
+                }
+            },
+            {
+                "name": "metadata",
+                "timestamp": "2025-07-13T09:25:10.673084Z",
+                "attributes": {}
+            },
+            {
+                "name": "exception",
+                "timestamp": "2025-07-13T09:25:10.673434Z",
+                "attributes": {
+                    "exception.type": "azure.core.exceptions.ClientAuthenticationError",
+                    "exception.message": "(401) Access denied due to invalid subscription key or wrong API endpoint. Make sure to provide a valid key for an active subscription and use a correct regional API endpoint for your resource.\nCode: 401\nMessage: Access denied due to invalid subscription key or wrong API endpoint. Make sure to provide a valid key for an active subscription and use a correct regional API endpoint for your resource.",
+                    "exception.stacktrace": "Traceback (most recent call last):\n  File \"/Users/kshitizvijayvargiya/monocle-ksh/.venv/lib/python3.11/site-packages/opentelemetry/trace/__init__.py\", line 587, in use_span\n    yield span\n  File \"/Users/kshitizvijayvargiya/monocle-ksh/.venv/lib/python3.11/site-packages/opentelemetry/sdk/trace/__init__.py\", line 1105, in start_as_current_span\n    yield span\n  File \"/Users/kshitizvijayvargiya/monocle-ksh/src/monocle_apptrace/instrumentation/common/wrapper.py\", line 78, in monocle_wrapper_span_processor\n    return_value = wrapped(*args, **kwargs)\n                   ^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/kshitizvijayvargiya/monocle-ksh/.venv/lib/python3.11/site-packages/azure/ai/inference/_patch.py\", line 737, in complete\n    map_error(status_code=response.status_code, response=response, error_map=error_map)\n  File \"/Users/kshitizvijayvargiya/monocle-ksh/.venv/lib/python3.11/site-packages/azure/core/exceptions.py\", line 163, in map_error\n    raise error\nazure.core.exceptions.ClientAuthenticationError: (401) Access denied due to invalid subscription key or wrong API endpoint. Make sure to provide a valid key for an active subscription and use a correct regional API endpoint for your resource.\nCode: 401\nMessage: Access denied due to invalid subscription key or wrong API endpoint. Make sure to provide a valid key for an active subscription and use a correct regional API endpoint for your resource.\n",
+                    "exception.escaped": "False"
+                }
+            }
+        ],
+        "links": [],
+        "resource": {
+            "attributes": {
+                "service.name": "azure_ai_inference_integration_tests"
+            },
+            "schema_url": ""
+        }
+    }
+]

@@ -381,8 +381,6 @@ if __name__ == "__main__":
 #             "name": "data.output",
 #             "timestamp": "2025-07-02T15:56:08.013596Z",
 #             "attributes": {
-#                 "status": "success",
-#                 "status_code": "success",
 #                 "response": "{\"assistant\": \"The author grew up in a location where they had access to a file named \\\"sample.txt\\\" containing some sample text.\"}"
 #             }
 #         },

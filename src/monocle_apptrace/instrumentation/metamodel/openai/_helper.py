@@ -13,9 +13,12 @@ from monocle_apptrace.instrumentation.common.utils import (
     get_status_code,
 )
 from monocle_apptrace.instrumentation.common.span_handler import NonFrameworkSpanHandler, WORKFLOW_TYPE_MAP
+from monocle_apptrace.instrumentation.metamodel.finish_types import (
+    map_openai_finish_reason_to_finish_type,
+    OPENAI_FINISH_REASON_MAPPING
+)
 
 logger = logging.getLogger(__name__)
-
 
 def extract_messages(kwargs):
     """Extract system and user messages"""
@@ -174,3 +177,28 @@ class OpenAISpanHandler(NonFrameworkSpanHandler):
             return super().hydrate_events(to_wrap, wrapped, instance, args, kwargs, ret_result, span=parent_span, parent_span=None, ex=ex)
 
         return super().hydrate_events(to_wrap, wrapped, instance, args, kwargs, ret_result, span, parent_span=parent_span, ex=ex)
+
+def extract_finish_reason(arguments):
+    """Extract finish_reason from OpenAI response"""
+    try:
+        if arguments["exception"] is not None:
+            if hasattr(arguments["exception"], "code") and arguments["exception"].code in OPENAI_FINISH_REASON_MAPPING.keys():
+                return arguments["exception"].code
+        response = arguments["result"]
+        
+        # Handle streaming responses
+        if hasattr(response, "finish_reason") and response.finish_reason:
+            return response.finish_reason
+            
+        # Handle non-streaming responses
+        if response is not None and hasattr(response, "choices") and len(response.choices) > 0:
+            if hasattr(response.choices[0], "finish_reason"):
+                return response.choices[0].finish_reason
+    except (IndexError, AttributeError) as e:
+        logger.warning("Warning: Error occurred in extract_finish_reason: %s", str(e))
+        return None
+    return None
+
+def map_finish_reason_to_finish_type(finish_reason):
+    """Map OpenAI finish_reason to finish_type based on the possible errors mapping"""
+    return map_openai_finish_reason_to_finish_type(finish_reason)

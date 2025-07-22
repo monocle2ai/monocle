@@ -36,6 +36,7 @@ class FileSpanExporter(SpanExporterBase):
         self.file_prefix = file_prefix
         self.time_format = time_format
         self.task_processor = task_processor
+        self.is_first_span_in_file = True  # Track if this is the first span in the current file
         if self.task_processor is not None:
             self.task_processor.start()
 

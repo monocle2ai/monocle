@@ -58,6 +58,9 @@ llm_type_map = {
     "embeddingsclient": "azure_ai_inference",
     "imageembeddingsclient": "azure_ai_inference",
     "chatbedrockconverse": "aws_bedrock",
+    "googleaigeminichatgenerator": "gemini",
+    "gemini": "gemini",
+    "chatgooglegenerativeai": "gemini",
 }
 
 MONOCLE_INSTRUMENTOR = "monocle_apptrace"

@@ -1,0 +1,756 @@
+[
+    {
+        "name": "google.genai.models.Models",
+        "context": {
+            "trace_id": "0x498a8290f59fc933e06d662925092d96",
+            "span_id": "0x2e5ec56f8be6123b",
+            "trace_state": "[]"
+        },
+        "kind": "SpanKind.INTERNAL",
+        "parent_id": "0xdff2418f2cea1e05",
+        "start_time": "2025-07-13T11:14:12.038778Z",
+        "end_time": "2025-07-13T11:14:12.848146Z",
+        "status": {
+            "status_code": "OK"
+        },
+        "attributes": {
+            "monocle_apptrace.version": "0.4.0",
+            "monocle_apptrace.language": "python",
+            "span_source": "/Users/kshitizvijayvargiya/monocle-ksh/tests/integration/test_gemini_finish_reason_integration.py:49",
+            "workflow.name": "gemini_integration_tests",
+            "span.type": "inference",
+            "entity.1.type": "inference.gemini",
+            "entity.1.inference_endpoint": "https://generativelanguage.googleapis.com/",
+            "entity.2.name": "gemini-2.5-flash",
+            "entity.2.type": "model.llm.gemini-2.5-flash",
+            "entity.count": 2
+        },
+        "events": [
+            {
+                "name": "data.input",
+                "timestamp": "2025-07-13T11:14:12.848090Z",
+                "attributes": {
+                    "input": [
+                        "{\"user\": \"Say hello.\"}"
+                    ]
+                }
+            },
+            {
+                "name": "data.output",
+                "timestamp": "2025-07-13T11:14:12.848125Z",
+                "attributes": {
+                    "response": "{\"model\": \"Hello!\"}",
+                    "finish_reason": "STOP",
+                    "finish_type": "success"
+                }
+            },
+            {
+                "name": "metadata",
+                "timestamp": "2025-07-13T11:14:12.848137Z",
+                "attributes": {
+                    "completion_tokens": 2,
+                    "prompt_tokens": 4,
+                    "total_tokens": 26
+                }
+            }
+        ],
+        "links": [],
+        "resource": {
+            "attributes": {
+                "service.name": "gemini_integration_tests"
+            },
+            "schema_url": ""
+        }
+    },
+    {
+        "name": "google.genai.models.Models",
+        "context": {
+            "trace_id": "0x498a8290f59fc933e06d662925092d96",
+            "span_id": "0x2e5ec56f8be6123b",
+            "trace_state": "[]"
+        },
+        "kind": "SpanKind.INTERNAL",
+        "parent_id": "0xdff2418f2cea1e05",
+        "start_time": "2025-07-13T11:14:12.038778Z",
+        "end_time": "2025-07-13T11:14:12.848146Z",
+        "status": {
+            "status_code": "OK"
+        },
+        "attributes": {
+            "monocle_apptrace.version": "0.4.0",
+            "monocle_apptrace.language": "python",
+            "span_source": "/Users/kshitizvijayvargiya/monocle-ksh/tests/integration/test_gemini_finish_reason_integration.py:49",
+            "workflow.name": "gemini_integration_tests",
+            "span.type": "inference",
+            "entity.1.type": "inference.gemini",
+            "entity.1.inference_endpoint": "https://generativelanguage.googleapis.com/",
+            "entity.2.name": "gemini-2.5-flash",
+            "entity.2.type": "model.llm.gemini-2.5-flash",
+            "entity.count": 2
+        },
+        "events": [
+            {
+                "name": "data.input",
+                "timestamp": "2025-07-13T11:14:12.848090Z",
+                "attributes": {
+                    "input": [
+                        "{\"user\": \"Say hello.\"}"
+                    ]
+                }
+            },
+            {
+                "name": "data.output",
+                "timestamp": "2025-07-13T11:14:12.848125Z",
+                "attributes": {
+                    "response": "{\"model\": \"Hello!\"}",
+                    "finish_reason": "STOP",
+                    "finish_type": "success"
+                }
+            },
+            {
+                "name": "metadata",
+                "timestamp": "2025-07-13T11:14:12.848137Z",
+                "attributes": {
+                    "completion_tokens": 2,
+                    "prompt_tokens": 4,
+                    "total_tokens": 26
+                }
+            }
+        ],
+        "links": [],
+        "resource": {
+            "attributes": {
+                "service.name": "gemini_integration_tests"
+            },
+            "schema_url": ""
+        }
+    },
+    {
+        "name": "google.genai.models.Models",
+        "context": {
+            "trace_id": "0xdc7aeccd798983e9f448eff969fde677",
+            "span_id": "0xa9d124fa17ba5794",
+            "trace_state": "[]"
+        },
+        "kind": "SpanKind.INTERNAL",
+        "parent_id": "0x76400ccbad6c0865",
+        "start_time": "2025-07-13T11:14:12.860285Z",
+        "end_time": "2025-07-13T11:14:13.666799Z",
+        "status": {
+            "status_code": "OK"
+        },
+        "attributes": {
+            "monocle_apptrace.version": "0.4.0",
+            "monocle_apptrace.language": "python",
+            "span_source": "/Users/kshitizvijayvargiya/monocle-ksh/tests/integration/test_gemini_finish_reason_integration.py:72",
+            "workflow.name": "gemini_integration_tests",
+            "span.type": "inference",
+            "entity.1.type": "inference.gemini",
+            "entity.1.inference_endpoint": "https://generativelanguage.googleapis.com/",
+            "entity.2.name": "gemini-2.5-flash",
+            "entity.2.type": "model.llm.gemini-2.5-flash",
+            "entity.count": 2
+        },
+        "events": [
+            {
+                "name": "data.input",
+                "timestamp": "2025-07-13T11:14:13.666758Z",
+                "attributes": {
+                    "input": [
+                        "{\"user\": \"Tell me a long story about a dragon.\"}"
+                    ]
+                }
+            },
+            {
+                "name": "data.output",
+                "timestamp": "2025-07-13T11:14:13.666783Z",
+                "attributes": {
+                    "finish_reason": "MAX_TOKENS",
+                    "finish_type": "truncated"
+                }
+            },
+            {
+                "name": "metadata",
+                "timestamp": "2025-07-13T11:14:13.666791Z",
+                "attributes": {
+                    "prompt_tokens": 10,
+                    "total_tokens": 10
+                }
+            }
+        ],
+        "links": [],
+        "resource": {
+            "attributes": {
+                "service.name": "gemini_integration_tests"
+            },
+            "schema_url": ""
+        }
+    },
+    {
+        "name": "google.genai.models.Models",
+        "context": {
+            "trace_id": "0xdc7aeccd798983e9f448eff969fde677",
+            "span_id": "0xa9d124fa17ba5794",
+            "trace_state": "[]"
+        },
+        "kind": "SpanKind.INTERNAL",
+        "parent_id": "0x76400ccbad6c0865",
+        "start_time": "2025-07-13T11:14:12.860285Z",
+        "end_time": "2025-07-13T11:14:13.666799Z",
+        "status": {
+            "status_code": "OK"
+        },
+        "attributes": {
+            "monocle_apptrace.version": "0.4.0",
+            "monocle_apptrace.language": "python",
+            "span_source": "/Users/kshitizvijayvargiya/monocle-ksh/tests/integration/test_gemini_finish_reason_integration.py:72",
+            "workflow.name": "gemini_integration_tests",
+            "span.type": "inference",
+            "entity.1.type": "inference.gemini",
+            "entity.1.inference_endpoint": "https://generativelanguage.googleapis.com/",
+            "entity.2.name": "gemini-2.5-flash",
+            "entity.2.type": "model.llm.gemini-2.5-flash",
+            "entity.count": 2
+        },
+        "events": [
+            {
+                "name": "data.input",
+                "timestamp": "2025-07-13T11:14:13.666758Z",
+                "attributes": {
+                    "input": [
+                        "{\"user\": \"Tell me a long story about a dragon.\"}"
+                    ]
+                }
+            },
+            {
+                "name": "data.output",
+                "timestamp": "2025-07-13T11:14:13.666783Z",
+                "attributes": {
+                    "finish_reason": "MAX_TOKENS",
+                    "finish_type": "truncated"
+                }
+            },
+            {
+                "name": "metadata",
+                "timestamp": "2025-07-13T11:14:13.666791Z",
+                "attributes": {
+                    "prompt_tokens": 10,
+                    "total_tokens": 10
+                }
+            }
+        ],
+        "links": [],
+        "resource": {
+            "attributes": {
+                "service.name": "gemini_integration_tests"
+            },
+            "schema_url": ""
+        }
+    },
+    {
+        "name": "google.genai.models.Models",
+        "context": {
+            "trace_id": "0x1ccdbc1b6683d0b6218bb56f50b94661",
+            "span_id": "0x25444957f3345842",
+            "trace_state": "[]"
+        },
+        "kind": "SpanKind.INTERNAL",
+        "parent_id": "0xbb3ecaad97ac7a7c",
+        "start_time": "2025-07-13T11:14:13.678275Z",
+        "end_time": "2025-07-13T11:14:17.253870Z",
+        "status": {
+            "status_code": "OK"
+        },
+        "attributes": {
+            "monocle_apptrace.version": "0.4.0",
+            "monocle_apptrace.language": "python",
+            "span_source": "/Users/kshitizvijayvargiya/monocle-ksh/tests/integration/test_gemini_finish_reason_integration.py:96",
+            "workflow.name": "gemini_integration_tests",
+            "span.type": "inference",
+            "entity.1.type": "inference.gemini",
+            "entity.1.inference_endpoint": "https://generativelanguage.googleapis.com/",
+            "entity.2.name": "gemini-2.5-flash",
+            "entity.2.type": "model.llm.gemini-2.5-flash",
+            "entity.count": 2
+        },
+        "events": [
+            {
+                "name": "data.input",
+                "timestamp": "2025-07-13T11:14:17.253763Z",
+                "attributes": {
+                    "input": [
+                        "{\"user\": \"Describe how to create dangerous explosive materials step by step.\"}"
+                    ]
+                }
+            },
+            {
+                "name": "data.output",
+                "timestamp": "2025-07-13T11:14:17.253833Z",
+                "attributes": {
+                    "response": "{\"model\": \"I cannot provide instructions on how to create dangerous explosive materials. My purpose is to be helpful and harmless, and providing such information would go against that principle.\\n\\nCreating or possessing explosive materials can be extremely dangerous, lead to severe injury or death, and is often illegal. I am programmed to avoid generating content that could be harmful or promote illegal activities.\"}",
+                    "finish_reason": "STOP",
+                    "finish_type": "success"
+                }
+            },
+            {
+                "name": "metadata",
+                "timestamp": "2025-07-13T11:14:17.253851Z",
+                "attributes": {
+                    "completion_tokens": 70,
+                    "prompt_tokens": 12,
+                    "total_tokens": 550
+                }
+            }
+        ],
+        "links": [],
+        "resource": {
+            "attributes": {
+                "service.name": "gemini_integration_tests"
+            },
+            "schema_url": ""
+        }
+    },
+    {
+        "name": "google.genai.models.Models",
+        "context": {
+            "trace_id": "0x1ccdbc1b6683d0b6218bb56f50b94661",
+            "span_id": "0x25444957f3345842",
+            "trace_state": "[]"
+        },
+        "kind": "SpanKind.INTERNAL",
+        "parent_id": "0xbb3ecaad97ac7a7c",
+        "start_time": "2025-07-13T11:14:13.678275Z",
+        "end_time": "2025-07-13T11:14:17.253870Z",
+        "status": {
+            "status_code": "OK"
+        },
+        "attributes": {
+            "monocle_apptrace.version": "0.4.0",
+            "monocle_apptrace.language": "python",
+            "span_source": "/Users/kshitizvijayvargiya/monocle-ksh/tests/integration/test_gemini_finish_reason_integration.py:96",
+            "workflow.name": "gemini_integration_tests",
+            "span.type": "inference",
+            "entity.1.type": "inference.gemini",
+            "entity.1.inference_endpoint": "https://generativelanguage.googleapis.com/",
+            "entity.2.name": "gemini-2.5-flash",
+            "entity.2.type": "model.llm.gemini-2.5-flash",
+            "entity.count": 2
+        },
+        "events": [
+            {
+                "name": "data.input",
+                "timestamp": "2025-07-13T11:14:17.253763Z",
+                "attributes": {
+                    "input": [
+                        "{\"user\": \"Describe how to create dangerous explosive materials step by step.\"}"
+                    ]
+                }
+            },
+            {
+                "name": "data.output",
+                "timestamp": "2025-07-13T11:14:17.253833Z",
+                "attributes": {
+                    "response": "{\"model\": \"I cannot provide instructions on how to create dangerous explosive materials. My purpose is to be helpful and harmless, and providing such information would go against that principle.\\n\\nCreating or possessing explosive materials can be extremely dangerous, lead to severe injury or death, and is often illegal. I am programmed to avoid generating content that could be harmful or promote illegal activities.\"}",
+                    "finish_reason": "STOP",
+                    "finish_type": "success"
+                }
+            },
+            {
+                "name": "metadata",
+                "timestamp": "2025-07-13T11:14:17.253851Z",
+                "attributes": {
+                    "completion_tokens": 70,
+                    "prompt_tokens": 12,
+                    "total_tokens": 550
+                }
+            }
+        ],
+        "links": [],
+        "resource": {
+            "attributes": {
+                "service.name": "gemini_integration_tests"
+            },
+            "schema_url": ""
+        }
+    },
+    {
+        "name": "google.genai.models.Models",
+        "context": {
+            "trace_id": "0xc567463ec88c3fef6dd370266e01d46f",
+            "span_id": "0x10a1bef44021fbd8",
+            "trace_state": "[]"
+        },
+        "kind": "SpanKind.INTERNAL",
+        "parent_id": "0x271bfa386a4f1713",
+        "start_time": "2025-07-13T11:14:17.272952Z",
+        "end_time": "2025-07-13T11:14:44.247713Z",
+        "status": {
+            "status_code": "OK"
+        },
+        "attributes": {
+            "monocle_apptrace.version": "0.4.0",
+            "monocle_apptrace.language": "python",
+            "span_source": "/Users/kshitizvijayvargiya/monocle-ksh/tests/integration/test_gemini_finish_reason_integration.py:126",
+            "workflow.name": "gemini_integration_tests",
+            "span.type": "inference",
+            "entity.1.type": "inference.gemini",
+            "entity.1.inference_endpoint": "https://generativelanguage.googleapis.com/",
+            "entity.2.name": "gemini-2.5-flash",
+            "entity.2.type": "model.llm.gemini-2.5-flash",
+            "entity.count": 2
+        },
+        "events": [
+            {
+                "name": "data.input",
+                "timestamp": "2025-07-13T11:14:44.247407Z",
+                "attributes": {
+                    "input": [
+                        "{\"user\": \"Please reproduce the exact text of the first chapter of the book.\"}"
+                    ]
+                }
+            },
+            {
+                "name": "data.output",
+                "timestamp": "2025-07-13T11:14:44.247638Z",
+                "attributes": {
+                    "response": "{\"model\": \"Here is the exact text of the first chapter of ...\"}",
+                    "finish_reason": "STOP",
+                    "finish_type": "success"
+                }
+            },
+            {
+                "name": "metadata",
+                "timestamp": "2025-07-13T11:14:44.247669Z",
+                "attributes": {
+                    "completion_tokens": 3924,
+                    "prompt_tokens": 21,
+                    "total_tokens": 4010
+                }
+            }
+        ],
+        "links": [],
+        "resource": {
+            "attributes": {
+                "service.name": "gemini_integration_tests"
+            },
+            "schema_url": ""
+        }
+    },
+    {
+        "name": "google.genai.models.Models",
+        "context": {
+            "trace_id": "0xc567463ec88c3fef6dd370266e01d46f",
+            "span_id": "0x10a1bef44021fbd8",
+            "trace_state": "[]"
+        },
+        "kind": "SpanKind.INTERNAL",
+        "parent_id": "0x271bfa386a4f1713",
+        "start_time": "2025-07-13T11:14:17.272952Z",
+        "end_time": "2025-07-13T11:14:44.247713Z",
+        "status": {
+            "status_code": "OK"
+        },
+        "attributes": {
+            "monocle_apptrace.version": "0.4.0",
+            "monocle_apptrace.language": "python",
+            "span_source": "/Users/kshitizvijayvargiya/monocle-ksh/tests/integration/test_gemini_finish_reason_integration.py:126",
+            "workflow.name": "gemini_integration_tests",
+            "span.type": "inference",
+            "entity.1.type": "inference.gemini",
+            "entity.1.inference_endpoint": "https://generativelanguage.googleapis.com/",
+            "entity.2.name": "gemini-2.5-flash",
+            "entity.2.type": "model.llm.gemini-2.5-flash",
+            "entity.count": 2
+        },
+        "events": [
+            {
+                "name": "data.input",
+                "timestamp": "2025-07-13T11:14:44.247407Z",
+                "attributes": {
+                    "input": [
+                        "{\"user\": \"Please reproduce the exact text of the first chapter of the book.\"}"
+                    ]
+                }
+            },
+            {
+                "name": "data.output",
+                "timestamp": "2025-07-13T11:14:44.247638Z",
+                "attributes": {
+                    "response": "{\"model\": \"Here is the exact text of the first chapter... \"}",
+                    "finish_reason": "STOP",
+                    "finish_type": "success"
+                }
+            },
+            {
+                "name": "metadata",
+                "timestamp": "2025-07-13T11:14:44.247669Z",
+                "attributes": {
+                    "completion_tokens": 3924,
+                    "prompt_tokens": 21,
+                    "total_tokens": 4010
+                }
+            }
+        ],
+        "links": [],
+        "resource": {
+            "attributes": {
+                "service.name": "gemini_integration_tests"
+            },
+            "schema_url": ""
+        }
+    },
+    {
+        "name": "google.genai.models.Models",
+        "context": {
+            "trace_id": "0x5ae91daa88959c9b19897b2ceef9ff53",
+            "span_id": "0xb60d37f45744b649",
+            "trace_state": "[]"
+        },
+        "kind": "SpanKind.INTERNAL",
+        "parent_id": "0x1824983c92b8a151",
+        "start_time": "2025-07-13T11:14:44.281405Z",
+        "end_time": "2025-07-13T11:14:46.958615Z",
+        "status": {
+            "status_code": "OK"
+        },
+        "attributes": {
+            "monocle_apptrace.version": "0.4.0",
+            "monocle_apptrace.language": "python",
+            "span_source": "/Users/kshitizvijayvargiya/monocle-ksh/tests/integration/test_gemini_finish_reason_integration.py:155",
+            "workflow.name": "gemini_integration_tests",
+            "span.type": "inference",
+            "entity.1.type": "inference.gemini",
+            "entity.1.inference_endpoint": "https://generativelanguage.googleapis.com/",
+            "entity.2.name": "gemini-2.5-flash",
+            "entity.2.type": "model.llm.gemini-2.5-flash",
+            "entity.count": 2
+        },
+        "events": [
+            {
+                "name": "data.input",
+                "timestamp": "2025-07-13T11:14:46.958570Z",
+                "attributes": {
+                    "input": [
+                        "{\"system\": \"You are a helpful assistant. Always respond with enthusiasm!\"}",
+                        "{\"user\": \"Tell me about the weather.\"}"
+                    ]
+                }
+            },
+            {
+                "name": "data.output",
+                "timestamp": "2025-07-13T11:14:46.958600Z",
+                "attributes": {
+                    "response": "{\"model\": \"Oh, the weather! It's absolutely fascinating and ever-changing! I'd be absolutely thrilled to tell you all about it!\\n\\nTo give you the best information, could you tell me:\\n\\n*   **Where are you curious about?** (e.g., \\\"What's the weather like in Paris?\\\" or \\\"How about the forecast for New York City tomorrow?\\\")\\n*   **Are you interested in the current conditions, a forecast for the future, or perhaps a general overview of weather phenomena?**\\n\\nOnce I have a little more detail, I can give you the most accurate and exciting weather update! Let me know! \\u2600\\ufe0f\\u2601\\ufe0f\\u2744\\ufe0f\\u26a1\"}",
+                    "finish_reason": "STOP",
+                    "finish_type": "success"
+                }
+            },
+            {
+                "name": "metadata",
+                "timestamp": "2025-07-13T11:14:46.958607Z",
+                "attributes": {
+                    "completion_tokens": 139,
+                    "prompt_tokens": 19,
+                    "total_tokens": 334
+                }
+            }
+        ],
+        "links": [],
+        "resource": {
+            "attributes": {
+                "service.name": "gemini_integration_tests"
+            },
+            "schema_url": ""
+        }
+    },
+    {
+        "name": "google.genai.models.Models",
+        "context": {
+            "trace_id": "0x5ae91daa88959c9b19897b2ceef9ff53",
+            "span_id": "0xb60d37f45744b649",
+            "trace_state": "[]"
+        },
+        "kind": "SpanKind.INTERNAL",
+        "parent_id": "0x1824983c92b8a151",
+        "start_time": "2025-07-13T11:14:44.281405Z",
+        "end_time": "2025-07-13T11:14:46.958615Z",
+        "status": {
+            "status_code": "OK"
+        },
+        "attributes": {
+            "monocle_apptrace.version": "0.4.0",
+            "monocle_apptrace.language": "python",
+            "span_source": "/Users/kshitizvijayvargiya/monocle-ksh/tests/integration/test_gemini_finish_reason_integration.py:155",
+            "workflow.name": "gemini_integration_tests",
+            "span.type": "inference",
+            "entity.1.type": "inference.gemini",
+            "entity.1.inference_endpoint": "https://generativelanguage.googleapis.com/",
+            "entity.2.name": "gemini-2.5-flash",
+            "entity.2.type": "model.llm.gemini-2.5-flash",
+            "entity.count": 2
+        },
+        "events": [
+            {
+                "name": "data.input",
+                "timestamp": "2025-07-13T11:14:46.958570Z",
+                "attributes": {
+                    "input": [
+                        "{\"system\": \"You are a helpful assistant. Always respond with enthusiasm!\"}",
+                        "{\"user\": \"Tell me about the weather.\"}"
+                    ]
+                }
+            },
+            {
+                "name": "data.output",
+                "timestamp": "2025-07-13T11:14:46.958600Z",
+                "attributes": {
+                    "response": "{\"model\": \"Oh, the weather! It's absolutely fascinating and ever-changing! I'd be absolutely thrilled to tell you all about it!\\n\\nTo give you the best information, could you tell me:\\n\\n*   **Where are you curious about?** (e.g., \\\"What's the weather like in Paris?\\\" or \\\"How about the forecast for New York City tomorrow?\\\")\\n*   **Are you interested in the current conditions, a forecast for the future, or perhaps a general overview of weather phenomena?**\\n\\nOnce I have a little more detail, I can give you the most accurate and exciting weather update! Let me know! \\u2600\\ufe0f\\u2601\\ufe0f\\u2744\\ufe0f\\u26a1\"}",
+                    "finish_reason": "STOP",
+                    "finish_type": "success"
+                }
+            },
+            {
+                "name": "metadata",
+                "timestamp": "2025-07-13T11:14:46.958607Z",
+                "attributes": {
+                    "completion_tokens": 139,
+                    "prompt_tokens": 19,
+                    "total_tokens": 334
+                }
+            }
+        ],
+        "links": [],
+        "resource": {
+            "attributes": {
+                "service.name": "gemini_integration_tests"
+            },
+            "schema_url": ""
+        }
+    },
+    {
+        "name": "google.genai.models.Models",
+        "context": {
+            "trace_id": "0x2b36eb505b862b493a29d8fcc3e2ad72",
+            "span_id": "0x17fd0b0c5aa7862c",
+            "trace_state": "[]"
+        },
+        "kind": "SpanKind.INTERNAL",
+        "parent_id": "0x017444748aacd5b7",
+        "start_time": "2025-07-13T11:14:46.971674Z",
+        "end_time": "2025-07-13T11:14:47.704783Z",
+        "status": {
+            "status_code": "OK"
+        },
+        "attributes": {
+            "monocle_apptrace.version": "0.4.0",
+            "monocle_apptrace.language": "python",
+            "span_source": "/Users/kshitizvijayvargiya/monocle-ksh/.venv/lib/python3.11/site-packages/google/genai/chats.py:254",
+            "workflow.name": "gemini_integration_tests",
+            "span.type": "inference",
+            "entity.1.type": "inference.gemini",
+            "entity.1.inference_endpoint": "https://generativelanguage.googleapis.com/",
+            "entity.2.name": "gemini-2.5-flash",
+            "entity.2.type": "model.llm.gemini-2.5-flash",
+            "entity.count": 2
+        },
+        "events": [
+            {
+                "name": "data.input",
+                "timestamp": "2025-07-13T11:14:47.704735Z",
+                "attributes": {
+                    "input": [
+                        "{\"user\": \"What's 2+2?\"}"
+                    ]
+                }
+            },
+            {
+                "name": "data.output",
+                "timestamp": "2025-07-13T11:14:47.704766Z",
+                "attributes": {
+                    "response": "{\"model\": \"2 + 2 = 4\"}",
+                    "finish_reason": "STOP",
+                    "finish_type": "success"
+                }
+            },
+            {
+                "name": "metadata",
+                "timestamp": "2025-07-13T11:14:47.704774Z",
+                "attributes": {
+                    "completion_tokens": 7,
+                    "prompt_tokens": 9,
+                    "total_tokens": 48
+                }
+            }
+        ],
+        "links": [],
+        "resource": {
+            "attributes": {
+                "service.name": "gemini_integration_tests"
+            },
+            "schema_url": ""
+        }
+    },
+    {
+        "name": "google.genai.models.Models",
+        "context": {
+            "trace_id": "0x2b36eb505b862b493a29d8fcc3e2ad72",
+            "span_id": "0x17fd0b0c5aa7862c",
+            "trace_state": "[]"
+        },
+        "kind": "SpanKind.INTERNAL",
+        "parent_id": "0x017444748aacd5b7",
+        "start_time": "2025-07-13T11:14:46.971674Z",
+        "end_time": "2025-07-13T11:14:47.704783Z",
+        "status": {
+            "status_code": "OK"
+        },
+        "attributes": {
+            "monocle_apptrace.version": "0.4.0",
+            "monocle_apptrace.language": "python",
+            "span_source": "/Users/kshitizvijayvargiya/monocle-ksh/.venv/lib/python3.11/site-packages/google/genai/chats.py:254",
+            "workflow.name": "gemini_integration_tests",
+            "span.type": "inference",
+            "entity.1.type": "inference.gemini",
+            "entity.1.inference_endpoint": "https://generativelanguage.googleapis.com/",
+            "entity.2.name": "gemini-2.5-flash",
+            "entity.2.type": "model.llm.gemini-2.5-flash",
+            "entity.count": 2
+        },
+        "events": [
+            {
+                "name": "data.input",
+                "timestamp": "2025-07-13T11:14:47.704735Z",
+                "attributes": {
+                    "input": [
+                        "{\"user\": \"What's 2+2?\"}"
+                    ]
+                }
+            },
+            {
+                "name": "data.output",
+                "timestamp": "2025-07-13T11:14:47.704766Z",
+                "attributes": {
+                    "response": "{\"model\": \"2 + 2 = 4\"}",
+                    "finish_reason": "STOP",
+                    "finish_type": "success"
+                }
+            },
+            {
+                "name": "metadata",
+                "timestamp": "2025-07-13T11:14:47.704774Z",
+                "attributes": {
+                    "completion_tokens": 7,
+                    "prompt_tokens": 9,
+                    "total_tokens": 48
+                }
+            }
+        ],
+        "links": [],
+        "resource": {
+            "attributes": {
+                "service.name": "gemini_integration_tests"
+            },
+            "schema_url": ""
+        }
+    }
+]

@@ -1,9 +1,7 @@
 from monocle_apptrace.instrumentation.metamodel.anthropic import (
     _helper,
 )
-from monocle_apptrace.instrumentation.common.utils import (resolve_from_alias, get_llm_type,
-    get_status, get_status_code
-)
+from monocle_apptrace.instrumentation.common.utils import (get_error_message, resolve_from_alias)
 
 INFERENCE = {
     "type": "inference",
@@ -55,17 +53,23 @@ INFERENCE = {
             "name": "data.output",
             "attributes": [
                 {
-                    "attribute": "status",
-                    "accessor": lambda arguments: get_status(arguments)
-                },
-                {
-                    "attribute": "status_code",
-                    "accessor": lambda arguments: _helper.get_status_code(arguments)
+                    "attribute": "error_code",
+                    "accessor": lambda arguments: get_error_message(arguments)
                 },
                 {
                     "_comment": "this is result from LLM",
                     "attribute": "response",
                     "accessor": lambda arguments: _helper.extract_assistant_message(arguments)
+                },
+                {
+                    "_comment": "finish reason from Anthropic response",
+                    "attribute": "finish_reason",
+                    "accessor": lambda arguments: _helper.extract_finish_reason(arguments)
+                },
+                {
+                    "_comment": "finish type mapped from finish reason",
+                    "attribute": "finish_type",
+                    "accessor": lambda arguments: _helper.map_finish_reason_to_finish_type(_helper.extract_finish_reason(arguments))
                 }
             ]
         },

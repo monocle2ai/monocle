@@ -130,6 +130,18 @@ def test_openai_api_sample(setup):
 #             assert events[0].attributes["status"] == "error"
 #             assert events[0].attributes["status_code"] == "invalid_api_key"
 #             assert "error code: 401" in events[0].attributes.get("response", "").lower()
+    time.sleep(5)
+    spans = custom_exporter.get_captured_spans()
+    for span in spans:
+        if (
+            span.attributes.get("span.type") == "inference"
+            or span.attributes.get("span.type") == "inference.framework"
+        ):
+            events = [e for e in span.events if e.name == "data.output"]
+            assert len(events) > 0
+            assert span.status.status_code.value == 2  # ERROR status code
+            assert events[0].attributes["error_code"] == "invalid_api_key"
+            assert "error code: 401" in events[0].attributes.get("response", "").lower()
 
 
 if __name__ == "__main__":
@@ -180,8 +192,6 @@ if __name__ == "__main__":
 #             "timestamp": "2025-07-03T00:01:51.483746Z",
 #             "attributes": {
 #                 "response": "{\"assistant\": \"An Americano is a type of coffee drink that consists of espresso diluted with hot water. \"}",
-#                 "status": "success",
-#                 "status_code": "success"
 #             }
 #         },
 #         {
@@ -279,8 +289,6 @@ if __name__ == "__main__":
 #             "timestamp": "2025-07-03T00:01:56.872976Z",
 #             "attributes": {
 #                 "response": "Error code: 401 - {'error': {'message': 'Incorrect API key provided: invalid_***_123. You can find your API key at https://platform.openai.com/account/api-keys.', 'type': 'invalid_request_error', 'param': None, 'code': 'invalid_api_key'}}",
-#                 "status": "error",
-#                 "status_code": "invalid_api_key"
 #             }
 #         },
 #         {

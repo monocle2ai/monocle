@@ -42,6 +42,11 @@ def setup():
     #             workflow_name="langchain_agent_1",
     #             span_processors=[SimpleSpanProcessor(memory_exporter)]
     #             )
+    memory_exporter.clear()
+    setup_monocle_telemetry(
+                workflow_name="langchain_agent_1",
+                span_processors=[SimpleSpanProcessor(memory_exporter)]
+                )
 
 coffee_menu = {
     "espresso": "A strong and bold coffee shot.",
@@ -150,6 +155,8 @@ async def test_langgraph_chat_sample():
         print("Sorry, I can't help you with " + question)
     time.sleep(5)
     spans = memory_exporter.get_finished_spans()
+
+    found_inference = found_agent = found_tool = False
 
     found_inference = found_agent = found_tool = False
 

@@ -152,13 +152,6 @@ def flatten_dict(d, parent_key='', sep='_'):
             items.append((new_key, v))
     return dict(items)
 
-def get_fully_qualified_class_name(instance):
-    if instance is None:
-        return None
-    module_name = instance.__class__.__module__
-    qualname = instance.__class__.__qualname__
-    return f"{module_name}.{qualname}"
-
 # returns json path like key probe in a dictionary
 def get_nested_value(data, keys):
     for key in keys:

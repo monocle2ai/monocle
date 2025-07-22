@@ -5,7 +5,6 @@ from opentelemetry.context import set_value, attach, detach, get_value
 
 from monocle_apptrace.instrumentation.common.span_handler import SpanHandler
 from monocle_apptrace.instrumentation.common.utils import (
-    get_fully_qualified_class_name,
     set_scopes,
     with_tracer_wrapper,
     set_scope,

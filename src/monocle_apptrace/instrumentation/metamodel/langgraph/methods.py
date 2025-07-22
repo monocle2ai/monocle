@@ -1,14 +1,38 @@
-from monocle_apptrace.instrumentation.common.wrapper import task_wrapper
+from monocle_apptrace.instrumentation.common.wrapper import task_wrapper, atask_wrapper
 from monocle_apptrace.instrumentation.metamodel.langgraph.entities.inference import (
-    INFERENCE,
+    AGENT, TOOLS
 )
 LANGGRAPH_METHODS = [
     {
         "package": "langgraph.graph.state",
          "object": "CompiledStateGraph",
          "method": "invoke",
-         "span_name": "langgraph.graph.invoke",
          "wrapper_method": task_wrapper,
-         "output_processor": INFERENCE
-    }
+        "span_handler":"langgraph_agent_handler",
+         "output_processor": AGENT
+    },
+    {
+        "package": "langgraph.graph.state",
+         "object": "CompiledStateGraph",
+         "method": "ainvoke",
+         "wrapper_method": atask_wrapper,
+        "span_handler":"langgraph_agent_handler",
+         "output_processor": AGENT
+    },
+    {
+        "package": "langchain_core.tools.base",
+         "object": "BaseTool",
+         "method": "run",
+         "wrapper_method": task_wrapper,
+        "span_handler":"langgraph_tool_handler",
+         "output_processor": TOOLS
+    },
+    {
+        "package": "langchain_core.tools.base",
+         "object": "BaseTool",
+         "method": "arun",
+         "wrapper_method": atask_wrapper,
+        "span_handler":"langgraph_tool_handler",
+         "output_processor": TOOLS
+    },    
 ]

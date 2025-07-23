@@ -37,6 +37,7 @@ class FileSpanExporter(SpanExporterBase):
         self.file_prefix = file_prefix
         self.time_format = time_format
         self.task_processor = task_processor
+        self.is_first_span_in_file = True  # Track if this is the first span in the current file
         if self.task_processor is not None:
             self.task_processor.start()
 
@@ -50,19 +51,24 @@ class FileSpanExporter(SpanExporterBase):
             return self._process_spans(spans, is_root_span=is_root_span)
 
     def _process_spans(self, spans: Sequence[ReadableSpan], is_root_span: bool = False) -> SpanExportResult:
-        first_span:bool = True
         for span in spans:
             if self.skip_export(span):
                 continue
             if span.context.trace_id != self.current_trace_id:
                 self.rotate_file(span.resource.attributes[SERVICE_NAME],
                                 span.context.trace_id)
-                first_span = True
-            if first_span:
-                first_span = False
-            else:
+            
+            # Write comma before span if it's not the first span in the file
+            if not self.is_first_span_in_file:
                 self.out_handle.write(",")
-            self.out_handle.write(self.formatter(span))
+            else:
+                self.is_first_span_in_file = False
+                
+            try:
+                self.out_handle.write(self.formatter(span))
+            except Exception as e:
+                print(f"Error formatting span {span.context.span_id}: {e}")
+                continue
         if is_root_span:
             self.reset_handle()
         else:
@@ -77,6 +83,7 @@ class FileSpanExporter(SpanExporterBase):
         self.out_handle = open(self.current_file_path, "w", encoding='UTF-8')
         self.out_handle.write("[")
         self.current_trace_id = trace_id
+        self.is_first_span_in_file = True  # Reset flag for new file
 
     def force_flush(self, timeout_millis: int = 30000) -> bool:
         self.out_handle.flush()
@@ -87,6 +94,7 @@ class FileSpanExporter(SpanExporterBase):
             self.out_handle.write("]")
             self.out_handle.close()
             self.out_handle = None
+        self.is_first_span_in_file = True  # Reset flag when closing file
 
     def shutdown(self) -> None:
         if hasattr(self, 'task_processor') and self.task_processor is not None:

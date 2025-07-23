@@ -177,7 +177,7 @@ def test_invalid_credentials(setup):
             events = [e for e in span.events if e.name == "data.output"]
             assert len(events) > 0
             assert events[0].attributes["status"] == "error"
-            assert "status_code" in events[0].attributes
+            assert "error_code" in events[0].attributes
             assert "UnrecognizedClientException" in events[0].attributes.get("response", "")
 
 if __name__ == "__main__":

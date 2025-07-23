@@ -3,6 +3,7 @@ import time
 from types import SimpleNamespace
 from monocle_apptrace.instrumentation.metamodel.azureaiinference import _helper
 from monocle_apptrace.instrumentation.common.utils import (
+    get_error_message,
     resolve_from_alias, 
     patch_instance_method,
     get_status,
@@ -190,12 +191,18 @@ INFERENCE = {
                     "accessor": lambda arguments: _helper.extract_assistant_message(arguments)
                 },
                 {
-                    "attribute": "status",
-                    "accessor": lambda arguments: get_status(arguments)
+                    "attribute": "error_code",
+                    "accessor": lambda arguments: get_error_message(arguments)
                 },
                 {
-                    "attribute": "status_code",
-                    "accessor": lambda arguments: get_exception_status_code(arguments)
+                    "attribute": "finish_reason",
+                    "accessor": lambda arguments: _helper.extract_finish_reason(arguments)
+                },
+                {
+                    "attribute": "finish_type",
+                    "accessor": lambda arguments: _helper.map_finish_reason_to_finish_type(
+                        _helper.extract_finish_reason(arguments)
+                    )
                 }
             ]
         },

@@ -3,9 +3,11 @@ This module provides utility functions for extracting system, user,
 and assistant messages from various input formats.
 """
 
+from ast import arguments
 import logging
 from urllib.parse import urlparse
 from opentelemetry.sdk.trace import Span
+from opentelemetry.context import get_value
 from monocle_apptrace.instrumentation.common.utils import (
     Option,
     get_json_dumps,
@@ -15,9 +17,15 @@ from monocle_apptrace.instrumentation.common.utils import (
     get_exception_message,
     get_status_code,
 )
+from monocle_apptrace.instrumentation.metamodel.finish_types import map_llamaindex_finish_reason_to_finish_type
 
+LLAMAINDEX_AGENT_NAME_KEY = "_active_agent_name"
 logger = logging.getLogger(__name__)
 
+def get_status(result):
+    if result is not None and hasattr(result, 'status'):
+        return result.status
+    return None
 
 def extract_tools(instance):
     tools = []
@@ -35,6 +43,70 @@ def extract_tools(instance):
                 tools.append(tool_name)
     return tools
 
+def get_tool_name(args, instance):
+    if len(args) > 1:
+        if hasattr(args[1], 'metadata') and hasattr(args[1].metadata, 'name'):
+            return args[1].metadata.name
+        return ""
+    else:
+        if hasattr(instance, 'metadata') and hasattr(instance.metadata, 'name'):
+            return instance.metadata.name
+        return ""
+
+def get_tool_description(arguments):
+    if len(arguments['args']) > 1:
+        if hasattr(arguments['args'][1], 'metadata') and hasattr(arguments['args'][1].metadata, 'description'):
+            return arguments['args'][1].metadata.description
+        return ""
+    else:
+        if hasattr(arguments['instance'], 'metadata') and hasattr(arguments['instance'].metadata, 'description'):
+            return arguments['instance'].metadata.description
+        return ""
+
+def extract_tool_args(arguments):
+    tool_args = []
+    if len(arguments['args']) > 1:
+        for key, value in arguments['args'][2].items():
+            # check if value is builtin type or a string
+            if value is not None and isinstance(value, (str, int, float, bool)):
+                tool_args.append({key, value})
+    else:
+        for key, value in arguments['kwargs'].items():
+            # check if value is builtin type or a string
+            if value is not None and isinstance(value, (str, int, float, bool)):
+                tool_args.append({key, value})
+    return [get_json_dumps(tool_arg) for tool_arg in tool_args]
+
+def extract_tool_response(response):
+    if hasattr(response, 'raw_output'):
+        return response.raw_output
+    return ""
+
+def is_delegation_tool(args, instance) -> bool:
+    return get_tool_name(args, instance) == "handoff"
+
+def get_agent_name(instance) -> str:
+    if hasattr(instance, 'name'):
+        return instance.name
+    else:
+        return instance.__class__.__name__
+
+def get_agent_description(instance) -> str:
+    if hasattr(instance, 'description'):
+        return instance.description
+    return ""
+
+def get_source_agent(parent_span:Span) -> str:
+    source_agent_name = parent_span.attributes.get(LLAMAINDEX_AGENT_NAME_KEY, "")
+    if source_agent_name == "" and parent_span.name.startswith("llama_index.core.agent.ReActAgent."):
+        # Fallback to the agent name from the parent span if not set
+        source_agent_name = "ReactAgent"
+    return source_agent_name
+
+def get_target_agent(results) -> str:
+    if hasattr(results, 'raw_input'):
+        return results.raw_input.get('kwargs', {}).get("to_agent", "")
+    return ""
 
 def extract_messages(args):
     """Extract system and user messages"""
@@ -63,6 +135,33 @@ def extract_messages(args):
     except Exception as e:
         logger.warning("Error in extract_messages: %s", str(e))
         return []
+
+def extract_agent_input(args):
+    if isinstance(args, (list, tuple)):
+        input_args = []
+        for arg in args:
+            if isinstance(arg, (str, dict)):
+                input_args.append(arg)
+            elif hasattr(arg, 'raw') and isinstance(arg.raw, str):
+                input_args.append(arg.raw)
+        return input_args
+    elif isinstance(args, str):
+        return [args]
+    return ""
+
+def extract_agent_response(arguments):
+    status = get_status_code(arguments)
+    if status == 'success':
+        if hasattr(arguments['result'], 'response'):
+            if hasattr(arguments['result'].response, 'content'):
+                return arguments['result'].response.content
+            return arguments['result'].response
+        return ""
+    else:
+        if arguments["exception"] is not None:
+            return get_exception_message(arguments)
+        elif hasattr(arguments['result'], "error"):
+            return arguments['result'].error
 
 def extract_assistant_message(arguments):
     status = get_status_code(arguments)
@@ -204,3 +303,93 @@ def update_span_from_llm_response(response, instance):
                         meta_dict.update({ "total_tokens": token_usage.get("total_token_count", None)})
 
     return meta_dict
+
+def extract_finish_reason(arguments):
+    """Extract finish_reason from LlamaIndex response."""
+    try:
+        # Handle exception cases first
+        if arguments.get("exception") is not None:
+            return "error"
+        
+        response = arguments.get("result")
+        if response is None:
+            return None
+            
+        # Check various possible locations for finish_reason in LlamaIndex responses
+        
+        # Direct finish_reason attribute
+        if hasattr(response, "finish_reason") and response.finish_reason:
+            return response.finish_reason
+            
+        # Check if response has raw attribute (common in LlamaIndex)
+        if hasattr(response, "raw") and response.raw:
+            raw_response = response.raw
+            if isinstance(raw_response, dict):
+                # Check for finish_reason in raw response
+                if "finish_reason" in raw_response:
+                    return raw_response["finish_reason"]
+                if "stop_reason" in raw_response:
+                    return raw_response["stop_reason"]
+                # Check for choices structure (OpenAI-style)
+                if "choices" in raw_response and raw_response["choices"]:
+                    choice = raw_response["choices"][0]
+                    if isinstance(choice, dict) and "finish_reason" in choice:
+                        return choice["finish_reason"]
+            elif hasattr(raw_response, "choices") and raw_response.choices:
+                # Handle object-style raw response
+                choice = raw_response.choices[0]
+                if hasattr(choice, "finish_reason"):
+                    return choice.finish_reason
+        
+        # Check for additional metadata
+        if hasattr(response, "additional_kwargs") and response.additional_kwargs:
+            kwargs = response.additional_kwargs
+            if isinstance(kwargs, dict):
+                for key in ["finish_reason", "stop_reason"]:
+                    if key in kwargs:
+                        return kwargs[key]
+        
+        # Check for response metadata
+        if hasattr(response, "response_metadata") and response.response_metadata:
+            metadata = response.response_metadata
+            if isinstance(metadata, dict):
+                for key in ["finish_reason", "stop_reason"]:
+                    if key in metadata:
+                        return metadata[key]
+        
+        # Check for source nodes or other LlamaIndex-specific attributes
+        if hasattr(response, "source_nodes") and response.source_nodes:
+            # If we have source nodes, it's likely a successful retrieval
+            return "stop"
+        
+        # If no specific finish reason found, infer from status
+        status_code = get_status_code(arguments)
+        if status_code == 'success':
+            return "stop"  # Default success finish reason
+        elif status_code == 'error':
+            return "error"
+            
+    except Exception as e:
+        logger.warning("Warning: Error occurred in extract_finish_reason: %s", str(e))
+        return None
+    
+    return None
+
+
+def map_finish_reason_to_finish_type(finish_reason):
+    """Map LlamaIndex finish_reason to finish_type."""
+    return map_llamaindex_finish_reason_to_finish_type(finish_reason)
+
+def extract_agent_request_input(kwargs):
+    if "user_msg" in kwargs:
+        return kwargs["user_msg"]
+    return ""
+
+def extract_agent_request_output(arguments):
+    if hasattr(arguments['result'], 'response'):
+        if hasattr(arguments['result'].response, 'content'):
+            return arguments['result'].response.content
+        return arguments['result'].response
+    elif hasattr(arguments['result'], 'raw_output'):
+        return arguments['result'].raw_output
+    return ""

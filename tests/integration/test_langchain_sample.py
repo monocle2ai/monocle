@@ -431,8 +431,6 @@ if __name__ == "__main__":
 #             "name": "data.output",
 #             "timestamp": "2025-07-02T15:46:03.025692Z",
 #             "attributes": {
-#                 "status": "success",
-#                 "status_code": "success",
 #                 "response": "{\"ai\": \"Task Decomposition is a technique used to break down complex tasks into smaller and simpler steps, allowing for easier execution and understanding. This approach can be implemented through various methods such as simple prompting, task-specific instructions, or relying on external classical planners. By decomposing tasks, agents can effectively plan ahead and improve performance on challenging tasks.\"}"
 #             }
 #         },

@@ -1,5 +1,5 @@
 import logging
-from monocle_apptrace.instrumentation.common.utils import MonocleSpanException, get_json_dumps
+from monocle_apptrace.instrumentation.common.utils import MonocleSpanException, get_json_dumps, get_status_code
 from monocle_apptrace.instrumentation.common.utils import (
     Option,
     get_keys_as_tuple,
@@ -104,14 +104,6 @@ def get_prompt_template(arguments):
         "prompt_template_description": get_nested_value(arguments.get("kwargs", {}), ["prompt", "config", "description"]),
         "prompt_template_type": get_nested_value(arguments.get("kwargs", {}), ["prompt", "config", "type"])
     }
-
-def get_status_code(arguments):
-    if arguments["exception"] is not None:
-        return get_exception_status_code(arguments)
-    elif hasattr(arguments["result"], "status"):
-        return arguments["result"].status
-    else:
-        return 'success'
 
 def get_status(arguments):
     if arguments["exception"] is not None:

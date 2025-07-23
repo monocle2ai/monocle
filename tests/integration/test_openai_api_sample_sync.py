@@ -226,8 +226,6 @@ if __name__ == "__main__":
 #             "timestamp": "2025-07-02T21:07:30.196905Z",
 #             "attributes": {
 #                 "response": "{\"assistant\": \"An Americano is a type of coffee drink made by diluting a shot (or shots) of espresso. \"}",
-#                 "status": "success",
-#                 "status_code": "success"
 #             }
 #         },
 #         {
@@ -357,8 +355,6 @@ if __name__ == "__main__":
 #             "timestamp": "2025-07-02T21:07:36.984621Z",
 #             "attributes": {
 #                 "response": "{'assistant': 'An Americano is a type of coffee drink made by diluting espresso with hot water. The process typically involves brewing one or two shots of espresso and then adding hot water to achieve the desired strength and flavor. The result is a coffee that has a similar strength to drip coffee but retains the rich flavor profile of espresso. The Americano is often enjoyed black, but it can also be customized with milk, cream, or sweeteners according to personal preference.'}",
-#                 "status": "success",
-#                 "status_code": "success"
 #             }
 #         },
 #         {

@@ -1,7 +1,8 @@
 from monocle_apptrace.instrumentation.metamodel.gemini import (
     _helper,
 )
-from monocle_apptrace.instrumentation.common.utils import get_llm_type, get_status, get_status_code
+from monocle_apptrace.instrumentation.common.utils import get_error_message
+
 INFERENCE = {
     "type": "inference",
     "attributes": [
@@ -46,17 +47,24 @@ INFERENCE = {
             "name": "data.output",
             "attributes": [
                 {
-                    "_comment": "this is result from LLM",
-                    "attribute": "status",
-                    "accessor": lambda arguments: get_status(arguments)
-                },
-                {
-                    "attribute": "status_code",
-                    "accessor": lambda arguments: get_status_code(arguments)
+                    "attribute": "error_code",
+                    "accessor": lambda arguments: get_error_message(arguments)
                 },
                 {
                     "attribute": "response",
                     "accessor": lambda arguments: _helper.extract_assistant_message(arguments)
+                },
+                {
+                    "_comment": "finish reason from Gemini response",
+                    "attribute": "finish_reason",
+                    "accessor": lambda arguments: _helper.extract_finish_reason(arguments)
+                },
+                {
+                    "_comment": "finish type mapped from finish reason",
+                    "attribute": "finish_type",
+                    "accessor": lambda arguments: _helper.map_finish_reason_to_finish_type(
+                        _helper.extract_finish_reason(arguments)
+                    )
                 }
             ]
         },

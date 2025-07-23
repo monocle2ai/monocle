@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "monocle_apptrace"
-version = "0.4.0"
+version = "0.5.0"
 authors = []
 description = "package with monocle genAI tracing"
 readme = "README.md"
@@ -71,7 +71,8 @@ dev = [
   'chromadb==1.0.10',
   'flask',
   'opentelemetry-instrumentation-flask',
-  'langgraph==0.2.68',
+  'langgraph==0.3.5',
+  'langgraph-supervisor==0.0.25',
   'opendal==0.45.14',
   'anthropic==0.52.0',
   'anthropic-haystack',

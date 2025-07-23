@@ -70,7 +70,7 @@ def with_tracer_wrapper(func):
     """Helper for providing tracer for wrapper functions."""
 
     def _with_tracer(tracer, handler, to_wrap):
-        def wrapper(wrapped, instance, args, kwargs):
+        def wrapper(wrapped, instance, args, kwargs, source_path=None):
             try:
                 # get and log the parent span context if injected by the application
                 # This is useful for debugging and tracing of Azure functions
@@ -83,12 +83,12 @@ def with_tracer_wrapper(func):
                             f"Parent span is found with trace id {hex(parent_span.get_span_context().trace_id)}")
             except Exception as e:
                 logger.error("Exception in attaching parent context: %s", e)
-
-            if traceback.extract_stack().__len__() > 2:
-                filename, line_number, _, _ = traceback.extract_stack()[-2]
-                source_path = f"{filename}:{line_number}"
-            else:
-                source_path = ""
+            if not source_path:
+                if traceback.extract_stack().__len__() > 2:
+                    filename, line_number, _, _ = traceback.extract_stack()[-2]
+                    source_path = f"{filename}:{line_number}"
+                else:
+                    source_path = ""
             val = func(tracer, handler, to_wrap, wrapped, instance, source_path, args, kwargs)
             return val
 
@@ -151,13 +151,6 @@ def flatten_dict(d, parent_key='', sep='_'):
         else:
             items.append((new_key, v))
     return dict(items)
-
-def get_fully_qualified_class_name(instance):
-    if instance is None:
-        return None
-    module_name = instance.__class__.__module__
-    qualname = instance.__class__.__qualname__
-    return f"{module_name}.{qualname}"
 
 # returns json path like key probe in a dictionary
 def get_nested_value(data, keys):
@@ -397,6 +390,13 @@ def get_exception_message(arguments):
             return arguments['exception'].__str__()
     else:
         return ''
+
+def get_error_message(arguments):
+    status_code = get_status_code(arguments)
+    if status_code == 'success':
+        return ''
+    else:
+        return status_code
 
 def get_status_code(arguments):
     if arguments["exception"] is not None:

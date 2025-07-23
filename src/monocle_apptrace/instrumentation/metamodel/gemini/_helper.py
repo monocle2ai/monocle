@@ -4,6 +4,10 @@ from monocle_apptrace.instrumentation.common.utils import (
     get_json_dumps,
     get_status_code,
 )
+from monocle_apptrace.instrumentation.metamodel.finish_types import (
+    map_gemini_finish_reason_to_finish_type,
+    GEMINI_FINISH_REASON_MAPPING
+)
 
 logger = logging.getLogger(__name__)
 
@@ -90,3 +94,27 @@ def update_span_from_llm_response(response, instance):
             meta_dict.update({"prompt_tokens": token_usage.prompt_token_count })
             meta_dict.update({"total_tokens": token_usage.total_token_count})
     return meta_dict
+
+def extract_finish_reason(arguments):
+    """Extract finish_reason from Gemini response"""
+    try:
+        if arguments["exception"] is not None:
+            return None
+            
+        response = arguments["result"]
+        
+        # Handle Gemini response structure
+        if (response is not None and 
+            hasattr(response, "candidates") and 
+            len(response.candidates) > 0 and 
+            hasattr(response.candidates[0], "finish_reason")):
+            return response.candidates[0].finish_reason
+            
+    except (IndexError, AttributeError) as e:
+        logger.warning("Warning: Error occurred in extract_finish_reason: %s", str(e))
+        return None
+    return None
+
+def map_finish_reason_to_finish_type(finish_reason):
+    """Map Gemini finish_reason to finish_type based on the possible errors mapping"""
+    return map_gemini_finish_reason_to_finish_type(finish_reason)

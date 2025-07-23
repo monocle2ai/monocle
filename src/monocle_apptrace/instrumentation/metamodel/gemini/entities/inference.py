@@ -10,7 +10,7 @@ INFERENCE = {
             {
                 "_comment": "provider type  , inference_endpoint",
                 "attribute": "type",
-                "accessor": lambda arguments: 'inference.gemini'
+                "accessor": lambda arguments: 'inference.vertexai' if hasattr(arguments['instance'],"vertexai") and arguments['instance'].vertexai else 'inference.gemini'
             },
             {
                 "attribute": "inference_endpoint",

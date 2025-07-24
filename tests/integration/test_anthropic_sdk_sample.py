@@ -93,7 +93,7 @@ def test_anthropic_metamodel_sample(setup):
     
     assert workflow_span.attributes["span.type"] == "workflow"
     assert workflow_span.attributes["entity.1.name"] == "anthropic_app_1"
-    assert workflow_span.attributes["entity.1.type"] == "workflow.generic"
+    assert workflow_span.attributes["entity.1.type"] == "workflow.anthropic"
 
 @pytest.mark.integration()
 def test_anthropic_invalid_api_key(setup):

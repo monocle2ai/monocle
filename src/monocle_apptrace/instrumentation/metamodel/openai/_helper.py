@@ -162,7 +162,7 @@ def get_inference_type(instance):
 
 class OpenAISpanHandler(NonFrameworkSpanHandler):
     def is_teams_span_in_progress(self) -> bool:
-        return self.is_framework_span_in_progess() and self.get_workflow_name_in_progress() == WORKFLOW_TYPE_MAP["teams.ai"]
+        return self.is_framework_span_in_progress() and self.get_workflow_name_in_progress() == WORKFLOW_TYPE_MAP["teams.ai"]
 
     # If openAI is being called by Teams AI SDK, then retain the metadata part of the span events
     def skip_processor(self, to_wrap, wrapped, instance, span, args, kwargs) -> list[str]:

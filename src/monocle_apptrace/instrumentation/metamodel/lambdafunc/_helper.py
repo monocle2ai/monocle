@@ -25,9 +25,7 @@ def get_route(args) -> str:
     return route
 
 def get_method(args) -> str:
-    print("Sachin1", args)
-    event = args[1]  # second item is the event dict
-    # Extract HTTP Method
+    event = args[1]
     http_method = event.get("httpMethod") or event.get("requestContext", {}).get("httpMethod")
     return http_method
 

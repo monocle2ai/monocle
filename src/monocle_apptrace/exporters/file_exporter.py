@@ -1,5 +1,6 @@
 #pylint: disable=consider-using-with
 
+import os
 from os import linesep, path
 from io import TextIOWrapper
 from datetime import datetime
@@ -21,7 +22,7 @@ class FileSpanExporter(SpanExporterBase):
         self,
         service_name: Optional[str] = None,
         out_path:str = ".",
-        file_prefix = DEFAULT_FILE_PREFIX,
+        file_prefix = None,
         time_format = DEFAULT_TIME_FORMAT,
         formatter: Callable[
             [ReadableSpan], str
@@ -34,7 +35,8 @@ class FileSpanExporter(SpanExporterBase):
         self.formatter = formatter
         self.service_name = service_name
         self.output_path = out_path
-        self.file_prefix = file_prefix
+        # Use environment variable if file_prefix is not provided, otherwise use default
+        self.file_prefix = file_prefix if file_prefix is not None else os.getenv('MONOCLE_FILE_PREFIX', DEFAULT_FILE_PREFIX)
         self.time_format = time_format
         self.task_processor = task_processor
         self.is_first_span_in_file = True  # Track if this is the first span in the current file

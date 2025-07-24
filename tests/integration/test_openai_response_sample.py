@@ -92,7 +92,7 @@ async def test_openai_response_api_sample_async(setup):
     
     assert workflow_span.attributes["span.type"] == "workflow"
     assert workflow_span.attributes["entity.1.name"] == "generic_openai_1"
-    assert workflow_span.attributes["entity.1.type"] == "workflow.generic"
+    assert workflow_span.attributes["entity.1.type"] == "workflow.openai"
 
 @pytest.mark.integration()
 @pytest.mark.asyncio
@@ -162,7 +162,7 @@ async def test_openai_response_api_sample_async_stream(setup):
     
     assert workflow_span.attributes["span.type"] == "workflow"
     assert workflow_span.attributes["entity.1.name"] == "generic_openai_1"
-    assert workflow_span.attributes["entity.1.type"] == "workflow.generic"
+    assert workflow_span.attributes["entity.1.type"] == "workflow.openai"
 
 
 @pytest.mark.integration()
@@ -229,7 +229,7 @@ def test_openai_response_api_sample(setup):
     
     assert workflow_span.attributes["span.type"] == "workflow"
     assert workflow_span.attributes["entity.1.name"] == "generic_openai_1"
-    assert workflow_span.attributes["entity.1.type"] == "workflow.generic"
+    assert workflow_span.attributes["entity.1.type"] == "workflow.openai"
 
 @pytest.mark.integration()
 def test_azure_openai_response_api_sample(setup):
@@ -296,7 +296,7 @@ def test_azure_openai_response_api_sample(setup):
     
     assert workflow_span.attributes["span.type"] == "workflow"
     assert workflow_span.attributes["entity.1.name"] == "generic_openai_1"
-    assert workflow_span.attributes["entity.1.type"] == "workflow.generic"
+    assert workflow_span.attributes["entity.1.type"] == "workflow.openai"
 
 if __name__ == "__main__":
     pytest.main([__file__, "-s", "--tb=short"])

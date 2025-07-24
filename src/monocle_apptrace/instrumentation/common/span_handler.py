@@ -22,8 +22,17 @@ WORKFLOW_TYPE_MAP = {
     "haystack": "workflow.haystack",
     "teams.ai": "workflow.teams_ai",
     "langgraph": "workflow.langgraph",
+    "openai": "workflow.openai",
+    "anthropic": "workflow.anthropic",
+    "gemini": "workflow.gemini",
 }
 
+FRAMEWORK_WORKFLOW_LIST = [
+    "workflow.llamaindex",
+    "workflow.langchain",
+    "workflow.haystack",
+    "workflow.teams_ai",
+]
 class SpanHandler:
 
     def __init__(self,instrumentor=None):
@@ -189,6 +198,16 @@ class SpanHandler:
         workflow_type = SpanHandler.get_workflow_type(to_wrap)
         span.set_attribute(f"entity.{span_index}.type", workflow_type)
 
+    def get_workflow_name_in_progress(self) -> str:
+        return get_value(WORKFLOW_TYPE_KEY)
+
+    @staticmethod
+    def is_framework_workflow(workflow_type) -> bool:
+        return workflow_type in FRAMEWORK_WORKFLOW_LIST
+
+    def is_framework_span_in_progress(self) -> bool:
+        return SpanHandler.is_framework_workflow(self.get_workflow_name_in_progress())
+
     @staticmethod
     def get_workflow_type(to_wrap):
         # workflow type
@@ -233,7 +252,7 @@ class SpanHandler:
         token = None
         if to_wrap:
             workflow_type = SpanHandler.get_workflow_type(to_wrap)
-            if workflow_type != WORKFLOW_TYPE_GENERIC:
+            if SpanHandler.is_framework_workflow(workflow_type):
                 token = attach(set_value(WORKFLOW_TYPE_KEY,
                                         SpanHandler.get_workflow_type(to_wrap), context))
         return token
@@ -254,21 +273,14 @@ class SpanHandler:
 
 
 class NonFrameworkSpanHandler(SpanHandler):
-
-    def get_workflow_name_in_progress(self) -> str:
-        return get_value(WORKFLOW_TYPE_KEY)
-
-    def is_framework_span_in_progess(self) -> bool:
-        return self.get_workflow_name_in_progress() in WORKFLOW_TYPE_MAP.values()
-
     # If the language framework is being executed, then skip generating direct openAI attributes and events
     def skip_processor(self, to_wrap, wrapped, instance, span, args, kwargs) -> list[str]:
-        if self.is_framework_span_in_progess():
+        if super().is_framework_span_in_progress():
             return ["attributes", "events"]
     
     def set_span_type(self, to_wrap, wrapped, instance, output_processor, span:Span, args, kwargs) -> str:
         span_type = super().set_span_type(to_wrap, wrapped, instance, output_processor, span, args, kwargs)
-        if self.is_framework_span_in_progess() and span_type is not None:
+        if self.is_framework_span_in_progress() and span_type is not None:
             span_type = span_type+".modelapi"
             span.set_attribute("span.type", span_type)
         return span_type

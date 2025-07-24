@@ -93,7 +93,7 @@ async def test_openai_api_sample(setup):
     
     assert workflow_span.attributes["span.type"] == "workflow"
     assert workflow_span.attributes["entity.1.name"] == "generic_openai_1"
-    assert workflow_span.attributes["entity.1.type"] == "workflow.generic"
+    assert workflow_span.attributes["entity.1.type"] == "workflow.openai"
 
 
 @pytest.mark.integration()
@@ -179,7 +179,7 @@ async def test_openai_api_sample_stream(setup):
     
     assert workflow_span.attributes["span.type"] == "workflow"
     assert workflow_span.attributes["entity.1.name"] == "generic_openai_1"
-    assert workflow_span.attributes["entity.1.type"] == "workflow.generic"
+    assert workflow_span.attributes["entity.1.type"] == "workflow.openai"
 
     # Assert we got a valid response
     assert len(collected_chunks) > 0

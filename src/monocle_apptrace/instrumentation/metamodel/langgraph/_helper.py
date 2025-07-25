@@ -40,9 +40,6 @@ def tools(instance):
         if hasattr(tools,'bound') and hasattr(tools.bound,'tools_by_name'):
             return list(tools.bound.tools_by_name.keys())
 
-def extract_tool_response(result):
-    return None
-
 def update_span_from_llm_response(response):
     meta_dict = {}
     token_usage = None

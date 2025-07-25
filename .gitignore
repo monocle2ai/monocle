@@ -14,5 +14,4 @@ dist
 .DS_Store
 Pipfile**
 launch.json
-sam-app
 monocle_trace**.json

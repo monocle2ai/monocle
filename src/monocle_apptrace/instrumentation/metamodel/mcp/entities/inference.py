@@ -14,6 +14,11 @@ TOOLS = {
                 "attribute": "type",
                 "accessor": lambda arguments: "mcp.server",
             },
+            {
+                "_comment": "tool url",
+                "attribute": "url",
+                "accessor": lambda arguments: _helper.get_url(arguments),
+            },
         ]
     ],
     "events": [

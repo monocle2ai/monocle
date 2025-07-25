@@ -146,6 +146,7 @@
             "span.type": "agentic.mcp.invocation",
             "entity.1.name": "get_weather",
             "entity.1.type": "mcp.server",
+            "entity.1.url": "http://localhost:8001/weather/mcp/",
             "entity.count": 1
         },
         "events": [
@@ -376,6 +377,7 @@
             "span.type": "agentic.mcp.invocation",
             "entity.1.name": "get_weather",
             "entity.1.type": "mcp.server",
+            "entity.1.url": "http://localhost:8001/weather/mcp/",
             "entity.count": 1
         },
         "events": [

@@ -1,14 +1,9 @@
 from monocle_apptrace.instrumentation.metamodel.mcp import _helper
 
 TOOLS = {
-    "type": "mcp.tool",
+    "type": "agentic.mcp.invocation",
     "attributes": [
         [
-            # {
-            #   "_comment": "tool type",
-            #   "attribute": "type",
-            #   "accessor": lambda arguments:'tool.mcp'
-            # },
             {
                 "_comment": "name of the tool",
                 "attribute": "name",
@@ -17,7 +12,7 @@ TOOLS = {
             {
                 "_comment": "tool type",
                 "attribute": "type",
-                "accessor": lambda arguments: _helper.get_type(arguments),
+                "accessor": lambda arguments: "mcp.server",
             },
         ]
     ],

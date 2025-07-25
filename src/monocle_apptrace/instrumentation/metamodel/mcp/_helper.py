@@ -5,6 +5,9 @@ import json
 
 logger = logging.getLogger(__name__)
 
+def log(arguments):
+    print(f"Arguments: {arguments}")
+
 def get_output_text(arguments):
     # arguments["result"].content[0].text
     if "result" in arguments and hasattr(arguments["result"], 'tools') and isinstance(arguments["result"].tools, list):
@@ -14,8 +17,11 @@ def get_output_text(arguments):
                 tools.append(tool.name)
         return tools
     if "result" in arguments and hasattr(arguments["result"], 'content') and isinstance(arguments["result"].content, list):
-        if len(arguments["result"].content) > 0 and hasattr(arguments["result"].content[0], 'text'):
-            return arguments["result"].content[0].text
+        ret_val = []
+        for content in arguments["result"].content:
+            if hasattr(content, 'text'):
+                ret_val.append(content.text)
+        return ret_val
 
 def get_name(arguments):
     """Get the name of the tool from the instance."""

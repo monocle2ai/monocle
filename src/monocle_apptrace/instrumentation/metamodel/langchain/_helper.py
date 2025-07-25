@@ -36,8 +36,10 @@ def extract_messages(args):
                         messages.append({msg.type: msg.content})
             else:
                 for msg in args[0]:
-                    if hasattr(msg, 'content') and hasattr(msg, 'type'):
+                    if hasattr(msg, 'content') and hasattr(msg, 'type') and msg.content:
                         messages.append({msg.type: msg.content})
+                    elif hasattr(msg, 'tool_calls') and msg.tool_calls:
+                        messages.append({msg.type: get_json_dumps(msg.tool_calls)})
         return [get_json_dumps(d) for d in messages]
     except Exception as e:
         logger.warning("Warning: Error occurred in extract_messages: %s", str(e))

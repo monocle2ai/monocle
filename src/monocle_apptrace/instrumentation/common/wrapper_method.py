@@ -28,6 +28,10 @@ from monocle_apptrace.instrumentation.metamodel.azfunc.methods import AZFUNC_HTT
 from monocle_apptrace.instrumentation.metamodel.gemini.methods import GEMINI_METHODS
 from monocle_apptrace.instrumentation.metamodel.fastapi.methods import FASTAPI_METHODS
 from monocle_apptrace.instrumentation.metamodel.fastapi._helper import FastAPISpanHandler, FastAPIResponseSpanHandler
+from monocle_apptrace.instrumentation.metamodel.mcp.methods import MCP_METHODS
+from monocle_apptrace.instrumentation.metamodel.mcp.mcp_processor import MCPAgentHandler
+from monocle_apptrace.instrumentation.metamodel.a2a.methods import A2A_CLIENT_METHODS
+
 class WrapperMethod:
     def __init__(
             self,
@@ -76,7 +80,25 @@ class WrapperMethod:
     def get_span_handler(self) -> SpanHandler:
         return self.span_handler()
 
-DEFAULT_METHODS_LIST = LANGCHAIN_METHODS + LLAMAINDEX_METHODS + HAYSTACK_METHODS + BOTOCORE_METHODS + FLASK_METHODS + REQUESTS_METHODS + LANGGRAPH_METHODS + OPENAI_METHODS + TEAMAI_METHODS + ANTHROPIC_METHODS + AIOHTTP_METHODS + AZURE_AI_INFERENCE_METHODS + AZFUNC_HTTP_METHODS + GEMINI_METHODS + FASTAPI_METHODS
+DEFAULT_METHODS_LIST = (
+    LANGCHAIN_METHODS + 
+    LLAMAINDEX_METHODS + 
+    HAYSTACK_METHODS + 
+    BOTOCORE_METHODS + 
+    FLASK_METHODS + 
+    REQUESTS_METHODS + 
+    LANGGRAPH_METHODS + 
+    OPENAI_METHODS + 
+    TEAMAI_METHODS +
+    ANTHROPIC_METHODS + 
+    AIOHTTP_METHODS + 
+    AZURE_AI_INFERENCE_METHODS + 
+    AZFUNC_HTTP_METHODS + 
+    GEMINI_METHODS + 
+    FASTAPI_METHODS + 
+    MCP_METHODS + 
+    A2A_CLIENT_METHODS
+)
 
 MONOCLE_SPAN_HANDLERS: Dict[str, SpanHandler] = {
     "default": SpanHandler(),
@@ -88,6 +110,7 @@ MONOCLE_SPAN_HANDLERS: Dict[str, SpanHandler] = {
     "non_framework_handler": NonFrameworkSpanHandler(),
     "openai_handler": OpenAISpanHandler(),
     "azure_func_handler": azureSpanHandler(),
+    "mcp_agent_handler": MCPAgentHandler(),
     "fastapi_handler": FastAPISpanHandler(),
     "fastapi_response_handler": FastAPIResponseSpanHandler(),
     "langgraph_agent_handler": LanggraphAgentHandler(),

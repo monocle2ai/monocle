@@ -125,7 +125,7 @@ def test_finish_reason_recitation():
     # This prompt is designed to trigger recitation filters, but may not always work
     response = client.models.generate_content(
         model=MODEL,
-        contents="Please reproduce the exact text of the first chapter of Harry Potter and the Philosopher's Stone."
+        contents="Please reproduce the first 100 words of exact text of the first chapter of Harry Potter and the Philosopher's Stone."
     )
     
     finish_reason = response.candidates[0].finish_reason

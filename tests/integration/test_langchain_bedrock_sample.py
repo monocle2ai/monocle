@@ -113,9 +113,9 @@ def test_langchain_bedrock_sample(setup):
         span=inference_spans[0],
         expected_event_count=3,
         input_patterns=[
-            r"^\{'human': '.+'\}$",  # Pattern for human input
+            r"^\{\"human\": \".+\"\}$",  # Pattern for human input
         ],
-        output_pattern=r"^\{'ai': '.+'\}$",  # Pattern for AI response
+        output_pattern=r"^\{\"ai\": \".+\"\}$",  # Pattern for AI response
         metadata_requirements={
             "completion_tokens": int,
             "prompt_tokens": int,

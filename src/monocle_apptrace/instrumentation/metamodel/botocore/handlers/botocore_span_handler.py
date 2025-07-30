@@ -20,7 +20,7 @@ class BotoCoreSpanHandler(SpanHandler):
                     instrumented_method = instrumentor(to_wrap, wrapped, span_name, return_value, original_method)
                     setattr(return_value, method_name, instrumented_method)
 
-    def post_tracing(self, to_wrap, wrapped, instance, args, kwargs, return_value):
+    def post_tracing(self, to_wrap, wrapped, instance, args, kwargs, return_value,token=None):
         self._botocore_processor(to_wrap=to_wrap, wrapped=wrapped, instance=instance, return_value=return_value, args=args,
                                  kwargs=kwargs)
         return super().post_tracing(to_wrap, wrapped, instance, args, kwargs,return_value)

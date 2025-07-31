@@ -11,7 +11,7 @@ from monocle_apptrace.instrumentation.common.constants import (
     MONOCLE_SDK_VERSION, MONOCLE_SDK_LANGUAGE, MONOCLE_DETECTED_SPAN_ERROR
 )
 from monocle_apptrace.instrumentation.common.utils import set_attribute, get_scopes, MonocleSpanException, get_monocle_version
-from monocle_apptrace.instrumentation.common.constants import WORKFLOW_TYPE_KEY, WORKFLOW_TYPE_GENERIC
+from monocle_apptrace.instrumentation.common.constants import WORKFLOW_TYPE_KEY, WORKFLOW_TYPE_GENERIC, CHILD_ERROR_CODE
 
 logger = logging.getLogger(__name__)
 
@@ -82,7 +82,7 @@ class SpanHandler:
     def set_non_workflow_properties(span: Span, to_wrap = None):
         span.set_attribute("span.type", "generic")
 
-    def post_task_processing(self, to_wrap, wrapped, instance, args, kwargs, result, span:Span):
+    def post_task_processing(self, to_wrap, wrapped, instance, args, kwargs, result, ex, span:Span, parent_span:Span):
         pass
 
     def hydrate_span(self, to_wrap, wrapped, instance, args, kwargs, result, span, parent_span = None, ex:Exception = None) -> bool:
@@ -106,7 +106,7 @@ class SpanHandler:
             skip_processors:list[str] = self.skip_processor(to_wrap, wrapped, instance, span, args, kwargs) or []
 
             if 'attributes' in output_processor and 'attributes' not in skip_processors:
-                arguments = {"instance":instance, "args":args, "kwargs":kwargs, "result":result, "parent_span":parent_span}
+                arguments = {"instance":instance, "args":args, "kwargs":kwargs, "result":result, "parent_span":parent_span, "span":span}
                 for processors in output_processor["attributes"]:
                     for processor in processors:
                         attribute = processor.get('attribute')
@@ -142,7 +142,7 @@ class SpanHandler:
             output_processor=to_wrap['output_processor']
             skip_processors:list[str] = self.skip_processor(to_wrap, wrapped, instance, span, args, kwargs) or []
 
-            arguments = {"instance": instance, "args": args, "kwargs": kwargs, "result": ret_result, "exception":ex, "parent_span":parent_span}
+            arguments = {"instance": instance, "args": args, "kwargs": kwargs, "result": ret_result, "exception":ex, "parent_span":parent_span, "span": span}
             # Process events if they are defined in the output_processor.
             # In case of inference.modelapi skip the event processing unless the span has an exception
             if 'events' in output_processor and ('events' not in skip_processors or ex is not None):
@@ -272,3 +272,4 @@ class NonFrameworkSpanHandler(SpanHandler):
             span_type = span_type+".modelapi"
             span.set_attribute("span.type", span_type)
         return span_type
+

@@ -17,6 +17,7 @@ from monocle_apptrace.instrumentation.metamodel.finish_types import (
     map_openai_finish_reason_to_finish_type,
     OPENAI_FINISH_REASON_MAPPING
 )
+from monocle_apptrace.instrumentation.common.constants import CHILD_ERROR_CODE
 
 logger = logging.getLogger(__name__)
 
@@ -177,6 +178,14 @@ class OpenAISpanHandler(NonFrameworkSpanHandler):
             return super().hydrate_events(to_wrap, wrapped, instance, args, kwargs, ret_result, span=parent_span, parent_span=None, ex=ex)
 
         return super().hydrate_events(to_wrap, wrapped, instance, args, kwargs, ret_result, span, parent_span=parent_span, ex=ex)
+
+    def post_task_processing(self, to_wrap, wrapped, instance, args, kwargs, result, ex, span, parent_span):
+        # TeamsAI doesn't capture the status and other metadata from underlying OpenAI SDK.
+        # Thus we save the OpenAI status code in the parent span and retrieve it here to preserve meaningful error codes.
+        if self.is_teams_span_in_progress() and ex is not None:
+            if len(span.events) > 1 and span.events[1].name == "data.output" and span.events[1].attributes.get("error_code") is not None:
+                parent_span.set_attribute(CHILD_ERROR_CODE, span.events[1].attributes.get("error_code"))
+        super().post_task_processing(to_wrap, wrapped, instance, args, kwargs, result, ex, span, parent_span)
 
 def extract_finish_reason(arguments):
     """Extract finish_reason from OpenAI response"""

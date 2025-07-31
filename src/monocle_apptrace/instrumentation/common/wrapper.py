@@ -35,7 +35,7 @@ def pre_process_span(name, tracer, handler, add_workflow_span, to_wrap, wrapped,
         except Exception as e:
             logger.info(f"Warning: Error occurred in pre_task_processing: {e}")
 
-def post_process_span(handler, to_wrap, wrapped, instance, args, kwargs, return_value, span, parent_span=None, ex = None):
+def post_process_span(handler, to_wrap, wrapped, instance, args, kwargs, return_value, span, parent_span, ex):
     if not (SpanHandler.is_root_span(span) or get_value(ADD_NEW_WORKFLOW) == True):
         try:
             handler.hydrate_span(to_wrap, wrapped, instance, args, kwargs, return_value, span, parent_span, ex)
@@ -43,7 +43,7 @@ def post_process_span(handler, to_wrap, wrapped, instance, args, kwargs, return_
             logger.info(f"Warning: Error occurred in hydrate_span: {e}")
         
         try:
-            handler.post_task_processing(to_wrap, wrapped, instance, args, kwargs, return_value, span)
+            handler.post_task_processing(to_wrap, wrapped, instance, args, kwargs, return_value, ex, span, parent_span)
         except Exception as e:
             logger.info(f"Warning: Error occurred in post_task_processing: {e}")
 
@@ -141,7 +141,7 @@ async def amonocle_wrapper_span_processor(tracer: Tracer, handler: SpanHandler, 
                 raise
             finally:
                 def post_process_span_internal(ret_val):
-                    post_process_span(handler, to_wrap, wrapped, instance, args, kwargs, ret_val, span, parent_span,ex)
+                    post_process_span(handler, to_wrap, wrapped, instance, args, kwargs, ret_val, span, parent_span, ex)
                     if not auto_close_span:
                         span.end()
                 if ex is None and not auto_close_span and to_wrap.get("output_processor") and to_wrap.get("output_processor").get("response_processor"):

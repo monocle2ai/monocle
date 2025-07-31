@@ -5,7 +5,6 @@ for different AI providers (OpenAI, Anthropic, Gemini, LangChain, LlamaIndex, Az
 
 from enum import Enum
 
-
 class FinishType(Enum):
     """Enum for standardized finish types across all AI providers."""
     SUCCESS = "success"
@@ -13,7 +12,7 @@ class FinishType(Enum):
     CONTENT_FILTER = "content_filter"
     ERROR = "error"
     REFUSAL = "refusal"
-
+    RATE_LIMITED = "rate_limited"
 
 # OpenAI finish reason mapping
 OPENAI_FINISH_REASON_MAPPING = {
@@ -225,6 +224,13 @@ LANGCHAIN_FINISH_REASON_MAPPING = {
     "OTHER": FinishType.ERROR.value,
 }
 
+TEAMSAI_FINISH_REASON_MAPPING = {
+    "success": FinishType.SUCCESS.value,
+    "error": FinishType.ERROR.value,
+    "too_long": FinishType.TRUNCATED.value,
+    "rate_limited": FinishType.RATE_LIMITED.value,
+    "invalid_response": FinishType.ERROR.value,
+}
 
 def map_openai_finish_reason_to_finish_type(finish_reason):
     """Map OpenAI finish_reason to standardized finish_type."""
@@ -360,4 +366,22 @@ def map_bedrock_finish_reason_to_finish_type(finish_reason):
     elif any(keyword in finish_reason_lower for keyword in ['error', 'fail', 'exception', 'timeout', 'unavailable', 'rate_limit', 'throttled', 'validation']):
         return FinishType.ERROR.value
     
+    return None
+
+def map_teamsai_finish_reason_to_finish_type(finish_reason):
+    """Map TeamsAI finish_reason to standardized finish_type."""
+    if not finish_reason:
+        return None
+
+    # Convert to lowercase for case-insensitive matching
+    finish_reason_lower = finish_reason.lower() if isinstance(finish_reason, str) else str(finish_reason).lower()
+
+    # Try direct mapping first
+    if finish_reason in TEAMSAI_FINISH_REASON_MAPPING:
+        return TEAMSAI_FINISH_REASON_MAPPING[finish_reason]
+
+    # Try lowercase mapping
+    if finish_reason_lower in TEAMSAI_FINISH_REASON_MAPPING:
+        return TEAMSAI_FINISH_REASON_MAPPING[finish_reason_lower]
+
     return None

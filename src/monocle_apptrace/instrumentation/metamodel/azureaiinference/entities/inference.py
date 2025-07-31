@@ -193,16 +193,6 @@ INFERENCE = {
                 {
                     "attribute": "error_code",
                     "accessor": lambda arguments: get_error_message(arguments)
-                },
-                {
-                    "attribute": "finish_reason",
-                    "accessor": lambda arguments: _helper.extract_finish_reason(arguments)
-                },
-                {
-                    "attribute": "finish_type",
-                    "accessor": lambda arguments: _helper.map_finish_reason_to_finish_type(
-                        _helper.extract_finish_reason(arguments)
-                    )
                 }
             ]
         },
@@ -214,6 +204,16 @@ INFERENCE = {
                     "accessor": lambda arguments: _helper.update_span_from_llm_response(
                         arguments['result'], 
                         arguments.get('instance')
+                    )
+                },
+                {
+                    "attribute": "finish_reason",
+                    "accessor": lambda arguments: _helper.extract_finish_reason(arguments)
+                },
+                {
+                    "attribute": "finish_type",
+                    "accessor": lambda arguments: _helper.map_finish_reason_to_finish_type(
+                        _helper.extract_finish_reason(arguments)
                     )
                 }
             ]

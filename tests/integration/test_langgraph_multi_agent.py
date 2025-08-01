@@ -11,7 +11,7 @@ from langgraph_supervisor import create_supervisor
 from langchain_mcp_adapters.client import MultiServerMCPClient
 import pytest
 import logging
-from servers.mcp.weather_server import app
+from tests.integration.servers.mcp.weather_server import app as weather_app
 from typing import Optional
 from langchain_core.callbacks import (
     AsyncCallbackManagerForToolRun,
@@ -23,45 +23,102 @@ from langchain_core.tools.base import ArgsSchema
 from pydantic import BaseModel, Field
 import httpx
 from uuid import uuid4
+import subprocess
+import signal
+import os
 
 logger = logging.getLogger(__name__)
 
 import time
 import threading
+import multiprocessing
 
 memory_exporter = InMemorySpanExporter()
 span_processors = [
     SimpleSpanProcessor(memory_exporter),
     BatchSpanProcessor(FileSpanExporter()),
 ]
-server_thread = None
+
+# Global variables to track server processes
+weather_server_process = None
+a2a_server_process = None
 
 
-# pytest start a fast api server once
+def start_weather_server():
+    """Start the weather MCP server on port 8001."""
+
+    def run_server():
+        uvicorn.run(weather_app, host="127.0.0.1", port=8001, log_level="error")
+
+    server_thread = threading.Thread(target=run_server, daemon=True)
+    server_thread.start()
+    time.sleep(2)  # Wait for server to start
+    return server_thread
+
+
+def start_a2a_server():
+    """Start the A2A Currency server on port 10000."""
+    import sys
+    import os
+
+    # Get the path to the A2A server script
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    a2a_server_path = os.path.join(current_dir, "servers", "a2a_langgraph", "app", "__main__.py")
+
+    # Start the A2A server as a subprocess
+    process = subprocess.Popen(
+        [sys.executable, a2a_server_path, "--host", "localhost", "--port", "10000"],
+        stdout=subprocess.DEVNULL,  # Suppress output
+        stderr=subprocess.DEVNULL,
+        preexec_fn=os.setsid if os.name != 'nt' else None  # For proper cleanup
+    )
+    time.sleep(3)  # Wait for server to start
+    return process
+
+
+def stop_a2a_server(process):
+    """Stop the A2A server process."""
+    if process and process.poll() is None:
+        try:
+            if os.name != 'nt':
+                # Unix-like systems
+                os.killpg(os.getpgid(process.pid), signal.SIGTERM)
+            else:
+                # Windows
+                process.terminate()
+            process.wait(timeout=5)
+        except (subprocess.TimeoutExpired, ProcessLookupError, OSError):
+            if process.poll() is None:
+                process.kill()
+
+
+# pytest start servers once for the module
 @pytest.fixture(scope="module")
-@pytest.mark.asyncio
-async def start_fastapi_server():
-    """Start the FastAPI server."""
+def start_servers():
+    """Start both weather and A2A servers for the test module."""
+    global weather_server_process, a2a_server_process
+
+    logger.info("Starting weather server...")
+    weather_server_process = start_weather_server()
+
+    logger.info("Starting A2A server...")
+    a2a_server_process = start_a2a_server()
+
+    yield
+
+    # Cleanup
+    logger.info("Stopping servers...")
+    if a2a_server_process:
+        stop_a2a_server(a2a_server_process)
 
 
-@pytest.fixture(scope="module")
-def setup():
+@pytest.fixture(scope="function")
+def setup(start_servers):
     memory_exporter.clear()
     setup_monocle_telemetry(
         workflow_name="langchain_agent_1",
         span_processors=span_processors,
     )
-
-    # def run_server():
-    #     uvicorn.run(app, host="127.0.0.1", port=8001, log_level="info")
-
-    # server_thread = threading.Thread(target=run_server, daemon=True)
-    # server_thread.start()
-    # time.sleep(0.1)  # time for the server to start
-
-    # yield
-
-    # Note: daemon threads will be terminated when the main process exits
 
 
 def book_hotel(hotel_name: str):
@@ -94,7 +151,7 @@ class CurrencyConversionTool(BaseTool):
         self.a2a_client = a2a_client
 
     def _run(
-        self, message: str, run_manager: Optional[CallbackManagerForToolRun] = None
+            self, message: str, run_manager: Optional[CallbackManagerForToolRun] = None
     ) -> str:
         """Use the tool synchronously - delegates to async implementation."""
         import asyncio
@@ -112,18 +169,18 @@ class CurrencyConversionTool(BaseTool):
             return asyncio.run(self._arun(message, run_manager))
 
     async def _arun(
-        self,
-        message: str,
-        run_manager: Optional[AsyncCallbackManagerForToolRun] = None,
+            self,
+            message: str,
+            run_manager: Optional[AsyncCallbackManagerForToolRun] = None,
     ) -> str:
         """Use the tool asynchronously to communicate with currency A2A agent."""
         try:
             if self.a2a_client is None:
                 return "Currency A2A Client not initialized"
-            
+
             # Import A2A classes
             from a2a.types import MessageSendParams, SendMessageRequest
-            
+
             # Prepare message payload
             send_message_payload = {
                 'message': {
@@ -134,17 +191,17 @@ class CurrencyConversionTool(BaseTool):
                     'messageId': uuid4().hex,
                 },
             }
-            
+
             request = SendMessageRequest(
-                id=str(uuid4()), 
+                id=str(uuid4()),
                 params=MessageSendParams(**send_message_payload)
             )
-            
+
             # Send message using the pre-created client
             response = await self.a2a_client.send_message(request)
             # parts = response.root.result.parts[0].root
             return f"Currency A2A Response: {response.model_dump(mode='json', exclude_none=True)}"
-                
+
         except ImportError as e:
             return f"A2A Client libraries not available: {str(e)}"
         except Exception as e:
@@ -156,10 +213,10 @@ async def createCurrencyA2ATool(base_url: str = "http://localhost:10000"):
     try:
         # Import A2A classes
         from a2a.client import A2ACardResolver, A2AClient
-        
+
         # Create a persistent httpx client
-        httpx_client = httpx.AsyncClient()
-        
+        httpx_client = httpx.AsyncClient(timeout=20.0)
+
         try:
             # Initialize A2ACardResolver
             resolver = A2ACardResolver(
@@ -172,13 +229,13 @@ async def createCurrencyA2ATool(base_url: str = "http://localhost:10000"):
 
             # Create A2A client with the httpx client and agent card
             a2a_client = A2AClient(
-                httpx_client=httpx_client, 
+                httpx_client=httpx_client,
                 agent_card=agent_card
             )
 
             # Create and return the tool with the pre-initialized A2A client
             return CurrencyConversionTool(a2a_client=a2a_client)
-            
+
         except Exception as e:
             # If initialization fails, clean up the httpx client
             await httpx_client.aclose()
@@ -191,13 +248,14 @@ async def createCurrencyA2ATool(base_url: str = "http://localhost:10000"):
         # Return a tool with no client if initialization fails
         return CurrencyConversionTool(a2a_client=None)
 
+
 @tool
 def multiply(a: float, b: float) -> float:
     """Multiply two numbers."""
     return a * b
 
-async def setup_agents():
 
+async def setup_agents():
     # Set up MCP client for monocle repo
     async def get_mcp_tools():
         """Get tools from the monocle MCP server."""
@@ -298,8 +356,8 @@ def verify_spans():
         span_attributes = span.attributes
 
         if "span.type" in span_attributes and (
-            span_attributes["span.type"] == "inference"
-            or span_attributes["span.type"] == "inference.framework"
+                span_attributes["span.type"] == "inference"
+                or span_attributes["span.type"] == "inference.framework"
         ):
             # Assertions for all inference attributes
             assert span_attributes["entity.1.type"] == "inference.openai"
@@ -316,9 +374,9 @@ def verify_spans():
             found_inference = True
 
         if (
-            "span.type" in span_attributes
-            and span_attributes["span.type"] == "agentic.invocation"
-            and "entity.1.name" in span_attributes
+                "span.type" in span_attributes
+                and span_attributes["span.type"] == "agentic.invocation"
+                and "entity.1.name" in span_attributes
         ):
             assert "entity.1.type" in span_attributes
             assert "entity.1.name" in span_attributes
@@ -332,8 +390,8 @@ def verify_spans():
             found_agent = True
 
         if (
-            "span.type" in span_attributes
-            and span_attributes["span.type"] == "agentic.tool.invocation"
+                "span.type" in span_attributes
+                and span_attributes["span.type"] == "agentic.tool.invocation"
         ):
             assert "entity.1.type" in span_attributes
             assert "entity.1.name" in span_attributes
@@ -345,8 +403,8 @@ def verify_spans():
             found_tool = True
 
         if (
-            "span.type" in span_attributes
-            and span_attributes["span.type"] == "agentic.delegation"
+                "span.type" in span_attributes
+                and span_attributes["span.type"] == "agentic.delegation"
         ):
             assert "entity.1.type" in span_attributes
             assert "entity.1.from_agent" in span_attributes

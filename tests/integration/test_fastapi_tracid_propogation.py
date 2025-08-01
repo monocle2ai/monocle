@@ -13,16 +13,18 @@ CHAT_SCOPE_NAME = "chat"
 CONVERSATION_SCOPE_NAME = "discussion"
 CONVERSATION_SCOPE_VALUE = "conv1234"
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="module", autouse=True)
 def setup():
     print("Setting up FastAPI server")
     os.environ[TRACE_PROPOGATION_URLS] = "http://127.0.0.1"
     os.environ[SCOPE_CONFIG_PATH] = os.path.join(os.path.dirname(os.path.abspath(__file__)), SCOPE_METHOD_FILE)
-    fastapi_helper.start_fastapi()
     setup_monocle_telemetry(
         workflow_name="fastapi_test",
         span_processors=[SimpleSpanProcessor(custom_exporter)]
     )
+    fastapi_helper.start_fastapi()
+    yield
+    fastapi_helper.stop_fastapi()
 
 @pytest.fixture(autouse=True)
 def pre_test():

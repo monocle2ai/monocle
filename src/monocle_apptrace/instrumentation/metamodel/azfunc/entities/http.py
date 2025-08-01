@@ -18,6 +18,11 @@ AZFUNC_HTTP_PROCESSOR = {
                 "attribute": "body",
                 "accessor": lambda arguments: _helper.get_body(arguments['kwargs'])
             },
+            {
+                "_comment": "request function name",
+                "attribute": "function_name",
+                "accessor": lambda arguments: _helper.get_function_name(arguments['kwargs'])
+            }
         ]
     ],
     "events": [

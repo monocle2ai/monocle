@@ -17,6 +17,13 @@ def get_url(kwargs) -> ParseResult:
     else:
         return None
 
+def get_function_name(kwargs) -> str:
+    context = kwargs.get('context', None)
+    if context is not None and hasattr(context, 'function_name'):
+        return context.function_name
+    return ""
+    
+
 def get_route(kwargs) -> str:
     url:ParseResult = get_url(kwargs)
     if url is not None:

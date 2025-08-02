@@ -29,7 +29,7 @@ setup_monocle_telemetry(
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
 
-def find_inference_span_and_event_attributes(spans, event_name="data.output"):
+def find_inference_span_and_event_attributes(spans, event_name="metadata"):
     for span in reversed(spans):  # Usually the last span is the inference span
         if span.attributes.get("span.type") == "inference":
             for event in span.events:
@@ -59,7 +59,7 @@ def test_finish_reason_stop():
     spans = custom_exporter.get_captured_spans()
     assert spans, "No spans were exported"
     output_event_attrs = find_inference_span_and_event_attributes(spans)
-    assert output_event_attrs, "data.output event not found in inference span"
+    assert output_event_attrs, "metadata event not found in inference span"
     assert output_event_attrs.get("finish_reason") == "STOP"
     assert output_event_attrs.get("finish_type") == "success"
 
@@ -82,7 +82,7 @@ def test_finish_reason_max_tokens():
     spans = custom_exporter.get_captured_spans()
     assert spans, "No spans were exported"
     output_event_attrs = find_inference_span_and_event_attributes(spans)
-    assert output_event_attrs, "data.output event not found in inference span"
+    assert output_event_attrs, "metadata event not found in inference span"
     assert output_event_attrs.get("finish_reason") == "MAX_TOKENS"
     assert output_event_attrs.get("finish_type") == "truncated"
 
@@ -107,7 +107,7 @@ def test_finish_reason_safety():
     spans = custom_exporter.get_captured_spans()
     assert spans, "No spans were exported"
     output_event_attrs = find_inference_span_and_event_attributes(spans)
-    assert output_event_attrs, "data.output event not found in inference span"
+    assert output_event_attrs, "metadata event not found in inference span"
 
     if finish_reason.name == "SAFETY":
         assert output_event_attrs.get("finish_reason") == "SAFETY"
@@ -137,7 +137,7 @@ def test_finish_reason_recitation():
     spans = custom_exporter.get_captured_spans()
     assert spans, "No spans were exported"
     output_event_attrs = find_inference_span_and_event_attributes(spans)
-    assert output_event_attrs, "data.output event not found in inference span"
+    assert output_event_attrs, "metadata event not found in inference span"
 
     if finish_reason.name == "RECITATION":
         assert output_event_attrs.get("finish_reason") == "RECITATION"
@@ -167,7 +167,7 @@ def test_finish_reason_with_system_instruction():
     spans = custom_exporter.get_captured_spans()
     assert spans, "No spans were exported"
     output_event_attrs = find_inference_span_and_event_attributes(spans)
-    assert output_event_attrs, "data.output event not found in inference span"
+    assert output_event_attrs, "metadata event not found in inference span"
     assert output_event_attrs.get("finish_reason") == "STOP"
     assert output_event_attrs.get("finish_type") == "success"
 
@@ -187,7 +187,7 @@ def test_finish_reason_with_chat():
     spans = custom_exporter.get_captured_spans()
     assert spans, "No spans were exported"
     output_event_attrs = find_inference_span_and_event_attributes(spans)
-    assert output_event_attrs, "data.output event not found in inference span"
+    assert output_event_attrs, "metadata event not found in inference span"
     assert output_event_attrs.get("finish_reason") == "STOP"
     assert output_event_attrs.get("finish_type") == "success"
 

@@ -37,7 +37,7 @@ def get_bedrock_client():
     """Get Bedrock runtime client."""
     return boto3.client("bedrock-runtime", region_name=AWS_REGION)
 
-def find_inference_span_and_event_attributes(spans, event_name="data.output"):
+def find_inference_span_and_event_attributes(spans, event_name="metadata"):
     """Find inference span and extract event attributes."""
     for span in reversed(spans):  # Usually the last span is the inference span
         if span.attributes.get("span.type") == "inference":
@@ -76,7 +76,7 @@ def test_bedrock_finish_reason_end_turn():
     spans = custom_exporter.get_captured_spans()
     assert spans, "No spans were exported"
     output_event_attrs = find_inference_span_and_event_attributes(spans)
-    assert output_event_attrs, "data.output event not found in inference span"
+    assert output_event_attrs, "metadata event not found in inference span"
     assert output_event_attrs.get("finish_reason") == "end_turn"
     assert output_event_attrs.get("finish_type") == "success"
 
@@ -106,7 +106,7 @@ def test_bedrock_finish_reason_max_tokens():
     spans = custom_exporter.get_captured_spans()
     assert spans, "No spans were exported"
     output_event_attrs = find_inference_span_and_event_attributes(spans)
-    assert output_event_attrs, "data.output event not found in inference span"
+    assert output_event_attrs, "metadata event not found in inference span"
     assert output_event_attrs.get("finish_reason") == "max_tokens"
     assert output_event_attrs.get("finish_type") == "truncated"
         
@@ -138,7 +138,7 @@ def test_bedrock_finish_reason_stop_sequence():
     spans = custom_exporter.get_captured_spans()
     assert spans, "No spans were exported"
     output_event_attrs = find_inference_span_and_event_attributes(spans)
-    assert output_event_attrs, "data.output event not found in inference span"
+    assert output_event_attrs, "metadata event not found in inference span"
     
     if response["stopReason"] == "stop_sequence":
         assert output_event_attrs.get("finish_reason") == "stop_sequence"
@@ -197,7 +197,7 @@ def test_bedrock_finish_reason_tool_use():
     spans = custom_exporter.get_captured_spans()
     assert spans, "No spans were exported"
     output_event_attrs = find_inference_span_and_event_attributes(spans)
-    assert output_event_attrs, "data.output event not found in inference span"
+    assert output_event_attrs, "metadata event not found in inference span"
     
     if response["stopReason"] == "tool_use":
         assert output_event_attrs.get("finish_reason") == "tool_use"
@@ -235,7 +235,7 @@ def test_bedrock_finish_reason_content_filter():
     spans = custom_exporter.get_captured_spans()
     assert spans, "No spans were exported"
     output_event_attrs = find_inference_span_and_event_attributes(spans)
-    assert output_event_attrs, "data.output event not found in inference span"
+    assert output_event_attrs, "metadata event not found in inference span"
     
     if response["stopReason"] == "content_filter":
         assert output_event_attrs.get("finish_reason") == "content_filter"
@@ -279,7 +279,7 @@ def test_bedrock_finish_reason_error_handling():
         spans = custom_exporter.get_captured_spans()
         assert spans, "No spans were exported"
         output_event_attrs = find_inference_span_and_event_attributes(spans)
-        assert output_event_attrs, "data.output event not found in inference span"
+        assert output_event_attrs, "metadata event not found in inference span"
         
         # Should have error finish_reason and finish_type
         assert output_event_attrs.get("finish_reason") == "error"

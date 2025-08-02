@@ -28,7 +28,7 @@ AZURE_AI_INFERENCE_ENDPOINT = os.environ.get("AZURE_AI_INFERENCE_ENDPOINT")
 AZURE_AI_INFERENCE_KEY = os.environ.get("AZURE_AI_INFERENCE_KEY")
 
 
-def find_inference_span_and_event_attributes(spans, event_name="data.output"):
+def find_inference_span_and_event_attributes(spans, event_name="metadata"):
     """Find inference span and return event attributes."""
     for span in reversed(spans):  # Usually the last span is the inference span
         if span.attributes.get("span.type"):
@@ -80,7 +80,7 @@ def test_azure_ai_inference_finish_reason_stop():
     assert spans, "No spans were exported"
     
     output_event_attrs = find_inference_span_and_event_attributes(spans)
-    assert output_event_attrs, "data.output event not found in inference span"
+    assert output_event_attrs, "metadata event not found in inference span"
     
     # Check that finish_reason and finish_type are captured
     finish_reason = output_event_attrs.get("finish_reason")
@@ -127,7 +127,7 @@ def test_azure_ai_inference_finish_reason_length():
     assert spans, "No spans were exported"
     
     output_event_attrs = find_inference_span_and_event_attributes(spans)
-    assert output_event_attrs, "data.output event not found in inference span"
+    assert output_event_attrs, "metadata event not found in inference span"
     
     finish_reason = output_event_attrs.get("finish_reason")
     finish_type = output_event_attrs.get("finish_type")
@@ -183,7 +183,7 @@ def test_azure_ai_inference_streaming():
     assert spans, "No spans were exported"
     
     output_event_attrs = find_inference_span_and_event_attributes(spans)
-    assert output_event_attrs, "data.output event not found in inference span"
+    assert output_event_attrs, "metadata event not found in inference span"
     
     finish_reason = output_event_attrs.get("finish_reason")
     finish_type = output_event_attrs.get("finish_type")
@@ -253,7 +253,7 @@ def test_azure_ai_inference_with_tools():
         assert spans, "No spans were exported"
         
         output_event_attrs = find_inference_span_and_event_attributes(spans)
-        assert output_event_attrs, "data.output event not found in inference span"
+        assert output_event_attrs, "metadata event not found in inference span"
         
         finish_reason = output_event_attrs.get("finish_reason")
         finish_type = output_event_attrs.get("finish_type")
@@ -364,7 +364,7 @@ def test_azure_ai_inference_finish_reason_content_filter():
     assert spans, "No spans were exported"
     
     output_event_attrs = find_inference_span_and_event_attributes(spans)
-    assert output_event_attrs, "data.output event not found in inference span"
+    assert output_event_attrs, "metadata event not found in inference span"
     
     finish_reason = output_event_attrs.get("finish_reason")
     finish_type = output_event_attrs.get("finish_type")

@@ -28,10 +28,10 @@ OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY")
 
 
-def find_inference_span_and_event_attributes(spans, event_name="data.output"):
+def find_inference_span_and_event_attributes(spans, event_name="metadata", span_type="inference.framework"):
     """Find inference span and return event attributes."""
     for span in reversed(spans):  # Usually the last span is the inference span
-        if span.attributes.get("span.type") == "inference.framework":
+        if span.attributes.get("span.type") == span_type:
             for event in span.events:
                 if event.name == event_name:
                     return event.attributes
@@ -70,7 +70,7 @@ def test_llamaindex_openai_finish_reason_stop():
     assert spans, "No spans were exported"
     
     output_event_attrs = find_inference_span_and_event_attributes(spans)
-    assert output_event_attrs, "data.output event not found in inference span"
+    assert output_event_attrs, "metadata event not found in inference span"
     
     # Check that finish_reason and finish_type are captured
     finish_reason = output_event_attrs.get("finish_reason")
@@ -111,7 +111,7 @@ def test_llamaindex_openai_finish_reason_length():
     assert spans, "No spans were exported"
     
     output_event_attrs = find_inference_span_and_event_attributes(spans)
-    assert output_event_attrs, "data.output event not found in inference span"
+    assert output_event_attrs, "metadata event not found in inference span"
     
     finish_reason = output_event_attrs.get("finish_reason")
     finish_type = output_event_attrs.get("finish_type")
@@ -151,7 +151,7 @@ def test_llamaindex_anthropic_finish_reason():
     assert spans, "No spans were exported"
     
     output_event_attrs = find_inference_span_and_event_attributes(spans)
-    assert output_event_attrs, "data.output event not found in inference span"
+    assert output_event_attrs, "metadata event not found in inference span"
     
     finish_reason = output_event_attrs.get("finish_reason")
     finish_type = output_event_attrs.get("finish_type")
@@ -191,7 +191,7 @@ def test_llamaindex_anthropic_finish_reason_max_tokens():
     assert spans, "No spans were exported"
     
     output_event_attrs = find_inference_span_and_event_attributes(spans)
-    assert output_event_attrs, "data.output event not found in inference span"
+    assert output_event_attrs, "metadata event not found in inference span"
     
     finish_reason = output_event_attrs.get("finish_reason")
     finish_type = output_event_attrs.get("finish_type")
@@ -228,8 +228,8 @@ def test_llamaindex_simple_llm_complete():
     spans = custom_exporter.get_captured_spans()
     assert spans, "No spans were exported"
     
-    output_event_attrs = find_inference_span_and_event_attributes(spans)
-    assert output_event_attrs, "data.output event not found in inference span"
+    output_event_attrs = find_inference_span_and_event_attributes(spans, event_name="metadata", span_type="inference")
+    assert output_event_attrs, "metadata event not found in inference span"
     
     finish_reason = output_event_attrs.get("finish_reason")
     finish_type = output_event_attrs.get("finish_type")
@@ -281,7 +281,7 @@ def test_llamaindex_query_engine():
     assert spans, "No spans were exported"
     
     output_event_attrs = find_inference_span_and_event_attributes(spans)
-    assert output_event_attrs, "data.output event not found in inference span"
+    assert output_event_attrs, "metadata event not found in inference span"
     
     finish_reason = output_event_attrs.get("finish_reason")
     finish_type = output_event_attrs.get("finish_type")
@@ -371,7 +371,7 @@ def test_llamaindex_openai_finish_reason_content_filter():
     assert spans, "No spans were exported"
     
     output_event_attrs = find_inference_span_and_event_attributes(spans)
-    assert output_event_attrs, "data.output event not found in inference span"
+    assert output_event_attrs, "metadata event not found in inference span"
     
     finish_reason = output_event_attrs.get("finish_reason")
     finish_type = output_event_attrs.get("finish_type")

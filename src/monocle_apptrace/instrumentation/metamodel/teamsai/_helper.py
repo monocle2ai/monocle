@@ -1,14 +1,19 @@
 import logging
-from monocle_apptrace.instrumentation.common.utils import MonocleSpanException, get_json_dumps, get_status_code
 from monocle_apptrace.instrumentation.common.utils import (
     Option,
+    MonocleSpanException,
     get_keys_as_tuple,
     get_nested_value,
     try_option,
     get_exception_message,
-    get_exception_status_code
+    get_json_dumps,
+    get_status_code
 )
-
+from monocle_apptrace.instrumentation.metamodel.finish_types import (
+    map_teamsai_finish_reason_to_finish_type,
+    TEAMSAI_FINISH_REASON_MAPPING
+)
+from monocle_apptrace.instrumentation.common.constants import CHILD_ERROR_CODE
 logger = logging.getLogger(__name__)
 
 def extract_messages(arguments):
@@ -129,10 +134,31 @@ def extract_assistant_message(arguments) -> str:
             return arguments["result"].error
     return get_json_dumps(messages[0]) if messages else ""
 
+def extract_finish_reason(arguments):
+    """Map TeamAI finish_reason to standardized finish_type."""
+    return get_status_code(arguments)
+
+def extract_status_code(arguments):
+    # TeamsAI doesn't capture the status and other metadata from underlying OpenAI SDK.
+    # Thus we save the OpenAI status code in the parent span and retrieve it here to preserve meaningful error codes.
+    status = get_status_code(arguments)
+    if status == 'error' and arguments['exception'] is None:
+        child_status = arguments['span'].attributes.get(CHILD_ERROR_CODE)
+        if child_status is not None:
+            return child_status
+    return status
+
 def check_status(arguments):
     status = get_status_code(arguments)
-    if status != 'success':
+    if status != 'success' and arguments['exception'] is None:
         raise MonocleSpanException(f"{status}")   
+
+def map_finish_reason_to_finish_type(finish_reason):
+    """Map TeamsAI finish_reason to standardized finish_type."""
+    if not finish_reason:
+        return None
+
+    return map_teamsai_finish_reason_to_finish_type(finish_reason)
 
 def extract_provider_name(instance):
     provider_url: Option[str] = try_option(getattr, instance._client.base_url, 'host')

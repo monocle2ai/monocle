@@ -86,3 +86,4 @@ MONOCLE_SDK_VERSION = "monocle_apptrace.version"
 MONOCLE_SDK_LANGUAGE = "monocle_apptrace.language"
 MONOCLE_DETECTED_SPAN_ERROR = "monocle_apptrace.detected_span_error"
 HTTP_SUCCESS_CODES = ('200', '201', '202', '204', '205', '206')
+CHILD_ERROR_CODE = "child.error.code"

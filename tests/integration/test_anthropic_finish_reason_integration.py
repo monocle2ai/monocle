@@ -30,7 +30,7 @@ setup_monocle_telemetry(
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY")
 MODEL = os.environ.get("ANTHROPIC_MODEL", "claude-3-5-haiku-latest")
 
-def find_inference_span_and_event_attributes(spans, event_name="data.output"):
+def find_inference_span_and_event_attributes(spans, event_name="metadata"):
     for span in reversed(spans): # Usually the last span is the inference span
         if span.attributes.get("span.type") == "inference":
             for event in span.events:
@@ -59,7 +59,7 @@ def test_finish_reason_end_turn():
     spans = custom_exporter.get_captured_spans()
     assert spans, "No spans were exported"
     output_event_attrs = find_inference_span_and_event_attributes(spans)
-    assert output_event_attrs, "data.output event not found in inference span"
+    assert output_event_attrs, "metadata event not found in inference span"
     assert output_event_attrs.get("finish_reason") == "end_turn"
     assert output_event_attrs.get("finish_type") == "success"
 
@@ -79,7 +79,7 @@ def test_finish_reason_max_tokens():
     spans = custom_exporter.get_captured_spans()
     assert spans, "No spans were exported"
     output_event_attrs = find_inference_span_and_event_attributes(spans)
-    assert output_event_attrs, "data.output event not found in inference span"
+    assert output_event_attrs, "metadata event not found in inference span"
     assert output_event_attrs.get("finish_reason") == "max_tokens"
     assert output_event_attrs.get("finish_type") == "truncated"
 
@@ -100,7 +100,7 @@ def test_finish_reason_refusal():
     spans = custom_exporter.get_captured_spans()
     assert spans, "No spans were exported"
     output_event_attrs = find_inference_span_and_event_attributes(spans)
-    assert output_event_attrs, "data.output event not found in inference span"
+    assert output_event_attrs, "metadata event not found in inference span"
     
     if resp.stop_reason == "refusal":
         assert output_event_attrs.get("finish_reason") == "refusal"
@@ -127,7 +127,7 @@ def test_finish_reason_stop_sequence():
     spans = custom_exporter.get_captured_spans()
     assert spans, "No spans were exported"
     output_event_attrs = find_inference_span_and_event_attributes(spans)
-    assert output_event_attrs, "data.output event not found in inference span"
+    assert output_event_attrs, "metadata event not found in inference span"
 
     if resp.stop_reason == "stop_sequence":
         assert output_event_attrs.get("finish_reason") == "stop_sequence"
@@ -169,7 +169,7 @@ def test_finish_reason_tool_use():
     spans = custom_exporter.get_captured_spans()
     assert spans, "No spans were exported"
     output_event_attrs = find_inference_span_and_event_attributes(spans)
-    assert output_event_attrs, "data.output event not found in inference span"
+    assert output_event_attrs, "metadata event not found in inference span"
 
     if resp.stop_reason == "tool_use":
         assert output_event_attrs.get("finish_reason") == "tool_use"

@@ -54,7 +54,7 @@ TEAMAI_OUTPUT_PROCESSOR = {
             "attributes": [
                 {
                     "attribute": "error_code",
-                    "accessor": lambda arguments: get_error_message(arguments)
+                    "accessor": lambda arguments: _helper.extract_status_code(arguments)
                 },
                 {
                     "attribute": "response",

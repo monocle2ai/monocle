@@ -28,7 +28,7 @@ setup_monocle_telemetry(
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
 MODEL = os.environ.get("OPENAI_MODEL", "gpt-4o-mini")
 
-def find_inference_span_and_event_attributes(spans, event_name="data.output"):
+def find_inference_span_and_event_attributes(spans, event_name="metadata"):
     for span in reversed(spans): # Usually the last span is the inference span
         if span.attributes.get("span.type") == "inference":
             for event in span.events:
@@ -55,7 +55,7 @@ def test_finish_reason_stop():
     spans = custom_exporter.get_captured_spans()
     assert spans, "No spans were exported"
     output_event_attrs = find_inference_span_and_event_attributes(spans)
-    assert output_event_attrs, "data.output event not found in inference span"
+    assert output_event_attrs, "metadata event not found in inference span"
     assert output_event_attrs.get("finish_reason") == "stop"
     assert output_event_attrs.get("finish_type") == "success"
 
@@ -75,7 +75,7 @@ def test_finish_reason_length():
     spans = custom_exporter.get_captured_spans()
     assert spans, "No spans were exported"
     output_event_attrs = find_inference_span_and_event_attributes(spans)
-    assert output_event_attrs, "data.output event not found in inference span"
+    assert output_event_attrs, "metadata event not found in inference span"
     assert output_event_attrs.get("finish_reason") == "length"
     # Based on provided mapping, 'length' in OpenAI maps to 'truncated'
     assert output_event_attrs.get("finish_type") == "truncated" 
@@ -99,7 +99,7 @@ def test_finish_reason_content_filter():
     spans = custom_exporter.get_captured_spans()
     assert spans, "No spans were exported"
     output_event_attrs = find_inference_span_and_event_attributes(spans)
-    assert output_event_attrs, "data.output event not found in inference span"
+    assert output_event_attrs, "metadata event not found in inference span"
 
     if finish_reason == "content_filter":
         assert output_event_attrs.get("finish_reason") == "content_filter"
@@ -147,7 +147,7 @@ def test_finish_reason_function_call():
     spans = custom_exporter.get_captured_spans()
     assert spans, "No spans were exported"
     output_event_attrs = find_inference_span_and_event_attributes(spans)
-    assert output_event_attrs, "data.output event not found in inference span"
+    assert output_event_attrs, "metadata event not found in inference span"
     assert output_event_attrs.get("finish_reason") == "tool_calls"
     assert output_event_attrs.get("finish_type") == "success"
 

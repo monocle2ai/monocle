@@ -59,6 +59,15 @@ INFERENCE = {
                 {
                     "attribute": "response",
                     "accessor": lambda arguments: _helper.extract_assistant_message(arguments)
+                }
+            ]
+        },
+        {
+            "name": "metadata",
+            "attributes": [
+                {
+                    "_comment": "this is metadata usage from LLM",
+                    "accessor": lambda arguments: _helper.update_span_from_llm_response(arguments['result'], arguments['instance'])
                 },
                 {
                     "attribute": "finish_reason",
@@ -69,15 +78,6 @@ INFERENCE = {
                     "accessor": lambda arguments: _helper.map_finish_reason_to_finish_type(
                         _helper.extract_finish_reason(arguments)
                     )
-                }
-            ]
-        },
-        {
-            "name": "metadata",
-            "attributes": [
-                {
-                    "_comment": "this is metadata usage from LLM",
-                    "accessor": lambda arguments: _helper.update_span_from_llm_response(arguments['result'], arguments['instance'])
                 }
             ]
         }

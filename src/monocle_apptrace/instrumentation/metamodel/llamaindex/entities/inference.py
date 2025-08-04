@@ -1,7 +1,7 @@
 from monocle_apptrace.instrumentation.metamodel.llamaindex import (
     _helper,
 )
-from monocle_apptrace.instrumentation.common.utils import resolve_from_alias, get_llm_type, get_status, get_status_code
+from monocle_apptrace.instrumentation.common.utils import get_error_message, resolve_from_alias, get_llm_type, get_status, get_status_code
 
 INFERENCE = {
     "type": "inference.framework",
@@ -54,13 +54,8 @@ INFERENCE = {
             "name": "data.output",
             "attributes": [
                 {
-                    "_comment": "this is response from LLM",
-                    "attribute": "status",
-                    "accessor": lambda arguments: get_status(arguments)
-                },
-{
-                    "attribute": "status_code",
-                    "accessor": lambda arguments: get_status_code(arguments)
+                    "attribute": "error_code",
+                    "accessor": lambda arguments: get_error_message(arguments)
                 },
                 {
                     "attribute": "response",
@@ -74,6 +69,16 @@ INFERENCE = {
                 {
                     "_comment": "this is metadata usage from LLM",
                     "accessor": lambda arguments: _helper.update_span_from_llm_response(arguments['result'],arguments['instance'])
+                },
+                {
+                    "attribute": "finish_reason",
+                    "accessor": lambda arguments: _helper.extract_finish_reason(arguments)
+                },
+                {
+                    "attribute": "finish_type",
+                    "accessor": lambda arguments: _helper.map_finish_reason_to_finish_type(
+                        _helper.extract_finish_reason(arguments)
+                    )
                 }
             ]
         }

@@ -6,69 +6,105 @@ from monocle_apptrace.instrumentation.metamodel.openai import (
     _helper,
 )
 from monocle_apptrace.instrumentation.common.utils import (
+    get_error_message,
     patch_instance_method,
-    resolve_from_alias,
-    get_status,
-    get_exception_status_code,
-    get_status_code,
+    resolve_from_alias
 )
 
 logger = logging.getLogger(__name__)
 
 
+def _process_stream_item(item, state):
+    """Process a single stream item and update state."""
+    try:
+        if hasattr(item, "type") and isinstance(item.type, str) and item.type.startswith("response."):
+            if state["waiting_for_first_token"]:
+                state["waiting_for_first_token"] = False
+                state["first_token_time"] = time.time_ns()
+            if item.type == "response.output_text.delta":
+                state["accumulated_response"] += item.delta
+            if item.type == "response.completed":
+                state["stream_closed_time"] = time.time_ns()
+                if hasattr(item, "response") and hasattr(item.response, "usage"):
+                    state["token_usage"] = item.response.usage
+        elif (
+            hasattr(item, "choices")
+            and item.choices
+            and item.choices[0].delta
+            and item.choices[0].delta.content
+        ):
+            if hasattr(item.choices[0].delta, "role") and item.choices[0].delta.role:
+                state["role"] = item.choices[0].delta.role
+            if state["waiting_for_first_token"]:
+                state["waiting_for_first_token"] = False
+                state["first_token_time"] = time.time_ns()
+
+            state["accumulated_response"] += item.choices[0].delta.content
+        elif hasattr(item, "object") and item.object == "chat.completion.chunk" and item.usage:
+            # Handle the case where the response is a chunk
+            state["token_usage"] = item.usage
+            state["stream_closed_time"] = time.time_ns()
+            # Capture finish_reason from the chunk
+            if (
+                hasattr(item, "choices")
+                and item.choices
+                and len(item.choices) > 0
+                and hasattr(item.choices[0], 'finish_reason')
+                and item.choices[0].finish_reason
+            ):
+                finish_reason = item.choices[0].finish_reason
+                state["finish_reason"] = finish_reason
+
+    except Exception as e:
+        logger.warning(
+            "Warning: Error occurred while processing stream item: %s",
+            str(e),
+        )
+    finally:
+        state["accumulated_temp_list"].append(item)
+
+
+def _create_span_result(state, stream_start_time):
+    """Create the span result object."""
+    return SimpleNamespace(
+        type="stream",
+        timestamps={
+            "role": state["role"],
+            "data.input": int(stream_start_time),
+            "data.output": int(state["first_token_time"]),
+            "metadata": int(state["stream_closed_time"] or time.time_ns()),
+        },
+        output_text=state["accumulated_response"],
+        usage=state["token_usage"],
+        finish_reason=state["finish_reason"]
+    )
+
+
 def process_stream(to_wrap, response, span_processor):
-    waiting_for_first_token = True
     stream_start_time = time.time_ns()
-    first_token_time = stream_start_time
-    stream_closed_time = None
-    accumulated_response = ""
-    token_usage = None
-    accumulated_temp_list = []
+    
+    # Shared state for both sync and async processing
+    state = {
+        "waiting_for_first_token": True,
+        "first_token_time": stream_start_time,
+        "stream_closed_time": None,
+        "accumulated_response": "",
+        "token_usage": None,
+        "accumulated_temp_list": [],
+        "finish_reason": None,
+        "role": "assistant",
+    }
 
     if to_wrap and hasattr(response, "__iter__"):
         original_iter = response.__iter__
 
         def new_iter(self):
-            nonlocal waiting_for_first_token, first_token_time, stream_closed_time, accumulated_response, token_usage
-
             for item in original_iter():
-                try:
-                    if (
-                        item.choices
-                        and item.choices[0].delta
-                        and item.choices[0].delta.content
-                    ):
-                        if waiting_for_first_token:
-                            waiting_for_first_token = False
-                            first_token_time = time.time_ns()
-
-                        accumulated_response += item.choices[0].delta.content
-                        # token_usage = item.usage
-                    elif item.object == "chat.completion.chunk" and item.usage:
-                        # Handle the case where the response is a chunk
-                        token_usage = item.usage
-                        stream_closed_time = time.time_ns()
-
-                except Exception as e:
-                    logger.warning(
-                        "Warning: Error occurred while processing item in new_iter: %s",
-                        str(e),
-                    )
-                finally:
-                    accumulated_temp_list.append(item)
-                    yield item
+                _process_stream_item(item, state)
+                yield item
 
             if span_processor:
-                ret_val = SimpleNamespace(
-                    type="stream",
-                    timestamps={
-                        "data.input": int(stream_start_time),
-                        "data.output": int(first_token_time),
-                        "metadata": int(stream_closed_time or time.time_ns()),
-                    },
-                    output_text=accumulated_response,
-                    usage=token_usage,
-                )
+                ret_val = _create_span_result(state, stream_start_time)
                 span_processor(ret_val)
 
         patch_instance_method(response, "__iter__", new_iter)
@@ -77,46 +113,12 @@ def process_stream(to_wrap, response, span_processor):
         original_iter = response.__aiter__
 
         async def new_aiter(self):
-            nonlocal waiting_for_first_token, first_token_time, stream_closed_time, accumulated_response, token_usage
-
             async for item in original_iter():
-                try:
-                    if (
-                        item.choices
-                        and item.choices[0].delta
-                        and item.choices[0].delta.content
-                    ):
-                        if waiting_for_first_token:
-                            waiting_for_first_token = False
-                            first_token_time = time.time_ns()
-
-                        accumulated_response += item.choices[0].delta.content
-                        # token_usage = item.usage
-                    elif item.object == "chat.completion.chunk" and item.usage:
-                        # Handle the case where the response is a chunk
-                        token_usage = item.usage
-                        stream_closed_time = time.time_ns()
-
-                except Exception as e:
-                    logger.warning(
-                        "Warning: Error occurred while processing item in new_aiter: %s",
-                        str(e),
-                    )
-                finally:
-                    accumulated_temp_list.append(item)
-                    yield item
+                _process_stream_item(item, state)
+                yield item
 
             if span_processor:
-                ret_val = SimpleNamespace(
-                    type="stream",
-                    timestamps={
-                        "data.input": int(stream_start_time),
-                        "data.output": int(first_token_time),
-                        "metadata": int(stream_closed_time or time.time_ns()),
-                    },
-                    output_text=accumulated_response,
-                    usage=token_usage,
-                )
+                ret_val = _create_span_result(state, stream_start_time)
                 span_processor(ret_val)
 
         patch_instance_method(response, "__aiter__", new_aiter)
@@ -198,20 +200,17 @@ INFERENCE = {
         {
             "name": "data.output",
             "attributes": [
+
+                {
+                    "attribute": "error_code",
+                    "accessor": lambda arguments: get_error_message(arguments)
+                },
                 {
                     "_comment": "this is result from LLM",
                     "attribute": "response",
                     "accessor": lambda arguments: _helper.extract_assistant_message(
                         arguments,
                     ),
-                },
-                {
-                    "attribute": "status",
-                    "accessor": lambda arguments: get_status(arguments)
-                },
-                {
-                    "attribute": "status_code",
-                    "accessor": lambda arguments: get_status_code(arguments)
                 }
             ],
         },
@@ -223,6 +222,18 @@ INFERENCE = {
                     "accessor": lambda arguments: _helper.update_span_from_llm_response(
                         arguments["result"]
                     ),
+                },
+                {
+                    "_comment": "finish reason from OpenAI response",
+                    "attribute": "finish_reason",
+                    "accessor": lambda arguments: _helper.extract_finish_reason(arguments)
+                },
+                {
+                    "_comment": "finish type mapped from finish reason",
+                    "attribute": "finish_type",
+                    "accessor": lambda arguments: _helper.map_finish_reason_to_finish_type(
+                        _helper.extract_finish_reason(arguments)
+                    )
                 }
             ],
         },

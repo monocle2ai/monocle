@@ -6,12 +6,14 @@ and assistant messages from various input formats.
 import logging
 from monocle_apptrace.instrumentation.common.utils import (
     Option,
+    get_json_dumps,
     get_keys_as_tuple,
     get_nested_value,
     try_option,
     get_exception_message,
     get_status_code,
 )
+from monocle_apptrace.instrumentation.metamodel.finish_types import map_langchain_finish_reason_to_finish_type
 
 
 logger = logging.getLogger(__name__)
@@ -32,45 +34,64 @@ def extract_messages(args):
                 for msg in args[0].messages:
                     if hasattr(msg, 'content') and hasattr(msg, 'type'):
                         messages.append({msg.type: msg.content})
-        return [str(d) for d in messages]
+            else:
+                for msg in args[0]:
+                    if hasattr(msg, 'content') and hasattr(msg, 'type') and msg.content:
+                        messages.append({msg.type: msg.content})
+                    elif hasattr(msg, 'tool_calls') and msg.tool_calls:
+                        messages.append({msg.type: get_json_dumps(msg.tool_calls)})
+        return [get_json_dumps(d) for d in messages]
     except Exception as e:
         logger.warning("Warning: Error occurred in extract_messages: %s", str(e))
         return []
 
 def extract_assistant_message(arguments):
     status = get_status_code(arguments)
-    response: str = ""
+    messages = []
+    role = "assistant"
     if status == 'success':
         if isinstance(arguments['result'], str):
-            response = arguments['result']
-        if hasattr(arguments['result'], "content"):
-            response = arguments['result'].content
-        if hasattr(arguments['result'], "message") and hasattr(arguments['result'].message, "content"):
-            response =  arguments['result'].message.content
+            messages.append({role: arguments['result']})
+        elif hasattr(arguments['result'], "content") and arguments['result'].content != "":
+            role = arguments['result'].type if hasattr(arguments['result'], 'type') else role
+            messages.append({role: arguments['result'].content})
+        elif hasattr(arguments['result'], "message") and hasattr(arguments['result'].message, "content") and arguments['result'].message.content != "":
+            role = arguments['result'].type if hasattr(arguments['result'], 'type') else role
+            messages.append({role: arguments['result'].message.content})
+        elif hasattr(arguments['result'], "tool_calls"):
+            role = arguments['result'].type if hasattr(arguments['result'], 'type') else role
+            messages.append({role: arguments['result'].tool_calls[0]})
     else:
         if arguments["exception"] is not None:
-            response = get_exception_message(arguments)
+            messages.append({role: get_exception_message(arguments)})
         elif hasattr(arguments["result"], "error"):
-            response = arguments["result"].error
-
-    return response
-
+            return arguments["result"].error
+    return get_json_dumps(messages[0]) if messages else ""
 
 def extract_provider_name(instance):
-    provider_url: Option[str] = None
-    if hasattr(instance,'client'):
+    provider_url: Option[str] = Option(None)
+    if hasattr(instance, 'client'):
+        provider_url: Option[str] = try_option(getattr, instance.client, 'universe_domain')
+    if hasattr(instance,'client') and hasattr(instance.client, '_client') and hasattr(instance.client._client, 'base_url'):
+        # If the client has a base_url, extract the host from it
         provider_url: Option[str] = try_option(getattr, instance.client._client.base_url, 'host')
-    if hasattr(instance, '_client'):
+    if hasattr(instance, '_client') and hasattr(instance._client, 'base_url'):
         provider_url = try_option(getattr, instance._client.base_url, 'host')
     return provider_url.unwrap_or(None)
 
 
 def extract_inference_endpoint(instance):
     inference_endpoint: Option[str] = None
-    if hasattr(instance,'client'):
+    # instance.client.meta.endpoint_url
+    if hasattr(instance, 'client') and hasattr(instance.client, 'transport'):
+        inference_endpoint: Option[str] = try_option(getattr, instance.client.transport, 'host')
+
+    if hasattr(instance, 'client') and hasattr(instance.client, 'meta') and hasattr(instance.client.meta, 'endpoint_url'):
+        inference_endpoint: Option[str] = try_option(getattr, instance.client.meta, 'endpoint_url').map(str)
+
+    if hasattr(instance,'client') and hasattr(instance.client, '_client'):
         inference_endpoint: Option[str] = try_option(getattr, instance.client._client, 'base_url').map(str)
-        if inference_endpoint.is_none() and "meta" in instance.client.__dict__:
-            inference_endpoint = try_option(getattr, instance.client.meta, 'endpoint_url').map(str)
+
     if hasattr(instance,'_client'):
         inference_endpoint = try_option(getattr, instance._client, 'base_url').map(str)
 
@@ -139,3 +160,90 @@ def update_span_from_llm_response(response, instance):
             meta_dict.update({"prompt_tokens": token_usage.get("prompt_tokens") or token_usage.get("input_tokens")})
             meta_dict.update({"total_tokens": token_usage.get("total_tokens")})
     return meta_dict
+
+def extract_finish_reason(arguments):
+    """Extract finish_reason from LangChain response."""
+    try:
+        # Handle exception cases first
+        if arguments.get("exception") is not None:
+            # If there's an exception, it's typically an error finish type
+            return "error"
+        
+        response = arguments.get("result")
+        if response is None:
+            return None
+            
+        # Check various possible locations for finish_reason in LangChain responses
+        
+        # Direct finish_reason attribute
+        if hasattr(response, "finish_reason") and response.finish_reason:
+            return response.finish_reason
+            
+        # Response metadata (common in LangChain)
+        if hasattr(response, "response_metadata") and response.response_metadata:
+            metadata = response.response_metadata
+            if isinstance(metadata, dict):
+                # Check for finish_reason in metadata
+                if "finish_reason" in metadata:
+                    return metadata["finish_reason"]
+                # Check for stop_reason (Anthropic style through LangChain)
+                if "stop_reason" in metadata:
+                    return metadata["stop_reason"]
+                # Check for other common finish reason keys
+                for key in ["completion_reason", "end_reason", "status"]:
+                    if key in metadata:
+                        return metadata[key]
+        
+        # Check if response has generation_info (some LangChain models)
+        if hasattr(response, "generation_info") and response.generation_info:
+            gen_info = response.generation_info
+            if isinstance(gen_info, dict):
+                for key in ["finish_reason", "stop_reason", "completion_reason"]:
+                    if key in gen_info:
+                        return gen_info[key]
+        
+        # Check if response has llm_output (batch responses)
+        if hasattr(response, "llm_output") and response.llm_output:
+            llm_output = response.llm_output
+            if isinstance(llm_output, dict):
+                for key in ["finish_reason", "stop_reason"]:
+                    if key in llm_output:
+                        return llm_output[key]
+        
+        # For AIMessage responses, check additional_kwargs
+        if hasattr(response, "additional_kwargs") and response.additional_kwargs:
+            kwargs = response.additional_kwargs
+            if isinstance(kwargs, dict):
+                for key in ["finish_reason", "stop_reason"]:
+                    if key in kwargs:
+                        return kwargs[key]
+        
+        # For generation responses with choices (similar to OpenAI structure)
+        if hasattr(response, "generations") and response.generations:
+            generations = response.generations
+            if isinstance(generations, list) and len(generations) > 0:
+                for generation in generations:
+                    if hasattr(generation, "generation_info") and generation.generation_info:
+                        gen_info = generation.generation_info
+                        if isinstance(gen_info, dict):
+                            for key in ["finish_reason", "stop_reason"]:
+                                if key in gen_info:
+                                    return gen_info[key]
+        
+        # If no specific finish reason found, infer from status
+        status_code = get_status_code(arguments)
+        if status_code == 'success':
+            return "stop"  # Default success finish reason
+        elif status_code == 'error':
+            return "error"
+            
+    except Exception as e:
+        logger.warning("Warning: Error occurred in extract_finish_reason: %s", str(e))
+        return None
+    
+    return None
+
+
+def map_finish_reason_to_finish_type(finish_reason):
+    """Map LangChain finish_reason to finish_type."""
+    return map_langchain_finish_reason_to_finish_type(finish_reason)

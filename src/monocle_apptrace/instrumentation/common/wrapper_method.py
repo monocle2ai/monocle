@@ -9,10 +9,12 @@ from monocle_apptrace.instrumentation.metamodel.langchain.methods import (
     LANGCHAIN_METHODS,
 )
 from monocle_apptrace.instrumentation.metamodel.llamaindex.methods import (LLAMAINDEX_METHODS, )
+from monocle_apptrace.instrumentation.metamodel.llamaindex.llamaindex_processor import LlamaIndexToolHandler, LlamaIndexAgentHandler, LlamaIndexSingleAgenttToolHandlerWrapper
 from monocle_apptrace.instrumentation.metamodel.haystack.methods import (HAYSTACK_METHODS, )
 from monocle_apptrace.instrumentation.metamodel.openai.methods import (OPENAI_METHODS,)
 from monocle_apptrace.instrumentation.metamodel.openai._helper import OpenAISpanHandler
 from monocle_apptrace.instrumentation.metamodel.langgraph.methods import LANGGRAPH_METHODS
+from monocle_apptrace.instrumentation.metamodel.langgraph.langgraph_processor import LanggraphAgentHandler, LanggraphToolHandler
 from monocle_apptrace.instrumentation.metamodel.flask.methods import (FLASK_METHODS, )
 from monocle_apptrace.instrumentation.metamodel.flask._helper import FlaskSpanHandler, FlaskResponseSpanHandler
 from monocle_apptrace.instrumentation.metamodel.requests.methods import (REQUESTS_METHODS, )
@@ -24,6 +26,14 @@ from monocle_apptrace.instrumentation.metamodel.aiohttp._helper import aiohttpSp
 from monocle_apptrace.instrumentation.metamodel.azfunc._helper import (azureSpanHandler)
 from monocle_apptrace.instrumentation.metamodel.azfunc.methods import AZFUNC_HTTP_METHODS
 from monocle_apptrace.instrumentation.metamodel.gemini.methods import GEMINI_METHODS
+from monocle_apptrace.instrumentation.metamodel.fastapi.methods import FASTAPI_METHODS
+from monocle_apptrace.instrumentation.metamodel.fastapi._helper import FastAPISpanHandler, FastAPIResponseSpanHandler
+from monocle_apptrace.instrumentation.metamodel.lambdafunc._helper import lambdaSpanHandler
+from monocle_apptrace.instrumentation.metamodel.lambdafunc.methods import LAMBDA_HTTP_METHODS
+from monocle_apptrace.instrumentation.metamodel.mcp.methods import MCP_METHODS
+from monocle_apptrace.instrumentation.metamodel.mcp.mcp_processor import MCPAgentHandler
+from monocle_apptrace.instrumentation.metamodel.a2a.methods import A2A_CLIENT_METHODS
+
 class WrapperMethod:
     def __init__(
             self,
@@ -72,7 +82,26 @@ class WrapperMethod:
     def get_span_handler(self) -> SpanHandler:
         return self.span_handler()
 
-DEFAULT_METHODS_LIST = LANGCHAIN_METHODS + LLAMAINDEX_METHODS + HAYSTACK_METHODS + BOTOCORE_METHODS + FLASK_METHODS + REQUESTS_METHODS + LANGGRAPH_METHODS + OPENAI_METHODS + TEAMAI_METHODS + ANTHROPIC_METHODS + AIOHTTP_METHODS + AZURE_AI_INFERENCE_METHODS + AZFUNC_HTTP_METHODS + GEMINI_METHODS
+DEFAULT_METHODS_LIST = (
+    LANGCHAIN_METHODS + 
+    LLAMAINDEX_METHODS + 
+    HAYSTACK_METHODS + 
+    BOTOCORE_METHODS + 
+    FLASK_METHODS + 
+    REQUESTS_METHODS + 
+    LANGGRAPH_METHODS + 
+    OPENAI_METHODS + 
+    TEAMAI_METHODS +
+    ANTHROPIC_METHODS + 
+    AIOHTTP_METHODS + 
+    AZURE_AI_INFERENCE_METHODS + 
+    AZFUNC_HTTP_METHODS + 
+    GEMINI_METHODS + 
+    FASTAPI_METHODS + 
+    LAMBDA_HTTP_METHODS +
+    MCP_METHODS + 
+    A2A_CLIENT_METHODS
+)
 
 MONOCLE_SPAN_HANDLERS: Dict[str, SpanHandler] = {
     "default": SpanHandler(),
@@ -84,4 +113,13 @@ MONOCLE_SPAN_HANDLERS: Dict[str, SpanHandler] = {
     "non_framework_handler": NonFrameworkSpanHandler(),
     "openai_handler": OpenAISpanHandler(),
     "azure_func_handler": azureSpanHandler(),
+    "mcp_agent_handler": MCPAgentHandler(),
+    "fastapi_handler": FastAPISpanHandler(),
+    "fastapi_response_handler": FastAPIResponseSpanHandler(),
+    "langgraph_agent_handler": LanggraphAgentHandler(),
+    "langgraph_tool_handler": LanggraphToolHandler(),
+    "llamaindex_tool_handler": LlamaIndexToolHandler(),
+    "llamaindex_agent_handler": LlamaIndexAgentHandler(),
+    "llamaindex_single_agent_tool_handler": LlamaIndexSingleAgenttToolHandlerWrapper(),
+    "lambda_func_handler": lambdaSpanHandler(),
 }

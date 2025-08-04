@@ -2,6 +2,7 @@ import logging
 
 from monocle_apptrace.instrumentation.common.utils import (
     Option,
+    get_json_dumps,
     get_keys_as_tuple,
     get_nested_value,
     try_option,
@@ -56,24 +57,27 @@ def extract_question_from_prompt(content):
 
 def extract_assistant_message(arguments):
     status = get_status_code(arguments)
-    response: str = ""
+    messages = []
+    role = "assistant"
     if status == 'success':
+        response = ""
         if "replies" in arguments['result']:
             reply = arguments['result']["replies"][0]
+            if hasattr(reply, role) and hasattr(reply,role, "value") and isinstance(reply.role.value, str):
+                role = reply.role.value or role
             if hasattr(reply, 'content'):
                 response = reply.content
             elif hasattr(reply, 'text'):
                 response = reply.text
             else:
                 response = reply
+        messages.append({role: response})
     else:
         if arguments["exception"] is not None:
-            response = get_exception_message(arguments)
-        elif hasattr(response, "error"):
-            response = arguments['result'].error
-
-    return response
-
+            return get_exception_message(arguments)
+        elif hasattr(arguments["result"], "error"):
+            return arguments['result'].error
+    return get_json_dumps(messages[0]) if messages else ""
 
 def get_vectorstore_deployment(my_map):
     if isinstance(my_map, dict):
@@ -112,7 +116,10 @@ def resolve_from_alias(my_map, alias):
     return None
 
 def extract_inference_endpoint(instance):
-    inference_endpoint: Option[str] = try_option(getattr, instance.client, 'base_url').map(str)
+    if hasattr(instance, '_model_name') and isinstance(instance._model_name, str) and 'gemini' in instance._model_name.lower():
+        inference_endpoint = try_option(lambda: f"https://generativelanguage.googleapis.com/v1beta/models/{instance._model_name}:generateContent")
+    if hasattr(instance, 'client') and hasattr(instance.client, 'base_url'):
+        inference_endpoint: Option[str] = try_option(getattr, instance.client, 'base_url').map(str)
     if inference_endpoint.is_none():
         inference_endpoint = try_option(getattr, instance.client.meta, 'endpoint_url').map(str)
 

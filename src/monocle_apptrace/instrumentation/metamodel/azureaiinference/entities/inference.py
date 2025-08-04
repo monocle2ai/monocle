@@ -3,6 +3,7 @@ import time
 from types import SimpleNamespace
 from monocle_apptrace.instrumentation.metamodel.azureaiinference import _helper
 from monocle_apptrace.instrumentation.common.utils import (
+    get_error_message,
     resolve_from_alias, 
     patch_instance_method,
     get_status,
@@ -20,13 +21,14 @@ def process_stream(to_wrap, response, span_processor):
     stream_closed_time = None
     accumulated_response = ""
     token_usage = None
+    role = "assistant"
 
     # For sync iteration - patch __next__ instead of __iter__
     if to_wrap and hasattr(response, "__next__"):
         original_next = response.__next__
 
         def new_next(self):
-            nonlocal waiting_for_first_token, first_token_time, stream_closed_time, accumulated_response, token_usage
+            nonlocal waiting_for_first_token, first_token_time, stream_closed_time, accumulated_response, token_usage, role
 
             try:
                 item = original_next()
@@ -34,6 +36,8 @@ def process_stream(to_wrap, response, span_processor):
                 # Handle Azure AI Inference streaming chunks
                 if hasattr(item, 'choices') and item.choices:
                     choice = item.choices[0]
+                    if hasattr(choice, 'delta') and hasattr(choice.delta, 'role') and choice.delta.role:
+                        role = choice.delta.role
                     if hasattr(choice, 'delta') and hasattr(choice.delta, 'content') and choice.delta.content:
                         if waiting_for_first_token:
                             waiting_for_first_token = False
@@ -53,6 +57,7 @@ def process_stream(to_wrap, response, span_processor):
                 if span_processor:
                     ret_val = SimpleNamespace(
                         type="stream",
+                        role=role,
                         timestamps={
                             "data.input": int(stream_start_time),
                             "data.output": int(first_token_time),
@@ -77,7 +82,7 @@ def process_stream(to_wrap, response, span_processor):
         original_anext = response.__anext__
 
         async def new_anext(self):
-            nonlocal waiting_for_first_token, first_token_time, stream_closed_time, accumulated_response, token_usage
+            nonlocal waiting_for_first_token, first_token_time, stream_closed_time, accumulated_response, token_usage, role
 
             try:
                 item = await original_anext()
@@ -85,6 +90,8 @@ def process_stream(to_wrap, response, span_processor):
                 # Handle Azure AI Inference streaming chunks
                 if hasattr(item, 'choices') and item.choices:
                     choice = item.choices[0]
+                    if hasattr(choice, 'delta') and hasattr(choice.delta, 'role') and choice.delta.role:
+                        role = choice.delta.role
                     if hasattr(choice, 'delta') and hasattr(choice.delta, 'content') and choice.delta.content:
                         if waiting_for_first_token:
                             waiting_for_first_token = False
@@ -104,6 +111,7 @@ def process_stream(to_wrap, response, span_processor):
                 if span_processor:
                     ret_val = SimpleNamespace(
                         type="stream",
+                        role=role,
                         timestamps={
                             "data.input": int(stream_start_time),
                             "data.output": int(first_token_time),
@@ -183,12 +191,8 @@ INFERENCE = {
                     "accessor": lambda arguments: _helper.extract_assistant_message(arguments)
                 },
                 {
-                    "attribute": "status",
-                    "accessor": lambda arguments: get_status(arguments)
-                },
-                {
-                    "attribute": "status_code",
-                    "accessor": lambda arguments: get_exception_status_code(arguments)
+                    "attribute": "error_code",
+                    "accessor": lambda arguments: get_error_message(arguments)
                 }
             ]
         },
@@ -200,6 +204,16 @@ INFERENCE = {
                     "accessor": lambda arguments: _helper.update_span_from_llm_response(
                         arguments['result'], 
                         arguments.get('instance')
+                    )
+                },
+                {
+                    "attribute": "finish_reason",
+                    "accessor": lambda arguments: _helper.extract_finish_reason(arguments)
+                },
+                {
+                    "attribute": "finish_type",
+                    "accessor": lambda arguments: _helper.map_finish_reason_to_finish_type(
+                        _helper.extract_finish_reason(arguments)
                     )
                 }
             ]

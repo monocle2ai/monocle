@@ -1,3 +1,4 @@
+import asyncio
 import os
 import time
 
@@ -5,54 +6,230 @@ import pytest
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
 from common.custom_exporter import CustomConsoleSpanExporter
-from openai import OpenAI
+from openai import OpenAI, AsyncOpenAI
 from openai import AzureOpenAI
+
+from tests.common.helpers import find_span_by_type, find_spans_by_type, validate_inference_span_events, verify_inference_span
 
 custom_exporter = CustomConsoleSpanExporter()
 
 @pytest.fixture(scope="module")
 def setup():
     setup_monocle_telemetry(
-        workflow_name="langchain_app_1",
+        workflow_name="generic_openai_1",
         span_processors=[BatchSpanProcessor(custom_exporter)],
         wrapper_methods=[]
     )
 
-def assert_inference_span(span, expected_type, expected_endpoint_prefix):
-    span_attributes = span.attributes
-    assert (span_attributes["span.type"] == "inference" or span_attributes["span.type"] == "inference.framework")
-    assert span_attributes["entity.1.type"] == expected_type
-    assert span_attributes["entity.1.inference_endpoint"].startswith(expected_endpoint_prefix)
-    assert "entity.1.provider_name" in span_attributes
-    assert span_attributes["entity.2.name"] == "gpt-4o-mini"
-    assert span_attributes["entity.2.type"] == "model.llm.gpt-4o-mini"
+@pytest.fixture(autouse=True)
+def clear_spans():
+    """Clear spans before each test"""
+    custom_exporter.reset()
+    yield
 
-    span_input, span_output, span_metadata = span.events
-    assert "completion_tokens" in span_metadata.attributes
-    assert "prompt_tokens" in span_metadata.attributes
-    assert "total_tokens" in span_metadata.attributes
+@pytest.mark.integration()
+@pytest.mark.asyncio
+async def test_openai_response_api_sample_async(setup):
+    openai_client = AsyncOpenAI()
+    response = await openai_client.responses.create(
+        model="gpt-4o-mini",
+        instructions="Answer in 3 words without using special characters.",
+        input=[
+            {"role": "system", "content": "You are a coding assistant that talks like shakespeare."},
+            {"role": "user", "content": "How do I check if a Python object is an instance of a class?"}
+        ],
+    )
+    await asyncio.sleep(5)
+    spans = custom_exporter.get_captured_spans()
+    print(f"Captured {len(spans)} spans")
+    
+    # Verify we have spans
+    assert len(spans) > 0, "No spans captured"
 
-def assert_workflow_span_exists(spans):
-    assert any(span.attributes.get("span.type") == "workflow" for span in spans)
+    workflow_span = None
+
+    inference_spans = find_spans_by_type(spans, "inference")
+    if not inference_spans:
+        # Also check for inference.framework spans
+        inference_spans = find_spans_by_type(spans, "inference.framework")
+
+    assert len(inference_spans) > 0, "Expected to find at least one inference span"
+
+    # Verify each inference span
+    for span in inference_spans:
+        verify_inference_span(
+            span=span,
+            entity_type="inference.openai",
+            model_name="gpt-4o-mini",
+            model_type="model.llm.gpt-4o-mini",
+            check_metadata=True,
+            check_input_output=True,
+        )
+    assert (
+        len(inference_spans) == 1
+    ), "Expected exactly one inference span for the LLM call"
+    
+    # Validate events using the generic function with regex patterns
+    validate_inference_span_events(
+        span=inference_spans[0],
+        expected_event_count=3,
+        input_patterns=[
+            r"^\{\"system\": \".+\"\}$",  # Pattern for system instructions
+            r"^\{\"system\": \".+\"\}$",  # Pattern for system instructions
+            r"^\{\"user\": \".+\"\}$",  # Pattern for user input
+        ],
+        output_pattern=r"^\{\"assistant\": \".+\"\}$",  # Pattern for AI response
+        metadata_requirements={
+            "completion_tokens": int,
+            "prompt_tokens": int,
+            "total_tokens": int
+        }
+    )
+    
+    workflow_span = find_span_by_type(spans, "workflow")
+    
+    assert workflow_span is not None, "Expected to find workflow span"
+    
+    assert workflow_span.attributes["span.type"] == "workflow"
+    assert workflow_span.attributes["entity.1.name"] == "generic_openai_1"
+    assert workflow_span.attributes["entity.1.type"] == "workflow.openai"
+
+@pytest.mark.integration()
+@pytest.mark.asyncio
+async def test_openai_response_api_sample_async_stream(setup):
+    openai_client = AsyncOpenAI()
+    response  = await openai_client.responses.create(
+        model="gpt-4o-mini",
+        instructions="Answer in 6 words without using special characters.",
+        input=[
+            {"role": "system", "content": "You are a coding assistant that talks like shakespeare."},
+            {"role": "user", "content": "How do I check if a Python object is an instance of a class?"}
+        ],
+        stream=True
+    )
+    async for chunk in response:
+        pass
+    await asyncio.sleep(5)
+    spans = custom_exporter.get_captured_spans()
+    print(f"Captured {len(spans)} spans")
+    
+    # Verify we have spans
+    assert len(spans) > 0, "No spans captured"
+
+    workflow_span = None
+
+    inference_spans = find_spans_by_type(spans, "inference")
+    if not inference_spans:
+        # Also check for inference.framework spans
+        inference_spans = find_spans_by_type(spans, "inference.framework")
+
+    assert len(inference_spans) > 0, "Expected to find at least one inference span"
+
+    # Verify each inference span
+    for span in inference_spans:
+        verify_inference_span(
+            span=span,
+            entity_type="inference.openai",
+            model_name="gpt-4o-mini",
+            model_type="model.llm.gpt-4o-mini",
+            check_metadata=True,
+            check_input_output=True,
+        )
+    assert (
+        len(inference_spans) == 1
+    ), "Expected exactly one inference span for the LLM call"
+    
+    # Validate events using the generic function with regex patterns
+    validate_inference_span_events(
+        span=inference_spans[0],
+        expected_event_count=3,
+        input_patterns=[
+            r"^\{\"system\": \".+\"\}$",  # Pattern for system instructions
+            r"^\{\"system\": \".+\"\}$",  # Pattern for system instructions
+            r"^\{\"user\": \".+\"\}$",  # Pattern for user input
+        ],
+        output_pattern=r"^\{\"assistant\": \".+\"\}$",  # Pattern for AI response
+        metadata_requirements={
+            "completion_tokens": int,
+            "prompt_tokens": int,
+            "total_tokens": int
+        }
+    )
+    
+    workflow_span = find_span_by_type(spans, "workflow")
+    
+    assert workflow_span is not None, "Expected to find workflow span"
+    
+    assert workflow_span.attributes["span.type"] == "workflow"
+    assert workflow_span.attributes["entity.1.name"] == "generic_openai_1"
+    assert workflow_span.attributes["entity.1.type"] == "workflow.openai"
+
 
 @pytest.mark.integration()
 def test_openai_response_api_sample(setup):
     openai_client = OpenAI()
     response  = openai_client.responses.create(
         model="gpt-4o-mini",
-        instructions="You are a coding assistant that talks like a pirate.",
-        input="How do I check if a Python object is an instance of a class?",
+        instructions="Answer in 5 words without using special characters.",
+        input=[
+            {"role": "system", "content": "You are a coding assistant that talks like shakespeare."},
+            {"role": "user", "content": "How do I check if a Python object is an instance of a class?"}
+        ],
     )
     time.sleep(5)
-    print(response.output[0].content[0].text)
     spans = custom_exporter.get_captured_spans()
-    inference_spans = [s for s in spans if s.attributes.get("span.type") == "inference" or s.attributes.get("span.type") == "inference.framework"]
-    assert any(s.attributes.get("entity.1.type") == "inference.openai" for s in inference_spans)
+    print(f"Captured {len(spans)} spans")
+    
+    # Verify we have spans
+    assert len(spans) > 0, "No spans captured"
 
+    workflow_span = None
+
+    inference_spans = find_spans_by_type(spans, "inference")
+    if not inference_spans:
+        # Also check for inference.framework spans
+        inference_spans = find_spans_by_type(spans, "inference.framework")
+
+    assert len(inference_spans) > 0, "Expected to find at least one inference span"
+
+    # Verify each inference span
     for span in inference_spans:
-        if span.attributes["entity.1.type"] == "inference.openai":
-            assert_inference_span(span, "inference.openai", "https://api.openai.com/")
-    assert_workflow_span_exists(spans)
+        verify_inference_span(
+            span=span,
+            entity_type="inference.openai",
+            model_name="gpt-4o-mini",
+            model_type="model.llm.gpt-4o-mini",
+            check_metadata=True,
+            check_input_output=True,
+        )
+    assert (
+        len(inference_spans) == 1
+    ), "Expected exactly one inference span for the LLM call"
+    
+    # Validate events using the generic function with regex patterns
+    validate_inference_span_events(
+        span=inference_spans[0],
+        expected_event_count=3,
+        input_patterns=[
+            r"^\{\"system\": \".+\"\}$",  # Pattern for system instructions
+            r"^\{\"system\": \".+\"\}$",  # Pattern for system instructions
+            r"^\{\"user\": \".+\"\}$",  # Pattern for user input
+        ],
+        output_pattern=r"^\{\"assistant\": \".+\"\}$",  # Pattern for AI response
+        metadata_requirements={
+            "completion_tokens": int,
+            "prompt_tokens": int,
+            "total_tokens": int
+        }
+    )
+    
+    workflow_span = find_span_by_type(spans, "workflow")
+    
+    assert workflow_span is not None, "Expected to find workflow span"
+    
+    assert workflow_span.attributes["span.type"] == "workflow"
+    assert workflow_span.attributes["entity.1.name"] == "generic_openai_1"
+    assert workflow_span.attributes["entity.1.type"] == "workflow.openai"
 
 @pytest.mark.integration()
 def test_azure_openai_response_api_sample(setup):
@@ -63,37 +240,86 @@ def test_azure_openai_response_api_sample(setup):
     )
     response = azure_client.responses.create(
         model="gpt-4o-mini",
-        instructions="You are a coding assistant that talks like a pirate.",
+        instructions="You are a coding assistant that talks like a pirate. Answer is 10 words without using special characters",
         input="How do I check if a Python object is an instance of a class?",
     )
     time.sleep(5)
-    print(response.output[0].content[0].text)
+    
     spans = custom_exporter.get_captured_spans()
-    inference_spans = [s for s in spans if s.attributes.get("span.type") == "inference" or s.attributes.get("span.type") == "inference.framework"]
-    assert any(s.attributes.get("entity.1.type") == "inference.azure_openai" for s in inference_spans)
+    print(f"Captured {len(spans)} spans")
+    
+    # Verify we have spans
+    assert len(spans) > 0, "No spans captured"
 
+    workflow_span = None
+
+    inference_spans = find_spans_by_type(spans, "inference")
+    if not inference_spans:
+        # Also check for inference.framework spans
+        inference_spans = find_spans_by_type(spans, "inference.framework")
+
+    assert len(inference_spans) > 0, "Expected to find at least one inference span"
+
+    # Verify each inference span
     for span in inference_spans:
-        if span.attributes["entity.1.type"] == "inference.azure_openai":
-            assert_inference_span(span, "inference.azure_openai", "https://okahu-openai-dev.openai.azure.com/")
-    assert_workflow_span_exists(spans)
+        verify_inference_span(
+            span=span,
+            entity_type="inference.azure_openai",
+            model_name="gpt-4o-mini",
+            model_type="model.llm.gpt-4o-mini",
+            check_metadata=True,
+            check_input_output=True,
+        )
+    assert (
+        len(inference_spans) == 1
+    ), "Expected exactly one inference span for the LLM call"
+    
+    # Validate events using the generic function with regex patterns
+    validate_inference_span_events(
+        span=inference_spans[0],
+        expected_event_count=3,
+        input_patterns=[
+            r"^\{\"system\": \".+\"\}$",  # Pattern for system instructions
+            r"^\{\"user\": \".+\"\}$",  # Pattern for user input
+        ],
+        output_pattern=r"^\{\"assistant\": \".+\"\}$",  # Pattern for AI response
+        metadata_requirements={
+            "completion_tokens": int,
+            "prompt_tokens": int,
+            "total_tokens": int
+        }
+    )
+    
+    workflow_span = find_span_by_type(spans, "workflow")
+    
+    assert workflow_span is not None, "Expected to find workflow span"
+    
+    assert workflow_span.attributes["span.type"] == "workflow"
+    assert workflow_span.attributes["entity.1.name"] == "generic_openai_1"
+    assert workflow_span.attributes["entity.1.type"] == "workflow.openai"
 
+if __name__ == "__main__":
+    pytest.main([__file__, "-s", "--tb=short"])
 
 # {
-#     "name": "openai.resources.responses.responses.Responses",
+#     "name": "openai.resources.responses.responses.AsyncResponses",
 #     "context": {
-#         "trace_id": "0xa2cfdbae3397761e986e1a1b7bb62030",
-#         "span_id": "0x0b9cd042ea9582a8",
+#         "trace_id": "0x371b89662d25f36f28e6fcb6e6241bac",
+#         "span_id": "0x2bd0dced357096ad",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0x106f048aacb4bdf8",
-#     "start_time": "2025-04-14T07:46:19.747981Z",
-#     "end_time": "2025-04-14T07:46:25.517746Z",
+#     "parent_id": "0xc28a69e3b63cbf22",
+#     "start_time": "2025-07-02T23:41:20.440275Z",
+#     "end_time": "2025-07-02T23:41:21.637590Z",
 #     "status": {
 #         "status_code": "OK"
 #     },
 #     "attributes": {
-#         "monocle_apptrace.version": "0.3.0",
+#         "monocle_apptrace.version": "0.4.0",
+#         "monocle_apptrace.language": "python",
+#         "span_source": "/Users/kshitizvijayvargiya/monocle-ksh/tests/integration/test_openai_response_sample.py:34",
+#         "workflow.name": "generic_openai_1",
 #         "span.type": "inference",
 #         "entity.1.type": "inference.openai",
 #         "entity.1.provider_name": "api.openai.com",
@@ -105,57 +331,60 @@ def test_azure_openai_response_api_sample(setup):
 #     "events": [
 #         {
 #             "name": "data.input",
-#             "timestamp": "2025-04-14T07:46:25.517746Z",
+#             "timestamp": "2025-07-02T23:41:21.637371Z",
 #             "attributes": {
 #                 "input": [
-#                     "{'instructions': 'You are a coding assistant that talks like a pirate.'}",
-#                     "{'input': 'How do I check if a Python object is an instance of a class?'}"
+#                     "{\"system\": \"Answer in 3 words.\"}",
+#                     "{\"system\": \"You are a coding assistant that talks like shakespeare.\"}",
+#                     "{\"user\": \"How do I check if a Python object is an instance of a class?\"}"
 #                 ]
 #             }
 #         },
 #         {
 #             "name": "data.output",
-#             "timestamp": "2025-04-14T07:46:25.517746Z",
+#             "timestamp": "2025-07-02T23:41:21.637482Z",
 #             "attributes": {
-#                 "response": "Ahoy, matey! If ye be wantin\u2019 to check if a Python object be an instance of a certain class, ye can use the `isinstance()` function, it be as simple as finding buried treasure!\n\nHere be how ye do it:\n\n```python\nclass Pirate:\n    pass\n\njack = Pirate()\n\nif isinstance(jack, Pirate):\n    print(\"Aye, 'tis a pirate!\")\nelse:\n    print(\"Nay, 'tis not a pirate!\")\n```\n\nIn this here code, `isinstance(jack, Pirate)` checks if `jack` be an instance of the `Pirate` class. If so, ye will get the message that 'tis a pirate! If not, it tells ye ye\u2019ve found a scallywag. Be it clear as a calm sea? Arrr!"
+#                 "response": "{\"assistant\": \"Utilize `isinstance` function.\"}",
 #             }
 #         },
 #         {
 #             "name": "metadata",
-#             "timestamp": "2025-04-14T07:46:25.517746Z",
+#             "timestamp": "2025-07-02T23:41:21.637538Z",
 #             "attributes": {
-#                 "completion_tokens": 168,
-#                 "prompt_tokens": 37,
-#                 "total_tokens": 205
+#                 "completion_tokens": 9,
+#                 "prompt_tokens": 47,
+#                 "total_tokens": 56
 #             }
 #         }
 #     ],
 #     "links": [],
 #     "resource": {
 #         "attributes": {
-#             "service.name": "langchain_app_1"
+#             "service.name": "generic_openai_1"
 #         },
 #         "schema_url": ""
 #     }
 # }
 # {
-#     "name": "openai.resources.responses.responses.Responses",
+#     "name": "workflow",
 #     "context": {
-#         "trace_id": "0xa2cfdbae3397761e986e1a1b7bb62030",
-#         "span_id": "0x106f048aacb4bdf8",
+#         "trace_id": "0x371b89662d25f36f28e6fcb6e6241bac",
+#         "span_id": "0xc28a69e3b63cbf22",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
 #     "parent_id": null,
-#     "start_time": "2025-04-14T07:46:19.745953Z",
-#     "end_time": "2025-04-14T07:46:25.517746Z",
+#     "start_time": "2025-07-02T23:41:20.440122Z",
+#     "end_time": "2025-07-02T23:41:21.637642Z",
 #     "status": {
 #         "status_code": "OK"
 #     },
 #     "attributes": {
-#         "monocle_apptrace.version": "0.3.0",
+#         "monocle_apptrace.version": "0.4.0",
+#         "monocle_apptrace.language": "python",
+#         "span_source": "/Users/kshitizvijayvargiya/monocle-ksh/tests/integration/test_openai_response_sample.py:34",
 #         "span.type": "workflow",
-#         "entity.1.name": "langchain_app_1",
+#         "entity.1.name": "generic_openai_1",
 #         "entity.1.type": "workflow.generic",
 #         "entity.2.type": "app_hosting.generic",
 #         "entity.2.name": "generic"
@@ -164,27 +393,224 @@ def test_azure_openai_response_api_sample(setup):
 #     "links": [],
 #     "resource": {
 #         "attributes": {
-#             "service.name": "langchain_app_1"
+#             "service.name": "generic_openai_1"
 #         },
 #         "schema_url": ""
 #     }
 # }
-# PASSED [100%]{
-#     "name": "openai.resources.responses.responses.Responses",
+# {
+#     "name": "workflow",
 #     "context": {
-#         "trace_id": "0xdea51d9730befac462d3afa73c4de685",
-#         "span_id": "0x49e30252ead787d7",
+#         "trace_id": "0x0773405faffaf1d4cd1da3397292a9b1",
+#         "span_id": "0x0dc89a07fb4f7bf8",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0x58b7068e982fb2bc",
-#     "start_time": "2025-04-14T07:46:30.532188Z",
-#     "end_time": "2025-04-14T07:46:34.307001Z",
+#     "parent_id": null,
+#     "start_time": "2025-07-02T23:41:26.670844Z",
+#     "end_time": "2025-07-02T23:41:27.102106Z",
+#     "status": {
+#         "status_code": "UNSET"
+#     },
+#     "attributes": {
+#         "monocle_apptrace.version": "0.4.0",
+#         "monocle_apptrace.language": "python",
+#         "span_source": "/Users/kshitizvijayvargiya/monocle-ksh/tests/integration/test_openai_response_sample.py:101",
+#         "span.type": "workflow",
+#         "entity.1.name": "generic_openai_1",
+#         "entity.1.type": "workflow.generic",
+#         "entity.2.type": "app_hosting.generic",
+#         "entity.2.name": "generic"
+#     },
+#     "events": [],
+#     "links": [],
+#     "resource": {
+#         "attributes": {
+#             "service.name": "generic_openai_1"
+#         },
+#         "schema_url": ""
+#     }
+# }
+# {
+#     "name": "openai.resources.responses.responses.AsyncResponses",
+#     "context": {
+#         "trace_id": "0x0773405faffaf1d4cd1da3397292a9b1",
+#         "span_id": "0x6017355087644c0a",
+#         "trace_state": "[]"
+#     },
+#     "kind": "SpanKind.INTERNAL",
+#     "parent_id": "0x0dc89a07fb4f7bf8",
+#     "start_time": "2025-07-02T23:41:26.671045Z",
+#     "end_time": "2025-07-02T23:42:19.258844Z",
 #     "status": {
 #         "status_code": "OK"
 #     },
 #     "attributes": {
-#         "monocle_apptrace.version": "0.3.0",
+#         "monocle_apptrace.version": "0.4.0",
+#         "monocle_apptrace.language": "python",
+#         "span_source": "/Users/kshitizvijayvargiya/monocle-ksh/tests/integration/test_openai_response_sample.py:101",
+#         "workflow.name": "generic_openai_1",
+#         "span.type": "inference",
+#         "entity.1.type": "inference.openai",
+#         "entity.1.provider_name": "api.openai.com",
+#         "entity.1.inference_endpoint": "https://api.openai.com/v1/",
+#         "entity.2.name": "gpt-4o-mini",
+#         "entity.2.type": "model.llm.gpt-4o-mini",
+#         "entity.count": 2
+#     },
+#     "events": [
+#         {
+#             "name": "data.input",
+#             "timestamp": "2025-07-02T23:41:27.101936Z",
+#             "attributes": {
+#                 "input": [
+#                     "{\"system\": \"Answer in 6 words.\"}",
+#                     "{\"system\": \"You are a coding assistant that talks like shakespeare.\"}",
+#                     "{\"user\": \"How do I check if a Python object is an instance of a class?\"}"
+#                 ]
+#             }
+#         },
+#         {
+#             "name": "data.output",
+#             "timestamp": "2025-07-02T23:41:32.809336Z",
+#             "attributes": {
+#                 "response": "{\"assistant\": \"Use `isinstance(object, ClassName)` fair.\"}",
+#             }
+#         },
+#         {
+#             "name": "metadata",
+#             "timestamp": "2025-07-02T23:42:15.557192Z",
+#             "attributes": {
+#                 "completion_tokens": 12,
+#                 "prompt_tokens": 47,
+#                 "total_tokens": 59
+#             }
+#         }
+#     ],
+#     "links": [],
+#     "resource": {
+#         "attributes": {
+#             "service.name": "generic_openai_1"
+#         },
+#         "schema_url": ""
+#     }
+# }
+# {
+#     "name": "openai.resources.responses.responses.Responses",
+#     "context": {
+#         "trace_id": "0xf5f081358f96eeae8c246be373be9771",
+#         "span_id": "0x117c093ccceae4cc",
+#         "trace_state": "[]"
+#     },
+#     "kind": "SpanKind.INTERNAL",
+#     "parent_id": "0x1cf01f4cb6d7a17f",
+#     "start_time": "2025-07-02T23:42:24.285300Z",
+#     "end_time": "2025-07-02T23:42:25.060627Z",
+#     "status": {
+#         "status_code": "OK"
+#     },
+#     "attributes": {
+#         "monocle_apptrace.version": "0.4.0",
+#         "monocle_apptrace.language": "python",
+#         "span_source": "/Users/kshitizvijayvargiya/monocle-ksh/tests/integration/test_openai_response_sample.py:171",
+#         "workflow.name": "generic_openai_1",
+#         "span.type": "inference",
+#         "entity.1.type": "inference.openai",
+#         "entity.1.provider_name": "api.openai.com",
+#         "entity.1.inference_endpoint": "https://api.openai.com/v1/",
+#         "entity.2.name": "gpt-4o-mini",
+#         "entity.2.type": "model.llm.gpt-4o-mini",
+#         "entity.count": 2
+#     },
+#     "events": [
+#         {
+#             "name": "data.input",
+#             "timestamp": "2025-07-02T23:42:25.060438Z",
+#             "attributes": {
+#                 "input": [
+#                     "{\"system\": \"Answer in 5 words.\"}",
+#                     "{\"system\": \"You are a coding assistant that talks like shakespeare.\"}",
+#                     "{\"user\": \"How do I check if a Python object is an instance of a class?\"}"
+#                 ]
+#             }
+#         },
+#         {
+#             "name": "data.output",
+#             "timestamp": "2025-07-02T23:42:25.060543Z",
+#             "attributes": {
+#                 "response": "{\"assistant\": \"Use isinstance(object, ClassName).\"}",
+#             }
+#         },
+#         {
+#             "name": "metadata",
+#             "timestamp": "2025-07-02T23:42:25.060587Z",
+#             "attributes": {
+#                 "completion_tokens": 10,
+#                 "prompt_tokens": 47,
+#                 "total_tokens": 57
+#             }
+#         }
+#     ],
+#     "links": [],
+#     "resource": {
+#         "attributes": {
+#             "service.name": "generic_openai_1"
+#         },
+#         "schema_url": ""
+#     }
+# }
+# {
+#     "name": "workflow",
+#     "context": {
+#         "trace_id": "0xf5f081358f96eeae8c246be373be9771",
+#         "span_id": "0x1cf01f4cb6d7a17f",
+#         "trace_state": "[]"
+#     },
+#     "kind": "SpanKind.INTERNAL",
+#     "parent_id": null,
+#     "start_time": "2025-07-02T23:42:24.285067Z",
+#     "end_time": "2025-07-02T23:42:25.060672Z",
+#     "status": {
+#         "status_code": "OK"
+#     },
+#     "attributes": {
+#         "monocle_apptrace.version": "0.4.0",
+#         "monocle_apptrace.language": "python",
+#         "span_source": "/Users/kshitizvijayvargiya/monocle-ksh/tests/integration/test_openai_response_sample.py:171",
+#         "span.type": "workflow",
+#         "entity.1.name": "generic_openai_1",
+#         "entity.1.type": "workflow.generic",
+#         "entity.2.type": "app_hosting.generic",
+#         "entity.2.name": "generic"
+#     },
+#     "events": [],
+#     "links": [],
+#     "resource": {
+#         "attributes": {
+#             "service.name": "generic_openai_1"
+#         },
+#         "schema_url": ""
+#     }
+# }
+# {
+#     "name": "openai.resources.responses.responses.Responses",
+#     "context": {
+#         "trace_id": "0xe805068d3e906f2369d8d59718ba2a9d",
+#         "span_id": "0x958d0b7d59de6d1a",
+#         "trace_state": "[]"
+#     },
+#     "kind": "SpanKind.INTERNAL",
+#     "parent_id": "0x3da658a1f8bba435",
+#     "start_time": "2025-07-02T23:42:30.090634Z",
+#     "end_time": "2025-07-02T23:42:32.025415Z",
+#     "status": {
+#         "status_code": "OK"
+#     },
+#     "attributes": {
+#         "monocle_apptrace.version": "0.4.0",
+#         "monocle_apptrace.language": "python",
+#         "span_source": "/Users/kshitizvijayvargiya/monocle-ksh/tests/integration/test_openai_response_sample.py:241",
+#         "workflow.name": "generic_openai_1",
 #         "span.type": "inference",
 #         "entity.1.type": "inference.azure_openai",
 #         "entity.1.provider_name": "okahu-openai-dev.openai.azure.com",
@@ -196,57 +622,59 @@ def test_azure_openai_response_api_sample(setup):
 #     "events": [
 #         {
 #             "name": "data.input",
-#             "timestamp": "2025-04-14T07:46:34.307001Z",
+#             "timestamp": "2025-07-02T23:42:32.025084Z",
 #             "attributes": {
 #                 "input": [
-#                     "{'instructions': 'You are a coding assistant that talks like a pirate.'}",
-#                     "{'input': 'How do I check if a Python object is an instance of a class?'}"
+#                     "{\"system\": \"You are a coding assistant that talks like a pirate. Answer is 10 words\"}",
+#                     "{\"user\": \"How do I check if a Python object is an instance of a class?\"}"
 #                 ]
 #             }
 #         },
 #         {
 #             "name": "data.output",
-#             "timestamp": "2025-04-14T07:46:34.307001Z",
+#             "timestamp": "2025-07-02T23:42:32.025238Z",
 #             "attributes": {
-#                 "response": "Ahoy, matey! To determine if a Python object be an instance of a class, ye can use the `isinstance()` function. Here be how ye do it:\n\n```python\nclass Ship:\n    pass\n\nblack_pearl = Ship()\n\n# Check if 'black_pearl' be an instance of 'Ship'\nif isinstance(black_pearl, Ship):\n    print(\"Aye, 'black_pearl' be a fine ship!\")\nelse:\n    print(\"Nay, 'black_pearl' be not a ship!\")\n```\n\nIn this here example, `isinstance()` be returnin' `True` if the object `black_pearl` be an instance of the `Ship` class. So hoist yer code and set sail on the seas of Python! Arrr! \ud83c\udff4\u200d\u2620\ufe0f"
+#                 "response": "{\"assistant\": \"Use 'isinstance(your_object, YourClass)' to check, matey!\"}",
 #             }
 #         },
 #         {
 #             "name": "metadata",
-#             "timestamp": "2025-04-14T07:46:34.307001Z",
+#             "timestamp": "2025-07-02T23:42:32.025326Z",
 #             "attributes": {
-#                 "completion_tokens": 171,
-#                 "prompt_tokens": 54,
-#                 "total_tokens": 225
+#                 "completion_tokens": 18,
+#                 "prompt_tokens": 42,
+#                 "total_tokens": 60
 #             }
 #         }
 #     ],
 #     "links": [],
 #     "resource": {
 #         "attributes": {
-#             "service.name": "langchain_app_1"
+#             "service.name": "generic_openai_1"
 #         },
 #         "schema_url": ""
 #     }
 # }
 # {
-#     "name": "openai.resources.responses.responses.Responses",
+#     "name": "workflow",
 #     "context": {
-#         "trace_id": "0xdea51d9730befac462d3afa73c4de685",
-#         "span_id": "0x58b7068e982fb2bc",
+#         "trace_id": "0xe805068d3e906f2369d8d59718ba2a9d",
+#         "span_id": "0x3da658a1f8bba435",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
 #     "parent_id": null,
-#     "start_time": "2025-04-14T07:46:30.531192Z",
-#     "end_time": "2025-04-14T07:46:34.307001Z",
+#     "start_time": "2025-07-02T23:42:30.090379Z",
+#     "end_time": "2025-07-02T23:42:32.025515Z",
 #     "status": {
 #         "status_code": "OK"
 #     },
 #     "attributes": {
-#         "monocle_apptrace.version": "0.3.0",
+#         "monocle_apptrace.version": "0.4.0",
+#         "monocle_apptrace.language": "python",
+#         "span_source": "/Users/kshitizvijayvargiya/monocle-ksh/tests/integration/test_openai_response_sample.py:241",
 #         "span.type": "workflow",
-#         "entity.1.name": "langchain_app_1",
+#         "entity.1.name": "generic_openai_1",
 #         "entity.1.type": "workflow.generic",
 #         "entity.2.type": "app_hosting.generic",
 #         "entity.2.name": "generic"
@@ -255,7 +683,7 @@ def test_azure_openai_response_api_sample(setup):
 #     "links": [],
 #     "resource": {
 #         "attributes": {
-#             "service.name": "langchain_app_1"
+#             "service.name": "generic_openai_1"
 #         },
 #         "schema_url": ""
 #     }

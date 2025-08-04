@@ -176,9 +176,12 @@ def test_invalid_credentials(setup):
         if 'span.type' in span.attributes and span.attributes["span.type"] == "inference":
             events = [e for e in span.events if e.name == "data.output"]
             assert len(events) > 0
-            assert events[0].attributes["status"] == "error"
-            assert "status_code" in events[0].attributes
+            assert events[0].attributes["error_code"] == "error"
+            assert "error_code" in events[0].attributes
             assert "UnrecognizedClientException" in events[0].attributes.get("response", "")
+
+if __name__ == "__main__":
+    pytest.main([__file__, "-s", "--tb=short"])
 
 # {
 #     "name": "langchain_core.vectorstores.base.VectorStoreRetriever",

@@ -1,17 +1,22 @@
 import logging
-from monocle_apptrace.instrumentation.common.utils import MonocleSpanException
 from monocle_apptrace.instrumentation.common.utils import (
     Option,
+    MonocleSpanException,
     get_keys_as_tuple,
     get_nested_value,
     try_option,
     get_exception_message,
-    get_exception_status_code
+    get_json_dumps,
+    get_status_code
 )
-
+from monocle_apptrace.instrumentation.metamodel.finish_types import (
+    map_teamsai_finish_reason_to_finish_type,
+    TEAMSAI_FINISH_REASON_MAPPING
+)
+from monocle_apptrace.instrumentation.common.constants import CHILD_ERROR_CODE
 logger = logging.getLogger(__name__)
 
-def capture_input(arguments):
+def extract_messages(arguments):
     """
     Captures the input from Teams AI state.
     Args:
@@ -47,7 +52,7 @@ def capture_input(arguments):
         if hasattr(context, "activity") and hasattr(context.activity, "text"):
             messages.append({'user': str(context.activity.text)})
 
-        return [str(message) for message in messages]
+        return [get_json_dumps(message) for message in messages]
     except Exception as e:
         print(f"Debug - Arguments structure: {str(arguments)}")
         print(f"Debug - kwargs: {str(kwargs)}")
@@ -105,14 +110,6 @@ def get_prompt_template(arguments):
         "prompt_template_type": get_nested_value(arguments.get("kwargs", {}), ["prompt", "config", "type"])
     }
 
-def get_status_code(arguments):
-    if arguments["exception"] is not None:
-        return get_exception_status_code(arguments)
-    elif hasattr(arguments["result"], "status"):
-        return arguments["result"].status
-    else:
-        return 'success'
-
 def get_status(arguments):
     if arguments["exception"] is not None:
         return 'error'
@@ -120,26 +117,48 @@ def get_status(arguments):
         return 'success'
     else:
         return 'error'
-    
-def get_response(arguments) -> str:
+
+def extract_assistant_message(arguments) -> str:
     status = get_status_code(arguments)
-    response:str = ""
+    messages = []
+    role = "assistant"
     if status == 'success':
         if hasattr(arguments["result"], "message"):
-            response = arguments["result"].message.content 
+            messages.append({role: arguments["result"].message.content})
         else:
-            response = str(arguments["result"])
+            messages.append({role: str(arguments["result"])})
     else:
         if arguments["exception"] is not None:
-            response = get_exception_message(arguments)
+            return get_exception_message(arguments)
         elif hasattr(arguments["result"], "error"):
-            response = arguments["result"].error
-    return response
+            return arguments["result"].error
+    return get_json_dumps(messages[0]) if messages else ""
+
+def extract_finish_reason(arguments):
+    """Map TeamAI finish_reason to standardized finish_type."""
+    return get_status_code(arguments)
+
+def extract_status_code(arguments):
+    # TeamsAI doesn't capture the status and other metadata from underlying OpenAI SDK.
+    # Thus we save the OpenAI status code in the parent span and retrieve it here to preserve meaningful error codes.
+    status = get_status_code(arguments)
+    if status == 'error' and arguments['exception'] is None:
+        child_status = arguments['span'].attributes.get(CHILD_ERROR_CODE)
+        if child_status is not None:
+            return child_status
+    return status
 
 def check_status(arguments):
     status = get_status_code(arguments)
-    if status != 'success':
+    if status != 'success' and arguments['exception'] is None:
         raise MonocleSpanException(f"{status}")   
+
+def map_finish_reason_to_finish_type(finish_reason):
+    """Map TeamsAI finish_reason to standardized finish_type."""
+    if not finish_reason:
+        return None
+
+    return map_teamsai_finish_reason_to_finish_type(finish_reason)
 
 def extract_provider_name(instance):
     provider_url: Option[str] = try_option(getattr, instance._client.base_url, 'host')

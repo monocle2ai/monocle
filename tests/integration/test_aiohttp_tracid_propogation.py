@@ -76,3 +76,6 @@ def verify_scopes():
             trace_id = span.context.trace_id
         else:
             assert trace_id == span.context.trace_id
+            
+if __name__ == "__main__":
+    pytest.main([__file__, "-s", "--tb=short"])

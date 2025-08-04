@@ -122,3 +122,19 @@
 ## 0.0.1 (Jul 17, 2024)
 
 - First monocle release
+
+- Add support for teams finish type, move finish types to metadata section ([#240](https://github.com/monocle2ai/monocle/pull/240))
+- Fix integration tests ([#239](https://github.com/monocle2ai/monocle/pull/239))
+- Add function_name attribute for Azure function ([#238](https://github.com/monocle2ai/monocle/pull/238))
+- Added MCP and A2A ([#237](https://github.com/monocle2ai/monocle/pull/237))
+- Add Metamodel for Lambda Func ([#236](https://github.com/monocle2ai/monocle/pull/236))
+- Allow llm SDKs as workflow types ([#234](https://github.com/monocle2ai/monocle/pull/234))
+- Add Sample Span for VertexAI ([#233](https://github.com/monocle2ai/monocle/pull/233))
+- Add Haystack Gemini sample ([#232](https://github.com/monocle2ai/monocle/pull/232))
+- Add Llama Index Gemini sample ([#231](https://github.com/monocle2ai/monocle/pull/231))
+- Add workflow span name to all spans ([#230](https://github.com/monocle2ai/monocle/pull/230))
+- Add Langchain Gemini sample ([#229](https://github.com/monocle2ai/monocle/pull/229))
+- Add Embeddings Span in Gemini Metamodel ([#228](https://github.com/monocle2ai/monocle/pull/228))
+- Agent metamodel updates for LangGraph ([#227](https://github.com/monocle2ai/monocle/pull/227))
+- Add fastapi metamodel with fastapi tracid propogation testcase ([#226](https://github.com/monocle2ai/monocle/pull/226))
+

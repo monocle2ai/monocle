@@ -1,5 +1,5 @@
 
-## Version 0.5.0b1 (2025-08-04)
+## Version 0.5.0 (2025-08-05)
 
 - Add support for teams finish type, move finish types to metadata section ([#240](https://github.com/monocle2ai/monocle/pull/240))
 - Fix integration tests ([#239](https://github.com/monocle2ai/monocle/pull/239))

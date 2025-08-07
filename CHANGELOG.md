@@ -1,3 +1,41 @@
+
+## Version 0.4.2 (2025-06-26)
+
+- Add gemini instrumentation ([#220](https://github.com/monocle2ai/monocle/pull/220))
+
+## Version 0.4.1 (2025-06-17)
+
+- Add exception status code for Boto3 ([#211](https://github.com/monocle2ai/monocle/pull/211))
+- Add exception status code for anthropic and openai ([#210](https://github.com/monocle2ai/monocle/pull/210))
+- Add prompt template info in teamsAI ([#209](https://github.com/monocle2ai/monocle/pull/209))
+- TeamsAI : added system prompt ([#208](https://github.com/monocle2ai/monocle/pull/208))
+- Add prompt template info in ActionPlanner for teamsAI ([#207](https://github.com/monocle2ai/monocle/pull/207))
+- Add teams channel id as scope in MS teams instrumentations ([#206](https://github.com/monocle2ai/monocle/pull/206))
+- Azure function wrapper to generate http span ([#205](https://github.com/monocle2ai/monocle/pull/205))
+- Azure ai inference sdk ([#204](https://github.com/monocle2ai/monocle/pull/204))
+
+## Version 0.4.0 (2025-06-02)
+
+- Update teams scopes ([#200](https://github.com/monocle2ai/monocle/pull/200))
+- Record input and errors for inference.modelapi in case of error ([#193](https://github.com/monocle2ai/monocle/pull/193))
+- Removed special handling for streaming in wrapper ([#192](https://github.com/monocle2ai/monocle/pull/192))
+
+
+- Add Span error handling ([#186](https://github.com/monocle2ai/monocle/pull/186))
+- Add teams ai enhancements ([#184](https://github.com/monocle2ai/monocle/pull/184))
+
+
+- Added conversation id in scope for teams ai bot ([#180](https://github.com/monocle2ai/monocle/pull/180))
+- Update inference entity type of TeamsAI SDK ([#178](https://github.com/monocle2ai/monocle/pull/178))
+- Added stream and async for openai ([#177](https://github.com/monocle2ai/monocle/pull/177))
+- Update inference span of TeamsAI ([#176](https://github.com/monocle2ai/monocle/pull/176))
+- Remove Preset span name and Bugfix for Event ([#175](https://github.com/monocle2ai/monocle/pull/175))
+- Add haystack anthropic sample ([#174](https://github.com/monocle2ai/monocle/pull/174))
+- aiohttp auto instrumentation ([#173](https://github.com/monocle2ai/monocle/pull/173))
+- Add source path to spans and fix json syntax in file exporter ([#172](https://github.com/monocle2ai/monocle/pull/172))
+- Added changes for openai streaming ([#171](https://github.com/monocle2ai/monocle/pull/171))
+- Add llama index anthropic sample ([#170](https://github.com/monocle2ai/monocle/pull/170))
+
 ## Version 0.3.1 (2024-04-18)
 
 - Add MetaModel for Anthropic SDK ([#159](https://github.com/monocle2ai/monocle/pull/159))
@@ -84,3 +122,19 @@
 ## 0.0.1 (Jul 17, 2024)
 
 - First monocle release
+
+- Add support for teams finish type, move finish types to metadata section ([#240](https://github.com/monocle2ai/monocle/pull/240))
+- Fix integration tests ([#239](https://github.com/monocle2ai/monocle/pull/239))
+- Add function_name attribute for Azure function ([#238](https://github.com/monocle2ai/monocle/pull/238))
+- Added MCP and A2A ([#237](https://github.com/monocle2ai/monocle/pull/237))
+- Add Metamodel for Lambda Func ([#236](https://github.com/monocle2ai/monocle/pull/236))
+- Allow llm SDKs as workflow types ([#234](https://github.com/monocle2ai/monocle/pull/234))
+- Add Sample Span for VertexAI ([#233](https://github.com/monocle2ai/monocle/pull/233))
+- Add Haystack Gemini sample ([#232](https://github.com/monocle2ai/monocle/pull/232))
+- Add Llama Index Gemini sample ([#231](https://github.com/monocle2ai/monocle/pull/231))
+- Add workflow span name to all spans ([#230](https://github.com/monocle2ai/monocle/pull/230))
+- Add Langchain Gemini sample ([#229](https://github.com/monocle2ai/monocle/pull/229))
+- Add Embeddings Span in Gemini Metamodel ([#228](https://github.com/monocle2ai/monocle/pull/228))
+- Agent metamodel updates for LangGraph ([#227](https://github.com/monocle2ai/monocle/pull/227))
+- Add fastapi metamodel with fastapi tracid propogation testcase ([#226](https://github.com/monocle2ai/monocle/pull/226))
+

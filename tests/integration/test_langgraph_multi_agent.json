@@ -71,9 +71,7 @@
                 "name": "data.output",
                 "timestamp": "2025-07-25T04:19:12.769503Z",
                 "attributes": {
-                    "response": "{\"ai\": {\"name\": \"get_weather\", \"args\": {\"city\": \"New York\"}, \"id\": \"call_XcGlwl8qOSY9m4jYCUZWjeBH\", \"type\": \"tool_call\"}}",
-                    "finish_reason": "tool_calls",
-                    "finish_type": "success"
+                    "response": "{\"ai\": {\"name\": \"get_weather\", \"args\": {\"city\": \"New York\"}, \"id\": \"call_XcGlwl8qOSY9m4jYCUZWjeBH\", \"type\": \"tool_call\"}}"
                 }
             },
             {
@@ -82,7 +80,10 @@
                 "attributes": {
                     "completion_tokens": 15,
                     "prompt_tokens": 269,
-                    "total_tokens": 284
+                    "total_tokens": 284,
+                    "finish_reason": "tool_calls",
+                    "finish_type": "success",
+                    "inference_sub_type": "inference.tool_call"
                 }
             }
         ],
@@ -302,9 +303,7 @@
                 "name": "data.output",
                 "timestamp": "2025-07-25T04:19:14.093738Z",
                 "attributes": {
-                    "response": "{\"ai\": {\"name\": \"get_weather\", \"args\": {\"city\": \"Los Angeles\"}, \"id\": \"call_BtTXiNssAXR4avdyasBInaxS\", \"type\": \"tool_call\"}}",
-                    "finish_reason": "tool_calls",
-                    "finish_type": "success"
+                    "response": "{\"ai\": {\"name\": \"get_weather\", \"args\": {\"city\": \"Los Angeles\"}, \"id\": \"call_BtTXiNssAXR4avdyasBInaxS\", \"type\": \"tool_call\"}}"
                 }
             },
             {
@@ -313,7 +312,10 @@
                 "attributes": {
                     "completion_tokens": 15,
                     "prompt_tokens": 304,
-                    "total_tokens": 319
+                    "total_tokens": 319,
+                    "finish_reason": "tool_calls",
+                    "finish_type": "success",
+                    "inference_sub_type": "inference.tool_call"
                 }
             }
         ],
@@ -535,9 +537,7 @@
                 "name": "data.output",
                 "timestamp": "2025-07-25T04:19:14.913990Z",
                 "attributes": {
-                    "response": "{\"ai\": {\"name\": \"transfer_to_flight_assistant\", \"args\": {}, \"id\": \"call_b3DUmH2Vzaxnf3kiJbNo7Abh\", \"type\": \"tool_call\"}}",
-                    "finish_reason": "tool_calls",
-                    "finish_type": "success"
+                    "response": "{\"ai\": {\"name\": \"transfer_to_flight_assistant\", \"args\": {}, \"id\": \"call_b3DUmH2Vzaxnf3kiJbNo7Abh\", \"type\": \"tool_call\"}}"
                 }
             },
             {
@@ -546,7 +546,10 @@
                 "attributes": {
                     "completion_tokens": 14,
                     "prompt_tokens": 339,
-                    "total_tokens": 353
+                    "total_tokens": 353,
+                    "finish_reason": "tool_calls",
+                    "finish_type": "success",
+                    "inference_sub_type": "inference.delegation"
                 }
             }
         ],
@@ -755,9 +758,7 @@
                 "name": "data.output",
                 "timestamp": "2025-07-25T04:19:15.680111Z",
                 "attributes": {
-                    "response": "{\"ai\": {\"name\": \"book_flight\", \"args\": {\"from_airport\": \"BOS\", \"to_airport\": \"LAX\"}, \"id\": \"call_zanp7bKk3dz389vwWtJTzX6d\", \"type\": \"tool_call\"}}",
-                    "finish_reason": "tool_calls",
-                    "finish_type": "success"
+                    "response": "{\"ai\": {\"name\": \"book_flight\", \"args\": {\"from_airport\": \"BOS\", \"to_airport\": \"LAX\"}, \"id\": \"call_zanp7bKk3dz389vwWtJTzX6d\", \"type\": \"tool_call\"}}"
                 }
             },
             {
@@ -766,7 +767,10 @@
                 "attributes": {
                     "completion_tokens": 25,
                     "prompt_tokens": 206,
-                    "total_tokens": 231
+                    "total_tokens": 231,
+                    "finish_reason": "tool_calls",
+                    "finish_type": "success",
+                    "inference_sub_type": "inference.tool_call"
                 }
             }
         ],
@@ -942,9 +946,7 @@
                 "name": "data.output",
                 "timestamp": "2025-07-25T04:19:16.613286Z",
                 "attributes": {
-                    "response": "{\"ai\": {\"name\": \"book_flight\", \"args\": {\"from_airport\": \"BOS\", \"to_airport\": \"LAX\"}, \"id\": \"call_Zi4MiF9C7JZBIm9jpbwOrwvA\", \"type\": \"tool_call\"}}",
-                    "finish_reason": "tool_calls",
-                    "finish_type": "success"
+                    "response": "{\"ai\": {\"name\": \"book_flight\", \"args\": {\"from_airport\": \"BOS\", \"to_airport\": \"LAX\"}, \"id\": \"call_Zi4MiF9C7JZBIm9jpbwOrwvA\", \"type\": \"tool_call\"}}"
                 }
             },
             {
@@ -953,7 +955,10 @@
                 "attributes": {
                     "completion_tokens": 25,
                     "prompt_tokens": 258,
-                    "total_tokens": 283
+                    "total_tokens": 283,
+                    "finish_reason": "tool_calls",
+                    "finish_type": "success",
+                    "inference_sub_type": "inference.tool_call"
                 }
             }
         ],
@@ -1131,9 +1136,7 @@
                 "name": "data.output",
                 "timestamp": "2025-07-25T04:19:18.833929Z",
                 "attributes": {
-                    "response": "{\"ai\": \"I have booked a flight from Boston (BOS) to Los Angeles (LAX) since Los Angeles has a lower temperature. I will now proceed to book a hotel stay at the Sheraton Gateway Hotel in LAX and provide you with the total cost in INR.\\nThe temperature in Los Angeles (LAX) is lower than in New York (JFK), so I will book a flight to LAX and a hotel stay at the Sheraton Gateway Hotel.\"}",
-                    "finish_reason": "stop",
-                    "finish_type": "success"
+                    "response": "{\"ai\": \"I have booked a flight from Boston (BOS) to Los Angeles (LAX) since Los Angeles has a lower temperature. I will now proceed to book a hotel stay at the Sheraton Gateway Hotel in LAX and provide you with the total cost in INR.\\nThe temperature in Los Angeles (LAX) is lower than in New York (JFK), so I will book a flight to LAX and a hotel stay at the Sheraton Gateway Hotel.\"}"
                 }
             },
             {
@@ -1142,7 +1145,10 @@
                 "attributes": {
                     "completion_tokens": 95,
                     "prompt_tokens": 310,
-                    "total_tokens": 405
+                    "total_tokens": 405,
+                    "finish_reason": "stop",
+                    "finish_type": "success",
+                    "inference_sub_type": "inference.communication"
                 }
             }
         ],
@@ -1313,9 +1319,7 @@
                 "name": "data.output",
                 "timestamp": "2025-07-25T04:19:20.036982Z",
                 "attributes": {
-                    "response": "{\"ai\": {\"name\": \"transfer_to_hotel_assistant\", \"args\": {}, \"id\": \"call_Tjj26iXNFrJMXv98p9SPeYen\", \"type\": \"tool_call\"}}",
-                    "finish_reason": "tool_calls",
-                    "finish_type": "success"
+                    "response": "{\"ai\": {\"name\": \"transfer_to_hotel_assistant\", \"args\": {}, \"id\": \"call_Tjj26iXNFrJMXv98p9SPeYen\", \"type\": \"tool_call\"}}"
                 }
             },
             {
@@ -1324,7 +1328,10 @@
                 "attributes": {
                     "completion_tokens": 14,
                     "prompt_tokens": 522,
-                    "total_tokens": 536
+                    "total_tokens": 536,
+                    "finish_reason": "tool_calls",
+                    "finish_type": "success",
+                    "inference_sub_type": "inference.delegation"
                 }
             }
         ],
@@ -1538,9 +1545,7 @@
                 "name": "data.output",
                 "timestamp": "2025-07-25T04:19:21.161850Z",
                 "attributes": {
-                    "response": "{\"ai\": {\"name\": \"book_hotel\", \"args\": {\"hotel_name\": \"Sheraton Gateway Hotel\"}, \"id\": \"call_p5FLCfZCzjx2A7AdMg3Wgod6\", \"type\": \"tool_call\"}}",
-                    "finish_reason": "tool_calls",
-                    "finish_type": "success"
+                    "response": "{\"ai\": {\"name\": \"book_hotel\", \"args\": {\"hotel_name\": \"Sheraton Gateway Hotel\"}, \"id\": \"call_p5FLCfZCzjx2A7AdMg3Wgod6\", \"type\": \"tool_call\"}}"
                 }
             },
             {
@@ -1549,7 +1554,10 @@
                 "attributes": {
                     "completion_tokens": 19,
                     "prompt_tokens": 382,
-                    "total_tokens": 401
+                    "total_tokens": 401,
+                    "finish_reason": "tool_calls",
+                    "finish_type": "success",
+                    "inference_sub_type": "inference.tool_call"
                 }
             }
         ],
@@ -1729,9 +1737,7 @@
                 "name": "data.output",
                 "timestamp": "2025-07-25T04:19:24.588315Z",
                 "attributes": {
-                    "response": "{\"ai\": \"I have successfully booked a flight from Boston (BOS) to Los Angeles (LAX) and a stay at Sheraton Gateway Hotel. The cost of the hotel stay is 50 USD.\\n\\nTo calculate the total cost in INR, I'll assume the flight cost is approximately 200 USD (please note that this is an estimate as you have not provided the actual flight cost).\\n\\nThe total cost in USD is approximately 250 USD.\\n\\nAssuming the exchange rate is 1 USD = 83 INR (please verify with a current source as this rate can fluctuate), the total cost in INR would be:\\n\\n\\\\[ 250 \\\\, \\\\text{USD} \\\\times 83 \\\\, \\\\text{INR/USD} = 20,750 \\\\, \\\\text{INR} \\\\]\\n\\nSo, the approximate total cost for the flight and hotel is 20,750 INR. Please confirm the flight price for a more accurate total.\"}",
-                    "finish_reason": "stop",
-                    "finish_type": "success"
+                    "response": "{\"ai\": \"I have successfully booked a flight from Boston (BOS) to Los Angeles (LAX) and a stay at Sheraton Gateway Hotel. The cost of the hotel stay is 50 USD.\\n\\nTo calculate the total cost in INR, I'll assume the flight cost is approximately 200 USD (please note that this is an estimate as you have not provided the actual flight cost).\\n\\nThe total cost in USD is approximately 250 USD.\\n\\nAssuming the exchange rate is 1 USD = 83 INR (please verify with a current source as this rate can fluctuate), the total cost in INR would be:\\n\\n\\\\[ 250 \\\\, \\\\text{USD} \\\\times 83 \\\\, \\\\text{INR/USD} = 20,750 \\\\, \\\\text{INR} \\\\]\\n\\nSo, the approximate total cost for the flight and hotel is 20,750 INR. Please confirm the flight price for a more accurate total.\"}"
                 }
             },
             {
@@ -1740,7 +1746,10 @@
                 "attributes": {
                     "completion_tokens": 188,
                     "prompt_tokens": 428,
-                    "total_tokens": 616
+                    "total_tokens": 616,
+                    "finish_reason": "stop",
+                    "finish_type": "success",
+                    "inference_sub_type": "inference.communication"
                 }
             }
         ],
@@ -1916,9 +1925,7 @@
                 "name": "data.output",
                 "timestamp": "2025-07-25T04:19:25.665750Z",
                 "attributes": {
-                    "response": "{\"ai\": {\"name\": \"CurrencyConversion\", \"args\": {\"message\": \"Give exchange rate for USD to INR\"}, \"id\": \"call_1RF7VWPzWFuauKTv10CmIkAA\", \"type\": \"tool_call\"}}",
-                    "finish_reason": "tool_calls",
-                    "finish_type": "success"
+                    "response": "{\"ai\": {\"name\": \"CurrencyConversion\", \"args\": {\"message\": \"Give exchange rate for USD to INR\"}, \"id\": \"call_1RF7VWPzWFuauKTv10CmIkAA\", \"type\": \"tool_call\"}}"
                 }
             },
             {
@@ -1927,7 +1934,10 @@
                 "attributes": {
                     "completion_tokens": 20,
                     "prompt_tokens": 799,
-                    "total_tokens": 819
+                    "total_tokens": 819,
+                    "finish_reason": "tool_calls",
+                    "finish_type": "success",
+                    "inference_sub_type": "inference.tool_call"
                 }
             }
         ],
@@ -2162,9 +2172,7 @@
                 "name": "data.output",
                 "timestamp": "2025-07-25T04:19:31.299024Z",
                 "attributes": {
-                    "response": "{\"ai\": {\"name\": \"multiply\", \"args\": {\"a\": 250, \"b\": 86.39}, \"id\": \"call_HpMPYFzpgflQOwQDRBV5DDQE\", \"type\": \"tool_call\"}}",
-                    "finish_reason": "tool_calls",
-                    "finish_type": "success"
+                    "response": "{\"ai\": {\"name\": \"multiply\", \"args\": {\"a\": 250, \"b\": 86.39}, \"id\": \"call_HpMPYFzpgflQOwQDRBV5DDQE\", \"type\": \"tool_call\"}}"
                 }
             },
             {
@@ -2173,7 +2181,10 @@
                 "attributes": {
                     "completion_tokens": 19,
                     "prompt_tokens": 1388,
-                    "total_tokens": 1407
+                    "total_tokens": 1407,
+                    "finish_reason": "tool_calls",
+                    "finish_type": "success",
+                    "inference_sub_type": "inference.tool_call"
                 }
             }
         ],
@@ -2354,9 +2365,7 @@
                 "name": "data.output",
                 "timestamp": "2025-07-25T04:19:32.936749Z",
                 "attributes": {
-                    "response": "{\"ai\": \"The total cost for the flight from Boston (BOS) to Los Angeles (LAX) and the hotel stay at Sheraton Gateway Hotel in LAX is 250 USD, which is approximately 21,597.50 INR based on the current exchange rate of 1 USD = 86.39 INR.\"}",
-                    "finish_reason": "stop",
-                    "finish_type": "success"
+                    "response": "{\"ai\": \"The total cost for the flight from Boston (BOS) to Los Angeles (LAX) and the hotel stay at Sheraton Gateway Hotel in LAX is 250 USD, which is approximately 21,597.50 INR based on the current exchange rate of 1 USD = 86.39 INR.\"}"
                 }
             },
             {
@@ -2365,7 +2374,10 @@
                 "attributes": {
                     "completion_tokens": 64,
                     "prompt_tokens": 1421,
-                    "total_tokens": 1485
+                    "total_tokens": 1485,
+                    "finish_reason": "stop",
+                    "finish_type": "success",
+                    "inference_sub_type": "inference.communication"
                 }
             }
         ],

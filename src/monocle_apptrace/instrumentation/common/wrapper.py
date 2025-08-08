@@ -1,6 +1,9 @@
 # pylint: disable=protected-access
+from typing import AsyncGenerator
 import logging
 from opentelemetry.trace import Tracer
+#from opentelemetry.trace.propagation import _SPAN_KEY
+from opentelemetry.trace import propagation
 from opentelemetry.context import set_value, attach, detach, get_value
 
 from monocle_apptrace.instrumentation.common.span_handler import SpanHandler
@@ -115,7 +118,8 @@ def monocle_wrapper(tracer: Tracer, handler: SpanHandler, to_wrap, wrapped, inst
         except Exception as e:
             logger.info(f"Warning: Error occurred in post_tracing: {e}")
 
-async def amonocle_wrapper_span_processor(tracer: Tracer, handler: SpanHandler, to_wrap, wrapped, instance, source_path, add_workflow_span, args, kwargs):
+async def amonocle_wrapper_span_processor(tracer: Tracer, handler: SpanHandler, to_wrap, wrapped, instance, source_path, add_workflow_span,
+                                        args, kwargs):
     # Main span processing logic
     name = get_span_name(to_wrap, instance)
     return_value = None
@@ -149,7 +153,45 @@ async def amonocle_wrapper_span_processor(tracer: Tracer, handler: SpanHandler, 
                 else:
                     post_process_span_internal(return_value)
         span_status = span.status
-    return return_value, span.status
+    return return_value, span_status
+
+async def amonocle_iter_wrapper_span_processor(tracer: Tracer, handler: SpanHandler, to_wrap, wrapped, instance, source_path, add_workflow_span,
+                                        args, kwargs) -> AsyncGenerator[any, None]:
+    # Main span processing logic
+    name = get_span_name(to_wrap, instance)
+    auto_close_span = get_auto_close_span(to_wrap, kwargs)
+    parent_span = get_parent_span()
+    last_item = None
+    with tracer.start_as_current_span(name, end_on_exit=auto_close_span) as span:
+        pre_process_span(name, tracer, handler, add_workflow_span, to_wrap, wrapped, instance, args, kwargs, span, source_path)
+        
+        if SpanHandler.is_root_span(span) or add_workflow_span:
+            # Recursive call for the actual span
+            async for item in amonocle_iter_wrapper_span_processor(tracer, handler, to_wrap, wrapped, instance, source_path, False, args, kwargs):
+                yield item
+
+            if not auto_close_span:
+                span.end()
+        else:
+            ex:Exception = None
+            try:
+                with SpanHandler.workflow_type(to_wrap, span):
+                    async for item in wrapped(*args, **kwargs):
+                        last_item = item
+                        yield item
+            except Exception as e:
+                ex = e
+                raise
+            finally:
+                def post_process_span_internal(ret_val):
+                    post_process_span(handler, to_wrap, wrapped, instance, args, kwargs, ret_val, span, parent_span, ex)
+                    if not auto_close_span:
+                        span.end()
+                if ex is None and not auto_close_span and to_wrap.get("output_processor") and to_wrap.get("output_processor").get("response_processor"):
+                    to_wrap.get("output_processor").get("response_processor")(to_wrap, None, post_process_span_internal)
+                else:
+                    post_process_span_internal(last_item)
+    return
 
 async def amonocle_wrapper(tracer: Tracer, handler: SpanHandler, to_wrap, wrapped, instance, source_path, args, kwargs):
     return_value = None
@@ -166,13 +208,40 @@ async def amonocle_wrapper(tracer: Tracer, handler: SpanHandler, to_wrap, wrappe
             add_workflow_span = get_value(ADD_NEW_WORKFLOW) == True
             token = attach(set_value(ADD_NEW_WORKFLOW, False))
             try:
-                return_value, span_status = await amonocle_wrapper_span_processor(tracer, handler, to_wrap, wrapped, instance, source_path, add_workflow_span, args, kwargs)    
+                return_value, span_status = await amonocle_wrapper_span_processor(tracer, handler, to_wrap, wrapped, instance, source_path, 
+                                                                        add_workflow_span, args, kwargs)
             finally:
                 detach(token)
         return return_value
     finally:
         try:
             handler.post_tracing(to_wrap, wrapped, instance, args, kwargs, return_value, pre_trace_token)
+        except Exception as e:
+            logger.info(f"Warning: Error occurred in post_tracing: {e}")
+
+async def amonocle_iter_wrapper(tracer: Tracer, handler: SpanHandler, to_wrap, wrapped, instance, source_path, args, kwargs) -> AsyncGenerator[any, None]:
+    token = None
+    pre_trace_token = None
+    try:
+        try:
+            pre_trace_token = handler.pre_tracing(to_wrap, wrapped, instance, args, kwargs)
+        except Exception as e:
+            logger.info(f"Warning: Error occurred in pre_tracing: {e}")
+        if to_wrap.get('skip_span', False) or handler.skip_span(to_wrap, wrapped, instance, args, kwargs):
+            async for item in wrapped(*args, **kwargs):
+                yield item
+        else:
+            add_workflow_span = get_value(ADD_NEW_WORKFLOW) == True
+            token = attach(set_value(ADD_NEW_WORKFLOW, False))
+            try:
+                async for item in amonocle_iter_wrapper_span_processor(tracer, handler, to_wrap, wrapped, instance, source_path, add_workflow_span, args, kwargs):
+                    yield item
+            finally:
+                detach(token)
+        return
+    finally:
+        try:
+            handler.post_tracing(to_wrap, wrapped, instance, args, kwargs, None, pre_trace_token)
         except Exception as e:
             logger.info(f"Warning: Error occurred in post_tracing: {e}")
 
@@ -183,6 +252,12 @@ def task_wrapper(tracer: Tracer, handler: SpanHandler, to_wrap, wrapped, instanc
 @with_tracer_wrapper
 async def atask_wrapper(tracer: Tracer, handler: SpanHandler, to_wrap, wrapped, instance, source_path, args, kwargs):
     return await amonocle_wrapper(tracer, handler, to_wrap, wrapped, instance, source_path, args, kwargs)
+
+@with_tracer_wrapper
+async def atask_iter_wrapper(tracer: Tracer, handler: SpanHandler, to_wrap, wrapped, instance, source_path, args, kwargs) -> AsyncGenerator[any, None]:
+    async for item in amonocle_iter_wrapper(tracer, handler, to_wrap, wrapped, instance, source_path, args, kwargs):
+        yield item
+    return
 
 @with_tracer_wrapper
 def scope_wrapper(tracer: Tracer, handler: SpanHandler, to_wrap, wrapped, instance, source_path, args, kwargs):

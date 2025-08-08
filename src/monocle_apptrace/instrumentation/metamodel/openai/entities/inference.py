@@ -8,7 +8,7 @@ from monocle_apptrace.instrumentation.metamodel.openai import (
 from monocle_apptrace.instrumentation.common.utils import (
     get_error_message,
     patch_instance_method,
-    resolve_from_alias
+    resolve_from_alias,
 )
 
 logger = logging.getLogger(__name__)
@@ -17,7 +17,11 @@ logger = logging.getLogger(__name__)
 def _process_stream_item(item, state):
     """Process a single stream item and update state."""
     try:
-        if hasattr(item, "type") and isinstance(item.type, str) and item.type.startswith("response."):
+        if (
+            hasattr(item, "type")
+            and isinstance(item.type, str)
+            and item.type.startswith("response.")
+        ):
             if state["waiting_for_first_token"]:
                 state["waiting_for_first_token"] = False
                 state["first_token_time"] = time.time_ns()
@@ -40,7 +44,11 @@ def _process_stream_item(item, state):
                 state["first_token_time"] = time.time_ns()
 
             state["accumulated_response"] += item.choices[0].delta.content
-        elif hasattr(item, "object") and item.object == "chat.completion.chunk" and item.usage:
+        elif (
+            hasattr(item, "object")
+            and item.object == "chat.completion.chunk"
+            and item.usage
+        ):
             # Handle the case where the response is a chunk
             state["token_usage"] = item.usage
             state["stream_closed_time"] = time.time_ns()
@@ -49,7 +57,7 @@ def _process_stream_item(item, state):
                 hasattr(item, "choices")
                 and item.choices
                 and len(item.choices) > 0
-                and hasattr(item.choices[0], 'finish_reason')
+                and hasattr(item.choices[0], "finish_reason")
                 and item.choices[0].finish_reason
             ):
                 finish_reason = item.choices[0].finish_reason
@@ -65,6 +73,37 @@ def _process_stream_item(item, state):
 
 
 def _create_span_result(state, stream_start_time):
+    # exract tool calls from the accumulated_temp_list
+    # this can only be done when all the streaming is complete.
+    for item in state["accumulated_temp_list"]:
+        try:
+            if (
+                item.choices
+                and isinstance(item.choices, list)
+                and hasattr(item.choices[0], "delta")
+                and hasattr(item.choices[0].delta, "tool_calls")
+                and item.choices[0].delta.tool_calls
+                and item.choices[0].delta.tool_calls[0].id
+                and item.choices[0].delta.tool_calls[0].function
+            ):
+                state["tools"] = state.get("tools", [])
+                state["tools"].append(
+                    {
+                        "id": item.choices[0].delta.tool_calls[0].id,
+                        "name": item.choices[0].delta.tool_calls[0].function.name,
+                        "arguments": item.choices[0]
+                        .delta.tool_calls[0]
+                        .function.arguments,
+                    }
+                )
+            if (item.choices and item.choices[0].finish_reason):
+                state["finish_reason"] = item.choices[0].finish_reason
+        except Exception as e:
+            logger.warning(
+                "Warning: Error occurred while processing tool calls: %s",
+                str(e),
+            )
+
     """Create the span result object."""
     return SimpleNamespace(
         type="stream",
@@ -75,14 +114,15 @@ def _create_span_result(state, stream_start_time):
             "metadata": int(state["stream_closed_time"] or time.time_ns()),
         },
         output_text=state["accumulated_response"],
+        tools=state["tools"] if "tools" in state else None,
         usage=state["token_usage"],
-        finish_reason=state["finish_reason"]
+        finish_reason=state["finish_reason"],
     )
 
 
 def process_stream(to_wrap, response, span_processor):
     stream_start_time = time.time_ns()
-    
+
     # Shared state for both sync and async processing
     state = {
         "waiting_for_first_token": True,
@@ -108,7 +148,7 @@ def process_stream(to_wrap, response, span_processor):
                 span_processor(ret_val)
 
         patch_instance_method(response, "__iter__", new_iter)
-        
+
     if to_wrap and hasattr(response, "__aiter__"):
         original_iter = response.__aiter__
 
@@ -200,10 +240,9 @@ INFERENCE = {
         {
             "name": "data.output",
             "attributes": [
-
                 {
                     "attribute": "error_code",
-                    "accessor": lambda arguments: get_error_message(arguments)
+                    "accessor": lambda arguments: get_error_message(arguments),
                 },
                 {
                     "_comment": "this is result from LLM",
@@ -211,7 +250,7 @@ INFERENCE = {
                     "accessor": lambda arguments: _helper.extract_assistant_message(
                         arguments,
                     ),
-                }
+                },
             ],
         },
         {
@@ -226,14 +265,20 @@ INFERENCE = {
                 {
                     "_comment": "finish reason from OpenAI response",
                     "attribute": "finish_reason",
-                    "accessor": lambda arguments: _helper.extract_finish_reason(arguments)
+                    "accessor": lambda arguments: _helper.extract_finish_reason(
+                        arguments
+                    ),
                 },
                 {
                     "_comment": "finish type mapped from finish reason",
                     "attribute": "finish_type",
                     "accessor": lambda arguments: _helper.map_finish_reason_to_finish_type(
                         _helper.extract_finish_reason(arguments)
-                    )
+                    ),
+                },
+                {
+                    "attribute": "inference_sub_type",
+                    "accessor": lambda arguments: _helper.agent_inference_type(arguments)
                 }
             ],
         },

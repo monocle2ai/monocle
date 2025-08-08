@@ -1,3 +1,4 @@
+import json
 import logging
 from monocle_apptrace.instrumentation.common.utils import (
     Option,
@@ -171,3 +172,13 @@ def extract_inference_endpoint(instance):
         inference_endpoint = try_option(getattr, instance.client.meta, 'endpoint_url').map(str)
 
     return inference_endpoint.unwrap_or(extract_provider_name(instance))
+
+def agent_inference_type(arguments):
+    """
+    Extracts the agent inference type from the arguments.
+    """
+    output = extract_assistant_message(arguments)
+    command = json.loads(json.loads(output).get("assistant", "")).get("action", "").get("name")
+    if command == "SAY":
+        return "inference.communication"
+    return "inference.tool_call"

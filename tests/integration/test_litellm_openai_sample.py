@@ -114,9 +114,6 @@ def test_llm_azure_openai(setup):
     azure_api_base = os.getenv("AZURE_API_BASE")
     azure_api_version = os.getenv("AZURE_API_VERSION")
 
-    # os.environ["AZURE_API_KEY"] = "64739ec94cc048f0bccf993425b42b42"
-    # os.environ["AZURE_API_BASE"] = "https://okahu-openai-dev.openai.azure.com/"
-    # os.environ["AZURE_API_VERSION"] = "2024-02-01"
     if azure_api_key is None or azure_api_version is None or azure_api_base is None:
         raise ValueError("AZURE_API_KEY, AZURE_API_VERSION, AZURE_API_BASE environment variables must be set.")
     model = "azure/gpt-4o-mini"

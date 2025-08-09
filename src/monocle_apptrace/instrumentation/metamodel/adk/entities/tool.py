@@ -19,12 +19,12 @@ TOOL = {
                   "accessor": lambda arguments: _helper.get_tool_description(arguments['instance'])
               }
         ],
-        [             
+        [
               {
                 "_comment": "name of the agent",
                 "attribute": "name",
                 "accessor": lambda arguments: _helper.get_source_agent(arguments)
-              },          
+              },
               {
                 "_comment": "agent type",
                 "attribute": "type",

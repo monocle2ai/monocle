@@ -1,5 +1,6 @@
 # pylint: disable=protected-access
 from contextlib import contextmanager
+import os
 from typing import AsyncGenerator, Iterator, Optional
 import logging
 from opentelemetry.trace import Tracer
@@ -21,6 +22,7 @@ from monocle_apptrace.instrumentation.common.utils import (
 from monocle_apptrace.instrumentation.common.constants import WORKFLOW_TYPE_KEY, ADD_NEW_WORKFLOW
 logger = logging.getLogger(__name__)
 _MONOCLE_SPAN_KEY = "monocle" + _SPAN_KEY
+ISOLATE_MONOCLE_SPANS = os.getenv("MONOCLE_ISOLATE_SPANS", "true").lower() == "true"
 
 def get_auto_close_span(to_wrap, kwargs):
     try:
@@ -170,7 +172,7 @@ async def amonocle_iter_wrapper_span_processor(tracer: Tracer, handler: SpanHand
 
     with start_as_monocle_span(tracer, name, auto_close_span) as span:
         pre_process_span(name, tracer, handler, add_workflow_span, to_wrap, wrapped, instance, args, kwargs, span, source_path)
-        
+
         if SpanHandler.is_root_span(span) or add_workflow_span:
             # Recursive call for the actual span
             async for item in amonocle_iter_wrapper_span_processor(tracer, handler, to_wrap, wrapped, instance, source_path, False, args, kwargs):
@@ -330,7 +332,14 @@ def evaluate_scope_values(args, kwargs, to_wrap, scope_values):
 
 @contextmanager
 def start_as_monocle_span(tracer: Tracer, name: str, auto_close_span: bool) -> Iterator["Span"]:
-    """Start a new span with the given name and properties."""
+    """ Wrapper to OTEL start_as_current_span to isolate monocle and non monocle spans.
+        This essentiall links monocle and non-monocle spans separately which is default behavior.
+        It can be optionally overridden by setting the environment variable MONOCLE_ISOLATE_SPANS to false.
+    """
+    if not ISOLATE_MONOCLE_SPANS:
+        # If not isolating, use the default start_as_current_span
+        yield tracer.start_as_current_span(name, end_on_exit=auto_close_span)
+        return
     original_span = get_current_span()
     monocle_span_token = attach(set_span_in_context(get_current_monocle_span()))
     with tracer.start_as_current_span(name, end_on_exit=auto_close_span) as span:

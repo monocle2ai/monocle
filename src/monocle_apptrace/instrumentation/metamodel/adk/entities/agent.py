@@ -48,26 +48,3 @@ AGENT = {
         }
       ]
     }
-
-AGENT_DELEGATION = {
-      "type": "agentic.delegation",
-      "attributes": [
-        [
-              {
-                "_comment": "agent type",
-                "attribute": "type",
-                "accessor": lambda arguments:'agent.adk'
-              },
-              {
-                "_comment": "name of the agent",
-                "attribute": "from_agent",
-                "accessor": lambda arguments: _helper.get_source_agent(arguments)
-              },
-              {
-                "_comment": "name of the agent called",
-                "attribute": "to_agent",
-                "accessor": lambda arguments: _helper.get_target_agent(arguments['instance'])
-              }
-        ]
-      ]
-}

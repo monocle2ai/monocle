@@ -5,7 +5,47 @@ This module provides utility functions to extract various attributes from agent 
 
 from ast import arguments
 from typing import Any, Dict, Optional
+from monocle_apptrace.instrumentation.metamodel.finish_types import map_adk_finish_reason_to_finish_type
 
+def get_model_name(args):
+    return args[0].model if hasattr(args[0], 'model') else None
+
+def get_inference_type(arguments):
+    """ Find inference type from argument """
+    return 'inference.gemini' ## TBD verify non-gemini inference types
+
+def extract_inference_endpoint(instance):
+    """ Get inference service end point"""
+    if hasattr(instance,'api_client') and hasattr(instance.api_client, '_api_client'):
+        if hasattr(instance.api_client._api_client._http_options,'base_url'):
+            return instance.api_client._api_client._http_options.base_url
+    return None
+
+def extract_message(arguments):
+    return str(arguments['args'][0].contents)
+
+def extract_assistant_message(arguments):
+    return str(arguments['result'].content.parts)
+
+def update_span_from_llm_response(response, instance):
+    meta_dict = {}
+    if response is not None and hasattr(response, "usage_metadata") and response.usage_metadata is not None:
+        token_usage = response.usage_metadata
+        if token_usage is not None:
+            meta_dict.update({"completion_tokens": token_usage.candidates_token_count})
+            meta_dict.update({"prompt_tokens": token_usage.prompt_token_count })
+            meta_dict.update({"total_tokens": token_usage.total_token_count})
+    return meta_dict
+
+def extract_finish_reason(arguments):
+    if arguments["exception"] is not None:
+            return None
+    if hasattr(arguments['result'], 'error_code'):
+        return arguments['result'].error_code
+    return None
+
+def map_finish_reason_to_finish_type(finish_reason:str):
+    return map_adk_finish_reason_to_finish_type(finish_reason)
 
 def get_agent_name(instance: Any) -> str:
     """

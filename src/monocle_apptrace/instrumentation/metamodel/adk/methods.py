@@ -5,6 +5,9 @@ from monocle_apptrace.instrumentation.metamodel.adk.entities.agent import (
 from monocle_apptrace.instrumentation.metamodel.adk.entities.tool import (
     TOOL
 )
+from monocle_apptrace.instrumentation.metamodel.adk.entities.inference import (
+    INFERENCE,
+)
 
 ADK_METHODS = [
     {
@@ -22,10 +25,10 @@ ADK_METHODS = [
       "output_processor": TOOL,
     },
     {
-      "package": "google.adk.telemetry",
-      "object": "",
-      "method": "trace_tool_call",
-      "wrapper_method": task_wrapper,
-      "output_processor": TOOL,
+        "package": "google.adk.models.google_llm",
+        "object": "Gemini",
+        "method": "generate_content_async",
+        "wrapper_method": atask_iter_wrapper,
+        "output_processor": INFERENCE
     }
 ]

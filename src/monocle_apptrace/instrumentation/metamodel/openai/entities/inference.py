@@ -73,7 +73,7 @@ def _process_stream_item(item, state):
 
 
 def _create_span_result(state, stream_start_time):
-    # exract tool calls from the accumulated_temp_list
+    # extract tool calls from the accumulated_temp_list
     # this can only be done when all the streaming is complete.
     for item in state["accumulated_temp_list"]:
         try:

@@ -180,5 +180,5 @@ def agent_inference_type(arguments):
     output = extract_assistant_message(arguments)
     command = json.loads(json.loads(output).get("assistant", "")).get("action", "").get("name")
     if command == "SAY":
-        return "inference.communication"
-    return "inference.tool_call"
+        return "turn"
+    return "tool_call"

@@ -83,7 +83,7 @@
                     "total_tokens": 284,
                     "finish_reason": "tool_calls",
                     "finish_type": "success",
-                    "inference_sub_type": "inference.tool_call"
+                    "inference_sub_type": "tool_call"
                 }
             }
         ],
@@ -315,7 +315,7 @@
                     "total_tokens": 319,
                     "finish_reason": "tool_calls",
                     "finish_type": "success",
-                    "inference_sub_type": "inference.tool_call"
+                    "inference_sub_type": "tool_call"
                 }
             }
         ],
@@ -549,7 +549,7 @@
                     "total_tokens": 353,
                     "finish_reason": "tool_calls",
                     "finish_type": "success",
-                    "inference_sub_type": "inference.delegation"
+                    "inference_sub_type": "delegation"
                 }
             }
         ],
@@ -770,7 +770,7 @@
                     "total_tokens": 231,
                     "finish_reason": "tool_calls",
                     "finish_type": "success",
-                    "inference_sub_type": "inference.tool_call"
+                    "inference_sub_type": "tool_call"
                 }
             }
         ],
@@ -958,7 +958,7 @@
                     "total_tokens": 283,
                     "finish_reason": "tool_calls",
                     "finish_type": "success",
-                    "inference_sub_type": "inference.tool_call"
+                    "inference_sub_type": "tool_call"
                 }
             }
         ],
@@ -1148,7 +1148,7 @@
                     "total_tokens": 405,
                     "finish_reason": "stop",
                     "finish_type": "success",
-                    "inference_sub_type": "inference.communication"
+                    "inference_sub_type": "turn"
                 }
             }
         ],
@@ -1331,7 +1331,7 @@
                     "total_tokens": 536,
                     "finish_reason": "tool_calls",
                     "finish_type": "success",
-                    "inference_sub_type": "inference.delegation"
+                    "inference_sub_type": "delegation"
                 }
             }
         ],
@@ -1557,7 +1557,7 @@
                     "total_tokens": 401,
                     "finish_reason": "tool_calls",
                     "finish_type": "success",
-                    "inference_sub_type": "inference.tool_call"
+                    "inference_sub_type": "tool_call"
                 }
             }
         ],
@@ -1749,7 +1749,7 @@
                     "total_tokens": 616,
                     "finish_reason": "stop",
                     "finish_type": "success",
-                    "inference_sub_type": "inference.communication"
+                    "inference_sub_type": "turn"
                 }
             }
         ],
@@ -1937,7 +1937,7 @@
                     "total_tokens": 819,
                     "finish_reason": "tool_calls",
                     "finish_type": "success",
-                    "inference_sub_type": "inference.tool_call"
+                    "inference_sub_type": "tool_call"
                 }
             }
         ],
@@ -2184,7 +2184,7 @@
                     "total_tokens": 1407,
                     "finish_reason": "tool_calls",
                     "finish_type": "success",
-                    "inference_sub_type": "inference.tool_call"
+                    "inference_sub_type": "tool_call"
                 }
             }
         ],
@@ -2377,7 +2377,7 @@
                     "total_tokens": 1485,
                     "finish_reason": "stop",
                     "finish_type": "success",
-                    "inference_sub_type": "inference.communication"
+                    "inference_sub_type": "turn"
                 }
             }
         ],

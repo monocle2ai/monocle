@@ -255,7 +255,7 @@ def agent_inference_type(arguments):
     if message and message.get("tools") and isinstance(message["tools"], list) and len(message["tools"]) > 0:
         agent_prefix = get_value(AGENT_PREFIX_KEY)
         tool_name = message["tools"][0].get("tool_name", "")
-        if tool_name and tool_name.startswith(agent_prefix):
+        if tool_name and agent_prefix and tool_name.startswith(agent_prefix):
             return INFERENCE_AGENT_DELEGATION
         return INFERENCE_TOOL_CALL
     return INFERENCE_COMMUNICATION

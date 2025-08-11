@@ -90,6 +90,6 @@ CHILD_ERROR_CODE = "child.error.code"
 
 AGENT_PREFIX_KEY = "monocle.agent.prefix"
 
-INFERENCE_AGENT_DELEGATION = "inference.delegation"
-INFERENCE_TOOL_CALL = "inference.tool_call"
-INFERENCE_COMMUNICATION = "inference.communication"
+INFERENCE_AGENT_DELEGATION = "delegation"
+INFERENCE_TOOL_CALL = "tool_call"
+INFERENCE_COMMUNICATION = "turn"

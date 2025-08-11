@@ -5,7 +5,7 @@ and assistant messages from various input formats.
 
 import logging
 from opentelemetry.context import get_value
-from monocle_apptrace.instrumentation.common.constants import AGENT_PREFIX_KEY, INFERENCE_AGENT_DELEGATION, INFERENCE_COMMUNICATION, INFERENCE_TOOL_CALL, INFERENCE_TOOL_CALL
+from monocle_apptrace.instrumentation.common.constants import AGENT_PREFIX_KEY, INFERENCE_AGENT_DELEGATION, INFERENCE_COMMUNICATION, INFERENCE_TOOL_CALL
 from monocle_apptrace.instrumentation.common.utils import (
     Option,
     get_json_dumps,

@@ -1,7 +1,8 @@
 from opentelemetry.context import set_value, attach, detach
+from monocle_apptrace.instrumentation.common.constants import AGENT_PREFIX_KEY
 from monocle_apptrace.instrumentation.common.span_handler import SpanHandler
 from monocle_apptrace.instrumentation.metamodel.langgraph._helper import (
-   get_name, is_root_agent_name, is_delegation_tool, LANGGRAPTH_AGENT_NAME_KEY
+   DELEGATION_NAME_PREFIX, get_name, is_root_agent_name, is_delegation_tool, LANGGRAPTH_AGENT_NAME_KEY
 
 )
 from monocle_apptrace.instrumentation.metamodel.langgraph.entities.inference import (
@@ -10,7 +11,9 @@ from monocle_apptrace.instrumentation.metamodel.langgraph.entities.inference imp
 
 class LanggraphAgentHandler(SpanHandler):
     def pre_tracing(self, to_wrap, wrapped, instance, args, kwargs):
-        return attach(set_value(LANGGRAPTH_AGENT_NAME_KEY, get_name(instance)))
+        context = set_value(LANGGRAPTH_AGENT_NAME_KEY, get_name(instance))
+        context = set_value(AGENT_PREFIX_KEY, DELEGATION_NAME_PREFIX, context)
+        return attach(context)
 
     def post_tracing(self, to_wrap, wrapped, instance, args, kwargs, result, token):
         if token is not None:

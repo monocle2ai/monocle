@@ -37,7 +37,7 @@ EXTENDED_AGENT_CARD_PATH = '/agent/authenticatedExtendedCard'
 
 async def main() -> None:
     # Configure logging to show INFO level messages
-    logging.basicConfig(level=logging.INFO)
+    logging.basicConfig(level=logging.WARNING)
     logger = logging.getLogger(__name__)  # Get a logger instance
 
     # --8<-- [start:A2ACardResolver]

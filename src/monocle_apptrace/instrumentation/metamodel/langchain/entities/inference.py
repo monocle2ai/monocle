@@ -78,6 +78,10 @@ INFERENCE = {
                     "accessor": lambda arguments: _helper.map_finish_reason_to_finish_type(
                         _helper.extract_finish_reason(arguments)
                     )
+                },
+                {
+                    "attribute": "inference_sub_type",
+                    "accessor": lambda arguments: _helper.agent_inference_type(arguments)
                 }
             ]
         }

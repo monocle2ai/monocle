@@ -3,7 +3,9 @@ This module provides utility functions for extracting system, user,
 and assistant messages from various input formats.
 """
 
+import json
 import logging
+from opentelemetry.context import get_value
 from monocle_apptrace.instrumentation.common.utils import (
     Option,
     get_json_dumps,
@@ -17,7 +19,7 @@ from monocle_apptrace.instrumentation.metamodel.finish_types import (
     map_openai_finish_reason_to_finish_type,
     OPENAI_FINISH_REASON_MAPPING
 )
-from monocle_apptrace.instrumentation.common.constants import CHILD_ERROR_CODE
+from monocle_apptrace.instrumentation.common.constants import AGENT_PREFIX_KEY, CHILD_ERROR_CODE, INFERENCE_AGENT_DELEGATION, INFERENCE_COMMUNICATION, INFERENCE_TOOL_CALL
 
 logger = logging.getLogger(__name__)
 
@@ -48,6 +50,17 @@ def extract_messages(kwargs):
             for msg in kwargs['messages']:
                 if msg.get('content') and msg.get('role'):
                     messages.append({msg['role']: msg['content']})
+                elif msg.get('tool_calls') and msg.get('role'):
+                    try:
+                        tool_call_messages = []
+                        for tool_call in msg['tool_calls']:
+                            tool_call_messages.append(get_json_dumps({
+                                "tool_function": tool_call.function.name,
+                                "tool_arguments": tool_call.function.arguments,
+                            }))
+                        messages.append({msg['role']: tool_call_messages})
+                    except Exception as e:
+                        logger.warning("Warning: Error occurred while processing tool calls: %s", str(e))
 
         return [get_json_dumps(message) for message in messages]
     except Exception as e:
@@ -61,6 +74,29 @@ def extract_assistant_message(arguments):
         status = get_status_code(arguments)
         if status == 'success' or status == 'completed':
             response = arguments["result"]
+            if hasattr(response, "tools") and isinstance(response.tools, list) and len(response.tools) > 0 and isinstance(response.tools[0], dict):
+                tools = []
+                for tool in response.tools:
+                    tools.append({
+                        "tool_id": tool.get("id", ""),
+                        "tool_name": tool.get("name", ""),
+                        "tool_arguments": tool.get("arguments", "")
+                    })
+                messages.append({"tools": tools})
+            if hasattr(response, "output") and isinstance(response.output, list) and len(response.output) > 0:
+                response_messages = []
+                role = "assistant"
+                for response_message in response.output:
+                    if(response_message.type == "function_call"):
+                        role = "tools"
+                        response_messages.append({
+                            "tool_id": response_message.call_id,
+                            "tool_name": response_message.name,
+                            "tool_arguments": response_message.arguments
+                        })
+                if len(response_messages) > 0:
+                    messages.append({role: response_messages})
+                    
             if hasattr(response, "output_text") and len(response.output_text):
                 role = response.role if hasattr(response, "role") else "assistant"
                 messages.append({role: response.output_text})
@@ -211,3 +247,15 @@ def extract_finish_reason(arguments):
 def map_finish_reason_to_finish_type(finish_reason):
     """Map OpenAI finish_reason to finish_type based on the possible errors mapping"""
     return map_openai_finish_reason_to_finish_type(finish_reason)
+
+def agent_inference_type(arguments):
+    """Extract agent inference type from OpenAI response"""
+    message = json.loads(extract_assistant_message(arguments))
+    # message["tools"][0]["tool_name"]
+    if message and message.get("tools") and isinstance(message["tools"], list) and len(message["tools"]) > 0:
+        agent_prefix = get_value(AGENT_PREFIX_KEY)
+        tool_name = message["tools"][0].get("tool_name", "")
+        if tool_name and agent_prefix and tool_name.startswith(agent_prefix):
+            return INFERENCE_AGENT_DELEGATION
+        return INFERENCE_TOOL_CALL
+    return INFERENCE_COMMUNICATION

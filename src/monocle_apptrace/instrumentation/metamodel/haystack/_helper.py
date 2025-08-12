@@ -9,6 +9,8 @@ from monocle_apptrace.instrumentation.common.utils import (
     get_exception_message,
     get_status_code,
 )
+from monocle_apptrace.instrumentation.metamodel.finish_types import map_haystack_finish_reason_to_finish_type
+
 logger = logging.getLogger(__name__)
 
 
@@ -153,3 +155,65 @@ def update_output_span_events(results):
     if len(output_arg_text) > 100:
         output_arg_text = output_arg_text[:100] + "..."
     return output_arg_text
+
+def extract_finish_reason(arguments):
+    """Extract finish_reason from Haystack response."""
+    try:
+        # Handle exception cases first
+        if arguments.get("exception") is not None:
+            return "error"
+
+        response = arguments.get("result")
+        if response is None:
+            return None
+
+        # Direct finish_reason attribute
+        if hasattr(response, "finish_reason") and response.finish_reason:
+            return response.finish_reason
+
+        if isinstance(response,dict) and 'meta' in response and response['meta'] and len(response['meta']) > 0:
+            metadata = response['meta'][0]
+            if isinstance(metadata, dict):
+                # Check for finish_reason in metadata
+                if "finish_reason" in metadata:
+                    return metadata["finish_reason"]
+
+        if isinstance(response,dict) and 'replies' in response and response['replies'] and len(response['replies']) > 0:
+            metadata = response['replies'][0]
+            if hasattr(metadata,'meta') and metadata.meta:
+                if "finish_reason" in metadata.meta:
+                    return metadata.meta["finish_reason"]
+
+        # Check if response has generation_info
+        if hasattr(response, "generation_info") and response.generation_info:
+            finish_reason = response.generation_info.get("finish_reason")
+            if finish_reason:
+                return finish_reason
+
+        # Check if response has llm_output (batch responses)
+        if hasattr(response, "llm_output") and response.llm_output:
+            finish_reason = response.llm_output.get("finish_reason")
+            if finish_reason:
+                return finish_reason
+
+        # For AIMessage responses, check additional_kwargs
+        if hasattr(response, "additional_kwargs") and response.additional_kwargs:
+            finish_reason = response.additional_kwargs.get("finish_reason")
+            if finish_reason:
+                return finish_reason
+
+        # For generation responses with choices (similar to OpenAI structure)
+        if hasattr(response, "choices") and response.choices:
+            choice = response.choices[0]
+            if hasattr(choice, "finish_reason"):
+                return choice.finish_reason
+
+        # Fallback: if no finish_reason found, default to "stop" (success)
+        return "stop"
+    except Exception as e:
+        logger.warning("Warning: Error occurred in extract_finish_reason: %s", str(e))
+        return None
+
+def map_finish_reason_to_finish_type(finish_reason):
+    """Map Haystack finish_reason to finish_type using Haystack mapping."""
+    return map_haystack_finish_reason_to_finish_type(finish_reason)

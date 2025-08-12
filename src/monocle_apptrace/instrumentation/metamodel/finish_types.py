@@ -231,6 +231,46 @@ TEAMSAI_FINISH_REASON_MAPPING = {
     "rate_limited": FinishType.RATE_LIMITED.value,
     "invalid_response": FinishType.ERROR.value,
 }
+# Haystack finish reason mapping
+HAYSTACK_FINISH_REASON_MAPPING = {
+    # Standard completion reasons
+    "stop": FinishType.SUCCESS.value,
+    "complete": FinishType.SUCCESS.value,
+    "finished": FinishType.SUCCESS.value,
+
+    # Token limits
+    "length": FinishType.TRUNCATED.value,
+    "max_tokens": FinishType.TRUNCATED.value,
+    "token_limit": FinishType.TRUNCATED.value,
+
+    # Tool/function calling
+    "tool_calls": FinishType.SUCCESS.value,
+    "function_call": FinishType.SUCCESS.value,
+
+    # Content filtering and safety
+    "content_filter": FinishType.CONTENT_FILTER.value,
+    "safety": FinishType.CONTENT_FILTER.value,
+    "filtered": FinishType.CONTENT_FILTER.value,
+
+    # Errors
+    "error": FinishType.ERROR.value,
+    "failed": FinishType.ERROR.value,
+    "exception": FinishType.ERROR.value,
+
+    # Provider-specific reasons that might pass through LangChain
+    # OpenAI reasons
+    "stop": FinishType.SUCCESS.value,  # Already defined above
+
+    # Anthropic reasons
+    "end_turn": FinishType.SUCCESS.value,
+    "stop_sequence": FinishType.SUCCESS.value,
+
+    # Gemini reasons
+    "STOP": FinishType.SUCCESS.value,
+    "SAFETY": FinishType.CONTENT_FILTER.value,
+    "RECITATION": FinishType.CONTENT_FILTER.value,
+    "OTHER": FinishType.ERROR.value,
+}
 
 ADK_FINEISH_REASON_MAPPING = GEMINI_FINISH_REASON_MAPPING
 
@@ -368,6 +408,34 @@ def map_bedrock_finish_reason_to_finish_type(finish_reason):
     elif any(keyword in finish_reason_lower for keyword in ['error', 'fail', 'exception', 'timeout', 'unavailable', 'rate_limit', 'throttled', 'validation']):
         return FinishType.ERROR.value
     
+    return None
+
+def map_haystack_finish_reason_to_finish_type(finish_reason):
+    """Map Haystack finish_reason to standardized finish_type."""
+    if not finish_reason:
+        return None
+
+    # Convert to lowercase for case-insensitive matching
+    finish_reason_lower = finish_reason.lower() if isinstance(finish_reason, str) else str(finish_reason).lower()
+
+    # Try direct mapping first
+    if finish_reason in HAYSTACK_FINISH_REASON_MAPPING:
+        return HAYSTACK_FINISH_REASON_MAPPING[finish_reason]
+
+    # Try lowercase mapping
+    if finish_reason_lower in HAYSTACK_FINISH_REASON_MAPPING:
+        return HAYSTACK_FINISH_REASON_MAPPING[finish_reason_lower]
+
+    # If no direct mapping, try to infer from common patterns
+    if any(keyword in finish_reason_lower for keyword in ['stop', 'complete', 'success', 'done']):
+        return FinishType.SUCCESS.value
+    elif any(keyword in finish_reason_lower for keyword in ['length', 'token', 'limit', 'truncat']):
+        return FinishType.TRUNCATED.value
+    elif any(keyword in finish_reason_lower for keyword in ['filter', 'safety', 'block']):
+        return FinishType.CONTENT_FILTER.value
+    elif any(keyword in finish_reason_lower for keyword in ['error', 'fail', 'exception']):
+        return FinishType.ERROR.value
+
     return None
 
 def map_teamsai_finish_reason_to_finish_type(finish_reason):

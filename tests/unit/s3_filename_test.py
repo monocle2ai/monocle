@@ -45,7 +45,7 @@ class TestS3SpanExporter(unittest.TestCase):
         mock_s3_client = MagicMock()
         mock_boto_client.return_value = mock_s3_client
         file_prefix = "test_prefix_2"
-        os.environ['MONOCLE_S3_KEY_PREFIX'] = file_prefix
+        os.environ['MONOCLE_S3_FILE_PREFIX'] = file_prefix
         # Instantiate the exporter with a custom prefix
         exporter = S3SpanExporter(bucket_name="test-bucket", region_name="us-east-1")
         
@@ -68,6 +68,82 @@ class TestS3SpanExporter(unittest.TestCase):
                 Key=expected_file_name,
                 Body=test_span_data
             )
+
+        # Clean up environment variable
+        if 'MONOCLE_S3_FILE_PREFIX' in os.environ:
+            del os.environ['MONOCLE_S3_FILE_PREFIX']
+
+    @patch('boto3.client')
+    def test_file_prefix_backward_compatibility(self, mock_boto_client):
+        # Test that old MONOCLE_S3_KEY_PREFIX still works
+        mock_s3_client = MagicMock()
+        mock_boto_client.return_value = mock_s3_client
+        file_prefix = "legacy_prefix_"
+        os.environ['MONOCLE_S3_KEY_PREFIX'] = file_prefix
+        
+        # Instantiate the exporter
+        exporter = S3SpanExporter(bucket_name="test-bucket", region_name="us-east-1")
+        
+        # Mock current time for consistency
+        mock_current_time = datetime.datetime(2024, 12, 10, 10, 0, 0)
+        with patch('datetime.datetime') as mock_datetime:
+            mock_datetime.now.return_value = mock_current_time
+            mock_datetime.strftime = datetime.datetime.strftime
+
+            # Call the private method to upload data
+            test_span_data = "{\"trace_id\": \"123\"}"
+            exporter._S3SpanExporter__upload_to_s3(test_span_data)
+
+            # Generate expected file name
+            expected_file_name = f"{file_prefix}{mock_current_time.strftime(exporter.time_format)}.ndjson"
+
+            # Verify the S3 client was called with the correct file name
+            mock_s3_client.put_object.assert_called_once_with(
+                Bucket="test-bucket",
+                Key=expected_file_name,
+                Body=test_span_data
+            )
+        # Clean up environment variable
+        if 'MONOCLE_S3_KEY_PREFIX' in os.environ:
+            del os.environ['MONOCLE_S3_KEY_PREFIX']
+
+    @patch('boto3.client')
+    def test_file_prefix_new_overrides_old(self, mock_boto_client):
+        # Test that new MONOCLE_S3_FILE_PREFIX takes precedence over old one
+        mock_s3_client = MagicMock()
+        mock_boto_client.return_value = mock_s3_client
+        old_prefix = "old_prefix_"
+        new_prefix = "new_prefix_"
+        os.environ['MONOCLE_S3_KEY_PREFIX'] = old_prefix
+        os.environ['MONOCLE_S3_FILE_PREFIX'] = new_prefix
+        
+        # Instantiate the exporter
+        exporter = S3SpanExporter(bucket_name="test-bucket", region_name="us-east-1")
+        
+        # Mock current time for consistency
+        mock_current_time = datetime.datetime(2024, 12, 10, 10, 0, 0)
+        with patch('datetime.datetime') as mock_datetime:
+            mock_datetime.now.return_value = mock_current_time
+            mock_datetime.strftime = datetime.datetime.strftime
+
+            # Call the private method to upload data
+            test_span_data = "{\"trace_id\": \"123\"}"
+            exporter._S3SpanExporter__upload_to_s3(test_span_data)
+
+            # Generate expected file name with new prefix
+            expected_file_name = f"{new_prefix}{mock_current_time.strftime(exporter.time_format)}.ndjson"
+
+            # Verify the S3 client was called with the correct file name
+            mock_s3_client.put_object.assert_called_once_with(
+                Bucket="test-bucket",
+                Key=expected_file_name,
+                Body=test_span_data
+            )
+        # Clean up environment variables
+        if 'MONOCLE_S3_KEY_PREFIX' in os.environ:
+            del os.environ['MONOCLE_S3_KEY_PREFIX']
+        if 'MONOCLE_S3_FILE_PREFIX' in os.environ:
+            del os.environ['MONOCLE_S3_FILE_PREFIX']
 
 if __name__ == '__main__':
     unittest.main()

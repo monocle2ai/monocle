@@ -33,8 +33,10 @@ class AzureBlobSpanExporter(SpanExporterBase):
 
         self.blob_service_client = BlobServiceClient.from_connection_string(connection_string)
         self.container_name = container_name
-        self.file_prefix = DEFAULT_FILE_PREFIX
+        self.file_prefix = os.getenv('MONOCLE_BLOB_FILE_PREFIX', DEFAULT_FILE_PREFIX)
         self.time_format = DEFAULT_TIME_FORMAT
+        self.export_queue = []
+        self.last_export_time = time.time()
 
         # Check if container exists or create it
         if not self.__container_exists(container_name):

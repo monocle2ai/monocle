@@ -61,6 +61,8 @@ llm_type_map = {
     "googleaigeminichatgenerator": "gemini",
     "gemini": "gemini",
     "chatgooglegenerativeai": "gemini",
+    "azurechatcompletion": "azure_openai",
+    "openaichatcompletion": "openai",
 }
 
 MONOCLE_INSTRUMENTOR = "monocle_apptrace"

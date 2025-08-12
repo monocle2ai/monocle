@@ -15,6 +15,8 @@ from monocle_apptrace.instrumentation.metamodel.openai.methods import (OPENAI_ME
 from monocle_apptrace.instrumentation.metamodel.openai._helper import OpenAISpanHandler
 from monocle_apptrace.instrumentation.metamodel.langgraph.methods import LANGGRAPH_METHODS
 from monocle_apptrace.instrumentation.metamodel.langgraph.langgraph_processor import LanggraphAgentHandler, LanggraphToolHandler
+from monocle_apptrace.instrumentation.metamodel.agents.methods import AGENTS_METHODS
+from monocle_apptrace.instrumentation.metamodel.agents.agents_processor import AgentsSpanHandler
 from monocle_apptrace.instrumentation.metamodel.flask.methods import (FLASK_METHODS, )
 from monocle_apptrace.instrumentation.metamodel.flask._helper import FlaskSpanHandler, FlaskResponseSpanHandler
 from monocle_apptrace.instrumentation.metamodel.requests.methods import (REQUESTS_METHODS, )
@@ -90,6 +92,7 @@ DEFAULT_METHODS_LIST = (
     FLASK_METHODS + 
     REQUESTS_METHODS + 
     LANGGRAPH_METHODS + 
+    AGENTS_METHODS +
     OPENAI_METHODS + 
     TEAMAI_METHODS +
     ANTHROPIC_METHODS + 
@@ -118,6 +121,7 @@ MONOCLE_SPAN_HANDLERS: Dict[str, SpanHandler] = {
     "fastapi_response_handler": FastAPIResponseSpanHandler(),
     "langgraph_agent_handler": LanggraphAgentHandler(),
     "langgraph_tool_handler": LanggraphToolHandler(),
+    "agents_agent_handler": AgentsSpanHandler(),
     "llamaindex_tool_handler": LlamaIndexToolHandler(),
     "llamaindex_agent_handler": LlamaIndexAgentHandler(),
     "llamaindex_single_agent_tool_handler": LlamaIndexSingleAgenttToolHandlerWrapper(),

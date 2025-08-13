@@ -1,6 +1,11 @@
 
 ## Version 0.5.0 (2025-08-05)
 
+- Fix missing inference span in google ADK ([#249](https://github.com/monocle2ai/monocle/pull/249))
+- Added openai agents instrumentation ([#248](https://github.com/monocle2ai/monocle/pull/248))
+- Google Agent development kit meta mode ([#247](https://github.com/monocle2ai/monocle/pull/247))
+- Add Support for LiteLLM OpenAI and AzureOpenAI ([#246](https://github.com/monocle2ai/monocle/pull/246))
+- Added inference subtype for langgrap, openai and anthropic ([#245](https://github.com/monocle2ai/monocle/pull/245))
 - Add support for teams finish type, move finish types to metadata section ([#240](https://github.com/monocle2ai/monocle/pull/240))
 - Fix integration tests ([#239](https://github.com/monocle2ai/monocle/pull/239))
 - Add function_name attribute for Azure function ([#238](https://github.com/monocle2ai/monocle/pull/238))

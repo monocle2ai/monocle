@@ -3,6 +3,7 @@ import time
 import chromadb
 from chromadb import ClientAPI, Collection
 from chromadb.utils import embedding_functions
+from chromadb.errors import NotFoundError
 from google import genai
 from google.genai import types
 import pytest
@@ -57,7 +58,7 @@ def get_vector_store() -> Collection:
     chroma_client.heartbeat()
     try:
         vector_store = chroma_client.get_collection(name=COLLECTION_NAME)
-    except ValueError:
+    except (ValueError, NotFoundError):
         vector_store = setup_embedding(chroma_client)
     return vector_store
 

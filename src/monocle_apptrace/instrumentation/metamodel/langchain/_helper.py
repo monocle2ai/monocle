@@ -4,6 +4,8 @@ and assistant messages from various input formats.
 """
 
 import logging
+from opentelemetry.context import get_value
+from monocle_apptrace.instrumentation.common.constants import AGENT_PREFIX_KEY, INFERENCE_AGENT_DELEGATION, INFERENCE_COMMUNICATION, INFERENCE_TOOL_CALL
 from monocle_apptrace.instrumentation.common.utils import (
     Option,
     get_json_dumps,
@@ -44,6 +46,22 @@ def extract_messages(args):
     except Exception as e:
         logger.warning("Warning: Error occurred in extract_messages: %s", str(e))
         return []
+def agent_inference_type(arguments):
+    """Extract agent inference type from arguments."""
+    try:
+        if get_value(AGENT_PREFIX_KEY):
+            agent_prefix = get_value(AGENT_PREFIX_KEY)
+            if hasattr(arguments['result'], "tool_calls") and arguments['result'].tool_calls:
+                tool_call = arguments['result'].tool_calls[0] if arguments['result'].tool_calls else None
+                if tool_call and 'name' in tool_call and tool_call["name"].startswith(agent_prefix):
+                    return INFERENCE_AGENT_DELEGATION
+                else:
+                    return INFERENCE_TOOL_CALL
+        return INFERENCE_COMMUNICATION
+            
+    except Exception as e:
+        logger.warning("Warning: Error occurred in agent_inference_type: %s", str(e))
+        return None
 
 def extract_assistant_message(arguments):
     status = get_status_code(arguments)

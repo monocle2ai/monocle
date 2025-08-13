@@ -3,7 +3,9 @@ This module provides utility functions for extracting system, user,
 and assistant messages from various input formats.
 """
 
+import json
 import logging
+from opentelemetry.context import get_value
 from monocle_apptrace.instrumentation.common.utils import (
     Option,
     get_json_dumps,
@@ -17,7 +19,7 @@ from monocle_apptrace.instrumentation.metamodel.finish_types import (
     map_openai_finish_reason_to_finish_type,
     OPENAI_FINISH_REASON_MAPPING
 )
-from monocle_apptrace.instrumentation.common.constants import CHILD_ERROR_CODE
+from monocle_apptrace.instrumentation.common.constants import AGENT_PREFIX_KEY, CHILD_ERROR_CODE, INFERENCE_AGENT_DELEGATION, INFERENCE_COMMUNICATION, INFERENCE_TOOL_CALL
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +30,7 @@ def extract_messages(kwargs):
         if 'instructions' in kwargs:
             messages.append({'system': kwargs.get('instructions', {})})
         if 'input' in kwargs:
-            if isinstance(kwargs['input'], str): 
+            if isinstance(kwargs['input'], str):
                 messages.append({'user': kwargs.get('input', "")})
             # [
             #     {
@@ -41,13 +43,81 @@ def extract_messages(kwargs):
             #     }
             # ]
             if isinstance(kwargs['input'], list):
+                # kwargs['input']
+                # [
+                #     {
+                #         "content": "I need to book a flight from NYC to LAX and also book the Hilton hotel in Los Angeles. Also check the weather in Los Angeles.",
+                #         "role": "user"
+                #     },
+                #     {
+                #         "arguments": "{}",
+                #         "call_id": "call_dSljcToR2LWwqWibPt0qjeHD",
+                #         "name": "transfer_to_flight_agent",
+                #         "type": "function_call",
+                #         "id": "fc_689c30f96f708191aabb0ffd8098cdbd016ef325124ac05f",
+                #         "status": "completed"
+                #     },
+                #     {
+                #         "arguments": "{}",
+                #         "call_id": "call_z0MTZroziWDUd0fxVemGM5Pg",
+                #         "name": "transfer_to_hotel_agent",
+                #         "type": "function_call",
+                #         "id": "fc_689c30f99b808191a8743ff407fa8ee2016ef325124ac05f",
+                #         "status": "completed"
+                #     },
+                #     {
+                #         "arguments": "{\"city\":\"Los Angeles\"}",
+                #         "call_id": "call_rrdRSPv5vcB4pgl6P4W8U2bX",
+                #         "name": "get_weather_tool",
+                #         "type": "function_call",
+                #         "id": "fc_689c30f9b824819196d4ad9379d570f7016ef325124ac05f",
+                #         "status": "completed"
+                #     },
+                #     {
+                #         "call_id": "call_rrdRSPv5vcB4pgl6P4W8U2bX",
+                #         "output": "The weather in Los Angeles is sunny and 75.",
+                #         "type": "function_call_output"
+                #     },
+                #     {
+                #         "call_id": "call_z0MTZroziWDUd0fxVemGM5Pg",
+                #         "output": "Multiple handoffs detected, ignoring this one.",
+                #         "type": "function_call_output"
+                #     },
+                #     {
+                #         "call_id": "call_dSljcToR2LWwqWibPt0qjeHD",
+                #         "output": "{\"assistant\": \"Flight Agent\"}",
+                #         "type": "function_call_output"
+                #     }
+                # ]
                 for item in kwargs['input']:
                     if isinstance(item, dict) and 'role' in item and 'content' in item:
                         messages.append({item['role']: item['content']})
+                    elif isinstance(item, dict) and 'type' in item and item['type'] == 'function_call':
+                        messages.append({
+                            "tool_function": item.get("name", ""),
+                            "tool_arguments": item.get("arguments", ""),
+                            "call_id": item.get("call_id", "")
+                        })
+                    elif isinstance(item, dict) and 'type' in item and item['type'] == 'function_call_output':
+                        messages.append({
+                            "call_id": item.get("call_id", ""),
+                            "output": item.get("output", "")
+                        })
         if 'messages' in kwargs and len(kwargs['messages']) >0:
             for msg in kwargs['messages']:
                 if msg.get('content') and msg.get('role'):
                     messages.append({msg['role']: msg['content']})
+                elif msg.get('tool_calls') and msg.get('role'):
+                    try:
+                        tool_call_messages = []
+                        for tool_call in msg['tool_calls']:
+                            tool_call_messages.append(get_json_dumps({
+                                "tool_function": tool_call.function.name,
+                                "tool_arguments": tool_call.function.arguments,
+                            }))
+                        messages.append({msg['role']: tool_call_messages})
+                    except Exception as e:
+                        logger.warning("Warning: Error occurred while processing tool calls: %s", str(e))
 
         return [get_json_dumps(message) for message in messages]
     except Exception as e:
@@ -61,6 +131,29 @@ def extract_assistant_message(arguments):
         status = get_status_code(arguments)
         if status == 'success' or status == 'completed':
             response = arguments["result"]
+            if hasattr(response, "tools") and isinstance(response.tools, list) and len(response.tools) > 0 and isinstance(response.tools[0], dict):
+                tools = []
+                for tool in response.tools:
+                    tools.append({
+                        "tool_id": tool.get("id", ""),
+                        "tool_name": tool.get("name", ""),
+                        "tool_arguments": tool.get("arguments", "")
+                    })
+                messages.append({"tools": tools})
+            if hasattr(response, "output") and isinstance(response.output, list) and len(response.output) > 0:
+                response_messages = []
+                role = "assistant"
+                for response_message in response.output:
+                    if(response_message.type == "function_call"):
+                        role = "tools"
+                        response_messages.append({
+                            "tool_id": response_message.call_id,
+                            "tool_name": response_message.name,
+                            "tool_arguments": response_message.arguments
+                        })
+                if len(response_messages) > 0:
+                    messages.append({role: response_messages})
+                    
             if hasattr(response, "output_text") and len(response.output_text):
                 role = response.role if hasattr(response, "role") else "assistant"
                 messages.append({role: response.output_text})
@@ -82,7 +175,7 @@ def extract_assistant_message(arguments):
                 return get_exception_message(arguments)
             elif hasattr(arguments["result"], "error"):
                 return arguments["result"].error
-        
+
     except (IndexError, AttributeError) as e:
         logger.warning(
             "Warning: Error occurred in extract_assistant_message: %s", str(e)
@@ -194,11 +287,11 @@ def extract_finish_reason(arguments):
             if hasattr(arguments["exception"], "code") and arguments["exception"].code in OPENAI_FINISH_REASON_MAPPING.keys():
                 return arguments["exception"].code
         response = arguments["result"]
-        
+
         # Handle streaming responses
         if hasattr(response, "finish_reason") and response.finish_reason:
             return response.finish_reason
-            
+
         # Handle non-streaming responses
         if response is not None and hasattr(response, "choices") and len(response.choices) > 0:
             if hasattr(response.choices[0], "finish_reason"):
@@ -211,3 +304,15 @@ def extract_finish_reason(arguments):
 def map_finish_reason_to_finish_type(finish_reason):
     """Map OpenAI finish_reason to finish_type based on the possible errors mapping"""
     return map_openai_finish_reason_to_finish_type(finish_reason)
+
+def agent_inference_type(arguments):
+    """Extract agent inference type from OpenAI response"""
+    message = json.loads(extract_assistant_message(arguments))
+    # message["tools"][0]["tool_name"]
+    if message and message.get("tools") and isinstance(message["tools"], list) and len(message["tools"]) > 0:
+        agent_prefix = get_value(AGENT_PREFIX_KEY)
+        tool_name = message["tools"][0].get("tool_name", "")
+        if tool_name and agent_prefix and tool_name.startswith(agent_prefix):
+            return INFERENCE_AGENT_DELEGATION
+        return INFERENCE_TOOL_CALL
+    return INFERENCE_COMMUNICATION

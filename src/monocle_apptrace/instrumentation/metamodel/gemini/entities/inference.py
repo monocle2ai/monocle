@@ -15,8 +15,11 @@ INFERENCE = {
             {
                 "attribute": "inference_endpoint",
                 "accessor": lambda arguments: _helper.extract_inference_endpoint(arguments['instance'])
-            }
-        ],
+            },
+            {
+                "attribute": "provider_name",
+                "accessor": lambda arguments: 'gcp'
+            }        ],
         [
             {
                 "_comment": "LLM Model",

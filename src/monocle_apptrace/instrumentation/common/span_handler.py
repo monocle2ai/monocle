@@ -25,6 +25,7 @@ WORKFLOW_TYPE_MAP = {
     "openai": "workflow.openai",
     "anthropic": "workflow.anthropic",
     "gemini": "workflow.gemini",
+    "litellm": "workflow.litellm",
 }
 
 FRAMEWORK_WORKFLOW_LIST = [
@@ -32,6 +33,7 @@ FRAMEWORK_WORKFLOW_LIST = [
     "workflow.langchain",
     "workflow.haystack",
     "workflow.teams_ai",
+    "workflow.litellm",
 ]
 class SpanHandler:
 
@@ -66,8 +68,11 @@ class SpanHandler:
         return span_type
 
     def pre_task_processing(self, to_wrap, wrapped, instance, args,kwargs, span):
-        if "pipeline" in to_wrap['package']:
-            set_attribute(QUERY, args[0]['prompt_builder']['question'])
+        try:
+            if "pipeline" in to_wrap['package']:
+                set_attribute(QUERY, args[0]['prompt_builder']['question'])
+        except Exception as e:
+            logger.warning("Warning: Error occurred in pre_task_processing: %s", str(e))
 
     @staticmethod
     def set_default_monocle_attributes(span: Span, source_path = "" ):
@@ -145,7 +150,7 @@ class SpanHandler:
             span.set_attribute("entity.count", span_index)
         return detected_error
 
-    def hydrate_events(self, to_wrap, wrapped, instance, args, kwargs, ret_result, span, parent_span=None, ex:Exception=None) -> bool:
+    def hydrate_events(self, to_wrap, wrapped, instance, args, kwargs, ret_result, span: Span, parent_span=None, ex:Exception=None) -> bool:
         detected_error:bool = False
         if 'output_processor' in to_wrap and to_wrap["output_processor"] is not None:
             output_processor=to_wrap['output_processor']
@@ -181,10 +186,16 @@ class SpanHandler:
                             except Exception as e:
                                 logger.debug(f"Error evaluating accessor for attribute '{attribute_key}': {e}")
                     matching_timestamp = getattr(ret_result, "timestamps", {}).get(event_name, None)
-                    if isinstance(matching_timestamp, int):
-                        span.add_event(name=event_name, attributes=event_attributes, timestamp=matching_timestamp)
-                    else:
-                        span.add_event(name=event_name, attributes=event_attributes)
+                    alreadyExist = False
+                    for existing_event in span.events:
+                        if event_name == existing_event.name:
+                            existing_event.attributes._dict.update(event_attributes)
+                            alreadyExist = True
+                    if not alreadyExist:
+                        if isinstance(matching_timestamp, int):
+                            span.add_event(name=event_name, attributes=event_attributes, timestamp=matching_timestamp)
+                        else:
+                            span.add_event(name=event_name, attributes=event_attributes)
         return detected_error
 
     @staticmethod
@@ -215,7 +226,7 @@ class SpanHandler:
         if to_wrap is not None:
             package_name = to_wrap.get('package')
             for (package, framework_workflow_type) in WORKFLOW_TYPE_MAP.items():
-                if (package_name is not None and package in package_name):
+                if (package_name is not None and package_name.startswith(package)):
                     workflow_type = framework_workflow_type
                     break
         return workflow_type

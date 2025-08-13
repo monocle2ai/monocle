@@ -3,6 +3,7 @@
 from os import linesep, path
 from io import TextIOWrapper
 from datetime import datetime
+import os
 from typing import Optional, Callable, Sequence, Dict, Tuple
 from opentelemetry.sdk.trace import ReadableSpan
 from opentelemetry.sdk.trace.export import SpanExporter, SpanExportResult
@@ -32,7 +33,7 @@ class FileSpanExporter(SpanExporterBase):
         self.file_handles: Dict[int, Tuple[TextIOWrapper, str, datetime, bool]] = {}
         self.formatter = formatter
         self.service_name = service_name
-        self.output_path = out_path
+        self.output_path = os.getenv("MONOCLE_TRACE_OUTPUT_PATH", out_path)
         self.file_prefix = file_prefix
         self.time_format = time_format
         self.task_processor = task_processor

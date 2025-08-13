@@ -25,6 +25,7 @@ WORKFLOW_TYPE_MAP = {
     "openai": "workflow.openai",
     "anthropic": "workflow.anthropic",
     "gemini": "workflow.gemini",
+    "litellm": "workflow.litellm",
 }
 
 FRAMEWORK_WORKFLOW_LIST = [
@@ -32,6 +33,7 @@ FRAMEWORK_WORKFLOW_LIST = [
     "workflow.langchain",
     "workflow.haystack",
     "workflow.teams_ai",
+    "workflow.litellm",
 ]
 class SpanHandler:
 
@@ -215,7 +217,7 @@ class SpanHandler:
         if to_wrap is not None:
             package_name = to_wrap.get('package')
             for (package, framework_workflow_type) in WORKFLOW_TYPE_MAP.items():
-                if (package_name is not None and package in package_name):
+                if (package_name is not None and package_name.startswith(package)):
                     workflow_type = framework_workflow_type
                     break
         return workflow_type

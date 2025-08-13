@@ -30,7 +30,7 @@ def extract_messages(kwargs):
         if 'instructions' in kwargs:
             messages.append({'system': kwargs.get('instructions', {})})
         if 'input' in kwargs:
-            if isinstance(kwargs['input'], str): 
+            if isinstance(kwargs['input'], str):
                 messages.append({'user': kwargs.get('input', "")})
             # [
             #     {
@@ -175,7 +175,7 @@ def extract_assistant_message(arguments):
                 return get_exception_message(arguments)
             elif hasattr(arguments["result"], "error"):
                 return arguments["result"].error
-        
+
     except (IndexError, AttributeError) as e:
         logger.warning(
             "Warning: Error occurred in extract_assistant_message: %s", str(e)
@@ -287,11 +287,11 @@ def extract_finish_reason(arguments):
             if hasattr(arguments["exception"], "code") and arguments["exception"].code in OPENAI_FINISH_REASON_MAPPING.keys():
                 return arguments["exception"].code
         response = arguments["result"]
-        
+
         # Handle streaming responses
         if hasattr(response, "finish_reason") and response.finish_reason:
             return response.finish_reason
-            
+
         # Handle non-streaming responses
         if response is not None and hasattr(response, "choices") and len(response.choices) > 0:
             if hasattr(response.choices[0], "finish_reason"):

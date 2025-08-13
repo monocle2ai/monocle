@@ -1,0 +1,256 @@
+[
+   {
+      "name": "openai.resources.chat.completions.Completions.create",
+      "context": {
+         "trace_id": "0x08611fa2891ba7d1a5c8feb3e08324ad",
+         "span_id": "0x463d646c9642259b",
+         "trace_state": "[]"
+      },
+      "kind": "SpanKind.INTERNAL",
+      "parent_id": "0x202633f3783d81e4",
+      "start_time": "2025-08-12T08:43:25.476876Z",
+      "end_time": "2025-08-12T08:43:27.614645Z",
+      "status": {
+         "status_code": "OK"
+      },
+      "attributes": {
+         "monocle_apptrace.version": "0.4.0",
+         "monocle_apptrace.language": "python",
+         "span_source": "C:\\Users\\BHLP0106\\Desktop\\clone\\monocle\\checkvenv\\Lib\\site-packages\\openai\\_legacy_response.py:364",
+         "workflow.name": "litellm_app_1",
+         "span.type": "inference.modelapi"
+      },
+      "events": [],
+      "links": [],
+      "resource": {
+         "attributes": {
+            "service.name": "litellm_app_1"
+         },
+         "schema_url": ""
+      }
+   },
+   {
+      "name": "litellm.llms.openai.openai.OpenAIChatCompletion.completion",
+      "context": {
+         "trace_id": "0x08611fa2891ba7d1a5c8feb3e08324ad",
+         "span_id": "0x202633f3783d81e4",
+         "trace_state": "[]"
+      },
+      "kind": "SpanKind.INTERNAL",
+      "parent_id": "0x13f27268b4bf2c26",
+      "start_time": "2025-08-12T08:43:25.464792Z",
+      "end_time": "2025-08-12T08:43:27.622697Z",
+      "status": {
+         "status_code": "OK"
+      },
+      "attributes": {
+         "monocle_apptrace.version": "0.4.0",
+         "monocle_apptrace.language": "python",
+         "span_source": "C:\\Users\\BHLP0106\\Desktop\\clone\\monocle\\checkvenv\\Lib\\site-packages\\litellm\\main.py:1946",
+         "workflow.name": "litellm_app_1",
+         "span.type": "inference",
+         "entity.1.type": "inference.openai",
+         "entity.1.provider_name": "api.openai.com",
+         "entity.1.inference_endpoint": "https://api.openai.com/v1",
+         "entity.2.name": "gpt-4o-mini",
+         "entity.2.type": "model.llm.gpt-4o-mini",
+         "entity.count": 2
+      },
+      "events": [
+         {
+            "name": "data.input",
+            "timestamp": "2025-08-12T08:43:27.622697Z",
+            "attributes": {
+               "input": [
+                  "{\"system\": \"Please perform Sentiment Classification task. Given the sentence, assign a sentiment label from ['negative', 'positive', 'neutral']\"}",
+                  "{\"user\": \"User : What is Coffee?\\nAssistant : Don't ask silly questions like this.\"}"
+               ]
+            }
+         },
+         {
+            "name": "data.output",
+            "timestamp": "2025-08-12T08:43:27.622697Z",
+            "attributes": {
+               "response": "{\"assistant\": \"{\\\"label\\\":\\\"negative\\\",\\\"explanation\\\":\\\"The assistant responds dismissively, indicating that the question is considered foolish. This implies a negative sentiment towards the user's inquiry.\\\"}\"}"
+            }
+         },
+         {
+            "name": "metadata",
+            "timestamp": "2025-08-12T08:43:27.622697Z",
+            "attributes": {
+               "completion_tokens": 33,
+               "prompt_tokens": 101,
+               "total_tokens": 134
+            }
+         }
+      ],
+      "links": [],
+      "resource": {
+         "attributes": {
+            "service.name": "litellm_app_1"
+         },
+         "schema_url": ""
+      }
+   },
+   {
+      "name": "workflow",
+      "context": {
+         "trace_id": "0x08611fa2891ba7d1a5c8feb3e08324ad",
+         "span_id": "0x13f27268b4bf2c26",
+         "trace_state": "[]"
+      },
+      "kind": "SpanKind.INTERNAL",
+      "parent_id": null,
+      "start_time": "2025-08-12T08:43:25.463792Z",
+      "end_time": "2025-08-12T08:43:27.622697Z",
+      "status": {
+         "status_code": "OK"
+      },
+      "attributes": {
+         "monocle_apptrace.version": "0.4.0",
+         "monocle_apptrace.language": "python",
+         "span_source": "C:\\Users\\BHLP0106\\Desktop\\clone\\monocle\\checkvenv\\Lib\\site-packages\\litellm\\main.py:1946",
+         "workflow.name": "litellm_app_1",
+         "span.type": "workflow",
+         "entity.1.name": "litellm_app_1",
+         "entity.1.type": "workflow.litellm",
+         "entity.2.type": "app_hosting.generic",
+         "entity.2.name": "generic"
+      },
+      "events": [],
+      "links": [],
+      "resource": {
+         "attributes": {
+            "service.name": "litellm_app_1"
+         },
+         "schema_url": ""
+      }
+   },
+   {
+      "name": "openai.resources.chat.completions.Completions.create",
+      "context": {
+         "trace_id": "0xb3672da09e8577c12cfa877a386fb234",
+         "span_id": "0x82c77caaaf53b0b8",
+         "trace_state": "[]"
+      },
+      "kind": "SpanKind.INTERNAL",
+      "parent_id": "0x4ab96fc42d5a338d",
+      "start_time": "2025-08-12T08:43:37.646839Z",
+      "end_time": "2025-08-12T08:43:39.329908Z",
+      "status": {
+         "status_code": "OK"
+      },
+      "attributes": {
+         "monocle_apptrace.version": "0.4.0",
+         "monocle_apptrace.language": "python",
+         "span_source": "C:\\Users\\BHLP0106\\Desktop\\clone\\monocle\\checkvenv\\Lib\\site-packages\\openai\\_legacy_response.py:364",
+         "workflow.name": "litellm_app_1",
+         "span.type": "inference.modelapi"
+      },
+      "events": [],
+      "links": [],
+      "resource": {
+         "attributes": {
+            "service.name": "litellm_app_1"
+         },
+         "schema_url": ""
+      }
+   },
+   {
+      "name": "litellm.llms.azure.azure.AzureChatCompletion.completion",
+      "context": {
+         "trace_id": "0xb3672da09e8577c12cfa877a386fb234",
+         "span_id": "0x4ab96fc42d5a338d",
+         "trace_state": "[]"
+      },
+      "kind": "SpanKind.INTERNAL",
+      "parent_id": "0x319e472a6562f5e1",
+      "start_time": "2025-08-12T08:43:37.636839Z",
+      "end_time": "2025-08-12T08:43:39.332974Z",
+      "status": {
+         "status_code": "OK"
+      },
+      "attributes": {
+         "monocle_apptrace.version": "0.4.0",
+         "monocle_apptrace.language": "python",
+         "span_source": "C:\\Users\\BHLP0106\\Desktop\\clone\\monocle\\checkvenv\\Lib\\site-packages\\litellm\\main.py:1456",
+         "workflow.name": "litellm_app_1",
+         "span.type": "inference",
+         "entity.1.type": "inference.azure_openai",
+         "entity.1.provider_name": "okahu-openai-dev.openai.azure.com",
+         "entity.1.inference_endpoint": "https://okahu-openai-dev.openai.azure.com/",
+         "entity.2.name": "gpt-4o-mini",
+         "entity.2.type": "model.llm.gpt-4o-mini",
+         "entity.count": 2
+      },
+      "events": [
+         {
+            "name": "data.input",
+            "timestamp": "2025-08-12T08:43:39.332974Z",
+            "attributes": {
+               "input": [
+                  "{\"system\": \"Please perform Sentiment Classification task. Given the sentence, assign a sentiment label from ['negative', 'positive', 'neutral']\"}",
+                  "{\"user\": \"User : What is Coffee?\\nAssistant : Don't ask silly questions like this.\"}"
+               ]
+            }
+         },
+         {
+            "name": "data.output",
+            "timestamp": "2025-08-12T08:43:39.332974Z",
+            "attributes": {
+               "response": "{\"assistant\": \"{\\\"label\\\":\\\"negative\\\",\\\"explanation\\\":\\\"The response from the assistant indicates annoyance or frustration towards the user's question, which suggests a negative sentiment.\\\"}\"}"
+            }
+         },
+         {
+            "name": "metadata",
+            "timestamp": "2025-08-12T08:43:39.332974Z",
+            "attributes": {
+               "completion_tokens": 30,
+               "prompt_tokens": 103,
+               "total_tokens": 133
+            }
+         }
+      ],
+      "links": [],
+      "resource": {
+         "attributes": {
+            "service.name": "litellm_app_1"
+         },
+         "schema_url": ""
+      }
+   },
+   {
+      "name": "workflow",
+      "context": {
+         "trace_id": "0xb3672da09e8577c12cfa877a386fb234",
+         "span_id": "0x319e472a6562f5e1",
+         "trace_state": "[]"
+      },
+      "kind": "SpanKind.INTERNAL",
+      "parent_id": null,
+      "start_time": "2025-08-12T08:43:37.636839Z",
+      "end_time": "2025-08-12T08:43:39.332974Z",
+      "status": {
+         "status_code": "OK"
+      },
+      "attributes": {
+         "monocle_apptrace.version": "0.4.0",
+         "monocle_apptrace.language": "python",
+         "span_source": "C:\\Users\\BHLP0106\\Desktop\\clone\\monocle\\checkvenv\\Lib\\site-packages\\litellm\\main.py:1456",
+         "workflow.name": "litellm_app_1",
+         "span.type": "workflow",
+         "entity.1.name": "litellm_app_1",
+         "entity.1.type": "workflow.litellm",
+         "entity.2.type": "app_hosting.generic",
+         "entity.2.name": "generic"
+      },
+      "events": [],
+      "links": [],
+      "resource": {
+         "attributes": {
+            "service.name": "litellm_app_1"
+         },
+         "schema_url": ""
+      }
+   }
+]

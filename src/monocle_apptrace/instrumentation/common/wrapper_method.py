@@ -35,6 +35,7 @@ from monocle_apptrace.instrumentation.metamodel.lambdafunc.methods import LAMBDA
 from monocle_apptrace.instrumentation.metamodel.mcp.methods import MCP_METHODS
 from monocle_apptrace.instrumentation.metamodel.mcp.mcp_processor import MCPAgentHandler
 from monocle_apptrace.instrumentation.metamodel.a2a.methods import A2A_CLIENT_METHODS
+from monocle_apptrace.instrumentation.metamodel.litellm.methods import LITELLM_METHODS
 from monocle_apptrace.instrumentation.metamodel.adk.methods import ADK_METHODS
 
 class WrapperMethod:
@@ -105,6 +106,7 @@ DEFAULT_METHODS_LIST = (
     LAMBDA_HTTP_METHODS +
     MCP_METHODS + 
     A2A_CLIENT_METHODS +
+    LITELLM_METHODS +
     ADK_METHODS
 )
 

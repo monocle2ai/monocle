@@ -194,3 +194,6 @@ def verify_spans():
     assert found_book_hotel_delegation, "Book hotel delegation span not found"
     assert found_book_flight_tool, "Book flight tool span not found"
     assert found_book_hotel_tool, "Book hotel tool span not found"
+
+if __name__ == "__main__":
+    pytest.main([__file__, "-s", "--tb=short"])

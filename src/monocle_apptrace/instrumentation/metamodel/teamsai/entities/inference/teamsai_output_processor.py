@@ -66,5 +66,15 @@ TEAMAI_OUTPUT_PROCESSOR = {
                 }
             ]
         },
+        {
+            "name": "metadata",
+            "_comment": "metadata for Teams AI",
+            "attributes": [
+                {
+                    "attribute": "inference_sub_type",
+                    "accessor": lambda arguments: _helper.agent_inference_type(arguments)
+                }
+            ]
+        }
     ]
 }

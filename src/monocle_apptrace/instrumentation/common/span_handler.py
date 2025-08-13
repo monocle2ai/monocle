@@ -68,8 +68,11 @@ class SpanHandler:
         return span_type
 
     def pre_task_processing(self, to_wrap, wrapped, instance, args,kwargs, span):
-        if "pipeline" in to_wrap['package']:
-            set_attribute(QUERY, args[0]['prompt_builder']['question'])
+        try:
+            if "pipeline" in to_wrap['package']:
+                set_attribute(QUERY, args[0]['prompt_builder']['question'])
+        except Exception as e:
+            logger.warning("Warning: Error occurred in pre_task_processing: %s", str(e))
 
     @staticmethod
     def set_default_monocle_attributes(span: Span, source_path = "" ):

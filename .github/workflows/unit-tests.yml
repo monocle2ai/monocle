@@ -1,0 +1,62 @@
+name: Unit Tests
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install build dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install build setuptools wheel toml
+
+      - name: Build wheels
+        run: |
+          chmod +x ./.github/scripts/build.sh
+          ./.github/scripts/build.sh
+
+      - name: Install package and dev dependencies
+        run: |
+          pip install --upgrade pip
+          pip install ".[dev]"
+
+      - name: Run unit tests
+        id: run-tests
+        run: |
+          set -e
+          pytest tests/unit --tb=short | tee result.log
+          EXIT_CODE=${PIPESTATUS[0]}
+          grep -E 'FAILED.*::' result.log | cut -d ':' -f 1 | sort | uniq > failed_files.txt
+          echo "Failed test files:"
+          cat failed_files.txt
+          exit $EXIT_CODE
+
+      - name: Add Failed Files to Summary (Table)
+        if: always()
+        run: |
+          if [[ -s failed_files.txt ]]; then
+            {
+              echo "### ❌ Failed Test Files"
+              echo ""
+              echo "| File Path |"
+              echo "|-----------|"
+              while read -r file; do
+                echo "| $file |"
+              done < failed_files.txt
+            } >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### ✅ All unit tests passed!" >> $GITHUB_STEP_SUMMARY
+          fi

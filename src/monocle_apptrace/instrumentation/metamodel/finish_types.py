@@ -272,7 +272,7 @@ HAYSTACK_FINISH_REASON_MAPPING = {
     "OTHER": FinishType.ERROR.value,
 }
 
-ADK_FINEISH_REASON_MAPPING = GEMINI_FINISH_REASON_MAPPING
+ADK_FINISH_REASON_MAPPING = GEMINI_FINISH_REASON_MAPPING
 
 def map_openai_finish_reason_to_finish_type(finish_reason):
     """Map OpenAI finish_reason to standardized finish_type."""
@@ -460,4 +460,4 @@ def map_adk_finish_reason_to_finish_type(finish_reason):
     """Map ADK finish_reason to standardized finish_type."""
     if not finish_reason:
         return None
-    return ADK_FINEISH_REASON_MAPPING.get(finish_reason, None)
+    return ADK_FINISH_REASON_MAPPING.get(finish_reason, None)

@@ -1,5 +1,6 @@
 import datetime
 import asyncio
+import os
 import time
 from zoneinfo import ZoneInfo
 from google.adk.agents import Agent
@@ -17,6 +18,7 @@ span_processors = [SimpleSpanProcessor(memory_exporter)]
 
 @pytest.fixture(scope="function")
 def setup():
+    os.environ["GOOGLE_GENAI_USE_VERTEXAI"] = "FALSE"
     memory_exporter.clear()
     setup_monocle_telemetry(
         workflow_name="langchain_agent_1",

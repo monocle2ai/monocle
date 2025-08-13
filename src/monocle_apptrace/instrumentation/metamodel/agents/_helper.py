@@ -28,6 +28,14 @@ def extract_agent_response(response):
                 return str(last_item.content)
             elif hasattr(last_item, "text"):
                 return str(last_item.text)
+        elif (
+            response is not None
+            and hasattr(response, "next_step")
+            and response.next_step
+            and hasattr(response.next_step, "output")
+            and response.next_step.output
+        ):
+            return str(response.next_step.output)
     except Exception as e:
         logger.warning("Warning: Error occurred in extract_agent_response: %s", str(e))
     return ""
@@ -48,8 +56,8 @@ def extract_agent_input(arguments):
                 return get_json_dumps(input_data)
 
         # Fallback to kwargs
-        if "input" in arguments["kwargs"]:
-            input_data = arguments["kwargs"]["input"]
+        if "original_input" in arguments["kwargs"]:
+            input_data = arguments["kwargs"]["original_input"]
             if isinstance(input_data, str):
                 return input_data
             elif isinstance(input_data, list):
@@ -155,6 +163,7 @@ def get_tool_name(instance) -> str:
     """Get the name of a tool."""
     return get_name(instance)
 
+
 def is_root_agent_name(instance) -> bool:
     """Check if this is the root agent."""
     return get_name(instance) == ROOT_AGENT_NAME
@@ -175,6 +184,7 @@ def get_description(instance) -> str:
     elif hasattr(instance, "__doc__") and instance.__doc__:
         return str(instance.__doc__)
     return ""
+
 
 def get_tool_description(instance) -> str:
     """Get the description of a tool."""

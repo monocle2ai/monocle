@@ -11,6 +11,8 @@ from opentelemetry.propagate import extract
 from opentelemetry import baggage
 from monocle_apptrace.instrumentation.common.constants import MONOCLE_SCOPE_NAME_PREFIX, SCOPE_METHOD_FILE, SCOPE_CONFIG_PATH, llm_type_map, MONOCLE_SDK_VERSION, ADD_NEW_WORKFLOW
 from importlib.metadata import version
+from opentelemetry.trace.span import INVALID_SPAN
+_MONOCLE_SPAN_KEY = "monocle" + _SPAN_KEY
 
 T = TypeVar('T')
 U = TypeVar('U')
@@ -429,3 +431,32 @@ def patch_instance_method(obj, method_name, func):
         method_name: func
     })
     obj.__class__ = new_cls
+
+
+def set_monocle_span_in_context(
+    span: Span, context: Optional[Context] = None
+) -> Context:
+    """Set the span in the given context.
+
+    Args:
+        span: The Span to set.
+        context: a Context object. if one is not passed, the
+            default current context is used instead.
+    """
+    ctx = set_value(_MONOCLE_SPAN_KEY, span, context=context)
+    return ctx
+
+def get_current_monocle_span(context: Optional[Context] = None) -> Span:
+    """Retrieve the current span.
+
+    Args:
+        context: A Context object. If one is not passed, the
+            default current context is used instead.
+
+    Returns:
+        The Span set in the context if it exists. INVALID_SPAN otherwise.
+    """
+    span = get_value(_MONOCLE_SPAN_KEY, context=context)
+    if span is None or not isinstance(span, Span):
+        return INVALID_SPAN
+    return span

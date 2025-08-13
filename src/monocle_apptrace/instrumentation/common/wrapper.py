@@ -17,11 +17,11 @@ from monocle_apptrace.instrumentation.common.utils import (
     with_tracer_wrapper,
     set_scope,
     remove_scope,
-    get_parent_span
+    get_current_monocle_span,
+    set_monocle_span_in_context
 )
 from monocle_apptrace.instrumentation.common.constants import WORKFLOW_TYPE_KEY, ADD_NEW_WORKFLOW
 logger = logging.getLogger(__name__)
-_MONOCLE_SPAN_KEY = "monocle" + _SPAN_KEY
 ISOLATE_MONOCLE_SPANS = os.getenv("MONOCLE_ISOLATE_SPANS", "true").lower() == "true"
 
 def get_auto_close_span(to_wrap, kwargs):
@@ -48,6 +48,8 @@ def pre_process_span(name, tracer, handler, add_workflow_span, to_wrap, wrapped,
 def post_process_span(handler, to_wrap, wrapped, instance, args, kwargs, return_value, span, parent_span, ex):
     if not (SpanHandler.is_root_span(span) or get_value(ADD_NEW_WORKFLOW) == True):
         try:
+            if parent_span == INVALID_SPAN:
+                parent_span = None
             handler.hydrate_span(to_wrap, wrapped, instance, args, kwargs, return_value, span, parent_span, ex)
         except Exception as e:
             logger.info(f"Warning: Error occurred in hydrate_span: {e}")
@@ -70,7 +72,7 @@ def monocle_wrapper_span_processor(tracer: Tracer, handler: SpanHandler, to_wrap
     return_value = None
     span_status = None
     auto_close_span = get_auto_close_span(to_wrap, kwargs)
-    parent_span = get_parent_span()
+    parent_span = get_current_monocle_span()
     with start_as_monocle_span(tracer, name, auto_close_span) as span:
         pre_process_span(name, tracer, handler, add_workflow_span, to_wrap, wrapped, instance, args, kwargs, span, source_path)
         
@@ -132,7 +134,7 @@ async def amonocle_wrapper_span_processor(tracer: Tracer, handler: SpanHandler, 
     return_value = None
     span_status = None
     auto_close_span = get_auto_close_span(to_wrap, kwargs)
-    parent_span = get_parent_span()
+    parent_span = get_current_monocle_span()
     with start_as_monocle_span(tracer, name, auto_close_span) as span:
         pre_process_span(name, tracer, handler, add_workflow_span, to_wrap, wrapped, instance, args, kwargs, span, source_path)
         
@@ -167,7 +169,7 @@ async def amonocle_iter_wrapper_span_processor(tracer: Tracer, handler: SpanHand
     # Main span processing logic
     name = get_span_name(to_wrap, instance)
     auto_close_span = get_auto_close_span(to_wrap, kwargs)
-    parent_span = get_parent_span()
+    parent_span = get_current_monocle_span()
     last_item = None
 
     with start_as_monocle_span(tracer, name, auto_close_span) as span:
@@ -349,31 +351,3 @@ def start_as_monocle_span(tracer: Tracer, name: str, auto_close_span: bool) -> I
         detach(original_span_token)
         detach(new_monocle_token)
     detach(monocle_span_token)
-
-def set_monocle_span_in_context(
-    span: Span, context: Optional[Context] = None
-) -> Context:
-    """Set the span in the given context.
-
-    Args:
-        span: The Span to set.
-        context: a Context object. if one is not passed, the
-            default current context is used instead.
-    """
-    ctx = set_value(_MONOCLE_SPAN_KEY, span, context=context)
-    return ctx
-
-def get_current_monocle_span(context: Optional[Context] = None) -> Span:
-    """Retrieve the current span.
-
-    Args:
-        context: A Context object. If one is not passed, the
-            default current context is used instead.
-
-    Returns:
-        The Span set in the context if it exists. INVALID_SPAN otherwise.
-    """
-    span = get_value(_MONOCLE_SPAN_KEY, context=context)
-    if span is None or not isinstance(span, Span):
-        return INVALID_SPAN
-    return span

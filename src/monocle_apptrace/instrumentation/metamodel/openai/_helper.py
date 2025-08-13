@@ -2,7 +2,7 @@
 This module provides utility functions for extracting system, user,
 and assistant messages from various input formats.
 """
-import json
+
 import logging
 from monocle_apptrace.instrumentation.common.utils import (
     Option,
@@ -18,7 +18,6 @@ from monocle_apptrace.instrumentation.metamodel.finish_types import (
     OPENAI_FINISH_REASON_MAPPING
 )
 from monocle_apptrace.instrumentation.common.constants import CHILD_ERROR_CODE
-from types import SimpleNamespace
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +28,7 @@ def extract_messages(kwargs):
         if 'instructions' in kwargs:
             messages.append({'system': kwargs.get('instructions', {})})
         if 'input' in kwargs:
-            if isinstance(kwargs['input'], str): 
+            if isinstance(kwargs['input'], str):
                 messages.append({'user': kwargs.get('input', "")})
             # [
             #     {
@@ -59,28 +58,12 @@ def extract_messages(kwargs):
 def extract_assistant_message(arguments):
     try:
         messages = []
-        # dict_content = json.loads(arguments['result'].content.decode('utf-8'))
-        # print(dict_content)
         status = get_status_code(arguments)
         if status == 'success' or status == 'completed':
             response = arguments["result"]
             if hasattr(response, "output_text") and len(response.output_text):
                 role = response.role if hasattr(response, "role") else "assistant"
                 messages.append({role: response.output_text})
-            if response is not None and hasattr(response, "content"):
-                dict_content = json.loads(response.content.decode('utf-8'))
-                if isinstance(dict_content, dict) and "choices" in dict_content:
-                    if len(dict_content["choices"]) > 0:
-                        if "message" in dict_content["choices"][0]:
-                            message = dict_content["choices"][0]["message"]
-                            role = message["role"] if "role" in message else "assistant"
-                            if "content" in message and message["content"] is not None:
-                                messages.append({role: message["content"]})
-                            elif "tool_calls" in message and len(message["tool_calls"]) > 0:
-                                tool_call = message["tool_calls"][0]
-                                if "function" in tool_call and "arguments" in tool_call["function"]:
-                                    messages.append({role: tool_call['function']['arguments']})
-
             if (
                 response is not None
                 and hasattr(response, "choices")
@@ -99,7 +82,7 @@ def extract_assistant_message(arguments):
                 return get_exception_message(arguments)
             elif hasattr(arguments["result"], "error"):
                 return arguments["result"].error
-        
+
     except (IndexError, AttributeError) as e:
         logger.warning(
             "Warning: Error occurred in extract_assistant_message: %s", str(e)
@@ -146,21 +129,12 @@ def update_output_span_events(results):
 
 def update_span_from_llm_response(response):
     meta_dict = {}
-    token_usage = None
-    if response is not None:
-        if hasattr(response, "content"):
-            try:
-                dict_content = json.loads(response.content.decode('utf-8'))
-                token_usage = dict_content.get("usage", None)
-                token_usage = SimpleNamespace(**token_usage) if token_usage else None
-            except Exception:
-                pass
-        if token_usage is None and hasattr(response, "usage") and response.usage is not None:
+    if response is not None and hasattr(response, "usage"):
+        if hasattr(response, "usage") and response.usage is not None:
             token_usage = response.usage
-        elif token_usage is None and hasattr(response, "response_metadata"):
-            token_usage = getattr(response.response_metadata, "token_usage", None) \
-                if hasattr(response.response_metadata, "token_usage") \
-                else response.response_metadata.get("token_usage", None)
+        else:
+            response_metadata = response.response_metadata
+            token_usage = response_metadata.get("token_usage")
         if token_usage is not None:
             meta_dict.update({"completion_tokens": getattr(token_usage,"completion_tokens",None) or getattr(token_usage,"output_tokens",None)})
             meta_dict.update({"prompt_tokens": getattr(token_usage, "prompt_tokens", None) or getattr(token_usage, "input_tokens", None)})
@@ -220,11 +194,11 @@ def extract_finish_reason(arguments):
             if hasattr(arguments["exception"], "code") and arguments["exception"].code in OPENAI_FINISH_REASON_MAPPING.keys():
                 return arguments["exception"].code
         response = arguments["result"]
-        
+
         # Handle streaming responses
         if hasattr(response, "finish_reason") and response.finish_reason:
             return response.finish_reason
-            
+
         # Handle non-streaming responses
         if response is not None and hasattr(response, "choices") and len(response.choices) > 0:
             if hasattr(response.choices[0], "finish_reason"):

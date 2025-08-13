@@ -43,9 +43,66 @@ def extract_messages(kwargs):
             #     }
             # ]
             if isinstance(kwargs['input'], list):
+                # kwargs['input']
+                # [
+                #     {
+                #         "content": "I need to book a flight from NYC to LAX and also book the Hilton hotel in Los Angeles. Also check the weather in Los Angeles.",
+                #         "role": "user"
+                #     },
+                #     {
+                #         "arguments": "{}",
+                #         "call_id": "call_dSljcToR2LWwqWibPt0qjeHD",
+                #         "name": "transfer_to_flight_agent",
+                #         "type": "function_call",
+                #         "id": "fc_689c30f96f708191aabb0ffd8098cdbd016ef325124ac05f",
+                #         "status": "completed"
+                #     },
+                #     {
+                #         "arguments": "{}",
+                #         "call_id": "call_z0MTZroziWDUd0fxVemGM5Pg",
+                #         "name": "transfer_to_hotel_agent",
+                #         "type": "function_call",
+                #         "id": "fc_689c30f99b808191a8743ff407fa8ee2016ef325124ac05f",
+                #         "status": "completed"
+                #     },
+                #     {
+                #         "arguments": "{\"city\":\"Los Angeles\"}",
+                #         "call_id": "call_rrdRSPv5vcB4pgl6P4W8U2bX",
+                #         "name": "get_weather_tool",
+                #         "type": "function_call",
+                #         "id": "fc_689c30f9b824819196d4ad9379d570f7016ef325124ac05f",
+                #         "status": "completed"
+                #     },
+                #     {
+                #         "call_id": "call_rrdRSPv5vcB4pgl6P4W8U2bX",
+                #         "output": "The weather in Los Angeles is sunny and 75.",
+                #         "type": "function_call_output"
+                #     },
+                #     {
+                #         "call_id": "call_z0MTZroziWDUd0fxVemGM5Pg",
+                #         "output": "Multiple handoffs detected, ignoring this one.",
+                #         "type": "function_call_output"
+                #     },
+                #     {
+                #         "call_id": "call_dSljcToR2LWwqWibPt0qjeHD",
+                #         "output": "{\"assistant\": \"Flight Agent\"}",
+                #         "type": "function_call_output"
+                #     }
+                # ]
                 for item in kwargs['input']:
                     if isinstance(item, dict) and 'role' in item and 'content' in item:
                         messages.append({item['role']: item['content']})
+                    elif isinstance(item, dict) and 'type' in item and item['type'] == 'function_call':
+                        messages.append({
+                            "tool_function": item.get("name", ""),
+                            "tool_arguments": item.get("arguments", ""),
+                            "call_id": item.get("call_id", "")
+                        })
+                    elif isinstance(item, dict) and 'type' in item and item['type'] == 'function_call_output':
+                        messages.append({
+                            "call_id": item.get("call_id", ""),
+                            "output": item.get("output", "")
+                        })
         if 'messages' in kwargs and len(kwargs['messages']) >0:
             for msg in kwargs['messages']:
                 if msg.get('content') and msg.get('role'):

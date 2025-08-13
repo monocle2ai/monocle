@@ -91,6 +91,9 @@ dev = [
   'click==8.2.1',
   'python-dotenv>=1.1.0',
   'langchain-google-genai==2.1.8',
+  'google-adk==1.10.0',
+  'google-generativeai==0.8.5',
+  'openai-agents==0.2.6'
 ]
 
 azure = [

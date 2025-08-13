@@ -5,12 +5,11 @@ from functools import wraps
 import inspect
 from opentelemetry.context import attach, get_current, detach
 from opentelemetry.sdk.trace import Span
-from opentelemetry.sdk.trace import Span
+from opentelemetry.trace.span import INVALID_SPAN
 from opentelemetry.trace import get_tracer
-from opentelemetry.trace.propagation import set_span_in_context, _SPAN_KEY
 from contextlib import contextmanager, asynccontextmanager
 from monocle_apptrace.instrumentation.common.span_handler import SpanHandler
-from monocle_apptrace.instrumentation.common.wrapper import atask_wrapper, task_wrapper
+from monocle_apptrace.instrumentation.common.wrapper import atask_wrapper, get_current_monocle_span, set_monocle_span_in_context, task_wrapper
 from monocle_apptrace.instrumentation.common.utils import (
     set_scope, remove_scope, http_route_handler, http_async_route_handler
 )
@@ -48,7 +47,7 @@ def start_trace(
         tracer = get_tracer(instrumenting_module_name= MONOCLE_INSTRUMENTOR, tracer_provider= get_tracer_provider())
         span_name = span_name or "custom_span"
         span = tracer.start_span(name=span_name)
-        updated_span_context = set_span_in_context(span=span)
+        updated_span_context = set_monocle_span_in_context(span=span)
         
         # Set default monocle attributes
         SpanHandler.set_default_monocle_attributes(span)
@@ -57,7 +56,7 @@ def start_trace(
         
         # Set custom attributes and events using common method
         _setup_span_attributes_and_events(span, attributes, events)
-        
+
         token = attach(updated_span_context)
         return token
     except Exception as e:
@@ -81,14 +80,11 @@ def stop_trace(
         None
     """
     try:
-        _parent_span_context = get_current()
-        if _parent_span_context is not None:
-            parent_span: Span = _parent_span_context.get(_SPAN_KEY, None)
-            if parent_span is not None:
-                # Set final attributes and events using common method
-                _setup_span_attributes_and_events(parent_span, final_attributes, final_events)
-                
-                parent_span.end()
+        parent_span = get_current_monocle_span()
+        if parent_span is not None and parent_span != INVALID_SPAN:
+            # Set final attributes and events using common method
+            _setup_span_attributes_and_events(parent_span, final_attributes, final_events)
+            parent_span.end()
         if token is not None:
             detach(token)
     except Exception as e:

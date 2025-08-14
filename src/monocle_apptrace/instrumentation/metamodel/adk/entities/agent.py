@@ -1,3 +1,4 @@
+from monocle_apptrace.instrumentation.common.utils import get_error_message
 from monocle_apptrace.instrumentation.metamodel.adk import _helper
 AGENT = {
       "type": "agentic.invocation",
@@ -43,6 +44,10 @@ AGENT = {
                 "_comment": "this is response from LLM",
                 "attribute": "response",
                 "accessor": lambda arguments: _helper.extract_agent_response(arguments['result'])
+            },
+            {
+                "attribute": "error_code",
+                "accessor": lambda arguments: get_error_message(arguments)
             }
           ]
         }

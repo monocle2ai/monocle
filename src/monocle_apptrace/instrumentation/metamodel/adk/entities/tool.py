@@ -1,3 +1,4 @@
+from monocle_apptrace.instrumentation.common.utils import get_error_message
 from monocle_apptrace.instrumentation.metamodel.adk import _helper
 TOOL = {
       "type": "agentic.tool.invocation",
@@ -50,7 +51,11 @@ TOOL = {
                 "_comment": "this is response from Tool",
                 "attribute": "response",
                 "accessor": lambda arguments: _helper.extract_tool_response(arguments['result'])
-            }
+            },
+            {
+                "attribute": "error_code",
+                "accessor": lambda arguments: get_error_message(arguments)
+            },
           ]
         }
       ]

@@ -35,8 +35,8 @@ FLASK_RESPONSE_PROCESSOR = {
             "attributes": [
                 {
                     "_comment": "status from HTTP response",
-                    "attribute": "status",
-                    "accessor": lambda arguments: _helper.extract_status(arguments['instance'])
+                    "attribute": "error_code",
+                    "accessor": lambda arguments: _helper.extract_status(arguments)
                 },
                 {
                     "_comment": "this is result from LLM",

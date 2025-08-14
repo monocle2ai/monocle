@@ -185,7 +185,12 @@ class SpanHandler:
                         accessor = attribute.get("accessor")
                         if accessor:
                             try:
-                                result = accessor(arguments)
+                                try:
+                                    result = accessor(arguments)
+                                except MonocleSpanException as e:
+                                    span.set_status(StatusCode.ERROR, e.message)
+                                    detected_error = True
+                                    result = e.get_err_code()
                                 if result and isinstance(result, dict):
                                     result = dict((key, value) for key, value in result.items() if value is not None)
                                 if result and isinstance(result, (int, str, list, dict)):
@@ -193,9 +198,6 @@ class SpanHandler:
                                         event_attributes[attribute_key] = result
                                     else:
                                         event_attributes.update(result)
-                            except MonocleSpanException as e:
-                                span.set_status(StatusCode.ERROR, e.message)
-                                detected_error = True
                             except Exception as e:
                                 logger.debug(f"Error evaluating accessor for attribute '{attribute_key}': {e}")
                     matching_timestamp = getattr(ret_result, "timestamps", {}).get(event_name, None)

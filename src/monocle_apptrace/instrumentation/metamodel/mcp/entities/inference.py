@@ -1,4 +1,5 @@
 from monocle_apptrace.instrumentation.common.constants import SPAN_SUBTYPES, SPAN_TYPES
+from monocle_apptrace.instrumentation.common.utils import get_error_message
 from monocle_apptrace.instrumentation.metamodel.mcp import _helper
 
 TOOLS = {
@@ -44,6 +45,10 @@ TOOLS = {
                     "attribute": "output",
                     "accessor": lambda arguments: _helper.get_output_text(arguments)
                 },
+                {
+                    "attribute": "error_code",
+                    "accessor": lambda arguments: get_error_message(arguments)
+                }
             ],
         },
     ],

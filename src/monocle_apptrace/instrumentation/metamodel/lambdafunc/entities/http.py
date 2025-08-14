@@ -37,8 +37,8 @@ LAMBDA_HTTP_PROCESSOR = {
             "attributes": [
                 {
                     "_comment": "status from HTTP response",
-                    "attribute": "status",
-                    "accessor": lambda arguments: _helper.extract_status(arguments['result'])
+                    "attribute": "error_code",
+                    "accessor": lambda arguments: _helper.extract_status(arguments)
                 },
                 {
                     "_comment": "this is result from LLM",

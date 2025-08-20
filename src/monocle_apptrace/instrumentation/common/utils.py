@@ -190,8 +190,8 @@ def __generate_scope_id() -> str:
     global scope_id_generator
     return f"{hex(scope_id_generator.generate_trace_id())}"
 
-def set_scope(scope_name: str, scope_value:str = None) -> object:
-    return set_scopes({scope_name: scope_value})
+def set_scope(scope_name: str, scope_value:str = None, context:Context = None) -> object:
+    return set_scopes({scope_name: scope_value}, context)
 
 def set_scopes(scopes:dict[str, object], baggage_context:Context = None) -> object:
     if baggage_context is None:

@@ -235,17 +235,12 @@ def is_valid_trace_id_uuid(traceId: str) -> bool:
     return False
 
 from monocle_apptrace.instrumentation.common.method_wrappers import (
-    monocle_trace_scope_method,
-    amonocle_trace_scope,
     monocle_trace,
     amonocle_trace,
     monocle_trace_method,
     monocle_trace_http_route,
-    start_scope,
-    stop_scope,
     start_trace,
     stop_trace,
-    http_route_handler,
-    monocle_trace_scope,
+    http_route_handler
 )
 

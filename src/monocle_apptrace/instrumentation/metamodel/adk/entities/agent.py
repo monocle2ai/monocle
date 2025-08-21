@@ -48,3 +48,18 @@ AGENT = {
         }
       ]
     }
+
+REQUEST = {
+      "type": "agentic.request",
+      "attributes": [
+        [
+              {
+                "_comment": "agent type",
+                "attribute": "type",
+                "accessor": lambda arguments:'agent.adk'
+              }
+        ],
+      ],
+      "events": [
+      ]
+}

@@ -85,3 +85,27 @@ REQUEST = {
         }
       ]
 }
+
+DELEGATION = {
+      "type": "agentic.delegation",
+      "should_skip": lambda arguments: _helper.should_skip_delegation(arguments),
+      "attributes": [
+        [
+              {
+                "_comment": "agent type",
+                "attribute": "type",
+                "accessor": lambda arguments:'agent.adk'
+              },
+              {
+                "_comment": "name of the agent",
+                "attribute": "from_agent",
+                "accessor": lambda arguments: _helper.get_delegating_agent(arguments)
+              },
+              {
+                "_comment": "name of the agent called",
+                "attribute": "to_agent",
+                "accessor": lambda arguments: _helper.get_agent_name(arguments['instance'])
+              }
+        ]
+      ]
+}

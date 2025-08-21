@@ -1148,7 +1148,7 @@
                     "total_tokens": 405,
                     "finish_reason": "stop",
                     "finish_type": "success",
-                    "inference_sub_type": "turn"
+                    "inference_sub_type": "turn_end"
                 }
             }
         ],
@@ -1749,7 +1749,7 @@
                     "total_tokens": 616,
                     "finish_reason": "stop",
                     "finish_type": "success",
-                    "inference_sub_type": "turn"
+                    "inference_sub_type": "turn_end"
                 }
             }
         ],
@@ -2377,7 +2377,7 @@
                     "total_tokens": 1485,
                     "finish_reason": "stop",
                     "finish_type": "success",
-                    "inference_sub_type": "turn"
+                    "inference_sub_type": "turn_end"
                 }
             }
         ],

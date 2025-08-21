@@ -111,7 +111,7 @@ TOOLS = {
             {
                 "_comment": "tool type",
                 "attribute": "type",
-                "accessor": lambda arguments: "tool.openai_agents",
+                "accessor": lambda arguments: _helper.get_tool_type(arguments["span"]),
             },
             {
                 "_comment": "name of the tool",

@@ -1,6 +1,7 @@
+from monocle_apptrace.instrumentation.common.constants import SPAN_TYPES
 from monocle_apptrace.instrumentation.metamodel.azfunc import _helper
 AZFUNC_HTTP_PROCESSOR = {
-    "type": "http.process",
+    "type": SPAN_TYPES.HTTP_PROCESS,
     "attributes": [
         [
             {

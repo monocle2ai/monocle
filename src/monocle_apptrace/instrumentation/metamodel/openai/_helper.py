@@ -19,7 +19,7 @@ from monocle_apptrace.instrumentation.metamodel.finish_types import (
     map_openai_finish_reason_to_finish_type,
     OPENAI_FINISH_REASON_MAPPING
 )
-from monocle_apptrace.instrumentation.common.constants import AGENT_PREFIX_KEY, CHILD_ERROR_CODE, INFERENCE_AGENT_DELEGATION, INFERENCE_COMMUNICATION, INFERENCE_TOOL_CALL
+from monocle_apptrace.instrumentation.common.constants import AGENT_PREFIX_KEY, CHILD_ERROR_CODE, INFERENCE_AGENT_DELEGATION, INFERENCE_TURN_END, INFERENCE_TOOL_CALL
 
 logger = logging.getLogger(__name__)
 
@@ -315,4 +315,4 @@ def agent_inference_type(arguments):
         if tool_name and agent_prefix and tool_name.startswith(agent_prefix):
             return INFERENCE_AGENT_DELEGATION
         return INFERENCE_TOOL_CALL
-    return INFERENCE_COMMUNICATION
+    return INFERENCE_TURN_END

@@ -2,14 +2,14 @@
     {
         "name": "openai.resources.responses.AsyncResponses.create",
         "context": {
-            "trace_id": "0x2338c0a07c635b1b86f12879738713f2",
-            "span_id": "0xac68af3c74e43b7f",
+            "trace_id": "0x63f2b9e4e70e0e0dbc3c9cf9d67641b1",
+            "span_id": "0xeb3cfc6817b0ed28",
             "trace_state": "[]"
         },
         "kind": "SpanKind.INTERNAL",
-        "parent_id": "0x489e03e71d6aeedd",
-        "start_time": "2025-08-21T03:56:12.668314Z",
-        "end_time": "2025-08-21T03:56:14.289013Z",
+        "parent_id": "0x79815eb4fc016189",
+        "start_time": "2025-08-21T16:26:11.984960Z",
+        "end_time": "2025-08-21T16:26:16.669815Z",
         "status": {
             "status_code": "OK"
         },
@@ -24,427 +24,37 @@
             "entity.1.inference_endpoint": "https://api.openai.com/v1/",
             "entity.2.name": "gpt-4o",
             "entity.2.type": "model.llm.gpt-4o",
-            "scope.agentic.request": "0xd306e6dd0bd7a2793602af5b32a95966",
-            "scope.agentic.invocation": "0xd47c6d0af90422f1e541a821cd76d1b9",
-            "scope.None": "0xed81b11024d4d721b17510373ce1bb35",
+            "scope.agentic.request": "0x8782e1164590ae90766dde880944bc19",
+            "scope.agentic.invocation": "0x7671ec9b548bb8d3bcb13e3f47e80193",
+            "scope.None": "0xd1ec697691937844a0696c919e01a842",
             "entity.count": 2
         },
         "events": [
             {
                 "name": "data.input",
-                "timestamp": "2025-08-21T03:56:14.288621Z",
+                "timestamp": "2025-08-21T16:26:16.669745Z",
                 "attributes": {
                     "input": [
-                        "{\"system\": \"You are a travel coordinator. Delegate flight bookings to the Flight Agent and hotel bookings to the Hotel Agent. Use weather information to make informed recommendations.\"}",
-                        "{\"user\": \"I need to book a flight from NYC to LAX and also book the Hilton hotel in Los Angeles. Also check the weather in Los Angeles and New York to help with travel planning.\"}"
+                        "{\"system\": \"You are a weather information specialist. Use the available weather tools to provide accurate weather information for cities.\"}",
+                        "{\"user\": \"What's the weather like in New York, London, and Tokyo? Please provide the temperature for each city.\"}"
                     ]
                 }
             },
             {
                 "name": "data.output",
-                "timestamp": "2025-08-21T03:56:14.288764Z",
+                "timestamp": "2025-08-21T16:26:16.669768Z",
                 "attributes": {
                     "error_code": "completed",
-                    "response": "{\"tools\": [{\"tool_id\": \"call_Jm1qKQEB0w9ciO8SS9DSdqdi\", \"tool_name\": \"transfer_to_flight_agent\", \"tool_arguments\": \"{}\"}, {\"tool_id\": \"call_xF9O77yTo5UtbISlH7W4rJpg\", \"tool_name\": \"transfer_to_hotel_agent\", \"tool_arguments\": \"{}\"}, {\"tool_id\": \"call_0UOPf7l02UoL7OTdMgJPbess\", \"tool_name\": \"get_weather\", \"tool_arguments\": \"{\\\"city\\\":\\\"Los Angeles\\\"}\"}, {\"tool_id\": \"call_Z0tZvPw5h5uYFMG2dYh1TPBS\", \"tool_name\": \"get_weather\", \"tool_arguments\": \"{\\\"city\\\":\\\"New York\\\"}\"}]}"
+                    "response": "{\"tools\": [{\"tool_id\": \"call_5Df3Kw4o8waaegojGzVG538C\", \"tool_name\": \"get_weather\", \"tool_arguments\": \"{\\\"city\\\":\\\"New York\\\"}\"}, {\"tool_id\": \"call_j2atS0kM1GsWDKnVpYe4qEOn\", \"tool_name\": \"get_weather\", \"tool_arguments\": \"{\\\"city\\\":\\\"London\\\"}\"}, {\"tool_id\": \"call_wbOF9iMqzmR3pKt9S3vKedps\", \"tool_name\": \"get_weather\", \"tool_arguments\": \"{\\\"city\\\":\\\"Tokyo\\\"}\"}]}"
                 }
             },
             {
                 "name": "metadata",
-                "timestamp": "2025-08-21T03:56:14.288910Z",
+                "timestamp": "2025-08-21T16:26:16.669803Z",
                 "attributes": {
-                    "completion_tokens": 72,
-                    "prompt_tokens": 204,
-                    "total_tokens": 276,
-                    "inference_sub_type": "delegation"
-                }
-            }
-        ],
-        "links": [],
-        "resource": {
-            "attributes": {
-                "service.name": "agents_sdk_test"
-            },
-            "schema_url": ""
-        }
-    },
-    {
-        "name": "mcp.shared.session.BaseSession.send_request",
-        "context": {
-            "trace_id": "0x2338c0a07c635b1b86f12879738713f2",
-            "span_id": "0xdca3d03336162b25",
-            "trace_state": "[]"
-        },
-        "kind": "SpanKind.INTERNAL",
-        "parent_id": "0x0c7fad46f0350658",
-        "start_time": "2025-08-21T03:56:14.294306Z",
-        "end_time": "2025-08-21T03:56:14.322992Z",
-        "status": {
-            "status_code": "OK"
-        },
-        "attributes": {
-            "monocle_apptrace.version": "0.5.0",
-            "monocle_apptrace.language": "python",
-            "span_source": "/Users/kshitizvijayvargiya/monocle-ksh/.venv/lib/python3.11/site-packages/mcp/client/session.py:293",
-            "workflow.name": "agents_sdk_test",
-            "span.type": "agentic.mcp.invocation",
-            "entity.1.name": "get_weather",
-            "entity.1.type": "mcp.server",
-            "entity.1.url": "http://localhost:8001/weather/mcp/",
-            "scope.agentic.request": "0xd306e6dd0bd7a2793602af5b32a95966",
-            "scope.agentic.invocation": "0xd47c6d0af90422f1e541a821cd76d1b9",
-            "scope.None": "0xd122fb7e0f7e12f28708501203d59cb",
-            "entity.count": 1
-        },
-        "events": [
-            {
-                "name": "data.input",
-                "timestamp": "2025-08-21T03:56:14.322958Z",
-                "attributes": {
-                    "input": "{\"city\": \"New York\"}"
-                }
-            },
-            {
-                "name": "data.output",
-                "timestamp": "2025-08-21T03:56:14.322976Z",
-                "attributes": {
-                    "output": [
-                        "{\n  \"temperature\": 43\n}"
-                    ]
-                }
-            }
-        ],
-        "links": [],
-        "resource": {
-            "attributes": {
-                "service.name": "agents_sdk_test"
-            },
-            "schema_url": ""
-        }
-    },
-    {
-        "name": "agents.tool.FunctionTool.__init__",
-        "context": {
-            "trace_id": "0x2338c0a07c635b1b86f12879738713f2",
-            "span_id": "0x0c7fad46f0350658",
-            "trace_state": "[]"
-        },
-        "kind": "SpanKind.INTERNAL",
-        "parent_id": "0x489e03e71d6aeedd",
-        "start_time": "2025-08-21T03:56:14.294075Z",
-        "end_time": "2025-08-21T03:56:14.323558Z",
-        "status": {
-            "status_code": "OK"
-        },
-        "attributes": {
-            "monocle_apptrace.version": "0.5.0",
-            "monocle_apptrace.language": "python",
-            "span_source": "/Users/kshitizvijayvargiya/monocle-ksh/.venv/lib/python3.11/site-packages/agents/mcp/util.py:157",
-            "workflow.name": "agents_sdk_test",
-            "is_mcp": true,
-            "span.type": "agentic.tool.invocation",
-            "entity.1.type": "tool.mcp",
-            "entity.1.name": "get_weather",
-            "entity.1.description": "\n    Get mock weather information for a specified city.\n    \n    Args:\n        city: Name of the city to get weather for (e.g., \"London\", \"New York\", \"Tokyo\")\n    \n    Returns:\n        Dictionary containing mock weather information with random temperature between 40-100.\n    ",
-            "entity.2.name": "Travel Coordinator",
-            "entity.2.type": "agent.openai_agents",
-            "scope.agentic.request": "0xd306e6dd0bd7a2793602af5b32a95966",
-            "scope.agentic.invocation": "0xd47c6d0af90422f1e541a821cd76d1b9",
-            "scope.None": "0x2fc2d5ce1b1f203020aa76e7d1d040d0",
-            "entity.count": 2
-        },
-        "events": [
-            {
-                "name": "data.input",
-                "timestamp": "2025-08-21T03:56:14.323545Z",
-                "attributes": {
-                    "Inputs": [
-                        "{\"city\":\"New York\"}"
-                    ]
-                }
-            },
-            {
-                "name": "data.output",
-                "timestamp": "2025-08-21T03:56:14.323552Z",
-                "attributes": {
-                    "response": "{\"type\":\"text\",\"text\":\"{\\n  \\\"temperature\\\": 43\\n}\",\"annotations\":null,\"meta\":null}"
-                }
-            }
-        ],
-        "links": [],
-        "resource": {
-            "attributes": {
-                "service.name": "agents_sdk_test"
-            },
-            "schema_url": ""
-        }
-    },
-    {
-        "name": "mcp.shared.session.BaseSession.send_request",
-        "context": {
-            "trace_id": "0x2338c0a07c635b1b86f12879738713f2",
-            "span_id": "0x52825e3f5ac9e41b",
-            "trace_state": "[]"
-        },
-        "kind": "SpanKind.INTERNAL",
-        "parent_id": "0xb2490785d075baec",
-        "start_time": "2025-08-21T03:56:14.293901Z",
-        "end_time": "2025-08-21T03:56:14.324378Z",
-        "status": {
-            "status_code": "OK"
-        },
-        "attributes": {
-            "monocle_apptrace.version": "0.5.0",
-            "monocle_apptrace.language": "python",
-            "span_source": "/Users/kshitizvijayvargiya/monocle-ksh/.venv/lib/python3.11/site-packages/mcp/client/session.py:293",
-            "workflow.name": "agents_sdk_test",
-            "span.type": "agentic.mcp.invocation",
-            "entity.1.name": "get_weather",
-            "entity.1.type": "mcp.server",
-            "entity.1.url": "http://localhost:8001/weather/mcp/",
-            "scope.agentic.request": "0xd306e6dd0bd7a2793602af5b32a95966",
-            "scope.agentic.invocation": "0xd47c6d0af90422f1e541a821cd76d1b9",
-            "scope.None": "0xe32363e9d4ab79913104ad5039d03b35",
-            "entity.count": 1
-        },
-        "events": [
-            {
-                "name": "data.input",
-                "timestamp": "2025-08-21T03:56:14.324356Z",
-                "attributes": {
-                    "input": "{\"city\": \"Los Angeles\"}"
-                }
-            },
-            {
-                "name": "data.output",
-                "timestamp": "2025-08-21T03:56:14.324371Z",
-                "attributes": {
-                    "output": [
-                        "{\n  \"temperature\": 63\n}"
-                    ]
-                }
-            }
-        ],
-        "links": [],
-        "resource": {
-            "attributes": {
-                "service.name": "agents_sdk_test"
-            },
-            "schema_url": ""
-        }
-    },
-    {
-        "name": "agents.tool.FunctionTool.__init__",
-        "context": {
-            "trace_id": "0x2338c0a07c635b1b86f12879738713f2",
-            "span_id": "0xb2490785d075baec",
-            "trace_state": "[]"
-        },
-        "kind": "SpanKind.INTERNAL",
-        "parent_id": "0x489e03e71d6aeedd",
-        "start_time": "2025-08-21T03:56:14.292313Z",
-        "end_time": "2025-08-21T03:56:14.324878Z",
-        "status": {
-            "status_code": "OK"
-        },
-        "attributes": {
-            "monocle_apptrace.version": "0.5.0",
-            "monocle_apptrace.language": "python",
-            "span_source": "/Users/kshitizvijayvargiya/monocle-ksh/.venv/lib/python3.11/site-packages/agents/mcp/util.py:157",
-            "workflow.name": "agents_sdk_test",
-            "is_mcp": true,
-            "span.type": "agentic.tool.invocation",
-            "entity.1.type": "tool.mcp",
-            "entity.1.name": "get_weather",
-            "entity.1.description": "\n    Get mock weather information for a specified city.\n    \n    Args:\n        city: Name of the city to get weather for (e.g., \"London\", \"New York\", \"Tokyo\")\n    \n    Returns:\n        Dictionary containing mock weather information with random temperature between 40-100.\n    ",
-            "entity.2.name": "Travel Coordinator",
-            "entity.2.type": "agent.openai_agents",
-            "scope.agentic.request": "0xd306e6dd0bd7a2793602af5b32a95966",
-            "scope.agentic.invocation": "0xd47c6d0af90422f1e541a821cd76d1b9",
-            "scope.None": "0x1ac9262beab942b38610296d7ad93cb8",
-            "entity.count": 2
-        },
-        "events": [
-            {
-                "name": "data.input",
-                "timestamp": "2025-08-21T03:56:14.324867Z",
-                "attributes": {
-                    "Inputs": [
-                        "{\"city\":\"Los Angeles\"}"
-                    ]
-                }
-            },
-            {
-                "name": "data.output",
-                "timestamp": "2025-08-21T03:56:14.324873Z",
-                "attributes": {
-                    "response": "{\"type\":\"text\",\"text\":\"{\\n  \\\"temperature\\\": 63\\n}\",\"annotations\":null,\"meta\":null}"
-                }
-            }
-        ],
-        "links": [],
-        "resource": {
-            "attributes": {
-                "service.name": "agents_sdk_test"
-            },
-            "schema_url": ""
-        }
-    },
-    {
-        "name": "agents.handoffs.Handoff.__init__",
-        "context": {
-            "trace_id": "0x2338c0a07c635b1b86f12879738713f2",
-            "span_id": "0x676510e9e1869e0f",
-            "trace_state": "[]"
-        },
-        "kind": "SpanKind.INTERNAL",
-        "parent_id": "0x489e03e71d6aeedd",
-        "start_time": "2025-08-21T03:56:14.326610Z",
-        "end_time": "2025-08-21T03:56:14.326719Z",
-        "status": {
-            "status_code": "OK"
-        },
-        "attributes": {
-            "monocle_apptrace.version": "0.5.0",
-            "monocle_apptrace.language": "python",
-            "span_source": "/Users/kshitizvijayvargiya/monocle-ksh/.venv/lib/python3.11/site-packages/agents/handoffs.py:276",
-            "workflow.name": "agents_sdk_test",
-            "span.type": "agentic.delegation",
-            "entity.1.type": "agent.openai_agents",
-            "entity.1.from_agent": "Travel Coordinator",
-            "entity.1.to_agent": "Flight Agent",
-            "scope.agentic.request": "0xd306e6dd0bd7a2793602af5b32a95966",
-            "scope.agentic.invocation": "0xd47c6d0af90422f1e541a821cd76d1b9",
-            "scope.None": "0x4040598e47cca98c241114173652e1fe",
-            "entity.count": 1
-        },
-        "events": [],
-        "links": [],
-        "resource": {
-            "attributes": {
-                "service.name": "agents_sdk_test"
-            },
-            "schema_url": ""
-        }
-    },
-    {
-        "name": "agents.run.AgentRunner._run_single_turn",
-        "context": {
-            "trace_id": "0x2338c0a07c635b1b86f12879738713f2",
-            "span_id": "0x489e03e71d6aeedd",
-            "trace_state": "[]"
-        },
-        "kind": "SpanKind.INTERNAL",
-        "parent_id": "0xd56ff82d8e0603bb",
-        "start_time": "2025-08-21T03:56:12.660559Z",
-        "end_time": "2025-08-21T03:56:14.369817Z",
-        "status": {
-            "status_code": "OK"
-        },
-        "attributes": {
-            "monocle_apptrace.version": "0.5.0",
-            "monocle_apptrace.language": "python",
-            "span_source": "/Users/kshitizvijayvargiya/monocle-ksh/.venv/lib/python3.11/site-packages/agents/run.py:420",
-            "workflow.name": "agents_sdk_test",
-            "span.type": "agentic.invocation",
-            "entity.1.type": "agent.openai_agents",
-            "entity.1.name": "Travel Coordinator",
-            "entity.1.description": "None",
-            "entity.1.instructions": "You are a travel coordinator. Delegate flight bookings to the Flight Agent and hotel bookings to the Hotel Agent. Use weather information to make informed recommendations.",
-            "scope.agentic.request": "0xd306e6dd0bd7a2793602af5b32a95966",
-            "scope.agentic.invocation": "0xd47c6d0af90422f1e541a821cd76d1b9",
-            "entity.count": 1
-        },
-        "events": [
-            {
-                "name": "data.input",
-                "timestamp": "2025-08-21T03:56:14.326966Z",
-                "attributes": {
-                    "query": "I need to book a flight from NYC to LAX and also book the Hilton hotel in Los Angeles. Also check the weather in Los Angeles and New York to help with travel planning."
-                }
-            },
-            {
-                "name": "data.output",
-                "timestamp": "2025-08-21T03:56:14.326973Z",
-                "attributes": {}
-            },
-            {
-                "name": "metadata",
-                "timestamp": "2025-08-21T03:56:14.326977Z",
-                "attributes": {}
-            }
-        ],
-        "links": [],
-        "resource": {
-            "attributes": {
-                "service.name": "agents_sdk_test"
-            },
-            "schema_url": ""
-        }
-    },
-    {
-        "name": "openai.resources.responses.AsyncResponses.create",
-        "context": {
-            "trace_id": "0x2338c0a07c635b1b86f12879738713f2",
-            "span_id": "0x8aed78ae3c34a76b",
-            "trace_state": "[]"
-        },
-        "kind": "SpanKind.INTERNAL",
-        "parent_id": "0x21867302951eb292",
-        "start_time": "2025-08-21T03:56:14.387057Z",
-        "end_time": "2025-08-21T03:56:16.316015Z",
-        "status": {
-            "status_code": "OK"
-        },
-        "attributes": {
-            "monocle_apptrace.version": "0.5.0",
-            "monocle_apptrace.language": "python",
-            "span_source": "/Users/kshitizvijayvargiya/monocle-ksh/.venv/lib/python3.11/site-packages/agents/models/openai_responses.py:274",
-            "workflow.name": "agents_sdk_test",
-            "span.type": "inference",
-            "entity.1.type": "inference.openai",
-            "entity.1.provider_name": "api.openai.com",
-            "entity.1.inference_endpoint": "https://api.openai.com/v1/",
-            "entity.2.name": "gpt-4o",
-            "entity.2.type": "model.llm.gpt-4o",
-            "scope.agentic.request": "0xd306e6dd0bd7a2793602af5b32a95966",
-            "scope.agentic.invocation": "0xdbf6a22992708887a40e74c7dd403642",
-            "scope.None": "0x25a861d8eb2e7f389d2a42b29282fbaa",
-            "entity.count": 2
-        },
-        "events": [
-            {
-                "name": "data.input",
-                "timestamp": "2025-08-21T03:56:16.315779Z",
-                "attributes": {
-                    "input": [
-                        "{\"system\": \"You are a flight booking specialist. Use the book_flight_tool to book flights and get_weather to check weather at destinations.\"}",
-                        "{\"user\": \"I need to book a flight from NYC to LAX and also book the Hilton hotel in Los Angeles. Also check the weather in Los Angeles and New York to help with travel planning.\"}",
-                        "{\"tool_function\": \"transfer_to_flight_agent\", \"tool_arguments\": \"{}\", \"call_id\": \"call_Jm1qKQEB0w9ciO8SS9DSdqdi\"}",
-                        "{\"tool_function\": \"transfer_to_hotel_agent\", \"tool_arguments\": \"{}\", \"call_id\": \"call_xF9O77yTo5UtbISlH7W4rJpg\"}",
-                        "{\"tool_function\": \"get_weather\", \"tool_arguments\": \"{\\\"city\\\":\\\"Los Angeles\\\"}\", \"call_id\": \"call_0UOPf7l02UoL7OTdMgJPbess\"}",
-                        "{\"tool_function\": \"get_weather\", \"tool_arguments\": \"{\\\"city\\\":\\\"New York\\\"}\", \"call_id\": \"call_Z0tZvPw5h5uYFMG2dYh1TPBS\"}",
-                        "{\"call_id\": \"call_0UOPf7l02UoL7OTdMgJPbess\", \"output\": \"{\\\"type\\\":\\\"text\\\",\\\"text\\\":\\\"{\\\\n  \\\\\\\"temperature\\\\\\\": 63\\\\n}\\\",\\\"annotations\\\":null,\\\"meta\\\":null}\"}",
-                        "{\"call_id\": \"call_Z0tZvPw5h5uYFMG2dYh1TPBS\", \"output\": \"{\\\"type\\\":\\\"text\\\",\\\"text\\\":\\\"{\\\\n  \\\\\\\"temperature\\\\\\\": 43\\\\n}\\\",\\\"annotations\\\":null,\\\"meta\\\":null}\"}",
-                        "{\"call_id\": \"call_xF9O77yTo5UtbISlH7W4rJpg\", \"output\": \"Multiple handoffs detected, ignoring this one.\"}",
-                        "{\"call_id\": \"call_Jm1qKQEB0w9ciO8SS9DSdqdi\", \"output\": \"{\\\"assistant\\\": \\\"Flight Agent\\\"}\"}"
-                    ]
-                }
-            },
-            {
-                "name": "data.output",
-                "timestamp": "2025-08-21T03:56:16.315850Z",
-                "attributes": {
-                    "error_code": "completed",
-                    "response": "{\"tools\": [{\"tool_id\": \"call_CzrlGOLcLqLZOsWqnbMlOpt2\", \"tool_name\": \"book_flight_tool\", \"tool_arguments\": \"{\\\"from_airport\\\":\\\"JFK\\\",\\\"to_airport\\\":\\\"LAX\\\"}\"}]}"
-                }
-            },
-            {
-                "name": "metadata",
-                "timestamp": "2025-08-21T03:56:16.315963Z",
-                "attributes": {
-                    "completion_tokens": 27,
-                    "prompt_tokens": 355,
-                    "total_tokens": 382,
+                    "completion_tokens": 60,
+                    "prompt_tokens": 135,
+                    "total_tokens": 195,
                     "inference_sub_type": "tool_call"
                 }
             }
@@ -458,50 +68,333 @@
         }
     },
     {
-        "name": "agents.tool.FunctionTool.__init__",
+        "name": "mcp.shared.session.BaseSession.send_request",
         "context": {
-            "trace_id": "0x2338c0a07c635b1b86f12879738713f2",
-            "span_id": "0xd902d037f89fc580",
+            "trace_id": "0x63f2b9e4e70e0e0dbc3c9cf9d67641b1",
+            "span_id": "0x0505e0e1c6d9e574",
             "trace_state": "[]"
         },
         "kind": "SpanKind.INTERNAL",
-        "parent_id": "0x21867302951eb292",
-        "start_time": "2025-08-21T03:56:16.317153Z",
-        "end_time": "2025-08-21T03:56:16.317445Z",
+        "parent_id": "0x9690dd4758ee75ee",
+        "start_time": "2025-08-21T16:26:16.670566Z",
+        "end_time": "2025-08-21T16:26:16.690478Z",
         "status": {
             "status_code": "OK"
         },
         "attributes": {
             "monocle_apptrace.version": "0.5.0",
             "monocle_apptrace.language": "python",
-            "span_source": "/Users/kshitizvijayvargiya/monocle-ksh/.venv/lib/python3.11/site-packages/agents/tool.py:453",
+            "span_source": "/Users/kshitizvijayvargiya/monocle-ksh/.venv/lib/python3.11/site-packages/mcp/client/session.py:293",
             "workflow.name": "agents_sdk_test",
+            "span.type": "agentic.mcp.invocation",
+            "span.subtype": "routing",
+            "entity.1.name": "get_weather",
+            "entity.1.type": "mcp.server",
+            "entity.1.url": "http://localhost:8001/weather/mcp/",
+            "scope.agentic.request": "0x8782e1164590ae90766dde880944bc19",
+            "scope.agentic.invocation": "0x7671ec9b548bb8d3bcb13e3f47e80193",
+            "scope.None": "0x62701048102efd053e873d1e598b1c98",
+            "entity.count": 1
+        },
+        "events": [
+            {
+                "name": "data.input",
+                "timestamp": "2025-08-21T16:26:16.690455Z",
+                "attributes": {
+                    "input": "{\"city\": \"New York\"}"
+                }
+            },
+            {
+                "name": "data.output",
+                "timestamp": "2025-08-21T16:26:16.690470Z",
+                "attributes": {
+                    "output": [
+                        "{\n  \"temperature\": 95\n}"
+                    ]
+                }
+            }
+        ],
+        "links": [],
+        "resource": {
+            "attributes": {
+                "service.name": "agents_sdk_test"
+            },
+            "schema_url": ""
+        }
+    },
+    {
+        "name": "agents.tool.FunctionTool.__init__",
+        "context": {
+            "trace_id": "0x63f2b9e4e70e0e0dbc3c9cf9d67641b1",
+            "span_id": "0x9690dd4758ee75ee",
+            "trace_state": "[]"
+        },
+        "kind": "SpanKind.INTERNAL",
+        "parent_id": "0x79815eb4fc016189",
+        "start_time": "2025-08-21T16:26:16.670183Z",
+        "end_time": "2025-08-21T16:26:16.690954Z",
+        "status": {
+            "status_code": "OK"
+        },
+        "attributes": {
+            "monocle_apptrace.version": "0.5.0",
+            "monocle_apptrace.language": "python",
+            "span_source": "/Users/kshitizvijayvargiya/monocle-ksh/.venv/lib/python3.11/site-packages/agents/mcp/util.py:157",
+            "workflow.name": "agents_sdk_test",
+            "is_mcp": true,
             "span.type": "agentic.tool.invocation",
-            "entity.1.type": "tool.openai_agents",
-            "entity.1.name": "book_flight_tool",
-            "entity.1.description": "Book a flight between airports.",
-            "entity.2.name": "Travel Coordinator",
+            "span.subtype": "routing",
+            "entity.1.type": "tool.mcp",
+            "entity.1.name": "get_weather",
+            "entity.1.description": "\n    Get mock weather information for a specified city.\n    \n    Args:\n        city: Name of the city to get weather for (e.g., \"London\", \"New York\", \"Tokyo\")\n    \n    Returns:\n        Dictionary containing mock weather information with random temperature between 40-100.\n    ",
+            "entity.2.name": "Weather Assistant",
             "entity.2.type": "agent.openai_agents",
-            "scope.agentic.request": "0xd306e6dd0bd7a2793602af5b32a95966",
-            "scope.agentic.invocation": "0xdbf6a22992708887a40e74c7dd403642",
-            "scope.None": "0xe0c23918d922138d8d3b0384ba5dd805",
+            "scope.agentic.request": "0x8782e1164590ae90766dde880944bc19",
+            "scope.agentic.invocation": "0x7671ec9b548bb8d3bcb13e3f47e80193",
+            "scope.None": "0x47f30395436c5741eba55c1612f85722",
             "entity.count": 2
         },
         "events": [
             {
                 "name": "data.input",
-                "timestamp": "2025-08-21T03:56:16.317419Z",
+                "timestamp": "2025-08-21T16:26:16.690944Z",
                 "attributes": {
                     "Inputs": [
-                        "{\"from_airport\":\"JFK\",\"to_airport\":\"LAX\"}"
+                        "{\"city\":\"New York\"}"
                     ]
                 }
             },
             {
                 "name": "data.output",
-                "timestamp": "2025-08-21T03:56:16.317434Z",
+                "timestamp": "2025-08-21T16:26:16.690950Z",
                 "attributes": {
-                    "response": "Successfully booked a flight from JFK to LAX for 100 USD."
+                    "response": "{\"type\":\"text\",\"text\":\"{\\n  \\\"temperature\\\": 95\\n}\",\"annotations\":null,\"meta\":null}"
+                }
+            }
+        ],
+        "links": [],
+        "resource": {
+            "attributes": {
+                "service.name": "agents_sdk_test"
+            },
+            "schema_url": ""
+        }
+    },
+    {
+        "name": "mcp.shared.session.BaseSession.send_request",
+        "context": {
+            "trace_id": "0x63f2b9e4e70e0e0dbc3c9cf9d67641b1",
+            "span_id": "0x827a697965969461",
+            "trace_state": "[]"
+        },
+        "kind": "SpanKind.INTERNAL",
+        "parent_id": "0xc32a5dfe3f7b11c6",
+        "start_time": "2025-08-21T16:26:16.671128Z",
+        "end_time": "2025-08-21T16:26:16.691805Z",
+        "status": {
+            "status_code": "OK"
+        },
+        "attributes": {
+            "monocle_apptrace.version": "0.5.0",
+            "monocle_apptrace.language": "python",
+            "span_source": "/Users/kshitizvijayvargiya/monocle-ksh/.venv/lib/python3.11/site-packages/mcp/client/session.py:293",
+            "workflow.name": "agents_sdk_test",
+            "span.type": "agentic.mcp.invocation",
+            "span.subtype": "routing",
+            "entity.1.name": "get_weather",
+            "entity.1.type": "mcp.server",
+            "entity.1.url": "http://localhost:8001/weather/mcp/",
+            "scope.agentic.request": "0x8782e1164590ae90766dde880944bc19",
+            "scope.agentic.invocation": "0x7671ec9b548bb8d3bcb13e3f47e80193",
+            "scope.None": "0xa7b325413ca25c54ae2ed99b9064704f",
+            "entity.count": 1
+        },
+        "events": [
+            {
+                "name": "data.input",
+                "timestamp": "2025-08-21T16:26:16.691788Z",
+                "attributes": {
+                    "input": "{\"city\": \"London\"}"
+                }
+            },
+            {
+                "name": "data.output",
+                "timestamp": "2025-08-21T16:26:16.691800Z",
+                "attributes": {
+                    "output": [
+                        "{\n  \"temperature\": 85\n}"
+                    ]
+                }
+            }
+        ],
+        "links": [],
+        "resource": {
+            "attributes": {
+                "service.name": "agents_sdk_test"
+            },
+            "schema_url": ""
+        }
+    },
+    {
+        "name": "agents.tool.FunctionTool.__init__",
+        "context": {
+            "trace_id": "0x63f2b9e4e70e0e0dbc3c9cf9d67641b1",
+            "span_id": "0xc32a5dfe3f7b11c6",
+            "trace_state": "[]"
+        },
+        "kind": "SpanKind.INTERNAL",
+        "parent_id": "0x79815eb4fc016189",
+        "start_time": "2025-08-21T16:26:16.670690Z",
+        "end_time": "2025-08-21T16:26:16.692258Z",
+        "status": {
+            "status_code": "OK"
+        },
+        "attributes": {
+            "monocle_apptrace.version": "0.5.0",
+            "monocle_apptrace.language": "python",
+            "span_source": "/Users/kshitizvijayvargiya/monocle-ksh/.venv/lib/python3.11/site-packages/agents/mcp/util.py:157",
+            "workflow.name": "agents_sdk_test",
+            "is_mcp": true,
+            "span.type": "agentic.tool.invocation",
+            "span.subtype": "routing",
+            "entity.1.type": "tool.mcp",
+            "entity.1.name": "get_weather",
+            "entity.1.description": "\n    Get mock weather information for a specified city.\n    \n    Args:\n        city: Name of the city to get weather for (e.g., \"London\", \"New York\", \"Tokyo\")\n    \n    Returns:\n        Dictionary containing mock weather information with random temperature between 40-100.\n    ",
+            "entity.2.name": "Weather Assistant",
+            "entity.2.type": "agent.openai_agents",
+            "scope.agentic.request": "0x8782e1164590ae90766dde880944bc19",
+            "scope.agentic.invocation": "0x7671ec9b548bb8d3bcb13e3f47e80193",
+            "scope.None": "0x704318b031f7b8d1bab3b1386afc3642",
+            "entity.count": 2
+        },
+        "events": [
+            {
+                "name": "data.input",
+                "timestamp": "2025-08-21T16:26:16.692249Z",
+                "attributes": {
+                    "Inputs": [
+                        "{\"city\":\"London\"}"
+                    ]
+                }
+            },
+            {
+                "name": "data.output",
+                "timestamp": "2025-08-21T16:26:16.692253Z",
+                "attributes": {
+                    "response": "{\"type\":\"text\",\"text\":\"{\\n  \\\"temperature\\\": 85\\n}\",\"annotations\":null,\"meta\":null}"
+                }
+            }
+        ],
+        "links": [],
+        "resource": {
+            "attributes": {
+                "service.name": "agents_sdk_test"
+            },
+            "schema_url": ""
+        }
+    },
+    {
+        "name": "mcp.shared.session.BaseSession.send_request",
+        "context": {
+            "trace_id": "0x63f2b9e4e70e0e0dbc3c9cf9d67641b1",
+            "span_id": "0x59600f5203cb3201",
+            "trace_state": "[]"
+        },
+        "kind": "SpanKind.INTERNAL",
+        "parent_id": "0xfa7d8a5a3ce0b3cb",
+        "start_time": "2025-08-21T16:26:16.671375Z",
+        "end_time": "2025-08-21T16:26:16.692919Z",
+        "status": {
+            "status_code": "OK"
+        },
+        "attributes": {
+            "monocle_apptrace.version": "0.5.0",
+            "monocle_apptrace.language": "python",
+            "span_source": "/Users/kshitizvijayvargiya/monocle-ksh/.venv/lib/python3.11/site-packages/mcp/client/session.py:293",
+            "workflow.name": "agents_sdk_test",
+            "span.type": "agentic.mcp.invocation",
+            "span.subtype": "routing",
+            "entity.1.name": "get_weather",
+            "entity.1.type": "mcp.server",
+            "entity.1.url": "http://localhost:8001/weather/mcp/",
+            "scope.agentic.request": "0x8782e1164590ae90766dde880944bc19",
+            "scope.agentic.invocation": "0x7671ec9b548bb8d3bcb13e3f47e80193",
+            "scope.None": "0x296bdeede5b51ec8cd26a45a52ad6da7",
+            "entity.count": 1
+        },
+        "events": [
+            {
+                "name": "data.input",
+                "timestamp": "2025-08-21T16:26:16.692904Z",
+                "attributes": {
+                    "input": "{\"city\": \"Tokyo\"}"
+                }
+            },
+            {
+                "name": "data.output",
+                "timestamp": "2025-08-21T16:26:16.692915Z",
+                "attributes": {
+                    "output": [
+                        "{\n  \"temperature\": 98\n}"
+                    ]
+                }
+            }
+        ],
+        "links": [],
+        "resource": {
+            "attributes": {
+                "service.name": "agents_sdk_test"
+            },
+            "schema_url": ""
+        }
+    },
+    {
+        "name": "agents.tool.FunctionTool.__init__",
+        "context": {
+            "trace_id": "0x63f2b9e4e70e0e0dbc3c9cf9d67641b1",
+            "span_id": "0xfa7d8a5a3ce0b3cb",
+            "trace_state": "[]"
+        },
+        "kind": "SpanKind.INTERNAL",
+        "parent_id": "0x79815eb4fc016189",
+        "start_time": "2025-08-21T16:26:16.671191Z",
+        "end_time": "2025-08-21T16:26:16.693303Z",
+        "status": {
+            "status_code": "OK"
+        },
+        "attributes": {
+            "monocle_apptrace.version": "0.5.0",
+            "monocle_apptrace.language": "python",
+            "span_source": "/Users/kshitizvijayvargiya/monocle-ksh/.venv/lib/python3.11/site-packages/agents/mcp/util.py:157",
+            "workflow.name": "agents_sdk_test",
+            "is_mcp": true,
+            "span.type": "agentic.tool.invocation",
+            "span.subtype": "routing",
+            "entity.1.type": "tool.mcp",
+            "entity.1.name": "get_weather",
+            "entity.1.description": "\n    Get mock weather information for a specified city.\n    \n    Args:\n        city: Name of the city to get weather for (e.g., \"London\", \"New York\", \"Tokyo\")\n    \n    Returns:\n        Dictionary containing mock weather information with random temperature between 40-100.\n    ",
+            "entity.2.name": "Weather Assistant",
+            "entity.2.type": "agent.openai_agents",
+            "scope.agentic.request": "0x8782e1164590ae90766dde880944bc19",
+            "scope.agentic.invocation": "0x7671ec9b548bb8d3bcb13e3f47e80193",
+            "scope.None": "0xed88828073550d07f0531c4b7ab97913",
+            "entity.count": 2
+        },
+        "events": [
+            {
+                "name": "data.input",
+                "timestamp": "2025-08-21T16:26:16.693295Z",
+                "attributes": {
+                    "Inputs": [
+                        "{\"city\":\"Tokyo\"}"
+                    ]
+                }
+            },
+            {
+                "name": "data.output",
+                "timestamp": "2025-08-21T16:26:16.693299Z",
+                "attributes": {
+                    "response": "{\"type\":\"text\",\"text\":\"{\\n  \\\"temperature\\\": 98\\n}\",\"annotations\":null,\"meta\":null}"
                 }
             }
         ],
@@ -516,47 +409,48 @@
     {
         "name": "agents.run.AgentRunner._run_single_turn",
         "context": {
-            "trace_id": "0x2338c0a07c635b1b86f12879738713f2",
-            "span_id": "0x21867302951eb292",
+            "trace_id": "0x63f2b9e4e70e0e0dbc3c9cf9d67641b1",
+            "span_id": "0x79815eb4fc016189",
             "trace_state": "[]"
         },
         "kind": "SpanKind.INTERNAL",
-        "parent_id": "0xd56ff82d8e0603bb",
-        "start_time": "2025-08-21T03:56:14.386072Z",
-        "end_time": "2025-08-21T03:56:16.319570Z",
+        "parent_id": "0x795d02a1fc019ea5",
+        "start_time": "2025-08-21T16:26:11.984549Z",
+        "end_time": "2025-08-21T16:26:16.891730Z",
         "status": {
             "status_code": "OK"
         },
         "attributes": {
             "monocle_apptrace.version": "0.5.0",
             "monocle_apptrace.language": "python",
-            "span_source": "/Users/kshitizvijayvargiya/monocle-ksh/.venv/lib/python3.11/site-packages/agents/run.py:434",
+            "span_source": "/Users/kshitizvijayvargiya/monocle-ksh/.venv/lib/python3.11/site-packages/agents/run.py:420",
             "workflow.name": "agents_sdk_test",
             "span.type": "agentic.invocation",
+            "span.subtype": "routing",
             "entity.1.type": "agent.openai_agents",
-            "entity.1.name": "Flight Agent",
+            "entity.1.name": "Weather Assistant",
             "entity.1.description": "None",
-            "entity.1.instructions": "You are a flight booking specialist. Use the book_flight_tool to book flights and get_weather to check weather at destinations.",
-            "scope.agentic.request": "0xd306e6dd0bd7a2793602af5b32a95966",
-            "scope.agentic.invocation": "0xdbf6a22992708887a40e74c7dd403642",
+            "entity.1.instructions": "You are a weather information specialist. Use the available weather tools to provide accurate weather information for cities.",
+            "scope.agentic.request": "0x8782e1164590ae90766dde880944bc19",
+            "scope.agentic.invocation": "0x7671ec9b548bb8d3bcb13e3f47e80193",
             "entity.count": 1
         },
         "events": [
             {
                 "name": "data.input",
-                "timestamp": "2025-08-21T03:56:16.319448Z",
+                "timestamp": "2025-08-21T16:26:16.693789Z",
                 "attributes": {
-                    "query": "I need to book a flight from NYC to LAX and also book the Hilton hotel in Los Angeles. Also check the weather in Los Angeles and New York to help with travel planning."
+                    "query": "What's the weather like in New York, London, and Tokyo? Please provide the temperature for each city."
                 }
             },
             {
                 "name": "data.output",
-                "timestamp": "2025-08-21T03:56:16.319466Z",
+                "timestamp": "2025-08-21T16:26:16.693794Z",
                 "attributes": {}
             },
             {
                 "name": "metadata",
-                "timestamp": "2025-08-21T03:56:16.319522Z",
+                "timestamp": "2025-08-21T16:26:16.693797Z",
                 "attributes": {}
             }
         ],
@@ -571,14 +465,14 @@
     {
         "name": "openai.resources.responses.AsyncResponses.create",
         "context": {
-            "trace_id": "0x2338c0a07c635b1b86f12879738713f2",
-            "span_id": "0x79e0f40336c49aaf",
+            "trace_id": "0x63f2b9e4e70e0e0dbc3c9cf9d67641b1",
+            "span_id": "0xd821d1def05f98e9",
             "trace_state": "[]"
         },
         "kind": "SpanKind.INTERNAL",
-        "parent_id": "0xcfa9d210e34b27b0",
-        "start_time": "2025-08-21T03:56:16.339669Z",
-        "end_time": "2025-08-21T03:56:18.537910Z",
+        "parent_id": "0xd220fd0e5187bdb4",
+        "start_time": "2025-08-21T16:26:16.901070Z",
+        "end_time": "2025-08-21T16:26:18.929930Z",
         "status": {
             "status_code": "OK"
         },
@@ -593,47 +487,43 @@
             "entity.1.inference_endpoint": "https://api.openai.com/v1/",
             "entity.2.name": "gpt-4o",
             "entity.2.type": "model.llm.gpt-4o",
-            "scope.agentic.request": "0xd306e6dd0bd7a2793602af5b32a95966",
-            "scope.agentic.invocation": "0x404321370cd4fbbfe64f939b1f100c04",
-            "scope.None": "0xc428cdd8bb17d385894cd8ed614d27a1",
+            "scope.agentic.request": "0x8782e1164590ae90766dde880944bc19",
+            "scope.agentic.invocation": "0xe56e461f30e07bdbe3700d18d11fbf86",
+            "scope.None": "0xbdab8df2fc3b58ac59f5aca08daf5b06",
             "entity.count": 2
         },
         "events": [
             {
                 "name": "data.input",
-                "timestamp": "2025-08-21T03:56:18.537639Z",
+                "timestamp": "2025-08-21T16:26:18.929819Z",
                 "attributes": {
                     "input": [
-                        "{\"system\": \"You are a flight booking specialist. Use the book_flight_tool to book flights and get_weather to check weather at destinations.\"}",
-                        "{\"user\": \"I need to book a flight from NYC to LAX and also book the Hilton hotel in Los Angeles. Also check the weather in Los Angeles and New York to help with travel planning.\"}",
-                        "{\"tool_function\": \"transfer_to_flight_agent\", \"tool_arguments\": \"{}\", \"call_id\": \"call_Jm1qKQEB0w9ciO8SS9DSdqdi\"}",
-                        "{\"tool_function\": \"transfer_to_hotel_agent\", \"tool_arguments\": \"{}\", \"call_id\": \"call_xF9O77yTo5UtbISlH7W4rJpg\"}",
-                        "{\"tool_function\": \"get_weather\", \"tool_arguments\": \"{\\\"city\\\":\\\"Los Angeles\\\"}\", \"call_id\": \"call_0UOPf7l02UoL7OTdMgJPbess\"}",
-                        "{\"tool_function\": \"get_weather\", \"tool_arguments\": \"{\\\"city\\\":\\\"New York\\\"}\", \"call_id\": \"call_Z0tZvPw5h5uYFMG2dYh1TPBS\"}",
-                        "{\"call_id\": \"call_0UOPf7l02UoL7OTdMgJPbess\", \"output\": \"{\\\"type\\\":\\\"text\\\",\\\"text\\\":\\\"{\\\\n  \\\\\\\"temperature\\\\\\\": 63\\\\n}\\\",\\\"annotations\\\":null,\\\"meta\\\":null}\"}",
-                        "{\"call_id\": \"call_Z0tZvPw5h5uYFMG2dYh1TPBS\", \"output\": \"{\\\"type\\\":\\\"text\\\",\\\"text\\\":\\\"{\\\\n  \\\\\\\"temperature\\\\\\\": 43\\\\n}\\\",\\\"annotations\\\":null,\\\"meta\\\":null}\"}",
-                        "{\"call_id\": \"call_xF9O77yTo5UtbISlH7W4rJpg\", \"output\": \"Multiple handoffs detected, ignoring this one.\"}",
-                        "{\"call_id\": \"call_Jm1qKQEB0w9ciO8SS9DSdqdi\", \"output\": \"{\\\"assistant\\\": \\\"Flight Agent\\\"}\"}",
-                        "{\"tool_function\": \"book_flight_tool\", \"tool_arguments\": \"{\\\"from_airport\\\":\\\"JFK\\\",\\\"to_airport\\\":\\\"LAX\\\"}\", \"call_id\": \"call_CzrlGOLcLqLZOsWqnbMlOpt2\"}",
-                        "{\"call_id\": \"call_CzrlGOLcLqLZOsWqnbMlOpt2\", \"output\": \"Successfully booked a flight from JFK to LAX for 100 USD.\"}"
+                        "{\"system\": \"You are a weather information specialist. Use the available weather tools to provide accurate weather information for cities.\"}",
+                        "{\"user\": \"What's the weather like in New York, London, and Tokyo? Please provide the temperature for each city.\"}",
+                        "{\"tool_function\": \"get_weather\", \"tool_arguments\": \"{\\\"city\\\":\\\"New York\\\"}\", \"call_id\": \"call_5Df3Kw4o8waaegojGzVG538C\"}",
+                        "{\"tool_function\": \"get_weather\", \"tool_arguments\": \"{\\\"city\\\":\\\"London\\\"}\", \"call_id\": \"call_j2atS0kM1GsWDKnVpYe4qEOn\"}",
+                        "{\"tool_function\": \"get_weather\", \"tool_arguments\": \"{\\\"city\\\":\\\"Tokyo\\\"}\", \"call_id\": \"call_wbOF9iMqzmR3pKt9S3vKedps\"}",
+                        "{\"call_id\": \"call_5Df3Kw4o8waaegojGzVG538C\", \"output\": \"{\\\"type\\\":\\\"text\\\",\\\"text\\\":\\\"{\\\\n  \\\\\\\"temperature\\\\\\\": 95\\\\n}\\\",\\\"annotations\\\":null,\\\"meta\\\":null}\"}",
+                        "{\"call_id\": \"call_j2atS0kM1GsWDKnVpYe4qEOn\", \"output\": \"{\\\"type\\\":\\\"text\\\",\\\"text\\\":\\\"{\\\\n  \\\\\\\"temperature\\\\\\\": 85\\\\n}\\\",\\\"annotations\\\":null,\\\"meta\\\":null}\"}",
+                        "{\"call_id\": \"call_wbOF9iMqzmR3pKt9S3vKedps\", \"output\": \"{\\\"type\\\":\\\"text\\\",\\\"text\\\":\\\"{\\\\n  \\\\\\\"temperature\\\\\\\": 98\\\\n}\\\",\\\"annotations\\\":null,\\\"meta\\\":null}\"}"
                     ]
                 }
             },
             {
                 "name": "data.output",
-                "timestamp": "2025-08-21T03:56:18.537729Z",
+                "timestamp": "2025-08-21T16:26:18.929855Z",
                 "attributes": {
                     "error_code": "completed",
-                    "response": "{\"assistant\": \"Here's the travel information:\\n\\n- **Flight**: Booked from JFK (New York) to LAX (Los Angeles) for 100 USD.\\n- **Weather**:\\n  - **Los Angeles**: 63\\u00b0F\\n  - **New York**: 43\\u00b0F\\n\\nFor the Hilton hotel booking, please proceed with the hotel reservation agent or website. Let me know if there's anything else you need!\"}"
+                    "response": "{\"assistant\": \"Here are the current temperatures for each city:\\n\\n- **New York**: 95\\u00b0F\\n- **London**: 85\\u00b0F\\n- **Tokyo**: 98\\u00b0F\"}"
                 }
             },
             {
                 "name": "metadata",
-                "timestamp": "2025-08-21T03:56:18.537857Z",
+                "timestamp": "2025-08-21T16:26:18.929909Z",
                 "attributes": {
-                    "completion_tokens": 85,
-                    "prompt_tokens": 406,
-                    "total_tokens": 491,
+                    "completion_tokens": 38,
+                    "prompt_tokens": 275,
+                    "total_tokens": 313,
                     "inference_sub_type": "turn_end"
                 }
             }
@@ -649,14 +539,14 @@
     {
         "name": "agents.run.AgentRunner._run_single_turn",
         "context": {
-            "trace_id": "0x2338c0a07c635b1b86f12879738713f2",
-            "span_id": "0xcfa9d210e34b27b0",
+            "trace_id": "0x63f2b9e4e70e0e0dbc3c9cf9d67641b1",
+            "span_id": "0xd220fd0e5187bdb4",
             "trace_state": "[]"
         },
         "kind": "SpanKind.INTERNAL",
-        "parent_id": "0xd56ff82d8e0603bb",
-        "start_time": "2025-08-21T03:56:16.338701Z",
-        "end_time": "2025-08-21T03:56:18.544750Z",
+        "parent_id": "0x795d02a1fc019ea5",
+        "start_time": "2025-08-21T16:26:16.900646Z",
+        "end_time": "2025-08-21T16:26:18.930389Z",
         "status": {
             "status_code": "OK"
         },
@@ -666,32 +556,33 @@
             "span_source": "/Users/kshitizvijayvargiya/monocle-ksh/.venv/lib/python3.11/site-packages/agents/run.py:434",
             "workflow.name": "agents_sdk_test",
             "span.type": "agentic.invocation",
+            "span.subtype": "routing",
             "entity.1.type": "agent.openai_agents",
-            "entity.1.name": "Flight Agent",
+            "entity.1.name": "Weather Assistant",
             "entity.1.description": "None",
-            "entity.1.instructions": "You are a flight booking specialist. Use the book_flight_tool to book flights and get_weather to check weather at destinations.",
-            "scope.agentic.request": "0xd306e6dd0bd7a2793602af5b32a95966",
-            "scope.agentic.invocation": "0x404321370cd4fbbfe64f939b1f100c04",
+            "entity.1.instructions": "You are a weather information specialist. Use the available weather tools to provide accurate weather information for cities.",
+            "scope.agentic.request": "0x8782e1164590ae90766dde880944bc19",
+            "scope.agentic.invocation": "0xe56e461f30e07bdbe3700d18d11fbf86",
             "entity.count": 1
         },
         "events": [
             {
                 "name": "data.input",
-                "timestamp": "2025-08-21T03:56:18.544677Z",
+                "timestamp": "2025-08-21T16:26:18.930360Z",
                 "attributes": {
-                    "query": "I need to book a flight from NYC to LAX and also book the Hilton hotel in Los Angeles. Also check the weather in Los Angeles and New York to help with travel planning."
+                    "query": "What's the weather like in New York, London, and Tokyo? Please provide the temperature for each city."
                 }
             },
             {
                 "name": "data.output",
-                "timestamp": "2025-08-21T03:56:18.544700Z",
+                "timestamp": "2025-08-21T16:26:18.930369Z",
                 "attributes": {
-                    "response": "Here's the travel information:\n\n- **Flight**: Booked from JFK (New York) to LAX (Los Angeles) for 100 USD.\n- **Weather**:\n  - **Los Angeles**: 63\u00b0F\n  - **New York**: 43\u00b0F\n\nFor the Hilton hotel booking, please proceed with the hotel reservation agent or website. Let me know if there's anything else you need!"
+                    "response": "Here are the current temperatures for each city:\n\n- **New York**: 95\u00b0F\n- **London**: 85\u00b0F\n- **Tokyo**: 98\u00b0F"
                 }
             },
             {
                 "name": "metadata",
-                "timestamp": "2025-08-21T03:56:18.544713Z",
+                "timestamp": "2025-08-21T16:26:18.930375Z",
                 "attributes": {}
             }
         ],
@@ -706,40 +597,41 @@
     {
         "name": "agents.run.Runner.run",
         "context": {
-            "trace_id": "0x2338c0a07c635b1b86f12879738713f2",
-            "span_id": "0xd56ff82d8e0603bb",
+            "trace_id": "0x63f2b9e4e70e0e0dbc3c9cf9d67641b1",
+            "span_id": "0x795d02a1fc019ea5",
             "trace_state": "[]"
         },
         "kind": "SpanKind.INTERNAL",
-        "parent_id": "0xe6d4bc329bc4ac64",
-        "start_time": "2025-08-21T03:56:12.639916Z",
-        "end_time": "2025-08-21T03:56:18.545014Z",
+        "parent_id": "0x5af5d676fcf41b79",
+        "start_time": "2025-08-21T16:26:11.971423Z",
+        "end_time": "2025-08-21T16:26:18.930478Z",
         "status": {
             "status_code": "OK"
         },
         "attributes": {
             "monocle_apptrace.version": "0.5.0",
             "monocle_apptrace.language": "python",
-            "span_source": "/Users/kshitizvijayvargiya/monocle-ksh/tests/integration/test_openai_agents_sdk.py:132",
+            "span_source": "/Users/kshitizvijayvargiya/monocle-ksh/tests/integration/test_openai_agents_sdk.py:234",
             "workflow.name": "agents_sdk_test",
             "span.type": "agentic.request",
+            "span.subtype": "planning",
             "entity.1.type": "agent.openai_agents",
-            "scope.agentic.request": "0xd306e6dd0bd7a2793602af5b32a95966",
+            "scope.agentic.request": "0x8782e1164590ae90766dde880944bc19",
             "entity.count": 1
         },
         "events": [
             {
                 "name": "data.input",
-                "timestamp": "2025-08-21T03:56:18.544979Z",
+                "timestamp": "2025-08-21T16:26:18.930462Z",
                 "attributes": {
-                    "input": "I need to book a flight from NYC to LAX and also book the Hilton hotel in Los Angeles. Also check the weather in Los Angeles and New York to help with travel planning."
+                    "input": "What's the weather like in New York, London, and Tokyo? Please provide the temperature for each city."
                 }
             },
             {
                 "name": "data.output",
-                "timestamp": "2025-08-21T03:56:18.544994Z",
+                "timestamp": "2025-08-21T16:26:18.930468Z",
                 "attributes": {
-                    "response": "Here's the travel information:\n\n- **Flight**: Booked from JFK (New York) to LAX (Los Angeles) for 100 USD.\n- **Weather**:\n  - **Los Angeles**: 63\u00b0F\n  - **New York**: 43\u00b0F\n\nFor the Hilton hotel booking, please proceed with the hotel reservation agent or website. Let me know if there's anything else you need!"
+                    "response": "Here are the current temperatures for each city:\n\n- **New York**: 95\u00b0F\n- **London**: 85\u00b0F\n- **Tokyo**: 98\u00b0F"
                 }
             }
         ],
@@ -754,22 +646,22 @@
     {
         "name": "workflow",
         "context": {
-            "trace_id": "0x2338c0a07c635b1b86f12879738713f2",
-            "span_id": "0xe6d4bc329bc4ac64",
+            "trace_id": "0x63f2b9e4e70e0e0dbc3c9cf9d67641b1",
+            "span_id": "0x5af5d676fcf41b79",
             "trace_state": "[]"
         },
         "kind": "SpanKind.INTERNAL",
         "parent_id": null,
-        "start_time": "2025-08-21T03:56:12.639838Z",
-        "end_time": "2025-08-21T03:56:18.545047Z",
+        "start_time": "2025-08-21T16:26:11.971376Z",
+        "end_time": "2025-08-21T16:26:18.930493Z",
         "status": {
             "status_code": "OK"
         },
         "attributes": {
             "monocle_apptrace.version": "0.5.0",
             "monocle_apptrace.language": "python",
-            "span_source": "/Users/kshitizvijayvargiya/monocle-ksh/tests/integration/test_openai_agents_sdk.py:132",
-            "scope.agentic.request": "0xd306e6dd0bd7a2793602af5b32a95966",
+            "span_source": "/Users/kshitizvijayvargiya/monocle-ksh/tests/integration/test_openai_agents_sdk.py:234",
+            "scope.agentic.request": "0x8782e1164590ae90766dde880944bc19",
             "workflow.name": "agents_sdk_test",
             "span.type": "workflow",
             "entity.1.name": "agents_sdk_test",

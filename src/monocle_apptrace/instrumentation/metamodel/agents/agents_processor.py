@@ -150,12 +150,6 @@ class AgentsSpanHandler(BaseSpanHandler):
             detach(self.agent_context_token)
             self.agent_context_token = None
 
-    # def get_mcp_servers(instance):
-    #     """Get the MCP servers associated with the agent."""
-    #     if hasattr(instance, "mcp_servers"):
-    #         return instance.mcp_servers
-    #     return []
-
     def pre_task_processing(
         self, to_wrap, wrapped, instance, args, kwargs, *args1, **kwargs1
     ):

@@ -3,6 +3,7 @@ from monocle_apptrace.instrumentation.metamodel.agents.entities.inference import
     AGENT,
     AGENT_DELEGATION,
     TOOLS,
+    AGENT_REQUEST
 )
 from monocle_apptrace.instrumentation.metamodel.agents.agents_processor import (
     constructor_wrapper,
@@ -17,7 +18,7 @@ AGENTS_METHODS = [
         "method": "run",
         "wrapper_method": atask_wrapper,
         "span_handler": "agents_agent_handler",
-        "output_processor": AGENT,
+        "output_processor": AGENT_REQUEST,
     },
     {
         "package": "agents.run",
@@ -25,7 +26,7 @@ AGENTS_METHODS = [
         "method": "run_sync",
         "wrapper_method": task_wrapper,
         "span_handler": "agents_agent_handler",
-        "output_processor": AGENT,
+        "output_processor": AGENT_REQUEST,
     },
     # AgentRunner class methods (internal runner)
     {

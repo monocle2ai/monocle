@@ -92,6 +92,7 @@ CHILD_ERROR_CODE = "child.error.code"
 
 AGENT_PREFIX_KEY = "monocle.agent.prefix"
 
+# agentic sub types
 INFERENCE_AGENT_DELEGATION = "delegation"
 INFERENCE_TOOL_CALL = "tool_call"
 INFERENCE_COMMUNICATION = "turn"
@@ -101,3 +102,78 @@ AGENT_INVOCATION_SPAN_NAME = "agentic.invocation"
 AGENT_REQUEST_SPAN_NAME = "agentic.request"
 
 AGENTIC_SPANS = [AGENT_INVOCATION_SPAN_NAME, AGENT_REQUEST_SPAN_NAME]
+
+# Span sub types
+
+## OPTIONAL right next to span.type,  span.subtype:
+## subtype is one perspective , are non overlapping, limitations: only one classification scheme for subtypes
+#1 planning
+SPAN_SUBTYPE_PLANNING = "planning"
+
+#2 routing and selection INFERENCE_TOOL_CALL, INFERENCE_AGENT_DELEGATION
+SPAN_SUBTYPE_ROUTING = "routing"
+
+#3 content processing
+SPAN_SUBTYPE_CONTENT_PROCESSING = "content_processing"
+
+#4 content generation
+SPAN_SUBTYPE_CONTENT_GENERATION = "content_generation"
+
+#5 communication INFERENCE_COMMUNICATION
+SPAN_SUBTYPE_COMMUNICATION = "communication"
+
+#6 transformations , if structured output
+SPAN_SUBTYPE_TRANSFORMATIONS = "transformations"
+
+#7 domain specific,
+SPAN_SUBTYPE_DOMAIN_SPECIFIC = "domain_specific"
+
+#8 generic (we may skip this property)
+SPAN_SUBTYPE_GENERIC = "generic"
+
+# ALL span.type:
+# generic
+
+# agentic.delegation
+# agentic.tool.invocation
+# agentic.invocation
+# agentic.mcp.invocation
+# agentic.request(TBD**)
+
+# RAG pattern => text => embedding => search
+# embedding (explicit embedding)
+# retrieval (there is implicit embedding, may not be instrumented separately)
+
+# workflow
+# inference.*( "", framework, modelapi) 
+
+# http.send
+# http.process
+
+## OPTIONAL right next to span.type,  span.subtype:
+## subtype is one perspective , are non overlapping, limitations: only one classification scheme for subtypes
+#1 planning
+#2 routing and selection INFERENCE_TOOL_CALL, INFERENCE_AGENT_DELEGATION
+#3 content processing
+#4 content generation
+#5 communication INFERENCE_COMMUNICATION
+#6 transformations , if structured output
+#7 domain specific, 
+#8 generic (we may skip this property)
+
+# agent as tools in openai agents sdk etc.
+
+
+##
+# {
+#                 "name": "metadata",
+#                 "timestamp": "2025-07-25T04:19:12.769541Z",
+#                 "attributes": {
+#                     "completion_tokens": 15,
+#                     "prompt_tokens": 269,
+#                     "total_tokens": 284,
+#                     "finish_reason": "tool_calls",
+#                     "finish_type": "success",
+#                     "agentic_type": "agent_as_tool_call" ##TBD
+#                 }
+#             }

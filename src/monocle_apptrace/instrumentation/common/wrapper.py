@@ -86,21 +86,31 @@ def monocle_wrapper_span_processor(tracer: Tracer, handler: SpanHandler, to_wrap
                 span.end()
         else:
             ex:Exception = None
-            try:
-                with SpanHandler.workflow_type(to_wrap, span):
-                    return_value = wrapped(*args, **kwargs)
-            except Exception as e:
-                ex = e
-                raise
-            finally:
-                def post_process_span_internal(ret_val):
-                    post_process_span(handler, to_wrap, wrapped, instance, args, kwargs, ret_val, span, parent_span ,ex)
-                    if not auto_close_span:
-                        span.end()
-                if ex is None and not auto_close_span and to_wrap.get("output_processor") and to_wrap.get("output_processor").get("response_processor"):
-                    to_wrap.get("output_processor").get("response_processor")(to_wrap, return_value, post_process_span_internal)
-                else:
+            to_wrap = get_wrapper_with_next_processor(to_wrap, handler, instance, args, kwargs)
+            if has_more_processors(to_wrap):
+                try:
+                    return_value, span_status = monocle_wrapper_span_processor(tracer, handler, to_wrap, wrapped, instance, source_path, False, args, kwargs)
+                except Exception as e:
+                    ex = e
+                    raise
+                finally:
                     post_process_span_internal(return_value)
+            else:
+                try:
+                    with SpanHandler.workflow_type(to_wrap, span):
+                        return_value = wrapped(*args, **kwargs)
+                except Exception as e:
+                    ex = e
+                    raise
+                finally:
+                    def post_process_span_internal(ret_val):
+                        post_process_span(handler, to_wrap, wrapped, instance, args, kwargs, ret_val, span, parent_span ,ex)
+                        if not auto_close_span:
+                            span.end()
+                    if ex is None and not auto_close_span and to_wrap.get("output_processor") and to_wrap.get("output_processor").get("response_processor"):
+                        to_wrap.get("output_processor").get("response_processor")(to_wrap, return_value, post_process_span_internal)
+                    else:
+                        post_process_span_internal(return_value)
             span_status = span.status
     return return_value, span_status
 
@@ -149,21 +159,31 @@ async def amonocle_wrapper_span_processor(tracer: Tracer, handler: SpanHandler, 
                 span.end()
         else:
             ex:Exception = None
-            try:
-                with SpanHandler.workflow_type(to_wrap, span):
-                    return_value = await wrapped(*args, **kwargs)
-            except Exception as e:
-                ex = e
-                raise
-            finally:
-                def post_process_span_internal(ret_val):
-                    post_process_span(handler, to_wrap, wrapped, instance, args, kwargs, ret_val, span, parent_span, ex)
-                    if not auto_close_span:
-                        span.end()
-                if ex is None and not auto_close_span and to_wrap.get("output_processor") and to_wrap.get("output_processor").get("response_processor"):
-                    to_wrap.get("output_processor").get("response_processor")(to_wrap, return_value, post_process_span_internal)
-                else:
+            to_wrap = get_wrapper_with_next_processor(to_wrap, handler, instance, args, kwargs)
+            if has_more_processors(to_wrap):
+                try:
+                    return_value, span_status = await amonocle_wrapper_span_processor(tracer, handler, to_wrap, wrapped, instance, source_path, False, args, kwargs)
+                except Exception as e:
+                    ex = e
+                    raise
+                finally:
                     post_process_span_internal(return_value)
+            else:
+                try:
+                    with SpanHandler.workflow_type(to_wrap, span):
+                        return_value = await wrapped(*args, **kwargs)
+                except Exception as e:
+                    ex = e
+                    raise
+                finally:
+                    def post_process_span_internal(ret_val):
+                        post_process_span(handler, to_wrap, wrapped, instance, args, kwargs, ret_val, span, parent_span, ex)
+                        if not auto_close_span:
+                            span.end()
+                    if ex is None and not auto_close_span and to_wrap.get("output_processor") and to_wrap.get("output_processor").get("response_processor"):
+                        to_wrap.get("output_processor").get("response_processor")(to_wrap, return_value, post_process_span_internal)
+                    else:
+                        post_process_span_internal(return_value)
         span_status = span.status
     return return_value, span_status
 

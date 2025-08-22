@@ -2,18 +2,18 @@ import logging
 import inspect
 from typing import Dict, List, Optional, Any
 from functools import wraps
-import inspect
-from opentelemetry.context import attach, get_current, detach
-from opentelemetry.sdk.trace import Span
-from opentelemetry.trace.span import INVALID_SPAN
-from opentelemetry.trace import get_tracer
-from contextlib import asynccontextmanager, contextmanager
+from contextlib import contextmanager, asynccontextmanager
+from opentelemetry.context import Context
+from monocle_apptrace.instrumentation.common.utils import (
+    set_scope, remove_scope, http_route_handler, http_async_route_handler
+)
 
-from monocle_apptrace.instrumentation.common.utils import remove_scope, set_scope
 logger = logging.getLogger(__name__)
+
 def start_scope(
     scope_name: str, 
-    scope_value: Optional[str] = None
+    scope_value: Optional[str] = None,
+    context:  Optional[Context] = None
 ) -> object:
     """
     Start a new scope with the given name and optional value. If no value is provided, a random UUID will be generated.
@@ -28,7 +28,7 @@ def start_scope(
     """
     try:
         # Set the scope using existing utility
-        token = set_scope(scope_name, scope_value)
+        token = set_scope(scope_name, scope_value, context)
         return token
     except Exception as e:
         logger.warning(f"Failed to start scope: {e}")
@@ -53,6 +53,8 @@ def stop_scope(
         logger.warning(f"Failed to stop scope: {e}")
     return
 
+
+
 @contextmanager
 def monocle_trace_scope(
     scope_name: str, 
@@ -65,7 +67,9 @@ def monocle_trace_scope(
         scope_name: The name of the scope.
         scope_value: Optional value of the scope. If None, a random UUID will be generated.
     """
-    token = start_scope(scope_name, scope_value)
+    token = None
+    if scope_name:
+        token = start_scope(scope_name, scope_value)
     try:
         yield
     finally:
@@ -88,7 +92,7 @@ async def amonocle_trace_scope(
         yield
     finally:
         stop_scope(token)
-
+    
 def monocle_trace_scope_method(
     scope_name: str, 
     scope_value: Optional[str] = None

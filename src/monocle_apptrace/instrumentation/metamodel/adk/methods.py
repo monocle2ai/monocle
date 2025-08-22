@@ -1,6 +1,6 @@
 from monocle_apptrace.instrumentation.common.wrapper import task_wrapper, atask_wrapper, atask_iter_wrapper
 from monocle_apptrace.instrumentation.metamodel.adk.entities.agent import (
-    AGENT,
+    AGENT, REQUEST
 )
 from monocle_apptrace.instrumentation.metamodel.adk.entities.tool import (
     TOOL
@@ -20,5 +20,12 @@ ADK_METHODS = [
       "method": "run_async",
       "wrapper_method": atask_wrapper,
       "output_processor": TOOL,
+    },
+    {
+      "package": "google.adk.runners",
+      "object": "Runner",
+      "method": "run_async",
+      "wrapper_method": atask_iter_wrapper,
+      "output_processor": REQUEST,
     }
 ]

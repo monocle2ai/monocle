@@ -66,12 +66,13 @@ def verify_scopes():
             span_input, span_output = span.events
             assert span_attributes.get("entity.1.method").lower() == "get"
             assert span_attributes.get("entity.1.URL") is not None
-            assert span_output.attributes['status'] == "200"
+            assert span_output.attributes['error_code'] == "200"
         if span_attributes.get("span.type", "") == "http.process":
             span_input, span_output = span.events
             assert span_attributes.get("entity.1.method").lower() == "get"
             assert span_attributes.get("entity.1.route") is not None
-            assert span_output.attributes['status'] == "200"
+            assert span_attributes.get("entity.1.url") is not None
+            assert span_output.attributes['error_code'] == "200"
         if trace_id is None:
             trace_id = span.context.trace_id
         else:

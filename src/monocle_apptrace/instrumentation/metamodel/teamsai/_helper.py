@@ -100,7 +100,7 @@ def status_check(arguments):
     if hasattr(arguments["result"], "error") and arguments["result"].error is not None:
         error_msg:str = arguments["result"].error
         error_code:str = arguments["result"].status if hasattr(arguments["result"], "status") else "unknown"
-        raise MonocleSpanException(f"Error: {error_code} - {error_msg}")
+        raise MonocleSpanException(f"Error: {error_code} - {error_msg}", error_code)
 
 def get_prompt_template(arguments):
     pass
@@ -152,7 +152,7 @@ def extract_status_code(arguments):
 def check_status(arguments):
     status = get_status_code(arguments)
     if status != 'success' and arguments['exception'] is None:
-        raise MonocleSpanException(f"{status}")   
+        raise MonocleSpanException(f"{status}", status)
 
 def map_finish_reason_to_finish_type(finish_reason):
     """Map TeamsAI finish_reason to standardized finish_type."""

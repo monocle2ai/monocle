@@ -1,9 +1,10 @@
+from monocle_apptrace.instrumentation.common.constants import SPAN_TYPES
 from monocle_apptrace.instrumentation.metamodel.llamaindex import (
     _helper,
 )
 
 RETRIEVAL = {
-    "type": "retrieval",
+    "type": SPAN_TYPES.RETRIEVAL,
     "attributes": [
         [
             {

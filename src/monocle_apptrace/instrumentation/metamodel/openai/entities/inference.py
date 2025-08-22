@@ -2,6 +2,7 @@ import logging
 import random
 import time
 from types import SimpleNamespace
+from monocle_apptrace.instrumentation.common.constants import SPAN_TYPES
 from monocle_apptrace.instrumentation.metamodel.openai import (
     _helper,
 )
@@ -165,7 +166,7 @@ def process_stream(to_wrap, response, span_processor):
 
 
 INFERENCE = {
-    "type": "inference",
+    "type": SPAN_TYPES.INFERENCE,
     "is_auto_close": lambda kwargs: kwargs.get("stream", False) is False,
     "response_processor": process_stream,
     "attributes": [

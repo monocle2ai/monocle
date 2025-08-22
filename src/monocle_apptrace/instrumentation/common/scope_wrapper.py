@@ -54,6 +54,7 @@ def stop_scope(
     return
 
 
+
 @contextmanager
 def monocle_trace_scope(
     scope_name: str, 

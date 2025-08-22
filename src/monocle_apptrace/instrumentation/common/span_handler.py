@@ -65,6 +65,8 @@ class SpanHandler:
             span.set_attribute("span.type", span_type)
         else:
             logger.warning("type of span not found or incorrect written in entity json")
+        if "subtype" in output_processor:
+            span.set_attribute("span.subtype", output_processor["subtype"])
         return span_type
 
     def pre_task_processing(self, to_wrap, wrapped, instance, args,kwargs, span):

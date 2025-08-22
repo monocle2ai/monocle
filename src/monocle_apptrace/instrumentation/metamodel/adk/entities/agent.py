@@ -48,3 +48,38 @@ AGENT = {
         }
       ]
     }
+
+REQUEST = {
+      "type": "agentic.request",
+      "attributes": [
+        [
+              {
+                "_comment": "agent type",
+                "attribute": "type",
+                "accessor": lambda arguments:'agent.adk'
+              }
+        ],
+      ],
+      "events": [
+        {
+          "name":"data.input",
+          "attributes": [
+            {
+                "_comment": "this is Agent input",
+                "attribute": "input",
+                "accessor": lambda arguments: _helper.extract_agent_request_input(arguments)
+            }
+          ]
+        },
+        {
+          "name":"data.output",
+          "attributes": [
+            {
+                "_comment": "this is response from LLM",
+                "attribute": "response",
+                "accessor": lambda arguments: _helper.extract_agent_response(arguments['result'])
+            }
+          ]
+        }
+      ]
+}

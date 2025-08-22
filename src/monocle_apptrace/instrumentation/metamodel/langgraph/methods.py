@@ -11,6 +11,7 @@ LANGGRAPH_METHODS = [
         "method": "invoke",
         "wrapper_method": task_wrapper,
         "span_handler": "langgraph_agent_handler",
+        "scope_name": "agent.invocation",
         "output_processor": AGENT,
     },
     {
@@ -19,6 +20,7 @@ LANGGRAPH_METHODS = [
         "method": "ainvoke",
         "wrapper_method": atask_wrapper,
         "span_handler": "langgraph_agent_handler",
+        "scope_name": "agent.invocation",
         "output_processor": AGENT,
     },
     {

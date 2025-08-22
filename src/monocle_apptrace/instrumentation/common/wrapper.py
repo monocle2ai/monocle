@@ -20,7 +20,9 @@ from monocle_apptrace.instrumentation.common.utils import (
     get_current_monocle_span,
     set_monocle_span_in_context
 )
-from monocle_apptrace.instrumentation.common.constants import WORKFLOW_TYPE_KEY, ADD_NEW_WORKFLOW
+from monocle_apptrace.instrumentation.common.constants import WORKFLOW_TYPE_KEY, ADD_NEW_WORKFLOW, AGENTIC_SPANS
+from monocle_apptrace.instrumentation.common.scope_wrapper import monocle_trace_scope
+
 logger = logging.getLogger(__name__)
 ISOLATE_MONOCLE_SPANS = os.getenv("MONOCLE_ISOLATE_SPANS", "true").lower() == "true"
 
@@ -117,7 +119,8 @@ def monocle_wrapper(tracer: Tracer, handler: SpanHandler, to_wrap, wrapped, inst
             add_workflow_span = get_value(ADD_NEW_WORKFLOW) == True
             token = attach(set_value(ADD_NEW_WORKFLOW, False))
             try:
-                return_value, span_status = monocle_wrapper_span_processor(tracer, handler, to_wrap, wrapped, instance, source_path, add_workflow_span, args, kwargs)
+                with monocle_trace_scope(get_builtin_scope_names(to_wrap)):
+                    return_value, span_status = monocle_wrapper_span_processor(tracer, handler, to_wrap, wrapped, instance, source_path, add_workflow_span, args, kwargs)
             finally:
                 detach(token)
         return return_value
@@ -218,7 +221,8 @@ async def amonocle_wrapper(tracer: Tracer, handler: SpanHandler, to_wrap, wrappe
             add_workflow_span = get_value(ADD_NEW_WORKFLOW) == True
             token = attach(set_value(ADD_NEW_WORKFLOW, False))
             try:
-                return_value, span_status = await amonocle_wrapper_span_processor(tracer, handler, to_wrap, wrapped, instance, source_path, 
+                with monocle_trace_scope(get_builtin_scope_names(to_wrap)):
+                    return_value, span_status = await amonocle_wrapper_span_processor(tracer, handler, to_wrap, wrapped, instance, source_path, 
                                                                         add_workflow_span, args, kwargs)
             finally:
                 detach(token)
@@ -244,8 +248,9 @@ async def amonocle_iter_wrapper(tracer: Tracer, handler: SpanHandler, to_wrap, w
             add_workflow_span = get_value(ADD_NEW_WORKFLOW) == True
             token = attach(set_value(ADD_NEW_WORKFLOW, False))
             try:
-                async for item in amonocle_iter_wrapper_span_processor(tracer, handler, to_wrap, wrapped, instance, source_path, add_workflow_span, args, kwargs):
-                    yield item
+                with monocle_trace_scope(get_builtin_scope_names(to_wrap)):
+                    async for item in amonocle_iter_wrapper_span_processor(tracer, handler, to_wrap, wrapped, instance, source_path, add_workflow_span, args, kwargs):
+                        yield item
             finally:
                 detach(token)
         return
@@ -351,3 +356,10 @@ def start_as_monocle_span(tracer: Tracer, name: str, auto_close_span: bool) -> I
         detach(original_span_token)
         detach(new_monocle_token)
     detach(monocle_span_token)
+
+def get_builtin_scope_names(to_wrap) -> str:
+    output_processor = to_wrap.get("output_processor", None)
+    span_type = output_processor.get("type", None) if output_processor else None
+    if span_type and span_type in AGENTIC_SPANS:
+        return span_type
+    return None

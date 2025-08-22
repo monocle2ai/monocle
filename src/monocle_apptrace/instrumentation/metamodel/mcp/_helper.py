@@ -37,7 +37,8 @@ def get_output_text(arguments):
 
 def get_name(arguments):
     """Get the name of the tool from the instance."""
-
+    if 'parent_span' in arguments:
+        arguments['parent_span'].set_attribute("is_mcp", True)
     args = arguments["args"]
     if (
         args

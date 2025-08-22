@@ -42,7 +42,6 @@ AGENTS_METHODS = [
         "object": "FunctionTool",
         "method": "__init__",  # Empty string means wrap the function itself
         "wrapper_method": constructor_wrapper,
-        "span_handler": "agents_tool_handler",
         "output_processor": TOOLS,
     },
     {
@@ -50,7 +49,6 @@ AGENTS_METHODS = [
         "object": "Handoff",
         "method": "__init__",  # Empty string means wrap the function itself
         "wrapper_method": handoff_constructor_wrapper,
-        "span_handler": "agents_tool_handler",
         "output_processor": AGENT_DELEGATION,
     },
 ]

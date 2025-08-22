@@ -84,6 +84,18 @@ def extract_agent_input(arguments: Dict[str, Any]) -> Any:
     """
     return arguments['args'][0].user_content.parts[0].text
 
+def extract_agent_request_input(arguments: Dict[str, Any]) -> Any:
+    """
+    Extract the input data from agent request.
+
+    Args:
+        arguments: Dictionary containing agent call arguments
+
+    Returns:
+        Any: The extracted input data
+    """
+    return arguments['kwargs']['new_message'].parts[0].text if 'new_message' in arguments['kwargs'] else None
+
 def extract_agent_response(result: Any) -> Any:
     """
     Extract the response data from agent result.

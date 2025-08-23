@@ -10,6 +10,7 @@ from opentelemetry.context import set_value, attach, detach, get_value
 from opentelemetry.context import create_key, get_value, set_value
 from opentelemetry.context.context import Context
 from opentelemetry.trace.span import INVALID_SPAN, Span
+from opentelemetry.trace.status import StatusCode
 
 from monocle_apptrace.instrumentation.common.span_handler import SpanHandler
 from monocle_apptrace.instrumentation.common.utils import (
@@ -81,7 +82,7 @@ def monocle_wrapper_span_processor(tracer: Tracer, handler: SpanHandler, to_wrap
         if SpanHandler.is_root_span(span) or add_workflow_span:
             # Recursive call for the actual span
             return_value, span_status = monocle_wrapper_span_processor(tracer, handler, to_wrap, wrapped, instance, source_path, False, args, kwargs)
-            span.set_status(span_status)
+            span.set_status(StatusCode.OK)
             if not auto_close_span:
                 span.end()
         else:
@@ -154,7 +155,7 @@ async def amonocle_wrapper_span_processor(tracer: Tracer, handler: SpanHandler, 
         if SpanHandler.is_root_span(span) or add_workflow_span:
             # Recursive call for the actual span
             return_value, span_status = await amonocle_wrapper_span_processor(tracer, handler, to_wrap, wrapped, instance, source_path, False, args, kwargs)
-            span.set_status(span_status)
+            span.set_status(StatusCode.OK)
             if not auto_close_span:
                 span.end()
         else:
@@ -202,7 +203,7 @@ async def amonocle_iter_wrapper_span_processor(tracer: Tracer, handler: SpanHand
             # Recursive call for the actual span
             async for item in amonocle_iter_wrapper_span_processor(tracer, handler, to_wrap, wrapped, instance, source_path, False, args, kwargs):
                 yield item
-
+            span.set_status(StatusCode.OK)
             if not auto_close_span:
                 span.end()
         else:

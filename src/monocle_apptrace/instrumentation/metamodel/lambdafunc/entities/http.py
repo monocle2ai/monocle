@@ -18,6 +18,11 @@ LAMBDA_HTTP_PROCESSOR = {
                 "attribute": "body",
                 "accessor": lambda arguments: _helper.get_body(arguments['args'])
             },
+        {
+                "_comment": "request method, request URI",
+                "attribute": "url",
+                "accessor": lambda arguments: _helper.get_url(arguments['args'])
+            },
         ]
     ],
     "events": [

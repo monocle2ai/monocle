@@ -23,6 +23,11 @@ AZFUNC_HTTP_PROCESSOR = {
                 "_comment": "request function name",
                 "attribute": "function_name",
                 "accessor": lambda arguments: _helper.get_function_name(arguments['kwargs'])
+            },
+            {
+                "_comment": "request function name",
+                "attribute": "url",
+                "accessor": lambda arguments: _helper.get_url(arguments['kwargs'])
             }
         ]
     ],

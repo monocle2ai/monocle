@@ -1,4 +1,11 @@
 
+## Version 0.5.1 (2025-08-25)
+
+- Support injecting synthetic spans and use that for adding delegation span in Google ADK ([#257](https://github.com/monocle2ai/monocle/pull/257))
+- Added monocle subtypes ([#256](https://github.com/monocle2ai/monocle/pull/256))
+- OpenAI agents request span ([#255](https://github.com/monocle2ai/monocle/pull/255))
+- Set scopes for agent request and invocation plus minor fixes ([#253](https://github.com/monocle2ai/monocle/pull/253))
+
 ## Version 0.4.2 (2025-06-26)
 
 - Add gemini instrumentation ([#220](https://github.com/monocle2ai/monocle/pull/220))

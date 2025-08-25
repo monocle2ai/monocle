@@ -157,6 +157,18 @@ def get_delegating_agent(arguments) -> str:
             return None
     return from_agent
 
+def should_skip_delegation(arguments):
+    """
+    Determine whether to skip the delegation based on the arguments.
+
+    Args:
+        arguments: Dictionary containing agent call arguments
+
+    Returns:
+        bool: True if delegation should be skipped, False otherwise
+    """
+    return get_delegating_agent(arguments) is None
+
 def extract_tool_input(arguments: Dict[str, Any]) -> Any:
     """
     Extract the input data from tool arguments.

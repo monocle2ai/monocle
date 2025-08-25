@@ -101,6 +101,17 @@ class SpanHandler:
     def post_task_processing(self, to_wrap, wrapped, instance, args, kwargs, result, ex, span:Span, parent_span:Span):
         pass
 
+    def should_skip(self, processor, instance, args, kwargs) -> bool:
+        should_skip = False
+        accessor = processor.get('should_skip')
+        if accessor:
+            arguments = {"instance":instance, "args":args, "kwargs":kwargs}
+            should_skip = accessor(arguments)
+            if not isinstance(should_skip, bool):
+                logger.warning("Warning: 'should_skip' accessor did not return a boolean value")
+                return True
+        return should_skip
+
     def hydrate_span(self, to_wrap, wrapped, instance, args, kwargs, result, span, parent_span = None, ex:Exception = None) -> bool:
         try:
             detected_error_in_attribute = self.hydrate_attributes(to_wrap, wrapped, instance, args, kwargs, result, span, parent_span)

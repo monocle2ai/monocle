@@ -34,21 +34,42 @@ def constructor_wrapper(
 
     original_func = kwargs.get("on_invoke_tool", None)
     result = None
+    mcp_url = None
+    # kwargs.get("on_invoke_tool").args[0].params["url"]
+    if (
+        kwargs.get("on_invoke_tool")
+        and hasattr(kwargs.get("on_invoke_tool"), "args")
+        and len(kwargs.get("on_invoke_tool").args) > 0
+        and hasattr(kwargs.get("on_invoke_tool").args[0], "params")
+    ):
+        mcp_url = kwargs.get("on_invoke_tool").args[0].params.get("url", None)
+        if mcp_url:
+            logger.debug(f"Using MCP URL: {mcp_url}")
     tool_instance = SimpleNamespace(
         name=kwargs.get("name", "unknown_tool"),
         description=kwargs.get("description", "No description provided"),
     )
     if original_func and not getattr(original_func, "_monocle_wrapped", False):
         # Now wrap the function with our instrumentation
+
         async def wrapped_func(*func_args, **func_kwargs):
-            # Use the handler to create spans when the decorated function is called
-            return await atask_wrapper(tracer=tracer, handler=handler, to_wrap=to_wrap)(
-                wrapped=original_func,
-                instance=tool_instance,
-                source_path=source_path,
-                args=func_args,
-                kwargs=func_kwargs,
-            )
+            token = None
+            try:
+                if mcp_url:
+                    token = attach(set_value("mcp.url", mcp_url))
+                # Use the handler to create spans when the decorated function is called
+                return await atask_wrapper(
+                    tracer=tracer, handler=handler, to_wrap=to_wrap
+                )(
+                    wrapped=original_func,
+                    instance=tool_instance,
+                    source_path=source_path,
+                    args=func_args,
+                    kwargs=func_kwargs,
+                )
+            finally:
+                if token:
+                    detach(token)
 
         kwargs["on_invoke_tool"] = wrapped_func
         # Preserve function metadata
@@ -150,3 +171,4 @@ class AgentsSpanHandler(BaseSpanHandler):
         return super().post_task_processing(
             to_wrap, wrapped, instance, args, kwargs, result, ex, span, parent_span
         )
+

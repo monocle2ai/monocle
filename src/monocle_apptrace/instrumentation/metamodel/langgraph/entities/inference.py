@@ -1,9 +1,11 @@
+from monocle_apptrace.instrumentation.common.constants import AGENT_REQUEST_SPAN_NAME, SPAN_SUBTYPES, SPAN_TYPES
 from monocle_apptrace.instrumentation.metamodel.langgraph import (
     _helper
 )
 
 AGENT = {
-      "type": "agentic.invocation",
+      "type": SPAN_TYPES.AGENTIC_INVOCATION,
+      "subtype": SPAN_SUBTYPES.ROUTING,
       "attributes": [
         [
               {
@@ -48,7 +50,8 @@ AGENT = {
     }
 
 AGENT_REQUEST = {
-      "type": "agentic.request",
+      "type": AGENT_REQUEST_SPAN_NAME,
+      "subtype": SPAN_SUBTYPES.PLANNING,
       "attributes": [
         [
               {
@@ -83,13 +86,14 @@ AGENT_REQUEST = {
 }
 
 TOOLS = {
-      "type": "agentic.tool.invocation",
+      "type": SPAN_TYPES.AGENTIC_TOOL_INVOCATION,
+      "subtype": SPAN_SUBTYPES.ROUTING,
       "attributes": [
         [
               {
                 "_comment": "tool type",
                 "attribute": "type",
-                "accessor": lambda arguments:'tool.langgraph'
+                "accessor": lambda arguments: _helper.get_tool_type(arguments['span'])
               },
               {
                 "_comment": "name of the tool",
@@ -140,7 +144,8 @@ TOOLS = {
 }
 
 AGENT_DELEGATION = {
-      "type": "agentic.delegation",
+      "type": SPAN_TYPES.AGENTIC_DELEGATION,
+      "subtype": SPAN_SUBTYPES.ROUTING,
       "attributes": [
         [
               {

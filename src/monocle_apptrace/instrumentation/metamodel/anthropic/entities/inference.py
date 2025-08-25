@@ -1,10 +1,11 @@
+from monocle_apptrace.instrumentation.common.constants import SPAN_TYPES
 from monocle_apptrace.instrumentation.metamodel.anthropic import (
     _helper,
 )
 from monocle_apptrace.instrumentation.common.utils import (get_error_message, resolve_from_alias)
 
 INFERENCE = {
-    "type": "inference",
+    "type": SPAN_TYPES.INFERENCE,
     "attributes": [
         [
             {

@@ -3,7 +3,7 @@ import asyncio
 from common.dummy_class import DummyClass
 from common.utils import verify_scope, SCOPE_NAME, SCOPE_VALUE, MULTIPLE_SCOPES
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
-from monocle_apptrace.instrumentation.common.instrumentor import (
+from monocle_apptrace import (
     setup_monocle_telemetry,
     start_scope,
     stop_scope,

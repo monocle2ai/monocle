@@ -5,7 +5,7 @@ and assistant messages from various input formats.
 
 import logging
 from opentelemetry.context import get_value
-from monocle_apptrace.instrumentation.common.constants import AGENT_PREFIX_KEY, INFERENCE_AGENT_DELEGATION, INFERENCE_COMMUNICATION, INFERENCE_TOOL_CALL
+from monocle_apptrace.instrumentation.common.constants import AGENT_PREFIX_KEY, INFERENCE_AGENT_DELEGATION, INFERENCE_TURN_END, INFERENCE_TOOL_CALL
 from monocle_apptrace.instrumentation.common.utils import (
     Option,
     get_json_dumps,
@@ -57,7 +57,7 @@ def agent_inference_type(arguments):
                     return INFERENCE_AGENT_DELEGATION
                 else:
                     return INFERENCE_TOOL_CALL
-        return INFERENCE_COMMUNICATION
+        return INFERENCE_TURN_END
             
     except Exception as e:
         logger.warning("Warning: Error occurred in agent_inference_type: %s", str(e))

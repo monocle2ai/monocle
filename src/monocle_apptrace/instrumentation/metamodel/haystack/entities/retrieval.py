@@ -1,8 +1,9 @@
+from monocle_apptrace.instrumentation.common.constants import SPAN_TYPES
 from monocle_apptrace.instrumentation.metamodel.haystack import (_helper, )
 from monocle_apptrace.instrumentation.common.utils import get_attribute
 
 RETRIEVAL = {
-    "type": "retrieval",
+    "type": SPAN_TYPES.RETRIEVAL,
     "attributes": [
         [
             {

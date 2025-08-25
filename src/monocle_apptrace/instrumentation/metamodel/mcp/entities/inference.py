@@ -1,7 +1,9 @@
+from monocle_apptrace.instrumentation.common.constants import SPAN_SUBTYPES, SPAN_TYPES
 from monocle_apptrace.instrumentation.metamodel.mcp import _helper
 
 TOOLS = {
-    "type": "agentic.mcp.invocation",
+    "type": SPAN_TYPES.AGENTIC_MCP_INVOCATION,
+    "subtype": SPAN_SUBTYPES.ROUTING,
     "attributes": [
         [
             {

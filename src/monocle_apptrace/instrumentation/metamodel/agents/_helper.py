@@ -158,6 +158,11 @@ def get_runner_agent_name(instance) -> str:
     """Get the name of an agent."""
     return get_name(instance)
 
+def get_tool_type(span):
+    if (span.attributes.get("is_mcp", False)):
+        return "tool.mcp"
+    else:
+        return "tool.openai_agents"
 
 def get_tool_name(instance) -> str:
     """Get the name of a tool."""

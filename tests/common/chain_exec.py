@@ -5,7 +5,7 @@ from langchain_chroma import Chroma
 from langchain_community.document_loaders import WebBaseLoader
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import RunnablePassthrough
-from langchain_mistralai import ChatMistralAI
+# from langchain_mistralai import ChatMistralAI
 from langchain_openai import (
     AzureChatOpenAI,
     AzureOpenAI,

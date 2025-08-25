@@ -8,7 +8,8 @@ from tests.common import flask_helper
 from common.custom_exporter import CustomConsoleSpanExporter
 from common.chain_exec import TestScopes, setup_chain
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
-from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry, start_scope, stop_scope
+from monocle_apptrace import setup_monocle_telemetry
+from monocle_apptrace import start_scope, stop_scope
 from monocle_apptrace.instrumentation.common.constants import SCOPE_METHOD_FILE, SCOPE_CONFIG_PATH, TRACE_PROPOGATION_URLS
 
 CHAT_SCOPE_NAME = "chat"
@@ -69,3 +70,6 @@ def verify_scopes():
             trace_id = span.context.trace_id
         else:
             assert trace_id == span.context.trace_id
+
+if __name__ == "__main__":
+    pytest.main([__file__, "-s", "--tb=short"])

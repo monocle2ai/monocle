@@ -52,7 +52,8 @@ def start_weather_server_fixture():
 def setup(start_weather_server_fixture):
     memory_exporter.clear()
     setup_monocle_telemetry(
-        workflow_name="agents_sdk_test",
+        workflow_name="agents_sdk_dev_1",
+        # monocle_exporters_list="file, okahu"
         span_processors=span_processors,
     )
 

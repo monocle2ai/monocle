@@ -1,3 +1,7 @@
+## Version 0.5.1b1 (2025-08-26)
+
+- Add monocle MCP server ([#264](https://github.com/monocle2ai/monocle/pull/264))
+
 ## Version 0.5.1 (2025-08-25)
 
 - Support injecting synthetic spans and use that for adding delegation span in Google ADK ([#257](https://github.com/monocle2ai/monocle/pull/257))

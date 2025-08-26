@@ -1,4 +1,4 @@
-## Version 0.5.2 (2025-08-27)
+## Version 0.5.1b1 (2025-08-27)
 
 - Add monocle MCP server ([#264](https://github.com/monocle2ai/monocle/pull/264))
 

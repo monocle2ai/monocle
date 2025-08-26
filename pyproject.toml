@@ -5,13 +5,16 @@ build-backend = "hatchling.build"
 [project]
 name = "monocle_apptrace"
 version = "0.5.1"
-authors = []
+authors = [
+  {name = "Prasad Mujumdar", email = "prasad@okahu.ai"}
+]
 description = "package with monocle genAI tracing"
 readme = "README.md"
 requires-python = ">=3.8"
+license = {text = "Apache-2.0"}
 classifiers = [
     "Programming Language :: Python :: 3",
-    "License :: OSI Approved :: MIT License",
+    "License :: OSI Approved :: Apache Software License",
     "Operating System :: OS Independent",
 ]
 dependencies = [
@@ -20,6 +23,9 @@ dependencies = [
    'opentelemetry-api>=1.21.0',
    'opentelemetry-sdk>=1.21.0',
    'opentelemetry-instrumentation',
+   'mcp>=1.13.1',
+   'pydantic>=2.11.7',
+   'click==8.2.1'
 ]
 
 [tool.pytest.ini_options]
@@ -113,6 +119,12 @@ packages = ["src/monocle_apptrace"]
 
 [tool.hatch.build.targets.sdist]
 ignore-vcs = true
+include = [
+  "pyproject.toml",
+  "README.md",
+  "LICENSE",
+  "src/**",
+]
 
 [tool.hatch.build]
 exclude = [
@@ -136,3 +148,6 @@ disable = [
     "R0913", # (too-many-arguments)
     "W0105", # (pointless-string-statement)
 ]
+
+[project.scripts]
+monocle_apptrace = "monocle_apptrace.mcp_server:main"

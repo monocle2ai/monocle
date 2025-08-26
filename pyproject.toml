@@ -6,7 +6,7 @@ build-backend = "hatchling.build"
 name = "monocle_apptrace"
 version = "0.5.1"
 authors = [
-  {name = "Prasad Mujumdar", email = "prasad@okahu.ai"}
+  { name="Okahu Inc.", email="okahu-pypi@okahu.ai" },
 ]
 description = "package with monocle genAI tracing"
 readme = "README.md"

@@ -57,7 +57,7 @@ See [Monocle user guide](Monocle_User_Guide.md) for more details.
 
 ## Use Monocle MCP
 
-First install monocle-apptrace: pip install monocle-apptrace==0.5.0a1
+First install monocle-apptrace: pip install monocle-apptrace
 
 Open bash and run the following command to run the monocle mcp server with stdio:
 monocle_apptrace
@@ -66,12 +66,12 @@ If you are using VS Code you can add following entry to your .vscode/mcp.json
 
 ```json
 "monocle-mcp-server": {
-      "command": "monocle_apptrace",
+      "type": "stdio",
+      "command": "uvx",
       "args": [
-         
+         "monocle_apptrace"
       ],
-      "env": {},
-      "type": "stdio"
+      "env": {}
    }
 ```
 

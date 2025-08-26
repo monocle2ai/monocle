@@ -1,15 +1,11 @@
 import logging
-from typing import Any, Dict, Annotated
 import click
-import mcp.types as types
 from mcp.server.fastmcp import FastMCP
-from mcp.server.fastmcp.exceptions import ToolError
-from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
 
 app = FastMCP(
-    "monocle-mcp-2",
+    "monocle-mcp",
 )
 code_snippets = {
     "python": "from monocle_apptrace import setup_monocle_telemetry"
@@ -36,7 +32,7 @@ enable_monocle_prompt = """Do following changes to the project:
 2. Add following line to  requirements.txt in current directory 'monocle_apptrace' if it's not there already
 3. Add following lines just below other imports in the file if it's not there already:
 from monocle_apptrace import setup_monocle_telemetry
-setup_monocle_telemetry(workflow_name=<module-name>, monomonocle_exporters_list='file'))
+setup_monocle_telemetry(workflow_name=<module-name>, monocle_exporters_list='file'))
 """
 
 monocle_trace_prompt: str = """
@@ -64,175 +60,16 @@ The important span JSON elements are as follows:
         - finish_type indicates how the operation finished, for example stop sequence or max tokens etc. If the finish_type is not success and indicates problems such as max tokens, then the operation is not successful. Check the status of it's parent span and check if it's due to the finish type of this child span. In that case callout the root cause as the child span error for the parent span error.
 """
 
-prompt_map = {
-    "enable_monocle_tracing": enable_monocle_prompt,
-    "analyze_monocle_tracing": monocle_trace_prompt,
-}
-
-
-@app.tool(
-    name="add_monocle",
-    description="This tool provides step by step guidlines to verify and add Monocle tracing to your genAI application. "
-    "This should be the first tool to use for adding Monocle tracing. "
-    "Note that you don't need to do anything specific to Open Telemetry or Azure Monitor setup when adding Monocle.",
-)
-async def add_monocle(
-    app_language: Annotated[
-        str,
-        Field(
-            description="The programming language of your application (e.g., 'python', 'javascript', 'java')"
-        ),
-    ],
-) -> Dict[str, Any]:
-    """
-    Args:
-        app_language: The programming language of the application (e.g., 'Python', 'TypeScript')
-    """
-    if not app_language:
-        raise ToolError("App language cannot be empty")
-
-    code_snippet = code_snippets.get(app_language.lower())
-    if not code_snippet:
-        raise ToolError("App language {} not supported".format(app_language))
-
-    return {
-        "Step1 - Check if Monocle is enabled": "Use check_monocle tool to verify if monocle tracing is already enabled in your application.",
-        "Step2 - Get steps to enable Monocle tracing": "Use enable_monocle_tracing tool to get the code snippet and setup instructions for enabling Monocle tracing.",
-        #        'Step3 - Check if there are Azure Function route methods': 'Use find_Azure_function_route tool to identify Azure Function route methods in your code.',
-        #        'Step4 - Add Monocle annotation to Azure Function route methods': 'Use add_monocle_annotation_to_azure_function tool to add Monocle annotations to your Azure Function route methods.'
-    }
-
-
-@app.tool(
-    name="check_monocle",
-    description="This tool provides instruction for checking if the application is already instrumented with Monocle tracing.",
-)
-async def check_monocle(
-    app_language: Annotated[
-        str,
-        Field(
-            description="The programming language of your application (e.g., 'python', 'javascript', 'java')"
-        ),
-    ],
-) -> Dict[str, Any]:
-    """
-    Args:
-        app_language: The programming language of the application (e.g., 'Python', 'TypeScript')
-    """
-    if not app_language:
-        raise ToolError("App language cannot be empty")
-
-    if app_language.lower() == "python":
-        return {
-            "instruction": 'check if the code contains "from monocle_apptrace import setup_monocle_telemetry"'
-        }
-    elif app_language.lower() == "typescript":
-        return {
-            "instruction": "check if the code contains \"import { trace } from 'monocle'\""
-        }
-    else:
-        raise ToolError("Unsupported app language: {}".format(app_language))
-
-
-@app.tool(
-    name="enable_monocle_tracing",
-    description="This tool provides setup instructions to install monocle tracing library and provides a code snippet to be included in the code.",
-)
-async def enable_monocle_tracing(
-    app_language: Annotated[
-        str,
-        Field(
-            description="The programming language of your application (e.g., 'python', 'javascript', 'java')"
-        ),
-    ],
-) -> Dict[str, Any]:
-    """
-    Args:
-        app_language: The programming language of the application (e.g., 'Python', 'TypeScript')
-    """
-    if not app_language:
-        raise ToolError("App language cannot be empty")
-
-    # Generate code snippets
-    code_snippet = code_snippets.get(app_language.lower())
-    if not code_snippet:
-        raise ToolError("App language {} not supported".format(app_language))
-
-    return {
-        "Step 1 - setup_instructions": setup_instructions.get(app_language.lower()),
-        "Step 2 - code_snippet": code_snippet,
-    }
-
-
-@app.tool(
-    name="find_azure_function_route",
-    description="This tool helps identify Azure Function route methods in your application code.",
-)
-async def find_azure_function_route(
-    app_language: Annotated[
-        str,
-        Field(
-            description="The programming language of your application (e.g., 'python', 'javascript', 'java')"
-        ),
-    ],
-) -> Dict[str, Any]:
-    """
-    Args:
-        app_language: The programming language of the application (e.g., 'Python', 'TypeScript')
-    """
-    if not app_language:
-        raise ToolError("App language cannot be empty")
-    return {
-        "search_azure_function_route": "If the file contains 'import azure.functions' and a function is annotated with @app.route, it is likely an Azure Function route method."
-    }
-
-
-@app.tool(
-    name="add_monocle_annotation_to_azure_function",
-    description="This tool provides code snippets and setup instructions for integrating Monocle annotations "
-    "to Azure Function route methods in your code. This requires monocle tracing already enabled in your code. "
-    "You should first check if the application is already instrumented with Monocle tracing using check_monocle tool. "
-    "If it's not instrumented, you should first add Monocle tracing to your application, using the add_monocle tool",
-)
-async def add_monocle_annotation_to_azure_function(
-    app_language: Annotated[
-        str,
-        Field(
-            description="The programming language of your application (e.g., 'python', 'javascript', 'java')"
-        ),
-    ],
-) -> Dict[str, Any]:
-    """
-    Args:
-        app_language: The programming language of the application (e.g., 'Python', 'TypeScript')
-    """
-    if not app_language:
-        raise ToolError("App language cannot be empty")
-
-    if app_language.lower() == "python":
-        return {
-            "recommendation": "The annotation should be placed immediately in the line above the function definition. The declaration snippet should be added right after import monocle_apptrace line",
-            "setup_instructions": "Ensure you have the monocle_apptrace package installed and imported in your Azure Function file.",
-            "declaration_snippet": "from monocle_apptrace import monocle_trace_azure_function_route",
-            "code_snippet": "@monocle_apptrace.trace_azure_function",
-        }
-    else:
-        raise ToolError(
-            "Monocle annotation for Azure Functions is only supported in Python at this time.",
-        )
-
-
 @app.prompt(name="enable_tracing")
-def enable_monocle_tracing_prompt(name: str, app_language: str = "python") -> str:
+def enable_monocle_tracing_prompt(app_language: str = "python") -> str:
     """Trace agentic code"""
-    prompt = prompt_map.get(name, enable_monocle_prompt)
-    return prompt.format(app_language=app_language)
+    return enable_monocle_prompt.format(app_language=app_language)
 
 
 @app.prompt(name="analyze")
-def analyze_monocle_tracing_prompt(name: str) -> str:
+def analyze_monocle_tracing_prompt() -> str:
     """Identify root cause from trace"""
-    return prompt_map.get(name, monocle_trace_prompt)
+    return monocle_trace_prompt
 
 
 @click.command()

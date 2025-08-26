@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "monocle_apptrace"
-version = "0.5.1"
+version = "0.5.2"
 authors = [
   { name="Okahu Inc.", email="okahu-pypi@okahu.ai" },
 ]

@@ -23,15 +23,12 @@ def get_params(args) -> dict:
     return unquote(params)
 
 def get_url(args) -> str:
-    try:
-        url = ""
-        if len(args) > 1 or not isinstance(args[0], dict):
-            if 'HTTP_HOST' in args[0]:
-                url = f"http://{args[0]['HTTP_HOST']}{args[0].get('REQUEST_URI', '')}"
+    url = ""
+    if len(args) > 1 or not isinstance(args[0], dict):
+        if 'HTTP_HOST' in args[0]:
+            url = f"http://{args[0]['HTTP_HOST']}{args[0].get('REQUEST_URI', '')}"
 
-        return url
-    except Exception as e:
-        logger.warning(f"Error extracting URL: {e}")
+    return url
 
 def get_body(args) -> dict:
     return ""

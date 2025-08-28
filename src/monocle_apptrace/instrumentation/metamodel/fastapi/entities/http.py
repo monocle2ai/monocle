@@ -1,7 +1,8 @@
+from monocle_apptrace.instrumentation.common.constants import SPAN_TYPES
 from monocle_apptrace.instrumentation.metamodel.fastapi import _helper
 
 FASTAPI_HTTP_PROCESSOR = {
-    "type": "http.process",
+    "type": SPAN_TYPES.HTTP_PROCESS,
     "attributes": [
         [
             {

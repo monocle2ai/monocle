@@ -11,6 +11,7 @@ class FinishType(Enum):
     TRUNCATED = "truncated"
     CONTENT_FILTER = "content_filter"
     ERROR = "error"
+    TOOL_CALL_ERROR = "tool_call_error"
     REFUSAL = "refusal"
     RATE_LIMITED = "rate_limited"
 
@@ -39,6 +40,7 @@ GEMINI_FINISH_REASON_MAPPING = {
     "MAX_TOKENS": FinishType.TRUNCATED.value,
     "SAFETY": FinishType.CONTENT_FILTER.value,
     "RECITATION": FinishType.CONTENT_FILTER.value,
+    "MALFORMED_FUNCTION_CALL": FinishType.TOOL_CALL_ERROR.value,
     "OTHER": FinishType.ERROR.value,
     "FINISH_REASON_UNSPECIFIED": None
 }

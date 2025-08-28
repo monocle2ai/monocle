@@ -1,10 +1,11 @@
+from monocle_apptrace.instrumentation.common.constants import SPAN_TYPES
 from monocle_apptrace.instrumentation.metamodel.haystack import (
     _helper,
 )
 from monocle_apptrace.instrumentation.common.utils import get_error_message, get_llm_type
 
 INFERENCE = {
-    "type": "inference.framework",
+    "type": SPAN_TYPES.INFERENCE_FRAMEWORK,
     "attributes": [
         [
             {

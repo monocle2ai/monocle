@@ -4,7 +4,7 @@ import unittest
 from common.dummy_class import DummyClass
 from common.utils import verify_scope, verify_traceID, SCOPE_NAME, SCOPE_VALUE
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
-from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry, monocle_trace_scope, start_scope, stop_scope, monocle_trace_scope_method
+from monocle_apptrace import setup_monocle_telemetry, monocle_trace_scope, start_scope, stop_scope, monocle_trace_scope_method
 from monocle_apptrace.instrumentation.common.wrapper_method import WrapperMethod
 from common.custom_exporter import CustomConsoleSpanExporter
 from monocle_apptrace.instrumentation.common.wrapper import atask_wrapper

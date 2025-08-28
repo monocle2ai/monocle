@@ -112,7 +112,7 @@ def start_servers():
         stop_a2a_server(a2a_server_process)
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture(scope="module")
 def setup(start_servers):
     memory_exporter.clear()
     setup_monocle_telemetry(
@@ -395,7 +395,7 @@ def verify_spans():
         ):
             assert "entity.1.type" in span_attributes
             assert "entity.1.name" in span_attributes
-            assert span_attributes["entity.1.type"] == "tool.langgraph"
+            assert span_attributes["entity.1.type"] in ["tool.mcp", "tool.langgraph"]
             if span_attributes["entity.1.name"] == "book_flight":
                 found_book_flight_tool = True
             elif span_attributes["entity.1.name"] == "book_hotel":

@@ -76,6 +76,12 @@ def get_name(instance):
 def get_agent_name(instance) -> str:
     return get_name(instance)
 
+def get_tool_type(span):
+    if (span.attributes.get("is_mcp", False)):
+        return "tool.mcp"
+    else:
+        return "tool.langgraph"
+
 def get_tool_name(instance) -> str:
     return get_name(instance)
 

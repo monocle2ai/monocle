@@ -1,6 +1,7 @@
 import logging
 import time
 from types import SimpleNamespace
+from monocle_apptrace.instrumentation.common.constants import SPAN_TYPES
 from monocle_apptrace.instrumentation.metamodel.azureaiinference import _helper
 from monocle_apptrace.instrumentation.common.utils import (
     get_error_message,
@@ -133,7 +134,7 @@ def process_stream(to_wrap, response, span_processor):
 
 
 INFERENCE = {
-    "type": "inference",
+    "type": SPAN_TYPES.INFERENCE,
     "is_auto_close": lambda kwargs: kwargs.get("stream", False) is False,
     "response_processor": process_stream,
     "attributes": [

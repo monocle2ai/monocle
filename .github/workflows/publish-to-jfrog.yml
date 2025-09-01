@@ -1,9 +1,6 @@
 name: Publish to JFrog
 
 on:
-  push:
-    branches:
-      - copilot/fix-bd1d02f4-5e91-4701-a684-d71562c6d1b5
   workflow_dispatch:
     inputs:
       branch:
@@ -15,12 +12,10 @@ on:
         description: 'Version of the package to release (beta/alpha versions allowed)'
         required: false
         type: string
-        default: '5.0.0b25'
 
 jobs:
   publish-to-jfrog:
-    # environment: ArtifactPublish
-    environment: JFROG
+    environment: ArtifactPublish
     runs-on: ubuntu-latest
     steps:
       - name: 📥 Checkout repository
@@ -32,7 +27,6 @@ jobs:
       # valid versions are. 0.5.0, 0.5.0a1, 0.5.0b1
         run: |
           version="${{ inputs.version }}"
-          version="0.5.0b25"
           if ! [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+([ab][0-9]+)?$ ]]; then
             echo "::error::Invalid version format: $version. Use formats like 0.5.0, 0.5.0a1, or 0.5.0b1"
             exit 1
@@ -43,10 +37,6 @@ jobs:
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             version="${{ inputs.version || '5.0.0b25' }}"
-            sed -i "s/^version = .*/version = \"$version\"/" pyproject.toml
-            echo "✅ Updated version to $version in pyproject.toml"
-          else
-            version="0.5.0b25"
             sed -i "s/^version = .*/version = \"$version\"/" pyproject.toml
             echo "✅ Updated version to $version in pyproject.toml"
           fi
@@ -97,7 +87,7 @@ jobs:
       - name: 📋 Summary
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            version="${{ inputs.version || '5.0.0b25' }}"
+            version="${{ inputs.version }}"
             branch="${{ inputs.branch || 'main' }}"
           else
             version=$(grep '^version = ' pyproject.toml | sed 's/version = "\(.*\)"/\1/')

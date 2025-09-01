@@ -4,17 +4,6 @@ on:
   push:
     branches:
       - copilot/fix-bd1d02f4-5e91-4701-a684-d71562c6d1b5
-    inputs:
-      version:
-        description: 'Version of the package to release (beta/alpha versions allowed)'
-        required: true
-        type: string
-        default: '5.0.0b23'
-      branch:
-        description: 'Branch to build from (defaults to main)'
-        required: true
-        type: string
-        default: 'copilot/fix-bd1d02f4-5e91-4701-a684-d71562c6d1b5'
   workflow_dispatch:
     inputs:
       branch:
@@ -24,8 +13,9 @@ on:
         type: string
       version:
         description: 'Version of the package to release (beta/alpha versions allowed)'
-        required: true
+        required: false
         type: string
+        default: '5.0.0b23'
 
 jobs:
   publish-to-jfrog:
@@ -36,7 +26,7 @@ jobs:
       - name: 📥 Checkout repository
         uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.branch }}
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.branch || github.ref }}
 
       # - name: 🔎 Validate version format
       # # valid versions are. 0.5.0, 0.5.0a1, 0.5.0b1
@@ -52,9 +42,15 @@ jobs:
 
       - name: 📝 Update version in pyproject.toml
         run: |
-          version="${{ inputs.version }}"
-          sed -i "s/^version = .*/version = \"$version\"/" pyproject.toml
-          echo "✅ Updated version to $version in pyproject.toml"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            version="${{ inputs.version || '5.0.0b23' }}"
+            sed -i "s/^version = .*/version = \"$version\"/" pyproject.toml
+            echo "✅ Updated version to $version in pyproject.toml"
+          else
+            version="0.5.0b23"
+            sed -i "s/^version = .*/version = \"$version\"/" pyproject.toml
+            echo "✅ Updated version to $version in pyproject.toml"
+          fi
           echo "🔍 Current pyproject.toml content:"
           grep '^version = ' pyproject.toml
 
@@ -101,6 +97,13 @@ jobs:
 
       - name: 📋 Summary
         run: |
-          echo "✅ Successfully published version: ${{ inputs.version }}"
-          echo "📦 Source branch: ${{ inputs.branch }}"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            version="${{ inputs.version || '5.0.0b23' }}"
+            branch="${{ inputs.branch || 'main' }}"
+          else
+            version=$(grep '^version = ' pyproject.toml | sed 's/version = "\(.*\)"/\1/')
+            branch="${{ github.ref_name }}"
+          fi
+          echo "✅ Successfully published version: $version"
+          echo "📦 Source branch: $branch"
           echo "🏗️ Uploaded artifacts from: dist/"

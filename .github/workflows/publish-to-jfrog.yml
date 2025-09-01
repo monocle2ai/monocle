@@ -15,7 +15,7 @@ on:
         description: 'Version of the package to release (beta/alpha versions allowed)'
         required: false
         type: string
-        default: '5.0.0b23'
+        default: '5.0.0b25'
 
 jobs:
   publish-to-jfrog:
@@ -42,11 +42,11 @@ jobs:
       - name: 📝 Update version in pyproject.toml
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            version="${{ inputs.version || '5.0.0b23' }}"
+            version="${{ inputs.version || '5.0.0b25' }}"
             sed -i "s/^version = .*/version = \"$version\"/" pyproject.toml
             echo "✅ Updated version to $version in pyproject.toml"
           else
-            version="0.5.0b23"
+            version="0.5.0b25"
             sed -i "s/^version = .*/version = \"$version\"/" pyproject.toml
             echo "✅ Updated version to $version in pyproject.toml"
           fi
@@ -97,7 +97,7 @@ jobs:
       - name: 📋 Summary
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            version="${{ inputs.version || '5.0.0b23' }}"
+            version="${{ inputs.version || '5.0.0b25' }}"
             branch="${{ inputs.branch || 'main' }}"
           else
             version=$(grep '^version = ' pyproject.toml | sed 's/version = "\(.*\)"/\1/')

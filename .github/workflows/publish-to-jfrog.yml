@@ -54,8 +54,9 @@ jobs:
         run: |
           version="${{ inputs.version }}"
           sed -i "s/^version = .*/version = \"$version\"/" pyproject.toml
-          echo "✅ Updated pyproject.toml with version: $version"
-          grep "^version" pyproject.toml || echo "::warning::Version not found in pyproject.toml"
+          echo "✅ Updated version to $version in pyproject.toml"
+          echo "🔍 Current pyproject.toml content:"
+          grep '^version = ' pyproject.toml
 
       - name: 🐍 Setup Python
         uses: actions/setup-python@v5

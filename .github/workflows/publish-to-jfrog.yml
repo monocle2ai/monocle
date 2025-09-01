@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       branch:
-        description: 'Branch to build from (optional, defaults to main)'
+        description: 'Branch to build from (defaults to main)'
         required: false
         default: 'main'
         type: string
@@ -18,65 +18,72 @@ jobs:
     environment: ArtifactPublish
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
+      - name: 📥 Checkout repository
         uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.branch || 'main' }}
+          ref: ${{ inputs.branch }}
 
-      - name: Validate version format
+      - name: 🔎 Validate version format
         run: |
           version="${{ inputs.version }}"
-          if [[ ! $version =~ ^[0-9]+\.[0-9]+\.[0-9]+(-?(alpha|beta)[0-9]*)?$ ]]; then
-            echo "Error: Invalid version format. Expected format: x.y.z, x.y.z-alpha, x.y.z-alphaN, x.y.z-beta, or x.y.z-betaN"
-            echo "Provided version: $version"
+          if [[ ! $version =~ ^[0-9]+\.[0-9]+\.[0-9]+(-(alpha|beta)[0-9]*)?$ ]]; then
+            echo "::error::Invalid version format"
+            echo "❌ Expected: x.y.z, x.y.z-alpha, x.y.z-alphaN, x.y.z-beta, or x.y.z-betaN"
+            echo "❌ Provided: $version"
             exit 1
           fi
-          echo "Version format is valid: $version"
+          echo "✅ Version format is valid: $version"
 
-      - name: Update version in pyproject.toml
+      - name: 📝 Update version in pyproject.toml
         run: |
           version="${{ inputs.version }}"
           sed -i "s/^version = .*/version = \"$version\"/" pyproject.toml
-          echo "Updated version to $version in pyproject.toml"
-          grep "^version" pyproject.toml
+          echo "✅ Updated pyproject.toml with version: $version"
+          grep "^version" pyproject.toml || echo "::warning::Version not found in pyproject.toml"
 
-      - uses: actions/setup-python@v5
+      - name: 🐍 Setup Python
+        uses: actions/setup-python@v5
         with:
-          python-version: '3.13'
+          python-version: '3.12'
 
-      - name: Build wheels
+      - name: ⚙️ Build wheels
         run: |
           chmod +x ./.github/scripts/build.sh
           ./.github/scripts/build.sh
+          echo "✅ Build completed. Artifacts in dist/:"
+          ls -lh dist/
 
-      - name: Install twine
-        run: |
-          pip install twine
+      - name: 📦 Install Twine
+        run: pip install --quiet --upgrade twine
 
-      - name: Publish to JFrog
+      - name: 🚀 Publish to JFrog
         env:
           JFROG_URL: ${{ secrets.JFROG_REPOSITORY_URL }}
           JFROG_USERNAME: ${{ secrets.JFROG_USERNAME }}
           JFROG_PASSWORD: ${{ secrets.JFROG_PASSWORD }}
         run: |
           if [[ -z "$JFROG_URL" ]]; then
-            echo "Error: JFROG_REPOSITORY_URL secret is not set"
+            echo "::error::JFROG_REPOSITORY_URL secret is not set"
             exit 1
           fi
           if [[ -z "$JFROG_USERNAME" ]]; then
-            echo "Error: JFROG_USERNAME secret is not set"
+            echo "::error::JFROG_USERNAME secret is not set"
             exit 1
           fi
           if [[ -z "$JFROG_PASSWORD" ]]; then
-            echo "Error: JFROG_PASSWORD secret is not set"
+            echo "::error::JFROG_PASSWORD secret is not set"
             exit 1
           fi
           
-          echo "Publishing to JFrog repository: $JFROG_URL"
-          python3 -m twine upload --repository-url "$JFROG_URL" dist/* --username "$JFROG_USERNAME" --password "$JFROG_PASSWORD"
+          echo "🔑 Authenticated as $JFROG_USERNAME"
+          echo "🌐 Publishing to: $JFROG_URL"
+          python3 -m twine upload \
+            --non-interactive --skip-existing \
+            --repository-url "$JFROG_URL" dist/* \
+            --username "$JFROG_USERNAME" --password "$JFROG_PASSWORD"
 
-      - name: Summary
+      - name: 📋 Summary
         run: |
-          echo "✅ Successfully published version ${{ inputs.version }} to JFrog repository"
-          echo "📦 Built from branch: ${{ inputs.branch || 'main' }}"
-          echo "🏗️ Artifacts uploaded from dist/ directory"
+          echo "✅ Successfully published version: ${{ inputs.version }}"
+          echo "📦 Source branch: ${{ inputs.branch }}"
+          echo "🏗️ Uploaded artifacts from: dist/"

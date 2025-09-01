@@ -39,11 +39,12 @@ jobs:
           ref: ${{ inputs.branch }}
 
       - name: 🔎 Validate version format
+      # valid versions are. 0.5.0, 0.5.0a1, 0.5.0b1
         run: |
           version="${{ inputs.version }}"
-          if [[ ! $version =~ ^[0-9]+\.[0-9]+\.[0-9]+(-(a|b)[0-9]*)?$ ]]; then
+          if [[ ! $version =~ ^[0-9]+\.[0-9]+\.[0-9]+((a|b)[0-9]*)?$ ]]; then
             echo "::error::Invalid version format"
-            echo "❌ Expected: x.y.z, x.y.z-a, x.y.z-aN, x.y.z-b, or x.y.z-bN"
+            echo "❌ Expected: x.y.z, x.y.za, x.y.zaN, x.y.zb, or x.y.zbN"
             echo "❌ Provided: $version"
             exit 1
           fi

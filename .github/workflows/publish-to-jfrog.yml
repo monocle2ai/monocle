@@ -1,6 +1,20 @@
 name: Publish to JFrog
 
 on:
+  push:
+    branches:
+      - copilot/fix-bd1d02f4-5e91-4701-a684-d71562c6d1b5
+    inputs:
+      version:
+        description: 'Version of the package to release (beta/alpha versions allowed)'
+        required: true
+        type: string
+        default: '5.0.0b23'
+      branch:
+        description: 'Branch to build from (defaults to main)'
+        required: true
+        type: string
+        default: 'copilot/fix-bd1d02f4-5e91-4701-a684-d71562c6d1b5'
   workflow_dispatch:
     inputs:
       branch:
@@ -15,7 +29,8 @@ on:
 
 jobs:
   publish-to-jfrog:
-    environment: ArtifactPublish
+    # environment: ArtifactPublish
+    environment: JFROG
     runs-on: ubuntu-latest
     steps:
       - name: 📥 Checkout repository

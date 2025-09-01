@@ -41,9 +41,9 @@ jobs:
       - name: 🔎 Validate version format
         run: |
           version="${{ inputs.version }}"
-          if [[ ! $version =~ ^[0-9]+\.[0-9]+\.[0-9]+(-(alpha|beta)[0-9]*)?$ ]]; then
+          if [[ ! $version =~ ^[0-9]+\.[0-9]+\.[0-9]+(-(a|b)[0-9]*)?$ ]]; then
             echo "::error::Invalid version format"
-            echo "❌ Expected: x.y.z, x.y.z-alpha, x.y.z-alphaN, x.y.z-beta, or x.y.z-betaN"
+            echo "❌ Expected: x.y.z, x.y.z-a, x.y.z-aN, x.y.z-b, or x.y.z-bN"
             echo "❌ Provided: $version"
             exit 1
           fi

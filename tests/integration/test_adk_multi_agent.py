@@ -124,7 +124,7 @@ async def test_multi_agent(setup):
 
 def verify_spans():
     time.sleep(2)
-    found_inference = found_agent = found_tool = False
+    found_inference = found_agent = found_tool = found_delegation = False
     found_flight_agent = found_hotel_agent = found_supervisor_agent = False
     found_book_hotel_tool = found_book_flight_tool = False
     found_book_flight_delegation = found_book_hotel_delegation = False
@@ -184,6 +184,16 @@ def verify_spans():
                 found_book_hotel_tool = True
             found_tool = True
 
+        if (
+                "span.type" in span_attributes
+                and span_attributes["span.type"] == "agentic.delegation"
+        ):
+                found_delegation = True
+                assert "entity.1.type" in span_attributes
+                assert span_attributes["entity.1.type"] == "agent.adk"
+                assert "entity.1.from_agent" in span_attributes
+                assert "entity.1.to_agent" in span_attributes
+
     assert found_inference, "Inference span not found"
     assert found_agent, "Agent span not found"
     assert found_tool, "Tool span not found"
@@ -194,3 +204,7 @@ def verify_spans():
     assert found_book_hotel_delegation, "Book hotel delegation span not found"
     assert found_book_flight_tool, "Book flight tool span not found"
     assert found_book_hotel_tool, "Book hotel tool span not found"
+    assert found_delegation, "Delegation span not found"
+
+if __name__ == "__main__":
+    pytest.main([__file__, "-s", "--tb=short"])

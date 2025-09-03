@@ -17,5 +17,5 @@ MCP_METHODS = [
         "object": "",
         "method": "convert_mcp_tool_to_langchain_tool",
         "wrapper_method": _helper.langchain_mcp_wrapper,
-    },
+    }
 ]

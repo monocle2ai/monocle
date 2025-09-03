@@ -1,6 +1,7 @@
+from monocle_apptrace.instrumentation.common.constants import SPAN_TYPES
 from monocle_apptrace.instrumentation.metamodel.requests import _helper
 REQUEST_HTTP_PROCESSOR = {
-    "type": "http.send",
+    "type": SPAN_TYPES.HTTP_SEND,
     "attributes": [
         [
             {

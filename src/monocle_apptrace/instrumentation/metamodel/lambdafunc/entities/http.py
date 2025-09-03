@@ -1,6 +1,7 @@
+from monocle_apptrace.instrumentation.common.constants import SPAN_TYPES
 from monocle_apptrace.instrumentation.metamodel.lambdafunc import _helper
 LAMBDA_HTTP_PROCESSOR = {
-    "type": "http.process",
+    "type": SPAN_TYPES.HTTP_PROCESS,
     "attributes": [
         [
             {

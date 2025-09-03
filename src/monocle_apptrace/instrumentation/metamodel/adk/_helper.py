@@ -84,6 +84,18 @@ def extract_agent_input(arguments: Dict[str, Any]) -> Any:
     """
     return arguments['args'][0].user_content.parts[0].text
 
+def extract_agent_request_input(arguments: Dict[str, Any]) -> Any:
+    """
+    Extract the input data from agent request.
+
+    Args:
+        arguments: Dictionary containing agent call arguments
+
+    Returns:
+        Any: The extracted input data
+    """
+    return arguments['kwargs']['new_message'].parts[0].text if 'new_message' in arguments['kwargs'] else None
+
 def extract_agent_response(result: Any) -> Any:
     """
     Extract the response data from agent result.
@@ -144,6 +156,18 @@ def get_delegating_agent(arguments) -> str:
         if get_agent_name(arguments['instance']) == from_agent:
             return None
     return from_agent
+
+def should_skip_delegation(arguments):
+    """
+    Determine whether to skip the delegation based on the arguments.
+
+    Args:
+        arguments: Dictionary containing agent call arguments
+
+    Returns:
+        bool: True if delegation should be skipped, False otherwise
+    """
+    return get_delegating_agent(arguments) is None
 
 def extract_tool_input(arguments: Dict[str, Any]) -> Any:
     """

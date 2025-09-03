@@ -1,3 +1,4 @@
+from monocle_apptrace.instrumentation.common.constants import SPAN_TYPES
 from monocle_apptrace.instrumentation.metamodel.litellm import (
     _helper,
 )
@@ -7,7 +8,7 @@ from monocle_apptrace.instrumentation.common.utils import (
     get_llm_type,
 )
 INFERENCE = {
-    "type": "inference",
+    "type": SPAN_TYPES.INFERENCE,
     "attributes": [
         [
             {

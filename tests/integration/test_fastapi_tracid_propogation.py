@@ -4,7 +4,7 @@ import os
 import requests
 from common.custom_exporter import CustomConsoleSpanExporter
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
-from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry, start_scope, stop_scope
+from monocle_apptrace import setup_monocle_telemetry, start_scope, stop_scope
 from monocle_apptrace.instrumentation.common.constants import SCOPE_METHOD_FILE, SCOPE_CONFIG_PATH, TRACE_PROPOGATION_URLS
 from tests.common import fastapi_helper
 

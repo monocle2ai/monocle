@@ -1,9 +1,10 @@
+from monocle_apptrace.instrumentation.common.constants import SPAN_TYPES
 from monocle_apptrace.instrumentation.metamodel.teamsai import (
     _helper,
 )
 from monocle_apptrace.instrumentation.common.utils import get_error_message, get_llm_type
 TEAMAI_OUTPUT_PROCESSOR = {
-    "type": "inference.framework",
+    "type": SPAN_TYPES.INFERENCE_FRAMEWORK,
     "attributes": [
         [
             {
@@ -66,5 +67,15 @@ TEAMAI_OUTPUT_PROCESSOR = {
                 }
             ]
         },
+        {
+            "name": "metadata",
+            "_comment": "metadata for Teams AI",
+            "attributes": [
+                {
+                    "attribute": "inference_sub_type",
+                    "accessor": lambda arguments: _helper.agent_inference_type(arguments)
+                }
+            ]
+        }
     ]
 }

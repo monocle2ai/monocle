@@ -65,11 +65,16 @@ class SpanHandler:
             span.set_attribute("span.type", span_type)
         else:
             logger.warning("type of span not found or incorrect written in entity json")
+        if "subtype" in output_processor:
+            span.set_attribute("span.subtype", output_processor["subtype"])
         return span_type
 
     def pre_task_processing(self, to_wrap, wrapped, instance, args,kwargs, span):
-        if "pipeline" in to_wrap['package']:
-            set_attribute(QUERY, args[0]['prompt_builder']['question'])
+        try:
+            if "pipeline" in to_wrap['package']:
+                set_attribute(QUERY, args[0]['prompt_builder']['question'])
+        except Exception as e:
+            logger.warning("Warning: Error occurred in pre_task_processing: %s", str(e))
 
     @staticmethod
     def set_default_monocle_attributes(span: Span, source_path = "" ):
@@ -95,6 +100,17 @@ class SpanHandler:
 
     def post_task_processing(self, to_wrap, wrapped, instance, args, kwargs, result, ex, span:Span, parent_span:Span):
         pass
+
+    def should_skip(self, processor, instance, args, kwargs) -> bool:
+        should_skip = False
+        accessor = processor.get('should_skip')
+        if accessor:
+            arguments = {"instance":instance, "args":args, "kwargs":kwargs}
+            should_skip = accessor(arguments)
+            if not isinstance(should_skip, bool):
+                logger.warning("Warning: 'should_skip' accessor did not return a boolean value")
+                return True
+        return should_skip
 
     def hydrate_span(self, to_wrap, wrapped, instance, args, kwargs, result, span, parent_span = None, ex:Exception = None) -> bool:
         try:
@@ -147,7 +163,7 @@ class SpanHandler:
             span.set_attribute("entity.count", span_index)
         return detected_error
 
-    def hydrate_events(self, to_wrap, wrapped, instance, args, kwargs, ret_result, span, parent_span=None, ex:Exception=None) -> bool:
+    def hydrate_events(self, to_wrap, wrapped, instance, args, kwargs, ret_result, span: Span, parent_span=None, ex:Exception=None) -> bool:
         detected_error:bool = False
         if 'output_processor' in to_wrap and to_wrap["output_processor"] is not None:
             output_processor=to_wrap['output_processor']
@@ -183,10 +199,16 @@ class SpanHandler:
                             except Exception as e:
                                 logger.debug(f"Error evaluating accessor for attribute '{attribute_key}': {e}")
                     matching_timestamp = getattr(ret_result, "timestamps", {}).get(event_name, None)
-                    if isinstance(matching_timestamp, int):
-                        span.add_event(name=event_name, attributes=event_attributes, timestamp=matching_timestamp)
-                    else:
-                        span.add_event(name=event_name, attributes=event_attributes)
+                    alreadyExist = False
+                    for existing_event in span.events:
+                        if event_name == existing_event.name:
+                            existing_event.attributes._dict.update(event_attributes)
+                            alreadyExist = True
+                    if not alreadyExist:
+                        if isinstance(matching_timestamp, int):
+                            span.add_event(name=event_name, attributes=event_attributes, timestamp=matching_timestamp)
+                        else:
+                            span.add_event(name=event_name, attributes=event_attributes)
         return detected_error
 
     @staticmethod

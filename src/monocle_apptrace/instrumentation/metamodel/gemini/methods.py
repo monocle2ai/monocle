@@ -1,4 +1,4 @@
-from monocle_apptrace.instrumentation.common.wrapper import task_wrapper
+from monocle_apptrace.instrumentation.common.wrapper import atask_wrapper, task_wrapper
 from monocle_apptrace.instrumentation.metamodel.gemini.entities.inference import (
     INFERENCE,
 )
@@ -12,6 +12,13 @@ GEMINI_METHODS = [
       "object": "Models",
       "method": "generate_content",
       "wrapper_method": task_wrapper,
+      "output_processor": INFERENCE,
+    },
+    {
+      "package": "google.genai.models",
+      "object": "AsyncModels",
+      "method": "generate_content",
+      "wrapper_method": atask_wrapper,
       "output_processor": INFERENCE,
     },
     {

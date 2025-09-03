@@ -16,7 +16,7 @@ from monocle_apptrace.instrumentation.common.utils import (
     get_exception_message,
 )
 from monocle_apptrace.instrumentation.metamodel.finish_types import map_anthropic_finish_reason_to_finish_type
-from monocle_apptrace.instrumentation.common.constants import AGENT_PREFIX_KEY, INFERENCE_AGENT_DELEGATION, INFERENCE_COMMUNICATION, INFERENCE_TOOL_CALL
+from monocle_apptrace.instrumentation.common.constants import AGENT_PREFIX_KEY, INFERENCE_AGENT_DELEGATION, INFERENCE_TURN_END, INFERENCE_TOOL_CALL
 
 
 logger = logging.getLogger(__name__)
@@ -177,7 +177,7 @@ def agent_inference_type(arguments):
                     if agent_prefix and agent_prefix in assistant_message:
                         return INFERENCE_AGENT_DELEGATION
         
-        return INFERENCE_COMMUNICATION
+        return INFERENCE_TURN_END
     except Exception as e:
         logger.warning("Warning: Error occurred in agent_inference_type: %s", str(e))
-        return INFERENCE_COMMUNICATION
+        return INFERENCE_TURN_END

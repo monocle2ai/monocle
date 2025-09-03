@@ -1,7 +1,9 @@
+from monocle_apptrace.instrumentation.common.constants import SPAN_SUBTYPES, SPAN_TYPES
 from monocle_apptrace.instrumentation.metamodel.a2a import _helper
 
 A2A_CLIENT = {
-    "type": "agentic.invocation",
+    "type": SPAN_TYPES.AGENTIC_INVOCATION,
+    "subtype": SPAN_SUBTYPES.ROUTING,
     "attributes": [
         [
             {

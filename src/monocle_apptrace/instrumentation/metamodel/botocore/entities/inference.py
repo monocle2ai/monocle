@@ -1,9 +1,10 @@
+from monocle_apptrace.instrumentation.common.constants import SPAN_TYPES
 from monocle_apptrace.instrumentation.metamodel.botocore import (
     _helper,
 )
 from monocle_apptrace.instrumentation.common.utils import (get_error_message, get_llm_type, get_status,)
 INFERENCE = {
-    "type": "inference",
+    "type": SPAN_TYPES.INFERENCE,
     "attributes": [
         [
             {

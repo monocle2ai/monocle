@@ -454,7 +454,7 @@ def verify_spans():
 #             "name": "data.input",
 #             "timestamp": "2025-07-14T02:08:01.696888Z",
 #             "attributes": {
-#                 "Inputs": [
+#                 "input": [
 #                     "{'BOS', 'from_airport'}",
 #                     "{'to_airport', 'JFK'}"
 #                 ]
@@ -778,7 +778,7 @@ def verify_spans():
 #             "name": "data.input",
 #             "timestamp": "2025-07-14T02:08:05.115983Z",
 #             "attributes": {
-#                 "Inputs": [
+#                 "input": [
 #                     "{'McKittrick Hotel', 'hotel_name'}"
 #                 ]
 #             }

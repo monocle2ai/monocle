@@ -159,7 +159,7 @@
                 "name": "data.input",
                 "timestamp": "2025-08-21T16:26:16.690944Z",
                 "attributes": {
-                    "Inputs": [
+                    "input": [
                         "{\"city\":\"New York\"}"
                     ]
                 }
@@ -272,7 +272,7 @@
                 "name": "data.input",
                 "timestamp": "2025-08-21T16:26:16.692249Z",
                 "attributes": {
-                    "Inputs": [
+                    "input": [
                         "{\"city\":\"London\"}"
                     ]
                 }
@@ -385,7 +385,7 @@
                 "name": "data.input",
                 "timestamp": "2025-08-21T16:26:16.693295Z",
                 "attributes": {
-                    "Inputs": [
+                    "input": [
                         "{\"city\":\"Tokyo\"}"
                     ]
                 }

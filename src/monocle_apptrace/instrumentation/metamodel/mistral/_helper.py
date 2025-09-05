@@ -69,33 +69,34 @@ def get_exception_status_code(arguments):
 
 def extract_assistant_message(arguments):
     """
-    Extract the assistant message from a Mistral ChatCompletionResponse.
-
+    Extract the assistant message from a Mistral response or stream chunks.
     Returns a JSON string like {"assistant": "<text>"}.
     """
     try:
-        status = get_status_code(arguments)
-        response = arguments["result"]
-
-        if status == 'success':
-            # Mistral response has 'choices', each with a 'message'
-            if hasattr(response, "choices") and response.choices:
-                msg_obj = response.choices[0].message
-                return get_json_dumps({msg_obj.role: msg_obj.content})
-
-            # Fallback if choices is empty
+        result = arguments.get("result")
+        if result is None:
             return ""
 
-        # If there was an error
-        else:
-            if arguments.get("exception") is not None:
-                return get_exception_message(arguments)
-            elif hasattr(arguments.get("result"), "error"):
-                return arguments["result"].error
+        # Handle full response
+        if hasattr(result, "choices") and result.choices:
+            msg_obj = result.choices[0].message
+            return get_json_dumps({msg_obj.role: msg_obj.content})
+
+        # Handle streaming: result might be a list of CompletionEvent chunks
+        if isinstance(result, list):
+            content = []
+            for chunk in result:
+                # Each chunk may have delta attribute
+                if hasattr(chunk, "delta") and hasattr(chunk.delta, "content"):
+                    content.append(chunk.delta.content or "")
+            return get_json_dumps({"assistant": "".join(content)})
+
+        return ""
 
     except Exception as e:
-        logger.warning("Warning: Error occurred in extract_assistant_message: %s", str(e))
-        return None
+        logger.warning("Warning in extract_assistant_message: %s", str(e))
+        return ""
+
 
 
 def update_span_from_llm_response(response):

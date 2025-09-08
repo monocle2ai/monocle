@@ -116,10 +116,15 @@ def update_span_from_llm_response(response):
 def extract_finish_reason(arguments):
     """Extract stop_reason from Anthropic response (Claude)."""
     try:
+        #streaming
+        if hasattr(response, "stop_reason") and response.stop_reason:
+            return response.stop_reason
+
         # Arguments may be a dict with 'result' or just the response object
         response = arguments.get("result") if isinstance(arguments, dict) else arguments
         if response is not None and hasattr(response, "stop_reason"):
             return response.stop_reason
+        
     except Exception as e:
         logger.warning("Warning: Error occurred in extract_finish_reason: %s", str(e))
         return None

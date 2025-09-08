@@ -26,6 +26,7 @@ WORKFLOW_TYPE_MAP = {
     "anthropic": "workflow.anthropic",
     "gemini": "workflow.gemini",
     "litellm": "workflow.litellm",
+    "mistralai": "workflow.mistral"
 }
 
 FRAMEWORK_WORKFLOW_LIST = [

@@ -103,6 +103,7 @@ def with_tracer_wrapper(func):
 
     return _with_tracer
 
+
 def resolve_from_alias(my_map, alias):
     """Find a alias that is not none from list of aliases"""
 
@@ -398,12 +399,14 @@ def get_exception_message(arguments):
     else:
         return ''
 
+
 def get_error_message(arguments):
     status_code = get_status_code(arguments)
     if status_code == 'success':
         return ''
     else:
         return status_code
+
 
 def get_status_code(arguments):
     if arguments["exception"] is not None:

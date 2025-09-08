@@ -386,28 +386,21 @@ def get_exception_status_code(arguments):
         return 'success'
 
 def get_exception_message(arguments):
-    exc = arguments.get("exception")
-    if exc is not None:
-        if hasattr(exc, "status_code"):
-            return f"Status {exc.status_code}: {getattr(exc, 'message', str(exc))}"
-        return getattr(exc, "message", str(exc))
-    return ""
+    if arguments['exception'] is not None:
+        if hasattr(arguments['exception'], 'message'):
+            return arguments['exception'].message
+        else:
+            return arguments['exception'].__str__()
+    else:
+        return ''
 
 
 def get_error_message(arguments):
-    exc = arguments.get("exception")
-    if exc is not None and hasattr(exc, "status_code"):
-        if exc.status_code == 401:
-            return "unauthorized"
-        elif exc.status_code == 403:
-            return "forbidden"
-        elif exc.status_code == 404:
-            return "not_found"
-        else:
-            return str(exc.status_code)
-    elif exc is not None:
-        return "error"
-    return "success"
+    status_code = get_status_code(arguments)
+    if status_code == 'success':
+        return ''
+    else:
+        return status_code
 
 
 def get_status_code(arguments):

@@ -14,6 +14,11 @@ FLASK_HTTP_PROCESSOR = {
                 "attribute": "route",
                 "accessor": lambda arguments: _helper.get_route(arguments['args'])
             },
+            {
+                "_comment": "request method, request URI",
+                "attribute": "url",
+                "accessor": lambda arguments: _helper.get_url(arguments['args'])
+            },
         ]
     ]
 }

@@ -12,13 +12,18 @@ MAX_DATA_LENGTH = 1000
 token_data = local()
 token_data.current_token = None
 
-def get_url(kwargs) -> ParseResult:
-    url_str = try_option(lambda k: k.get('path'), kwargs['event'])
-    url = url_str.unwrap_or(None)
-    if url is not None:
-        return urlparse(url)
-    else:
-        return None
+def get_url(args) -> str:
+    event = args[1]
+    host = event.get('headers', {}).get('Host', '')
+    stage = event.get('requestContext', {}).get('stage', '')
+    path = event.get('path', '')
+    query_params = event.get('queryStringParameters', {})
+    scheme = 'https' if event.get('headers', {}).get('X-Forwarded-Proto', 'http') == 'https' else 'http'
+    url = f"{scheme}://{host}/{stage}{path}"
+    if query_params:
+        from urllib.parse import urlencode
+        url += '?' + urlencode(query_params)
+    return url
 
 def get_route(args) -> str:
     event = args[1]

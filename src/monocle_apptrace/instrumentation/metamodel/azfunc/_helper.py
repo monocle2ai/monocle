@@ -13,7 +13,7 @@ def get_url(kwargs) -> ParseResult:
     url_str = try_option(getattr, kwargs['req'], 'url')
     url = url_str.unwrap_or(None)
     if url is not None:
-        return urlparse(url)
+        return url
     else:
         return None
 
@@ -25,9 +25,11 @@ def get_function_name(kwargs) -> str:
     
 
 def get_route(kwargs) -> str:
-    url:ParseResult = get_url(kwargs)
-    if url is not None:
+    url_str = get_url(kwargs)
+    if url_str is not None:
+        url: ParseResult = urlparse(url_str)
         return url.path
+    return ""
 
 def get_method(kwargs) -> str:
 #    return args[0]['method'] if 'method' in args[0] else ""
@@ -35,9 +37,11 @@ def get_method(kwargs) -> str:
     return http_method.unwrap_or("")
 
 def get_params(kwargs) -> dict:
-    url:ParseResult = get_url(kwargs)
-    if url is not None:
+    url_str = get_url(kwargs)
+    if url_str is not None:
+        url: ParseResult = urlparse(url_str)
         return unquote(url.query)
+    return {}
 
 def get_body(kwargs) -> dict:
     if hasattr(kwargs['req'], 'get_body'):

@@ -159,7 +159,7 @@ TOOLS = {
             "attributes": [
                 {
                     "_comment": "this is Tool input",
-                    "attribute": "Inputs",
+                    "attribute": "input",
                     "accessor": lambda arguments: _helper.extract_tool_input(arguments),
                 },
             ],

@@ -22,6 +22,14 @@ def get_params(args) -> dict:
     params = args[0]['QUERY_STRING'] if 'QUERY_STRING' in args[0] else ""
     return unquote(params)
 
+def get_url(args) -> str:
+    url = ""
+    if len(args) > 1 or not isinstance(args[0], dict):
+        if 'HTTP_HOST' in args[0]:
+            url = f"http://{args[0]['HTTP_HOST']}{args[0].get('REQUEST_URI', '')}"
+
+    return url
+
 def get_body(args) -> dict:
     return ""
 

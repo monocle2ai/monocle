@@ -15,6 +15,13 @@ MAX_DATA_LENGTH = 1000
 token_data = local()
 token_data.current_token = None
 
+def get_url(args) -> str:
+    server = args.get('server', ('127.0.0.1', 80))
+    host, port = server
+    path = args.get('path', '/')
+    scheme = args.get('scheme', 'http')
+    return f"{scheme}://{host}:{port}{path}"
+
 def get_route(scope) -> str:
     return scope.get('path', '')
 

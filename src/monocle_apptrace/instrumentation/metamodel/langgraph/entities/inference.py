@@ -2,6 +2,7 @@ from monocle_apptrace.instrumentation.common.constants import AGENT_REQUEST_SPAN
 from monocle_apptrace.instrumentation.metamodel.langgraph import (
     _helper
 )
+from monocle_apptrace.instrumentation.common.utils import get_error_message
 
 AGENT = {
       "type": SPAN_TYPES.AGENTIC_INVOCATION,
@@ -39,6 +40,10 @@ AGENT = {
         {
           "name":"data.output",
           "attributes": [
+            {
+                    "attribute": "error_code",
+                    "accessor": lambda arguments: get_error_message(arguments)
+            },
             {
                 "_comment": "this is response from LLM",
                 "attribute": "response",

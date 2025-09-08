@@ -32,11 +32,13 @@ logger = logging.getLogger(__name__)
 import time
 import threading
 import multiprocessing
-
+from common.custom_exporter import CustomConsoleSpanExporter
 memory_exporter = InMemorySpanExporter()
+custom_exporter = CustomConsoleSpanExporter()
 span_processors = [
     SimpleSpanProcessor(memory_exporter),
     BatchSpanProcessor(FileSpanExporter()),
+    SimpleSpanProcessor(custom_exporter)
 ]
 
 # Global variables to track server processes
@@ -344,6 +346,41 @@ async def test_async_multi_agent(setup):
     print("\n")
     verify_spans()
 
+@pytest.mark.integration()
+@pytest.mark.asyncio
+async def test_invalid_api_key_error_code_in_span(setup):
+    """Test that passing an invalid API key results in error_code in the span."""
+    # Simulate invalid API key by setting an obviously wrong value
+    memory_exporter.clear()
+    try:
+        os.environ["OPENAI_API_KEY"] = "INVALID_API_KEY"
+        supervisor = await setup_agents()
+        chunk = supervisor.invoke(
+            input={
+                "messages": [
+                    {
+                        "role": "user",
+                        "content": """book a flight from BOS to JFK or LAX. And also book me Hyatt hotel at LAX.""",
+                    }
+                ]
+            }
+        )
+        print(chunk)
+        print("\n")
+        time.sleep(2)
+    except Exception as e:
+        spans = memory_exporter.get_finished_spans()
+        found_error_code = False
+        for span in spans:
+            span_attributes = span.attributes
+            if (
+                    "span.type" in span_attributes
+                    and span_attributes["span.type"] == "agentic.invocation"
+                    and "entity.1.name" in span_attributes
+            ):
+                span_input, span_output,_ = span.events
+                assert "error_code" in span_output.attributes
+                assert span_output.attributes["error_code"]== "invalid_api_key"
 
 def verify_spans():
     time.sleep(2)

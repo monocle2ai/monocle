@@ -13,6 +13,10 @@ FASTAPI_HTTP_PROCESSOR = {
                 "attribute": "route",
                 "accessor": lambda arguments: _helper.get_route(arguments['args'][0])
             },
+        {
+                "attribute": "url",
+                "accessor": lambda arguments: _helper.get_url(arguments['args'][0])
+            },
         ]
     ]
 }

@@ -30,7 +30,7 @@ except Exception as e:
     logger.warning("Exception finding monocle-apptrace version.")
 
 class MonocleSpanException(Exception):
-    def __init__(self, err_message:str):
+    def __init__(self, err_message:str, err_code:str = None):
         """
         Monocle exeption to indicate error in span processing.        
         Parameters:
@@ -39,10 +39,15 @@ class MonocleSpanException(Exception):
         """
         super().__init__(err_message)
         self.message = err_message
+        self.err_code = err_code
 
     def __str__(self):
         """String representation of the exception."""
-        return f"[Monocle Span Error: {self.message} {self.status}"
+        return f"[Monocle Span Error: {self.message}"
+
+    def get_err_code(self):
+        """Retrieve the error code."""
+        return self.err_code
 
 def set_span_attribute(span, name, value):
     if value is not None:
@@ -97,6 +102,7 @@ def with_tracer_wrapper(func):
         return wrapper
 
     return _with_tracer
+
 
 def resolve_from_alias(my_map, alias):
     """Find a alias that is not none from list of aliases"""
@@ -393,12 +399,14 @@ def get_exception_message(arguments):
     else:
         return ''
 
+
 def get_error_message(arguments):
     status_code = get_status_code(arguments)
     if status_code == 'success':
         return ''
     else:
         return status_code
+
 
 def get_status_code(arguments):
     if arguments["exception"] is not None:

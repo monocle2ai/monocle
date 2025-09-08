@@ -1,6 +1,6 @@
 import logging
 from threading import local
-from monocle_apptrace.instrumentation.common.utils import extract_http_headers, clear_http_scopes
+from monocle_apptrace.instrumentation.common.utils import extract_http_headers, clear_http_scopes, get_exception_status_code
 from monocle_apptrace.instrumentation.common.span_handler import SpanHandler
 from monocle_apptrace.instrumentation.common.constants import HTTP_SUCCESS_CODES
 from monocle_apptrace.instrumentation.common.utils import MonocleSpanException
@@ -40,11 +40,17 @@ def extract_response(instance) -> str:
         response = ""
     return response
 
-def extract_status(instance) -> str:
-    status = f"{instance.status_code}" if hasattr(instance, 'status_code') else ""
-    if status not in HTTP_SUCCESS_CODES:
-        error_message = extract_response(instance)
-        raise MonocleSpanException(f"error: {status} - {error_message}")
+def extract_status(arguments) -> str:
+    if arguments["exception"] is not None:
+        return get_exception_status_code(arguments)
+    instance = arguments['instance']
+    if hasattr(instance, 'status_code'):
+        status = f"{instance.status_code}"
+        if status not in HTTP_SUCCESS_CODES:
+            error_message = extract_response(instance)
+            raise MonocleSpanException(f"error: {status} - {error_message}", status)
+    else:
+        status = "success"
     return status
 
 def flask_pre_tracing(args):

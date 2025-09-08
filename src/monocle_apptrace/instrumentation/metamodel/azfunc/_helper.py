@@ -1,6 +1,6 @@
 import logging
 from threading import local
-from monocle_apptrace.instrumentation.common.utils import extract_http_headers, clear_http_scopes, try_option, Option, MonocleSpanException
+from monocle_apptrace.instrumentation.common.utils import extract_http_headers, clear_http_scopes, get_exception_status_code, try_option, Option, MonocleSpanException
 from monocle_apptrace.instrumentation.common.span_handler import SpanHandler
 from monocle_apptrace.instrumentation.common.constants import HTTP_SUCCESS_CODES
 from urllib.parse import unquote, urlparse, ParseResult
@@ -61,11 +61,17 @@ def extract_response(result) -> str:
         response = ""
     return response
 
-def extract_status(result) -> str:
-    status = f"{result.status_code}" if hasattr(result, 'status_code') else ""
-    if status not in HTTP_SUCCESS_CODES:
-        error_message = extract_response(result)
-        raise MonocleSpanException(f"error: {status} - {error_message}")
+def extract_status(arguments) -> str:
+    if arguments["exception"] is not None:
+        return get_exception_status_code(arguments)
+    result = arguments['result']
+    if hasattr(result, 'status_code'):
+        status = f"{result.status_code}"
+        if status not in HTTP_SUCCESS_CODES:
+            error_message = extract_response(result)
+            raise MonocleSpanException(f"error: {status} - {error_message}", status)
+    else:
+        status = "success"
     return status
 
 def azure_func_pre_tracing(kwargs):

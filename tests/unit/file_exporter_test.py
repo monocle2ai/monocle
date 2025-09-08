@@ -52,7 +52,7 @@ class TestHandler(unittest.TestCase):
 
         self.span_processor.force_flush()
         
-        trace_file_name = self.file_exporter.current_file_path
+        trace_file_name = self.file_exporter.last_file_processed
         if trace_file_name is None:
             print("Inside no file")
             time.sleep(10)
@@ -64,7 +64,7 @@ class TestHandler(unittest.TestCase):
                 print("Inside file")
                 trace_data = json.load(f)
                 trace_id_from_file = trace_data[0]["context"]["trace_id"]
-                trace_id_from_exporter = hex(self.file_exporter.current_trace_id)
+                trace_id_from_exporter = hex(self.file_exporter.last_trace_id)
                 assert trace_id_from_file == trace_id_from_exporter
 
             os.remove(trace_file_name)

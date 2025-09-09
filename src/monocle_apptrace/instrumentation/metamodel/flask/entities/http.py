@@ -14,6 +14,11 @@ FLASK_HTTP_PROCESSOR = {
                 "attribute": "route",
                 "accessor": lambda arguments: _helper.get_route(arguments['args'])
             },
+            {
+                "_comment": "request method, request URI",
+                "attribute": "url",
+                "accessor": lambda arguments: _helper.get_url(arguments['args'])
+            },
         ]
     ]
 }
@@ -35,8 +40,8 @@ FLASK_RESPONSE_PROCESSOR = {
             "attributes": [
                 {
                     "_comment": "status from HTTP response",
-                    "attribute": "status",
-                    "accessor": lambda arguments: _helper.extract_status(arguments['instance'])
+                    "attribute": "error_code",
+                    "accessor": lambda arguments: _helper.extract_status(arguments)
                 },
                 {
                     "_comment": "this is result from LLM",

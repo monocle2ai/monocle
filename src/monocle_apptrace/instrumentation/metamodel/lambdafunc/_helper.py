@@ -1,6 +1,7 @@
 import logging
 from threading import local
-from monocle_apptrace.instrumentation.common.utils import extract_http_headers, clear_http_scopes, try_option, Option, \
+from unittest import result
+from monocle_apptrace.instrumentation.common.utils import extract_http_headers, clear_http_scopes, get_exception_status_code, try_option, Option, \
     MonocleSpanException
 from monocle_apptrace.instrumentation.common.span_handler import SpanHandler
 from monocle_apptrace.instrumentation.common.constants import HTTP_SUCCESS_CODES
@@ -11,13 +12,18 @@ MAX_DATA_LENGTH = 1000
 token_data = local()
 token_data.current_token = None
 
-def get_url(kwargs) -> ParseResult:
-    url_str = try_option(lambda k: k.get('path'), kwargs['event'])
-    url = url_str.unwrap_or(None)
-    if url is not None:
-        return urlparse(url)
-    else:
-        return None
+def get_url(args) -> str:
+    event = args[1]
+    host = event.get('headers', {}).get('Host', '')
+    stage = event.get('requestContext', {}).get('stage', '')
+    path = event.get('path', '')
+    query_params = event.get('queryStringParameters', {})
+    scheme = 'https' if event.get('headers', {}).get('X-Forwarded-Proto', 'http') == 'https' else 'http'
+    url = f"{scheme}://{host}/{stage}{path}"
+    if query_params:
+        from urllib.parse import urlencode
+        url += '?' + urlencode(query_params)
+    return url
 
 def get_route(args) -> str:
     event = args[1]
@@ -53,13 +59,18 @@ def extract_response(result) -> str:
     return response
 
 
-def extract_status(result) -> str:
-    status = f"{result['statusCode']}" if isinstance(result, dict) and 'statusCode' in result else ""
-    if status not in HTTP_SUCCESS_CODES:
-        error_message = extract_response(result)
-        raise MonocleSpanException(f"error: {status} - {error_message}")
+def extract_status(arguments) -> str:
+    if arguments["exception"] is not None:
+        return get_exception_status_code(arguments)
+    result = arguments['result']
+    if isinstance(result, dict) and 'statusCode' in result:
+        status = f"{result['statusCode']}"
+        if status not in HTTP_SUCCESS_CODES:
+            error_message = extract_response(result)
+            raise MonocleSpanException(f"error: {status} - {error_message}", status)
+    else:
+        status = "success"
     return status
-
 
 def lambda_func_pre_tracing(kwargs):
     headers = kwargs['event'].get('headers', {}) if 'event' in kwargs else {}

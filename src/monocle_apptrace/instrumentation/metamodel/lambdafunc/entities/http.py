@@ -19,6 +19,11 @@ LAMBDA_HTTP_PROCESSOR = {
                 "attribute": "body",
                 "accessor": lambda arguments: _helper.get_body(arguments['args'])
             },
+        {
+                "_comment": "request method, request URI",
+                "attribute": "url",
+                "accessor": lambda arguments: _helper.get_url(arguments['args'])
+            },
         ]
     ],
     "events": [
@@ -37,8 +42,8 @@ LAMBDA_HTTP_PROCESSOR = {
             "attributes": [
                 {
                     "_comment": "status from HTTP response",
-                    "attribute": "status",
-                    "accessor": lambda arguments: _helper.extract_status(arguments['result'])
+                    "attribute": "error_code",
+                    "accessor": lambda arguments: _helper.extract_status(arguments)
                 },
                 {
                     "_comment": "this is result from LLM",

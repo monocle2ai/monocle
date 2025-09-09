@@ -1,7 +1,7 @@
 from opentelemetry.trace import Tracer
 from monocle_apptrace.instrumentation.common.constants import MONOCLE_SDK_VERSION
 from monocle_apptrace.instrumentation.common.utils import with_tracer_wrapper
-from monocle_apptrace.instrumentation.common.instrumentor import monocle_trace_scope_method
+from monocle_apptrace import monocle_trace_scope_method
 from common.utils import SCOPE_NAME, SCOPE_VALUE
 
 @with_tracer_wrapper

@@ -42,12 +42,14 @@ def start_fastapi():
     print("Going to start FastAPI server")
 
     # Clean up any existing server process
-    stop_fastapi()
-
-    # Start new server process
-    server_process = multiprocessing.Process(target=start_server)
+    #stop_fastapi()
+    server_process = Thread(target=lambda: start_server())
     server_process.daemon = True
     server_process.start()
+    # Start new server process
+    # server_process = multiprocessing.Process(target=start_server)
+    # server_process.daemon = True
+    # server_process.start()
     for i in range(15):
         try:
             response = requests.get(get_url() + "/hello")

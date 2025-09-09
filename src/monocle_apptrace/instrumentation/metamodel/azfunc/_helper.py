@@ -1,6 +1,6 @@
 import logging
 from threading import local
-from monocle_apptrace.instrumentation.common.utils import extract_http_headers, clear_http_scopes, try_option, Option, MonocleSpanException
+from monocle_apptrace.instrumentation.common.utils import extract_http_headers, clear_http_scopes, get_exception_status_code, try_option, Option, MonocleSpanException
 from monocle_apptrace.instrumentation.common.span_handler import SpanHandler
 from monocle_apptrace.instrumentation.common.constants import HTTP_SUCCESS_CODES
 from urllib.parse import unquote, urlparse, ParseResult
@@ -13,7 +13,7 @@ def get_url(kwargs) -> ParseResult:
     url_str = try_option(getattr, kwargs['req'], 'url')
     url = url_str.unwrap_or(None)
     if url is not None:
-        return urlparse(url)
+        return url
     else:
         return None
 
@@ -25,9 +25,11 @@ def get_function_name(kwargs) -> str:
     
 
 def get_route(kwargs) -> str:
-    url:ParseResult = get_url(kwargs)
-    if url is not None:
+    url_str = get_url(kwargs)
+    if url_str is not None:
+        url: ParseResult = urlparse(url_str)
         return url.path
+    return ""
 
 def get_method(kwargs) -> str:
 #    return args[0]['method'] if 'method' in args[0] else ""
@@ -35,9 +37,11 @@ def get_method(kwargs) -> str:
     return http_method.unwrap_or("")
 
 def get_params(kwargs) -> dict:
-    url:ParseResult = get_url(kwargs)
-    if url is not None:
+    url_str = get_url(kwargs)
+    if url_str is not None:
+        url: ParseResult = urlparse(url_str)
         return unquote(url.query)
+    return {}
 
 def get_body(kwargs) -> dict:
     if hasattr(kwargs['req'], 'get_body'):
@@ -57,11 +61,17 @@ def extract_response(result) -> str:
         response = ""
     return response
 
-def extract_status(result) -> str:
-    status = f"{result.status_code}" if hasattr(result, 'status_code') else ""
-    if status not in HTTP_SUCCESS_CODES:
-        error_message = extract_response(result)
-        raise MonocleSpanException(f"error: {status} - {error_message}")
+def extract_status(arguments) -> str:
+    if arguments["exception"] is not None:
+        return get_exception_status_code(arguments)
+    result = arguments['result']
+    if hasattr(result, 'status_code'):
+        status = f"{result.status_code}"
+        if status not in HTTP_SUCCESS_CODES:
+            error_message = extract_response(result)
+            raise MonocleSpanException(f"error: {status} - {error_message}", status)
+    else:
+        status = "success"
     return status
 
 def azure_func_pre_tracing(kwargs):

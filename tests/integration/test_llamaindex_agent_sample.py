@@ -225,7 +225,7 @@ def test_llamaindex_agent(setup):
 #             "name": "data.input",
 #             "timestamp": "2025-07-14T03:09:27.102222Z",
 #             "attributes": {
-#                 "Inputs": [
+#                 "input": [
 #                     "{'espresso', 'coffee_type'}",
 #                     "{'quantity', 3}"
 #                 ]

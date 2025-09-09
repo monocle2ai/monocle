@@ -208,7 +208,7 @@
                 "name": "data.input",
                 "timestamp": "2025-07-25T04:19:12.824992Z",
                 "attributes": {
-                    "Inputs": [
+                    "input": [
                         "New York"
                     ]
                 }
@@ -440,7 +440,7 @@
                 "name": "data.input",
                 "timestamp": "2025-07-25T04:19:14.163384Z",
                 "attributes": {
-                    "Inputs": [
+                    "input": [
                         "Los Angeles"
                     ]
                 }
@@ -844,7 +844,7 @@
                 "name": "data.input",
                 "timestamp": "2025-07-25T04:19:15.682254Z",
                 "attributes": {
-                    "Inputs": [
+                    "input": [
                         "BOS",
                         "LAX"
                     ]
@@ -1032,7 +1032,7 @@
                 "name": "data.input",
                 "timestamp": "2025-07-25T04:19:16.614726Z",
                 "attributes": {
-                    "Inputs": [
+                    "input": [
                         "BOS",
                         "LAX"
                     ]
@@ -1631,7 +1631,7 @@
                 "name": "data.input",
                 "timestamp": "2025-07-25T04:19:21.164328Z",
                 "attributes": {
-                    "Inputs": [
+                    "input": [
                         "Sheraton Gateway Hotel"
                     ]
                 }
@@ -2063,7 +2063,7 @@
                 "name": "data.input",
                 "timestamp": "2025-07-25T04:19:29.945851Z",
                 "attributes": {
-                    "Inputs": [
+                    "input": [
                         "Give exchange rate for USD to INR"
                     ]
                 }

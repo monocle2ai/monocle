@@ -23,6 +23,11 @@ AZFUNC_HTTP_PROCESSOR = {
                 "_comment": "request function name",
                 "attribute": "function_name",
                 "accessor": lambda arguments: _helper.get_function_name(arguments['kwargs'])
+            },
+            {
+                "_comment": "request function name",
+                "attribute": "url",
+                "accessor": lambda arguments: _helper.get_url(arguments['kwargs'])
             }
         ]
     ],
@@ -42,8 +47,8 @@ AZFUNC_HTTP_PROCESSOR = {
             "attributes": [
                 {
                     "_comment": "status from HTTP response",
-                    "attribute": "status",
-                    "accessor": lambda arguments: _helper.extract_status(arguments['result'])
+                    "attribute": "error_code",
+                    "accessor": lambda arguments: _helper.extract_status(arguments)
                 },
                 {
                     "_comment": "this is result from LLM",

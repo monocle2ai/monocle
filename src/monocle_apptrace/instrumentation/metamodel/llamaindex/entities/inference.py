@@ -1,10 +1,11 @@
+from monocle_apptrace.instrumentation.common.constants import SPAN_TYPES
 from monocle_apptrace.instrumentation.metamodel.llamaindex import (
     _helper,
 )
-from monocle_apptrace.instrumentation.common.utils import resolve_from_alias, get_llm_type
+from monocle_apptrace.instrumentation.common.utils import get_error_message, resolve_from_alias, get_llm_type, get_status, get_status_code
 
 INFERENCE = {
-    "type": "inference.framework",
+    "type": SPAN_TYPES.INFERENCE_FRAMEWORK,
     "attributes": [
         [
             {
@@ -54,9 +55,12 @@ INFERENCE = {
             "name": "data.output",
             "attributes": [
                 {
-                    "_comment": "this is response from LLM",
+                    "attribute": "error_code",
+                    "accessor": lambda arguments: get_error_message(arguments)
+                },
+                {
                     "attribute": "response",
-                    "accessor": lambda arguments: _helper.extract_assistant_message(arguments['result'])
+                    "accessor": lambda arguments: _helper.extract_assistant_message(arguments)
                 }
             ]
         },
@@ -66,6 +70,16 @@ INFERENCE = {
                 {
                     "_comment": "this is metadata usage from LLM",
                     "accessor": lambda arguments: _helper.update_span_from_llm_response(arguments['result'],arguments['instance'])
+                },
+                {
+                    "attribute": "finish_reason",
+                    "accessor": lambda arguments: _helper.extract_finish_reason(arguments)
+                },
+                {
+                    "attribute": "finish_type",
+                    "accessor": lambda arguments: _helper.map_finish_reason_to_finish_type(
+                        _helper.extract_finish_reason(arguments)
+                    )
                 }
             ]
         }

@@ -1,3 +1,4 @@
+import time
 import boto3
 import bs4
 import pytest
@@ -14,6 +15,7 @@ from opentelemetry.sdk.trace.export import BatchSpanProcessor
 
 from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
 from monocle_apptrace.instrumentation.metamodel.botocore.handlers.botocore_span_handler import BotoCoreSpanHandler
+from tests.common.helpers import find_span_by_type, find_spans_by_type, validate_inference_span_events, verify_inference_span
 custom_exporter = CustomConsoleSpanExporter()
 
 @pytest.fixture(scope="module")
@@ -73,72 +75,100 @@ def test_langchain_bedrock_sample(setup):
     result = rag_chain.invoke(query)
 
     print(result)
+    
+    time.sleep(5)  # Allow time for spans to be captured
 
     spans = custom_exporter.get_captured_spans()
-    for span in spans:
-        span_attributes = span.attributes
-        if "span.type" in span_attributes and span_attributes["span.type"] == "retrieval":
-            # Assertions for all retrieval attributes
-            assert span_attributes["entity.1.name"] == "Chroma"
-            assert span_attributes["entity.1.type"] == "vectorstore.Chroma"
-            assert "entity.1.deployment" in span_attributes
-            assert span_attributes["entity.2.name"] == "text-embedding-ada-002"
-            assert span_attributes["entity.2.type"] == "model.embedding.text-embedding-ada-002"
+    print(f"Captured {len(spans)} spans")
+    
+    # Verify we have spans
+    assert len(spans) > 0, "No spans captured"
 
-        if 'span.type' in span_attributes and (
-            span_attributes["span.type"] == "inference" or span_attributes["span.type"] == "inference.framework"):
-            # Assertions for all inference attributes
-            if "entity.1.inference_endpoint" in span_attributes.keys():
-                assert span_attributes["entity.1.type"] == "inference.aws_sagemaker"
-                assert "entity.1.inference_endpoint" in span_attributes
-                assert span_attributes["entity.2.name"] == "ai21.jamba-1-5-mini-v1:0"
-                assert span_attributes["entity.2.type"] == "model.llm.ai21.jamba-1-5-mini-v1:0"
+    workflow_span = None
 
-                # Assertions for metadata
-                span_input, span_output, span_metadata = span.events
-                assert "completion_tokens" in span_metadata.attributes
-                assert "prompt_tokens" in span_metadata.attributes
-                assert "total_tokens" in span_metadata.attributes
+    inference_spans = find_spans_by_type(spans, "inference")
+    if not inference_spans:
+        # Also check for inference.framework spans
+        inference_spans = find_spans_by_type(spans, "inference.framework")
 
-        if not span.parent and span.name == "langchain.workflow":  # Root span
-            assert span_attributes["entity.1.name"] == "bedrock_rag_workflow"
-            assert span_attributes["entity.1.type"] == "workflow.langchain"
+    assert len(inference_spans) > 0, "Expected to find at least one inference span"
+
+    # Verify each inference span
+    for span in inference_spans:
+        verify_inference_span(
+            span=span,
+            entity_type="inference.aws_bedrock",
+            model_name="ai21.jamba-1-5-mini-v1:0",
+            model_type="model.llm.ai21.jamba-1-5-mini-v1:0",
+            inference_endpoint="https://bedrock-runtime.us-east-1.amazonaws.com",
+            check_metadata=True,
+            check_input_output=True,
+        )
+    assert (
+        len(inference_spans) == 1
+    ), "Expected exactly one inference span for the LLM call"
+    
+    # Validate events using the generic function with regex patterns
+    validate_inference_span_events(
+        span=inference_spans[0],
+        expected_event_count=3,
+        input_patterns=[
+            r"^\{\"human\": \".+\"\}$",  # Pattern for human input
+        ],
+        output_pattern=r"^\{\"ai\": \".+\"\}$",  # Pattern for AI response
+        metadata_requirements={
+            "completion_tokens": int,
+            "prompt_tokens": int,
+            "total_tokens": int
+        }
+    )
+    
+    workflow_span = find_span_by_type(spans, "workflow")
+    
+    assert workflow_span is not None, "Expected to find workflow span"
+    
+    assert workflow_span.attributes["span.type"] == "workflow"
+    assert workflow_span.attributes["entity.1.name"] == "bedrock_rag_workflow"
+    assert workflow_span.attributes["entity.1.type"] == "workflow.langchain"
+
+if __name__ == "__main__":
+    pytest.main([__file__, "-s", "--tb=short"])
 
 # {
-#     "name": "langchain_core.vectorstores.base.VectorStoreRetriever",
+#     "name": "openai.resources.embeddings.Embeddings",
 #     "context": {
-#         "trace_id": "0x569a7336ee2a2fe52923844a6eedf79d",
-#         "span_id": "0x015f4ec4ff5d61f3",
+#         "trace_id": "0xf9e38c85078e5b950bb803ce39b221d7",
+#         "span_id": "0x70ad4d0b51b85a09",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0xb0809664c643f839",
-#     "start_time": "2024-12-06T11:19:39.619246Z",
-#     "end_time": "2024-12-06T11:19:40.225971Z",
+#     "parent_id": "0x7196d610a49e14bf",
+#     "start_time": "2025-07-02T20:46:37.723052Z",
+#     "end_time": "2025-07-02T20:46:40.277692Z",
 #     "status": {
-#         "status_code": "UNSET"
+#         "status_code": "OK"
 #     },
 #     "attributes": {
-#         "span.type": "retrieval",
-#         "entity.count": 2,
-#         "entity.1.name": "Chroma",
-#         "entity.1.type": "vectorstore.Chroma",
-#         "entity.2.name": "text-embedding-ada-002",
-#         "entity.2.type": "model.embedding.text-embedding-ada-002"
+#         "monocle_apptrace.version": "0.4.0",
+#         "monocle_apptrace.language": "python",
+#         "span_source": "/Users/kshitizvijayvargiya/monocle-ksh/.venv/lib/python3.11/site-packages/langchain_community/embeddings/openai.py:120",
+#         "workflow.name": "bedrock_rag_workflow",
+#         "span.type": "embedding",
+#         "entity.1.name": "text-embedding-ada-002",
+#         "entity.1.type": "model.embedding.text-embedding-ada-002",
+#         "entity.count": 1
 #     },
 #     "events": [
 #         {
 #             "name": "data.input",
-#             "timestamp": "2024-12-06T11:19:39.619269Z",
-#             "attributes": {
-#                 "input": "What is Task Decomposition?"
-#             }
+#             "timestamp": "2025-07-02T20:46:40.232498Z",
+#             "attributes": {}
 #         },
 #         {
 #             "name": "data.output",
-#             "timestamp": "2024-12-06T11:19:40.225945Z",
+#             "timestamp": "2025-07-02T20:46:40.277650Z",
 #             "attributes": {
-#                 "response": "Fig. 1. Overview of a LLM-powered autonomous agent system.\nComponent One: Planning#\nA complicated ta..."
+#                 "response": "index=0, embedding=[0.0040525333024561405, 0.008230944164097309, -0.0056085106916725636, -0.02394456..."
 #             }
 #         }
 #     ],
@@ -149,199 +179,217 @@ def test_langchain_bedrock_sample(setup):
 #         },
 #         "schema_url": ""
 #     }
-# },
+# }
 # {
-#     "name": "langchain.workflow",
+#     "name": "workflow",
 #     "context": {
-#         "trace_id": "0x569a7336ee2a2fe52923844a6eedf79d",
-#         "span_id": "0xb0809664c643f839",
-#         "trace_state": "[]"
-#     },
-#     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0x902f1c282642e02f",
-#     "start_time": "2024-12-06T11:19:39.619011Z",
-#     "end_time": "2024-12-06T11:19:40.226404Z",
-#     "status": {
-#         "status_code": "UNSET"
-#     },
-#     "attributes": {},
-#     "events": [],
-#     "links": [],
-#     "resource": {
-#         "attributes": {
-#             "service.name": "bedrock_rag_workflow"
-#         },
-#         "schema_url": ""
-#     }
-# },
-# {
-#     "name": "langchain.workflow",
-#     "context": {
-#         "trace_id": "0x569a7336ee2a2fe52923844a6eedf79d",
-#         "span_id": "0x902f1c282642e02f",
-#         "trace_state": "[]"
-#     },
-#     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0x9308293874a886e6",
-#     "start_time": "2024-12-06T11:19:39.618541Z",
-#     "end_time": "2024-12-06T11:19:40.226591Z",
-#     "status": {
-#         "status_code": "UNSET"
-#     },
-#     "attributes": {},
-#     "events": [],
-#     "links": [],
-#     "resource": {
-#         "attributes": {
-#             "service.name": "bedrock_rag_workflow"
-#         },
-#         "schema_url": ""
-#     }
-# },
-# {
-#     "name": "langchain_core.prompts.chat.ChatPromptTemplate",
-#     "context": {
-#         "trace_id": "0x569a7336ee2a2fe52923844a6eedf79d",
-#         "span_id": "0x372e5758c82f6b1b",
-#         "trace_state": "[]"
-#     },
-#     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0x9308293874a886e6",
-#     "start_time": "2024-12-06T11:19:40.226714Z",
-#     "end_time": "2024-12-06T11:19:40.227314Z",
-#     "status": {
-#         "status_code": "UNSET"
-#     },
-#     "attributes": {},
-#     "events": [],
-#     "links": [],
-#     "resource": {
-#         "attributes": {
-#             "service.name": "bedrock_rag_workflow"
-#         },
-#         "schema_url": ""
-#     }
-# },
-# {
-#     "name": "langchain_aws.chat_models.bedrock_converse.ChatBedrockConverse",
-#     "context": {
-#         "trace_id": "0x569a7336ee2a2fe52923844a6eedf79d",
-#         "span_id": "0x0de4a317052e1ea3",
-#         "trace_state": "[]"
-#     },
-#     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0x9308293874a886e6",
-#     "start_time": "2024-12-06T11:19:40.227407Z",
-#     "end_time": "2024-12-06T11:19:41.996350Z",
-#     "status": {
-#         "status_code": "UNSET"
-#     },
-#     "attributes": {
-#         "span.type": "inference",
-#         "entity.count": 2,
-#         "entity.1.type": "inference.azure_openai",
-#         "entity.1.inference_endpoint": "https://bedrock-runtime.us-east-1.amazonaws.com",
-#         "entity.2.name": "ai21.jamba-1-5-mini-v1:0",
-#         "entity.2.type": "model.llm.ai21.jamba-1-5-mini-v1:0"
-#     },
-#     "events": [
-#         {
-#             "name": "data.input",
-#             "timestamp": "2024-12-06T11:19:41.996279Z",
-#             "attributes": {
-#                 "input": [
-#                     "{'human': 'You are an assistant for question-answering tasks. Use the following pieces of retrieved context to answer the question. If you don\\'t know the answer, just say that you don\\'t know. Use three sentences maximum and keep the answer concise.\\nQuestion: What is Task Decomposition? \\nContext: Fig. 1. Overview of a LLM-powered autonomous agent system.\\nComponent One: Planning#\\nA complicated task usually involves many steps. An agent needs to know what they are and plan ahead.\\nTask Decomposition#\\nChain of thought (CoT; Wei et al. 2022) has become a standard prompting technique for enhancing model performance on complex tasks. The model is instructed to \u201cthink step by step\u201d to utilize more test-time computation to decompose hard tasks into smaller and simpler steps. CoT transforms big tasks into multiple manageable tasks and shed lights into an interpretation of the model\u2019s thinking process.\\n\\nTree of Thoughts (Yao et al. 2023) extends CoT by exploring multiple reasoning possibilities at each step. It first decomposes the problem into multiple thought steps and generates multiple thoughts per step, creating a tree structure. The search process can be BFS (breadth-first search) or DFS (depth-first search) with each state evaluated by a classifier (via a prompt) or majority vote.\\nTask decomposition can be done (1) by LLM with simple prompting like \"Steps for XYZ.\\\\n1.\", \"What are the subgoals for achieving XYZ?\", (2) by using task-specific instructions; e.g. \"Write a story outline.\" for writing a novel, or (3) with human inputs.\\n\\nResources:\\n1. Internet access for searches and information gathering.\\n2. Long Term memory management.\\n3. GPT-3.5 powered Agents for delegation of simple tasks.\\n4. File output.\\n\\nPerformance Evaluation:\\n1. Continuously review and analyze your actions to ensure you are performing to the best of your abilities.\\n2. Constructively self-criticize your big-picture behavior constantly.\\n3. Reflect on past decisions and strategies to refine your approach.\\n4. Every command has a cost, so be smart and efficient. Aim to complete tasks in the least number of steps.\\n\\n(3) Task execution: Expert models execute on the specific tasks and log results.\\nInstruction:\\n\\nWith the input and the inference results, the AI assistant needs to describe the process and results. The previous stages can be formed as - User Input: {{ User Input }}, Task Planning: {{ Tasks }}, Model Selection: {{ Model Assignment }}, Task Execution: {{ Predictions }}. You must first answer the user\\'s request in a straightforward manner. Then describe the task process and show your analysis and model inference results to the user in the first person. If inference results contain a file path, must tell the user the complete file path. \\nAnswer:'}"
-#                 ]
-#             }
-#         },
-#         {
-#             "name": "data.output",
-#             "timestamp": "2024-12-06T11:19:41.996316Z",
-#             "attributes": {
-#                 "response": [
-#                     " Task decomposition is the process of breaking down a complex task into smaller, more manageable steps. This can be done using various methods, such as simple prompting, task-specific instructions, or human input. The goal is to make the task more understandable and easier to complete."
-#                 ]
-#             }
-#         },
-#         {
-#             "name": "metadata",
-#             "timestamp": "2024-12-06T11:19:41.996333Z",
-#             "attributes": {
-#                 "temperature": 0.1,
-#                 "completion_tokens": 55,
-#                 "prompt_tokens": 640,
-#                 "total_tokens": 695
-#             }
-#         }
-#     ],
-#     "links": [],
-#     "resource": {
-#         "attributes": {
-#             "service.name": "bedrock_rag_workflow"
-#         },
-#         "schema_url": ""
-#     }
-# },
-# {
-#     "name": "langchain_core.output_parsers.string.StrOutputParser",
-#     "context": {
-#         "trace_id": "0x569a7336ee2a2fe52923844a6eedf79d",
-#         "span_id": "0x469ffc2240a50d36",
-#         "trace_state": "[]"
-#     },
-#     "kind": "SpanKind.INTERNAL",
-#     "parent_id": "0x9308293874a886e6",
-#     "start_time": "2024-12-06T11:19:41.996474Z",
-#     "end_time": "2024-12-06T11:19:41.996719Z",
-#     "status": {
-#         "status_code": "UNSET"
-#     },
-#     "attributes": {},
-#     "events": [],
-#     "links": [],
-#     "resource": {
-#         "attributes": {
-#             "service.name": "bedrock_rag_workflow"
-#         },
-#         "schema_url": ""
-#     }
-# },
-# {
-#     "name": "langchain.workflow",
-#     "context": {
-#         "trace_id": "0x569a7336ee2a2fe52923844a6eedf79d",
-#         "span_id": "0x9308293874a886e6",
+#         "trace_id": "0xf9e38c85078e5b950bb803ce39b221d7",
+#         "span_id": "0x7196d610a49e14bf",
 #         "trace_state": "[]"
 #     },
 #     "kind": "SpanKind.INTERNAL",
 #     "parent_id": null,
-#     "start_time": "2024-12-06T11:19:39.602991Z",
-#     "end_time": "2024-12-06T11:19:41.996782Z",
+#     "start_time": "2025-07-02T20:46:37.722990Z",
+#     "end_time": "2025-07-02T20:46:40.277748Z",
 #     "status": {
-#         "status_code": "UNSET"
+#         "status_code": "OK"
 #     },
 #     "attributes": {
-#         "monocle_apptrace.version": "0.3.0",
+#         "monocle_apptrace.version": "0.4.0",
+#         "monocle_apptrace.language": "python",
+#         "span_source": "/Users/kshitizvijayvargiya/monocle-ksh/.venv/lib/python3.11/site-packages/langchain_community/embeddings/openai.py:120",
 #         "span.type": "workflow",
 #         "entity.1.name": "bedrock_rag_workflow",
-#         "entity.1.type": "workflow.langchain"
+#         "entity.1.type": "workflow.generic",
+#         "entity.2.type": "app_hosting.generic",
+#         "entity.2.name": "generic"
+#     },
+#     "events": [],
+#     "links": [],
+#     "resource": {
+#         "attributes": {
+#             "service.name": "bedrock_rag_workflow"
+#         },
+#         "schema_url": ""
+#     }
+# }
+# {
+#     "name": "openai.resources.embeddings.Embeddings",
+#     "context": {
+#         "trace_id": "0xc0f52f6b216e4e31b12e87005f38cf04",
+#         "span_id": "0x32fcd2b64b94c825",
+#         "trace_state": "[]"
+#     },
+#     "kind": "SpanKind.INTERNAL",
+#     "parent_id": "0xb0fc2f8aa76093bf",
+#     "start_time": "2025-07-02T20:46:41.153778Z",
+#     "end_time": "2025-07-02T20:46:41.955336Z",
+#     "status": {
+#         "status_code": "OK"
+#     },
+#     "attributes": {
+#         "monocle_apptrace.version": "0.4.0",
+#         "monocle_apptrace.language": "python",
+#         "span_source": "/Users/kshitizvijayvargiya/monocle-ksh/.venv/lib/python3.11/site-packages/langchain_community/embeddings/openai.py:120",
+#         "workflow.name": "bedrock_rag_workflow",
+#         "span.type": "embedding.modelapi"
+#     },
+#     "events": [],
+#     "links": [],
+#     "resource": {
+#         "attributes": {
+#             "service.name": "bedrock_rag_workflow"
+#         },
+#         "schema_url": ""
+#     }
+# }
+# {
+#     "name": "langchain_core.runnables.base.RunnableSequence",
+#     "context": {
+#         "trace_id": "0xc0f52f6b216e4e31b12e87005f38cf04",
+#         "span_id": "0x62935097e25127c5",
+#         "trace_state": "[]"
+#     },
+#     "kind": "SpanKind.INTERNAL",
+#     "parent_id": "0x26d2972131a15476",
+#     "start_time": "2025-07-02T20:46:41.151020Z",
+#     "end_time": "2025-07-02T20:46:41.968427Z",
+#     "status": {
+#         "status_code": "OK"
+#     },
+#     "attributes": {
+#         "monocle_apptrace.version": "0.4.0",
+#         "monocle_apptrace.language": "python",
+#         "span_source": "/Users/kshitizvijayvargiya/monocle-ksh/.venv/lib/python3.11/site-packages/langchain_core/runnables/base.py:3758",
+#         "workflow.name": "bedrock_rag_workflow",
+#         "span.type": "generic"
+#     },
+#     "events": [],
+#     "links": [],
+#     "resource": {
+#         "attributes": {
+#             "service.name": "bedrock_rag_workflow"
+#         },
+#         "schema_url": ""
+#     }
+# }
+# {
+#     "name": "langchain_core.prompts.chat.ChatPromptTemplate",
+#     "context": {
+#         "trace_id": "0xc0f52f6b216e4e31b12e87005f38cf04",
+#         "span_id": "0xf24f4a421569ae63",
+#         "trace_state": "[]"
+#     },
+#     "kind": "SpanKind.INTERNAL",
+#     "parent_id": "0x26d2972131a15476",
+#     "start_time": "2025-07-02T20:46:41.969765Z",
+#     "end_time": "2025-07-02T20:46:41.970744Z",
+#     "status": {
+#         "status_code": "OK"
+#     },
+#     "attributes": {
+#         "monocle_apptrace.version": "0.4.0",
+#         "monocle_apptrace.language": "python",
+#         "span_source": "/Users/kshitizvijayvargiya/monocle-ksh/.venv/lib/python3.11/site-packages/langchain_core/runnables/base.py:3047",
+#         "workflow.name": "bedrock_rag_workflow",
+#         "span.type": "generic"
+#     },
+#     "events": [],
+#     "links": [],
+#     "resource": {
+#         "attributes": {
+#             "service.name": "bedrock_rag_workflow"
+#         },
+#         "schema_url": ""
+#     }
+# }
+# {
+#     "name": "langchain_aws.chat_models.bedrock_converse.ChatBedrockConverse",
+#     "context": {
+#         "trace_id": "0xc0f52f6b216e4e31b12e87005f38cf04",
+#         "span_id": "0xd87f68bdfcda7ab7",
+#         "trace_state": "[]"
+#     },
+#     "kind": "SpanKind.INTERNAL",
+#     "parent_id": "0x26d2972131a15476",
+#     "start_time": "2025-07-02T20:46:41.971474Z",
+#     "end_time": "2025-07-02T20:46:44.524823Z",
+#     "status": {
+#         "status_code": "OK"
+#     },
+#     "attributes": {
+#         "monocle_apptrace.version": "0.4.0",
+#         "monocle_apptrace.language": "python",
+#         "span_source": "/Users/kshitizvijayvargiya/monocle-ksh/.venv/lib/python3.11/site-packages/langchain_core/runnables/base.py:3047",
+#         "workflow.name": "bedrock_rag_workflow",
+#         "span.type": "inference.framework",
+#         "entity.1.type": "inference.aws_bedrock",
+#         "entity.1.inference_endpoint": "https://bedrock-runtime.us-east-1.amazonaws.com",
+#         "entity.2.name": "ai21.jamba-1-5-mini-v1:0",
+#         "entity.2.type": "model.llm.ai21.jamba-1-5-mini-v1:0",
+#         "entity.count": 2
 #     },
 #     "events": [
 #         {
 #             "name": "data.input",
-#             "timestamp": "2024-12-06T11:19:39.604009Z",
+#             "timestamp": "2025-07-02T20:46:44.524669Z",
 #             "attributes": {
-#                 "input": "What is Task Decomposition?"
+#                 "input": [
+#                     "{'human': 'You are an assistant for question-answering tasks. Use the following pieces of retrieved context to answer the question. If you don\\'t know the answer, just say that you don\\'t know. Use three sentences maximum and keep the answer concise.\\nQuestion: What is Task Decomposition? \\nContext: Component One: Planning#\\nA complicated task usually involves many steps. An agent needs to know what they are and plan ahead.\\nTask Decomposition#\\nChain of thought (CoT; Wei et al. 2022) has become a standard prompting technique for enhancing model performance on complex tasks. The model is instructed to \u201cthink step by step\u201d to utilize more test-time computation to decompose hard tasks into smaller and simpler steps. CoT transforms big tasks into multiple manageable tasks and shed lights into an interpretation of the model\u2019s thinking process.\\nTree of Thoughts (Yao et al. 2023) extends CoT by exploring multiple reasoning possibilities at each step. It first decomposes the problem into multiple thought steps and generates multiple thoughts per step, creating a tree structure. The search process can be BFS (breadth-first search) or DFS (depth-first search) with each state evaluated by a classifier (via a prompt) or majority vote.\\n\\nTask decomposition can be done (1) by LLM with simple prompting like \"Steps for XYZ.\\\\n1.\", \"What are the subgoals for achieving XYZ?\", (2) by using task-specific instructions; e.g. \"Write a story outline.\" for writing a novel, or (3) with human inputs.\\nAnother quite distinct approach, LLM+P (Liu et al. 2023), involves relying on an external classical planner to do long-horizon planning. This approach utilizes the Planning Domain Definition Language (PDDL) as an intermediate interface to describe the planning problem. In this process, LLM (1) translates the problem into \u201cProblem PDDL\u201d, then (2) requests a classical planner to generate a PDDL plan based on an existing \u201cDomain PDDL\u201d, and finally (3) translates the PDDL plan back into natural language. Essentially, the planning step is outsourced to an external tool, assuming the availability of domain-specific PDDL and a suitable planner which is common in certain robotic setups but not in many other domains.\\nSelf-Reflection#\\n\\nIllustration of how HuggingGPT works. (Image source: Shen et al. 2023)\\n\\nThe system comprises of 4 stages:\\n(1) Task planning: LLM works as the brain and parses the user requests into multiple tasks. There are four attributes associated with each task: task type, ID, dependencies, and arguments. They use few-shot examples to guide LLM to do task parsing and planning.\\nInstruction:\\n\\nResources:\\n1. Internet access for searches and information gathering.\\n2. Long Term memory management.\\n3. GPT-3.5 powered Agents for delegation of simple tasks.\\n4. File output.\\n\\nPerformance Evaluation:\\n1. Continuously review and analyze your actions to ensure you are performing to the best of your abilities.\\n2. Constructively self-criticize your big-picture behavior constantly.\\n3. Reflect on past decisions and strategies to refine your approach.\\n4. Every command has a cost, so be smart and efficient. Aim to complete tasks in the least number of steps. \\nAnswer:'}"
+#                 ]
 #             }
 #         },
 #         {
 #             "name": "data.output",
-#             "timestamp": "2024-12-06T11:19:41.996776Z",
+#             "timestamp": "2025-07-02T20:46:44.524755Z",
 #             "attributes": {
-#                 "response": " Task decomposition is the process of breaking down a complex task into smaller, more manageable steps. This can be done using various methods, such as simple prompting, task-specific instructions, or human input. The goal is to make the task more understandable and easier to complete."
+#                 "response": "{'ai': ' Task decomposition is the process of breaking down a complex task into smaller, more manageable steps. This can be done using various methods, such as using large language models (LLMs) with simple prompts, task-specific instructions, or even human inputs. Another approach involves using an external classical planner to perform long-horizon planning, which utilizes the Planning Domain Definition Language (PDDL) as an intermediate interface.'}"
+#             }
+#         },
+#         {
+#             "name": "metadata",
+#             "timestamp": "2025-07-02T20:46:44.524798Z",
+#             "attributes": {
+#                 "temperature": 0.1,
+#                 "completion_tokens": 83,
+#                 "prompt_tokens": 749,
+#                 "total_tokens": 832
 #             }
 #         }
 #     ],
+#     "links": [],
+#     "resource": {
+#         "attributes": {
+#             "service.name": "bedrock_rag_workflow"
+#         },
+#         "schema_url": ""
+#     }
+# }
+#  Task decomposition is the process of breaking down a complex task into smaller, more manageable steps. This can be done using various methods, such as using large language models (LLMs) with simple prompts, task-specific instructions, or even human inputs. Another approach involves using an external classical planner to perform long-horizon planning, which utilizes the Planning Domain Definition Language (PDDL) as an intermediate interface.{
+#     "name": "workflow",
+#     "context": {
+#         "trace_id": "0xc0f52f6b216e4e31b12e87005f38cf04",
+#         "span_id": "0x8637184ba1a44201",
+#         "trace_state": "[]"
+#     },
+#     "kind": "SpanKind.INTERNAL",
+#     "parent_id": null,
+#     "start_time": "2025-07-02T20:46:41.135299Z",
+#     "end_time": "2025-07-02T20:46:44.527171Z",
+#     "status": {
+#         "status_code": "OK"
+#     },
+#     "attributes": {
+#         "monocle_apptrace.version": "0.4.0",
+#         "monocle_apptrace.language": "python",
+#         "span_source": "/Users/kshitizvijayvargiya/monocle-ksh/tests/integration/test_langchain_bedrock_sample.py:75",
+#         "span.type": "workflow",
+#         "entity.1.name": "bedrock_rag_workflow",
+#         "entity.1.type": "workflow.langchain",
+#         "entity.2.type": "app_hosting.generic",
+#         "entity.2.name": "generic"
+#     },
+#     "events": [],
 #     "links": [],
 #     "resource": {
 #         "attributes": {

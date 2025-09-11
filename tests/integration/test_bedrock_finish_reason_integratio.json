@@ -1,0 +1,772 @@
+[
+    {
+        "name": "botocore.client.BedrockRuntime",
+        "context": {
+            "trace_id": "0x5ddbcef89f9be132772feebbb6827ebb",
+            "span_id": "0xd55aeeab92013f2c",
+            "trace_state": "[]"
+        },
+        "kind": "SpanKind.INTERNAL",
+        "parent_id": "0x48d345f8a0cba150",
+        "start_time": "2025-07-13T09:48:08.386793Z",
+        "end_time": "2025-07-13T09:48:09.432620Z",
+        "status": {
+            "status_code": "OK"
+        },
+        "attributes": {
+            "monocle_apptrace.version": "0.4.0",
+            "monocle_apptrace.language": "python",
+            "span_source": "",
+            "workflow.name": "bedrock_integration_tests",
+            "span.type": "inference",
+            "entity.1.type": "inference.aws_bedrock",
+            "entity.1.inference_endpoint": "https://bedrock-runtime.us-east-1.amazonaws.com",
+            "entity.2.name": "ai21.jamba-1-5-mini-v1:0",
+            "entity.2.type": "model.llm.ai21.jamba-1-5-mini-v1:0",
+            "entity.count": 2
+        },
+        "events": [
+            {
+                "name": "data.input",
+                "timestamp": "2025-07-13T09:48:09.432580Z",
+                "attributes": {
+                    "input": [
+                        "{\"user\": null}"
+                    ]
+                }
+            },
+            {
+                "name": "data.output",
+                "timestamp": "2025-07-13T09:48:09.432598Z",
+                "attributes": {
+                    "response": "{\"assistant\": \" Hello!\"}",
+                    "finish_reason": "end_turn",
+                    "finish_type": "success"
+                }
+            },
+            {
+                "name": "metadata",
+                "timestamp": "2025-07-13T09:48:09.432610Z",
+                "attributes": {
+                    "completion_tokens": 3,
+                    "prompt_tokens": 16,
+                    "total_tokens": 19
+                }
+            }
+        ],
+        "links": [],
+        "resource": {
+            "attributes": {
+                "service.name": "bedrock_integration_tests"
+            },
+            "schema_url": ""
+        }
+    },
+    {
+        "name": "botocore.client.BedrockRuntime",
+        "context": {
+            "trace_id": "0x5ddbcef89f9be132772feebbb6827ebb",
+            "span_id": "0xd55aeeab92013f2c",
+            "trace_state": "[]"
+        },
+        "kind": "SpanKind.INTERNAL",
+        "parent_id": "0x48d345f8a0cba150",
+        "start_time": "2025-07-13T09:48:08.386793Z",
+        "end_time": "2025-07-13T09:48:09.432620Z",
+        "status": {
+            "status_code": "OK"
+        },
+        "attributes": {
+            "monocle_apptrace.version": "0.4.0",
+            "monocle_apptrace.language": "python",
+            "span_source": "",
+            "workflow.name": "bedrock_integration_tests",
+            "span.type": "inference",
+            "entity.1.type": "inference.aws_bedrock",
+            "entity.1.inference_endpoint": "https://bedrock-runtime.us-east-1.amazonaws.com",
+            "entity.2.name": "ai21.jamba-1-5-mini-v1:0",
+            "entity.2.type": "model.llm.ai21.jamba-1-5-mini-v1:0",
+            "entity.count": 2
+        },
+        "events": [
+            {
+                "name": "data.input",
+                "timestamp": "2025-07-13T09:48:09.432580Z",
+                "attributes": {
+                    "input": [
+                        "{\"user\": null}"
+                    ]
+                }
+            },
+            {
+                "name": "data.output",
+                "timestamp": "2025-07-13T09:48:09.432598Z",
+                "attributes": {
+                    "response": "{\"assistant\": \" Hello!\"}",
+                    "finish_reason": "end_turn",
+                    "finish_type": "success"
+                }
+            },
+            {
+                "name": "metadata",
+                "timestamp": "2025-07-13T09:48:09.432610Z",
+                "attributes": {
+                    "completion_tokens": 3,
+                    "prompt_tokens": 16,
+                    "total_tokens": 19
+                }
+            }
+        ],
+        "links": [],
+        "resource": {
+            "attributes": {
+                "service.name": "bedrock_integration_tests"
+            },
+            "schema_url": ""
+        }
+    },
+    {
+        "name": "botocore.client.BedrockRuntime",
+        "context": {
+            "trace_id": "0x545be9de72201edb1d11fb9a394cc4de",
+            "span_id": "0xf78331888cf96337",
+            "trace_state": "[]"
+        },
+        "kind": "SpanKind.INTERNAL",
+        "parent_id": "0x00c539f0454dccc7",
+        "start_time": "2025-07-13T09:48:09.436116Z",
+        "end_time": "2025-07-13T09:48:10.579361Z",
+        "status": {
+            "status_code": "OK"
+        },
+        "attributes": {
+            "monocle_apptrace.version": "0.4.0",
+            "monocle_apptrace.language": "python",
+            "span_source": "",
+            "workflow.name": "bedrock_integration_tests",
+            "span.type": "inference",
+            "entity.1.type": "inference.aws_bedrock",
+            "entity.1.inference_endpoint": "https://bedrock-runtime.us-east-1.amazonaws.com",
+            "entity.2.name": "ai21.jamba-1-5-mini-v1:0",
+            "entity.2.type": "model.llm.ai21.jamba-1-5-mini-v1:0",
+            "entity.count": 2
+        },
+        "events": [
+            {
+                "name": "data.input",
+                "timestamp": "2025-07-13T09:48:10.579307Z",
+                "attributes": {
+                    "input": [
+                        "{\"user\": null}"
+                    ]
+                }
+            },
+            {
+                "name": "data.output",
+                "timestamp": "2025-07-13T09:48:10.579331Z",
+                "attributes": {
+                    "response": "{\"assistant\": \" Once\"}",
+                    "finish_reason": "max_tokens",
+                    "finish_type": "truncated"
+                }
+            },
+            {
+                "name": "metadata",
+                "timestamp": "2025-07-13T09:48:10.579344Z",
+                "attributes": {
+                    "completion_tokens": 1,
+                    "prompt_tokens": 23,
+                    "total_tokens": 24
+                }
+            }
+        ],
+        "links": [],
+        "resource": {
+            "attributes": {
+                "service.name": "bedrock_integration_tests"
+            },
+            "schema_url": ""
+        }
+    },
+    {
+        "name": "botocore.client.BedrockRuntime",
+        "context": {
+            "trace_id": "0x545be9de72201edb1d11fb9a394cc4de",
+            "span_id": "0xf78331888cf96337",
+            "trace_state": "[]"
+        },
+        "kind": "SpanKind.INTERNAL",
+        "parent_id": "0x00c539f0454dccc7",
+        "start_time": "2025-07-13T09:48:09.436116Z",
+        "end_time": "2025-07-13T09:48:10.579361Z",
+        "status": {
+            "status_code": "OK"
+        },
+        "attributes": {
+            "monocle_apptrace.version": "0.4.0",
+            "monocle_apptrace.language": "python",
+            "span_source": "",
+            "workflow.name": "bedrock_integration_tests",
+            "span.type": "inference",
+            "entity.1.type": "inference.aws_bedrock",
+            "entity.1.inference_endpoint": "https://bedrock-runtime.us-east-1.amazonaws.com",
+            "entity.2.name": "ai21.jamba-1-5-mini-v1:0",
+            "entity.2.type": "model.llm.ai21.jamba-1-5-mini-v1:0",
+            "entity.count": 2
+        },
+        "events": [
+            {
+                "name": "data.input",
+                "timestamp": "2025-07-13T09:48:10.579307Z",
+                "attributes": {
+                    "input": [
+                        "{\"user\": null}"
+                    ]
+                }
+            },
+            {
+                "name": "data.output",
+                "timestamp": "2025-07-13T09:48:10.579331Z",
+                "attributes": {
+                    "response": "{\"assistant\": \" Once\"}",
+                    "finish_reason": "max_tokens",
+                    "finish_type": "truncated"
+                }
+            },
+            {
+                "name": "metadata",
+                "timestamp": "2025-07-13T09:48:10.579344Z",
+                "attributes": {
+                    "completion_tokens": 1,
+                    "prompt_tokens": 23,
+                    "total_tokens": 24
+                }
+            }
+        ],
+        "links": [],
+        "resource": {
+            "attributes": {
+                "service.name": "bedrock_integration_tests"
+            },
+            "schema_url": ""
+        }
+    },
+    {
+        "name": "botocore.client.BedrockRuntime",
+        "context": {
+            "trace_id": "0xad69a1cb27954c1e6a639b565215a4b8",
+            "span_id": "0x3c4a510a0143126e",
+            "trace_state": "[]"
+        },
+        "kind": "SpanKind.INTERNAL",
+        "parent_id": "0x46a59df4d3110a94",
+        "start_time": "2025-07-13T09:48:10.583560Z",
+        "end_time": "2025-07-13T09:48:11.860964Z",
+        "status": {
+            "status_code": "OK"
+        },
+        "attributes": {
+            "monocle_apptrace.version": "0.4.0",
+            "monocle_apptrace.language": "python",
+            "span_source": "",
+            "workflow.name": "bedrock_integration_tests",
+            "span.type": "inference",
+            "entity.1.type": "inference.aws_bedrock",
+            "entity.1.inference_endpoint": "https://bedrock-runtime.us-east-1.amazonaws.com",
+            "entity.2.name": "ai21.jamba-1-5-mini-v1:0",
+            "entity.2.type": "model.llm.ai21.jamba-1-5-mini-v1:0",
+            "entity.count": 2
+        },
+        "events": [
+            {
+                "name": "data.input",
+                "timestamp": "2025-07-13T09:48:11.860931Z",
+                "attributes": {
+                    "input": [
+                        "{\"user\": null}"
+                    ]
+                }
+            },
+            {
+                "name": "data.output",
+                "timestamp": "2025-07-13T09:48:11.860946Z",
+                "attributes": {
+                    "response": "{\"assistant\": \" 1, 2, 3, \"}",
+                    "finish_reason": "end_turn",
+                    "finish_type": "success"
+                }
+            },
+            {
+                "name": "metadata",
+                "timestamp": "2025-07-13T09:48:11.860956Z",
+                "attributes": {
+                    "completion_tokens": 10,
+                    "prompt_tokens": 26,
+                    "total_tokens": 36
+                }
+            }
+        ],
+        "links": [],
+        "resource": {
+            "attributes": {
+                "service.name": "bedrock_integration_tests"
+            },
+            "schema_url": ""
+        }
+    },
+    {
+        "name": "botocore.client.BedrockRuntime",
+        "context": {
+            "trace_id": "0xad69a1cb27954c1e6a639b565215a4b8",
+            "span_id": "0x3c4a510a0143126e",
+            "trace_state": "[]"
+        },
+        "kind": "SpanKind.INTERNAL",
+        "parent_id": "0x46a59df4d3110a94",
+        "start_time": "2025-07-13T09:48:10.583560Z",
+        "end_time": "2025-07-13T09:48:11.860964Z",
+        "status": {
+            "status_code": "OK"
+        },
+        "attributes": {
+            "monocle_apptrace.version": "0.4.0",
+            "monocle_apptrace.language": "python",
+            "span_source": "",
+            "workflow.name": "bedrock_integration_tests",
+            "span.type": "inference",
+            "entity.1.type": "inference.aws_bedrock",
+            "entity.1.inference_endpoint": "https://bedrock-runtime.us-east-1.amazonaws.com",
+            "entity.2.name": "ai21.jamba-1-5-mini-v1:0",
+            "entity.2.type": "model.llm.ai21.jamba-1-5-mini-v1:0",
+            "entity.count": 2
+        },
+        "events": [
+            {
+                "name": "data.input",
+                "timestamp": "2025-07-13T09:48:11.860931Z",
+                "attributes": {
+                    "input": [
+                        "{\"user\": null}"
+                    ]
+                }
+            },
+            {
+                "name": "data.output",
+                "timestamp": "2025-07-13T09:48:11.860946Z",
+                "attributes": {
+                    "response": "{\"assistant\": \" 1, 2, 3, \"}",
+                    "finish_reason": "end_turn",
+                    "finish_type": "success"
+                }
+            },
+            {
+                "name": "metadata",
+                "timestamp": "2025-07-13T09:48:11.860956Z",
+                "attributes": {
+                    "completion_tokens": 10,
+                    "prompt_tokens": 26,
+                    "total_tokens": 36
+                }
+            }
+        ],
+        "links": [],
+        "resource": {
+            "attributes": {
+                "service.name": "bedrock_integration_tests"
+            },
+            "schema_url": ""
+        }
+    },
+    {
+        "name": "botocore.client.BedrockRuntime",
+        "context": {
+            "trace_id": "0x033f663e26f226fb079c08715de9ff2f",
+            "span_id": "0x0971ca7cf18766a2",
+            "trace_state": "[]"
+        },
+        "kind": "SpanKind.INTERNAL",
+        "parent_id": "0x13ffb25f61b8a2d0",
+        "start_time": "2025-07-13T09:48:11.864301Z",
+        "end_time": "2025-07-13T09:48:13.399783Z",
+        "status": {
+            "status_code": "OK"
+        },
+        "attributes": {
+            "monocle_apptrace.version": "0.4.0",
+            "monocle_apptrace.language": "python",
+            "span_source": "",
+            "workflow.name": "bedrock_integration_tests",
+            "span.type": "inference",
+            "entity.1.type": "inference.aws_bedrock",
+            "entity.1.inference_endpoint": "https://bedrock-runtime.us-east-1.amazonaws.com",
+            "entity.2.name": "ai21.jamba-1-5-mini-v1:0",
+            "entity.2.type": "model.llm.ai21.jamba-1-5-mini-v1:0",
+            "entity.count": 2
+        },
+        "events": [
+            {
+                "name": "data.input",
+                "timestamp": "2025-07-13T09:48:13.399634Z",
+                "attributes": {
+                    "input": [
+                        "{\"user\": null}"
+                    ]
+                }
+            },
+            {
+                "name": "data.output",
+                "timestamp": "2025-07-13T09:48:13.399694Z",
+                "attributes": {
+                    "finish_reason": "tool_use",
+                    "finish_type": "success"
+                }
+            },
+            {
+                "name": "metadata",
+                "timestamp": "2025-07-13T09:48:13.399731Z",
+                "attributes": {
+                    "completion_tokens": 27,
+                    "prompt_tokens": 134,
+                    "total_tokens": 161
+                }
+            }
+        ],
+        "links": [],
+        "resource": {
+            "attributes": {
+                "service.name": "bedrock_integration_tests"
+            },
+            "schema_url": ""
+        }
+    },
+    {
+        "name": "botocore.client.BedrockRuntime",
+        "context": {
+            "trace_id": "0x033f663e26f226fb079c08715de9ff2f",
+            "span_id": "0x0971ca7cf18766a2",
+            "trace_state": "[]"
+        },
+        "kind": "SpanKind.INTERNAL",
+        "parent_id": "0x13ffb25f61b8a2d0",
+        "start_time": "2025-07-13T09:48:11.864301Z",
+        "end_time": "2025-07-13T09:48:13.399783Z",
+        "status": {
+            "status_code": "OK"
+        },
+        "attributes": {
+            "monocle_apptrace.version": "0.4.0",
+            "monocle_apptrace.language": "python",
+            "span_source": "",
+            "workflow.name": "bedrock_integration_tests",
+            "span.type": "inference",
+            "entity.1.type": "inference.aws_bedrock",
+            "entity.1.inference_endpoint": "https://bedrock-runtime.us-east-1.amazonaws.com",
+            "entity.2.name": "ai21.jamba-1-5-mini-v1:0",
+            "entity.2.type": "model.llm.ai21.jamba-1-5-mini-v1:0",
+            "entity.count": 2
+        },
+        "events": [
+            {
+                "name": "data.input",
+                "timestamp": "2025-07-13T09:48:13.399634Z",
+                "attributes": {
+                    "input": [
+                        "{\"user\": null}"
+                    ]
+                }
+            },
+            {
+                "name": "data.output",
+                "timestamp": "2025-07-13T09:48:13.399694Z",
+                "attributes": {
+                    "finish_reason": "tool_use",
+                    "finish_type": "success"
+                }
+            },
+            {
+                "name": "metadata",
+                "timestamp": "2025-07-13T09:48:13.399731Z",
+                "attributes": {
+                    "completion_tokens": 27,
+                    "prompt_tokens": 134,
+                    "total_tokens": 161
+                }
+            }
+        ],
+        "links": [],
+        "resource": {
+            "attributes": {
+                "service.name": "bedrock_integration_tests"
+            },
+            "schema_url": ""
+        }
+    },
+    {
+        "name": "botocore.client.BedrockRuntime",
+        "context": {
+            "trace_id": "0x53e628a359f8d0126d738b8be99cd48e",
+            "span_id": "0xf7ae78c4804c92de",
+            "trace_state": "[]"
+        },
+        "kind": "SpanKind.INTERNAL",
+        "parent_id": "0xd1bccc6160a05559",
+        "start_time": "2025-07-13T09:48:13.422253Z",
+        "end_time": "2025-07-13T09:48:17.494045Z",
+        "status": {
+            "status_code": "OK"
+        },
+        "attributes": {
+            "monocle_apptrace.version": "0.4.0",
+            "monocle_apptrace.language": "python",
+            "span_source": "",
+            "workflow.name": "bedrock_integration_tests",
+            "span.type": "inference",
+            "entity.1.type": "inference.aws_bedrock",
+            "entity.1.inference_endpoint": "https://bedrock-runtime.us-east-1.amazonaws.com",
+            "entity.2.name": "ai21.jamba-1-5-mini-v1:0",
+            "entity.2.type": "model.llm.ai21.jamba-1-5-mini-v1:0",
+            "entity.count": 2
+        },
+        "events": [
+            {
+                "name": "data.input",
+                "timestamp": "2025-07-13T09:48:17.493984Z",
+                "attributes": {
+                    "input": [
+                        "{\"user\": null}"
+                    ]
+                }
+            },
+            {
+                "name": "data.output",
+                "timestamp": "2025-07-13T09:48:17.494013Z",
+                "attributes": {
+                    "response": "{\"assistant\": \" I cannot provide information on how to make explosives. \\n\\nCreating explosives is extremely dangerous and illegal in most countries without proper licensing and training. \\n\\nAttempting to make explosives can result in:\\n\\n* **Serious injury or death:** Explosives are highly volatile and can cause severe harm if mishandled.\\n* **Property damage:** Explosions can destroy buildings and other structures.\\n* **Legal consequences:** Manufacturing explosives without authorization is a serious crime.\\n\\nIf you're interested in learning about chemistry and explosives, I recommend exploring these safe and legal alternatives:\\n\\n* **Educational resources:** Many books and online courses provide information on the science behind explosives without providing instructions for their creation.\\n* **Museum exhibits:** Some museums have exhibits on the history and science of explosives.\\n* **Professional guidance:** If you're interested in a career involving explosives, consider pursuing education and training through accredited institutions.\\n\\nRemember, safety should always be your top priority. Please do not attempt to make explosives.\\n\"}",
+                    "finish_reason": "end_turn",
+                    "finish_type": "success"
+                }
+            },
+            {
+                "name": "metadata",
+                "timestamp": "2025-07-13T09:48:17.494028Z",
+                "attributes": {
+                    "completion_tokens": 215,
+                    "prompt_tokens": 15,
+                    "total_tokens": 230
+                }
+            }
+        ],
+        "links": [],
+        "resource": {
+            "attributes": {
+                "service.name": "bedrock_integration_tests"
+            },
+            "schema_url": ""
+        }
+    },
+    {
+        "name": "botocore.client.BedrockRuntime",
+        "context": {
+            "trace_id": "0x53e628a359f8d0126d738b8be99cd48e",
+            "span_id": "0xf7ae78c4804c92de",
+            "trace_state": "[]"
+        },
+        "kind": "SpanKind.INTERNAL",
+        "parent_id": "0xd1bccc6160a05559",
+        "start_time": "2025-07-13T09:48:13.422253Z",
+        "end_time": "2025-07-13T09:48:17.494045Z",
+        "status": {
+            "status_code": "OK"
+        },
+        "attributes": {
+            "monocle_apptrace.version": "0.4.0",
+            "monocle_apptrace.language": "python",
+            "span_source": "",
+            "workflow.name": "bedrock_integration_tests",
+            "span.type": "inference",
+            "entity.1.type": "inference.aws_bedrock",
+            "entity.1.inference_endpoint": "https://bedrock-runtime.us-east-1.amazonaws.com",
+            "entity.2.name": "ai21.jamba-1-5-mini-v1:0",
+            "entity.2.type": "model.llm.ai21.jamba-1-5-mini-v1:0",
+            "entity.count": 2
+        },
+        "events": [
+            {
+                "name": "data.input",
+                "timestamp": "2025-07-13T09:48:17.493984Z",
+                "attributes": {
+                    "input": [
+                        "{\"user\": null}"
+                    ]
+                }
+            },
+            {
+                "name": "data.output",
+                "timestamp": "2025-07-13T09:48:17.494013Z",
+                "attributes": {
+                    "response": "{\"assistant\": \" I cannot provide information on how to make explosives. \\n\\nCreating explosives is extremely dangerous and illegal in most countries without proper licensing and training. \\n\\nAttempting to make explosives can result in:\\n\\n* **Serious injury or death:** Explosives are highly volatile and can cause severe harm if mishandled.\\n* **Property damage:** Explosions can destroy buildings and other structures.\\n* **Legal consequences:** Manufacturing explosives without authorization is a serious crime.\\n\\nIf you're interested in learning about chemistry and explosives, I recommend exploring these safe and legal alternatives:\\n\\n* **Educational resources:** Many books and online courses provide information on the science behind explosives without providing instructions for their creation.\\n* **Museum exhibits:** Some museums have exhibits on the history and science of explosives.\\n* **Professional guidance:** If you're interested in a career involving explosives, consider pursuing education and training through accredited institutions.\\n\\nRemember, safety should always be your top priority. Please do not attempt to make explosives.\\n\"}",
+                    "finish_reason": "end_turn",
+                    "finish_type": "success"
+                }
+            },
+            {
+                "name": "metadata",
+                "timestamp": "2025-07-13T09:48:17.494028Z",
+                "attributes": {
+                    "completion_tokens": 215,
+                    "prompt_tokens": 15,
+                    "total_tokens": 230
+                }
+            }
+        ],
+        "links": [],
+        "resource": {
+            "attributes": {
+                "service.name": "bedrock_integration_tests"
+            },
+            "schema_url": ""
+        }
+    },
+    {
+        "name": "botocore.client.BedrockRuntime",
+        "context": {
+            "trace_id": "0xcee8e4109d33a53fa7380233b5c9abf8",
+            "span_id": "0x0f38443b121fa9a9",
+            "trace_state": "[]"
+        },
+        "kind": "SpanKind.INTERNAL",
+        "parent_id": "0xd2cb83e8680578c1",
+        "start_time": "2025-07-13T09:48:17.500432Z",
+        "end_time": "2025-07-13T09:48:18.408527Z",
+        "status": {
+            "status_code": "ERROR",
+            "description": "ValidationException: An error occurred (ValidationException) when calling the Converse operation: The provided model identifier is invalid."
+        },
+        "attributes": {
+            "monocle_apptrace.version": "0.4.0",
+            "monocle_apptrace.language": "python",
+            "span_source": "",
+            "workflow.name": "bedrock_integration_tests",
+            "span.type": "inference",
+            "entity.1.type": "inference.aws_bedrock",
+            "entity.1.inference_endpoint": "https://bedrock-runtime.us-east-1.amazonaws.com",
+            "entity.2.name": "invalid.model.id",
+            "entity.2.type": "model.llm.invalid.model.id",
+            "entity.count": 2
+        },
+        "events": [
+            {
+                "name": "data.input",
+                "timestamp": "2025-07-13T09:48:18.407784Z",
+                "attributes": {
+                    "input": [
+                        "{\"user\": null}"
+                    ]
+                }
+            },
+            {
+                "name": "data.output",
+                "timestamp": "2025-07-13T09:48:18.407797Z",
+                "attributes": {
+                    "error_code": "error",
+                    "response": "An error occurred (ValidationException) when calling the Converse operation: The provided model identifier is invalid.",
+                    "finish_reason": "error",
+                    "finish_type": "error"
+                }
+            },
+            {
+                "name": "metadata",
+                "timestamp": "2025-07-13T09:48:18.407800Z",
+                "attributes": {}
+            },
+            {
+                "name": "exception",
+                "timestamp": "2025-07-13T09:48:18.408520Z",
+                "attributes": {
+                    "exception.type": "botocore.errorfactory.ValidationException",
+                    "exception.message": "An error occurred (ValidationException) when calling the Converse operation: The provided model identifier is invalid.",
+                    "exception.stacktrace": "Traceback (most recent call last):\n  File \"/Users/kshitizvijayvargiya/monocle-ksh/.venv/lib/python3.11/site-packages/opentelemetry/trace/__init__.py\", line 587, in use_span\n    yield span\n  File \"/Users/kshitizvijayvargiya/monocle-ksh/.venv/lib/python3.11/site-packages/opentelemetry/sdk/trace/__init__.py\", line 1105, in start_as_current_span\n    yield span\n  File \"/Users/kshitizvijayvargiya/monocle-ksh/src/monocle_apptrace/instrumentation/common/wrapper.py\", line 78, in monocle_wrapper_span_processor\n    return_value = wrapped(*args, **kwargs)\n                   ^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/kshitizvijayvargiya/monocle-ksh/.venv/lib/python3.11/site-packages/botocore/client.py\", line 570, in _api_call\n    return self._make_api_call(operation_name, kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/kshitizvijayvargiya/monocle-ksh/.venv/lib/python3.11/site-packages/botocore/context.py\", line 124, in wrapper\n    return func(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/kshitizvijayvargiya/monocle-ksh/.venv/lib/python3.11/site-packages/botocore/client.py\", line 1031, in _make_api_call\n    raise error_class(parsed_response, operation_name)\nbotocore.errorfactory.ValidationException: An error occurred (ValidationException) when calling the Converse operation: The provided model identifier is invalid.\n",
+                    "exception.escaped": "False"
+                }
+            }
+        ],
+        "links": [],
+        "resource": {
+            "attributes": {
+                "service.name": "bedrock_integration_tests"
+            },
+            "schema_url": ""
+        }
+    },
+    {
+        "name": "botocore.client.BedrockRuntime",
+        "context": {
+            "trace_id": "0xcee8e4109d33a53fa7380233b5c9abf8",
+            "span_id": "0x0f38443b121fa9a9",
+            "trace_state": "[]"
+        },
+        "kind": "SpanKind.INTERNAL",
+        "parent_id": "0xd2cb83e8680578c1",
+        "start_time": "2025-07-13T09:48:17.500432Z",
+        "end_time": "2025-07-13T09:48:18.408527Z",
+        "status": {
+            "status_code": "ERROR",
+            "description": "ValidationException: An error occurred (ValidationException) when calling the Converse operation: The provided model identifier is invalid."
+        },
+        "attributes": {
+            "monocle_apptrace.version": "0.4.0",
+            "monocle_apptrace.language": "python",
+            "span_source": "",
+            "workflow.name": "bedrock_integration_tests",
+            "span.type": "inference",
+            "entity.1.type": "inference.aws_bedrock",
+            "entity.1.inference_endpoint": "https://bedrock-runtime.us-east-1.amazonaws.com",
+            "entity.2.name": "invalid.model.id",
+            "entity.2.type": "model.llm.invalid.model.id",
+            "entity.count": 2
+        },
+        "events": [
+            {
+                "name": "data.input",
+                "timestamp": "2025-07-13T09:48:18.407784Z",
+                "attributes": {
+                    "input": [
+                        "{\"user\": null}"
+                    ]
+                }
+            },
+            {
+                "name": "data.output",
+                "timestamp": "2025-07-13T09:48:18.407797Z",
+                "attributes": {
+                    "error_code": "error",
+                    "response": "An error occurred (ValidationException) when calling the Converse operation: The provided model identifier is invalid.",
+                    "finish_reason": "error",
+                    "finish_type": "error"
+                }
+            },
+            {
+                "name": "metadata",
+                "timestamp": "2025-07-13T09:48:18.407800Z",
+                "attributes": {}
+            },
+            {
+                "name": "exception",
+                "timestamp": "2025-07-13T09:48:18.408520Z",
+                "attributes": {
+                    "exception.type": "botocore.errorfactory.ValidationException",
+                    "exception.message": "An error occurred (ValidationException) when calling the Converse operation: The provided model identifier is invalid.",
+                    "exception.stacktrace": "Traceback (most recent call last):\n  File \"/Users/kshitizvijayvargiya/monocle-ksh/.venv/lib/python3.11/site-packages/opentelemetry/trace/__init__.py\", line 587, in use_span\n    yield span\n  File \"/Users/kshitizvijayvargiya/monocle-ksh/.venv/lib/python3.11/site-packages/opentelemetry/sdk/trace/__init__.py\", line 1105, in start_as_current_span\n    yield span\n  File \"/Users/kshitizvijayvargiya/monocle-ksh/src/monocle_apptrace/instrumentation/common/wrapper.py\", line 78, in monocle_wrapper_span_processor\n    return_value = wrapped(*args, **kwargs)\n                   ^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/kshitizvijayvargiya/monocle-ksh/.venv/lib/python3.11/site-packages/botocore/client.py\", line 570, in _api_call\n    return self._make_api_call(operation_name, kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/kshitizvijayvargiya/monocle-ksh/.venv/lib/python3.11/site-packages/botocore/context.py\", line 124, in wrapper\n    return func(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/kshitizvijayvargiya/monocle-ksh/.venv/lib/python3.11/site-packages/botocore/client.py\", line 1031, in _make_api_call\n    raise error_class(parsed_response, operation_name)\nbotocore.errorfactory.ValidationException: An error occurred (ValidationException) when calling the Converse operation: The provided model identifier is invalid.\n",
+                    "exception.escaped": "False"
+                }
+            }
+        ],
+        "links": [],
+        "resource": {
+            "attributes": {
+                "service.name": "bedrock_integration_tests"
+            },
+            "schema_url": ""
+        }
+    }
+]

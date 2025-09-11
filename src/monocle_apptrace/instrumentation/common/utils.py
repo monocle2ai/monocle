@@ -11,6 +11,8 @@ from opentelemetry.propagate import extract
 from opentelemetry import baggage
 from monocle_apptrace.instrumentation.common.constants import MONOCLE_SCOPE_NAME_PREFIX, SCOPE_METHOD_FILE, SCOPE_CONFIG_PATH, llm_type_map, MONOCLE_SDK_VERSION, ADD_NEW_WORKFLOW
 from importlib.metadata import version
+from opentelemetry.trace.span import INVALID_SPAN
+_MONOCLE_SPAN_KEY = "monocle" + _SPAN_KEY
 
 T = TypeVar('T')
 U = TypeVar('U')
@@ -28,7 +30,7 @@ except Exception as e:
     logger.warning("Exception finding monocle-apptrace version.")
 
 class MonocleSpanException(Exception):
-    def __init__(self, err_message:str):
+    def __init__(self, err_message:str, err_code:str = None):
         """
         Monocle exeption to indicate error in span processing.        
         Parameters:
@@ -37,10 +39,15 @@ class MonocleSpanException(Exception):
         """
         super().__init__(err_message)
         self.message = err_message
+        self.err_code = err_code
 
     def __str__(self):
         """String representation of the exception."""
-        return f"[Monocle Span Error: {self.message} {self.status}"
+        return f"[Monocle Span Error: {self.message}"
+
+    def get_err_code(self):
+        """Retrieve the error code."""
+        return self.err_code
 
 def set_span_attribute(span, name, value):
     if value is not None:
@@ -70,7 +77,7 @@ def with_tracer_wrapper(func):
     """Helper for providing tracer for wrapper functions."""
 
     def _with_tracer(tracer, handler, to_wrap):
-        def wrapper(wrapped, instance, args, kwargs):
+        def wrapper(wrapped, instance, args, kwargs, source_path=None):
             try:
                 # get and log the parent span context if injected by the application
                 # This is useful for debugging and tracing of Azure functions
@@ -83,18 +90,19 @@ def with_tracer_wrapper(func):
                             f"Parent span is found with trace id {hex(parent_span.get_span_context().trace_id)}")
             except Exception as e:
                 logger.error("Exception in attaching parent context: %s", e)
-
-            if traceback.extract_stack().__len__() > 2:
-                filename, line_number, _, _ = traceback.extract_stack()[-2]
-                source_path = f"{filename}:{line_number}"
-            else:
-                source_path = ""
+            if not source_path:
+                if traceback.extract_stack().__len__() > 2:
+                    filename, line_number, _, _ = traceback.extract_stack()[-2]
+                    source_path = f"{filename}:{line_number}"
+                else:
+                    source_path = ""
             val = func(tracer, handler, to_wrap, wrapped, instance, source_path, args, kwargs)
             return val
 
         return wrapper
 
     return _with_tracer
+
 
 def resolve_from_alias(my_map, alias):
     """Find a alias that is not none from list of aliases"""
@@ -152,13 +160,6 @@ def flatten_dict(d, parent_key='', sep='_'):
             items.append((new_key, v))
     return dict(items)
 
-def get_fully_qualified_class_name(instance):
-    if instance is None:
-        return None
-    module_name = instance.__class__.__module__
-    qualname = instance.__class__.__qualname__
-    return f"{module_name}.{qualname}"
-
 # returns json path like key probe in a dictionary
 def get_nested_value(data, keys):
     for key in keys:
@@ -195,8 +196,8 @@ def __generate_scope_id() -> str:
     global scope_id_generator
     return f"{hex(scope_id_generator.generate_trace_id())}"
 
-def set_scope(scope_name: str, scope_value:str = None) -> object:
-    return set_scopes({scope_name: scope_value})
+def set_scope(scope_name: str, scope_value:str = None, context:Context = None) -> object:
+    return set_scopes({scope_name: scope_value}, context)
 
 def set_scopes(scopes:dict[str, object], baggage_context:Context = None) -> object:
     if baggage_context is None:
@@ -330,6 +331,12 @@ def add_monocle_trace_state(headers:dict[str:str]) -> None:
     else:
         headers['tracestate'] = monocle_trace_state
 
+def get_json_dumps(obj) -> str:
+    try:
+        return json.dumps(obj)
+    except TypeError as e:
+        return str(obj)
+
 class Option(Generic[T]):
     def __init__(self, value: Optional[T]):
         self.value = value
@@ -376,10 +383,12 @@ def get_status(arguments):
         return 'success'
 
 def get_exception_status_code(arguments):
-    if arguments['exception'] is not None and hasattr(arguments['exception'], 'code'):
+    if arguments['exception'] is not None and hasattr(arguments['exception'], 'code') and arguments['exception'].code is not None:
         return arguments['exception'].code
-    else:
+    elif arguments['exception'] is not None:
         return 'error'
+    else:
+        return 'success'
 
 def get_exception_message(arguments):
     if arguments['exception'] is not None:
@@ -389,6 +398,31 @@ def get_exception_message(arguments):
             return arguments['exception'].__str__()
     else:
         return ''
+
+
+def get_error_message(arguments):
+    status_code = get_status_code(arguments)
+    if status_code == 'success':
+        return ''
+    else:
+        return status_code
+
+
+def get_status_code(arguments):
+    if arguments["exception"] is not None:
+        return get_exception_status_code(arguments)
+    elif hasattr(arguments["result"], "status"):
+        return arguments["result"].status
+    else:
+        return 'success'
+
+def get_status(arguments):
+    if arguments["exception"] is not None:
+        return 'error'
+    elif get_status_code(arguments) == 'success':
+        return 'success'
+    else:
+        return 'error'
 
 def patch_instance_method(obj, method_name, func):
     """
@@ -405,3 +439,32 @@ def patch_instance_method(obj, method_name, func):
         method_name: func
     })
     obj.__class__ = new_cls
+
+
+def set_monocle_span_in_context(
+    span: Span, context: Optional[Context] = None
+) -> Context:
+    """Set the span in the given context.
+
+    Args:
+        span: The Span to set.
+        context: a Context object. if one is not passed, the
+            default current context is used instead.
+    """
+    ctx = set_value(_MONOCLE_SPAN_KEY, span, context=context)
+    return ctx
+
+def get_current_monocle_span(context: Optional[Context] = None) -> Span:
+    """Retrieve the current span.
+
+    Args:
+        context: A Context object. If one is not passed, the
+            default current context is used instead.
+
+    Returns:
+        The Span set in the context if it exists. INVALID_SPAN otherwise.
+    """
+    span = get_value(_MONOCLE_SPAN_KEY, context=context)
+    if span is None or not isinstance(span, Span):
+        return INVALID_SPAN
+    return span

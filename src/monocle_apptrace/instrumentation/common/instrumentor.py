@@ -1,23 +1,19 @@
 import logging
 import inspect
 from typing import Collection, Dict, List, Union
-import random
 import uuid
 import inspect
 from opentelemetry import trace
-from contextlib import contextmanager
-from opentelemetry.context import attach, get_value, set_value, get_current, detach
+from opentelemetry.context import attach, get_value, set_value
 from opentelemetry.instrumentation.instrumentor import BaseInstrumentor
 from opentelemetry.instrumentation.utils import unwrap
-from opentelemetry.trace import SpanContext
-from opentelemetry.sdk.trace import TracerProvider, Span, id_generator
+from opentelemetry.sdk.trace import TracerProvider, Span
 from opentelemetry.sdk.resources import SERVICE_NAME, Resource
 from opentelemetry.sdk.trace import Span, TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, SpanProcessor
 from opentelemetry.sdk.trace.export import SpanExporter
 from opentelemetry.trace import get_tracer
 from wrapt import wrap_function_wrapper
-from opentelemetry.trace.propagation import set_span_in_context, _SPAN_KEY
 from monocle_apptrace.exporters.monocle_exporters import get_monocle_exporter
 from monocle_apptrace.instrumentation.common.span_handler import SpanHandler, NonFrameworkSpanHandler
 from monocle_apptrace.instrumentation.common.wrapper_method import (
@@ -27,10 +23,11 @@ from monocle_apptrace.instrumentation.common.wrapper_method import (
 )
 from monocle_apptrace.instrumentation.common.wrapper import scope_wrapper, ascope_wrapper, monocle_wrapper, amonocle_wrapper
 from monocle_apptrace.instrumentation.common.utils import (
-    set_scope, remove_scope, http_route_handler, load_scopes, http_async_route_handler
+    load_scopes
 )
-from monocle_apptrace.instrumentation.common.constants import MONOCLE_INSTRUMENTOR, WORKFLOW_TYPE_GENERIC
+from monocle_apptrace.instrumentation.common.constants import MONOCLE_INSTRUMENTOR
 from functools import wraps
+
 logger = logging.getLogger(__name__)
 
 SESSION_PROPERTIES_KEY = "session"
@@ -229,49 +226,6 @@ def on_processor_start(span: Span, parent_context):
 def set_context_properties(properties: dict) -> None:
     attach(set_value(SESSION_PROPERTIES_KEY, properties))
 
-def start_trace():
-    """
-    Starts a new trace. All the spans created after this call will be part of the same trace. 
-    Returns:
-        Token: A token representing the attached context for the workflow span.
-                      This token is to be used later to stop the current trace.
-                      Returns None if tracing fails.
-    
-    Raises:
-        Exception: The function catches all exceptions internally and logs a warning.
-    """
-    try:
-        tracer = get_tracer(instrumenting_module_name= MONOCLE_INSTRUMENTOR, tracer_provider= get_tracer_provider())
-        span = tracer.start_span(name = "workflow")
-        updated_span_context = set_span_in_context(span=span)
-        SpanHandler.set_default_monocle_attributes(span)
-        SpanHandler.set_workflow_properties(span)
-        token = attach(updated_span_context)
-        return token
-    except Exception as e:
-        logger.warning("Failed to start trace {e}")
-        return None
-
-def stop_trace(token) -> None:
-    """
-    Stop the active trace and detach workflow type if token is provided. All the spans created after this will not be part of the trace.
-    Args:
-        token: The token that was returned when the trace was started. Used to detach 
-               workflow type. Can be None in which case only the span is ended.
-    Returns:
-        None
-    """
-    try:
-        _parent_span_context = get_current()
-        if _parent_span_context is not None:
-            parent_span: Span = _parent_span_context.get(_SPAN_KEY, None)
-            if parent_span is not None:
-                parent_span.end()
-        if token is not None:
-            detach(token)
-    except:
-        logger.warning("Failed to stop trace")
-
 def is_valid_trace_id_uuid(traceId: str) -> bool:
     try:
         uuid.UUID(traceId)
@@ -280,105 +234,13 @@ def is_valid_trace_id_uuid(traceId: str) -> bool:
         pass
     return False
 
-def start_scope(scope_name: str, scope_value:str = None) -> object:
-    """
-    Start a new scope with the given name and and optional value. If no value is provided, a random UUID will be generated.
-    All the spans, across traces created after this call will have the scope attached until the scope is stopped.
-    Args:
-        scope_name: The name of the scope.
-        scope_value: Optional value of the scope. If None, a random UUID will be generated.
-    Returns:
-        Token: A token representing the attached context for the scope. This token is to be used later to stop the current scope.
-    """
-    return set_scope(scope_name, scope_value)
-
-def stop_scope(token:object) -> None:
-    """
-    Stop the active scope. All the spans created after this will not have the scope attached.
-    Args:
-        token: The token that was returned when the scope was started.
-    Returns:
-        None
-    """
-    remove_scope(token)
-    return
-
-@contextmanager
-def monocle_trace():
-    """
-    Context manager to start and stop a scope. All the spans, across traces created within the encapsulated code will have same trace ID
-    """
-    token = start_trace()
-    try:
-        yield
-    finally:
-        stop_trace(token)
-
-@contextmanager
-def monocle_trace_scope(scope_name: str, scope_value:str = None):
-    """
-    Context manager to start and stop a scope. All the spans, across traces created within the encapsulated code will have the scope attached.
-    Args:
-        scope_name: The name of the scope.
-        scope_value: Optional value of the scope. If None, a random UUID will be generated."""
-    token = start_scope(scope_name, scope_value)
-    try:
-        yield
-    finally:
-        stop_scope(token)
-    
-def monocle_trace_scope_method(scope_name: str, scope_value:str=None):
-    """
-    Decorator to start and stop a scope for a method. All the spans, across traces created in the method will have the scope attached.
-    """
-    def decorator(func):
-        if inspect.iscoroutinefunction(func):
-            @wraps(func)
-            async def wrapper(*args, **kwargs):
-                token = start_scope(scope_name, scope_value)
-                try:
-                    result = await func(*args, **kwargs)
-                    return result
-                finally:
-                    stop_scope(token)
-            return wrapper
-        else:
-            @wraps(func)
-            def wrapper(*args, **kwargs):
-                token = start_scope(scope_name, scope_value)
-                try:
-                    result = func(*args, **kwargs)
-                    return result
-                finally:
-                    stop_scope(token)
-            return wrapper
-    return decorator
-
-def monocle_trace_http_route(func):
-    """
-    Decorator to start and stop a continue traces and scope for a http route. It will also initiate new scopes from the http headers if configured in ``monocle_scopes.json``
-    All the spans, across traces created in the route will have the scope attached.
-    """
-    if inspect.iscoroutinefunction(func):
-        @wraps(func)
-        async def wrapper(*args, **kwargs):
-            return http_async_route_handler(func, *args, **kwargs)
-        return wrapper
-    else:
-        @wraps(func)
-        def wrapper(*args, **kwargs):
-            return http_route_handler(func, *args, **kwargs)
-        return wrapper
-
-class FixedIdGenerator(id_generator.IdGenerator):
-    def __init__(
-            self,
-            trace_id: int) -> None:
-        self.trace_id = trace_id
-
-    def generate_span_id(self) -> int:
-        return random.getrandbits(64)
-
-    def generate_trace_id(self) -> int:
-        return self.trace_id
+from monocle_apptrace.instrumentation.common.method_wrappers import (
+    monocle_trace,
+    amonocle_trace,
+    monocle_trace_method,
+    monocle_trace_http_route,
+    start_trace,
+    stop_trace,
+    http_route_handler
+)
 

@@ -1,7 +1,7 @@
 from common.custom_exporter import CustomConsoleSpanExporter
 from common.chain_exec import TestScopes, setup_chain
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
-from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry, start_scope, stop_scope
+from monocle_apptrace import setup_monocle_telemetry, start_scope, stop_scope
 from monocle_apptrace.instrumentation.common.constants import SCOPE_METHOD_FILE, SCOPE_CONFIG_PATH, TRACE_PROPOGATION_URLS
 custom_exporter = CustomConsoleSpanExporter()
 import pytest , pytest_asyncio
@@ -66,13 +66,17 @@ def verify_scopes():
             span_input, span_output = span.events
             assert span_attributes.get("entity.1.method").lower() == "get"
             assert span_attributes.get("entity.1.URL") is not None
-            assert span_output.attributes['status'] == "200"
+            assert span_output.attributes['error_code'] == "200"
         if span_attributes.get("span.type", "") == "http.process":
             span_input, span_output = span.events
             assert span_attributes.get("entity.1.method").lower() == "get"
             assert span_attributes.get("entity.1.route") is not None
-            assert span_output.attributes['status'] == "200"
+            assert span_attributes.get("entity.1.url") is not None
+            assert span_output.attributes['error_code'] == "200"
         if trace_id is None:
             trace_id = span.context.trace_id
         else:
             assert trace_id == span.context.trace_id
+            
+if __name__ == "__main__":
+    pytest.main([__file__, "-s", "--tb=short"])

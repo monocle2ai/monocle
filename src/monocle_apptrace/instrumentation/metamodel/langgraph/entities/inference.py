@@ -1,24 +1,27 @@
+from monocle_apptrace.instrumentation.common.constants import AGENT_REQUEST_SPAN_NAME, SPAN_SUBTYPES, SPAN_TYPES
 from monocle_apptrace.instrumentation.metamodel.langgraph import (
     _helper
 )
-INFERENCE = {
-      "type": "agent",
+
+AGENT = {
+      "type": SPAN_TYPES.AGENTIC_INVOCATION,
+      "subtype": SPAN_SUBTYPES.ROUTING,
       "attributes": [
         [
               {
                 "_comment": "agent type",
                 "attribute": "type",
-                "accessor": lambda arguments:'agent.oai'
+                "accessor": lambda arguments:'agent.langgraph'
               },
               {
                 "_comment": "name of the agent",
                 "attribute": "name",
-                "accessor": lambda arguments:arguments['instance'].name
+                "accessor": lambda arguments: _helper.get_agent_name(arguments['instance'])
               },
               {
-                "_comment": "agent tools",
-                "attribute": "tools",
-                "accessor": lambda arguments: _helper.tools(arguments['instance'])
+                "_comment": "agent description",
+                "attribute": "description",
+                "accessor": lambda arguments: _helper.get_agent_description(arguments['instance'])
               }
         ]
       ],
@@ -27,9 +30,9 @@ INFERENCE = {
           "name":"data.input",
           "attributes": [
             {
-                "_comment": "this is LLM input",
+                "_comment": "this is Agent input",
                 "attribute": "query",
-                "accessor": lambda arguments: _helper.extract_input(arguments)
+                "accessor": lambda arguments: _helper.extract_agent_input(arguments)
             }
           ]
         },
@@ -39,18 +42,127 @@ INFERENCE = {
             {
                 "_comment": "this is response from LLM",
                 "attribute": "response",
-                "accessor": lambda arguments: _helper.handle_openai_response(arguments['result'])
+                "accessor": lambda arguments: _helper.extract_agent_response(arguments['result'])
             }
           ]
-       },
-       {
-            "name": "metadata",
-            "attributes": [
-                {
-                    "_comment": "this is metadata usage from LLM",
-                    "accessor": lambda arguments: _helper.update_span_from_llm_response(arguments['result'])
-                }
-            ]
         }
       ]
     }
+
+AGENT_REQUEST = {
+      "type": AGENT_REQUEST_SPAN_NAME,
+      "subtype": SPAN_SUBTYPES.PLANNING,
+      "attributes": [
+        [
+              {
+                "_comment": "agent type",
+                "attribute": "type",
+                "accessor": lambda arguments:'agent.langgraph'
+              }
+        ],
+      ],
+      "events": [
+        {
+          "name":"data.input",
+          "attributes": [
+            {
+                "_comment": "this is Agent input",
+                "attribute": "input",
+                "accessor": lambda arguments: _helper.extract_agent_input(arguments)
+            }
+          ]
+        },
+        {
+          "name":"data.output",
+          "attributes": [
+            {
+                "_comment": "this is response from LLM",
+                "attribute": "response",
+                "accessor": lambda arguments: _helper.extract_agent_response(arguments['result'])
+            }
+          ]
+        }
+      ]
+}
+
+TOOLS = {
+      "type": SPAN_TYPES.AGENTIC_TOOL_INVOCATION,
+      "subtype": SPAN_SUBTYPES.ROUTING,
+      "attributes": [
+        [
+              {
+                "_comment": "tool type",
+                "attribute": "type",
+                "accessor": lambda arguments: _helper.get_tool_type(arguments['span'])
+              },
+              {
+                "_comment": "name of the tool",
+                "attribute": "name",
+                "accessor": lambda arguments: _helper.get_tool_name(arguments['instance'])
+              },
+              {
+                  "_comment": "tool description",
+                  "attribute": "description",
+                  "accessor": lambda arguments: _helper.get_tool_description(arguments['instance'])
+              }
+        ],
+        [             
+              {
+                "_comment": "name of the agent",
+                "attribute": "name",
+                "accessor": lambda arguments: _helper.get_source_agent()
+              },          
+              {
+                "_comment": "agent type",
+                "attribute": "type",
+                "accessor": lambda arguments:'agent.langgraph'
+              }
+        ]
+      ],
+      "events": [
+        {
+          "name":"data.input",
+          "attributes": [
+            {
+                "_comment": "this is Tool input",
+                "attribute": "input",
+                "accessor": lambda arguments: _helper.extract_tool_input(arguments) 
+            },
+          ]
+        },
+        {
+          "name":"data.output",
+          "attributes": [
+            {
+                "_comment": "this is response from Tool",
+                "attribute": "response",
+                "accessor": lambda arguments: _helper.extract_tool_response(arguments['result'])
+            }
+          ]
+        }
+      ]
+}
+
+AGENT_DELEGATION = {
+      "type": SPAN_TYPES.AGENTIC_DELEGATION,
+      "subtype": SPAN_SUBTYPES.ROUTING,
+      "attributes": [
+        [
+              {
+                "_comment": "agent type",
+                "attribute": "type",
+                "accessor": lambda arguments:'agent.langgraph'
+              },
+              {
+                "_comment": "name of the agent",
+                "attribute": "from_agent",
+                "accessor": lambda arguments: _helper.get_source_agent()
+              },
+              {
+                "_comment": "name of the agent called",
+                "attribute": "to_agent",
+                "accessor": lambda arguments: _helper.get_target_agent(arguments['instance'])
+              }
+        ]
+      ]
+}

@@ -2,10 +2,15 @@ import logging
 
 from monocle_apptrace.instrumentation.common.utils import (
     Option,
+    get_json_dumps,
     get_keys_as_tuple,
     get_nested_value,
     try_option,
+    get_exception_message,
+    get_status_code,
 )
+from monocle_apptrace.instrumentation.metamodel.finish_types import map_haystack_finish_reason_to_finish_type
+
 logger = logging.getLogger(__name__)
 
 
@@ -52,20 +57,29 @@ def extract_question_from_prompt(content):
         logger.warning("Warning: Error occurred in extract_question_from_prompt: %s", str(e))
         return ""
 
-
-def extract_assistant_message(response):
-    try:
-        if "replies" in response:
-            reply = response["replies"][0]
+def extract_assistant_message(arguments):
+    status = get_status_code(arguments)
+    messages = []
+    role = "assistant"
+    if status == 'success':
+        response = ""
+        if "replies" in arguments['result']:
+            reply = arguments['result']["replies"][0]
+            if hasattr(reply, role) and hasattr(reply,role, "value") and isinstance(reply.role.value, str):
+                role = reply.role.value or role
             if hasattr(reply, 'content'):
-                return [reply.content]
-            if hasattr(reply, 'text'):
-                return [reply.text]
-            return [reply]
-    except Exception as e:
-        logger.warning("Warning: Error occurred in extract_assistant_message: %s", str(e))
-        return []
-
+                response = reply.content
+            elif hasattr(reply, 'text'):
+                response = reply.text
+            else:
+                response = reply
+        messages.append({role: response})
+    else:
+        if arguments["exception"] is not None:
+            return get_exception_message(arguments)
+        elif hasattr(arguments["result"], "error"):
+            return arguments['result'].error
+    return get_json_dumps(messages[0]) if messages else ""
 
 def get_vectorstore_deployment(my_map):
     if isinstance(my_map, dict):
@@ -104,7 +118,10 @@ def resolve_from_alias(my_map, alias):
     return None
 
 def extract_inference_endpoint(instance):
-    inference_endpoint: Option[str] = try_option(getattr, instance.client, 'base_url').map(str)
+    if hasattr(instance, '_model_name') and isinstance(instance._model_name, str) and 'gemini' in instance._model_name.lower():
+        inference_endpoint = try_option(lambda: f"https://generativelanguage.googleapis.com/v1beta/models/{instance._model_name}:generateContent")
+    if hasattr(instance, 'client') and hasattr(instance.client, 'base_url'):
+        inference_endpoint: Option[str] = try_option(getattr, instance.client, 'base_url').map(str)
     if inference_endpoint.is_none():
         inference_endpoint = try_option(getattr, instance.client.meta, 'endpoint_url').map(str)
 
@@ -138,3 +155,65 @@ def update_output_span_events(results):
     if len(output_arg_text) > 100:
         output_arg_text = output_arg_text[:100] + "..."
     return output_arg_text
+
+def extract_finish_reason(arguments):
+    """Extract finish_reason from Haystack response."""
+    try:
+        # Handle exception cases first
+        if arguments.get("exception") is not None:
+            return "error"
+
+        response = arguments.get("result")
+        if response is None:
+            return None
+
+        # Direct finish_reason attribute
+        if hasattr(response, "finish_reason") and response.finish_reason:
+            return response.finish_reason
+
+        if isinstance(response,dict) and 'meta' in response and response['meta'] and len(response['meta']) > 0:
+            metadata = response['meta'][0]
+            if isinstance(metadata, dict):
+                # Check for finish_reason in metadata
+                if "finish_reason" in metadata:
+                    return metadata["finish_reason"]
+
+        if isinstance(response,dict) and 'replies' in response and response['replies'] and len(response['replies']) > 0:
+            metadata = response['replies'][0]
+            if hasattr(metadata,'meta') and metadata.meta:
+                if "finish_reason" in metadata.meta:
+                    return metadata.meta["finish_reason"]
+
+        # Check if response has generation_info
+        if hasattr(response, "generation_info") and response.generation_info:
+            finish_reason = response.generation_info.get("finish_reason")
+            if finish_reason:
+                return finish_reason
+
+        # Check if response has llm_output (batch responses)
+        if hasattr(response, "llm_output") and response.llm_output:
+            finish_reason = response.llm_output.get("finish_reason")
+            if finish_reason:
+                return finish_reason
+
+        # For AIMessage responses, check additional_kwargs
+        if hasattr(response, "additional_kwargs") and response.additional_kwargs:
+            finish_reason = response.additional_kwargs.get("finish_reason")
+            if finish_reason:
+                return finish_reason
+
+        # For generation responses with choices (similar to OpenAI structure)
+        if hasattr(response, "choices") and response.choices:
+            choice = response.choices[0]
+            if hasattr(choice, "finish_reason"):
+                return choice.finish_reason
+
+        # Fallback: if no finish_reason found, default to "stop" (success)
+        return "stop"
+    except Exception as e:
+        logger.warning("Warning: Error occurred in extract_finish_reason: %s", str(e))
+        return None
+
+def map_finish_reason_to_finish_type(finish_reason):
+    """Map Haystack finish_reason to finish_type using Haystack mapping."""
+    return map_haystack_finish_reason_to_finish_type(finish_reason)

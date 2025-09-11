@@ -1,9 +1,10 @@
+from monocle_apptrace.instrumentation.common.constants import SPAN_TYPES
 from monocle_apptrace.instrumentation.metamodel.teamsai import (
     _helper,
 )
-from monocle_apptrace.instrumentation.common.utils import get_llm_type
+from monocle_apptrace.instrumentation.common.utils import get_error_message, get_llm_type
 TEAMAI_OUTPUT_PROCESSOR = {
-    "type": "inference.framework",
+    "type": SPAN_TYPES.INFERENCE_FRAMEWORK,
     "attributes": [
         [
             {
@@ -44,7 +45,7 @@ TEAMAI_OUTPUT_PROCESSOR = {
             "attributes": [
                 {
                     "attribute": "input",
-                    "accessor": _helper.capture_input
+                    "accessor": _helper.extract_messages
                 }
             ]
         },
@@ -53,16 +54,12 @@ TEAMAI_OUTPUT_PROCESSOR = {
             "_comment": "output from Teams AI",
             "attributes": [
                 {
-                    "attribute": "status",
-                    "accessor": lambda arguments: _helper.get_status(arguments)
-                },
-                {
-                    "attribute": "status_code",
-                    "accessor": lambda arguments: _helper.get_status_code(arguments)
+                    "attribute": "error_code",
+                    "accessor": lambda arguments: _helper.extract_status_code(arguments)
                 },
                 {
                     "attribute": "response",
-                    "accessor": lambda arguments: _helper.get_response(arguments)
+                    "accessor": lambda arguments: _helper.extract_assistant_message(arguments)
                 },
                 {
                     "attribute": "check_status",
@@ -70,5 +67,15 @@ TEAMAI_OUTPUT_PROCESSOR = {
                 }
             ]
         },
+        {
+            "name": "metadata",
+            "_comment": "metadata for Teams AI",
+            "attributes": [
+                {
+                    "attribute": "inference_sub_type",
+                    "accessor": lambda arguments: _helper.agent_inference_type(arguments)
+                }
+            ]
+        }
     ]
 }

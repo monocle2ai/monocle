@@ -1,16 +1,14 @@
 import logging
 from threading import local
-from monocle_apptrace.instrumentation.common.utils import extract_http_headers, clear_http_scopes, try_option, Option, MonocleSpanException
+from monocle_apptrace.instrumentation.common.utils import extract_http_headers, clear_http_scopes, get_exception_status_code, try_option, Option, MonocleSpanException
 from monocle_apptrace.instrumentation.common.span_handler import SpanHandler
 from monocle_apptrace.instrumentation.common.constants import HTTP_SUCCESS_CODES
 from urllib.parse import unquote
 
 logger = logging.getLogger(__name__)
 MAX_DATA_LENGTH = 1000
-token_data = local()
-token_data.current_token = None
 
-def get_route(args) -> str:
+def get_url(args) -> str:
     route_path: Option[str] = try_option(getattr, args[0], 'path')
     return route_path.unwrap_or("")
 
@@ -33,34 +31,46 @@ def extract_response(result) -> str:
         response = ""
     return response
 
-def extract_status(result) -> str:
-    status = f"{result.status}" if hasattr(result, 'status') else ""
-    if status not in HTTP_SUCCESS_CODES:
-        error_message = extract_response(result)
-        raise MonocleSpanException(f"error: {status} - {error_message}")
+def extract_status(arguments) -> str:
+    if arguments["exception"] is not None:
+        return get_exception_status_code(arguments)
+    result = arguments['result']
+    if hasattr(result, 'status'):
+        status = f"{result.status}"
+        if status not in HTTP_SUCCESS_CODES:
+            error_message = extract_response(result)
+            raise MonocleSpanException(f"error: {status} - {error_message}", status)
+    else:
+        status = "success"
     return status
 
 def aiohttp_pre_tracing(args):
-    token_data.current_token = extract_http_headers(args[0].headers)
+    return extract_http_headers(args[0].headers)
 
-def aiohttp_post_tracing():
-    clear_http_scopes(token_data.current_token)
-    token_data.current_token = None
+def aiohttp_post_tracing(token):
+    clear_http_scopes(token)
 
 def aiohttp_skip_span(args) -> bool:
     if get_method(args) == "HEAD":
         return True
     return False
 
+def get_route(args) -> str:
+    try:
+        return args[0].match_info.route.resource.canonical
+    except Exception as e:
+        return get_url(args)
+
+def get_function_name(args) -> str:
+    return args[0].match_info.handler.__name__
+
 class aiohttpSpanHandler(SpanHandler):
 
     def pre_tracing(self, to_wrap, wrapped, instance, args, kwargs):
-        aiohttp_pre_tracing(args)
-        return super().pre_tracing(to_wrap, wrapped, instance, args, kwargs)
+        return aiohttp_pre_tracing(args)
     
-    def post_tracing(self, to_wrap, wrapped, instance, args, kwargs, return_value):
-        aiohttp_post_tracing()
-        return super().post_tracing(to_wrap, wrapped, instance, args, kwargs, return_value)
+    def post_tracing(self, to_wrap, wrapped, instance, args, kwargs, return_value, token):
+        aiohttp_post_tracing(token)
 
     def skip_span(self, to_wrap, wrapped, instance, args, kwargs) -> bool:
         return aiohttp_skip_span(args)

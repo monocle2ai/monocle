@@ -15,7 +15,7 @@ on:
 
 jobs:
   publish-to-jfrog:
-    environment: ArtifactPublish
+    environment: Build
     runs-on: ubuntu-latest
     steps:
       - name: 📥 Checkout repository

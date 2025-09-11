@@ -14,12 +14,13 @@ from monocle_apptrace.exporters.exporter_processor import ExportTaskProcessor
 DEFAULT_FILE_PREFIX:str = "monocle_trace_"
 DEFAULT_TIME_FORMAT:str = "%Y-%m-%d_%H.%M.%S"
 HANDLE_TIMEOUT_SECONDS: int = 60  # 1 minute timeout
+DEFAULT_TRACE_FOLDER = ".monocle"
 
 class FileSpanExporter(SpanExporterBase):
     def __init__(
         self,
         service_name: Optional[str] = None,
-        out_path:str = ".",
+        out_path:str = path.join(".", DEFAULT_TRACE_FOLDER),
         file_prefix = DEFAULT_FILE_PREFIX,
         time_format = DEFAULT_TIME_FORMAT,
         formatter: Callable[
@@ -34,12 +35,16 @@ class FileSpanExporter(SpanExporterBase):
         self.formatter = formatter
         self.service_name = service_name
         self.output_path = os.getenv("MONOCLE_TRACE_OUTPUT_PATH", out_path)
+        if not os.path.exists(self.output_path):
+            os.makedirs(self.output_path)
         self.file_prefix = file_prefix
         self.time_format = time_format
         self.task_processor = task_processor
         self.is_first_span_in_file = True  # Track if this is the first span in the current file
         if self.task_processor is not None:
             self.task_processor.start()
+        self.last_file_processed:str = None
+        self.last_trace_id = None
 
     def export(self, spans: Sequence[ReadableSpan]) -> SpanExportResult:
         is_root_span = any(not span.parent for span in spans)
@@ -96,6 +101,8 @@ class FileSpanExporter(SpanExporterBase):
                 print(f"Error closing file {file_path}: {e}")
             finally:
                 del self.file_handles[trace_id]
+                self.last_file_processed = file_path
+                self.last_trace_id = trace_id
 
     def _mark_span_written(self, trace_id: int) -> None:
         """Mark that a span has been written for this trace (no longer first span)."""

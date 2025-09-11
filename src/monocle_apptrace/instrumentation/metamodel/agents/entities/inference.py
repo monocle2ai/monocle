@@ -1,4 +1,5 @@
 from monocle_apptrace.instrumentation.common.constants import AGENT_REQUEST_SPAN_NAME, SPAN_SUBTYPES, SPAN_TYPES
+from monocle_apptrace.instrumentation.common.utils import get_error_message
 from monocle_apptrace.instrumentation.metamodel.agents import _helper
 from monocle_apptrace.instrumentation.common.utils import get_error_message
 
@@ -55,6 +56,10 @@ AGENT = {
                     "accessor": lambda arguments: _helper.extract_agent_response(
                         arguments["result"]
                     ),
+            },
+            {
+                "attribute": "error_code",
+                "accessor": lambda arguments: get_error_message(arguments)
                 }
             ],
         },
@@ -106,8 +111,11 @@ AGENT_REQUEST = {
                     "accessor": lambda arguments: _helper.extract_agent_response(
                         arguments["result"]
                     ),
-                }
-            ],
+            },
+            {
+                "attribute": "error_code",
+                "accessor": lambda arguments: get_error_message(arguments)
+            }],
         },
     ],
 }
@@ -170,6 +178,10 @@ TOOLS = {
                     "accessor": lambda arguments: _helper.extract_tool_response(
                         arguments["result"]
                     ),
+                },
+                {
+                "attribute": "error_code",
+                "accessor": lambda arguments: get_error_message(arguments)
                 }
             ],
         },

@@ -167,7 +167,7 @@ def validate_inference_span_events(span, expected_event_count: int = 3,
     assert events[1].name == "data.output", "Second event should be data.output"
     if expected_event_count >= 3:
         assert events[2].name == "metadata", "Third event should be metadata"
-    
+
     # Validate input event format
     if input_patterns:
         input_event = events[0].attributes.get("input")

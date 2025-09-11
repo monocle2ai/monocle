@@ -1,3 +1,16 @@
+## Version 0.5.3 (2025-09-09)
+
+- Make ./.monocle as default folder to store traces instead of current directory ([#272](https://github.com/monocle2ai/monocle/pull/272))
+- HTTP span formatting ([#258](https://github.com/monocle2ai/monocle/pull/258))
+- Adding mistral metamodel - instrumentation of inference api ([#273](https://github.com/monocle2ai/monocle/pull/273))
+- Add Http Url for Azfunc, Lambda, Flask and FastApi Metamodel ([#254](https://github.com/monocle2ai/monocle/pull/254))
+- Fixed input tool ([#271](https://github.com/monocle2ai/monocle/pull/271))
+- Fix ([#270](https://github.com/monocle2ai/monocle/pull/270))
+
+## Version 0.5.2 (2025-08-27)
+
+- Add monocle MCP server ([#264](https://github.com/monocle2ai/monocle/pull/264))
+
 ## Version 0.5.1 (2025-08-25)
 
 - Support injecting synthetic spans and use that for adding delegation span in Google ADK ([#257](https://github.com/monocle2ai/monocle/pull/257))

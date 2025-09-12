@@ -1,5 +1,6 @@
 from monocle_apptrace.instrumentation.common.wrapper import task_wrapper, atask_wrapper
 from monocle_apptrace.instrumentation.metamodel.mistral.entities.inference import MISTRAL_INFERENCE
+from monocle_apptrace.instrumentation.metamodel.mistral.entities.retrieval import MISTRAL_RETRIEVAL
 
 MISTRAL_METHODS = [
     {
@@ -33,6 +34,22 @@ MISTRAL_METHODS = [
         "span_handler": "non_framework_handler",
         "wrapper_method": atask_wrapper,
         "output_processor": MISTRAL_INFERENCE,
+    },
+    {
+        "package": "mistralai.embeddings",    # where Embeddings is defined
+        "object": "Embeddings",               # sync embeddings client
+        "method": "create",                   # sync create
+        "span_handler": "non_framework_handler",
+        "wrapper_method": task_wrapper,
+        "output_processor": MISTRAL_RETRIEVAL
+    },
+    {
+        "package": "mistralai.embeddings",    # where Embeddings is defined
+        "object": "AsyncEmbeddings",          # async embeddings client
+        "method": "create",                   # async create
+        "span_handler": "non_framework_handler",
+        "wrapper_method": atask_wrapper,
+        "output_processor": MISTRAL_RETRIEVAL
     }
 ]
 

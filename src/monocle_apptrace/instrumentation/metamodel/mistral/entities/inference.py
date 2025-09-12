@@ -10,7 +10,6 @@ MISTRAL_INFERENCE = {
                 "_comment": "provider type ,name , deployment , inference_endpoint",
                 "attribute": "type",
                 "accessor": lambda arguments: 'inference.mistral'
-
             },
             {
                 "attribute": "provider_name",
@@ -52,9 +51,16 @@ MISTRAL_INFERENCE = {
                     "accessor": lambda arguments: get_error_message(arguments)
                 },
                 {
-                    "_comment": "this is result from LLM",
+                    "_comment": "this is result from LLM, works for streaming and non-streaming",
                     "attribute": "response",
-                    "accessor": lambda arguments: _helper.extract_assistant_message(arguments)
+                    "accessor": lambda arguments: (
+                        # Handle streaming: combine chunks if result is iterable and doesn't have 'choices'
+                        _helper.extract_assistant_message(
+                            {"result": list(arguments["result"])}
+                            if hasattr(arguments.get("result"), "__iter__") and not hasattr(arguments.get("result"), "choices")
+                            else arguments
+                        )
+                    )
                 }
             ]
         },
@@ -62,8 +68,11 @@ MISTRAL_INFERENCE = {
             "name": "metadata",
             "attributes": [
                 {
-                    "_comment": "this is metadata usage from LLM",
-                    "accessor": lambda arguments: _helper.update_span_from_llm_response(arguments['result'])
+                    "_comment": "this is metadata usage from LLM, includes token counts",
+                    "accessor": lambda arguments: _helper.update_span_from_llm_response(
+                        arguments.get("result"),
+                        include_token_counts=True  # new flag for streaming handling
+                    )
                 },
                 {
                     "_comment": "finish reason from Anthropic response",

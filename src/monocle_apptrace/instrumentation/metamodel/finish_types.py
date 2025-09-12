@@ -14,6 +14,7 @@ class FinishType(Enum):
     TOOL_CALL_ERROR = "tool_call_error"
     REFUSAL = "refusal"
     RATE_LIMITED = "rate_limited"
+    TOOL_CALL = "tool_call"
 
 # OpenAI finish reason mapping
 OPENAI_FINISH_REASON_MAPPING = {
@@ -274,6 +275,15 @@ HAYSTACK_FINISH_REASON_MAPPING = {
     "OTHER": FinishType.ERROR.value,
 }
 
+MISTRAL_FINISH_REASON_MAPPING = {
+    "stop": FinishType.SUCCESS.value,
+    "tool_calls": FinishType.TOOL_CALL.value,  # New category for tool calls
+    "length": FinishType.TRUNCATED.value,
+    # Mistral's API documentation does not explicitly mention other finish reasons like "content_filter" or "refusal".
+    # However, in case of an API-level error, the response itself would likely be an HTTP error rather than a
+    # successful response with a specific finish reason.
+}
+
 ADK_FINISH_REASON_MAPPING = GEMINI_FINISH_REASON_MAPPING
 
 def map_openai_finish_reason_to_finish_type(finish_reason):
@@ -463,3 +473,9 @@ def map_adk_finish_reason_to_finish_type(finish_reason):
     if not finish_reason:
         return None
     return ADK_FINISH_REASON_MAPPING.get(finish_reason, None)
+
+def map_mistral_finish_reason_to_finish_type(finish_reason):
+    """Map Mistral finish_reason to standardized finish_type."""
+    if not finish_reason:
+        return None
+    return MISTRAL_FINISH_REASON_MAPPING.get(finish_reason, None)

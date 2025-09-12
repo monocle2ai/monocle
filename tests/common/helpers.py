@@ -132,6 +132,23 @@ def verify_inference_span(span, entity_type: str, provider_name: str = None, inf
                 if attr not in metadata_event.attributes:
                     raise AssertionError(f"metadata event should have '{attr}' attribute")
 
+def verify_embedding_span(span, model_name: str):
+    span_attributes = span.attributes
+
+    # Must be embedding
+    assert span_attributes["span.type"] == "embedding"
+
+    # Entity details
+    assert span_attributes["entity.1.name"] == model_name
+    assert span_attributes["entity.1.type"] == f"model.embedding.{model_name}"
+
+    # Input/output events
+    input_event = next((e for e in span.events if e.name == "data.input"), None)
+    output_event = next((e for e in span.events if e.name == "data.output"), None)
+
+    assert input_event is not None
+    assert output_event is not None
+
 def find_spans_by_type(spans, span_type: str) -> List:
     """Find all spans of a specific type."""
     return [span for span in spans if span.attributes.get("span.type") == span_type]

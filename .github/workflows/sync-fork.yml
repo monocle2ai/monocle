@@ -1,0 +1,42 @@
+name: Sync Fork with Upstream
+
+on:
+  schedule:
+    # Run every 24 hours at 02:00 UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch: # Allow manual triggering
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Add upstream remote
+        run: |
+          git remote add upstream https://github.com/monocle2ai/monocle.git
+          git fetch upstream
+
+      - name: Sync main branch
+        run: |
+          # Switch to main branch
+          git checkout main
+          
+          # Merge upstream changes
+          git merge upstream/main --no-edit
+          
+          # Push changes to origin
+          git push origin main
+
+      - name: Clean up
+        run: |
+          git remote remove upstream

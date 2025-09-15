@@ -36,7 +36,8 @@ Benefits:
 
 ## Use Monocle
 
-- Get the Monocle package
+### Generate traces
+Install monocle package and make simple two line change to your application to generate traces.
   
 ```
     pip install monocle_apptrace 
@@ -54,26 +55,11 @@ Benefits:
 
 See [Monocle user guide](Monocle_User_Guide.md) for more details.
   
+### Monocle test tool
+Test your application and agent behavior by using Monocle's genAI test tool. Just define your input, expected output and expected agent or tool to be called. The Monocle test tool automatically generates the traces and validate your expected behavior.
 
-## Use Monocle MCP
-
-First install monocle-apptrace: pip install monocle-apptrace
-
-Open bash and run the following command to run the monocle mcp server with stdio:
-monocle_apptrace
-
-If you are using VS Code you can add following entry to your .vscode/mcp.json
-
-```json
-"monocle-mcp-server": {
-      "type": "stdio",
-      "command": "uvx",
-      "args": [
-         "monocle_apptrace"
-      ],
-      "env": {}
-   }
-```
+### Monocle MCP server
+The MCP server provided by Monocle integrates with your dev enviorment like Visual Studio and Github copilot. It provides curated prompts and tools to analyze the trace to find issues.
 
 ## Roadmap 
 

@@ -1,0 +1,719 @@
+[{
+    "name": "google.genai.models.AsyncModels.generate_content",
+    "context": {
+        "trace_id": "0xe41d9435ad8b01f220bdca188d0867ec",
+        "span_id": "0x1bed85e352d60a5f",
+        "trace_state": "[]"
+    },
+    "kind": "SpanKind.INTERNAL",
+    "parent_id": "0x3d586efffd2b651c",
+    "start_time": "2025-09-09T18:52:36.424307Z",
+    "end_time": "2025-09-09T18:52:37.171554Z",
+    "status": {
+        "status_code": "OK"
+    },
+    "attributes": {
+        "monocle_apptrace.version": "0.5.1",
+        "monocle_apptrace.language": "python",
+        "span_source": "/Users/prasad/repos/monocle2ai/examples/.env/lib/python3.12/site-packages/google/adk/models/google_llm.py:200",
+        "workflow.name": "adk-travel-agent",
+        "span.type": "inference",
+        "entity.1.type": "inference.gemini",
+        "entity.1.inference_endpoint": "https://generativelanguage.googleapis.com/",
+        "entity.1.provider_name": "gcp",
+        "entity.2.name": "gemini-2.0-flash",
+        "entity.2.type": "model.llm.gemini-2.0-flash",
+        "scope.agentic.request": "0x70adde2fc9b7f98ddbda564962a6028",
+        "entity.count": 2
+    },
+    "events": [
+        {
+            "name": "data.input",
+            "timestamp": "2025-09-09T18:52:37.171335Z",
+            "attributes": {
+                "input": [
+                    "{\"system\": \"You are a helpful agent who can assist users in booking flights.\\n\\nYou are an agent. Your internal name is \\\"adk_flight_booking_agent_5\\\".\\n\\n The description about you is \\\"Agent to book flights based on user queries.\\\"\"}",
+                    "{\"user\": \"Book a flight from San Francisco to Mumbai for 26th Nov 2025. Book a two queen room at Marriot Intercontinental at Juhu, Mumbai for 27th Nov 2025 for 4 nights.\"}"
+                ]
+            }
+        },
+        {
+            "name": "data.output",
+            "timestamp": "2025-09-09T18:52:37.171443Z",
+            "attributes": {
+                "response": "{\"model\": \"I can book a flight from San Francisco to Mumbai. However, I am unable to book a hotel. Would you like me to proceed with booking the flight?\\n\"}"
+            }
+        },
+        {
+            "name": "metadata",
+            "timestamp": "2025-09-09T18:52:37.171509Z",
+            "attributes": {
+                "completion_tokens": 33,
+                "prompt_tokens": 196,
+                "total_tokens": 229,
+                "finish_reason": "STOP",
+                "finish_type": "success"
+            }
+        }
+    ],
+    "links": [],
+    "resource": {
+        "attributes": {
+            "service.name": "adk-travel-agent"
+        },
+        "schema_url": ""
+    }
+}
+,{
+    "name": "google.adk.agents.base_agent.BaseAgent.run_async",
+    "context": {
+        "trace_id": "0xe41d9435ad8b01f220bdca188d0867ec",
+        "span_id": "0x3d586efffd2b651c",
+        "trace_state": "[]"
+    },
+    "kind": "SpanKind.INTERNAL",
+    "parent_id": "0xac456ae2f3ec050f",
+    "start_time": "2025-09-09T18:52:36.375381Z",
+    "end_time": "2025-09-09T18:52:37.176274Z",
+    "status": {
+        "status_code": "OK"
+    },
+    "attributes": {
+        "monocle_apptrace.version": "0.5.1",
+        "monocle_apptrace.language": "python",
+        "span_source": "/Users/prasad/repos/monocle2ai/examples/.env/lib/python3.12/site-packages/google/adk/agents/sequential_agent.py:45",
+        "workflow.name": "adk-travel-agent",
+        "span.type": "agentic.invocation",
+        "span.subtype": "routing",
+        "entity.1.type": "agent.adk",
+        "entity.1.name": "adk_flight_booking_agent_5",
+        "entity.1.description": "Agent to book flights based on user queries.",
+        "entity.1.from_agent": "adk_supervisor_agent_5",
+        "scope.agentic.request": "0x70adde2fc9b7f98ddbda564962a6028",
+        "entity.count": 1
+    },
+    "events": [
+        {
+            "name": "data.input",
+            "timestamp": "2025-09-09T18:52:37.176227Z",
+            "attributes": {
+                "query": "Book a flight from San Francisco to Mumbai for 26th Nov 2025. Book a two queen room at Marriot Intercontinental at Juhu, Mumbai for 27th Nov 2025 for 4 nights."
+            }
+        },
+        {
+            "name": "data.output",
+            "timestamp": "2025-09-09T18:52:37.176256Z",
+            "attributes": {
+                "response": "I can book a flight from San Francisco to Mumbai. However, I am unable to book a hotel. Would you like me to proceed with booking the flight?\n"
+            }
+        }
+    ],
+    "links": [],
+    "resource": {
+        "attributes": {
+            "service.name": "adk-travel-agent"
+        },
+        "schema_url": ""
+    }
+}
+,{
+    "name": "google.adk.agents.base_agent.BaseAgent.run_async",
+    "context": {
+        "trace_id": "0xe41d9435ad8b01f220bdca188d0867ec",
+        "span_id": "0xac456ae2f3ec050f",
+        "trace_state": "[]"
+    },
+    "kind": "SpanKind.INTERNAL",
+    "parent_id": "0x6270d593db31bb7c",
+    "start_time": "2025-09-09T18:52:36.374124Z",
+    "end_time": "2025-09-09T18:52:37.176333Z",
+    "status": {
+        "status_code": "OK"
+    },
+    "attributes": {
+        "monocle_apptrace.version": "0.5.1",
+        "monocle_apptrace.language": "python",
+        "span_source": "/Users/prasad/repos/monocle2ai/examples/.env/lib/python3.12/site-packages/google/adk/agents/sequential_agent.py:45",
+        "workflow.name": "adk-travel-agent",
+        "span.type": "agentic.delegation",
+        "entity.1.type": "agent.adk",
+        "entity.1.from_agent": "adk_supervisor_agent_5",
+        "entity.1.to_agent": "adk_flight_booking_agent_5",
+        "scope.agentic.request": "0x70adde2fc9b7f98ddbda564962a6028",
+        "entity.count": 1
+    },
+    "events": [],
+    "links": [],
+    "resource": {
+        "attributes": {
+            "service.name": "adk-travel-agent"
+        },
+        "schema_url": ""
+    }
+}
+,{
+    "name": "google.genai.models.AsyncModels.generate_content",
+    "context": {
+        "trace_id": "0xe41d9435ad8b01f220bdca188d0867ec",
+        "span_id": "0xe2579cc0cb7f6212",
+        "trace_state": "[]"
+    },
+    "kind": "SpanKind.INTERNAL",
+    "parent_id": "0x89ad8d89b7dc9649",
+    "start_time": "2025-09-09T18:52:37.206056Z",
+    "end_time": "2025-09-09T18:52:37.975032Z",
+    "status": {
+        "status_code": "OK"
+    },
+    "attributes": {
+        "monocle_apptrace.version": "0.5.1",
+        "monocle_apptrace.language": "python",
+        "span_source": "/Users/prasad/repos/monocle2ai/examples/.env/lib/python3.12/site-packages/google/adk/models/google_llm.py:200",
+        "workflow.name": "adk-travel-agent",
+        "span.type": "inference",
+        "entity.1.type": "inference.gemini",
+        "entity.1.inference_endpoint": "https://generativelanguage.googleapis.com/",
+        "entity.1.provider_name": "gcp",
+        "entity.2.name": "gemini-2.0-flash",
+        "entity.2.type": "model.llm.gemini-2.0-flash",
+        "scope.agentic.request": "0x70adde2fc9b7f98ddbda564962a6028",
+        "entity.count": 2
+    },
+    "events": [
+        {
+            "name": "data.input",
+            "timestamp": "2025-09-09T18:52:37.974743Z",
+            "attributes": {
+                "input": [
+                    "{\"system\": \"You are a helpful agent who can assist users in booking hotels. If you are asked about hotel bookings, provide the relevant information. If not, then just stay silent.\\n\\nYou are an agent. Your internal name is \\\"adk_hotel_booking_agent_5\\\".\\n\\n The description about you is \\\"Agent to book hotels based on user queries.\\\"\"}",
+                    "{\"user\": \"Book a flight from San Francisco to Mumbai for 26th Nov 2025. Book a two queen room at Marriot Intercontinental at Juhu, Mumbai for 27th Nov 2025 for 4 nights.\"}",
+                    "{\"user\": \"For context:\"}"
+                ]
+            }
+        },
+        {
+            "name": "data.output",
+            "timestamp": "2025-09-09T18:52:37.974931Z",
+            "attributes": {}
+        },
+        {
+            "name": "metadata",
+            "timestamp": "2025-09-09T18:52:37.975000Z",
+            "attributes": {
+                "completion_tokens": 17,
+                "prompt_tokens": 282,
+                "total_tokens": 299,
+                "finish_reason": "STOP",
+                "finish_type": "success"
+            }
+        }
+    ],
+    "links": [],
+    "resource": {
+        "attributes": {
+            "service.name": "adk-travel-agent"
+        },
+        "schema_url": ""
+    }
+}
+,{
+    "name": "google.adk.tools.function_tool.FunctionTool.run_async",
+    "context": {
+        "trace_id": "0xe41d9435ad8b01f220bdca188d0867ec",
+        "span_id": "0x55434717489297e8",
+        "trace_state": "[]"
+    },
+    "kind": "SpanKind.INTERNAL",
+    "parent_id": "0x89ad8d89b7dc9649",
+    "start_time": "2025-09-09T18:52:37.977919Z",
+    "end_time": "2025-09-09T18:52:37.978225Z",
+    "status": {
+        "status_code": "OK"
+    },
+    "attributes": {
+        "monocle_apptrace.version": "0.5.1",
+        "monocle_apptrace.language": "python",
+        "span_source": "/Users/prasad/repos/monocle2ai/examples/.env/lib/python3.12/site-packages/google/adk/flows/llm_flows/functions.py:610",
+        "workflow.name": "adk-travel-agent",
+        "span.type": "agentic.tool.invocation",
+        "span.subtype": "routing",
+        "entity.1.type": "tool.adk",
+        "entity.1.name": "adk_book_hotel_5",
+        "entity.1.description": "Books a hotel for a stay.\n\nArgs:\n    hotel_name (str): The name of the hotel to book.\n    city (str): The city where the hotel is located.\n    check_in_date (str): The check-in date for the hotel stay.\n    duration (int): The duration of the hotel stay in nights.\n\nReturns:\n    dict: status and message.",
+        "entity.2.name": "adk_hotel_booking_agent_5",
+        "entity.2.type": "agent.adk",
+        "scope.agentic.request": "0x70adde2fc9b7f98ddbda564962a6028",
+        "entity.count": 2
+    },
+    "events": [
+        {
+            "name": "data.input",
+            "timestamp": "2025-09-09T18:52:37.978190Z",
+            "attributes": {
+                "input": "{'city': 'Mumbai', 'hotel_name': 'Marriot Intercontinental'}"
+            }
+        },
+        {
+            "name": "data.output",
+            "timestamp": "2025-09-09T18:52:37.978211Z",
+            "attributes": {
+                "response": "{'status': 'success', 'message': 'Successfully booked a stay at Marriot Intercontinental in Mumbai.'}"
+            }
+        }
+    ],
+    "links": [],
+    "resource": {
+        "attributes": {
+            "service.name": "adk-travel-agent"
+        },
+        "schema_url": ""
+    }
+}
+,{
+    "name": "google.genai.models.AsyncModels.generate_content",
+    "context": {
+        "trace_id": "0xe41d9435ad8b01f220bdca188d0867ec",
+        "span_id": "0x0612c9556dc3be3f",
+        "trace_state": "[]"
+    },
+    "kind": "SpanKind.INTERNAL",
+    "parent_id": "0x89ad8d89b7dc9649",
+    "start_time": "2025-09-09T18:52:38.009237Z",
+    "end_time": "2025-09-09T18:52:38.704484Z",
+    "status": {
+        "status_code": "OK"
+    },
+    "attributes": {
+        "monocle_apptrace.version": "0.5.1",
+        "monocle_apptrace.language": "python",
+        "span_source": "/Users/prasad/repos/monocle2ai/examples/.env/lib/python3.12/site-packages/google/adk/models/google_llm.py:200",
+        "workflow.name": "adk-travel-agent",
+        "span.type": "inference",
+        "entity.1.type": "inference.gemini",
+        "entity.1.inference_endpoint": "https://generativelanguage.googleapis.com/",
+        "entity.1.provider_name": "gcp",
+        "entity.2.name": "gemini-2.0-flash",
+        "entity.2.type": "model.llm.gemini-2.0-flash",
+        "scope.agentic.request": "0x70adde2fc9b7f98ddbda564962a6028",
+        "entity.count": 2
+    },
+    "events": [
+        {
+            "name": "data.input",
+            "timestamp": "2025-09-09T18:52:38.704346Z",
+            "attributes": {
+                "input": [
+                    "{\"system\": \"You are a helpful agent who can assist users in booking hotels. If you are asked about hotel bookings, provide the relevant information. If not, then just stay silent.\\n\\nYou are an agent. Your internal name is \\\"adk_hotel_booking_agent_5\\\".\\n\\n The description about you is \\\"Agent to book hotels based on user queries.\\\"\"}",
+                    "{\"user\": \"Book a flight from San Francisco to Mumbai for 26th Nov 2025. Book a two queen room at Marriot Intercontinental at Juhu, Mumbai for 27th Nov 2025 for 4 nights.\"}",
+                    "{\"user\": \"For context:\"}",
+                    "{\"model\": null}",
+                    "{\"user\": null}"
+                ]
+            }
+        },
+        {
+            "name": "data.output",
+            "timestamp": "2025-09-09T18:52:38.704418Z",
+            "attributes": {
+                "response": "{\"model\": \"OK. I have booked a stay at Marriot Intercontinental in Mumbai.\\n\"}"
+            }
+        },
+        {
+            "name": "metadata",
+            "timestamp": "2025-09-09T18:52:38.704459Z",
+            "attributes": {
+                "completion_tokens": 16,
+                "prompt_tokens": 322,
+                "total_tokens": 338,
+                "finish_reason": "STOP",
+                "finish_type": "success"
+            }
+        }
+    ],
+    "links": [],
+    "resource": {
+        "attributes": {
+            "service.name": "adk-travel-agent"
+        },
+        "schema_url": ""
+    }
+}
+,{
+    "name": "google.adk.agents.base_agent.BaseAgent.run_async",
+    "context": {
+        "trace_id": "0xe41d9435ad8b01f220bdca188d0867ec",
+        "span_id": "0x89ad8d89b7dc9649",
+        "trace_state": "[]"
+    },
+    "kind": "SpanKind.INTERNAL",
+    "parent_id": "0xdaf36107693916c6",
+    "start_time": "2025-09-09T18:52:37.177134Z",
+    "end_time": "2025-09-09T18:52:38.708106Z",
+    "status": {
+        "status_code": "OK"
+    },
+    "attributes": {
+        "monocle_apptrace.version": "0.5.1",
+        "monocle_apptrace.language": "python",
+        "span_source": "/Users/prasad/repos/monocle2ai/examples/.env/lib/python3.12/site-packages/google/adk/agents/sequential_agent.py:45",
+        "workflow.name": "adk-travel-agent",
+        "span.type": "agentic.invocation",
+        "span.subtype": "routing",
+        "entity.1.type": "agent.adk",
+        "entity.1.name": "adk_hotel_booking_agent_5",
+        "entity.1.description": "Agent to book hotels based on user queries.",
+        "entity.1.from_agent": "adk_supervisor_agent_5",
+        "scope.agentic.request": "0x70adde2fc9b7f98ddbda564962a6028",
+        "entity.count": 1
+    },
+    "events": [
+        {
+            "name": "data.input",
+            "timestamp": "2025-09-09T18:52:38.708070Z",
+            "attributes": {
+                "query": "Book a flight from San Francisco to Mumbai for 26th Nov 2025. Book a two queen room at Marriot Intercontinental at Juhu, Mumbai for 27th Nov 2025 for 4 nights."
+            }
+        },
+        {
+            "name": "data.output",
+            "timestamp": "2025-09-09T18:52:38.708094Z",
+            "attributes": {
+                "response": "OK. I have booked a stay at Marriot Intercontinental in Mumbai.\n"
+            }
+        }
+    ],
+    "links": [],
+    "resource": {
+        "attributes": {
+            "service.name": "adk-travel-agent"
+        },
+        "schema_url": ""
+    }
+}
+,{
+    "name": "google.adk.agents.base_agent.BaseAgent.run_async",
+    "context": {
+        "trace_id": "0xe41d9435ad8b01f220bdca188d0867ec",
+        "span_id": "0xdaf36107693916c6",
+        "trace_state": "[]"
+    },
+    "kind": "SpanKind.INTERNAL",
+    "parent_id": "0x6270d593db31bb7c",
+    "start_time": "2025-09-09T18:52:37.177051Z",
+    "end_time": "2025-09-09T18:52:38.708147Z",
+    "status": {
+        "status_code": "OK"
+    },
+    "attributes": {
+        "monocle_apptrace.version": "0.5.1",
+        "monocle_apptrace.language": "python",
+        "span_source": "/Users/prasad/repos/monocle2ai/examples/.env/lib/python3.12/site-packages/google/adk/agents/sequential_agent.py:45",
+        "workflow.name": "adk-travel-agent",
+        "span.type": "agentic.delegation",
+        "entity.1.type": "agent.adk",
+        "entity.1.from_agent": "adk_supervisor_agent_5",
+        "entity.1.to_agent": "adk_hotel_booking_agent_5",
+        "scope.agentic.request": "0x70adde2fc9b7f98ddbda564962a6028",
+        "entity.count": 1
+    },
+    "events": [],
+    "links": [],
+    "resource": {
+        "attributes": {
+            "service.name": "adk-travel-agent"
+        },
+        "schema_url": ""
+    }
+}
+,{
+    "name": "google.genai.models.AsyncModels.generate_content",
+    "context": {
+        "trace_id": "0xe41d9435ad8b01f220bdca188d0867ec",
+        "span_id": "0x8c8054c4fe07a1b7",
+        "trace_state": "[]"
+    },
+    "kind": "SpanKind.INTERNAL",
+    "parent_id": "0x409d74eaf4e690be",
+    "start_time": "2025-09-09T18:52:38.733121Z",
+    "end_time": "2025-09-09T18:52:39.834033Z",
+    "status": {
+        "status_code": "OK"
+    },
+    "attributes": {
+        "monocle_apptrace.version": "0.5.1",
+        "monocle_apptrace.language": "python",
+        "span_source": "/Users/prasad/repos/monocle2ai/examples/.env/lib/python3.12/site-packages/google/adk/models/google_llm.py:200",
+        "workflow.name": "adk-travel-agent",
+        "span.type": "inference",
+        "entity.1.type": "inference.gemini",
+        "entity.1.inference_endpoint": "https://generativelanguage.googleapis.com/",
+        "entity.1.provider_name": "gcp",
+        "entity.2.name": "gemini-2.0-flash",
+        "entity.2.type": "model.llm.gemini-2.0-flash",
+        "scope.agentic.request": "0x70adde2fc9b7f98ddbda564962a6028",
+        "entity.count": 2
+    },
+    "events": [
+        {
+            "name": "data.input",
+            "timestamp": "2025-09-09T18:52:39.833880Z",
+            "attributes": {
+                "input": [
+                    "{\"system\": \"Summarize the travel details from hotel bookings and flight bookings agents.\\n\\nYou are an agent. Your internal name is \\\"adk_trip_summary_agent_5\\\".\\n\\n The description about you is \\\"Summarize the travel details from hotel bookings and flight bookings agents.\\\"\"}",
+                    "{\"user\": \"Book a flight from San Francisco to Mumbai for 26th Nov 2025. Book a two queen room at Marriot Intercontinental at Juhu, Mumbai for 27th Nov 2025 for 4 nights.\"}",
+                    "{\"user\": \"For context:\"}",
+                    "{\"user\": \"For context:\"}",
+                    "{\"user\": \"For context:\"}",
+                    "{\"user\": \"For context:\"}"
+                ]
+            }
+        },
+        {
+            "name": "data.output",
+            "timestamp": "2025-09-09T18:52:39.833961Z",
+            "attributes": {
+                "response": "{\"model\": \"OK. Here's a summary of your travel arrangements:\\n\\n*   **Flight:** San Francisco to Mumbai on November 26th, 2025 (booked by adk\\\\_flight\\\\_booking\\\\_agent\\\\_5).\\n*\"}"
+            }
+        },
+        {
+            "name": "metadata",
+            "timestamp": "2025-09-09T18:52:39.834004Z",
+            "attributes": {
+                "completion_tokens": 50,
+                "prompt_tokens": 288,
+                "total_tokens": 338,
+                "finish_reason": "MAX_TOKENS",
+                "finish_type": "truncated"
+            }
+        }
+    ],
+    "links": [],
+    "resource": {
+        "attributes": {
+            "service.name": "adk-travel-agent"
+        },
+        "schema_url": ""
+    }
+}
+,{
+    "name": "google.adk.agents.base_agent.BaseAgent.run_async",
+    "context": {
+        "trace_id": "0xe41d9435ad8b01f220bdca188d0867ec",
+        "span_id": "0x409d74eaf4e690be",
+        "trace_state": "[]"
+    },
+    "kind": "SpanKind.INTERNAL",
+    "parent_id": "0x8a7f2823c0ad1fa0",
+    "start_time": "2025-09-09T18:52:38.708711Z",
+    "end_time": "2025-09-09T18:52:39.839278Z",
+    "status": {
+        "status_code": "OK"
+    },
+    "attributes": {
+        "monocle_apptrace.version": "0.5.1",
+        "monocle_apptrace.language": "python",
+        "span_source": "/Users/prasad/repos/monocle2ai/examples/.env/lib/python3.12/site-packages/google/adk/agents/sequential_agent.py:45",
+        "workflow.name": "adk-travel-agent",
+        "span.type": "agentic.invocation",
+        "span.subtype": "routing",
+        "entity.1.type": "agent.adk",
+        "entity.1.name": "adk_trip_summary_agent_5",
+        "entity.1.description": "Summarize the travel details from hotel bookings and flight bookings agents.",
+        "entity.1.from_agent": "adk_supervisor_agent_5",
+        "scope.agentic.request": "0x70adde2fc9b7f98ddbda564962a6028",
+        "entity.count": 1
+    },
+    "events": [
+        {
+            "name": "data.input",
+            "timestamp": "2025-09-09T18:52:39.839235Z",
+            "attributes": {
+                "query": "Book a flight from San Francisco to Mumbai for 26th Nov 2025. Book a two queen room at Marriot Intercontinental at Juhu, Mumbai for 27th Nov 2025 for 4 nights."
+            }
+        },
+        {
+            "name": "data.output",
+            "timestamp": "2025-09-09T18:52:39.839262Z",
+            "attributes": {
+                "response": "OK. Here's a summary of your travel arrangements:\n\n*   **Flight:** San Francisco to Mumbai on November 26th, 2025 (booked by adk\\_flight\\_booking\\_agent\\_5).\n*"
+            }
+        }
+    ],
+    "links": [],
+    "resource": {
+        "attributes": {
+            "service.name": "adk-travel-agent"
+        },
+        "schema_url": ""
+    }
+}
+,{
+    "name": "google.adk.agents.base_agent.BaseAgent.run_async",
+    "context": {
+        "trace_id": "0xe41d9435ad8b01f220bdca188d0867ec",
+        "span_id": "0x8a7f2823c0ad1fa0",
+        "trace_state": "[]"
+    },
+    "kind": "SpanKind.INTERNAL",
+    "parent_id": "0x6270d593db31bb7c",
+    "start_time": "2025-09-09T18:52:38.708641Z",
+    "end_time": "2025-09-09T18:52:39.839335Z",
+    "status": {
+        "status_code": "OK"
+    },
+    "attributes": {
+        "monocle_apptrace.version": "0.5.1",
+        "monocle_apptrace.language": "python",
+        "span_source": "/Users/prasad/repos/monocle2ai/examples/.env/lib/python3.12/site-packages/google/adk/agents/sequential_agent.py:45",
+        "workflow.name": "adk-travel-agent",
+        "span.type": "agentic.delegation",
+        "entity.1.type": "agent.adk",
+        "entity.1.from_agent": "adk_supervisor_agent_5",
+        "entity.1.to_agent": "adk_trip_summary_agent_5",
+        "scope.agentic.request": "0x70adde2fc9b7f98ddbda564962a6028",
+        "entity.count": 1
+    },
+    "events": [],
+    "links": [],
+    "resource": {
+        "attributes": {
+            "service.name": "adk-travel-agent"
+        },
+        "schema_url": ""
+    }
+}
+,{
+    "name": "google.adk.agents.base_agent.BaseAgent.run_async",
+    "context": {
+        "trace_id": "0xe41d9435ad8b01f220bdca188d0867ec",
+        "span_id": "0x6270d593db31bb7c",
+        "trace_state": "[]"
+    },
+    "kind": "SpanKind.INTERNAL",
+    "parent_id": "0x507176dd7e95f327",
+    "start_time": "2025-09-09T18:52:36.372748Z",
+    "end_time": "2025-09-09T18:52:39.839481Z",
+    "status": {
+        "status_code": "OK"
+    },
+    "attributes": {
+        "monocle_apptrace.version": "0.5.1",
+        "monocle_apptrace.language": "python",
+        "span_source": "/Users/prasad/repos/monocle2ai/examples/.env/lib/python3.12/site-packages/google/adk/runners.py:237",
+        "workflow.name": "adk-travel-agent",
+        "span.type": "agentic.invocation",
+        "span.subtype": "routing",
+        "entity.1.type": "agent.adk",
+        "entity.1.name": "adk_supervisor_agent_5",
+        "entity.1.description": "\n            You are the supervisor agent that coordinates the flight booking and hotel booking.\n            You must provide a consolidated summary back to the full coordination of the user's request.\n        ",
+        "scope.agentic.request": "0x70adde2fc9b7f98ddbda564962a6028",
+        "entity.count": 1
+    },
+    "events": [
+        {
+            "name": "data.input",
+            "timestamp": "2025-09-09T18:52:39.839453Z",
+            "attributes": {
+                "query": "Book a flight from San Francisco to Mumbai for 26th Nov 2025. Book a two queen room at Marriot Intercontinental at Juhu, Mumbai for 27th Nov 2025 for 4 nights."
+            }
+        },
+        {
+            "name": "data.output",
+            "timestamp": "2025-09-09T18:52:39.839471Z",
+            "attributes": {
+                "response": "OK. Here's a summary of your travel arrangements:\n\n*   **Flight:** San Francisco to Mumbai on November 26th, 2025 (booked by adk\\_flight\\_booking\\_agent\\_5).\n*"
+            }
+        }
+    ],
+    "links": [],
+    "resource": {
+        "attributes": {
+            "service.name": "adk-travel-agent"
+        },
+        "schema_url": ""
+    }
+}
+,{
+    "name": "google.adk.runners.Runner.run_async",
+    "context": {
+        "trace_id": "0xe41d9435ad8b01f220bdca188d0867ec",
+        "span_id": "0x507176dd7e95f327",
+        "trace_state": "[]"
+    },
+    "kind": "SpanKind.INTERNAL",
+    "parent_id": "0xcdad97c103f68ded",
+    "start_time": "2025-09-09T18:52:36.370350Z",
+    "end_time": "2025-09-09T18:52:39.839597Z",
+    "status": {
+        "status_code": "OK"
+    },
+    "attributes": {
+        "monocle_apptrace.version": "0.5.1",
+        "monocle_apptrace.language": "python",
+        "span_source": "/Users/prasad/repos/monocle2ai/examples/python/adk-travel-agent/adk-travel-agent.py:111",
+        "workflow.name": "adk-travel-agent",
+        "span.type": "agentic.request",
+        "entity.1.type": "agent.adk",
+        "scope.agentic.request": "0x70adde2fc9b7f98ddbda564962a6028",
+        "entity.count": 1
+    },
+    "events": [
+        {
+            "name": "data.input",
+            "timestamp": "2025-09-09T18:52:39.839573Z",
+            "attributes": {
+                "input": "Book a flight from San Francisco to Mumbai for 26th Nov 2025. Book a two queen room at Marriot Intercontinental at Juhu, Mumbai for 27th Nov 2025 for 4 nights."
+            }
+        },
+        {
+            "name": "data.output",
+            "timestamp": "2025-09-09T18:52:39.839588Z",
+            "attributes": {
+                "response": "OK. Here's a summary of your travel arrangements:\n\n*   **Flight:** San Francisco to Mumbai on November 26th, 2025 (booked by adk\\_flight\\_booking\\_agent\\_5).\n*"
+            }
+        }
+    ],
+    "links": [],
+    "resource": {
+        "attributes": {
+            "service.name": "adk-travel-agent"
+        },
+        "schema_url": ""
+    }
+}
+,{
+    "name": "workflow",
+    "context": {
+        "trace_id": "0xe41d9435ad8b01f220bdca188d0867ec",
+        "span_id": "0xcdad97c103f68ded",
+        "trace_state": "[]"
+    },
+    "kind": "SpanKind.INTERNAL",
+    "parent_id": null,
+    "start_time": "2025-09-09T18:52:36.370145Z",
+    "end_time": "2025-09-09T18:52:39.839615Z",
+    "status": {
+        "status_code": "OK"
+    },
+    "attributes": {
+        "monocle_apptrace.version": "0.5.1",
+        "monocle_apptrace.language": "python",
+        "span_source": "/Users/prasad/repos/monocle2ai/examples/python/adk-travel-agent/adk-travel-agent.py:111",
+        "scope.agentic.request": "0x70adde2fc9b7f98ddbda564962a6028",
+        "workflow.name": "adk-travel-agent",
+        "span.type": "workflow",
+        "entity.1.name": "adk-travel-agent",
+        "entity.1.type": "workflow.generic",
+        "entity.2.type": "app_hosting.generic",
+        "entity.2.name": "generic"
+    },
+    "events": [],
+    "links": [],
+    "resource": {
+        "attributes": {
+            "service.name": "adk-travel-agent"
+        },
+        "schema_url": ""
+    }
+}
+]

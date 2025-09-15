@@ -1,0 +1,40 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "monocle-mcp"
+version = "0.1.0"
+description = "Monocle MCP server: prompts and tools for enabling and analyzing Monocle tracing in GenAI apps."
+readme = "README.md"
+requires-python = ">=3.8"
+authors = [
+  { name = "Okahu Inc.", email = "okahu-pypi@okahu.ai" }
+]
+license = {text = "Apache-2.0"}
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: OS Independent",
+    "Intended Audience :: Developers",
+    "Topic :: Software Development :: Libraries :: Application Frameworks",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+dependencies = [
+    "click>=8.0.0",
+    "monocle_apptrace>=0.5.0",
+    "mcp>=1.12.1",
+]
+
+[project.scripts]
+monocle-mcp = "monocle_mcp.mcp_server:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/monocle_mcp"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "pyproject.toml",
+    "README.md",
+    "src/monocle_mcp/**/*.py",
+]

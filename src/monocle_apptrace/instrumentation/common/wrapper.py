@@ -395,7 +395,10 @@ def get_builtin_scope_names(to_wrap) -> str:
     if "output_processor" in to_wrap:
         output_processor = to_wrap.get("output_processor", None)
     if "output_processor_list" in to_wrap:
-        output_processor = to_wrap["output_processor_list"][0]
+        for processor in to_wrap["output_processor_list"]:
+            if processor.get("type", None) in AGENTIC_SPANS:
+                output_processor = processor
+                break
 
     span_type = output_processor.get("type", None) if output_processor else None
     if span_type and span_type in AGENTIC_SPANS:

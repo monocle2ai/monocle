@@ -391,7 +391,12 @@ def start_as_monocle_span(tracer: Tracer, name: str, auto_close_span: bool) -> I
     detach(monocle_span_token)
 
 def get_builtin_scope_names(to_wrap) -> str:
-    output_processor = to_wrap.get("output_processor", None)
+    output_processor = None
+    if "output_processor" in to_wrap:
+        output_processor = to_wrap.get("output_processor", None)
+    if "output_processor_list" in to_wrap:
+        output_processor = to_wrap["output_processor_list"][0]
+
     span_type = output_processor.get("type", None) if output_processor else None
     if span_type and span_type in AGENTIC_SPANS:
         return span_type

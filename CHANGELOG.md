@@ -1,3 +1,7 @@
+## Version 0.5.4b1 (2025-09-18)
+- Add error code in adk, openai and langgraph agent ([#274](https://github.com/monocle2ai/monocle/pull/274))
+- added new tests for monocle ([#281](https://github.com/monocle2ai/monocle/pull/281))
+
 ## Version 0.5.3 (2025-09-09)
 
 - Make ./.monocle as default folder to store traces instead of current directory ([#272](https://github.com/monocle2ai/monocle/pull/272))

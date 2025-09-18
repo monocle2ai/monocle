@@ -5,6 +5,7 @@ and assistant messages from various input formats.
 
 import json
 import logging
+from urllib.parse import urlparse
 from opentelemetry.context import get_value
 from monocle_apptrace.instrumentation.common.utils import (
     Option,
@@ -184,8 +185,19 @@ def extract_assistant_message(arguments):
 
 
 def extract_provider_name(instance):
+    # Try to get host from base_url if it's a parsed object
     provider_url: Option[str] = try_option(getattr, instance._client.base_url, 'host')
-    return provider_url.unwrap_or(None)
+    if provider_url.unwrap_or(None):
+        return provider_url.unwrap()
+
+    # If base_url is just a string (e.g., "https://api.deepseek.com")
+    base_url = getattr(instance._client, "base_url", None)
+    if isinstance(base_url, str):
+        parsed = urlparse(base_url)
+        if parsed.hostname:
+            return parsed.hostname
+
+    return None
 
 
 def extract_inference_endpoint(instance):
@@ -248,11 +260,18 @@ def extract_vector_output(vector_output):
     return ""
 
 def get_inference_type(instance):
+    # Check if it's Azure OpenAI first
     inference_type: Option[str] = try_option(getattr, instance._client, '_api_version')
     if inference_type.unwrap_or(None):
         return 'azure_openai'
-    else:
-        return 'openai'
+
+    # Check if it's DeepSeek
+    base_url = getattr(instance, "base_url", None) or getattr(instance._client, "base_url", None)
+    if base_url and "deepseek.com" in str(base_url):
+        return "deepseek"
+
+    return "openai"
+
 
 class OpenAISpanHandler(NonFrameworkSpanHandler):
     def is_teams_span_in_progress(self) -> bool:
@@ -325,3 +344,12 @@ def agent_inference_type(arguments):
             return INFERENCE_AGENT_DELEGATION
         return INFERENCE_TOOL_CALL
     return INFERENCE_TURN_END
+
+class DeepSeekSpanHandler(OpenAISpanHandler):
+    def process_span(self, span):
+        span = super().process_span(span)
+        if span.attributes.get("span.type") in ("workflow", "inference"):
+            span.attributes["entity.1.type"] = "workflow.deepseek" if span.attributes.get("span.type") == "workflow" else "inference.deepseek"
+        return span
+
+

@@ -57,3 +57,24 @@ OPENAI_METHODS = [
     }
 
 ]
+
+DEEPSEEK_METHODS = [
+    {
+        "package": "openai.resources.chat.completions",
+        "object": "Completions",
+        "method": "create",
+        "wrapper_method": task_wrapper,
+        "span_handler": "deepseek_handler", 
+        "output_processor": INFERENCE
+        
+    },
+    {
+        "package": "openai.resources.chat.completions",
+        "object": "AsyncCompletions",
+        "method": "create",
+        "wrapper_method": atask_wrapper,
+        "span_handler": "deepseek_handler",
+        "output_processor": INFERENCE
+    },
+    # You can add embeddings/responses if DeepSeek supports them
+]

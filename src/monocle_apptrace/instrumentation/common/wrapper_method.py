@@ -11,7 +11,7 @@ from monocle_apptrace.instrumentation.metamodel.langchain.methods import (
 from monocle_apptrace.instrumentation.metamodel.llamaindex.methods import (LLAMAINDEX_METHODS, )
 from monocle_apptrace.instrumentation.metamodel.llamaindex.llamaindex_processor import LlamaIndexToolHandler, LlamaIndexAgentHandler, LlamaIndexSingleAgenttToolHandlerWrapper
 from monocle_apptrace.instrumentation.metamodel.haystack.methods import (HAYSTACK_METHODS, )
-from monocle_apptrace.instrumentation.metamodel.openai.methods import (OPENAI_METHODS,)
+from monocle_apptrace.instrumentation.metamodel.openai.methods import (DEEPSEEK_METHODS, OPENAI_METHODS,)
 from monocle_apptrace.instrumentation.metamodel.openai._helper import OpenAISpanHandler
 from monocle_apptrace.instrumentation.metamodel.langgraph.methods import LANGGRAPH_METHODS
 from monocle_apptrace.instrumentation.metamodel.langgraph.langgraph_processor import LanggraphAgentHandler, LanggraphToolHandler
@@ -38,6 +38,7 @@ from monocle_apptrace.instrumentation.metamodel.a2a.methods import A2A_CLIENT_ME
 from monocle_apptrace.instrumentation.metamodel.litellm.methods import LITELLM_METHODS
 from monocle_apptrace.instrumentation.metamodel.adk.methods import ADK_METHODS
 from monocle_apptrace.instrumentation.metamodel.mistral.methods import MISTRAL_METHODS
+from monocle_apptrace.instrumentation.metamodel.openai._helper import DeepSeekSpanHandler
 
 class WrapperMethod:
     def __init__(
@@ -109,7 +110,8 @@ DEFAULT_METHODS_LIST = (
     A2A_CLIENT_METHODS +
     LITELLM_METHODS +
     ADK_METHODS +
-    MISTRAL_METHODS
+    MISTRAL_METHODS +
+    DEEPSEEK_METHODS
 )
 
 MONOCLE_SPAN_HANDLERS: Dict[str, SpanHandler] = {
@@ -132,4 +134,5 @@ MONOCLE_SPAN_HANDLERS: Dict[str, SpanHandler] = {
     "llamaindex_agent_handler": LlamaIndexAgentHandler(),
     "llamaindex_single_agent_tool_handler": LlamaIndexSingleAgenttToolHandlerWrapper(),
     "lambda_func_handler": lambdaSpanHandler(),
+    "deepseek_handler": DeepSeekSpanHandler()
 }

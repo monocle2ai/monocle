@@ -77,7 +77,7 @@ def test_deepseek_api_sample(setup):
         )
 
     # Keep only spans from wrapper.py or test.py depending on what you want
-    inference_spans = [s for s in inference_spans if "wrapper.py" in s.attributes.get("span_source", "")]
+    inference_spans = [s for s in inference_spans if s.attributes.get("span.type", "") == "inference"]
     
     assert ( len(inference_spans) == 1 ), "Expected exactly one inference span for the LLM call"
 
@@ -102,6 +102,7 @@ def test_deepseek_api_sample(setup):
     assert workflow_span.attributes["span.type"] == "workflow"
     assert workflow_span.attributes["entity.1.name"] == "generic_deepseek_1"
     assert workflow_span.attributes["workflow.name"] == "generic_deepseek_1"
+    #using openai sdk for deepseek
     assert workflow_span.attributes["entity.1.type"] == "workflow.openai"
 
 @pytest.mark.integration()
@@ -148,7 +149,7 @@ async def test_deepseek_api_sample_async(setup):
         )
 
     # Keep only spans from wrapper.py or test.py depending on what you want
-    inference_spans = [s for s in inference_spans if "wrapper.py" in s.attributes.get("span_source", "")]
+    inference_spans = [s for s in inference_spans if s.attributes.get("span.type", "") == "inference"]
 
     assert len(inference_spans) == 1, "Expected exactly one inference span for the LLM call"
 
@@ -173,6 +174,7 @@ async def test_deepseek_api_sample_async(setup):
     assert workflow_span.attributes["span.type"] == "workflow"
     assert workflow_span.attributes["entity.1.name"] == "generic_deepseek_1"
     assert workflow_span.attributes["workflow.name"] == "generic_deepseek_1"
+    #using openai sdk for deepseek
     assert workflow_span.attributes["entity.1.type"] == "workflow.openai"
 
 

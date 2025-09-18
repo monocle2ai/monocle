@@ -24,6 +24,12 @@ from monocle_apptrace.instrumentation.common.constants import AGENT_PREFIX_KEY, 
 
 logger = logging.getLogger(__name__)
 
+# Mapping of URL substrings to provider names
+URL_MAP = {
+    "deepseek.com": "deepseek",
+    # add more providers here as needed
+}
+
 def extract_messages(kwargs):
     """Extract system and user messages"""
     try:
@@ -265,13 +271,17 @@ def get_inference_type(instance):
     if inference_type.unwrap_or(None):
         return 'azure_openai'
 
-    # Check if it's DeepSeek
+    # Check based on base_url using the mapping
     base_url = getattr(instance, "base_url", None) or getattr(instance._client, "base_url", None)
-    if base_url and "deepseek.com" in str(base_url):
-        return "deepseek"
+    
+    if base_url:
+        base_url_str = str(base_url).lower()
+        for key, name in URL_MAP.items():
+            if key in base_url_str:
+                return name
 
+    # fallback default
     return "openai"
-
 
 class OpenAISpanHandler(NonFrameworkSpanHandler):
     def is_teams_span_in_progress(self) -> bool:

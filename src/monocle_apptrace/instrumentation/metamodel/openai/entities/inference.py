@@ -11,6 +11,7 @@ from monocle_apptrace.instrumentation.common.utils import (
     patch_instance_method,
     resolve_from_alias,
 )
+from monocle_apptrace.instrumentation.common.constants import PROVIDER_BASE_URLS
 
 logger = logging.getLogger(__name__)
 
@@ -122,8 +123,10 @@ def _create_span_result(state, stream_start_time):
 
 
 def is_deepseek_client(client):
-    """Detect if the client is a DeepSeek client."""
-    return getattr(client, "_client", None) and getattr(client._client, "base_url", "").startswith("https://api.deepseek.com")
+    base_url = getattr(client, "_client", None) and getattr(client._client, "base_url", "")
+    deepseek_url = PROVIDER_BASE_URLS.get("deepseek", "")
+    sanitized_url = base_url.strip().lower()
+    return sanitized_url.startswith(deepseek_url)
 
 
 def process_stream(to_wrap, response, span_processor):

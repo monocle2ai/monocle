@@ -36,7 +36,7 @@ AGENT = {
             "attributes": [
                 {
                     "_comment": "this is Agent input",
-                    "attribute": "query",
+                    "attribute": "input",
                     "accessor": lambda arguments: _helper.extract_agent_input(
                         arguments
                     ),
@@ -78,7 +78,7 @@ AGENT = {
 }
 
 AGENT_REQUEST = {
-    "type": AGENT_REQUEST_SPAN_NAME,
+    "type": SPAN_TYPES.AGENTIC_REQUEST,
     "subtype": SPAN_SUBTYPES.PLANNING,
     "attributes": [
         [

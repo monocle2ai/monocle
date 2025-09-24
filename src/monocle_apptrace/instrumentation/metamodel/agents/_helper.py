@@ -50,21 +50,21 @@ def extract_agent_input(arguments):
         if len(arguments["args"]) > 1:
             input_data = arguments["args"][1]
             if isinstance(input_data, str):
-                return input_data
+                return [input_data]
             elif isinstance(input_data, list):
                 # Handle list of input items
-                return get_json_dumps(input_data)
+                return input_data
 
         # Fallback to kwargs
         if "original_input" in arguments["kwargs"]:
             input_data = arguments["kwargs"]["original_input"]
             if isinstance(input_data, str):
-                return input_data
+                return [input_data]
             elif isinstance(input_data, list):
-                return get_json_dumps(input_data)
+                return input_data
     except Exception as e:
         logger.warning("Warning: Error occurred in extract_agent_input: %s", str(e))
-    return None
+    return []
 
 
 def get_agent_name(arguments) -> str:

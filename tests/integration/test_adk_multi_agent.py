@@ -12,9 +12,11 @@ from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanE
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor, BatchSpanProcessor
 import pytest
 import logging
+from common.custom_exporter import CustomConsoleSpanExporter
 
 memory_exporter = InMemorySpanExporter()
-span_processors = [SimpleSpanProcessor(memory_exporter)]
+custom_exporter = CustomConsoleSpanExporter()
+span_processors = [SimpleSpanProcessor(memory_exporter),SimpleSpanProcessor(custom_exporter)]
 
 @pytest.fixture(scope="function")
 def setup():

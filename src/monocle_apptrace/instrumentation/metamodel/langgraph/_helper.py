@@ -25,10 +25,12 @@ def agent_instructions(arguments):
 def extract_agent_input(arguments):
     if arguments['result'] is not None and 'messages' in arguments['result']:
         history = arguments['result']['messages']
+        messages = []
         for message in history:
             if hasattr(message, 'content') and hasattr(message, 'type') and message.type == "human":  # Check if the message is a HumanMessage
-                return message.content
-    return None
+                messages.append(message.content)
+        return messages
+    return []
 
 def get_inference_endpoint(arguments):
     inference_endpoint = resolve_from_alias(arguments['instance'].client.__dict__, ['azure_endpoint', 'api_base', '_base_url'])

@@ -11,6 +11,7 @@ from monocle_apptrace.instrumentation.common.utils import (
     patch_instance_method,
     resolve_from_alias,
 )
+from monocle_apptrace.instrumentation.common.constants import PROVIDER_BASE_URLS
 
 logger = logging.getLogger(__name__)
 
@@ -121,8 +122,26 @@ def _create_span_result(state, stream_start_time):
     )
 
 
+def is_deepseek_client(client):
+    base_url = getattr(client, "_client", None) and getattr(client._client, "base_url", "")
+    deepseek_url = PROVIDER_BASE_URLS.get("deepseek", "")
+    sanitized_url = base_url.strip().lower()
+    return sanitized_url.startswith(deepseek_url)
+
+
 def process_stream(to_wrap, response, span_processor):
     stream_start_time = time.time_ns()
+
+    # Skip wrapping if already wrapped (prevents duplicate inference spans)
+    if hasattr(response, "_monocle_stream_wrapped"):
+        return
+    response._monocle_stream_wrapped = True
+
+    # Determine entity_type
+    entity_type = (
+        "inference.deepseek" if is_deepseek_client(response)
+        else "inference." + (_helper.get_inference_type(response) if hasattr(_helper, "get_inference_type") else "openai")
+    )
 
     # Shared state for both sync and async processing
     state = {
@@ -134,8 +153,18 @@ def process_stream(to_wrap, response, span_processor):
         "accumulated_temp_list": [],
         "finish_reason": None,
         "role": "assistant",
+        "entity_type": entity_type,
+        "tools": [],
     }
 
+    def create_span_if_needed():
+        """Create span only once."""
+        if span_processor and not hasattr(response, "_monocle_span_created"):
+            ret_val = _create_span_result(state, stream_start_time)
+            span_processor(ret_val)
+            response._monocle_span_created = True
+
+    # --- Synchronous iterator patch ---
     if to_wrap and hasattr(response, "__iter__"):
         original_iter = response.__iter__
 
@@ -143,13 +172,11 @@ def process_stream(to_wrap, response, span_processor):
             for item in original_iter():
                 _process_stream_item(item, state)
                 yield item
-
-            if span_processor:
-                ret_val = _create_span_result(state, stream_start_time)
-                span_processor(ret_val)
+            create_span_if_needed()
 
         patch_instance_method(response, "__iter__", new_iter)
 
+    # --- Asynchronous iterator patch ---
     if to_wrap and hasattr(response, "__aiter__"):
         original_iter = response.__aiter__
 
@@ -157,13 +184,9 @@ def process_stream(to_wrap, response, span_processor):
             async for item in original_iter():
                 _process_stream_item(item, state)
                 yield item
-
-            if span_processor:
-                ret_val = _create_span_result(state, stream_start_time)
-                span_processor(ret_val)
+            create_span_if_needed()
 
         patch_instance_method(response, "__aiter__", new_aiter)
-
 
 INFERENCE = {
     "type": SPAN_TYPES.INFERENCE,

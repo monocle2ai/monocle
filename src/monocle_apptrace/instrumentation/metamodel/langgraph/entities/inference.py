@@ -55,7 +55,7 @@ AGENT = {
     }
 
 AGENT_REQUEST = {
-      "type": AGENT_REQUEST_SPAN_NAME,
+      "type": SPAN_TYPES.AGENTIC_REQUEST,
       "subtype": SPAN_SUBTYPES.PLANNING,
       "attributes": [
         [

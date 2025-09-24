@@ -22,7 +22,7 @@ def get_output_text(arguments):
         for tool in arguments["result"].tools:
             if hasattr(tool, "name"):
                 tools.append(tool.name)
-        return tools
+        return ", ".join(tools)  
     if (
         "result" in arguments
         and hasattr(arguments["result"], "content")
@@ -32,7 +32,7 @@ def get_output_text(arguments):
         for content in arguments["result"].content:
             if hasattr(content, "text"):
                 ret_val.append(content.text)
-        return ret_val
+        return " ".join(ret_val)
 
 
 def get_name(arguments):
@@ -63,17 +63,18 @@ def get_params_arguments(arguments):
 
     args = arguments["args"]
     if (
-        args
+       args
         and hasattr(args[0], "root")
         and hasattr(args[0].root, "params")
         and hasattr(args[0].root.params, "arguments")
     ):
         # If the first argument has a root with params and arguments, return those arguments
         try:
-            return json.dumps(args[0].root.params.arguments)
+            return [json.dumps(args[0].root.params.arguments)]
         except (TypeError, ValueError) as e:
             logger.error(f"Error serializing arguments: {e}")
-            return str(args[0].root.params.arguments)
+            return [str(args[0].root.params.arguments)]
+    return []
 
 
 def get_url(arguments):

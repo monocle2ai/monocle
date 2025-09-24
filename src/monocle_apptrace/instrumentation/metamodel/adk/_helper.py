@@ -82,7 +82,7 @@ def extract_agent_input(arguments: Dict[str, Any]) -> Any:
     Returns:
         Any: The extracted input data
     """
-    return arguments['args'][0].user_content.parts[0].text
+    return [arguments['args'][0].user_content.parts[0].text]
 
 def extract_agent_request_input(arguments: Dict[str, Any]) -> Any:
     """
@@ -94,7 +94,7 @@ def extract_agent_request_input(arguments: Dict[str, Any]) -> Any:
     Returns:
         Any: The extracted input data
     """
-    return arguments['kwargs']['new_message'].parts[0].text if 'new_message' in arguments['kwargs'] else None
+    return [arguments['kwargs']['new_message'].parts[0].text] if 'new_message' in arguments['kwargs'] else []
 
 def extract_agent_response(result: Any) -> Any:
     """
@@ -107,7 +107,9 @@ def extract_agent_response(result: Any) -> Any:
         Any: The extracted response data
     """
     if result:
-        return result.content.parts[0].text
+        return str(result.content.parts[0].text)
+    else:
+        return ""
 
 def get_tool_name(instance: Any) -> str:
     """
@@ -179,7 +181,7 @@ def extract_tool_input(arguments: Dict[str, Any]) -> Any:
     Returns:
         Any: The extracted input data
     """
-    return str(arguments['kwargs'].get('args'))
+    return [str(arguments['kwargs'].get('args'))]
 
 def extract_tool_response(result: Any) -> Any:
     """

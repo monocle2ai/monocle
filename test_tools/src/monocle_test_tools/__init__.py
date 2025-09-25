@@ -14,11 +14,13 @@ from .schema import (
     TestSpan,
     Entity,
     EntityType,
-    SpanType
+    SpanType,
+    Evaluation
 )
 
 from .evals import ( BaseEval, BertScorerEval)
 from .comparer import ( BaseComparer, BertScoreComparer, DefaultComparer)
+from . import utils
 
 __all__ = [
     "MonocleValidator",
@@ -28,6 +30,7 @@ __all__ = [
     "EntityType",
     "SpanType",
     "BaseEval",
+    "Evaluation",
     "BertScorerEval",
     "BaseComparer",
     "BertScoreComparer",

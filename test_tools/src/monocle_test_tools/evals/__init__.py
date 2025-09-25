@@ -7,8 +7,10 @@ for validating AI agent responses and behavior.
 
 from .base_eval import BaseEval
 from .bert_eval import BertScorerEval
+from .eval_manager import get_evaluator
 
 __all__ = [
     "BaseEval",
     "BertScorerEval",
+    "get_evaluator",
 ]

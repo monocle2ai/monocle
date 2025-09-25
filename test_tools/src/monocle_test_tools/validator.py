@@ -1,3 +1,4 @@
+import os
 from functools import wraps
 import inspect
 import jsonschema, json
@@ -6,13 +7,14 @@ from opentelemetry.sdk.trace import Span, ReadableSpan
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 import pytest
-from monocle_apptrace.exporters.file_exporter import FileSpanExporter
+from monocle_apptrace.exporters.file_exporter import FileSpanExporter, DEFAULT_TRACE_FOLDER
 from contextlib import contextmanager, asynccontextmanager
 import logging
 from monocle_apptrace.instrumentation.common.instrumentor import MonocleInstrumentor, setup_monocle_telemetry
 from pydantic import BaseModel, ValidationError
-from monocle_test_tools.schema import SpanType, TestSpan, TestCase
+from monocle_test_tools.schema import SpanType, TestSpan, TestCase, Evaluation, EvalInputs
 from monocle_test_tools.comparer.base_comparer import BaseComparer
+from monocle_test_tools import utils
 
 logger = logging.getLogger(__name__)
 
@@ -33,8 +35,9 @@ class MonocleValidator:
     def __init__(self):
         if MonocleValidator._initialized:
             return
+        test_trace_path:str = os.path.join(".", DEFAULT_TRACE_FOLDER, "test_traces")
         self.memory_exporter = InMemorySpanExporter()
-        self.file_exporter = FileSpanExporter()
+        self.file_exporter = FileSpanExporter(out_path=test_trace_path)
         span_processors = [SimpleSpanProcessor(self.file_exporter), SimpleSpanProcessor(self.memory_exporter)]
         self.instrumentor = setup_monocle_telemetry(workflow_name="monocle_validator", span_processors=span_processors)
         MonocleValidator._initialized = True
@@ -60,7 +63,13 @@ class MonocleValidator:
                 self.file_exporter.shutdown()
                 self._spans = []
 
-    def monocle_testcase(self, test_cases: list[TestCase]):
+    def monocle_testcase(self, test_cases_array: list[Union[TestCase, dict]]):
+        test_cases: list[TestCase] = []
+        for tc in test_cases_array:
+            if isinstance(tc, dict):
+                test_cases.append(TestCase.model_validate(tc))
+            else:
+                test_cases.append(tc)
         """Decorator to mark a test function as a monocle test case."""
         def decorator(func):
             if inspect.iscoroutinefunction(func):
@@ -86,19 +95,17 @@ class MonocleValidator:
          """
         for test_span in test_case.test_spans:
             if test_span.span_type == SpanType.TOOL_INVOCATION:
-                self.tool_invoked(test_span.entities[0].name, test_span.entities[1].name if len(test_span.entities) > 1 else None,
-                                  test_span.input, test_span.output, test_span.positive_test, test_span.expect_errors, test_span.expect_warnings)
+                self.verify_tool_invoked(test_span)
             elif test_span.span_type == SpanType.AGENTIC_INVOCATION:
-                self.agent_invoked(test_span.entities[0].name, test_span.positive_test, test_span.expect_errors, test_span.expect_warnings)
+                self.agent_invoked(test_span)
             elif test_span.span_type == SpanType.AGENTIC_REQUEST:
-                self.verify_agentic_request(test_span.input, test_span.output, test_span.positive_test, test_span.comparer,
-                                    test_span.expect_errors, test_span.expect_warnings)
+                self.verify_agentic_request(test_span)
             elif test_span.span_type == SpanType.AGENTIC_DELEGATION:
                 from_agent = test_span.entities[0].name
                 to_agent = test_span.entities[1].name
                 self.agent_delegated(from_agent, to_agent, test_span.positive_test, test_span.expect_errors, test_span.expect_warnings)
             elif test_span.span_type == SpanType.INFERENCE:
-                self.verify_inference(test_span.output, None, test_span.comparer, test_span.positive_test, test_span.comparer, test_span.expect_errors, test_span.expect_warnings)
+                self.verify_inference(test_span)
 
         if test_case.expect_errors:
             self._has_errors(test_case.expect_errors)
@@ -107,35 +114,54 @@ class MonocleValidator:
 
         return True
 
-    def verify_agentic_request(self, expected_request:str, expected_response:str, comparer:BaseComparer,
-                            positive_test:bool, expect_errors: bool, expect_warnings: bool) -> bool:
-        actual_output = self._agent_request_output(expect_errors, expect_warnings)
+    def verify_agentic_request(self, test_span: TestSpan) -> bool:
+        expected_request:str = test_span.input
+        expected_response:str = test_span.output
+        comparer:BaseComparer = test_span.comparer
+        positive_test:bool = test_span.positive_test
+        expect_errors:bool = test_span.expect_errors
+        expect_warnings:bool = test_span.expect_warnings
+        eval:Evaluation = test_span.eval
+
+        agent_request_span = self._get_agent_request_span(expect_errors, expect_warnings)
+
+        actual_output = self._agent_request_output(agent_request_span, expect_errors, expect_warnings)
         assert actual_output is not None, "No response found in agent request span."
         if expected_response is not None:
-            valid_response:bool = self.valid_response(expected_response, actual_output, comparer)
+            valid_response:bool = self._valid_response(expected_response, actual_output.get("output"), comparer)
             if not valid_response and positive_test:
                 assert False, f"Expected response doesn't match"
             elif valid_response and not positive_test:
                 assert False, f"Response matched, but was not expected to be"
         if expected_request is not None:
-            valid_input:bool = self.valid_response(expected_request, actual_output, comparer)
+            valid_input:bool = self._valid_response(expected_request, actual_output.get("input"), comparer)
             if not valid_input and positive_test:
                 assert False, f"Expected request doesn't match"
             elif valid_input and not positive_test:
                 assert False, f"Request matched, but was not expected to be"
+        if eval is not None:
+            self._evaluate_span(agent_request_span, eval, positive_test)
 
-    def verify_inference(self, expected_output:Union[str, dict], expected_schema:Union[dict, BaseModel],
-                    comparer:BaseComparer, positive_test:bool, expect_errors: bool,
-                    expect_warnings:bool , max_output_tokens:Optional[int] = None) -> bool:
+    def verify_inference(self, test_span: TestSpan) -> bool:
         """Verify that the inference response matches the expected response or schema.
          Args:
             inference_to_verify (InferenceToVerify): The inference to verify.
          """
+        expected_output:Union[str, dict] = test_span.output
+        expected_schema = None
+        comparer = test_span.comparer
+        positive_test = test_span.positive_test
+        expect_errors = test_span.expect_errors
+        expect_warnings = test_span.expect_warnings
+        eval:Evaluation = test_span.eval
+        max_output_tokens:Optional[int] = None
+
         inference_spans = self._get_inference_spans(expect_errors, expect_warnings)
         if len(inference_spans) == 0:
             assert False, f"No inferences found in spans."
         verified_schema:bool = False
         verified_response:bool = False
+        verified_response_span:Span = None
         for inference_span in inference_spans:
             inference_response = self._get_inference_output(inference_span)
             # if expected schema is provided, validate against schema
@@ -157,12 +183,13 @@ class MonocleValidator:
                 if not expect_warnings and self._span_has_warning(inference_span):
                     assert False, f"Inference matched the expected schema but had warnings."
             if expected_output is not None and not verified_response:
-                if self.valid_response(expected_output, inference_response, comparer):
+                if self._valid_response(expected_output, inference_response, comparer):
                     verified_response = True
                     if not expect_errors and self._span_has_error(inference_span):
                         assert False, f"Inference matched the expected schema but had errors."
                     if not expect_warnings and self._span_has_warning(inference_span):
                         assert False, f"Inference matched the expected schema but had warnings."
+                    verified_response_span = inference_span
 
         if expected_schema is not None and not verified_schema and positive_test:
             assert False, f"No inference matched the expected schema."
@@ -174,11 +201,14 @@ class MonocleValidator:
         elif expected_output is not None and verified_response and not positive_test:
             assert False, f"An inference matched the expected response, but was not expected to be."
 
+        if eval is not None and verified_response and verified_response_span is not None:
+            self._evaluate_span(verified_response_span, eval, positive_test)
+
         if max_output_tokens is not None:
             self.check_token_limits(max_output_tokens, positive_test)
         return True
 
-    def valid_response(self, response_to_evaluate:str, actual_response:str, comparer:BaseComparer) -> bool:
+    def _valid_response(self, response_to_evaluate:str, actual_response:str, comparer:BaseComparer) -> bool:
         """Verify that the agent response matches the expected response.
          Args:
             response_to_evaluate (str): The expected response from the agent.
@@ -187,91 +217,62 @@ class MonocleValidator:
          """
         return comparer.compare(response_to_evaluate, actual_response)
 
-    def tool_invoked(self, tool_name:str, agent_name:str = None, tool_input:str = None, tool_output:str = None,
-                    positive_test:bool = True, expect_error:bool = False, expect_warnings:bool = False) -> bool:
+    def verify_tool_invoked(self, test_span:TestSpan) -> bool:
         """Verify that a specific tool was invoked by the agent.
          Args:
-            tool_name (str): The name of the tool to verify invocation.
-            agent_name (str, optional): The name of the agent that invoked the tool. If none passed, then it matches any agent. Defaults to None.
+            test_span (TestSpan): The tool invocation test span to verify.
          """
+        tool_name:str = test_span.entities[0].name
+        agent_name:str = test_span.entities[1].name if len(test_span.entities) > 1 else None
+        tool_input:str = test_span.input
+        tool_output:str = test_span.output
+        positive_test:bool = test_span.positive_test
+        expect_error:bool = test_span.expect_errors
+        expect_warnings:bool = test_span.expect_warnings
+        comparer:BaseComparer = test_span.comparer
+        eval:Evaluation = test_span.eval
+
         tool_invocation_spans = self._get_tool_invocation_spans(tool_name, agent_name)
         if len(tool_invocation_spans) == 0:
             if positive_test:
                 assert False, f"Tool '{tool_name}' was not invoked by agent '{agent_name}'."
-        else:
-            if not positive_test:
-                assert False, f"Tool '{tool_name}' was invoked by agent '{agent_name}', but was not expected to be."
+            return True
 
-            found_error = False
-            found_warning = False
-            for span in tool_invocation_spans:
-                if self._span_has_error(span):
-                    found_error = True
-                if self._span_has_warning(span):
-                    found_warning = True
-            if expect_error and not found_error:
-                assert False, f"Tool '{tool_name}' was invoked by agent '{agent_name}' error was expected but no error found."
-            elif not expect_error and found_error:
-                assert False, f"Tool '{tool_name}' was invoked by agent '{agent_name}' but error found."
-            if expect_warnings and not found_warning:
-                assert False, f"Tool '{tool_name}' was invoked by agent '{agent_name}' warning was expected but no warning found."
-            elif not expect_warnings and found_warning:
-                assert False, f"Tool '{tool_name}' was invoked by agent '{agent_name}' but warning found."
+        if not positive_test:
+            assert False, f"Tool '{tool_name}' was invoked by agent '{agent_name}', but was not expected to be."
 
-        found_input = found_output = False
-        if tool_input is not None or tool_output is not None:
-            for span in tool_invocation_spans:
-                for event in span.events:
-                    if event.name == "data.input":
-                        if tool_input is not None:
-                            if event.attributes.get("input") == tool_input:
-                                found_input = True
-                    elif event.name == "data.output":
-                        if tool_output is not None:
-                            if event.attributes.get("response") == tool_output:
-                                found_output = True
-        if tool_input is not None and found_input is False and positive_test:
-            assert False, f"Tool '{tool_name}' was never invoked by agent {agent_name} with input '{tool_input}'."
-        elif tool_input is not None and found_input is True and not positive_test:
-            assert False, f"Tool '{tool_name}' was invoked by agent {agent_name} with input '{tool_input}', but was not expected to be."
+        self._check_error_warnings(tool_invocation_spans, tool_name, agent_name, expect_error, expect_warnings)
+        self._check_input_output(tool_invocation_spans, tool_name, agent_name, tool_input, tool_output, comparer, eval, positive_test)
 
-        if tool_output is not None and found_output is False and positive_test:
-            assert False, f"Tool '{tool_name}' invoked by agent {agent_name} didn't return '{tool_output}'."
-        elif tool_output is not None and found_output is True and not positive_test:
-            assert False, f"Tool '{tool_name}' invoked by agent {agent_name} returned '{tool_output}', but was not expected to be."
         return True
 
-    def agent_invoked(self, agent_name:str, positive_test:bool = True, expect_error:bool = False, expect_warnings:bool = False) -> bool:
+    def agent_invoked(self, test_span: TestSpan) -> bool:
         """Verify that a specific agent was invoked.
          Args:
             agent_name (str): The name of the agent to verify invocation.
          """
+        agent_name:str = test_span.entities[0].name
+        positive_test:bool = test_span.positive_test
+        expect_error:bool = test_span.expect_errors
+        expect_warnings:bool = test_span.expect_warnings
+        eval:Evaluation = test_span.eval
+        comparer:BaseComparer = test_span.comparer
+        agent_input:str = test_span.input
+        agent_output:str = test_span.output
+
         agent_invocation_spans = self._get_agent_invocation_spans(agent_name)
         if len(agent_invocation_spans) == 0:
             if positive_test:
                 assert False, f"Agent '{agent_name}' was not invoked."
-        else:
-            if not positive_test:
-                assert False, f"Agent '{agent_name}' was invoked, but was not expected to be."
-            found_error = False
-            found_warning = False
-            for span in agent_invocation_spans:
-                if self._span_has_error(span):
-                    found_error = True
-                if self._span_has_warning(span):
-                    found_warning = True
-            if expect_error and not found_error:
-                assert False, f"Agent '{agent_name}' was invoked error was expected but no error found."
-            elif not expect_error and found_error:
-                assert False, f"Agent '{agent_name}' was invoked but error found."
-            if expect_warnings and not found_warning:
-                assert False, f"Agent '{agent_name}' was invoked warning was expected but no warning found."
-            elif not expect_warnings and found_warning:
-                assert False, f"Agent '{agent_name}' was invoked but warning found."
+            return True
+        if not positive_test:
+            assert False, f"Agent '{agent_name}' was invoked, but was not expected to be."
+        self._check_error_warnings(agent_invocation_spans, None,agent_name, expect_error, expect_warnings)
+        self._check_input_output(agent_invocation_spans, None, agent_name, agent_input, agent_output, comparer, eval, positive_test)
         return True
 
-    def agent_delegated(self, from_agent:str, to_agent:str, positive_test:bool = True, expect_error:bool = False,
-                        expect_warnings:bool = False) -> bool:
+    def agent_delegated(self, from_agent:str, to_agent:str, positive_test:bool, expect_error:bool ,
+                        expect_warnings:bool) -> bool:
         """Verify that a specific agent was delegated to.
          Args:
             from_agent (str): The name of the agent that delegated the task.
@@ -293,6 +294,7 @@ class MonocleValidator:
                 if expect_warnings and not self._span_has_warning(span):
                     assert False, f"Agent '{to_agent}' was delegated by '{from_agent}' warning was expected but no warning found."
                 found_delegation = True
+
         if positive_test and not found_delegation:
             assert False, f"Agent '{to_agent}' was not delegated by '{from_agent}'."
         return True
@@ -320,6 +322,99 @@ class MonocleValidator:
         else:
             assert tokens > max_output_tokens, f" Output token limit was not exceeded as expected: {tokens} <= {max_output_tokens}"
         return True
+
+    def _verify_tool_errors(self, tool_name:str, agent_name:str, expect_error:bool, found_error: bool, expect_warnings:bool, found_warning: bool) -> None:
+            if expect_error and not found_error:
+                assert False, f"Tool '{tool_name}' was invoked by agent '{agent_name}' error was expected but no error found."
+            elif not expect_error and found_error:
+                assert False, f"Tool '{tool_name}' was invoked by agent '{agent_name}' but error found."
+            if expect_warnings and not found_warning:
+                assert False, f"Tool '{tool_name}' was invoked by agent '{agent_name}' warning was expected but no warning found."
+            elif not expect_warnings and found_warning:
+                assert False, f"Tool '{tool_name}' was invoked by agent '{agent_name}' but warning found."
+
+    def _verify_tool_input_output(self, tool_name: str, agent_name: str, tool_input: Optional[str], found_input: bool,
+                    tool_output: Optional[str], found_output: bool, positive_test: bool) -> None:
+        if tool_input is not None and found_input is False and positive_test:
+            assert False, f"Tool '{tool_name}' was never invoked by agent {agent_name} with input '{tool_input}'."
+        elif tool_input is not None and found_input is True and not positive_test:
+            assert False, f"Tool '{tool_name}' was invoked by agent {agent_name} with input '{tool_input}', but was not expected to be."
+
+        if tool_output is not None and found_output is False and positive_test:
+            assert False, f"Tool '{tool_name}' invoked by agent {agent_name} didn't return '{tool_output}'."
+        elif tool_output is not None and found_output is True and not positive_test:
+            assert False, f"Tool '{tool_name}' invoked by agent {agent_name} returned '{tool_output}', but was not expected to be."
+
+    def _verify_agent_input_output(self, agent_name: str, agent_input: Optional[str], found_input: bool,
+                    agent_output: Optional[str], found_output: bool, positive_test: bool) -> None:
+        if agent_input is not None and found_input is False and positive_test:
+            assert False, f"Agent '{agent_name}' was never invoked with input '{agent_input}'."
+        elif agent_input is not None and found_input is True and not positive_test:
+            assert False, f"Agent '{agent_name}' was invoked with input '{agent_input}', but was not expected to be."
+
+        if agent_output is not None and found_output is False and positive_test:
+            assert False, f"Agent '{agent_name}' didn't return '{agent_output}'."
+        elif agent_output is not None and found_output is True and not positive_test:
+            assert False, f"Agent '{agent_name}' returned '{agent_output}', but was not expected to be."
+
+    def _check_error_warnings(self, spans:list[Span], tool_name:Optional[str], agent_name:str, expect_error:bool, expect_warnings:bool) -> None:
+            found_error = False
+            found_warning = False
+            for span in spans:
+                if self._span_has_error(span):
+                    found_error = True
+                if self._span_has_warning(span):
+                    found_warning = True
+            if tool_name is not None:
+                self._verify_tool_errors(tool_name, agent_name, expect_error, found_error, expect_warnings, found_warning)
+            else:
+                self._verify_agent_errors(agent_name, expect_error, found_error, expect_warnings, found_warning)
+
+    def _verify_agent_errors(self, agent_name:str, expect_error:bool, found_error: bool, expect_warnings:bool, found_warning: bool) -> None:
+            if expect_error and not found_error:
+                assert False, f"Agent '{agent_name}' was invoked error was expected but no error found."
+            elif not expect_error and found_error:
+                assert False, f"Agent '{agent_name}' was invoked but error found."
+            if expect_warnings and not found_warning:
+                assert False, f"Agent '{agent_name}' was invoked warning was expected but no warning found."
+            elif not expect_warnings and found_warning:
+                assert False, f"Agent '{agent_name}' was invoked but warning found."
+
+    def _check_input_output(self, spans:list[Span], tool_name:str, agent_name:str, expected_input:Optional[str],
+                expected_output:Optional[str], comparer:BaseComparer, eval:Evaluation, positive_test:bool) -> None:
+        found_input = found_output = False
+        if expected_input is not None or expected_output is not None:
+            candidate_span = None
+            for span in spans:
+                found_input_in_span = False
+                found_output_in_span = False
+                for event in span.events:
+                    if event.name == "data.input":
+                        if expected_input is not None:
+                            if comparer.compare(event.attributes.get("input"), expected_input):
+                                found_input_in_span = True
+                    elif event.name == "data.output":
+                        if expected_output is not None:
+                            if comparer.compare(event.attributes.get("response"), expected_output):
+                                found_output_in_span = True
+                if found_input_in_span and found_output_in_span:
+                    found_input = found_output = True
+                    candidate_span = span
+                    break
+                elif found_input_in_span and expected_output is None:
+                    found_input = True
+                    candidate_span = span
+                    break
+                elif found_output_in_span and expected_input is None:
+                    found_output = True
+                    candidate_span = span
+                    break
+            if eval is not None and candidate_span is not None:
+                self._evaluate_span(candidate_span, eval, positive_test)
+            if tool_name is not None:
+                self._verify_tool_input_output(tool_name, agent_name, expected_input, found_input, expected_output, found_output, positive_test)
+            else:
+                self._verify_agent_input_output(agent_name, expected_input, found_input, expected_output, found_output, positive_test)
 
     def _get_inference_spans(self) -> list[Span]:
         inferences: list[Span] = []
@@ -390,12 +485,16 @@ class MonocleValidator:
                     agent_invocation_spans.append(span)
         return agent_invocation_spans
 
-    def _agent_request_output(self, expect_error:bool = False, expect_warnings: bool = False) -> str:
-        agent_request_span = self._get_agent_request_span(expect_error, expect_warnings)
+    def _agent_request_output(self, agent_request_span:Span,expect_error:bool = False, expect_warnings: bool = False) -> dict[str, str]:
         if agent_request_span is None:
             return None
-        output_event = agent_request_span.events[1]
-        return output_event.attributes.get("response", "")
+        input = output = None
+        for event in agent_request_span.events:
+            if event.name == "data.input":
+                input = event.attributes.get("input", "")
+            elif event.name == "data.output":
+                output = event.attributes.get("response", "")
+        return {"input": input, "output": output}
 
     def _has_errors(self, expect_errors: bool) -> bool:
         found_error = False
@@ -433,3 +532,18 @@ class MonocleValidator:
                 if finish_type != "success":
                     return True
         return False
+
+    def _evaluate_span(self, span:Span, evaluation:Evaluation,  positive_test:bool) -> None:
+        eval_args = {}
+        for arg in evaluation.args:
+            if arg == EvalInputs.INPUT:
+                eval_args['input'] = utils.get_input_from_span(span)
+            elif arg == EvalInputs.OUTPUT:
+                eval_args['output'] = utils.get_output_from_span(span)
+            elif arg == EvalInputs.AGENT_DESCRIPTION:
+                eval_args['agent_description'] = utils.get_agent_description_from_span(span)
+        actual_eval: dict = evaluation.eval.evaluate(eval_args)
+        if positive_test and not evaluation.comparer.compare(evaluation.expected_result, actual_eval):
+            assert False, f"Span {span.name} evaluation failed. Expected: {evaluation.expected_result}, Actual: {actual_eval}"
+        elif not positive_test and evaluation.comparer.compare(evaluation.expected_result, actual_eval):
+            assert False, f"Span {span.name} evaluation passed, but was not expected to. Actual: {actual_eval}"

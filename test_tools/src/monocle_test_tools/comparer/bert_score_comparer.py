@@ -33,12 +33,13 @@ class BertScoreComparer(BaseComparer):
              expected_response (str): The expected response string.
              actual_response (str): The actual response string.
         """
-        scores = self.bert_scorer_eval.get_eval("bert_score", {
-            "expected_response": expected_response,
-            "actual_response": actual_response
-        })
+        eval_args = {
+            "input": expected_response,
+            "output": actual_response
+        }
+        scores = self.bert_scorer_eval.evaluate(eval_args=eval_args)
         if scores["F1"] < self.bert_scorer_acceptible_f1_threshold or scores["Recall"] < self.bert_scorer_recall_threshold or scores["Precision"] < self.bert_scorer_precision_threshold:
-            logger.debug(f"Response does not match expected. Precision: {scores['Precision']:.4f}, Recall: {scores['Recall']:.4f}, F1: {scores['F1']:.4f}")
+            logger.debug(f"Output does not match expected. Precision: {scores['Precision']:.4f}, Recall: {scores['Recall']:.4f}, F1: {scores['F1']:.4f}")
             valid_response = False
         else:
             valid_response = True

@@ -6,6 +6,9 @@ from monocle_test_tools.evals.bert_eval import BertScorerEval
 from monocle_test_tools.comparer.base_comparer import BaseComparer
 from monocle_test_tools.comparer.bert_score_comparer import BertScoreComparer
 from monocle_test_tools.comparer.default_comparer import DefaultComparer
+from monocle_test_tools.comparer.metric_comparer import MetricComparer
+from monocle_test_tools.evals.eval_manager import get_evaluator
+from monocle_test_tools.comparer.comparer_manager import get_comparer
 
 class SpanType(str, Enum):
     TOOL_INVOCATION = "agentic.tool.invocation"
@@ -24,23 +27,39 @@ class Entity(BaseModel):
     name: str = Field(..., description="Name of the entity.")
     options: Optional[dict] = Field(None, description="Additional options for the entity.")
 
+class EvalInputs(str, Enum):
+    INPUT = "input"
+    OUTPUT = "output"
+    AGENT_DESCRIPTION = "agent_description"
+
+class Evaluation(BaseModel):
+    eval: Union[str, BaseEval] = Field(..., description="Evaluation method for the span.")
+    eval_options: Optional[dict] = Field({}, description="Options for the evaluation method.")
+    args: list[EvalInputs] = Field([EvalInputs.OUTPUT], description="Arguments for the evaluation method.")
+    expected_result: dict = Field({}, description="Expected result from the evaluation.")
+    comparer: Optional[Union[str, BaseComparer]] = Field(DefaultComparer(), description="Comparison method for the evaluation.")
+    def __init__(self, **data):
+        super().__init__(**data)
+        if self.expected_result == {}:
+            raise ValueError("expected_result must be provided and cannot be empty.")
+        self.comparer = get_comparer(self.comparer)
+        self.eval = get_evaluator(self.eval, self.eval_options or {})
+
 class TestSpan(BaseModel):
     span_type: SpanType = Field(..., description="Type of the span.")
     entities: Optional[list[Entity]] = Field(None, description="List of entities involved in the span.")
     input: Optional[Union[str, dict]] = Field(None, description="Input for the span.")
     output: Optional[Union[str, dict]] = Field(None, description="Output for the span.")
     test_type: Optional[str] = Field("positive", description="Whether the test is positive or negative, default is positive.")
-    eval: Optional[Union[str, BaseEval]] = Field(None, description="Evaluation method for the span.")
-    eval_options: Optional[dict] = Field({}, description="Options for the evaluation method.")
+    eval: Optional[Evaluation] = Field(None, description="Evaluation method for the span.")
     expect_errors: Optional[bool] = Field(False, description="Whether to expect errors during the test.")
     expect_warnings: Optional[bool] = Field(False, description="Whether to expect warnings during the test.")
     comparer: Optional[Union[str, BaseComparer]] = Field(DefaultComparer(), description="Comparison method for the span.")
     positive_test: Optional[bool] = True
 
-
     def __init__(self, **data):
         super().__init__(**data)
-        if self.span_type in {SpanType.TOOL_INVOCATION, SpanType.AGENTIC_INVOCATION, SpanType.AGENTIC_REQUEST, SpanType.AGENTIC_DELEGATION} and (self.entities is None or len(self.entities) == 0):
+        if self.span_type in {SpanType.TOOL_INVOCATION, SpanType.AGENTIC_INVOCATION, SpanType.AGENTIC_DELEGATION} and (self.entities is None or len(self.entities) == 0):
             raise ValueError(f"{self.span_type} span must have at least one entity.")
         if self.span_type == SpanType.AGENTIC_DELEGATION:
             if (self.entities is None or len(self.entities) < 2):
@@ -61,27 +80,7 @@ class TestSpan(BaseModel):
                 raise ValueError("The first entity in a tool invocation span must be of type 'tool'.")
             if len(self.entities) > 1 and self.entities[1].type != EntityType.AGENT:
                 raise ValueError("If present, the second entity in a tool invocation span must be of type 'agent' (the invoking agent).")
-        if isinstance(self.eval, str):
-            try:
-                # instantiate eval class from string
-                eval_class = globals()[self.eval]
-                if issubclass(eval_class, BaseEval):
-                    self.eval = eval_class(eval_options=self.eval_options)
-            except Exception as e:
-                raise ValueError(f"Invalid eval class name: {self.eval}. Error: {e}")
-        if isinstance(self.comparer, str):
-            if self.comparer == "default":
-                self.comparer = DefaultComparer()
-            elif self.comparer == "bert_score":
-                self.comparer = BertScoreComparer()
-            else:
-                try:
-                    # instantiate comparer class from string
-                    comparer_class = globals()[self.comparer]
-                    if issubclass(comparer_class, BaseComparer):
-                        self.comparer = comparer_class(eval_options=self.eval_options)
-                except Exception as e:
-                    raise ValueError(f"Invalid comparer class name: {self.comparer}. Error: {e}")
+        self.comparer = get_comparer(self.comparer)
         if self.test_type == "positive":
             self.positive_test = True
         elif self.test_type == "negative":
@@ -96,3 +95,6 @@ class TestCase(BaseModel):
     test_spans: list[TestSpan] = Field(default_factory=list, description="List of spans to include in the test case.")
     expect_errors: Optional[bool] = Field(False, description="Whether to expect errors during the test.")
     expect_warnings: Optional[bool] = Field(False, description="Whether to expect warnings during the test.")
+
+    def __init__(self, **data):
+        super().__init__(**data)

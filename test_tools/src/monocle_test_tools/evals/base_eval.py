@@ -5,5 +5,5 @@ class BaseEval(BaseModel):
     def __init__(self, **data):
         super().__init__(**data)
 
-    def get_eval(self, eval_name:str, eval_args: dict) -> dict:
+    def evaluate(self, eval_args: dict) -> dict:
         raise NotImplementedError

@@ -13,22 +13,17 @@ class BertScorerEval(BaseEval):
         super().__init__(**data)
         self.model_type = self.eval_options.get("model_type", MODEL_TYPE)
 
-    def get_eval(self, eval_name: str, eval_args: dict) -> dict:
-        # Implement default evaluation logic here
-        if eval_name == "bert_score":
-            return self._bert_score_validation(**eval_args)
-        else:
-            raise ValueError(f"Unsupported eval: {eval_name}.")
+    def evaluate(self, eval_args: dict) -> dict:
+        return self._bert_score_validation(**eval_args)
 
-    
-    def _bert_score_validation(self, expected_response: str, actual_response: str) -> dict:
+    def _bert_score_validation(self, input: str, output: str, *args, **kwargs) -> dict:
         """
          Calculate BERTScore between expected and actual responses.
          
          Args:
-             expected_response (str): The expected response string.
-             actual_response (str): The actual response string.
+             input (str): The expected response string.
+             output (str): The actual response string.
         """
         scorer = BERTScorer(model_type=self.model_type, use_fast_tokenizer=True)
-        precision_score, recall_score, F1_score = scorer.score([actual_response], [expected_response])
-        return {"Precision": precision_score.mean(), "Recall": recall_score.mean(), "F1": F1_score.mean()}
+        precision_score, recall_score, F1_score = scorer.score([output], [input])
+        return {"Precision": precision_score.mean().item(), "Recall": recall_score.mean().item(), "F1": F1_score.mean().item()}

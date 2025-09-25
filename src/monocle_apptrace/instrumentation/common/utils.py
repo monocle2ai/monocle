@@ -416,14 +416,6 @@ def get_status_code(arguments):
     else:
         return 'success'
 
-def get_status(arguments):
-    if arguments["exception"] is not None:
-        return 'error'
-    elif get_status_code(arguments) == 'success':
-        return 'success'
-    else:
-        return 'error'
-
 def patch_instance_method(obj, method_name, func):
     """
     Patch a special method (like __iter__) for a single instance.

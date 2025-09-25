@@ -15,3 +15,4 @@ dist
 Pipfile**
 launch.json
 monocle_trace**.json
+.venv/

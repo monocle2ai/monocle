@@ -1,0 +1,324 @@
+=== SPAN TREE VIEW ===
+Total spans: 55
+Root spans: 1
+
+└── Multi-Agent Workflow Start [workflow|2025-07-25T04:19:11.902215Z]
+    📊 Original Name: workflow
+    🆔 Span ID: 0x6eae9c2598e62d03
+    ⏱️  Duration: 21036.19ms
+    🔧 Workflow: langchain_agent_1
+
+    └── User Query Processing [agentic.request|2025-07-25T04:19:11.902266Z]
+        📊 Original Name: langgraph.graph.state.CompiledStateGraph.ainvoke
+        🆔 Span ID: 0xdcda6363e0514447
+        ⏱️  Duration: 21036.12ms
+        🔧 Workflow: langchain_agent_1
+
+        ├── Agent Invocation: supervisor [agentic.invocation|2025-07-25T04:19:11.902866Z]
+        │   📊 Original Name: langgraph.graph.state.CompiledStateGraph.ainvoke
+        │   🆔 Span ID: 0x4b986e0012f1e096
+        │   ⏱️  Duration: 3020.36ms
+        │   🔧 Workflow: langchain_agent_1
+        │   🤖 Agent Interaction:
+
+        │   ├── Framework Processing [generic|2025-07-25T04:19:11.903341Z]
+        │   │   📊 Original Name: langchain.schema.runnable.RunnableSequence.ainvoke
+        │   │   🆔 Span ID: 0x6a2cecbc8657e734
+        │   │   ⏱️  Duration: 866.46ms
+        │   │   🔧 Workflow: langchain_agent_1
+
+        │   │   └── LLM Decision of gpt-4o → get_weather(New York) [inference.framework|2025-07-25T04:19:11.903686Z]
+        │   │       📊 Original Name: langchain.chat_models.base.BaseChatModel.ainvoke
+        │   │       🆔 Span ID: 0x745c0f32c3ee13ac
+        │   │       ⏱️  Duration: 865.87ms
+        │   │       🔧 Workflow: langchain_agent_1
+        │   │       📈 Inference Metrics:
+        │   │          • finish_reason: tool_calls
+
+        │   ├── Tool Execution: get_weather [agentic.tool.invocation|2025-07-25T04:19:12.774458Z]
+        │   │   📊 Original Name: langchain_core.tools.base.BaseTool.arun
+        │   │   🆔 Span ID: 0x5e19afc971c79560
+        │   │   ⏱️  Duration: 50.55ms
+        │   │   🔧 Workflow: langchain_agent_1
+        │   │   🤖 Agent Interaction:
+        │   │      📥 Input 1: New York
+        │   │      📤 Response: {
+  "temperature": 87
+}
+
+        │   │   └── MCP Tool: get_weather [agentic.mcp.invocation|2025-07-25T04:19:12.801842Z]
+        │   │       📊 Original Name: mcp.shared.session.BaseSession.send_request
+        │   │       🆔 Span ID: 0x5ee20a28f0bc6896
+        │   │       ⏱️  Duration: 15.73ms
+        │   │       🔧 Workflow: langchain_agent_1
+
+        │   ├── Framework Processing [generic|2025-07-25T04:19:12.825740Z]
+        │   │   📊 Original Name: langchain.schema.runnable.RunnableSequence.ainvoke
+        │   │   🆔 Span ID: 0x11a3d1c4d83b7bdb
+        │   │   ⏱️  Duration: 1268.13ms
+        │   │   🔧 Workflow: langchain_agent_1
+
+        │   │   └── LLM Decision of gpt-4o → get_weather(Los Angeles) [inference.framework|2025-07-25T04:19:12.826179Z]
+        │   │       📊 Original Name: langchain.chat_models.base.BaseChatModel.ainvoke
+        │   │       🆔 Span ID: 0x7bbfdbc6ebb99ce1
+        │   │       ⏱️  Duration: 1267.58ms
+        │   │       🔧 Workflow: langchain_agent_1
+        │   │       📈 Inference Metrics:
+        │   │          • finish_reason: tool_calls
+
+        │   ├── Tool Execution: get_weather [agentic.tool.invocation|2025-07-25T04:19:14.095035Z]
+        │   │   📊 Original Name: langchain_core.tools.base.BaseTool.arun
+        │   │   🆔 Span ID: 0x21d2925436ee7b52
+        │   │   ⏱️  Duration: 68.36ms
+        │   │   🔧 Workflow: langchain_agent_1
+        │   │   🤖 Agent Interaction:
+        │   │      📥 Input 1: Los Angeles
+        │   │      📤 Response: {
+  "temperature": 79
+}
+
+        │   │   └── MCP Tool: get_weather [agentic.mcp.invocation|2025-07-25T04:19:14.113786Z]
+        │   │       📊 Original Name: mcp.shared.session.BaseSession.send_request
+        │   │       🆔 Span ID: 0x4167cba062542b23
+        │   │       ⏱️  Duration: 35.24ms
+        │   │       🔧 Workflow: langchain_agent_1
+
+        │   ├── Framework Processing [generic|2025-07-25T04:19:14.164078Z]
+        │   │   📊 Original Name: langchain.schema.runnable.RunnableSequence.ainvoke
+        │   │   🆔 Span ID: 0x6e38a147c4db5f43
+        │   │   ⏱️  Duration: 750.09ms
+        │   │   🔧 Workflow: langchain_agent_1
+
+        │   │   └── LLM Decision of gpt-4o → transfer_to_flight_assistant [inference.framework|2025-07-25T04:19:14.164487Z]
+        │   │       📊 Original Name: langchain.chat_models.base.BaseChatModel.ainvoke
+        │   │       🆔 Span ID: 0x21115238bcd45098
+        │   │       ⏱️  Duration: 749.52ms
+        │   │       🔧 Workflow: langchain_agent_1
+        │   │       📈 Inference Metrics:
+        │   │          • finish_reason: tool_calls
+
+        │   └── Delegation: supervisor → flight_assistant [agentic.delegation|2025-07-25T04:19:14.915788Z]
+        │       📊 Original Name: langchain_core.tools.base.BaseTool.run
+        │       🆔 Span ID: 0xed4d418ee2f535d2
+        │       ⏱️  Duration: 1.76ms
+        │       🔧 Workflow: langchain_agent_1
+        │       🤖 Agent Interaction:
+
+        ├── Agent Invocation: flight_assistant [agentic.invocation|2025-07-25T04:19:14.938545Z]
+        │   📊 Original Name: langgraph.graph.state.CompiledStateGraph.ainvoke
+        │   🆔 Span ID: 0xdcffd1e63c47f950
+        │   ⏱️  Duration: 3896.98ms
+        │   🔧 Workflow: langchain_agent_1
+        │   🤖 Agent Interaction:
+        │      📤 Response: I have booked a flight from Boston (BOS) to Los Angeles (LAX) since Los Angeles has a lower temperat...
+
+        │   ├── Framework Processing [generic|2025-07-25T04:19:14.947156Z]
+        │   │   📊 Original Name: langchain.schema.runnable.RunnableSequence.ainvoke
+        │   │   🆔 Span ID: 0xaaf7c3d67ccab16c
+        │   │   ⏱️  Duration: 733.15ms
+        │   │   🔧 Workflow: langchain_agent_1
+
+        │   │   └── LLM Decision of gpt-4o → book_flight(BOS→LAX) [inference.framework|2025-07-25T04:19:14.951563Z]
+        │   │       📊 Original Name: langchain.chat_models.base.BaseChatModel.ainvoke
+        │   │       🆔 Span ID: 0x193022cf88bb62cf
+        │   │       ⏱️  Duration: 728.57ms
+        │   │       🔧 Workflow: langchain_agent_1
+        │   │       📈 Inference Metrics:
+        │   │          • finish_reason: tool_calls
+
+        │   ├── Tool Execution: book_flight [agentic.tool.invocation|2025-07-25T04:19:15.681735Z]
+        │   │   📊 Original Name: langchain_core.tools.base.BaseTool.run
+        │   │   🆔 Span ID: 0xedf0af8db979502f
+        │   │   ⏱️  Duration: 0.54ms
+        │   │   🔧 Workflow: langchain_agent_1
+        │   │   🤖 Agent Interaction:
+        │   │      📥 Input 1: BOS
+        │   │      📥 Input 2: LAX
+        │   │      📤 Response: Successfully booked a flight from BOS to LAX for 100 USD.
+
+        │   ├── Framework Processing [generic|2025-07-25T04:19:15.683397Z]
+        │   │   📊 Original Name: langchain.schema.runnable.RunnableSequence.ainvoke
+        │   │   🆔 Span ID: 0x4b494b64818919b9
+        │   │   ⏱️  Duration: 930.01ms
+        │   │   🔧 Workflow: langchain_agent_1
+
+        │   │   └── LLM Decision of gpt-4o → book_flight(BOS→LAX) [inference.framework|2025-07-25T04:19:15.684493Z]
+        │   │       📊 Original Name: langchain.chat_models.base.BaseChatModel.ainvoke
+        │   │       🆔 Span ID: 0xeb2512c7052ac1fc
+        │   │       ⏱️  Duration: 928.81ms
+        │   │       🔧 Workflow: langchain_agent_1
+        │   │       📈 Inference Metrics:
+        │   │          • finish_reason: tool_calls
+
+        │   ├── Tool Execution: book_flight [agentic.tool.invocation|2025-07-25T04:19:16.614377Z]
+        │   │   📊 Original Name: langchain_core.tools.base.BaseTool.run
+        │   │   🆔 Span ID: 0xa954c28d65e36489
+        │   │   ⏱️  Duration: 0.36ms
+        │   │   🔧 Workflow: langchain_agent_1
+        │   │   🤖 Agent Interaction:
+        │   │      📥 Input 1: BOS
+        │   │      📥 Input 2: LAX
+        │   │      📤 Response: Successfully booked a flight from BOS to LAX for 100 USD.
+
+        │   └── Framework Processing [generic|2025-07-25T04:19:16.615590Z]
+        │       📊 Original Name: langchain.schema.runnable.RunnableSequence.ainvoke
+        │       🆔 Span ID: 0x8c5521b1e09313e9
+        │       ⏱️  Duration: 2218.58ms
+        │       🔧 Workflow: langchain_agent_1
+
+        │       └── LLM Response of gpt-4o → conversation [inference.framework|2025-07-25T04:19:16.616002Z]
+        │           📊 Original Name: langchain.chat_models.base.BaseChatModel.ainvoke
+        │           🆔 Span ID: 0xa76cd4a4a0891a6b
+        │           ⏱️  Duration: 2217.96ms
+        │           🔧 Workflow: langchain_agent_1
+        │           📈 Inference Metrics:
+        │              • finish_reason: stop
+
+        ├── Agent Invocation: supervisor [agentic.invocation|2025-07-25T04:19:18.838407Z]
+        │   📊 Original Name: langgraph.graph.state.CompiledStateGraph.ainvoke
+        │   🆔 Span ID: 0x73cb1d50b36ff0d4
+        │   ⏱️  Duration: 1208.05ms
+        │   🔧 Workflow: langchain_agent_1
+        │   🤖 Agent Interaction:
+
+        │   ├── Framework Processing [generic|2025-07-25T04:19:18.840516Z]
+        │   │   📊 Original Name: langchain.schema.runnable.RunnableSequence.ainvoke
+        │   │   🆔 Span ID: 0x6415b713bc1f50f7
+        │   │   ⏱️  Duration: 1196.72ms
+        │   │   🔧 Workflow: langchain_agent_1
+
+        │   │   └── LLM Decision of gpt-4o → transfer_to_hotel_assistant [inference.framework|2025-07-25T04:19:18.841309Z]
+        │   │       📊 Original Name: langchain.chat_models.base.BaseChatModel.ainvoke
+        │   │       🆔 Span ID: 0x5820efaa592dcd69
+        │   │       ⏱️  Duration: 1195.72ms
+        │   │       🔧 Workflow: langchain_agent_1
+        │   │       📈 Inference Metrics:
+        │   │          • finish_reason: tool_calls
+
+        │   └── Delegation: supervisor → hotel_assistant [agentic.delegation|2025-07-25T04:19:20.039278Z]
+        │       📊 Original Name: langchain_core.tools.base.BaseTool.run
+        │       🆔 Span ID: 0xbd9ade2a11ed5959
+        │       ⏱️  Duration: 2.72ms
+        │       🔧 Workflow: langchain_agent_1
+        │       🤖 Agent Interaction:
+
+        ├── Agent Invocation: hotel_assistant [agentic.invocation|2025-07-25T04:19:20.047782Z]
+        │   📊 Original Name: langgraph.graph.state.CompiledStateGraph.ainvoke
+        │   🆔 Span ID: 0xf98a60332630aa4a
+        │   ⏱️  Duration: 4541.49ms
+        │   🔧 Workflow: langchain_agent_1
+        │   🤖 Agent Interaction:
+        │      📤 Response: I have successfully booked a flight from Boston (BOS) to Los Angeles (LAX) and a stay at Sheraton Ga...
+
+        │   ├── Framework Processing [generic|2025-07-25T04:19:20.049544Z]
+        │   │   📊 Original Name: langchain.schema.runnable.RunnableSequence.ainvoke
+        │   │   🆔 Span ID: 0x7145a165cb78a538
+        │   │   ⏱️  Duration: 1112.51ms
+        │   │   🔧 Workflow: langchain_agent_1
+
+        │   │   └── LLM Decision of gpt-4o → book_hotel(hotel_name:Sheraton Gateway Hotel) [inference.framework|2025-07-25T04:19:20.050891Z]
+        │   │       📊 Original Name: langchain.chat_models.base.BaseChatModel.ainvoke
+        │   │       🆔 Span ID: 0x9b1831b79ced1249
+        │   │       ⏱️  Duration: 1110.99ms
+        │   │       🔧 Workflow: langchain_agent_1
+        │   │       📈 Inference Metrics:
+        │   │          • finish_reason: tool_calls
+
+        │   ├── Tool Execution: book_hotel [agentic.tool.invocation|2025-07-25T04:19:21.163679Z]
+        │   │   📊 Original Name: langchain_core.tools.base.BaseTool.run
+        │   │   🆔 Span ID: 0x54d58e0f66e9a528
+        │   │   ⏱️  Duration: 0.67ms
+        │   │   🔧 Workflow: langchain_agent_1
+        │   │   🤖 Agent Interaction:
+        │   │      📥 Input 1: Sheraton Gateway Hotel
+        │   │      📤 Response: Successfully booked a stay at Sheraton Gateway Hotel for 50 USD.
+
+        │   └── Framework Processing [generic|2025-07-25T04:19:21.166837Z]
+        │       📊 Original Name: langchain.schema.runnable.RunnableSequence.ainvoke
+        │       🆔 Span ID: 0xbf6dbf7440006ec5
+        │       ⏱️  Duration: 3421.62ms
+        │       🔧 Workflow: langchain_agent_1
+
+        │       └── LLM Response of gpt-4o → conversation [inference.framework|2025-07-25T04:19:21.167675Z]
+        │           📊 Original Name: langchain.chat_models.base.BaseChatModel.ainvoke
+        │           🆔 Span ID: 0x8efb66cdff34e3ed
+        │           ⏱️  Duration: 3420.67ms
+        │           🔧 Workflow: langchain_agent_1
+        │           📈 Inference Metrics:
+        │              • finish_reason: stop
+
+        └── Agent Invocation: supervisor [agentic.invocation|2025-07-25T04:19:24.590163Z]
+            📊 Original Name: langgraph.graph.state.CompiledStateGraph.ainvoke
+            🆔 Span ID: 0xca954506c318f449
+            ⏱️  Duration: 8347.73ms
+            🔧 Workflow: langchain_agent_1
+            🤖 Agent Interaction:
+               📤 Response: The total cost for the flight from Boston (BOS) to Los Angeles (LAX) and the hotel stay at Sheraton ...
+
+            ├── Framework Processing [generic|2025-07-25T04:19:24.591136Z]
+            │   📊 Original Name: langchain.schema.runnable.RunnableSequence.ainvoke
+            │   🆔 Span ID: 0xe7bb50032560aa2a
+            │   ⏱️  Duration: 1074.74ms
+            │   🔧 Workflow: langchain_agent_1
+
+            │   └── LLM Decision of gpt-4o → CurrencyConversion(message:Give exchange rate for USD to INR) [inference.framework|2025-07-25T04:19:24.591608Z]
+            │       📊 Original Name: langchain.chat_models.base.BaseChatModel.ainvoke
+            │       🆔 Span ID: 0xa6ad0d4913aa2eda
+            │       ⏱️  Duration: 1074.16ms
+            │       🔧 Workflow: langchain_agent_1
+            │       📈 Inference Metrics:
+            │          • finish_reason: tool_calls
+
+            ├── Tool Execution: CurrencyConversion [agentic.tool.invocation|2025-07-25T04:19:25.667072Z]
+            │   📊 Original Name: langchain_core.tools.base.BaseTool.arun
+            │   🆔 Span ID: 0xdeca121512d4bd0c
+            │   ⏱️  Duration: 4278.80ms
+            │   🔧 Workflow: langchain_agent_1
+            │   🤖 Agent Interaction:
+            │      📥 Input 1: Give exchange rate for USD to INR
+            │      📤 Response: Currency A2A Response: {'id': '91a3fdcd-04b5-4db0-b7e3-0f13e100f408', 'jsonrpc': '2.0', 'result': {'...
+
+            │   └── Agent Invocation: unknown_agent [agentic.invocation|2025-07-25T04:19:25.667626Z]
+            │       📊 Original Name: a2a.client.client.A2AClient.send_message
+            │       🆔 Span ID: 0xc812f0de57675cf2
+            │       ⏱️  Duration: 4277.94ms
+            │       🔧 Workflow: langchain_agent_1
+            │       🤖 Agent Interaction:
+            │          📥 Input: Give exchange rate for USD to INR
+            │          📤 Response: ['The exchange rate from USD to INR is 86.39.']
+
+            ├── Framework Processing [generic|2025-07-25T04:19:29.947699Z]
+            │   📊 Original Name: langchain.schema.runnable.RunnableSequence.ainvoke
+            │   🆔 Span ID: 0xd278a1e62ee6c009
+            │   ⏱️  Duration: 1351.52ms
+            │   🔧 Workflow: langchain_agent_1
+
+            │   └── LLM Decision of gpt-4o → multiply(a:250, b:86.39) [inference.framework|2025-07-25T04:19:29.948466Z]
+            │       📊 Original Name: langchain.chat_models.base.BaseChatModel.ainvoke
+            │       🆔 Span ID: 0x8814c29ffc84c1ed
+            │       ⏱️  Duration: 1350.59ms
+            │       🔧 Workflow: langchain_agent_1
+            │       📈 Inference Metrics:
+            │          • finish_reason: tool_calls
+
+            ├── Tool Execution: multiply [agentic.tool.invocation|2025-07-25T04:19:31.300760Z]
+            │   📊 Original Name: langchain_core.tools.base.BaseTool.run
+            │   🆔 Span ID: 0xd46f0edaaad2a491
+            │   ⏱️  Duration: 1.75ms
+            │   🔧 Workflow: langchain_agent_1
+            │   🤖 Agent Interaction:
+            │      📤 Response: 21597.5
+
+            └── Framework Processing [generic|2025-07-25T04:19:31.305024Z]
+                📊 Original Name: langchain.schema.runnable.RunnableSequence.ainvoke
+                🆔 Span ID: 0x814d436328e1685e
+                ⏱️  Duration: 1631.89ms
+                🔧 Workflow: langchain_agent_1
+
+                └── LLM Response of gpt-4o → conversation [inference.framework|2025-07-25T04:19:31.305875Z]
+                    📊 Original Name: langchain.chat_models.base.BaseChatModel.ainvoke
+                    🆔 Span ID: 0xc812c9477cfe2d94
+                    ⏱️  Duration: 1630.90ms
+                    🔧 Workflow: langchain_agent_1
+                    📈 Inference Metrics:
+                       • finish_reason: stop

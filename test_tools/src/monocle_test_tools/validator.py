@@ -7,6 +7,7 @@ from opentelemetry.sdk.trace import Span, ReadableSpan
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 import pytest
+from sqlalchemy import func
 from monocle_apptrace.exporters.file_exporter import FileSpanExporter, DEFAULT_TRACE_FOLDER
 from contextlib import contextmanager, asynccontextmanager
 import logging
@@ -14,7 +15,7 @@ from monocle_apptrace.instrumentation.common.instrumentor import MonocleInstrume
 from pydantic import BaseModel, ValidationError
 from monocle_test_tools.schema import SpanType, TestSpan, TestCase, Evaluation, EvalInputs
 from monocle_test_tools.comparer.base_comparer import BaseComparer
-from monocle_test_tools import utils
+from monocle_test_tools import trace_utils
 
 logger = logging.getLogger(__name__)
 
@@ -73,20 +74,26 @@ class MonocleValidator:
         """Decorator to mark a test function as a monocle test case."""
         def decorator(func):
             if inspect.iscoroutinefunction(func):
-#                @wraps(func)
                 @pytest.mark.asyncio
                 @pytest.mark.parametrize("test_case", test_cases)
                 async def wrapper(test_case, request, *args, **kwargs):
                     with self.monocle_exporter_wrapper(test_case, request):
                         return await func(test_case, *args, **kwargs)
             else:
-#                @wraps(func)
                 @pytest.mark.parametrize("test_case", test_cases)
                 def wrapper(test_case, request, *args, **kwargs):
                     with self.monocle_exporter_wrapper(test_case, request):
                         return func(test_case, *args, **kwargs)
             return wrapper
         return decorator
+
+    async def test_workflow(self, workflow_func, test_case:TestCase):
+        if inspect.iscoroutinefunction(workflow_func):
+            result = await workflow_func(*test_case.test_input)
+        else:
+            result = workflow_func(*test_case.test_input)
+        self.validate_result(test_case, result)
+        return result
 
     def validate(self, test_case:TestCase) -> bool:
         """Validate the test case against the collected spans.
@@ -113,6 +120,10 @@ class MonocleValidator:
             self._has_warnings(test_case.expect_warnings)
 
         return True
+
+    def validate_result(self, test_case:TestCase, result) -> bool:
+        if test_case.test_output is not None:
+            test_case.test_comparer.compare(test_case.test_output, result)
 
     def verify_agentic_request(self, test_span: TestSpan) -> bool:
         expected_request:str = test_span.input
@@ -537,11 +548,11 @@ class MonocleValidator:
         eval_args = {}
         for arg in evaluation.args:
             if arg == EvalInputs.INPUT:
-                eval_args['input'] = utils.get_input_from_span(span)
+                eval_args['input'] = trace_utils.get_input_from_span(span)
             elif arg == EvalInputs.OUTPUT:
-                eval_args['output'] = utils.get_output_from_span(span)
+                eval_args['output'] = trace_utils.get_output_from_span(span)
             elif arg == EvalInputs.AGENT_DESCRIPTION:
-                eval_args['agent_description'] = utils.get_agent_description_from_span(span)
+                eval_args['agent_description'] = trace_utils.get_agent_description_from_span(span)
         actual_eval: dict = evaluation.eval.evaluate(eval_args)
         if positive_test and not evaluation.comparer.compare(evaluation.expected_result, actual_eval):
             assert False, f"Span {span.name} evaluation failed. Expected: {evaluation.expected_result}, Actual: {actual_eval}"

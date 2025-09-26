@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Optional, Union
+from typing import Any, Optional, Tuple, Union
 from pydantic import BaseModel, Field
 from monocle_test_tools.evals.base_eval import BaseEval
 from monocle_test_tools.evals.bert_eval import BertScorerEval
@@ -90,7 +90,9 @@ class TestSpan(BaseModel):
 
 
 class TestCase(BaseModel):
-    test_input: Optional[str] = Field(None, description="Input prompt or data for the test case.")
+    test_input: Optional[Tuple[Any, ...]] = Field(None, description="Input prompt or data for the test case.")
+    test_output: Optional[Any] = Field(None, description="Expected output for the test case.")
+    test_comparer: Optional[Union[str, BaseComparer]] = Field(DefaultComparer(), description="Comparison method for the test case.")
     test_description: Optional[str] = Field(None, description="Description of the test case.")
     test_spans: list[TestSpan] = Field(default_factory=list, description="List of spans to include in the test case.")
     expect_errors: Optional[bool] = Field(False, description="Whether to expect errors during the test.")
@@ -98,3 +100,4 @@ class TestCase(BaseModel):
 
     def __init__(self, **data):
         super().__init__(**data)
+        self.test_comparer = get_comparer(self.test_comparer)

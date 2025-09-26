@@ -23,6 +23,10 @@ class BertScoreComparer(BaseComparer):
         self.bert_scorer_eval = BertScorerEval()
 
     def compare(self, expected: str, actual: str) -> bool:
+        if expected == actual:
+            return True
+        if expected is None or actual is None:
+            return False
         return self._bert_score_validation(expected, actual)
 
     def _bert_score_validation(self, expected_response: str, actual_response: str) -> bool:

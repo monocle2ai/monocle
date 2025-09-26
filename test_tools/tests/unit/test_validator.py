@@ -1,7 +1,7 @@
 import pytest
 import os
 from monocle_test_tools import (
-    MonocleValidator, TestCase, TestSpan, Entity, EntityType, SpanType
+    MonocleValidator, TestCase, TestSpan, Entity, DefaultComparer
 )
 from span_loader import JSONSpanLoader
 
@@ -26,7 +26,7 @@ def test_tool_invocation_span():
                 ],
                 input = "{'city': 'Mumbai', 'hotel_name': 'Marriot Intercontinental'}",
                 output= "{'status': 'success', 'message': 'Successfully booked a stay at Marriot Intercontinental in Mumbai.'}",
-                comparer = "bert_score"
+                comparer = DefaultComparer(),
             )
         ]
     )
@@ -39,7 +39,7 @@ def test_tool_invocation_span_negative():
     validator.memory_exporter.export(spans)
 
     test_case = TestCase(
-        test_input = "Book a flight from San Francisco to Mumbai for 26th Nov 2025. Book a two queen room at Marriot Intercontinental at Juhu, Mumbai for 27th Nov 2025 for 4 nights.",
+        test_input = ("Book a flight from San Francisco to Mumbai for 26th Nov 2025. Book a two queen room at Marriot Intercontinental at Juhu, Mumbai for 27th Nov 2025 for 4 nights.",),
         test_spans=[
             TestSpan(span_type="agentic.tool.invocation", 
                 entities=[
@@ -59,7 +59,7 @@ def test_agent_invocation():
     validator.memory_exporter.export(spans)
 
     test_case = TestCase(
-        test_input="Book a flight from San Francisco to Mumbai for 26th Nov 2025. Book a two queen room at Marriot Intercontinental at Juhu, Mumbai for 27th Nov 2025 for 4 nights.",
+        test_input=("Book a flight from San Francisco to Mumbai for 26th Nov 2025. Book a two queen room at Marriot Intercontinental at Juhu, Mumbai for 27th Nov 2025 for 4 nights.",),
         test_spans=[{
             "span_type": "agentic.invocation",
             "entities": [

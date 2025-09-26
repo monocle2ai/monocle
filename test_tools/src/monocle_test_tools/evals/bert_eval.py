@@ -24,6 +24,8 @@ class BertScorerEval(BaseEval):
              input (str): The expected response string.
              output (str): The actual response string.
         """
+        if input is None or output is None:
+            raise ValueError("Input and output must be provided for BERT scoring.")
         scorer = BERTScorer(model_type=self.model_type, use_fast_tokenizer=True)
         precision_score, recall_score, F1_score = scorer.score([output], [input])
         return {"Precision": precision_score.mean().item(), "Recall": recall_score.mean().item(), "F1": F1_score.mean().item()}

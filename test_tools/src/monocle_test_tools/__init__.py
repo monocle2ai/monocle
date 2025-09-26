@@ -20,7 +20,7 @@ from .schema import (
 
 from .evals import ( BaseEval, BertScorerEval)
 from .comparer import ( BaseComparer, BertScoreComparer, DefaultComparer)
-from . import utils
+from . import trace_utils
 
 __all__ = [
     "MonocleValidator",

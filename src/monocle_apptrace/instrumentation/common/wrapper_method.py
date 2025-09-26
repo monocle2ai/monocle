@@ -5,6 +5,7 @@ from monocle_apptrace.instrumentation.common.span_handler import SpanHandler, No
 from monocle_apptrace.instrumentation.metamodel.azureaiinference.methods import AZURE_AI_INFERENCE_METHODS
 from monocle_apptrace.instrumentation.metamodel.botocore.methods import BOTOCORE_METHODS
 from monocle_apptrace.instrumentation.metamodel.botocore.handlers.botocore_span_handler import BotoCoreSpanHandler
+from monocle_apptrace.instrumentation.metamodel.hugging_face.methods import HUGGING_FACE_METHODS
 from monocle_apptrace.instrumentation.metamodel.langchain.methods import (
     LANGCHAIN_METHODS,
 )
@@ -109,7 +110,8 @@ DEFAULT_METHODS_LIST = (
     A2A_CLIENT_METHODS +
     LITELLM_METHODS +
     ADK_METHODS +
-    MISTRAL_METHODS
+    MISTRAL_METHODS +
+    HUGGING_FACE_METHODS
 )
 
 MONOCLE_SPAN_HANDLERS: Dict[str, SpanHandler] = {

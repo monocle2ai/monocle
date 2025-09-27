@@ -3,7 +3,7 @@ from functools import wraps
 import inspect
 import jsonschema, json
 from typing import Optional, Union
-from opentelemetry.sdk.trace import Span, ReadableSpan
+from opentelemetry.sdk.trace import Span, ReadableSpan, StatusCode
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 import pytest
@@ -88,13 +88,17 @@ class MonocleValidator:
         return decorator
 
     async def test_workflow(self, workflow_func, test_case:TestCase):
-        if inspect.iscoroutinefunction(workflow_func):
-            result = await workflow_func(*test_case.test_input)
-        else:
-            result = workflow_func(*test_case.test_input)
+        try:
+            if inspect.iscoroutinefunction(workflow_func):
+                result = await workflow_func(*test_case.test_input)
+            else:
+                result = workflow_func(*test_case.test_input)
+        except Exception as e:
+            if not test_case.expect_errors:
+                raise
         self.validate_result(test_case, result)
         return result
-
+        
     def validate(self, test_case:TestCase) -> bool:
         """Validate the test case against the collected spans.
          Args:
@@ -123,7 +127,8 @@ class MonocleValidator:
 
     def validate_result(self, test_case:TestCase, result) -> bool:
         if test_case.test_output is not None:
-            test_case.test_comparer.compare(test_case.test_output, result)
+            assert test_case.test_comparer.compare(test_case.test_output, result), "Result does not match expected output."
+        return True
 
     def verify_agentic_request(self, test_span: TestSpan) -> bool:
         expected_request:str = test_span.input
@@ -519,7 +524,7 @@ class MonocleValidator:
         return True
 
     def _span_has_error(self, span:Span) -> bool:
-        if span.status.status_code == 'ERROR':
+        if span.status.status_code == StatusCode.ERROR:
             return True
         return False
     

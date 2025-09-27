@@ -9,7 +9,7 @@ def get_comparer(comparer: Optional[Union[str, BaseComparer]]) -> BaseComparer:
     if isinstance(comparer, str):
         if comparer == "default":
             comparer = DefaultComparer()
-        elif comparer == "similar":
+        elif comparer == "similarity":
             comparer = BertScoreComparer()
         elif comparer == "metric":
             comparer = MetricComparer()

@@ -10,7 +10,7 @@ agent_test_cases:list[TestCase] = [
     {
         "test_input": ["Book a flight from San Francisco to Mumbai for 26th Nov 2025. Book a two queen room at Marriot Intercontinental at Juhu, Mumbai for 27th Nov 2025 for 4 nights."],
         "test_output": "A flight from San Francisco to Mumbai has been booked, along with a four night stay in a two queen room at the Marriot Intercontinental in Juhu, Mumbai, starting November 27th, 2025.",
-        "comparer": "similar",
+        "comparer": "similarity",
         "test_spans": [
             {
             "span_type": "agentic.request",
@@ -24,7 +24,7 @@ agent_test_cases:list[TestCase] = [
             {
             "span_type": "agentic.request",
             "output": "A flight from San Francisco to Mumbai has been booked, along with a four-night stay in a two queen room at the Marriot Intercontinental in Juhu, Mumbai, starting November 27th, 2025.",
-            "comparer": "similar",
+            "comparer": "similarity",
             }
         ]
     },

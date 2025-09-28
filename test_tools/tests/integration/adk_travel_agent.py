@@ -1,10 +1,6 @@
 import os
 import time
 from google.adk.agents import LlmAgent, SequentialAgent
-from google.adk.runners import Runner
-from google.adk.sessions import InMemorySessionService
-from google.genai import types
-import logging
 
 def book_flight(from_airport: str, to_airport: str) -> dict:
     """Books a flight from one airport to another.
@@ -68,30 +64,4 @@ root_agent = SequentialAgent(
     sub_agents=[flight_booking_agent, hotel_booking_agent],
 )
 
-session_service = InMemorySessionService()
-APP_NAME = "streaming_app"
-USER_ID = "user_123"
-SESSION_ID = "session_456"
 
-runner = Runner(
-    agent=root_agent,  # Assume this is defined
-    app_name=APP_NAME,
-    session_service=session_service
-)
-
-async def run_agent(test_message: str):
-    session = await session_service.create_session(
-        app_name=APP_NAME, 
-        user_id=USER_ID,
-        session_id=SESSION_ID
-    )
-    content = types.Content(role='user', parts=[types.Part(text=test_message)])
-    # Process events as they arrive using async for
-    async for event in runner.run_async(
-        user_id=USER_ID,
-        session_id=SESSION_ID,
-        new_message=content
-    ):
-        # For final response
-        if event.is_final_response():
-            print(event.content)  # End line after response

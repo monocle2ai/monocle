@@ -6,6 +6,7 @@ from adk_travel_agent import run_agent, root_agent
 from monocle_test_tools import TestCase, MonocleValidator
 logging.basicConfig(level=logging.WARN)
 
+
 agent_test_cases:list[TestCase] = [
     {
         "test_input": ["Book a flight from San Francisco to Mumbai for 26th Nov 2025. Book a two queen room at Marriot Intercontinental at Juhu, Mumbai for 27th Nov 2025 for 4 nights."],

@@ -44,6 +44,9 @@ dev = [
     "flake8>=6.0.0",
     "mypy>=1.0.0",
     "pre-commit>=3.0.0",
+    'google-adk==1.10.0',
+    'google-generativeai==0.8.5',
+    'openai-agents==0.2.6'
 ]
 
 all = [

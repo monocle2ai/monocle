@@ -98,7 +98,7 @@ class MonocleValidator:
                 raise
         self.validate_result(test_case, result)
         return result
-        
+
     def validate(self, test_case:TestCase) -> bool:
         """Validate the test case against the collected spans.
          Args:
@@ -108,13 +108,13 @@ class MonocleValidator:
             if test_span.span_type == SpanType.TOOL_INVOCATION:
                 self.verify_tool_invoked(test_span)
             elif test_span.span_type == SpanType.AGENTIC_INVOCATION:
-                self.agent_invoked(test_span)
+                self.verify_agent_invoked(test_span)
             elif test_span.span_type == SpanType.AGENTIC_REQUEST:
                 self.verify_agentic_request(test_span)
             elif test_span.span_type == SpanType.AGENTIC_DELEGATION:
                 from_agent = test_span.entities[0].name
                 to_agent = test_span.entities[1].name
-                self.agent_delegated(from_agent, to_agent, test_span.positive_test, test_span.expect_errors, test_span.expect_warnings)
+                self.verify_agent_delegated(from_agent, to_agent, test_span.positive_test, test_span.expect_errors, test_span.expect_warnings)
             elif test_span.span_type == SpanType.INFERENCE:
                 self.verify_inference(test_span)
 
@@ -262,7 +262,7 @@ class MonocleValidator:
 
         return True
 
-    def agent_invoked(self, test_span: TestSpan) -> bool:
+    def verify_agent_invoked(self, test_span: TestSpan) -> bool:
         """Verify that a specific agent was invoked.
          Args:
             agent_name (str): The name of the agent to verify invocation.
@@ -287,7 +287,7 @@ class MonocleValidator:
         self._check_input_output(agent_invocation_spans, None, agent_name, agent_input, agent_output, comparer, eval, positive_test)
         return True
 
-    def agent_delegated(self, from_agent:str, to_agent:str, positive_test:bool, expect_error:bool ,
+    def verify_agent_delegated(self, from_agent:str, to_agent:str, positive_test:bool, expect_error:bool ,
                         expect_warnings:bool) -> bool:
         """Verify that a specific agent was delegated to.
          Args:

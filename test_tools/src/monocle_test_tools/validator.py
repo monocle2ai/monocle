@@ -124,11 +124,11 @@ class MonocleValidator:
             raise ValueError(f"Unsupported agent type: {agent_type}")
         result = None
         try:
-            result = await agent_runner.run_agent_async(agent)
+            result = await agent_runner.run_agent_async(agent, *test_case.test_input)
         except Exception as e:
             if not test_case.expect_errors:
                 raise
-        self.validate_result(test_case, e)
+        self.validate_result(test_case, result)
         return result
 
     def test_agent(self, agent, agent_type:str, test_case:TestCase):
@@ -137,7 +137,7 @@ class MonocleValidator:
             raise ValueError(f"Unsupported agent type: {agent_type}")
         result = None
         try:
-            result = agent_runner.run_agent(agent)
+            result = agent_runner.run_agent(agent, *test_case.test_input)
         except Exception as e:
             if not test_case.expect_errors:
                 raise

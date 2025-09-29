@@ -1,6 +1,6 @@
 import logging
 from typing import Union
-from agent_runner import AgentRunner
+from monocle_test_tools.runner.agent_runner import AgentRunner
 logger = logging.getLogger(__name__)
 
 class LGRunner(AgentRunner):

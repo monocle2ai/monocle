@@ -2,7 +2,7 @@ from agent_runner import AgentRunner
 from typing import Any, Union
 import logging
 logger = logging.getLogger(__name__)
-from agents import Runner
+from monocle_test_tools.runner.agent_runner import AgentRunner
 
 class OpenAIRunner(AgentRunner):
     async def run_agent_async(self, root_agent, request: Any):

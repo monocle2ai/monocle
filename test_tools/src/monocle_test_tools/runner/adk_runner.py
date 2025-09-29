@@ -5,14 +5,14 @@ from google.adk.sessions import InMemorySessionService
 from google.genai import types
 import logging
 logger = logging.getLogger(__name__)
-from agent_runner import AgentRunner
+from monocle_test_tools.runner.agent_runner import AgentRunner
 
 APP_NAME = "monocle_test"
 USER_ID = "monocle_test_user"
 SESSION_ID = "monocle_test_session"
 
 class ADKRunner(AgentRunner):
-    async def run_agent(self, root_agent, test_message: Union[types.Content, str]):
+    async def run_agent_async(self, root_agent, test_message: Union[types.Content, str]):
         session_service = InMemorySessionService()
         runner = Runner(
             agent=root_agent,

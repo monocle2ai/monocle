@@ -2,7 +2,7 @@ import os
 import pytest 
 import logging
 
-from adk_travel_agent import run_agent, root_agent
+from adk_travel_agent import root_agent
 from monocle_test_tools import TestCase, MonocleValidator
 logging.basicConfig(level=logging.WARN)
 
@@ -60,9 +60,13 @@ agent_test_cases:list[TestCase] = [
     },
 ]
 
+# @MonocleValidator().monocle_testcase(agent_test_cases)
+# async def test_run_workflows(my_test_case: TestCase):
+#    await MonocleValidator().test_workflow(run_agent, my_test_case)
+
 @MonocleValidator().monocle_testcase(agent_test_cases)
-async def test_run_workflows(my_test_case: TestCase):
-   await MonocleValidator().test_workflow(run_agent, my_test_case)
+async def test_run_agents(my_test_case: TestCase):
+   await MonocleValidator().test_agent_async(root_agent, "adk_travel_agent", my_test_case)
 
 if __name__ == "__main__":
     pytest.main([__file__]) 

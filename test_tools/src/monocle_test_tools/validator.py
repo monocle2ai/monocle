@@ -15,6 +15,7 @@ from monocle_apptrace.instrumentation.common.instrumentor import MonocleInstrume
 from pydantic import BaseModel, ValidationError
 from monocle_test_tools.schema import SpanType, TestSpan, TestCase, Evaluation, EvalInputs
 from monocle_test_tools.comparer.base_comparer import BaseComparer
+from monocle_test_tools.runner.runner import get_agent_runner
 from monocle_test_tools import trace_utils
 
 logger = logging.getLogger(__name__)
@@ -87,19 +88,61 @@ class MonocleValidator:
             return wrapper
         return decorator
 
-    async def test_workflow(self, workflow_func, test_case:TestCase):
+    async def test_workflow_async(self, workflow_func, test_case:TestCase):
+        """Run the workflow function with the test case input and validate the output.
+        Args:
+            workflow_func (callable): The workflow function to test.
+            test_case (TestCase): The test case containing input and expected output.
+        """
+        result = None
         try:
-            if inspect.iscoroutinefunction(workflow_func):
-                result = await workflow_func(*test_case.test_input)
-            else:
-                result = workflow_func(*test_case.test_input)
+            result = await workflow_func(*test_case.test_input)
         except Exception as e:
             if not test_case.expect_errors:
                 raise
         self.validate_result(test_case, result)
         return result
 
-    async def run_agent(self, agent, agent_type:st):
+    def test_workflow(self, workflow_func, test_case:TestCase):
+        """Run the workflow function with the test case input and validate the output.
+        Args:
+            workflow_func (callable): The workflow function to test.
+            test_case (TestCase): The test case containing input and expected output.
+        """
+        result = None
+        try:
+            result = workflow_func(*test_case.test_input)
+        except Exception as e:
+            if not test_case.expect_errors:
+                raise
+        self.validate_result(test_case, result)
+        return result
+
+    async def test_agent_async(self, agent, agent_type:str, test_case:TestCase):
+        agent_runner = get_agent_runner(agent_type)
+        if agent_runner is None:
+            raise ValueError(f"Unsupported agent type: {agent_type}")
+        result = None
+        try:
+            result = await agent_runner.run_agent_async(agent)
+        except Exception as e:
+            if not test_case.expect_errors:
+                raise
+        self.validate_result(test_case, e)
+        return result
+
+    def test_agent(self, agent, agent_type:str, test_case:TestCase):
+        agent_runner = get_agent_runner(agent_type)
+        if agent_runner is None:
+            raise ValueError(f"Unsupported agent type: {agent_type}")
+        result = None
+        try:
+            result = agent_runner.run_agent(agent)
+        except Exception as e:
+            if not test_case.expect_errors:
+                raise
+        self.validate_result(test_case, result)
+        return result
 
     def validate(self, test_case:TestCase) -> bool:
         """Validate the test case against the collected spans.

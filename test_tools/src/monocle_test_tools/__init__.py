@@ -21,6 +21,7 @@ from .schema import (
 from .evals import ( BaseEval, BertScorerEval)
 from .comparer import ( BaseComparer, BertScoreComparer, DefaultComparer)
 from . import trace_utils
+from .runner import AgentRunner, get_agent_runner
 
 __all__ = [
     "MonocleValidator",
@@ -34,5 +35,7 @@ __all__ = [
     "BertScorerEval",
     "BaseComparer",
     "BertScoreComparer",
-    "DefaultComparer"
+    "DefaultComparer",
+    "AgentRunner",
+    "get_agent_runner"
 ]

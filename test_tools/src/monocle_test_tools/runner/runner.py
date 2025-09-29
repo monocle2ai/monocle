@@ -1,7 +1,7 @@
-from proto import Enum
-from agent_runner import AgentRunner
+from enum import Enum
+from monocle_test_tools.runner.agent_runner import AgentRunner
 
-class AgentTypes(Enum, str):
+class AgentTypes(str, Enum):
     GOOGLE_ADK = "google_adk"
     OPENAI = "openai"
     LANGGRAPH = "langgraph"

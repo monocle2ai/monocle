@@ -38,6 +38,8 @@ from monocle_apptrace.instrumentation.metamodel.a2a.methods import A2A_CLIENT_ME
 from monocle_apptrace.instrumentation.metamodel.litellm.methods import LITELLM_METHODS
 from monocle_apptrace.instrumentation.metamodel.adk.methods import ADK_METHODS
 from monocle_apptrace.instrumentation.metamodel.mistral.methods import MISTRAL_METHODS
+from monocle_apptrace.instrumentation.metamodel.ollama.methods import OLLAMA_METHODS
+from monocle_apptrace.instrumentation.metamodel.ollama._helper import OllamaSpanHandler
 
 class WrapperMethod:
     def __init__(
@@ -109,7 +111,8 @@ DEFAULT_METHODS_LIST = (
     A2A_CLIENT_METHODS +
     LITELLM_METHODS +
     ADK_METHODS +
-    MISTRAL_METHODS
+    MISTRAL_METHODS +
+    OLLAMA_METHODS
 )
 
 MONOCLE_SPAN_HANDLERS: Dict[str, SpanHandler] = {
@@ -121,6 +124,7 @@ MONOCLE_SPAN_HANDLERS: Dict[str, SpanHandler] = {
     "request_handler": RequestSpanHandler(),
     "non_framework_handler": NonFrameworkSpanHandler(),
     "openai_handler": OpenAISpanHandler(),
+    "ollama_handler": OllamaSpanHandler(),
     "azure_func_handler": azureSpanHandler(),
     "mcp_agent_handler": MCPAgentHandler(),
     "fastapi_handler": FastAPISpanHandler(),

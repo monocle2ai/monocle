@@ -99,6 +99,8 @@ class MonocleValidator:
         self.validate_result(test_case, result)
         return result
 
+    async def run_agent(self, agent, agent_type:st):
+
     def validate(self, test_case:TestCase) -> bool:
         """Validate the test case against the collected spans.
          Args:

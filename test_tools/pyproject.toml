@@ -1,6 +1,12 @@
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling","hatch-build-scripts"]
 build-backend = "hatchling.build"
+
+[[tool.hatch.build.hooks.build-scripts.scripts]]
+commands = [
+    "echo 'Running a pre-build step..copying license'",
+    "if [ -f \"LICENSE\" ]; then echo \"✅ LICENSE already exists\"; elif [ -f \"../LICENSE\" ]; then cp \"../LICENSE\" \"LICENSE\" && echo \"✅ LICENSE copied from parent\"; else echo \"❌ ERROR: LICENSE not found\" && exit 1; fi"
+]
 
 [project]
 name = "monocle_test_tools"

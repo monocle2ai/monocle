@@ -9,13 +9,55 @@ from monocle_apptrace.instrumentation.metamodel.teamsai.entities.inference.teams
 )
 from monocle_apptrace.instrumentation.metamodel.teamsai.entities.inference.actionplanner_output_processor import (
     ACTIONPLANNER_OUTPUT_PROCESSOR,
-) 
+)
+from monocle_apptrace.instrumentation.metamodel.teamsai.entities.inference.ai_app_output_processor import (
+    AI_APP_OUTPUT_PROCESSOR,
+)
+from monocle_apptrace.instrumentation.metamodel.teamsai.entities.app.teams_app_output_processor import (
+    TEAMS_APP_OUTPUT_PROCESSOR,
+)
+from monocle_apptrace.instrumentation.metamodel.teamsai.entities.state.conversation_state_output_processor import (
+    CONVERSATION_STATE_OUTPUT_PROCESSOR,
+)
+
+from monocle_apptrace.instrumentation.metamodel.teamsai.entities.inference.search_client_processor import (
+    SEARCH_CLIENT_PROCESSOR,
+)
+from monocle_apptrace.instrumentation.metamodel.teamsai.entities.inference.search_post_processor import (
+    SEARCH_POST_PROCESSOR,
+)
+
+import json
+from monocle_apptrace.instrumentation.metamodel.teamsai import (
+    _helper,
+)
+
+CONVERSATION_STATE_OUTPUT_PROCESSOR2 = {
+    "type": "state_management",
+    "attributes": [
+        [{
+            "attribute": "name",
+            "accessor": lambda arguments: str(arguments.get("instance").name)
+        },
+        {
+            "attribute": "state",
+            "accessor": lambda arguments: str(arguments.get("args")[1])
+        }]
+    ]
+    ,
+    "events": [
+       
+    ]
+}
+
+
+
 def get_id(args, kwargs):
     """
     Extracts the ID from the context.
     """
     scopes: dict[str, dict[str:str]] = {}
-    context = kwargs.get("context")
+    context = kwargs.get("context") or args[0]
     if context and context.activity and context.activity.channel_id:
         channel_id = context.activity.channel_id or ""
         scopes[f"teams.channel.channel_id"] = channel_id
@@ -64,10 +106,80 @@ TEAMAI_METHODS = [
         "output_processor": ACTIONPLANNER_OUTPUT_PROCESSOR,
     },
     {
-        "package": "teams.ai.planners.action_planner",
-        "object": "ActionPlanner",
-        "method": "complete_prompt",
+        "package": "teams.app",
+        "object": "Application",
+        "method": "on_turn",
         "scope_values": get_id,
         "wrapper_method": ascopes_wrapper,  
-    }
+    },
+    {
+        "package": "teams.ai",
+        "span_name": "teams.ai.on_do_command",
+        "object": "AI",
+        "method": "_on_do_command",
+        "wrapper_method": atask_wrapper,
+        "output_processor": AI_APP_OUTPUT_PROCESSOR,
+    },
+    {
+        "package": "teams.ai",
+        "span_name": "teams.ai.on_say_command",
+        "object": "AI",
+        "method": "_on_say_command",
+        "wrapper_method": atask_wrapper,
+        "output_processor": AI_APP_OUTPUT_PROCESSOR,
+    },
+    {
+        "package": "teams.app",
+        "span_name": "teams.app.application.process",
+        "object": "Application",
+        "method": "process",
+        "wrapper_method": atask_wrapper,
+        "output_processor": TEAMS_APP_OUTPUT_PROCESSOR,
+    },
+    {
+        "package": "teams.ai.ai",
+        "span_name": "teams.ai.ai.AI.run",
+        "object": "AI",
+        "method": "run",
+        "wrapper_method": atask_wrapper,
+        "output_processor": TEAMS_APP_OUTPUT_PROCESSOR,
+    },
+    # {
+    #     "package": "teams.state.conversation_state",
+    #     "span_name": "teams.state.conversation_state.load",
+    #     "object": "ConversationState",
+    #     "method": "load",
+    #     "wrapper_method": atask_wrapper,
+    #     "output_processor": CONVERSATION_STATE_OUTPUT_PROCESSOR,
+    # },
+    {
+        "package": "state",
+        "span_name": "app.state.conversation_state.load",
+        "object": "AppConversationState", 
+        "method": "load",
+        "wrapper_method": atask_wrapper,
+        "output_processor": CONVERSATION_STATE_OUTPUT_PROCESSOR,
+    },
+    {
+        "package": "azure.search.documents",
+        "object": "SearchClient",
+        "method": "search",
+        "wrapper_method": task_wrapper,
+        "output_processor": SEARCH_CLIENT_PROCESSOR,
+    },
+    {
+        "package":"azure.search.documents._generated.operations._documents_operations",
+        "object": "DocumentsOperations",
+        "method": "search_post",
+        "wrapper_method": task_wrapper,
+        "output_processor": SEARCH_POST_PROCESSOR,
+    },
+    {
+        "package": "teams.ai.actions.action_entry",
+        "span_name": "teams.ai.actions.action_entry.invoke",
+        "object": "ActionEntry",
+        "method": "invoke",
+        "wrapper_method": atask_wrapper,
+        "output_processor": CONVERSATION_STATE_OUTPUT_PROCESSOR2,
+    },
 ]

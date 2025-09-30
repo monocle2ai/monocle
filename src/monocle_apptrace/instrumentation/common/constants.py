@@ -178,3 +178,8 @@ MAP_ATTRIBUTES_TO_SPAN_SUBTYPE = {
     
     
 }
+
+PROVIDER_BASE_URLS = {
+    "deepseek": "https://api.deepseek.com",
+    # Add more providers here later
+}

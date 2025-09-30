@@ -172,7 +172,7 @@ class MonocleValidator:
 
     def validate_result(self, test_case:TestCase, result) -> bool:
         if test_case.test_output is not None:
-            assert test_case.test_comparer.compare(test_case.test_output, result), "Result does not match expected output."
+            assert test_case.comparer.compare(test_case.test_output, result), "Result does not match expected output."
         return True
 
     def verify_agentic_request(self, test_span: TestSpan) -> bool:

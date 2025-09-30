@@ -1,4 +1,3 @@
-
 from typing import Union
 from google.adk.runners import Runner
 from google.adk.sessions import InMemorySessionService
@@ -29,7 +28,6 @@ class ADKRunner(AgentRunner):
         else:
             content = test_message
         # Process events as they arrive using async for
-        content = None
         async for event in runner.run_async(
             user_id=USER_ID,
             session_id=SESSION_ID,
@@ -39,5 +37,7 @@ class ADKRunner(AgentRunner):
             if event.is_final_response():
                 content = event.content
                 logger.debug(event.content)  # End line after response
-        return content
-        
+        if content is not None:
+            return content.parts[0].text
+        else:
+            return None

@@ -6,4 +6,4 @@ class DefaultComparer(BaseComparer):
             return True
         if expected is None or actual is None:
             return False
-        return expected.strip() == actual.strip()
+        return expected == actual

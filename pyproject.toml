@@ -99,7 +99,9 @@ dev = [
   'langchain-google-genai==2.1.8',
   'google-adk==1.10.0',
   'google-generativeai==0.8.5',
-  'openai-agents==0.2.6'
+  'openai-agents==0.2.6',
+  'mistralai==1.9.9',
+  'huggingface_hub==0.35.3'
 ]
 
 azure = [

@@ -14,20 +14,9 @@ from monocle_apptrace.instrumentation.common.utils import (
     try_option,
 )
 
-from huggingface_hub import InferenceClient
-
 from monocle_apptrace.instrumentation.metamodel.finish_types import map_hf_finish_reason_to_finish_type
 
 logger = logging.getLogger(__name__)
-
-
-def get_hf_client(api_key=None, provider="huggingface"):
-    """Return a Hugging Face InferenceClient instance."""
-    key = api_key or os.environ.get("HF_TOKEN")
-    if key is None:
-        raise ValueError("No HF API key provided")
-    return InferenceClient(provider=provider, api_key=key)
-
 
 def update_input_span_events(kwargs):
     input_text = ""

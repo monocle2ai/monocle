@@ -20,8 +20,6 @@ from monocle_apptrace.instrumentation.metamodel.teamsai.entities.state.conversat
     CONVERSATION_STATE_OUTPUT_PROCESSOR,
 )
 
-from monocle_apptrace.instrumentation.metamodel.teamsai.entities.inference.teams_azureaisearch_output_processor import (
-    AZUREAISEARCH_OUTPUT_PROCESSOR,
 from monocle_apptrace.instrumentation.metamodel.teamsai.entities.inference.search_client_processor import (
     SEARCH_CLIENT_PROCESSOR,
 )
@@ -146,14 +144,14 @@ TEAMAI_METHODS = [
         "wrapper_method": atask_wrapper,
         "output_processor": TEAMS_APP_OUTPUT_PROCESSOR,
     },
-    {
-        "package": "teams.state.conversation_state",
-        "span_name": "teams.state.conversation_state.load",
-        "object": "ConversationState",
-        "method": "load",
-        "wrapper_method": atask_wrapper,
-        "output_processor": CONVERSATION_STATE_OUTPUT_PROCESSOR,
-    },
+    # {
+    #     "package": "teams.state.conversation_state",
+    #     "span_name": "teams.state.conversation_state.load",
+    #     "object": "ConversationState",
+    #     "method": "load",
+    #     "wrapper_method": atask_wrapper,
+    #     "output_processor": CONVERSATION_STATE_OUTPUT_PROCESSOR,
+    # },
     {
         "package": "state",
         "span_name": "app.state.conversation_state.load",

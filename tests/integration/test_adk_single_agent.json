@@ -1,0 +1,476 @@
+[
+  {
+      "name": "google.genai.models.AsyncModels.generate_content",
+      "context": {
+          "trace_id": "0x7d675c7ccfcbecbc581510d4873bedca",
+          "span_id": "0x543b6c7c35b4f0bf",
+          "trace_state": "[]"
+      },
+      "kind": "SpanKind.INTERNAL",
+      "parent_id": "0x24398d6d3540a8de",
+      "start_time": "2025-09-17T11:35:49.100391Z",
+      "end_time": "2025-09-17T11:35:51.222427Z",
+      "status": {
+          "status_code": "OK"
+      },
+      "attributes": {
+          "monocle_apptrace.version": "0.5.3",
+          "monocle_apptrace.language": "python",
+          "span_source": "C:\\Users\\BHLP0106\\Desktop\\clone\\monocle\\agent_venv310\\lib\\site-packages\\google\\adk\\models\\google_llm.py:198",
+          "workflow.name": "langchain_agent_1",
+          "span.type": "inference",
+          "entity.1.type": "inference.gemini",
+          "entity.1.inference_endpoint": "https://generativelanguage.googleapis.com/",
+          "entity.1.provider_name": "gcp",
+          "entity.2.name": "gemini-2.0-flash",
+          "entity.2.type": "model.llm.gemini-2.0-flash",
+          "scope.agentic.request": "0x4f8fa413ae341f70a71ff76c69394458",
+          "scope.agentic.invocation": "0x47b82811a1e0c597b2b08f983eb77cf8",
+          "entity.count": 2
+      },
+      "events": [
+          {
+              "name": "data.input",
+              "timestamp": "2025-09-17T11:35:51.222427Z",
+              "attributes": {
+                  "input": [
+                      "{\"system\": \"You are a helpful agent who can answer user questions about the time and weather in a city.\\n\\nYou are an agent. Your internal name is \\\"weather_time_agent\\\".\\n\\n The description about you is \\\"Agent to answer questions about the time and weather in a city.\\\"\"}",
+                      "{\"user\": \"What is the current weather in New York?\"}"
+                  ]
+              }
+          },
+          {
+              "name": "data.output",
+              "timestamp": "2025-09-17T11:35:51.222427Z",
+              "attributes": {}
+          },
+          {
+              "name": "metadata",
+              "timestamp": "2025-09-17T11:35:51.222427Z",
+              "attributes": {
+                  "completion_tokens": 6,
+                  "prompt_tokens": 181,
+                  "total_tokens": 187,
+                  "finish_reason": "STOP",
+                  "finish_type": "success"
+              }
+          }
+      ],
+      "links": [],
+      "resource": {
+          "attributes": {
+              "service.name": "langchain_agent_1"
+          },
+          "schema_url": ""
+      }
+  },
+  {
+      "name": "google.adk.tools.function_tool.FunctionTool.run_async",
+      "context": {
+          "trace_id": "0x7d675c7ccfcbecbc581510d4873bedca",
+          "span_id": "0x5d71b628efd5ba15",
+          "trace_state": "[]"
+      },
+      "kind": "SpanKind.INTERNAL",
+      "parent_id": "0x24398d6d3540a8de",
+      "start_time": "2025-09-17T11:35:51.225428Z",
+      "end_time": "2025-09-17T11:35:51.225428Z",
+      "status": {
+          "status_code": "OK"
+      },
+      "attributes": {
+          "monocle_apptrace.version": "0.5.3",
+          "monocle_apptrace.language": "python",
+          "span_source": "C:\\Users\\BHLP0106\\Desktop\\clone\\monocle\\agent_venv310\\lib\\site-packages\\google\\adk\\flows\\llm_flows\\functions.py:603",
+          "workflow.name": "langchain_agent_1",
+          "span.type": "agentic.tool.invocation",
+          "span.subtype": "routing",
+          "entity.1.type": "tool.adk",
+          "entity.1.name": "get_weather",
+          "entity.1.description": "Retrieves the current weather report for a specified city.\n\nArgs:\n    city (str): The name of the city for which to retrieve the weather report.\n\nReturns:\n    dict: status and result or error msg.",
+          "entity.2.name": "weather_time_agent",
+          "entity.2.type": "agent.adk",
+          "scope.agentic.request": "0x4f8fa413ae341f70a71ff76c69394458",
+          "scope.agentic.invocation": "0x47b82811a1e0c597b2b08f983eb77cf8",
+          "entity.count": 2
+      },
+      "events": [
+          {
+              "name": "data.input",
+              "timestamp": "2025-09-17T11:35:51.225428Z",
+              "attributes": {
+                  "input": "{'city': 'New York'}"
+              }
+          },
+          {
+              "name": "data.output",
+              "timestamp": "2025-09-17T11:35:51.225428Z",
+              "attributes": {
+                  "response": "{'status': 'success', 'report': 'The weather in New York is sunny with a temperature of 25 degrees Celsius (77 degrees Fahrenheit).'}"
+              }
+          }
+      ],
+      "links": [],
+      "resource": {
+          "attributes": {
+              "service.name": "langchain_agent_1"
+          },
+          "schema_url": ""
+      }
+  },
+  {
+      "name": "execute_tool get_weather",
+      "context": {
+          "trace_id": "0xfef12cdddfaabc277917fb06ac414e54",
+          "span_id": "0x9745480a9a74daef",
+          "trace_state": "[]"
+      },
+      "kind": "SpanKind.INTERNAL",
+      "parent_id": "0x42ace77e57415adc",
+      "start_time": "2025-09-17T11:35:51.223428Z",
+      "end_time": "2025-09-17T11:35:51.226428Z",
+      "status": {
+          "status_code": "UNSET"
+      },
+      "attributes": {
+          "gen_ai.system": "gcp.vertex.agent",
+          "gen_ai.operation.name": "execute_tool",
+          "gen_ai.tool.name": "get_weather",
+          "gen_ai.tool.description": "Retrieves the current weather report for a specified city.\n\nArgs:\n    city (str): The name of the city for which to retrieve the weather report.\n\nReturns:\n    dict: status and result or error msg.",
+          "gen_ai.tool.call.id": "adk-5d0a8efc-abe0-4d52-ab32-1abed81c5ed2",
+          "gcp.vertex.agent.tool_call_args": "{\"city\": \"New York\"}",
+          "gcp.vertex.agent.event_id": "4b190e82-82c9-4e32-936e-2fa4be842f6d",
+          "gcp.vertex.agent.tool_response": "{\"status\": \"success\", \"report\": \"The weather in New York is sunny with a temperature of 25 degrees Celsius (77 degrees Fahrenheit).\"}",
+          "gcp.vertex.agent.llm_request": "{}",
+          "gcp.vertex.agent.llm_response": "{}"
+      },
+      "events": [],
+      "links": [],
+      "resource": {
+          "attributes": {
+              "service.name": "langchain_agent_1"
+          },
+          "schema_url": ""
+      }
+  },
+  {
+      "name": "call_llm",
+      "context": {
+          "trace_id": "0xfef12cdddfaabc277917fb06ac414e54",
+          "span_id": "0x42ace77e57415adc",
+          "trace_state": "[]"
+      },
+      "kind": "SpanKind.INTERNAL",
+      "parent_id": "0xb8f143814fde719c",
+      "start_time": "2025-09-17T11:35:49.078390Z",
+      "end_time": "2025-09-17T11:35:51.226428Z",
+      "status": {
+          "status_code": "UNSET"
+      },
+      "attributes": {
+          "gen_ai.system": "gcp.vertex.agent",
+          "gen_ai.request.model": "gemini-2.0-flash",
+          "gcp.vertex.agent.invocation_id": "e-77c434af-a0d9-4f3f-81c2-f83fbe722642",
+          "gcp.vertex.agent.session_id": "session_456",
+          "gcp.vertex.agent.event_id": "993fb357-a85b-42aa-a11a-90d379c395cf",
+          "gcp.vertex.agent.llm_request": "{\"model\": \"gemini-2.0-flash\", \"config\": {\"http_options\": {\"headers\": {\"x-goog-api-client\": \"google-adk/1.10.0 gl-python/3.10.11\", \"user-agent\": \"google-adk/1.10.0 gl-python/3.10.11\"}}, \"system_instruction\": \"You are a helpful agent who can answer user questions about the time and weather in a city.\\n\\nYou are an agent. Your internal name is \\\"weather_time_agent\\\".\\n\\n The description about you is \\\"Agent to answer questions about the time and weather in a city.\\\"\", \"tools\": [{\"function_declarations\": [{\"description\": \"Retrieves the current weather report for a specified city.\\n\\n    Args:\\n        city (str): The name of the city for which to retrieve the weather report.\\n\\n    Returns:\\n        dict: status and result or error msg.\\n    \", \"name\": \"get_weather\", \"parameters\": {\"properties\": {\"city\": {\"type\": \"STRING\"}}, \"required\": [\"city\"], \"type\": \"OBJECT\"}}, {\"description\": \"Returns the current time in a specified city.\\n\\n    Args:\\n        city (str): The name of the city for which to retrieve the current time.\\n\\n    Returns:\\n        dict: status and result or error msg.\\n    \", \"name\": \"get_current_time\", \"parameters\": {\"properties\": {\"city\": {\"type\": \"STRING\"}}, \"required\": [\"city\"], \"type\": \"OBJECT\"}}]}]}, \"contents\": [{\"parts\": [{\"text\": \"What is the current weather in New York?\"}], \"role\": \"user\"}]}",
+          "gcp.vertex.agent.llm_response": "{\"content\":{\"parts\":[{\"function_call\":{\"args\":{\"city\":\"New York\"},\"name\":\"get_weather\"}}],\"role\":\"model\"},\"usage_metadata\":{\"candidates_token_count\":6,\"candidates_tokens_details\":[{\"modality\":\"TEXT\",\"token_count\":6}],\"prompt_token_count\":181,\"prompt_tokens_details\":[{\"modality\":\"TEXT\",\"token_count\":181}],\"total_token_count\":187}}",
+          "gen_ai.usage.input_tokens": 181,
+          "gen_ai.usage.output_tokens": 6
+      },
+      "events": [],
+      "links": [],
+      "resource": {
+          "attributes": {
+              "service.name": "langchain_agent_1"
+          },
+          "schema_url": ""
+      }
+  },
+  {
+      "name": "google.genai.models.AsyncModels.generate_content",
+      "context": {
+          "trace_id": "0x7d675c7ccfcbecbc581510d4873bedca",
+          "span_id": "0x0c01b924976a664d",
+          "trace_state": "[]"
+      },
+      "kind": "SpanKind.INTERNAL",
+      "parent_id": "0x24398d6d3540a8de",
+      "start_time": "2025-09-17T11:35:51.250427Z",
+      "end_time": "2025-09-17T11:35:53.488163Z",
+      "status": {
+          "status_code": "OK"
+      },
+      "attributes": {
+          "monocle_apptrace.version": "0.5.3",
+          "monocle_apptrace.language": "python",
+          "span_source": "C:\\Users\\BHLP0106\\Desktop\\clone\\monocle\\agent_venv310\\lib\\site-packages\\google\\adk\\models\\google_llm.py:198",
+          "workflow.name": "langchain_agent_1",
+          "span.type": "inference",
+          "entity.1.type": "inference.gemini",
+          "entity.1.inference_endpoint": "https://generativelanguage.googleapis.com/",
+          "entity.1.provider_name": "gcp",
+          "entity.2.name": "gemini-2.0-flash",
+          "entity.2.type": "model.llm.gemini-2.0-flash",
+          "scope.agentic.request": "0x4f8fa413ae341f70a71ff76c69394458",
+          "scope.agentic.invocation": "0x47b82811a1e0c597b2b08f983eb77cf8",
+          "entity.count": 2
+      },
+      "events": [
+          {
+              "name": "data.input",
+              "timestamp": "2025-09-17T11:35:53.488163Z",
+              "attributes": {
+                  "input": [
+                      "{\"system\": \"You are a helpful agent who can answer user questions about the time and weather in a city.\\n\\nYou are an agent. Your internal name is \\\"weather_time_agent\\\".\\n\\n The description about you is \\\"Agent to answer questions about the time and weather in a city.\\\"\"}",
+                      "{\"user\": \"What is the current weather in New York?\"}",
+                      "{\"model\": null}",
+                      "{\"user\": null}"
+                  ]
+              }
+          },
+          {
+              "name": "data.output",
+              "timestamp": "2025-09-17T11:35:53.488163Z",
+              "attributes": {
+                  "response": "{\"model\": \"OK. The weather in New York is sunny with a temperature of 25 degrees Celsius (77 degrees Fahrenheit).\\n\"}"
+              }
+          },
+          {
+              "name": "metadata",
+              "timestamp": "2025-09-17T11:35:53.488163Z",
+              "attributes": {
+                  "completion_tokens": 25,
+                  "prompt_tokens": 215,
+                  "total_tokens": 240,
+                  "finish_reason": "STOP",
+                  "finish_type": "success"
+              }
+          }
+      ],
+      "links": [],
+      "resource": {
+          "attributes": {
+              "service.name": "langchain_agent_1"
+          },
+          "schema_url": ""
+      }
+  },
+  {
+      "name": "call_llm",
+      "context": {
+          "trace_id": "0xfef12cdddfaabc277917fb06ac414e54",
+          "span_id": "0xbdce9c74a2ac579e",
+          "trace_state": "[]"
+      },
+      "kind": "SpanKind.INTERNAL",
+      "parent_id": "0xb8f143814fde719c",
+      "start_time": "2025-09-17T11:35:51.228426Z",
+      "end_time": "2025-09-17T11:35:53.489147Z",
+      "status": {
+          "status_code": "UNSET"
+      },
+      "attributes": {
+          "gen_ai.system": "gcp.vertex.agent",
+          "gen_ai.request.model": "gemini-2.0-flash",
+          "gcp.vertex.agent.invocation_id": "e-77c434af-a0d9-4f3f-81c2-f83fbe722642",
+          "gcp.vertex.agent.session_id": "session_456",
+          "gcp.vertex.agent.event_id": "5990aee7-0671-4208-b30b-1727f33b3ae3",
+          "gcp.vertex.agent.llm_request": "{\"model\": \"gemini-2.0-flash\", \"config\": {\"http_options\": {\"headers\": {\"x-goog-api-client\": \"google-adk/1.10.0 gl-python/3.10.11\", \"user-agent\": \"google-adk/1.10.0 gl-python/3.10.11\"}}, \"system_instruction\": \"You are a helpful agent who can answer user questions about the time and weather in a city.\\n\\nYou are an agent. Your internal name is \\\"weather_time_agent\\\".\\n\\n The description about you is \\\"Agent to answer questions about the time and weather in a city.\\\"\", \"tools\": [{\"function_declarations\": [{\"description\": \"Retrieves the current weather report for a specified city.\\n\\n    Args:\\n        city (str): The name of the city for which to retrieve the weather report.\\n\\n    Returns:\\n        dict: status and result or error msg.\\n    \", \"name\": \"get_weather\", \"parameters\": {\"properties\": {\"city\": {\"type\": \"STRING\"}}, \"required\": [\"city\"], \"type\": \"OBJECT\"}}, {\"description\": \"Returns the current time in a specified city.\\n\\n    Args:\\n        city (str): The name of the city for which to retrieve the current time.\\n\\n    Returns:\\n        dict: status and result or error msg.\\n    \", \"name\": \"get_current_time\", \"parameters\": {\"properties\": {\"city\": {\"type\": \"STRING\"}}, \"required\": [\"city\"], \"type\": \"OBJECT\"}}]}]}, \"contents\": [{\"parts\": [{\"text\": \"What is the current weather in New York?\"}], \"role\": \"user\"}, {\"parts\": [{\"function_call\": {\"args\": {\"city\": \"New York\"}, \"name\": \"get_weather\"}}], \"role\": \"model\"}, {\"parts\": [{\"function_response\": {\"name\": \"get_weather\", \"response\": {\"status\": \"success\", \"report\": \"The weather in New York is sunny with a temperature of 25 degrees Celsius (77 degrees Fahrenheit).\"}}}], \"role\": \"user\"}]}",
+          "gcp.vertex.agent.llm_response": "{\"content\":{\"parts\":[{\"text\":\"OK. The weather in New York is sunny with a temperature of 25 degrees Celsius (77 degrees Fahrenheit).\\n\"}],\"role\":\"model\"},\"usage_metadata\":{\"candidates_token_count\":25,\"candidates_tokens_details\":[{\"modality\":\"TEXT\",\"token_count\":25}],\"prompt_token_count\":215,\"prompt_tokens_details\":[{\"modality\":\"TEXT\",\"token_count\":215}],\"total_token_count\":240}}",
+          "gen_ai.usage.input_tokens": 215,
+          "gen_ai.usage.output_tokens": 25
+      },
+      "events": [],
+      "links": [],
+      "resource": {
+          "attributes": {
+              "service.name": "langchain_agent_1"
+          },
+          "schema_url": ""
+      }
+  },
+  {
+      "name": "agent_run [weather_time_agent]",
+      "context": {
+          "trace_id": "0xfef12cdddfaabc277917fb06ac414e54",
+          "span_id": "0xb8f143814fde719c",
+          "trace_state": "[]"
+      },
+      "kind": "SpanKind.INTERNAL",
+      "parent_id": "0x81788edccebce714",
+      "start_time": "2025-09-17T11:35:49.077391Z",
+      "end_time": "2025-09-17T11:35:53.491147Z",
+      "status": {
+          "status_code": "UNSET"
+      },
+      "attributes": {},
+      "events": [],
+      "links": [],
+      "resource": {
+          "attributes": {
+              "service.name": "langchain_agent_1"
+          },
+          "schema_url": ""
+      }
+  },
+  {
+      "name": "google.adk.agents.base_agent.BaseAgent.run_async",
+      "context": {
+          "trace_id": "0x7d675c7ccfcbecbc581510d4873bedca",
+          "span_id": "0x24398d6d3540a8de",
+          "trace_state": "[]"
+      },
+      "kind": "SpanKind.INTERNAL",
+      "parent_id": "0xb8ffb94a324ea2c4",
+      "start_time": "2025-09-17T11:35:49.077391Z",
+      "end_time": "2025-09-17T11:35:53.491147Z",
+      "status": {
+          "status_code": "OK"
+      },
+      "attributes": {
+          "monocle_apptrace.version": "0.5.3",
+          "monocle_apptrace.language": "python",
+          "span_source": "C:\\Users\\BHLP0106\\Desktop\\clone\\monocle\\agent_venv310\\lib\\site-packages\\google\\adk\\runners.py:230",
+          "workflow.name": "langchain_agent_1",
+          "span.type": "agentic.invocation",
+          "span.subtype": "routing",
+          "entity.1.type": "agent.adk",
+          "entity.1.name": "weather_time_agent",
+          "entity.1.description": "Agent to answer questions about the time and weather in a city.",
+          "scope.agentic.request": "0x4f8fa413ae341f70a71ff76c69394458",
+          "scope.agentic.invocation": "0x47b82811a1e0c597b2b08f983eb77cf8",
+          "entity.count": 1
+      },
+      "events": [
+          {
+              "name": "data.input",
+              "timestamp": "2025-09-17T11:35:53.491147Z",
+              "attributes": {
+                  "query": "What is the current weather in New York?"
+              }
+          },
+          {
+              "name": "data.output",
+              "timestamp": "2025-09-17T11:35:53.491147Z",
+              "attributes": {
+                  "response": "OK. The weather in New York is sunny with a temperature of 25 degrees Celsius (77 degrees Fahrenheit).\n"
+              }
+          }
+      ],
+      "links": [],
+      "resource": {
+          "attributes": {
+              "service.name": "langchain_agent_1"
+          },
+          "schema_url": ""
+      }
+  },
+  {
+      "name": "invocation",
+      "context": {
+          "trace_id": "0xfef12cdddfaabc277917fb06ac414e54",
+          "span_id": "0x81788edccebce714",
+          "trace_state": "[]"
+      },
+      "kind": "SpanKind.INTERNAL",
+      "parent_id": null,
+      "start_time": "2025-09-17T11:35:49.075391Z",
+      "end_time": "2025-09-17T11:35:53.492148Z",
+      "status": {
+          "status_code": "UNSET"
+      },
+      "attributes": {},
+      "events": [],
+      "links": [],
+      "resource": {
+          "attributes": {
+              "service.name": "langchain_agent_1"
+          },
+          "schema_url": ""
+      }
+  },
+  {
+      "name": "google.adk.runners.Runner.run_async",
+      "context": {
+          "trace_id": "0x7d675c7ccfcbecbc581510d4873bedca",
+          "span_id": "0xb8ffb94a324ea2c4",
+          "trace_state": "[]"
+      },
+      "kind": "SpanKind.INTERNAL",
+      "parent_id": "0xd85ab7ac836be537",
+      "start_time": "2025-09-17T11:35:49.075391Z",
+      "end_time": "2025-09-17T11:35:53.492148Z",
+      "status": {
+          "status_code": "OK"
+      },
+      "attributes": {
+          "monocle_apptrace.version": "0.5.3",
+          "monocle_apptrace.language": "python",
+          "span_source": "C:\\Users\\BHLP0106\\Desktop\\clone\\monocle\\tests\\integration\\test_adk_single_agent.py:114",
+          "workflow.name": "langchain_agent_1",
+          "span.type": "agentic.request",
+          "entity.1.type": "agent.adk",
+          "scope.agentic.request": "0x4f8fa413ae341f70a71ff76c69394458",
+          "entity.count": 1
+      },
+      "events": [
+          {
+              "name": "data.input",
+              "timestamp": "2025-09-17T11:35:53.492148Z",
+              "attributes": {
+                  "input": "What is the current weather in New York?"
+              }
+          },
+          {
+              "name": "data.output",
+              "timestamp": "2025-09-17T11:35:53.492148Z",
+              "attributes": {
+                  "response": "OK. The weather in New York is sunny with a temperature of 25 degrees Celsius (77 degrees Fahrenheit).\n"
+              }
+          }
+      ],
+      "links": [],
+      "resource": {
+          "attributes": {
+              "service.name": "langchain_agent_1"
+          },
+          "schema_url": ""
+      }
+  },
+  {
+      "name": "workflow",
+      "context": {
+          "trace_id": "0x7d675c7ccfcbecbc581510d4873bedca",
+          "span_id": "0xd85ab7ac836be537",
+          "trace_state": "[]"
+      },
+      "kind": "SpanKind.INTERNAL",
+      "parent_id": null,
+      "start_time": "2025-09-17T11:35:49.075391Z",
+      "end_time": "2025-09-17T11:35:53.492148Z",
+      "status": {
+          "status_code": "OK"
+      },
+      "attributes": {
+          "monocle_apptrace.version": "0.5.3",
+          "monocle_apptrace.language": "python",
+          "span_source": "C:\\Users\\BHLP0106\\Desktop\\clone\\monocle\\tests\\integration\\test_adk_single_agent.py:114",
+          "scope.agentic.request": "0x4f8fa413ae341f70a71ff76c69394458",
+          "workflow.name": "langchain_agent_1",
+          "span.type": "workflow",
+          "entity.1.name": "langchain_agent_1",
+          "entity.1.type": "workflow.generic",
+          "entity.2.type": "app_hosting.generic",
+          "entity.2.name": "generic"
+      },
+      "events": [],
+      "links": [],
+      "resource": {
+          "attributes": {
+              "service.name": "langchain_agent_1"
+          },
+          "schema_url": ""
+      }
+  }
+]

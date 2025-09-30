@@ -355,11 +355,4 @@ def agent_inference_type(arguments):
         return INFERENCE_TOOL_CALL
     return INFERENCE_TURN_END
 
-class DeepSeekSpanHandler(OpenAISpanHandler):
-    def process_span(self, span):
-        span = super().process_span(span)
-        if span.attributes.get("span.type") in ("workflow", "inference"):
-            span.attributes["entity.1.type"] = "workflow.deepseek" if span.attributes.get("span.type") == "workflow" else "inference.deepseek"
-        return span
-
 

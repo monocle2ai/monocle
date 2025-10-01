@@ -66,6 +66,7 @@ packages = ["src/monocle_test_tools"]
 include = [
     "pyproject.toml", 
     "README.md",
+    "LICENSE",
     "src/**",
     "tests/**/*.py",
 ]

@@ -36,5 +36,6 @@ packages = ["src/monocle_mcp"]
 include = [
     "pyproject.toml",
     "README.md",
+    "LICENSE",
     "src/monocle_mcp/**/*.py",
 ]

@@ -1,3 +1,12 @@
+## Version 0.6.0 (2025-10-01)
+
+- Monocle testing framework ([#288](https://github.com/monocle2ai/monocle/pull/288))
+- Fix package version conflict ([#293](https://github.com/monocle2ai/monocle/pull/293))
+- Remove hugging face direct dependency on Monocle. Also update the tests
+- Hugging face inference test ([#290](https://github.com/monocle2ai/monocle/pull/290))
+- Attributes fixes ([#289](https://github.com/monocle2ai/monocle/pull/289))
+- mistral embed instrumentation ([#279](https://github.com/monocle2ai/monocle/pull/279))
+
 ## Version 0.5.3 (2025-09-09)
 
 - Make ./.monocle as default folder to store traces instead of current directory ([#272](https://github.com/monocle2ai/monocle/pull/272))
@@ -199,12 +208,3 @@
 - Add Embeddings Span in Gemini Metamodel ([#228](https://github.com/monocle2ai/monocle/pull/228))
 - Agent metamodel updates for LangGraph ([#227](https://github.com/monocle2ai/monocle/pull/227))
 - Add fastapi metamodel with fastapi tracid propogation testcase ([#226](https://github.com/monocle2ai/monocle/pull/226))
-
-
-- Monocle testing framework ([#288](https://github.com/monocle2ai/monocle/pull/288))
-- Fix package version conflict ([#293](https://github.com/monocle2ai/monocle/pull/293))
-- Remove hugging face direct dependency on Monocle. Also update the tests
-- Hugging face inference test ([#290](https://github.com/monocle2ai/monocle/pull/290))
-- Attributes fixes ([#289](https://github.com/monocle2ai/monocle/pull/289))
-- mistral embed instrumentation ([#279](https://github.com/monocle2ai/monocle/pull/279))
-

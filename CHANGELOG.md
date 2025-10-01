@@ -200,3 +200,11 @@
 - Agent metamodel updates for LangGraph ([#227](https://github.com/monocle2ai/monocle/pull/227))
 - Add fastapi metamodel with fastapi tracid propogation testcase ([#226](https://github.com/monocle2ai/monocle/pull/226))
 
+
+- Monocle testing framework ([#288](https://github.com/monocle2ai/monocle/pull/288))
+- Fix package version conflict ([#293](https://github.com/monocle2ai/monocle/pull/293))
+- Remove hugging face direct dependency on Monocle. Also update the tests
+- Hugging face inference test ([#290](https://github.com/monocle2ai/monocle/pull/290))
+- Attributes fixes ([#289](https://github.com/monocle2ai/monocle/pull/289))
+- mistral embed instrumentation ([#279](https://github.com/monocle2ai/monocle/pull/279))
+

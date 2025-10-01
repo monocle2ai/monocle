@@ -35,7 +35,7 @@ while [[ $# -gt 0 ]]; do
             echo "Artifacts (default: all):"
             echo "  all              Build all artifacts"
             echo "  apptrace         Build only monocle_apptrace"
-            echo "  mcp              Build only monocle-mcp"
+            echo "  mcp              Build only monocle_mcp"
             echo "  test_tools       Build only monocle_test_tools"
             echo "  apptrace,mcp     Build multiple specific artifacts"
             echo ""
@@ -95,7 +95,7 @@ fi
 
 # Build mcp
 if [[ "$BUILD_MCP" == "true" ]]; then
-    echo "🔧 Building monocle-mcp..."
+    echo "🔧 Building monocle_mcp..."
     ./.github/scripts/build-artifact.sh mcp "$MCP_VERSION"
     echo ""
 fi

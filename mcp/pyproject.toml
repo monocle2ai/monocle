@@ -9,7 +9,7 @@ commands = [
 ]
 
 [project]
-name = "monocle-mcp"
+name = "monocle_mcp"
 version = "0.1.0"
 description = "Monocle MCP server: prompts and tools for enabling and analyzing Monocle tracing in GenAI apps."
 readme = "README.md"
@@ -33,7 +33,7 @@ dependencies = [
 ]
 
 [project.scripts]
-monocle-mcp = "monocle_mcp.mcp_server:main"
+monocle_mcp = "monocle_mcp.mcp_server:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/monocle_mcp"]

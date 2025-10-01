@@ -28,14 +28,14 @@ jobs:
       JFROG_PASSWORD: ${{ secrets.JFROG_PASSWORD }}
 
   publish-mcp:
-    name: Publish monocle-mcp
+    name: Publish monocle_mcp
     uses: ./.github/workflows/publish-to-jfrog.yml
     needs: publish-apptrace  # Ensure apptrace is published first as it's a dependency
     with:
       branch: ${{ inputs.branch || 'main' }}
       version: ${{ inputs.version }}
       artifact_path: 'mcp'
-      artifact_name: 'monocle-mcp'
+      artifact_name: 'monocle_mcp'
     secrets:
       JFROG_REPOSITORY_URL: ${{ secrets.JFROG_REPOSITORY_URL }}
       JFROG_USERNAME: ${{ secrets.JFROG_USERNAME }}
@@ -73,9 +73,9 @@ jobs:
           fi
           
           if [[ "${{ needs.publish-mcp.result }}" == "success" ]]; then
-            echo "✅ monocle-mcp - Published successfully"
+            echo "✅ monocle_mcp - Published successfully"
           else
-            echo "❌ monocle-mcp - Failed to publish"
+            echo "❌ monocle_mcp - Failed to publish"
           fi
           
           if [[ "${{ needs.publish-test-tools.result }}" == "success" ]]; then

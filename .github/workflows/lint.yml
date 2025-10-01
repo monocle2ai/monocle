@@ -23,11 +23,16 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Install pylint
+      - name: Install packages and pylint
         run: |
-          pip install .
+          pip install ./apptrace
+          pip install ./mcp
+          pip install ./test_tools
           pip install pylint
 
       - name: Run pylint tests
-        run: pylint --fail-under=10 src
+        run: |
+          pylint --fail-under=10 apptrace/src
+          pylint --fail-under=10 mcp/src
+          pylint --fail-under=10 test_tools/src
         continue-on-error: true

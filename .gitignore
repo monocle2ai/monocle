@@ -15,3 +15,8 @@ dist
 Pipfile**
 launch.json
 monocle_trace**.json
+
+# Ignore LICENSE files in specific subdirectories
+apptrace/LICENSE
+mcp/LICENSE
+test_tools/LICENSE

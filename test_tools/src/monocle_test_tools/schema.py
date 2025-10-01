@@ -46,6 +46,29 @@ class Evaluation(BaseModel):
         self.eval = get_evaluator(self.eval, self.eval_options or {})
 
 class TestSpan(BaseModel):
+    """
+    Represents a specific interaction or event within a test case in the Monocle testing framework.
+    
+    A TestSpan defines a single testable unit of interaction such as a tool invocation,
+    agent delegation, or inference process. Each span captures the entities involved,
+    inputs and outputs, and validation criteria for that specific interaction.
+    
+    Test spans enforce specific validation rules based on their type. For example:
+    - Tool invocation spans must include at least one tool entity
+    - Agentic delegation spans must include at least two agent entities (delegator and delegatee)
+    - Agentic invocation spans must include at least one agent entity
+    
+    Attributes:
+        span_type: Type of interaction this span represents (e.g., tool invocation, agent delegation)
+        entities: List of entities (tools, agents) involved in this interaction
+        input: Input provided to this interaction
+        output: Expected output from this interaction
+        test_type: Whether this is a "positive" (expected to succeed) or "negative" (expected to fail) test
+        eval: Evaluation method to apply to the span's results
+        expect_errors: Flag indicating whether errors are expected during this span
+        expect_warnings: Flag indicating whether warnings are expected during this span
+        comparer: Method used to compare actual results with expected results
+    """
     span_type: SpanType = Field(..., description="Type of the span.")
     entities: Optional[list[Entity]] = Field(None, description="List of entities involved in the span.")
     input: Optional[Union[str, dict]] = Field(None, description="Input for the span.")
@@ -90,6 +113,25 @@ class TestSpan(BaseModel):
 
 
 class TestCase(BaseModel):
+    """
+    Represents a test case in the Monocle testing framework.
+    
+    A TestCase defines the input, expected output, and evaluation criteria for testing
+    AI agent behaviors. It can contain multiple test spans representing different 
+    interaction points (tool invocations, agent delegations, etc.) within the test.
+    
+    Each test case can specify comparison methods for evaluating test results against 
+    expected outcomes and can be configured to expect certain errors or warnings.
+    
+    Attributes:
+        test_input: Input data provided to the test case, can be a prompt or structured data.
+        test_output: Expected output that the test should produce.
+        comparer: Method used to compare actual results with expected results.
+        test_description: Human-readable description of what the test case verifies.
+        test_spans: Collection of TestSpan objects defining specific interactions to test.
+        expect_errors: Flag indicating whether the test should expect errors to occur.
+        expect_warnings: Flag indicating whether the test should expect warnings to occur.
+    """
     test_input: Optional[Tuple[Any, ...]] = Field(None, description="Input prompt or data for the test case.")
     test_output: Optional[Any] = Field(None, description="Expected output for the test case.")
     comparer: Optional[Union[str, BaseComparer]] = Field(DefaultComparer(), description="Comparison method for the test case.")

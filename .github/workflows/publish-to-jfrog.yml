@@ -120,7 +120,7 @@ jobs:
           echo "🔑 Authenticated as $JFROG_USERNAME"
           echo "🌐 Publishing ${{ inputs.artifact_name }} to: $JFROG_URL"
           python3 -m twine upload \
-            --non-interactive --skip-existing \
+            --non-interactive \
             --repository-url "$JFROG_URL" dist/* \
             --username "$JFROG_USERNAME" --password "$JFROG_PASSWORD"
 

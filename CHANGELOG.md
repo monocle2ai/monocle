@@ -1,3 +1,7 @@
+## Unreleased
+
+- (Add notes about unreleased changes here.)
+
 ## Version 0.5.3 (2025-09-09)
 
 - Make ./.monocle as default folder to store traces instead of current directory ([#272](https://github.com/monocle2ai/monocle/pull/272))

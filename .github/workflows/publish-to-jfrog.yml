@@ -43,13 +43,7 @@ on:
         required: false
         default: 'package'
         type: string
-    secrets:
-      JFROG_REPOSITORY_URL:
-        required: true
-      JFROG_USERNAME:
-        required: true
-      JFROG_PASSWORD:
-        required: true
+
 
 jobs:
   publish-to-jfrog:

@@ -22,10 +22,6 @@ jobs:
       version: ${{ inputs.version }}
       artifact_path: 'apptrace'
       artifact_name: 'monocle_apptrace'
-    secrets:
-      JFROG_REPOSITORY_URL: ${{ secrets.JFROG_REPOSITORY_URL }}
-      JFROG_USERNAME: ${{ secrets.JFROG_USERNAME }}
-      JFROG_PASSWORD: ${{ secrets.JFROG_PASSWORD }}
 
   publish-mcp:
     name: Publish monocle_mcp
@@ -36,10 +32,6 @@ jobs:
       version: ${{ inputs.version }}
       artifact_path: 'mcp'
       artifact_name: 'monocle_mcp'
-    secrets:
-      JFROG_REPOSITORY_URL: ${{ secrets.JFROG_REPOSITORY_URL }}
-      JFROG_USERNAME: ${{ secrets.JFROG_USERNAME }}
-      JFROG_PASSWORD: ${{ secrets.JFROG_PASSWORD }}
 
   publish-test-tools:
     name: Publish monocle_test_tools
@@ -50,10 +42,6 @@ jobs:
       version: ${{ inputs.version }}
       artifact_path: 'test_tools'
       artifact_name: 'monocle_test_tools'
-    secrets:
-      JFROG_REPOSITORY_URL: ${{ secrets.JFROG_REPOSITORY_URL }}
-      JFROG_USERNAME: ${{ secrets.JFROG_USERNAME }}
-      JFROG_PASSWORD: ${{ secrets.JFROG_PASSWORD }}
 
   summary:
     name: Publication Summary
@@ -85,7 +73,6 @@ jobs:
           fi
           
           echo ""
-          echo "🌐 Repository: ${{ secrets.JFROG_REPOSITORY_URL }}"
           if [[ -n "${{ github.event.inputs.version }}" ]]; then
             echo "🏷️ Version: ${{ github.event.inputs.version }}"
           else

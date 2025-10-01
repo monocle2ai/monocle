@@ -55,6 +55,9 @@ class FileSpanExporter(SpanExporterBase):
         else:
             return self._process_spans(spans, is_root_span=is_root_span)
 
+    def set_service_name(self, service_name: str) -> None:
+        self.service_name = service_name
+
     def _cleanup_expired_handles(self) -> None:
         """Close and remove file handles that have exceeded the timeout."""
         current_time = datetime.now()
@@ -130,7 +133,10 @@ class FileSpanExporter(SpanExporterBase):
         
         # Process spans for each trace
         for trace_id, trace_spans in spans_by_trace.items():
-            service_name = trace_spans[0].resource.attributes.get(SERVICE_NAME, "unknown")
+            if self.service_name is not None:
+                service_name = self.service_name
+            else:
+                service_name = trace_spans[0].resource.attributes.get(SERVICE_NAME, "unknown")
             handle, file_path, is_first_span = self._get_or_create_handle(trace_id, service_name)
             
             if handle is None:

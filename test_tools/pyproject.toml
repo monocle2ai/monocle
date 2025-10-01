@@ -1,0 +1,197 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "monocle_test_tools"
+version = "0.1.0"
+authors = [
+  { name="Okahu Inc.", email="okahu-pypi@okahu.ai" },
+]
+description = "Testing and validation framework for monocle AI agent tracing"
+readme = "README.md"
+requires-python = ">=3.8"
+license = {text = "Apache-2.0"}
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: OS Independent",
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Topic :: Software Development :: Testing",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+dependencies = [
+    # Core dependencies
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.26.0",
+    "pydantic>=2.11.7",
+    "jsonschema>=4.0.0",
+    
+    # Monocle dependencies
+    "monocle_apptrace>=0.5.0",
+    
+    # Evaluation dependencies
+    "bert-score>=0.3.0",
+    "transformers>=4.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest-cov>=4.0.0",
+    "black>=23.0.0",
+    "flake8>=6.0.0",
+    "mypy>=1.0.0",
+    "pre-commit>=3.0.0",
+    'google-adk==1.10.0',
+    'google-generativeai==0.8.5',
+    'openai-agents==0.2.6'
+]
+
+all = [
+    "monocle_test_tools[dev]",
+]
+
+[project.urls]
+Homepage = "https://github.com/monocle2ai/monocle"
+Issues = "https://github.com/monocle2ai/monocle/issues"
+Repository = "https://github.com/monocle2ai/monocle"
+Documentation = "http://monocle2ai.org"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/monocle_test_tools"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "pyproject.toml", 
+    "README.md",
+    "LICENSE",
+    "src/**",
+    "tests/**/*.py",
+]
+
+[tool.hatch.build]
+exclude = [
+    "/__pycache__",
+    "*.pyc",
+    "*.pyo",
+    "*.pyd",
+    ".git",
+    ".pytest_cache",
+    ".mypy_cache",
+    ".coverage",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["test_tools"]
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "--strict-markers",
+    "--strict-config",
+    "--verbose",
+]
+log_cli = true
+log_cli_level = "INFO"
+log_cli_format = "%(asctime)s [%(levelname)8s] %(name)s: %(message)s"
+log_cli_date_format = "%Y-%m-%d %H:%M:%S"
+
+markers = [
+    "unit: marks tests as unit tests",
+    "integration: marks tests as integration tests", 
+    "slow: marks tests as slow",
+    "agent: marks tests as agent-related tests",
+    "tool: marks tests as tool-related tests",
+    "inference: marks tests as inference-related tests",
+]
+
+[tool.black]
+line-length = 120
+target-version = ['py38', 'py39', 'py310', 'py311']
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  # directories
+  \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.pytest_cache
+  | \.tox
+  | \.venv
+  | build
+  | dist
+)/
+'''
+
+[tool.mypy]
+python_version = "3.8"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+disallow_untyped_decorators = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+warn_unreachable = true
+strict_equality = true
+
+[[tool.mypy.overrides]]
+module = [
+    "bert_score.*",
+    "transformers.*",
+    "opentelemetry.*",
+    "monocle_apptrace.*",
+]
+ignore_missing_imports = true
+
+[tool.coverage.run]
+source = ["test_tools"]
+omit = [
+    "*/tests/*",
+    "*/__pycache__/*",
+    "*/site-packages/*",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "if self.debug:",
+    "if settings.DEBUG",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if 0:",
+    "if __name__ == .__main__.:",
+    "class .*\\bProtocol\\):",
+    "@(abc\\.)?abstractmethod",
+]
+
+[tool.ruff]
+target-version = "py38"
+line-length = 120
+select = [
+    "E",  # pycodestyle errors
+    "W",  # pycodestyle warnings
+    "F",  # pyflakes
+    "I",  # isort
+    "B",  # flake8-bugbear
+    "C4", # flake8-comprehensions
+    "UP", # pyupgrade
+]
+ignore = [
+    "E501",  # line too long, handled by black
+    "B008",  # do not perform function calls in argument defaults
+    "C901",  # too complex
+]
+
+[tool.ruff.per-file-ignores]
+"__init__.py" = ["F401"]
+
+[tool.ruff.isort]
+known-first-party = ["monocle_test_tools", "monocle_apptrace"]

@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "monocle_apptrace"
-version = "0.5.3"
+version = "0.6.0"
 authors = [
   { name="Okahu Inc.", email="okahu-pypi@okahu.ai" },
 ]
@@ -23,9 +23,6 @@ dependencies = [
    'opentelemetry-api>=1.21.0',
    'opentelemetry-sdk>=1.21.0',
    'opentelemetry-instrumentation',
-   'mcp>=1.12.1',
-   'pydantic>=2.11.7',
-   'click==8.2.1'
 ]
 
 [tool.pytest.ini_options]
@@ -46,6 +43,11 @@ markers = [
 ]
 
 [project.optional-dependencies]
+ai_test = [
+   'bert-score',
+   'transformers'
+]
+
 dev = [
   'langchain-openai==0.3.18',
   'langchain-chroma==0.2.4',

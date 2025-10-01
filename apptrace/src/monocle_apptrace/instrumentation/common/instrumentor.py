@@ -165,7 +165,7 @@ def setup_monocle_telemetry(
         span_handlers: Dict[str,SpanHandler] = None,
         wrapper_methods: List[Union[dict,WrapperMethod]] = None,
         union_with_default_methods: bool = True,
-        monocle_exporters_list:str = None) -> None:
+        monocle_exporters_list:str = None) -> MonocleInstrumentor:
     """
     Set up Monocle telemetry for the application.
 

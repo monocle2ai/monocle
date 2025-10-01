@@ -66,8 +66,8 @@ def enable_monocle_tracing_prompt(app_language: str = "python") -> str:
     return enable_monocle_prompt.format(app_language=app_language)
 
 
-@app.prompt(name="analyze")
-def analyze_monocle_tracing_prompt() -> str:
+@app.prompt(name="explain")
+def explain_monocle_tracing_prompt() -> str:
     """Identify root cause from trace"""
     return monocle_trace_prompt
 

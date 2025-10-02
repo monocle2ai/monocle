@@ -7,7 +7,7 @@ The MCP server provided by monocle includes curated prompts and tools that help 
 
 ## Use Monocle MCP
 
-First install monocle-apptrace: pip install monocle-apptrace
+First install monocle-apptrace: pip install monocle-mcp
 
 Open bash and run the following command to run the monocle mcp server with stdio:
 monocle_apptrace

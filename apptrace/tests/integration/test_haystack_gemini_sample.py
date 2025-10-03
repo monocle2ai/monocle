@@ -1,12 +1,17 @@
 import os
 import time
+
 import pytest
-from haystack.utils import Secret
-from haystack_integrations.components.generators.google_ai import GoogleAIGeminiGenerator,GoogleAIGeminiChatGenerator
-from haystack.dataclasses import ChatMessage
-from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
-from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
 from common.custom_exporter import CustomConsoleSpanExporter
+from haystack.dataclasses import ChatMessage
+from haystack.utils import Secret
+from haystack_integrations.components.generators.google_ai import (
+    GoogleAIGeminiChatGenerator,
+    GoogleAIGeminiGenerator,
+)
+from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
+from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
+
 custom_exporter = CustomConsoleSpanExporter()
 
 @pytest.fixture(scope="module")

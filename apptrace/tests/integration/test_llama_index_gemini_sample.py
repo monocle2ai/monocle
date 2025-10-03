@@ -1,11 +1,12 @@
-import time
 import os
+import time
+
 import pytest
-from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from common.custom_exporter import CustomConsoleSpanExporter
-from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
 from llama_index.core.llms import ChatMessage
 from llama_index.llms.gemini import Gemini
+from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
 
 custom_exporter = CustomConsoleSpanExporter()
 

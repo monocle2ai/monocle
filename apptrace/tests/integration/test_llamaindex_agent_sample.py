@@ -1,11 +1,14 @@
+import asyncio
 import time
-from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
+
+import pytest
+from llama_index.core.agent import ReActAgent
 from llama_index.core.tools import FunctionTool
 from llama_index.llms.openai import OpenAI
 from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
-from opentelemetry.sdk.trace.export import BatchSpanProcessor, SimpleSpanProcessor
-from llama_index.core.agent import ReActAgent
-import pytest
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
+
 memory_exporter = InMemorySpanExporter()
 span_processors=[SimpleSpanProcessor(memory_exporter)]
 @pytest.fixture(scope="module")
@@ -51,12 +54,17 @@ order_tool = FunctionTool.from_defaults(
 
 # Initialize LlamaIndex ReAct agent
 llm = OpenAI(model="gpt-4")
-agent = ReActAgent.from_tools([coffee_menu_tool, order_tool], llm=llm)
+agent = ReActAgent(tools=[coffee_menu_tool, order_tool], llm=llm)
 
 def test_llamaindex_agent(setup):
     print("Welcome to the Coffee Bot! ")
     user_input = "Please order 3 espresso coffees"
-    response = agent.chat(user_input)
+    
+    async def run_agent():
+        response = await agent.run(user_input)
+        return response
+    
+    response = asyncio.run(run_agent())
     time.sleep(5)
     print(f"Bot: {response}")
 

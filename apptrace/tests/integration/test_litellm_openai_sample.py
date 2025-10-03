@@ -3,17 +3,19 @@ import os
 import time
 
 import pytest
-from custom_litellm.prompt_loader import PromptLoader
-from custom_litellm.llm import LiteLLMClient
 from common.custom_exporter import CustomConsoleSpanExporter
-from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from custom_litellm.llm import LiteLLMClient
+from custom_litellm.prompt_loader import PromptLoader
 from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
+
 from tests.common.helpers import (
     find_span_by_type,
     find_spans_by_type,
     validate_inference_span_events,
     verify_inference_span,
 )
+
 custom_exporter = CustomConsoleSpanExporter()
 @pytest.fixture(scope="module")
 def setup():

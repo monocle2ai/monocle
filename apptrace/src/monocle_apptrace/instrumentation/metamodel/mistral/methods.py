@@ -43,14 +43,6 @@ MISTRAL_METHODS = [
         "wrapper_method": task_wrapper,
         "output_processor": MISTRAL_RETRIEVAL
     },
-    {
-        "package": "mistralai.embeddings",    # where Embeddings is defined
-        "object": "AsyncEmbeddings",          # async embeddings client
-        "method": "create",                   # async create
-        "span_handler": "non_framework_handler",
-        "wrapper_method": atask_wrapper,
-        "output_processor": MISTRAL_RETRIEVAL
-    }
 ]
 
  

@@ -11,8 +11,8 @@ from common.helpers import (
     verify_inference_span,
 )
 from mistralai import Mistral, models
-from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
-from monocle_apptrace.instrumentation.common.utils import logger
+from apptrace.src.monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
+from apptrace.src.monocle_apptrace.instrumentation.common.utils import logger
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 
 logger = logging.getLogger(__name__)

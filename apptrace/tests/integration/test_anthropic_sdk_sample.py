@@ -1,27 +1,36 @@
-import os
-import pytest
+import logging
 import time
+
 import anthropic
-from opentelemetry.sdk.trace.export import BatchSpanProcessor
+import pytest
 from common.custom_exporter import CustomConsoleSpanExporter
-from monocle_apptrace.instrumentation.common.utils import logger
+from common.helpers import (
+    find_span_by_type,
+    find_spans_by_type,
+    validate_inference_span_events,
+    verify_inference_span,
+)
 from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
-from tests.common.helpers import find_span_by_type, find_spans_by_type, validate_inference_span_events, verify_inference_span
-custom_exporter = CustomConsoleSpanExporter()
+from monocle_apptrace.instrumentation.common.utils import logger
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
 
-@pytest.fixture(autouse=True)
-def clear_spans():
-    """Clear spans before each test"""
-    custom_exporter.reset()
-    yield
+logger = logging.getLogger(__name__)
 
-@pytest.fixture(scope="module")
+
+@pytest.fixture(scope="function")
 def setup():
-    setup_monocle_telemetry(
-        workflow_name="anthropic_app_1",
-        span_processors=[BatchSpanProcessor(custom_exporter)],
-        wrapper_methods=[
-        ])
+    try:
+        custom_exporter = CustomConsoleSpanExporter()
+        instrumentor = setup_monocle_telemetry(
+            workflow_name="anthropic_app_1",
+            span_processors=[BatchSpanProcessor(custom_exporter)],
+            wrapper_methods=[
+            ])
+        yield custom_exporter
+    finally:
+        # Clean up instrumentor to avoid global state leakage
+        if instrumentor and instrumentor.is_instrumented_by_opentelemetry:
+            instrumentor.uninstrument()
 
 @pytest.mark.integration()
 def test_anthropic_metamodel_sample(setup):
@@ -39,11 +48,11 @@ def test_anthropic_metamodel_sample(setup):
     )
 
     # Print the response
-    print("Claude's response:\n")
-    print(response.content[0].text)
+    logger.info("Claude's response:\n")
+    logger.info(response.content[0].text)
 
     time.sleep(5)
-    spans = custom_exporter.get_captured_spans()
+    spans = setup.get_captured_spans()
 
 
     assert len(spans) > 0, "No spans captured for the LangChain Anthropic sample"
@@ -109,10 +118,11 @@ def test_anthropic_invalid_api_key(setup):
 
         )
     except anthropic.APIError as e:
-        logger.error("Authentication error: %s", str(e))
+        logger.info("Authentication error: %s", str(e))
+        assert e.status_code == 401
 
     time.sleep(5)
-    spans = custom_exporter.get_captured_spans()
+    spans = setup.get_captured_spans()
     for span in spans:
         if span.attributes.get("span.type") == "inference" or span.attributes.get("span.type") == "inference.framework":
             events = [e for e in span.events if e.name == "data.output"]

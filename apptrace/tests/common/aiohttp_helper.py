@@ -3,6 +3,9 @@ from aiohttp.test_utils import TestServer, TestClient
 import aiohttp
 from common.chain_exec import exec_chain
 import asyncio
+import logging
+
+logger = logging.getLogger(__name__)
 PORT= 8082
 
 async def chat_handler(request):
@@ -12,7 +15,7 @@ async def chat_handler(request):
         client_id = request.headers.get("client-id")
         response = exec_chain(question)
     except Exception as e:
-        print(e)
+        logger.info(e)
         response = "Failure {e}"
     return web.Response(text=response)
 
@@ -31,7 +34,7 @@ async def run_server():
     await runner.setup()
     site = web.TCPSite(runner, 'localhost', PORT)
     await site.start()
-    print(f"AIOHTTP server running on http://localhost:{PORT}")
+    logger.info(f"AIOHTTP server running on http://localhost:{PORT}")
     return runner
 
 async def stop_server(runner):
@@ -45,7 +48,7 @@ async def check_server():
             async with aiohttp.ClientSession(timeout=timeout) as session:
                 async with session.get(get_url() + "/hello") as response:
                     if response.status == 200:
-                        print("AIOHTTP server started")
+                        logger.info("AIOHTTP server started")
                         return
         except Exception as e:
             pass

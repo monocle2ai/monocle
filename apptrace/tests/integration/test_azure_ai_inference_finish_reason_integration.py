@@ -8,25 +8,44 @@ Requirements:
 
 Run with: pytest tests/integration/test_azure_ai_inference_finish_reason_integration.py
 """
-import os
-import pytest
-import time
-from opentelemetry.sdk.trace.export import SimpleSpanProcessor
-from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
-from tests.common.custom_exporter import CustomConsoleSpanExporter
 
+import logging
+import os
+from types import SimpleNamespace
+
+import pytest
+from azure.ai.inference import ChatCompletionsClient
+from azure.ai.inference.models import ToolMessage, UserMessage
+from azure.core.credentials import AzureKeyCredential
+from common.custom_exporter import CustomConsoleSpanExporter
+from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
+from monocle_apptrace.instrumentation.metamodel.azureaiinference._helper import (
+    extract_finish_reason,
+    map_finish_reason_to_finish_type,
+)
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+
+logger = logging.getLogger(__name__)
 pytestmark = pytest.mark.integration
 
-# Setup telemetry
-custom_exporter = CustomConsoleSpanExporter()
-setup_monocle_telemetry(
-    workflow_name="azure_ai_inference_integration_tests",
-    span_processors=[SimpleSpanProcessor(custom_exporter)],
-)
+
 
 AZURE_AI_INFERENCE_ENDPOINT = os.environ.get("AZURE_AI_INFERENCE_ENDPOINT")
 AZURE_AI_INFERENCE_KEY = os.environ.get("AZURE_AI_INFERENCE_KEY")
 
+@pytest.fixture(scope="module")
+def setup():
+    try:
+        custom_exporter = CustomConsoleSpanExporter()
+        instrumentor = setup_monocle_telemetry(
+            workflow_name="azure_ai_inference_integration_tests",
+            span_processors=[SimpleSpanProcessor(custom_exporter)],
+        )
+        yield custom_exporter
+    finally:
+        # Clean up instrumentor to avoid global state leakage
+        if instrumentor and instrumentor.is_instrumented_by_opentelemetry:
+            instrumentor.uninstrument()
 
 def find_inference_span_and_event_attributes(spans, event_name="metadata"):
     """Find inference span and return event attributes."""
@@ -40,17 +59,11 @@ def find_inference_span_and_event_attributes(spans, event_name="metadata"):
     return None
 
 
-@pytest.fixture(autouse=True)
-def clear_exporter_before_test():
-    """Clear exporter before each test."""
-    custom_exporter.reset()
-
-
 @pytest.mark.skipif(
     not AZURE_AI_INFERENCE_ENDPOINT or not AZURE_AI_INFERENCE_KEY,
     reason="Azure AI Inference credentials not set or azure-ai-inference not available"
 )
-def test_azure_ai_inference_finish_reason_stop():
+def test_azure_ai_inference_finish_reason_stop(setup):
     """Test finish_reason == 'stop' for normal completion with Azure AI Inference."""
     try:
         from azure.ai.inference import ChatCompletionsClient
@@ -74,9 +87,9 @@ def test_azure_ai_inference_finish_reason_stop():
         max_tokens=50,
         model="gpt-4o-mini"  # Specify model if needed
     )
-    # print(f"Azure AI Inference response: {response}")
-    
-    spans = custom_exporter.get_captured_spans()
+    # logger.info(f"Azure AI Inference response: {response}")
+
+    spans = setup.get_captured_spans()
     assert spans, "No spans were exported"
     
     output_event_attrs = find_inference_span_and_event_attributes(spans)
@@ -86,8 +99,8 @@ def test_azure_ai_inference_finish_reason_stop():
     finish_reason = output_event_attrs.get("finish_reason")
     finish_type = output_event_attrs.get("finish_type")
     
-    print(f"Captured finish_reason: {finish_reason}")
-    print(f"Captured finish_type: {finish_type}")
+    logger.info(f"Captured finish_reason: {finish_reason}")
+    logger.info(f"Captured finish_type: {finish_type}")
     
     # Should be stop/success for normal completion
     assert finish_reason in ["stop", None]  # May not always be captured depending on Azure AI Inference version
@@ -99,7 +112,7 @@ def test_azure_ai_inference_finish_reason_stop():
     not AZURE_AI_INFERENCE_ENDPOINT or not AZURE_AI_INFERENCE_KEY,
     reason="Azure AI Inference credentials not set or azure-ai-inference not available"
 )
-def test_azure_ai_inference_finish_reason_length():
+def test_azure_ai_inference_finish_reason_length(setup):
     """Test finish_reason == 'length' when hitting token limit with Azure AI Inference."""
     try:
         from azure.ai.inference import ChatCompletionsClient
@@ -121,9 +134,9 @@ def test_azure_ai_inference_finish_reason_length():
         messages=messages,
         max_tokens=1  # Very low limit to trigger length finish
     )
-    # print(f"Azure AI Inference truncated response: {response}")
-    
-    spans = custom_exporter.get_captured_spans()
+    # logger.info(f"Azure AI Inference truncated response: {response}")
+
+    spans = setup.get_captured_spans()
     assert spans, "No spans were exported"
     
     output_event_attrs = find_inference_span_and_event_attributes(spans)
@@ -132,8 +145,8 @@ def test_azure_ai_inference_finish_reason_length():
     finish_reason = output_event_attrs.get("finish_reason")
     finish_type = output_event_attrs.get("finish_type")
     
-    print(f"Captured finish_reason: {finish_reason}")
-    print(f"Captured finish_type: {finish_type}")
+    logger.info(f"Captured finish_reason: {finish_reason}")
+    logger.info(f"Captured finish_type: {finish_type}")
     
     # Should be length/truncated when hitting token limit
     if finish_reason:
@@ -145,7 +158,7 @@ def test_azure_ai_inference_finish_reason_length():
     not AZURE_AI_INFERENCE_ENDPOINT or not AZURE_AI_INFERENCE_KEY,
     reason="Azure AI Inference credentials not set or azure-ai-inference not available"
 )
-def test_azure_ai_inference_streaming():
+def test_azure_ai_inference_streaming(setup):
     """Test finish_reason with streaming responses from Azure AI Inference."""
     try:
         from azure.ai.inference import ChatCompletionsClient
@@ -177,9 +190,9 @@ def test_azure_ai_inference_streaming():
             if hasattr(delta, 'content') and delta.content:
                 full_response += delta.content
     
-    # print(f"Azure AI Inference streaming response: {full_response}")
-    
-    spans = custom_exporter.get_captured_spans()
+    # logger.info(f"Azure AI Inference streaming response: {full_response}")
+
+    spans = setup.get_captured_spans()
     assert spans, "No spans were exported"
     
     output_event_attrs = find_inference_span_and_event_attributes(spans)
@@ -188,8 +201,8 @@ def test_azure_ai_inference_streaming():
     finish_reason = output_event_attrs.get("finish_reason")
     finish_type = output_event_attrs.get("finish_type")
     
-    print(f"Captured finish_reason: {finish_reason}")
-    print(f"Captured finish_type: {finish_type}")
+    logger.info(f"Captured finish_reason: {finish_reason}")
+    logger.info(f"Captured finish_type: {finish_type}")
     
     # Should be stop/success for streaming completion
     if finish_reason:
@@ -201,15 +214,9 @@ def test_azure_ai_inference_streaming():
     not AZURE_AI_INFERENCE_ENDPOINT or not AZURE_AI_INFERENCE_KEY,
     reason="Azure AI Inference credentials not set or azure-ai-inference not available"
 )
-def test_azure_ai_inference_with_tools():
+def test_azure_ai_inference_with_tools(setup):
     """Test finish_reason with tool calls in Azure AI Inference."""
-    try:
-        from azure.ai.inference import ChatCompletionsClient
-        from azure.ai.inference.models import UserMessage, ToolMessage
-        from azure.core.credentials import AzureKeyCredential
-        import json
-    except ImportError:
-        pytest.skip("azure-ai-inference not available")
+ 
     
     client = ChatCompletionsClient(
         endpoint=AZURE_AI_INFERENCE_ENDPOINT,
@@ -247,9 +254,9 @@ def test_azure_ai_inference_with_tools():
             tools=tools,
             max_tokens=100
         )
-        # print(f"Azure AI Inference tool call response: {response}")
-        
-        spans = custom_exporter.get_captured_spans()
+        # logger.info(f"Azure AI Inference tool call response: {response}")
+
+        spans = setup.get_captured_spans()
         assert spans, "No spans were exported"
         
         output_event_attrs = find_inference_span_and_event_attributes(spans)
@@ -258,8 +265,8 @@ def test_azure_ai_inference_with_tools():
         finish_reason = output_event_attrs.get("finish_reason")
         finish_type = output_event_attrs.get("finish_type")
         
-        print(f"Captured finish_reason: {finish_reason}")
-        print(f"Captured finish_type: {finish_type}")
+        logger.info(f"Captured finish_reason: {finish_reason}")
+        logger.info(f"Captured finish_type: {finish_type}")
         
         # Should be tool_calls/success for tool calling
         if finish_reason:
@@ -268,17 +275,15 @@ def test_azure_ai_inference_with_tools():
     
     except Exception as e:
         # Some Azure AI models might not support tools
-        print(f"Tool calling not supported or failed: {e}")
+        logger.info(f"Tool calling not supported or failed: {e}")
         pytest.skip("Tool calling not supported by this Azure AI model")
 
 
 def test_azure_ai_inference_finish_reason_extraction_fallback():
     """Test that our extraction handles cases where no specific finish reason is found."""
     # This test doesn't require API keys as it tests the fallback logic
-    from src.monocle_apptrace.instrumentation.metamodel.azureaiinference._helper import extract_finish_reason
-    
     # Mock an Azure AI Inference response without explicit finish_reason
-    from types import SimpleNamespace
+
     
     mock_response = SimpleNamespace()  # Empty response
     arguments = {
@@ -301,8 +306,7 @@ def test_azure_ai_inference_finish_reason_extraction_fallback():
 
 def test_azure_ai_inference_finish_reason_mapping_edge_cases():
     """Test edge cases in finish reason mapping."""
-    from src.monocle_apptrace.instrumentation.metamodel.azureaiinference._helper import map_finish_reason_to_finish_type
-    
+   
     # Test case insensitive mapping
     assert map_finish_reason_to_finish_type("STOP") == "success"
     assert map_finish_reason_to_finish_type("Stop") == "success"
@@ -330,7 +334,7 @@ def test_azure_ai_inference_finish_reason_mapping_edge_cases():
     not AZURE_AI_INFERENCE_ENDPOINT or not AZURE_AI_INFERENCE_KEY,
     reason="Azure AI Inference credentials not set or azure-ai-inference not available"
 )
-def test_azure_ai_inference_finish_reason_content_filter():
+def test_azure_ai_inference_finish_reason_content_filter(setup):
     """Test finish_reason == 'content_filter' with Azure AI Inference (may not always trigger)."""
     try:
         from azure.ai.inference import ChatCompletionsClient
@@ -356,11 +360,11 @@ def test_azure_ai_inference_finish_reason_content_filter():
         )
     except Exception as e:
         # If the content filter is triggered, it may raise an exception
-        # print(f"Content filter triggered: {e}")
+        # logger.info(f"Content filter triggered: {e}")
         response = None
-    # print(f"Azure AI Inference content filter response: {response}")
-    
-    spans = custom_exporter.get_captured_spans()
+    # logger.info(f"Azure AI Inference content filter response: {response}")
+
+    spans = setup.get_captured_spans()
     assert spans, "No spans were exported"
     
     output_event_attrs = find_inference_span_and_event_attributes(spans)
@@ -369,8 +373,8 @@ def test_azure_ai_inference_finish_reason_content_filter():
     finish_reason = output_event_attrs.get("finish_reason")
     finish_type = output_event_attrs.get("finish_type")
     
-    print(f"Captured finish_reason: {finish_reason}")
-    print(f"Captured finish_type: {finish_type}")
+    logger.info(f"Captured finish_reason: {finish_reason}")
+    logger.info(f"Captured finish_type: {finish_type}")
     
     # Accept either 'content_filter' or 'stop' (if filter not triggered)
     if finish_reason:
@@ -385,7 +389,7 @@ def test_azure_ai_inference_finish_reason_content_filter():
     not AZURE_AI_INFERENCE_ENDPOINT or not AZURE_AI_INFERENCE_KEY,
     reason="Azure AI Inference credentials not set or azure-ai-inference not available"
 )
-def test_azure_ai_inference_error_handling():
+def test_azure_ai_inference_error_handling(setup):
     """Test finish_reason extraction during error scenarios."""
     try:
         from azure.ai.inference import ChatCompletionsClient
@@ -409,19 +413,19 @@ def test_azure_ai_inference_error_handling():
             max_tokens=50
         )
         # If no error occurs, that's fine too
-        # print(f"Unexpected success: {response}")
+        # logger.info(f"Unexpected success: {response}")
     except Exception as e:
-        print(f"Expected error occurred: {e}")
+        logger.info(f"Expected error occurred: {e}")
         
-        spans = custom_exporter.get_captured_spans()
+        spans = setup.get_captured_spans()
         if spans:
             output_event_attrs = find_inference_span_and_event_attributes(spans)
             if output_event_attrs:
                 finish_reason = output_event_attrs.get("finish_reason")
                 finish_type = output_event_attrs.get("finish_type")
                 
-                print(f"Captured finish_reason: {finish_reason}")
-                print(f"Captured finish_type: {finish_type}")
+                logger.info(f"Captured finish_reason: {finish_reason}")
+                logger.info(f"Captured finish_type: {finish_type}")
                 
                 # Should be error/error for failed requests
                 if finish_reason:

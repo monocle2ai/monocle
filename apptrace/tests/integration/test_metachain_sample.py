@@ -16,22 +16,28 @@ from langchain_core.runnables import RunnablePassthrough
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from metamodel.metachain.methods import METACHAIN_METHODS
-from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
-
 from monocle_apptrace.instrumentation.common.instrumentor import (
     set_context_properties,
     setup_monocle_telemetry,
 )
+from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
 
+logger = logging.getLogger(__name__)
 
 @pytest.fixture(scope="module")
 def setup():
-    logging.basicConfig(level=logging.INFO)
-    load_dotenv()
-    setup_monocle_telemetry(
-                workflow_name="langchain_app_1",
-                span_processors=[BatchSpanProcessor(ConsoleSpanExporter())],
-                wrapper_methods=METACHAIN_METHODS, union_with_default_methods=True)
+    try:
+        logging.basicConfig(level=logging.INFO)
+        load_dotenv()
+        instrumentor = setup_monocle_telemetry(
+                    workflow_name="langchain_app_1",
+                    span_processors=[BatchSpanProcessor(ConsoleSpanExporter())],
+                    wrapper_methods=METACHAIN_METHODS, union_with_default_methods=True)
+        yield
+    finally:
+        # Clean up instrumentor to avoid global state leakage
+        if instrumentor and instrumentor.is_instrumented_by_opentelemetry:
+            instrumentor.uninstrument()
 
 @pytest.mark.integration()
 def test_metachain_sample(setup):
@@ -107,13 +113,13 @@ def test_metachain_sample(setup):
 
     question = "What is Task Decomposition?"
     ai_msg_1 = rag_chain.invoke({"input": question, "chat_history": chat_history})
-    print(ai_msg_1["answer"])
+    logger.info(ai_msg_1["answer"])
     chat_history.extend([HumanMessage(content=question), ai_msg_1["answer"]])
 
     second_question = "What are common ways of doing it?"
     ai_msg_2 = rag_chain.invoke({"input": second_question, "chat_history": chat_history})
 
-    print(ai_msg_2["answer"])
+    logger.info(ai_msg_2["answer"])
 
 
 #ndjson format stored in s3_bucket

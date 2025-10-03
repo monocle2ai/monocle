@@ -1,35 +1,39 @@
-import asyncio
+import logging
 import os
 import time
+
 import pytest
-from opentelemetry.sdk.trace.export import BatchSpanProcessor
-from monocle_apptrace.exporters.file_exporter import FileSpanExporter
-from tests.common.custom_exporter import CustomConsoleSpanExporter
-from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
-from monocle_apptrace.instrumentation.metamodel.hugging_face.methods import HUGGING_FACE_METHODS
-from huggingface_hub import InferenceClient
-from huggingface_hub import AsyncInferenceClient
-from tests.common.helpers import (
+from common.custom_exporter import CustomConsoleSpanExporter
+from common.helpers import (
     find_span_by_type,
     find_spans_by_type,
     validate_inference_span_events,
     verify_inference_span,
 )
+from huggingface_hub import AsyncInferenceClient, InferenceClient
+from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
+from monocle_apptrace.instrumentation.metamodel.hugging_face.methods import (
+    HUGGING_FACE_METHODS,
+)
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
 
-custom_exporter = CustomConsoleSpanExporter()
+logger = logging.getLogger(__name__)
 
-@pytest.fixture(autouse=True)
-def clear_spans():
-    custom_exporter.reset()
-    yield
 
 @pytest.fixture(scope="module")
 def setup():
-    setup_monocle_telemetry(
-        workflow_name="generic_hf_1",
-        span_processors=[BatchSpanProcessor(custom_exporter)],
-        #wrapper_methods=HUGGING_FACE_METHODS,
-    )
+    try:
+        custom_exporter = CustomConsoleSpanExporter()
+        instrumentor = setup_monocle_telemetry(
+            workflow_name="generic_hf_1",
+            span_processors=[BatchSpanProcessor(custom_exporter)],
+            wrapper_methods=HUGGING_FACE_METHODS
+        )
+        yield custom_exporter
+    finally:
+        # Clean up instrumentor to avoid global state leakage
+        if instrumentor and instrumentor.is_instrumented_by_opentelemetry:
+            instrumentor.uninstrument()
 
 @pytest.mark.integration()
 def test_huggingface_api_sample(setup):
@@ -47,8 +51,8 @@ def test_huggingface_api_sample(setup):
 
     time.sleep(5)  # wait for spans
 
-    spans = custom_exporter.get_captured_spans()
-    print(f"Captured {len(spans)} spans")
+    spans = setup.get_captured_spans()
+    logger.info(f"Captured {len(spans)} spans")
     assert len(spans) > 0, "No spans captured"
 
     inference_spans = find_spans_by_type(spans, "inference") or find_spans_by_type(spans, "inference.framework")
@@ -64,9 +68,9 @@ def test_huggingface_api_sample(setup):
             check_input_output=True,
         )
 
-    print("\n--- Captured span types ---")
+    logger.info("\n--- Captured span types ---")
     for span in spans:
-        print(span.attributes.get("span.type", "NO_SPAN_TYPE"), "-", span.name)
+        logger.info(span.attributes.get("span.type", "NO_SPAN_TYPE"), "-", span.name)
 
 
     inference_spans = [s for s in inference_spans if s.attributes.get("span.type", "") == "inference"]
@@ -114,8 +118,8 @@ async def test_huggingface_api_async_sample(setup):
 
     time.sleep(5)  # wait for spans
 
-    spans = custom_exporter.get_captured_spans()
-    print(f"Captured {len(spans)} spans")
+    spans = setup.get_captured_spans()
+    logger.info(f"Captured {len(spans)} spans")
     assert len(spans) > 0, "No spans captured"
 
     inference_spans = find_spans_by_type(spans, "inference") or find_spans_by_type(spans, "inference.framework")
@@ -131,9 +135,9 @@ async def test_huggingface_api_async_sample(setup):
             check_input_output=True,
         )
 
-    print("\n--- Captured span types ---")
+    logger.info("\n--- Captured span types ---")
     for span in spans:
-        print(span.attributes.get("span.type", "NO_SPAN_TYPE"), "-", span.name)
+        logger.info(span.attributes.get("span.type", "NO_SPAN_TYPE"), "-", span.name)
 
     inference_spans = [s for s in inference_spans if s.attributes.get("span.type", "") == "inference"]
     assert len(inference_spans) == 1, "Expected exactly one inference span"
@@ -173,11 +177,11 @@ def test_huggingface_invalid_api_key(setup):
         assert "401" in str(e) or "Unauthorized" in str(e)
 
     time.sleep(5)
-    spans = custom_exporter.get_captured_spans()
+    spans = setup.get_captured_spans()
     for span in spans:
-        print("SPAN:", span.name)
+        logger.info("SPAN:", span.name)
         for e in span.events:
-            print(" EVENT:", e.name, e.attributes)
+            logger.info(" EVENT:", e.name, e.attributes)
 
     for span in spans:
         if span.attributes.get("span.type") in ["inference", "inference.framework"]:

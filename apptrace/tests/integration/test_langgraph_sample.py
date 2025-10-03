@@ -1,31 +1,31 @@
-from langchain.tools.base import BaseTool
-from langchain_openai import ChatOpenAI
-from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
-from tests.common.custom_exporter import CustomConsoleSpanExporter
-from opentelemetry.sdk.trace.export import BatchSpanProcessor
-from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
-from opentelemetry.sdk.trace.export import SimpleSpanProcessor
-from langchain_core.messages import HumanMessage, ToolMessage
-from langchain.tools import Tool
-from langchain_core.pydantic_v1 import BaseModel, Field
-from typing import Dict, List, Optional, Type, Union
-from langgraph.prebuilt import create_react_agent
-import pytest
-import os
 import logging
-logger = logging.getLogger(__name__)
-
 import time
-memory_exporter = InMemorySpanExporter()
-span_processors=[SimpleSpanProcessor(memory_exporter)]
+
+import pytest
+from langchain.tools import Tool
+from langchain_core.messages import HumanMessage, ToolMessage
+from langchain_openai import ChatOpenAI
+from langgraph.prebuilt import create_react_agent
+from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
+
+logger = logging.getLogger(__name__)
 
 @pytest.fixture(scope="module")
 def setup():
-    memory_exporter.clear()
-    setup_monocle_telemetry(
-                workflow_name="langchain_agent_1",
-                span_processors=[SimpleSpanProcessor(memory_exporter)]
-                )
+    memory_exporter = InMemorySpanExporter()
+    span_processors = [SimpleSpanProcessor(memory_exporter)]
+    try:
+        instrumentor = setup_monocle_telemetry(
+                    workflow_name="langchain_agent_1",
+                    span_processors=[SimpleSpanProcessor(memory_exporter)]
+                    )
+        yield memory_exporter
+    finally:
+        # Clean up instrumentor to avoid global state leakage
+        if instrumentor and instrumentor.is_instrumented_by_opentelemetry:
+            instrumentor.uninstrument()
 
 coffee_menu = {
     "espresso": "A strong and bold coffee shot.",
@@ -87,12 +87,12 @@ def test_langgraph_chat_sample(setup):
     chunk = agent_executor.invoke({"messages": [HumanMessage(content=question)]})
     if len(chunk["messages"]) > 2:
         tool_msg: ToolMessage = chunk["messages"][2]
-        print(tool_msg.content)
+        logger.info(tool_msg.content)
     else:
 
-        print("Sorry, I can't help you with " + question)
+        logger.info("Sorry, I can't help you with " + question)
     time.sleep(5)
-    spans = memory_exporter.get_finished_spans()
+    spans = setup.get_finished_spans()
 
     found_inference = found_agent = found_tool = False
 

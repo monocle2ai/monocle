@@ -1,36 +1,38 @@
 import asyncio
+import logging
 import os
 import time
-import pytest
-from monocle_apptrace.instrumentation.common.utils import logger
-from opentelemetry.sdk.trace.export import BatchSpanProcessor
-from common.custom_exporter import CustomConsoleSpanExporter
-from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
-from mistralai import Mistral, models
-from monocle_apptrace.instrumentation.metamodel.mistral.methods import MISTRAL_METHODS
 
-from tests.common.helpers import (
+import pytest
+from common.custom_exporter import CustomConsoleSpanExporter
+from common.helpers import (
     find_span_by_type,
     find_spans_by_type,
     validate_inference_span_events,
     verify_inference_span,
 )
+from mistralai import Mistral, models
+from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
+from monocle_apptrace.instrumentation.common.utils import logger
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
 
-custom_exporter = CustomConsoleSpanExporter()
+logger = logging.getLogger(__name__)
 
-@pytest.fixture(autouse=True)
-def clear_spans():
-    """Clear spans before each test"""
-    custom_exporter.reset()
-    yield
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="function")
 def setup():
-    setup_monocle_telemetry(
-        workflow_name="generic_mistral_1",
-        span_processors=[BatchSpanProcessor(custom_exporter)],
-        # wrapper_methods=MISTRAL_METHODS,
-    )
+    custom_exporter = CustomConsoleSpanExporter()
+    try:
+        instrumentor = setup_monocle_telemetry(
+            workflow_name="generic_mistral_1",
+            span_processors=[BatchSpanProcessor(custom_exporter)],
+            # wrapper_methods=MISTRAL_METHODS,
+        )
+        yield custom_exporter
+    finally:
+        # Clean up instrumentor to avoid global state leakage
+        if instrumentor and instrumentor.is_instrumented_by_opentelemetry:
+            instrumentor.uninstrument()
 
 
 @pytest.mark.integration()
@@ -49,8 +51,8 @@ def test_mistral_api_sample(setup):
 
     time.sleep(5)
 
-    spans = custom_exporter.get_captured_spans()
-    print(f"Captured {len(spans)} spans")
+    spans = setup.get_captured_spans()
+    logger.info(f"Captured {len(spans)} spans")
     
     assert len(spans) > 0, "No spans captured"
 
@@ -113,8 +115,8 @@ async def test_mistral_api_sample_async(setup):
     # give some time for spans to flush
     await asyncio.sleep(5)
 
-    spans = custom_exporter.get_captured_spans()
-    print(f"Captured {len(spans)} spans")
+    spans = setup.get_captured_spans()
+    logger.info(f"Captured {len(spans)} spans")
 
     assert len(spans) > 0, "No spans captured"
 
@@ -174,7 +176,7 @@ def test_mistral_invalid_api_key(setup):
 
     # Wait for spans to be flushed
     time.sleep(5)
-    spans = custom_exporter.get_captured_spans()
+    spans = setup.get_captured_spans()
 
     for span in spans:
         if span.attributes.get("span.type") in ["inference", "inference.framework"]:

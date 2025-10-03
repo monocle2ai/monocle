@@ -1,5 +1,6 @@
 
 
+import logging
 import os
 import time
 
@@ -16,25 +17,32 @@ from haystack.components.generators import OpenAIGenerator
 from haystack.components.retrievers.in_memory import InMemoryEmbeddingRetriever
 from haystack.document_stores.in_memory import InMemoryDocumentStore
 from haystack.utils import Secret
+from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 
-from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
-
-custom_exporter = CustomConsoleSpanExporter()
+logger = logging.getLogger(__name__)
 
 @pytest.fixture(scope="module")
 def setup():
-    setup_monocle_telemetry(
-        workflow_name="haystack_app_1",
-        span_processors=[BatchSpanProcessor(custom_exporter)],
-        wrapper_methods=[
-            ])
-    
+    try:
+        custom_exporter = CustomConsoleSpanExporter()
+        instrumentor = setup_monocle_telemetry(
+            workflow_name="haystack_app_1",
+            span_processors=[BatchSpanProcessor(custom_exporter)],
+            wrapper_methods=[
+                ])
+        yield custom_exporter
+
+    finally:
+        # Clean up instrumentor to avoid global state leakage
+        if instrumentor and instrumentor.is_instrumented_by_opentelemetry:
+            instrumentor.uninstrument()
+
 @pytest.mark.integration()
 def test_haystack_metamodel_sample(setup):
     api_key = os.getenv("OPENAI_API_KEY")
     generator = OpenAIGenerator(
-        api_key=Secret.from_token(api_key), model="gpt-3.5-turbo"
+        api_key=Secret.from_token(api_key), model="gpt-4"
     )
 
     # initialize document store, load data and store in document store
@@ -95,9 +103,9 @@ def test_haystack_metamodel_sample(setup):
     )
 
 
-    # print(response["llm"]["replies"][0])
+    # logger.info(response["llm"]["replies"][0])
     time.sleep(10)
-    spans = custom_exporter.get_captured_spans()
+    spans = setup.get_captured_spans()
 
     for span in spans:
         span_attributes = span.attributes
@@ -112,8 +120,8 @@ def test_haystack_metamodel_sample(setup):
             # Assertions for all inference attributes
             assert span_attributes["entity.1.type"] == "inference.openai"
             assert span_attributes["entity.1.inference_endpoint"] == "https://api.openai.com/v1/"
-            assert span_attributes["entity.2.name"] == "gpt-3.5-turbo"
-            assert span_attributes["entity.2.type"] == "model.llm.gpt-3.5-turbo"
+            assert span_attributes["entity.2.name"] == "gpt-4"
+            assert span_attributes["entity.2.type"] == "model.llm.gpt-4"
 
             # Assertions for metadata
             span_input, span_output, span_metadata = span.events

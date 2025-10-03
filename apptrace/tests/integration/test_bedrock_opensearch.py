@@ -1,4 +1,5 @@
 #Continue with code
+import logging
 import os
 import time
 
@@ -8,32 +9,37 @@ from botocore.exceptions import ClientError
 from common.custom_exporter import CustomConsoleSpanExporter
 from langchain_aws import BedrockEmbeddings
 from langchain_community.vectorstores import OpenSearchVectorSearch
-from opensearchpy import RequestsHttpConnection
-from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
-from requests_aws4auth import AWS4Auth
-from monocle_apptrace.instrumentation.common.utils import logger
-
 from monocle_apptrace.instrumentation.common.instrumentor import (
-    set_context_properties,
     setup_monocle_telemetry,
 )
-from monocle_apptrace.instrumentation.metamodel.botocore.handlers.botocore_span_handler import BotoCoreSpanHandler
-custom_exporter = CustomConsoleSpanExporter()
+from monocle_apptrace.instrumentation.common.utils import logger
+from monocle_apptrace.instrumentation.metamodel.botocore.handlers.botocore_span_handler import (
+    BotoCoreSpanHandler,
+)
+from opensearchpy import RequestsHttpConnection
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from requests_aws4auth import AWS4Auth
 
-@pytest.fixture(autouse=True)
-def clear_spans():
-    """Clear spans before each test"""
-    custom_exporter.reset()
-    yield
+logger = logging.getLogger(__name__)
+
 
 @pytest.fixture(scope="module")
 def setup():
-    setup_monocle_telemetry(
-        workflow_name="bedrock_workflow",
-        span_processors=[BatchSpanProcessor(custom_exporter)],
-        wrapper_methods=[],
-        span_handlers={"botocore_handler": BotoCoreSpanHandler()},
-    )
+    try:
+        custom_exporter = CustomConsoleSpanExporter()
+        instrumentor = setup_monocle_telemetry(
+            workflow_name="bedrock_workflow",
+            span_processors=[BatchSpanProcessor(custom_exporter)],
+            wrapper_methods=[],
+            span_handlers={"botocore_handler": BotoCoreSpanHandler()},
+        )
+        yield custom_exporter
+    finally:
+        # Clean up instrumentor to avoid global state leakage
+        if instrumentor and instrumentor.is_instrumented_by_opentelemetry:
+            instrumentor.uninstrument()
+    custom_exporter.reset()
+
 
 @pytest.mark.integration()
 def test_bedrock_opensearch(setup):
@@ -41,7 +47,7 @@ def test_bedrock_opensearch(setup):
     similar_documents = search_similar_documents_opensearch(query)
     produce_llm_response(query, similar_documents)
     time.sleep(5)
-    spans = custom_exporter.get_captured_spans()
+    spans = setup.get_captured_spans()
 
     for span in spans:
         span_attributes = span.attributes
@@ -96,11 +102,11 @@ def produce_llm_response(query,similar_documents):
         )
 
         response_text = response["output"]["message"]["content"][0]["text"]
-        print(f"The response provided by the endpoint: {response_text}")
+        logger.info(f"The response provided by the endpoint: {response_text}")
         return response_text
 
     except (ClientError, Exception) as e:
-        print(f"ERROR: Can't invoke '{model_id}'. Reason: {e}")
+        logger.error(f"Can't invoke '{model_id}'. Reason: {e}")
         exit(1)
 
 
@@ -142,8 +148,9 @@ def search_similar_documents_opensearch(query):
     )
     retriever = doc_search.as_retriever()
     docs = retriever.get_relevant_documents(query)
-    print(f"Retrieved docs: {docs}")
+    logger.info(f"Retrieved docs: {docs}")
     return [doc.page_content for doc in docs]
+
 
 @pytest.mark.integration()
 def test_invalid_credentials(setup):
@@ -170,7 +177,7 @@ def test_invalid_credentials(setup):
         )
     except ClientError as e:
         logger.error("Authentication error: %s", str(e))
-    spans = custom_exporter.get_captured_spans()
+    spans = setup.get_captured_spans()
     time.sleep(5)
     for span in spans:
         if 'span.type' in span.attributes and span.attributes["span.type"] == "inference":

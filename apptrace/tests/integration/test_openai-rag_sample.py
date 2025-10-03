@@ -1,27 +1,35 @@
-import os, sys
+import logging
+import os
 import time
-import warnings, logging
-from typing import Any, Dict, List, Optional, Union
-import chromadb
-from chromadb import ClientAPI, Collection
-# from chromadb.errors import InvalidCollectionException
-from chromadb.utils import embedding_functions
-from openai import OpenAI
-import pytest
-from common.custom_exporter import CustomConsoleSpanExporter
-from opentelemetry.sdk.trace.export import BatchSpanProcessor
-from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
-custom_exporter = CustomConsoleSpanExporter()
 
+import chromadb
+import pytest
+from chromadb import ClientAPI, Collection
+from chromadb.errors import NotFoundError
+from chromadb.utils import embedding_functions
+from common.custom_exporter import CustomConsoleSpanExporter
+from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
+from openai import OpenAI
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
+
+logger = logging.getLogger(__name__)
 COLLECTION_NAME="coffee"
 EMBBEDING_MODEL="text-embedding-ada-002"
 INFERENCE_MODEL="gpt-4o-mini"
+
 @pytest.fixture(scope="module")
 def setup():
-    setup_monocle_telemetry(
-                workflow_name="langchain_app_1",
-                span_processors=[BatchSpanProcessor(custom_exporter)],
-                wrapper_methods=[])
+    custom_exporter = CustomConsoleSpanExporter()
+    try:
+        instrumentor = setup_monocle_telemetry(
+                    workflow_name="langchain_app_1",
+                    span_processors=[BatchSpanProcessor(custom_exporter)],
+                    wrapper_methods=[])
+        yield custom_exporter
+    finally:
+        # Clean up instrumentor to avoid global state leakage
+        if instrumentor and instrumentor.is_instrumented_by_opentelemetry:
+            instrumentor.uninstrument()
 
 
 # Create vectore store and load data
@@ -49,9 +57,7 @@ def get_vector_store() -> Collection:
     vector_store:Collection = None
     try:
         vector_store = chroma_client.get_collection(name=COLLECTION_NAME)
-    # except InvalidCollectionException as ex :
-    #     vector_store = setup_embedding(chroma_client)
-    except ValueError as ex:
+    except NotFoundError:
         vector_store = setup_embedding(chroma_client)
     return vector_store
 
@@ -80,10 +86,10 @@ def test_openai_rag_sample(setup):
         ]
     )
     time.sleep(5)
-    print(response)
-    print(response.choices[0].message.content)
+    logger.info(response)
+    logger.info(response.choices[0].message.content)
     found_workflow_span = False
-    spans = custom_exporter.get_captured_spans()
+    spans = setup.get_captured_spans()
     for span in spans:
         span_attributes = span.attributes
 

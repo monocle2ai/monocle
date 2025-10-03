@@ -4,33 +4,34 @@ import time
 import chromadb
 import pytest
 from common.custom_exporter import CustomConsoleSpanExporter
-from llama_index.core import SimpleDirectoryReader, StorageContext, VectorStoreIndex
-from llama_index.embeddings.openai import OpenAIEmbedding
-from llama_index.llms.azure_openai import AzureOpenAI
-from llama_index.llms.mistralai import MistralAI
-from llama_index.llms.openai import OpenAI
-from llama_index.vector_stores.chroma import ChromaVectorStore
-from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
-
-from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
-from monocle_apptrace.instrumentation.common.wrapper_method import WrapperMethod
-from tests.common.helpers import (
+from common.helpers import (
     find_span_by_type,
     find_spans_by_type,
     validate_inference_span_events,
     verify_inference_span,
 )
-
-custom_exporter = CustomConsoleSpanExporter()
+from llama_index.core import SimpleDirectoryReader, StorageContext, VectorStoreIndex
+from llama_index.embeddings.openai import OpenAIEmbedding
+from llama_index.llms.azure_openai import AzureOpenAI
+from llama_index.vector_stores.chroma import ChromaVectorStore
+from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
 
 
 @pytest.fixture(scope="module")
 def setup():
-    setup_monocle_telemetry(
-        workflow_name="llama_index_1",
-        span_processors=[BatchSpanProcessor(custom_exporter)],
-        wrapper_methods=[],
-    )
+    custom_exporter = CustomConsoleSpanExporter()
+    try:
+        instrumentor = setup_monocle_telemetry(
+            workflow_name="llama_index_1",
+            span_processors=[BatchSpanProcessor(custom_exporter)],
+            wrapper_methods=[],
+        )
+        yield custom_exporter
+    finally:
+        # Clean up instrumentor to avoid global state leakage
+        if instrumentor and instrumentor.is_instrumented_by_opentelemetry:
+            instrumentor.uninstrument()
 
 
 @pytest.mark.integration()
@@ -73,7 +74,7 @@ def test_llama_index_sample(setup):
     response = query_engine.query("What did the author do growing up?")
 
     time.sleep(5)  # Allow time for spans to be captured
-    spans = custom_exporter.get_captured_spans()
+    spans = setup.get_captured_spans()
 
     assert len(spans) > 0, "No spans captured for the LangChain Anthropic sample"
     retrival_span = None

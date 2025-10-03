@@ -1,39 +1,48 @@
-from common.custom_exporter import CustomConsoleSpanExporter
-from common.chain_exec import TestScopes, setup_chain
-from opentelemetry.sdk.trace.export import SimpleSpanProcessor
-from monocle_apptrace import setup_monocle_telemetry, start_scope, stop_scope
-from monocle_apptrace.instrumentation.common.constants import SCOPE_METHOD_FILE, SCOPE_CONFIG_PATH, TRACE_PROPOGATION_URLS
-custom_exporter = CustomConsoleSpanExporter()
-import pytest , pytest_asyncio
-import aiohttp
-from tests.common import aiohttp_helper
-import uuid
+import logging
 import os
+import uuid
+
+import aiohttp
+import pytest
+import pytest_asyncio
+from common import aiohttp_helper
+from common.custom_exporter import CustomConsoleSpanExporter
+from monocle_apptrace import setup_monocle_telemetry
+from monocle_apptrace.instrumentation.common.constants import (
+    SCOPE_CONFIG_PATH,
+    SCOPE_METHOD_FILE,
+    TRACE_PROPOGATION_URLS,
+)
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+
+logger = logging.getLogger(__name__)
 
 @pytest_asyncio.fixture
-async def aiohttp_server(scope="module"):
-    print("Setting up aiohttp server")
+async def aiohttp_server(scope="function", autouse=False):
+    logger.info("Setting up aiohttp server")
     os.environ[TRACE_PROPOGATION_URLS] = "http://localhost:8081"
     os.environ[SCOPE_CONFIG_PATH] = os.path.join(os.path.dirname(os.path.abspath(__file__)), SCOPE_METHOD_FILE)
+    custom_exporter = CustomConsoleSpanExporter()
+    try:
+        instrumentor = setup_monocle_telemetry(
+            workflow_name="aiohttp_test",
+            span_processors=[SimpleSpanProcessor(custom_exporter)]
+        )
+        
+        runner = await aiohttp_helper.run_server()
 
-    setup_monocle_telemetry(
-        workflow_name="aiohttp_test",
-        span_processors=[SimpleSpanProcessor(custom_exporter)]
-    )
+        yield custom_exporter
+        await runner.cleanup()
+    finally:
+        # Clean up instrumentor to avoid global state leakage
+        if instrumentor and instrumentor.is_instrumented_by_opentelemetry:
+            instrumentor.uninstrument()
 
-    runner = await aiohttp_helper.run_server()
 
-    yield
-    await runner.cleanup()
-
-@pytest_asyncio.fixture(autouse=True)
-def pre_test():
-    # clear old spans
-   custom_exporter.reset()
 
 @pytest.mark.asyncio
 async def test_chat_endpoint(aiohttp_server):
-    custom_exporter.reset()
+    aiohttp_server.reset()
 
     url = aiohttp_helper.get_url()
     timeout = aiohttp.ClientTimeout(total=60)
@@ -42,16 +51,16 @@ async def test_chat_endpoint(aiohttp_server):
 
     async with aiohttp.ClientSession(timeout=timeout) as session:
         async with session.get(f"{url}/chat?question={question}", headers=headers) as resp:
-            print(f"Response status: {resp.status}")
+            logger.info(f"Response status: {resp.status}")
             text = await resp.text()
-            print(f"Response text: {text}")
+            logger.info(f"Response text: {text}")
             assert resp.status == 200
 
-    verify_scopes()
+    verify_scopes(aiohttp_server)
 
-def verify_scopes():
+def verify_scopes(aiohttp_server):
     scope_name = "conversation"
-    spans = custom_exporter.get_captured_spans()
+    spans = aiohttp_server.get_captured_spans()
     message_scope_id = None
     trace_id = None
     for span in spans:

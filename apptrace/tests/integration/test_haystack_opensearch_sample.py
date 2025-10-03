@@ -1,3 +1,4 @@
+import logging
 import os
 
 import pytest
@@ -16,21 +17,26 @@ from haystack_integrations.components.retrievers.opensearch import (
     OpenSearchEmbeddingRetriever,
 )
 from haystack_integrations.document_stores.opensearch import OpenSearchDocumentStore
-from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
-
 from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
-from monocle_apptrace.instrumentation.common.wrapper import task_wrapper
-from monocle_apptrace.instrumentation.common.wrapper_method import WrapperMethod
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
 
-custom_exporter = CustomConsoleSpanExporter()
+logger = logging.getLogger(__name__)
+
 
 @pytest.fixture(scope="module")
 def setup():
-    setup_monocle_telemetry(
-        workflow_name="haystack_app_1",
-        span_processors=[BatchSpanProcessor(custom_exporter)],
-        wrapper_methods=[
-        ])
+    try:
+        custom_exporter = CustomConsoleSpanExporter()
+        instrumentor = setup_monocle_telemetry(
+            workflow_name="haystack_app_1",
+            span_processors=[BatchSpanProcessor(custom_exporter)],
+            wrapper_methods=[
+            ])
+        yield custom_exporter
+    finally:
+        # Clean up instrumentor to avoid global state leakage
+        if instrumentor and instrumentor.is_instrumented_by_opentelemetry:
+            instrumentor.uninstrument()
 
 @pytest.mark.integration()
 def test_haystack_opensearch_sample(setup):
@@ -38,7 +44,7 @@ def test_haystack_opensearch_sample(setup):
     api_key = os.getenv("OPENAI_API_KEY")
     http_auth=(os.getenv("OPEN_SEARCH_AUTH_USER"), os.getenv("OPEN_SEARCH_AUTH_PASSWORD"))
     generator = OpenAIGenerator(
-        api_key=Secret.from_token(api_key), model="gpt-3.5-turbo"
+        api_key=Secret.from_token(api_key), model="gpt-4"
     )
     document_store = OpenSearchDocumentStore(hosts=os.getenv("OPEN_SEARCH_DOCSTORE_ENDPOINT"), use_ssl=True,
                         verify_certs=True, http_auth=http_auth)
@@ -70,7 +76,10 @@ def test_haystack_opensearch_sample(setup):
     Given the following information, answer the question.
 
     Context:
-    {% for document in documents %}
+    {% for document in documents %    finally:
+        # Clean up instrumentor to avoid global state leakage
+        if instrumentor and instrumentor.is_instrumented_by_opentelemetry:
+            instrumentor.uninstrument()}
         {{ document.content }}
     {% endfor %}
 
@@ -98,9 +107,9 @@ def test_haystack_opensearch_sample(setup):
         {"text_embedder": {"text": question}, "prompt_builder": {"question": question}}
     )
 
-    # print(response["llm"]["replies"][0])
+    # logger.info(response["llm"]["replies"][0])
 
-    spans = custom_exporter.get_captured_spans()
+    spans = setup.get_captured_spans()
     for span in spans:
         span_attributes = span.attributes
         if "span.type" in span_attributes and span_attributes["span.type"] == "retrieval":
@@ -116,8 +125,8 @@ def test_haystack_opensearch_sample(setup):
             # Assertions for all inference attributes
             assert span_attributes["entity.1.type"] == "inference.azure_openai"
             assert "entity.1.inference_endpoint" in span_attributes
-            assert span_attributes["entity.2.name"] == "gpt-3.5-turbo"
-            assert span_attributes["entity.2.type"] == "model.llm.gpt-3.5-turbo"
+            assert span_attributes["entity.2.name"] == "gpt-4"
+            assert span_attributes["entity.2.type"] == "model.llm.gpt-4"
 
         if not span.parent and 'haystack' in span.name:  # Root span
             assert span_attributes["entity.1.name"] == "haystack_app_1"
@@ -174,8 +183,8 @@ def test_haystack_opensearch_sample(setup):
 #         "entity.count": 2,
 #         "entity.1.type": "inference.azure_openai",
 #         "entity.1.inference_endpoint": "https://api.openai.com/v1/",
-#         "entity.2.name": "gpt-3.5-turbo",
-#         "entity.2.type": "model.llm.gpt-3.5-turbo"
+#         "entity.2.name": "gpt-4",
+#         "entity.2.type": "model.llm.gpt-4"
 #     },
 #     "events": [
 #         {

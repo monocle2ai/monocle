@@ -1,34 +1,41 @@
 # Enable Monocle Tracing
+import logging
+import os
 import time
 
+import pytest
+from common.custom_exporter import CustomConsoleSpanExporter
+from common.helpers import (
+    find_span_by_type,
+    find_spans_by_type,
+    validate_inference_span_events,
+    verify_inference_span,
+)
+from google import genai
+from google.genai import types
 from monocle_apptrace.instrumentation.common.instrumentor import (
-    set_context_properties,
     setup_monocle_telemetry,
 )
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
-from common.custom_exporter import CustomConsoleSpanExporter
-from common.helpers import (
-    validate_inference_span_events,
-    verify_inference_span,
-    find_span_by_type,
-    find_spans_by_type,
-)
-import os
-from google import genai
-from google.genai import types
 
-import pytest
-
-custom_exporter = CustomConsoleSpanExporter()
+logger = logging.getLogger(__name__)
 
 
-@pytest.fixture(scope="module")
+
+@pytest.fixture(scope="function")
 def setup():
-    setup_monocle_telemetry(
-        workflow_name="gemini_app_1",
-        span_processors=[BatchSpanProcessor(custom_exporter)],
-        wrapper_methods=[],
-    )
+    try:
+        custom_exporter = CustomConsoleSpanExporter()
+        instrumentor = setup_monocle_telemetry(
+            workflow_name="gemini_app_1",
+            span_processors=[BatchSpanProcessor(custom_exporter)],
+            wrapper_methods=[],
+        )
+        yield custom_exporter
+    finally:
+        # Clean up instrumentor to avoid global state leakage
+        if instrumentor and instrumentor.is_instrumented_by_opentelemetry:
+            instrumentor.uninstrument()
 
 
 @pytest.mark.integration()
@@ -43,15 +50,9 @@ def test_gemini_model_sample(setup):
         contents="Hello there",
     )
     time.sleep(5)
-    print(response.text)
-    spans = custom_exporter.get_captured_spans()
+    logger.info(response.text)
+    spans = setup.get_captured_spans()
     check_span(spans)
-
-
-@pytest.fixture(autouse=True)
-def pre_test():
-    # clear old spans
-    custom_exporter.reset()
 
 
 @pytest.mark.integration()
@@ -61,17 +62,16 @@ def test_gemini_chat_sample(setup):
     chat = client.chats.create(model="gemini-2.5-flash")
 
     response = chat.send_message("I have 2 dogs in my house.")
-    print(response.text)
+    logger.info(response.text)
 
     response = chat.send_message("How many paws are in my house?")
-    print(response.text)
+    logger.info(response.text)
 
     for message in chat.get_history():
-        print(f"role - {message.role}", end=": ")
-        print(message.parts[0].text)
+        logger.info(f"role - {message.role}: {message.parts[0].text}")
     time.sleep(5)
-    print(response.text)
-    spans = custom_exporter.get_captured_spans()
+    logger.info(response.text)
+    spans = setup.get_captured_spans()
     check_span_chat(spans)
 
 

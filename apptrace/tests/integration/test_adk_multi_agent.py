@@ -1,31 +1,39 @@
-import datetime
 import asyncio
+import datetime
+import logging
 import os
 import time
 from zoneinfo import ZoneInfo
+
+import pytest
+from common.custom_exporter import CustomConsoleSpanExporter
 from google.adk.agents import LlmAgent, SequentialAgent
 from google.adk.runners import Runner
 from google.adk.sessions import InMemorySessionService
 from google.genai import types
 from monocle_apptrace import setup_monocle_telemetry
+from opentelemetry.sdk.trace.export import BatchSpanProcessor, SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
-from opentelemetry.sdk.trace.export import SimpleSpanProcessor, BatchSpanProcessor
-import pytest
-import logging
-from common.custom_exporter import CustomConsoleSpanExporter
 
-memory_exporter = InMemorySpanExporter()
-custom_exporter = CustomConsoleSpanExporter()
-span_processors = [SimpleSpanProcessor(memory_exporter),SimpleSpanProcessor(custom_exporter)]
+logger = logging.getLogger(__name__)
+
 
 @pytest.fixture(scope="function")
 def setup():
-    os.environ["GOOGLE_GENAI_USE_VERTEXAI"] = "FALSE"
-    memory_exporter.clear()
-    setup_monocle_telemetry(
-        workflow_name="langchain_agent_1",
-        span_processors=span_processors
-    )
+    try:
+        os.environ["GOOGLE_GENAI_USE_VERTEXAI"] = "FALSE"
+        memory_exporter = InMemorySpanExporter()
+        custom_exporter = CustomConsoleSpanExporter()
+        span_processors = [SimpleSpanProcessor(memory_exporter), SimpleSpanProcessor(custom_exporter)]
+        instrumentor = setup_monocle_telemetry(
+            workflow_name="langchain_agent_1",
+            span_processors=span_processors
+        )
+        yield memory_exporter
+    finally:
+        # Clean up instrumentor to avoid global state leakage
+        if instrumentor and instrumentor.is_instrumented_by_opentelemetry:
+            instrumentor.uninstrument()
 
 def book_flight(from_airport: str, to_airport: str) -> dict:
     """Books a flight from one airport to another.
@@ -115,16 +123,16 @@ async def run_agent(test_message: str):
     ):
         # For final response
         if event.is_final_response():
-            print(event.content)  # End line after response
+            logger.info(event.content)  # End line after response
 
 @pytest.mark.integration()
 @pytest.mark.asyncio
 async def test_multi_agent(setup):
     test_message = "Book a flight from San Francisco to Mumbai, book Taj Mahal hotel in Mumbai."
     await run_agent(test_message)
-    verify_spans()
+    verify_spans(setup)
 
-def verify_spans():
+def verify_spans(memory_exporter):
     time.sleep(2)
     found_inference = found_agent = found_tool = found_delegation = False
     found_flight_agent = found_hotel_agent = found_supervisor_agent = False

@@ -14,11 +14,6 @@ from langchain.prompts import PromptTemplate
 from langchain.schema import StrOutputParser
 from langchain_community.vectorstores import faiss
 from langchain_core.runnables import RunnablePassthrough
-from opentelemetry import trace
-from opentelemetry.sdk.resources import SERVICE_NAME, Resource
-from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
-
 from monocle_apptrace.instrumentation.common.instrumentor import (
     MonocleInstrumentor,
     set_context_properties,
@@ -27,6 +22,10 @@ from monocle_apptrace.instrumentation.common.instrumentor import (
 from monocle_apptrace.instrumentation.common.span_handler import SpanHandler
 from monocle_apptrace.instrumentation.common.wrapper import atask_wrapper
 from monocle_apptrace.instrumentation.common.wrapper_method import WrapperMethod
+from opentelemetry import trace
+from opentelemetry.sdk.resources import SERVICE_NAME, Resource
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
 
 events = []
 logger = logging.getLogger(__name__)
@@ -130,7 +129,18 @@ class Test(IsolatedAsyncioTestCase):
             dataBodyStr = mock_post.call_args.kwargs['data']
             dataJson = json.loads(dataBodyStr)  # more asserts can be added on individual fields
 
-            llm_span = [x for x in dataJson["batch"] if "FakeListLLM" in x["name"]][0]
+            # Find the LLM generation span (the main span we want to verify)
+            llm_generation_spans = [x for x in dataJson["batch"] if "langchain_core.language_models.llms.LLM._generate" in x["name"]]
+            
+            if not llm_generation_spans:
+                # Debug: Print available span names if we can't find the expected one
+                span_names = [x["name"] for x in dataJson["batch"]]
+                raise AssertionError(f"No LLM._generate span found. Available spans: {span_names}")
+            
+            llm_span = llm_generation_spans[0]
+            
+            # Debug: Print the attributes to see what's available
+            print(f"LLM span attributes: {llm_span.get('attributes', {})}")
 
             assert llm_span["attributes"]["span.type"] == "inference.framework"
             # assert llm_span["attributes"]["entity.1.provider_name"] == "example.com"
@@ -142,7 +152,7 @@ class Test(IsolatedAsyncioTestCase):
                 if self.instrumentor is not None:
                     self.instrumentor.uninstrument()
             except Exception as e:
-                print("Uninstrument failed:", e)
+                logger.info("Uninstrument failed:", e)
 
 
 if __name__ == "__main__":

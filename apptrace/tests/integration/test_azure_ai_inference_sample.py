@@ -1,28 +1,42 @@
+import asyncio
+import logging
 import os
 import time
-import asyncio
+
 import pytest
-from opentelemetry.sdk.trace.export import BatchSpanProcessor
-from common.custom_exporter import CustomConsoleSpanExporter
-from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
 
 # Azure AI Inference imports
 from azure.ai.inference import ChatCompletionsClient
 from azure.ai.inference.aio import ChatCompletionsClient as AsyncChatCompletionsClient
 from azure.ai.inference.models import SystemMessage, UserMessage
 from azure.core.credentials import AzureKeyCredential
-
-from tests.common.helpers import find_span_by_type, find_spans_by_type, validate_inference_span_events, verify_inference_span
+from common.custom_exporter import CustomConsoleSpanExporter
+from common.helpers import (
+    find_span_by_type,
+    find_spans_by_type,
+    validate_inference_span_events,
+    verify_inference_span,
+)
+from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
 
 custom_exporter = CustomConsoleSpanExporter()
 
+
+logger = logging.getLogger(__name__)
 @pytest.fixture(scope="module")
 def setup():
-    setup_monocle_telemetry(
-        workflow_name="azure_ai_inference_integration_test",
-        span_processors=[BatchSpanProcessor(custom_exporter)],
-        wrapper_methods=[]
-    )
+    try:
+        instrumentor = setup_monocle_telemetry(
+            workflow_name="azure_ai_inference_integration_test",
+            span_processors=[BatchSpanProcessor(custom_exporter)],
+            wrapper_methods=[]
+        )
+        yield
+    finally:
+        # Clean up instrumentor to avoid global state leakage
+        if instrumentor and instrumentor.is_instrumented_by_opentelemetry:
+            instrumentor.uninstrument()
 
 @pytest.fixture(autouse=True)
 def pre_test():
@@ -54,13 +68,13 @@ def test_azure_ai_inference_chat_completion_sync(setup):
         temperature=0.1
     )
     
-    print(f"Response: {response.choices[0].message.content}")
+    logger.info(f"Response: {response.choices[0].message.content}")
     
     # Wait for spans to be processed
     time.sleep(5)
     
     spans = custom_exporter.get_captured_spans()
-    print(f"Captured {len(spans)} spans")
+    logger.info(f"Captured {len(spans)} spans")
     
     # Verify we have spans
     assert len(spans) > 0, "No spans captured"
@@ -152,13 +166,13 @@ def test_azure_ai_inference_chat_completion_streaming_sync(setup):
             collected_content.append(chunk.choices[0].delta.content)
     
     full_response = "".join(collected_content)
-    print(f"Streamed response: {full_response}")
+    logger.info(f"Streamed response: {full_response}")
     
     # Wait for spans to be processed
     time.sleep(5)
     
     spans = custom_exporter.get_captured_spans()
-    print(f"Captured {len(spans)} spans")
+    logger.info(f"Captured {len(spans)} spans")
     
     # Verify we have spans
     assert len(spans) > 0, "No spans captured"
@@ -240,13 +254,13 @@ async def test_azure_ai_inference_chat_completion_async(setup):
             temperature=0.1
         )
         
-        print(f"Async response: {response.choices[0].message.content}")
+        logger.info(f"Async response: {response.choices[0].message.content}")
         
         # Wait for spans to be processed
         await asyncio.sleep(5)
         
         spans = custom_exporter.get_captured_spans()
-        print(f"Captured {len(spans)} spans")
+        logger.info(f"Captured {len(spans)} spans")
         
         # Verify we have spans
         assert len(spans) > 0, "No spans captured"
@@ -340,13 +354,13 @@ async def test_azure_ai_inference_chat_completion_streaming_async(setup):
                 collected_content.append(chunk.choices[0].delta.content)
         
         full_response = "".join(collected_content)
-        print(f"Async streamed response: {full_response}")
+        logger.info(f"Async streamed response: {full_response}")
         
         # Wait for spans to be processed
         await asyncio.sleep(5)
         
         spans = custom_exporter.get_captured_spans()
-        print(f"Captured {len(spans)} spans")
+        logger.info(f"Captured {len(spans)} spans")
         
         # Verify we have spans
         assert len(spans) > 0, "No spans captured"
@@ -446,13 +460,13 @@ def test_azure_ai_inference_different_providers(setup):
                     provider_name = span.attributes.get("entity.1.provider_name", "")
                     endpoint_attr = span.attributes.get("entity.1.inference_endpoint", "")
                     
-                    print(f"Provider: {config['name']}, Endpoint: {endpoint_attr}, Provider Name: {provider_name}")
+                    logger.info(f"Provider: {config['name']}, Endpoint: {endpoint_attr}, Provider Name: {provider_name}")
                     
                     # Verify endpoint is captured correctly
                     assert config["endpoint"] in endpoint_attr, f"Expected endpoint not found for {config['name']}"
                     
         except Exception as e:
-            print(f"Provider {config['name']} test failed (this may be expected if endpoint is not available): {str(e)}")
+            logger.info(f"Provider {config['name']} test failed (this may be expected if endpoint is not available): {str(e)}")
             # Don't fail the test for provider-specific issues
             continue
 

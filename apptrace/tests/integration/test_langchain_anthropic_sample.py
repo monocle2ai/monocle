@@ -1,29 +1,33 @@
 import time
-import os
-import pytest
-from opentelemetry.sdk.trace.export import BatchSpanProcessor
-from common.custom_exporter import CustomConsoleSpanExporter
-from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_anthropic import ChatAnthropic
 
-from tests.common.helpers import (
+import pytest
+from common.custom_exporter import CustomConsoleSpanExporter
+from common.helpers import (
     find_span_by_type,
     find_spans_by_type,
-    verify_inference_span,
     validate_inference_span_events,
+    verify_inference_span,
 )
-
-custom_exporter = CustomConsoleSpanExporter()
+from langchain_anthropic import ChatAnthropic
+from langchain_core.prompts import ChatPromptTemplate
+from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
 
 
 @pytest.fixture(scope="module")
 def setup():
-    setup_monocle_telemetry(
-        workflow_name="langchain_app_1",
-        span_processors=[BatchSpanProcessor(custom_exporter)],
-        wrapper_methods=[],
-    )
+    custom_exporter = CustomConsoleSpanExporter()
+    try:
+        instrumentor = setup_monocle_telemetry(
+            workflow_name="langchain_app_1",
+            span_processors=[BatchSpanProcessor(custom_exporter)],
+            wrapper_methods=[],
+        )
+        yield custom_exporter
+    finally:
+        # Clean up instrumentor to avoid global state leakage
+        if instrumentor and instrumentor.is_instrumented_by_opentelemetry:
+            instrumentor.uninstrument()
 
 
 @pytest.mark.integration()
@@ -56,7 +60,7 @@ def test_langchain_anthropic_sample(setup):
     )
     time.sleep(5)
 
-    spans = custom_exporter.get_captured_spans()
+    spans = setup.get_captured_spans()
     assert len(spans) > 0, "No spans captured for the LangChain Anthropic sample"
 
     workflow_span = None

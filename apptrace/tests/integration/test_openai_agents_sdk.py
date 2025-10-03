@@ -1,26 +1,20 @@
-import asyncio
-import pytest
 import logging
+import os
 import threading
+import time
+
+import pytest
 import uvicorn
-from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
-from opentelemetry.sdk.trace.export import SimpleSpanProcessor, BatchSpanProcessor
+from common.custom_exporter import CustomConsoleSpanExporter
 from monocle_apptrace.exporters.file_exporter import FileSpanExporter
 from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
-from tests.integration.servers.mcp.weather_server import app as weather_app
-from common.custom_exporter import CustomConsoleSpanExporter
-import time
-import os
+from opentelemetry.sdk.trace.export import BatchSpanProcessor, SimpleSpanProcessor
+from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
+
+from integration.servers.mcp.weather_server import app as weather_app
 
 logger = logging.getLogger(__name__)
 
-memory_exporter = InMemorySpanExporter()
-custom_exporter = CustomConsoleSpanExporter()
-span_processors = [
-    SimpleSpanProcessor(memory_exporter),
-    BatchSpanProcessor(FileSpanExporter()),
-    SimpleSpanProcessor(custom_exporter)
-]
 
 # Global variable to track weather server process
 weather_server_process = None
@@ -54,12 +48,20 @@ def start_weather_server_fixture():
 
 @pytest.fixture(scope="module")
 def setup(start_weather_server_fixture):
-    memory_exporter.clear()
+    
+    memory_exporter = InMemorySpanExporter()
+    custom_exporter = CustomConsoleSpanExporter()
+    span_processors = [
+        SimpleSpanProcessor(memory_exporter),
+        BatchSpanProcessor(FileSpanExporter()),
+        SimpleSpanProcessor(custom_exporter)
+    ]
     setup_monocle_telemetry(
         workflow_name="agents_sdk_dev_1",
         # monocle_exporters_list="file, okahu"
         span_processors=span_processors,
     )
+    yield memory_exporter
 
 
 def book_hotel(hotel_name: str) -> str:
@@ -139,15 +141,15 @@ async def test_agents_sdk_multi_agent(setup):
             "I need to book a flight from NYC to LAX and also book the Hilton hotel in Los Angeles. Also check the weather in Los Angeles and New York to help with travel planning.",
         )
 
-        print(f"Multi-agent result: {result.final_output}")
+        logger.info(f"Multi-agent result: {result.final_output}")
 
         # Verify spans were created
-        verify_multi_agent_spans()
+        verify_multi_agent_spans(memory_exporter=setup)
 
     except ImportError:
         pytest.skip("OpenAI Agents SDK not available")
 
-def verify_multi_agent_spans():
+def verify_multi_agent_spans(memory_exporter=None):
     """Verify that multi-agent spans were created."""
     time.sleep(2)
     # Allow time for spans to be processed
@@ -207,10 +209,10 @@ def verify_multi_agent_spans():
     # Note: Delegation might not always occur depending on the model's decisions
     # Note: MCP spans might not always occur depending on whether MCP tools are called
 
-    print(f"Found agents: {agent_names}")
-    print(f"Found tools: {tool_names}")
+    logger.info(f"Found agents: {agent_names}")
+    logger.info(f"Found tools: {tool_names}")
     if mcp_operations:
-        print(f"Found MCP operations: {mcp_operations}")
+        logger.info(f"Found MCP operations: {mcp_operations}")
 
 
 @pytest.mark.integration()
@@ -240,10 +242,10 @@ async def test_agents_sdk_mcp_server(setup):
             "What's the weather like in New York, London, and Tokyo? Please provide the temperature for each city.",
         )
 
-        print(f"Weather agent result: {result.final_output}")
+        logger.info(f"Weather agent result: {result.final_output}")
 
         # Verify spans were created
-        verify_mcp_spans()
+        verify_mcp_spans(memory_exporter=setup)
 
     except ImportError:
         pytest.skip("OpenAI Agents SDK not available")
@@ -253,7 +255,7 @@ async def test_agents_sdk_mcp_server(setup):
 async def test_invalid_api_key_error_code_in_span(setup):
     """Test that passing an invalid API key results in error_code in the span."""
     # Simulate invalid API key by setting an obviously wrong value
-    memory_exporter.clear()
+    setup.clear()
     try:
         os.environ["OPENAI_API_KEY"] = "INVALID_API_KEY"
         try:
@@ -279,16 +281,16 @@ async def test_invalid_api_key_error_code_in_span(setup):
                 "What's the weather like in New York, London, and Tokyo? Please provide the temperature for each city.",
             )
 
-            print(f"Weather agent result: {result.final_output}")
+            logger.info(f"Weather agent result: {result.final_output}")
 
             # Verify spans were created
-            verify_mcp_spans()
+            verify_mcp_spans(memory_exporter=setup)
 
         except ImportError:
             pytest.skip("OpenAI Agents SDK not available")
 
     except Exception as e:
-        spans = memory_exporter.get_finished_spans()
+        spans = setup.get_finished_spans()
         found_error_code = False
         for span in spans:
             span_attributes = span.attributes
@@ -302,7 +304,7 @@ async def test_invalid_api_key_error_code_in_span(setup):
                 assert span_output.attributes["error_code"] == "invalid_api_key"
 
 
-def verify_mcp_spans():
+def verify_mcp_spans(memory_exporter=None):
     """Verify that MCP-related spans were created."""
     time.sleep(2)
     # Allow time for spans to be processed
@@ -346,9 +348,9 @@ def verify_mcp_spans():
     assert found_agent, "Agent span not found"
     # Note: MCP tool spans might not always occur depending on whether MCP tools are called
 
-    print(f"Found agents: {agent_names}")
+    logger.info(f"Found agents: {agent_names}")
     if mcp_tool_names:
-        print(f"Found MCP tools: {mcp_tool_names}")
+        logger.info(f"Found MCP tools: {mcp_tool_names}")
 
 
 if __name__ == "__main__":

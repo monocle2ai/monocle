@@ -1,3 +1,4 @@
+import logging
 import os
 import time
 
@@ -8,21 +9,22 @@ from llama_index.llms.gemini import Gemini
 from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 
-custom_exporter = CustomConsoleSpanExporter()
-
+logger = logging.getLogger(__name__)
 @pytest.fixture(scope="module")
 def setup():
+    custom_exporter = CustomConsoleSpanExporter()
     setup_monocle_telemetry(
         workflow_name="llamaindex_app_1",
         span_processors=[BatchSpanProcessor(custom_exporter)],
         wrapper_methods=[],
     )
+    yield custom_exporter
 
 @pytest.mark.integration()
 def test_llamaindex_gemini_sample(setup):
 
     llm = Gemini(
-        model="gemini-1.5-flash",
+        model="gemini-2.5-pro",
         api_key=os.getenv("GEMINI_API_KEY"),
         temperature=0,
         max_output_tokens=1024,
@@ -35,18 +37,18 @@ def test_llamaindex_gemini_sample(setup):
     ]
 
     ai_answer = llm.chat(messages)
-    print(ai_answer)
+    logger.info(ai_answer)
     time.sleep(5)
     found_workflow_span = False
-    spans = custom_exporter.get_captured_spans()
+    spans = setup.get_captured_spans()
     for span in spans:
         span_attributes = span.attributes
         if "span.type" in span_attributes and (span_attributes["span.type"] == "inference" or span_attributes["span.type"] == "inference.framework"):
             assert span_attributes["entity.1.type"] == "inference.gemini"
             assert "entity.1.provider_name" in span_attributes
             assert "entity.1.inference_endpoint" in span_attributes
-            assert span_attributes["entity.2.name"] == "gemini-1.5-flash"
-            assert span_attributes["entity.2.type"] == "model.llm.gemini-1.5-flash"
+            assert span_attributes["entity.2.name"] == "gemini-2.5-pro"
+            assert span_attributes["entity.2.type"] == "model.llm.gemini-2.5-pro"
 
             # Assertions for metadata
             span_input, span_output, span_metadata = span.events

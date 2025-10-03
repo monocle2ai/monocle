@@ -1,15 +1,16 @@
 
 
+import logging
+
 import pytest
 import torch
-from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
-from transformers import GPT2DoubleHeadsModel, GPT2Tokenizer
-
 from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
 from monocle_apptrace.instrumentation.common.wrapper import task_wrapper
 from monocle_apptrace.instrumentation.common.wrapper_method import WrapperMethod
+from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
+from transformers import GPT2DoubleHeadsModel, GPT2Tokenizer
 
-
+logger = logging.getLogger(__name__)
 @pytest.fixture(scope="module")
 def setup():
     setup_monocle_telemetry(
@@ -53,7 +54,7 @@ def test_pytorch_sample(setup):
     # the trace gets generated for the forward method which gets called here
     outputs = model(input_ids, mc_token_ids=mc_token_ids)
     lm_prediction_scores, mc_prediction_scores = outputs[:2]
-    print("done")
+    logger.info("done")
 
 #{
 #     "name": "pytorch.transformer.PreTrainedModel",

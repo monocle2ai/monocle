@@ -1,32 +1,33 @@
 
-
 import os
-import asyncio
 import time
+
 import chromadb
 import pytest
 from common.custom_exporter import CustomConsoleSpanExporter
+from common.helpers import (
+    find_span_by_type,
+    find_spans_by_type,
+    validate_inference_span_events,
+    verify_inference_span,
+)
 from llama_index.core import SimpleDirectoryReader, StorageContext, VectorStoreIndex
 from llama_index.embeddings.openai import OpenAIEmbedding
-from llama_index.llms.azure_openai import AzureOpenAI, AsyncAzureOpenAI
-from llama_index.llms.mistralai import MistralAI
-from llama_index.llms.openai import OpenAI
+from llama_index.llms.azure_openai import AzureOpenAI
 from llama_index.vector_stores.chroma import ChromaVectorStore
-from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
-
 from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
-from monocle_apptrace.instrumentation.common.wrapper_method import WrapperMethod
-from tests.common.helpers import find_span_by_type, find_spans_by_type, validate_inference_span_events, verify_inference_span
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
 
-custom_exporter = CustomConsoleSpanExporter()
 
 @pytest.fixture(scope="module")
 def setup():
+    custom_exporter = CustomConsoleSpanExporter()
     setup_monocle_telemetry(
         workflow_name="llama_index_1",
         span_processors=[BatchSpanProcessor(custom_exporter)],
         wrapper_methods=[]
     )
+    yield custom_exporter
 
 @pytest.mark.integration()
 @pytest.mark.asyncio
@@ -65,7 +66,7 @@ async def test_llama_index_sample(setup: None):
     query_engine = index.as_query_engine(llm= llm, )
     response = await query_engine.aquery("What did the author do growing up?")
     time.sleep(5)  # Allow time for spans to be captured
-    spans = custom_exporter.get_captured_spans()
+    spans = setup.get_captured_spans()
 
     assert len(spans) > 0, "No spans captured for the LangChain Anthropic sample"
     retrival_span = None

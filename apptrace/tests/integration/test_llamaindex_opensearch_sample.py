@@ -1,3 +1,4 @@
+import logging
 import os
 from os import getenv
 
@@ -7,10 +8,10 @@ from llama_index.vector_stores.opensearch import (
     OpensearchVectorClient,
     OpensearchVectorStore,
 )
+from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
 
-from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
-
+logger = logging.getLogger(__name__)
 
 @pytest.fixture(scope="module")
 def setup():
@@ -52,7 +53,7 @@ def test_llamaindex_opensearch_sample(setup):
     # run query
     query_engine = index.as_query_engine()
     res = query_engine.query("What did the author do growing up?")
-    print(res)
+    logger.info(res)
 
 # {
 #     "name": "llamaindex.retrieve",

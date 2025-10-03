@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import time
 
 import pytest
@@ -9,14 +10,17 @@ from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_t
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 
-memory_exporter = InMemorySpanExporter()
-span_processors=[SimpleSpanProcessor(memory_exporter)]
+logger = logging.getLogger(__name__)
+
 @pytest.fixture(scope="module")
 def setup():
+    memory_exporter = InMemorySpanExporter()
+    span_processors = [SimpleSpanProcessor(memory_exporter)]
     setup_monocle_telemetry(
         workflow_name="llama_index_1",
-        span_processors=[SimpleSpanProcessor(memory_exporter)]
+        span_processors=span_processors
     )
+    yield memory_exporter
 
 # Define coffee menu
 COFFEE_MENU = {
@@ -57,7 +61,7 @@ llm = OpenAI(model="gpt-4")
 agent = ReActAgent(tools=[coffee_menu_tool, order_tool], llm=llm)
 
 def test_llamaindex_agent(setup):
-    print("Welcome to the Coffee Bot! ")
+    logger.info("Welcome to the Coffee Bot! ")
     user_input = "Please order 3 espresso coffees"
     
     async def run_agent():
@@ -66,9 +70,9 @@ def test_llamaindex_agent(setup):
     
     response = asyncio.run(run_agent())
     time.sleep(5)
-    print(f"Bot: {response}")
+    logger.info(f"Bot: {response}")
 
-    spans = memory_exporter.get_finished_spans()
+    spans = setup.get_finished_spans()
     found_inference_span = found_agent_span = found_tool_span = False
     for span in spans:
         span_attributes = span.attributes
@@ -104,6 +108,8 @@ def test_llamaindex_agent(setup):
     assert found_agent_span, "Agent span not found"
     assert found_tool_span, "Tool span not found"
 
+if __name__ == "__main__":
+    pytest.main([__file__, "-s", "--tb=short"])
 
 # [{
 #     "name": "openai.resources.chat.completions.Completions.create",

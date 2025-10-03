@@ -1,31 +1,35 @@
 # Continue with your code
 import json
+import logging
 import os
 import time
 from typing import Dict, List
 
 import boto3
 import pytest
+from common.custom_exporter import CustomConsoleSpanExporter
 from langchain_community.embeddings import SagemakerEndpointEmbeddings
 from langchain_community.embeddings.sagemaker_endpoint import EmbeddingsContentHandler
 from langchain_community.vectorstores import OpenSearchVectorSearch
-from opensearchpy import RequestsHttpConnection
-from opentelemetry import trace
-from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
-from requests_aws4auth import AWS4Auth
-from common.custom_exporter import CustomConsoleSpanExporter
 from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
+from monocle_apptrace.instrumentation.metamodel.botocore.handlers.botocore_span_handler import (
+    BotoCoreSpanHandler,
+)
+from opensearchpy import RequestsHttpConnection
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from requests_aws4auth import AWS4Auth
 
-from monocle_apptrace.instrumentation.metamodel.botocore.handlers.botocore_span_handler import BotoCoreSpanHandler
-custom_exporter = CustomConsoleSpanExporter()
+logger = logging.getLogger(__name__)
 @pytest.fixture(scope="module")
 def setup():
+    custom_exporter = CustomConsoleSpanExporter()
     setup_monocle_telemetry(
         workflow_name="sagemaker_workflow_1",
         span_processors=[BatchSpanProcessor(custom_exporter)],
         wrapper_methods=[],
         span_handlers={"botocore_handler":BotoCoreSpanHandler()}
     )
+    yield custom_exporter
 
 
 @pytest.mark.integration()
@@ -35,7 +39,7 @@ def test_sagemaker_sample(setup):
     produce_llm_response(query, similar_documents)
 
     time.sleep(5)
-    spans = custom_exporter.get_captured_spans()
+    spans = setup.get_captured_spans()
 
     for span in spans:
         span_attributes = span.attributes
@@ -82,7 +86,7 @@ def produce_llm_response(query, similar_documents):
 
     # Print the content
     response_str = content.decode('utf-8')
-    print(f"The response provided by the endpoint: {response_str}")
+    logger.info(f"The response provided by the endpoint: {response_str}")
 
     answer = json.loads(response_str)["answer"]
     return answer
@@ -125,7 +129,7 @@ def search_similar_documents_opensearch(query):
     )
     retriever = doc_search.as_retriever()
     docs = retriever.get_relevant_documents(query)
-    print(f"Retrieved docs: {docs}")
+    logger.info(f"Retrieved docs: {docs}")
     return [doc.page_content for doc in docs]
 
 

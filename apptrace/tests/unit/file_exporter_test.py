@@ -23,7 +23,7 @@ class TestHandler(unittest.TestCase):
             if self.instrumentor is not None:
                 self.instrumentor.uninstrument()
         except Exception as e:
-            print("Uninstrument failed:", e)
+            logger.info("Uninstrument failed:", e)
         return super().tearDown()
 
     def setUp(self):
@@ -54,14 +54,14 @@ class TestHandler(unittest.TestCase):
         
         trace_file_name = self.file_exporter.last_file_processed
         if trace_file_name is None:
-            print("Inside no file")
+            logger.info("Inside no file")
             time.sleep(10)
         else:
-            print("file name is : ",trace_file_name)
+            logger.info("file name is : ",trace_file_name)
 
         try:
             with open(trace_file_name) as f:
-                print("Inside file")
+                logger.info("Inside file")
                 trace_data = json.load(f)
                 trace_id_from_file = trace_data[0]["context"]["trace_id"]
                 trace_id_from_exporter = hex(self.file_exporter.last_trace_id)
@@ -69,7 +69,7 @@ class TestHandler(unittest.TestCase):
 
             os.remove(trace_file_name)
         except Exception as ex:
-            print("Got error " + str(ex))
+            logger.info("Got error " + str(ex))
             assert False
        
 

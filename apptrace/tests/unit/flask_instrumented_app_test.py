@@ -9,7 +9,10 @@ from monocle_apptrace.instrumentation.common.wrapper_method import WrapperMethod
 from common.dummy_class import DummyClass, dummy_wrapper
 from common.custom_exporter import CustomConsoleSpanExporter
 from opentelemetry import trace
+import logging
 
+
+logger = logging.getLogger(__name__)
 class TestValidateResponseMultithreaded(unittest.TestCase):
 
     def setUp(self):
@@ -47,7 +50,7 @@ class TestValidateResponseMultithreaded(unittest.TestCase):
             if self.instrumentor is not None:
                 self.instrumentor.uninstrument()
         except Exception as e:
-            print("Uninstrument failed:", e)
+            logger.info("Uninstrument failed:", e)
         return super().tearDown()
 
     @staticmethod

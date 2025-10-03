@@ -43,7 +43,7 @@ class TestHandler(unittest.TestCase):
             if self.instrumentor is not None:
                 self.instrumentor.uninstrument()
         except Exception as e:
-            print("Uninstrument failed:", e)
+            logger.info("Uninstrument failed:", e)
         return super().tearDown()
 
     def test_codespaces(self):

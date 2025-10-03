@@ -10,9 +10,12 @@ import pytest
 from common.custom_exporter import CustomConsoleSpanExporter
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
+import logging
 
 custom_exporter = CustomConsoleSpanExporter()
 
+
+logger = logging.getLogger(__name__)
 COLLECTION_NAME = "coffee"
 EMBEDDING_MODEL_ID = "models/embedding-001"
 INFERENCE_MODEL_ID = "gemini-2.5-flash"
@@ -94,7 +97,7 @@ def test_gemini_rag_sample(setup):
         contents=prompt
     )
     time.sleep(5)
-    print(answer.text)
+    logger.info(answer.text)
 
     found_workflow_span = False
     spans = custom_exporter.get_captured_spans()

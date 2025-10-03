@@ -9,11 +9,12 @@ Requirements:
 Run with: pytest tests/integration/test_azure_openai_finish_reason_integration.py
 """
 import os
-import pytest
+
 import openai
-from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+import pytest
+from common.custom_exporter import CustomConsoleSpanExporter  # Assuming this path
 from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
-from tests.common.custom_exporter import CustomConsoleSpanExporter # Assuming this path
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 
 pytestmark = pytest.mark.integration
 

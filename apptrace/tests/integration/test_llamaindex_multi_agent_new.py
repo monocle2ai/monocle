@@ -106,11 +106,16 @@ def setup(start_servers):
         SimpleSpanProcessor(memory_exporter),
         BatchSpanProcessor(file_exporter),
     ]
-    setup_monocle_telemetry(
-        workflow_name="llamaindex_agent_1",
-        span_processors=span_processors,
-    )
-    yield memory_exporter
+    try:
+        instrumentor = setup_monocle_telemetry(
+            workflow_name="llamaindex_agent_1",
+            span_processors=span_processors,
+        )
+        yield memory_exporter
+    finally:
+        # Clean up instrumentor to avoid global state leakage
+        if instrumentor and instrumentor.is_instrumented_by_opentelemetry:
+            instrumentor.uninstrument()
 
 def book_hotel(hotel_name: str):
     """Book a hotel"""

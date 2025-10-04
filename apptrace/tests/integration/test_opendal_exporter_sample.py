@@ -37,13 +37,18 @@ def setup():
     logging.basicConfig(level=logging.INFO)
     load_dotenv()
     custom_exporter = CustomConsoleSpanExporter()
-    setup_monocle_telemetry(
-                workflow_name="langchain_app_1",
-                span_processors=[BatchSpanProcessor(exporter_s3),
-                                 #BatchSpanProcessor(exporter_blob),   #for azure blob storage
-                                BatchSpanProcessor(custom_exporter)],
-                wrapper_methods=[])
-    yield custom_exporter
+    try:
+        instrumentor = setup_monocle_telemetry(
+                    workflow_name="langchain_app_1",
+                    span_processors=[BatchSpanProcessor(exporter_s3),
+                                     #BatchSpanProcessor(exporter_blob),   #for azure blob storage
+                                    BatchSpanProcessor(custom_exporter)],
+                    wrapper_methods=[])
+        yield custom_exporter
+    finally:
+        # Clean up instrumentor to avoid global state leakage
+        if instrumentor and instrumentor.is_instrumented_by_opentelemetry:
+            instrumentor.uninstrument()
 
 @pytest.mark.integration()
 def test_langchain_sample_s3(setup):

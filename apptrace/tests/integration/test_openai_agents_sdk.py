@@ -57,12 +57,17 @@ def setup(start_weather_server_fixture):
         BatchSpanProcessor(FileSpanExporter()),
         SimpleSpanProcessor(custom_exporter)
     ]
-    setup_monocle_telemetry(
-        workflow_name="agents_sdk_dev_1",
-        # monocle_exporters_list="file, okahu"
-        span_processors=span_processors,
-    )
-    yield memory_exporter
+    try:
+        instrumentor = setup_monocle_telemetry(
+            workflow_name="agents_sdk_dev_1",
+            # monocle_exporters_list="file, okahu"
+            span_processors=span_processors,
+        )
+        yield memory_exporter
+    finally:
+        # Clean up instrumentor to avoid global state leakage
+        if instrumentor and instrumentor.is_instrumented_by_opentelemetry:
+            instrumentor.uninstrument()
 
 
 def book_hotel(hotel_name: str) -> str:

@@ -24,13 +24,18 @@ logger = logging.getLogger(__name__)
 @pytest.fixture(scope="module")
 def setup():
     custom_exporter = CustomConsoleSpanExporter()
-    setup_monocle_telemetry(
-        workflow_name="ashokan_rag_step_back",
-        span_processors=[BatchSpanProcessor(custom_exporter, max_queue_size=1, max_export_batch_size=1)],
-        wrapper_methods=[])
+    try:
+        instrumentor = setup_monocle_telemetry(
+            workflow_name="ashokan_rag_step_back",
+            span_processors=[BatchSpanProcessor(custom_exporter, max_queue_size=1, max_export_batch_size=1)],
+            wrapper_methods=[])
 
-    set_context_properties({"session_id": f"{uuid.uuid4().hex}"})
-    yield custom_exporter
+        set_context_properties({"session_id": f"{uuid.uuid4().hex}"})
+        yield custom_exporter
+    finally:
+        # Clean up instrumentor to avoid global state leakage
+        if instrumentor and instrumentor.is_instrumented_by_opentelemetry:
+            instrumentor.uninstrument()
 
 
 @pytest.mark.integration()

@@ -13,26 +13,32 @@ from transformers import GPT2DoubleHeadsModel, GPT2Tokenizer
 logger = logging.getLogger(__name__)
 @pytest.fixture(scope="module")
 def setup():
-    setup_monocle_telemetry(
-        workflow_name="pytorch_1",
-        span_processors=[BatchSpanProcessor(ConsoleSpanExporter())],
-        wrapper_methods=[
-                    WrapperMethod(
-                        package="transformers",
-                        object_name="GPT2DoubleHeadsModel",
-                        method="forward",
-                        span_name="pytorch.transformer.GPT2DoubleHeadsModel",
-                        output_processor="output_processor",
-                        wrapper_method=task_wrapper),
-                    WrapperMethod(
-                        package="transformers",
-                        object_name="PreTrainedModel",
-                        method="from_pretrained",
-                        span_name="pytorch.transformer.PreTrainedModel",
-                        output_processor="output_processor",
-                        wrapper_method=task_wrapper),
-                ]
-        )
+    try:
+        instrumentor = setup_monocle_telemetry(
+            workflow_name="pytorch_1",
+            span_processors=[BatchSpanProcessor(ConsoleSpanExporter())],
+            wrapper_methods=[
+                        WrapperMethod(
+                            package="transformers",
+                            object_name="GPT2DoubleHeadsModel",
+                            method="forward",
+                            span_name="pytorch.transformer.GPT2DoubleHeadsModel",
+                            output_processor="output_processor",
+                            wrapper_method=task_wrapper),
+                        WrapperMethod(
+                            package="transformers",
+                            object_name="PreTrainedModel",
+                            method="from_pretrained",
+                            span_name="pytorch.transformer.PreTrainedModel",
+                            output_processor="output_processor",
+                            wrapper_method=task_wrapper),
+                    ]
+            )
+        yield
+    finally:
+        # Clean up instrumentor to avoid global state leakage
+        if instrumentor and instrumentor.is_instrumented_by_opentelemetry:
+            instrumentor.uninstrument()
 
 @pytest.mark.integration()
 def test_pytorch_sample(setup):

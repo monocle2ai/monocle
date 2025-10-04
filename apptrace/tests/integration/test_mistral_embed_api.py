@@ -21,11 +21,16 @@ logger = logging.getLogger(__name__)
 @pytest.fixture(scope="module")
 def setup():
     custom_exporter = CustomConsoleSpanExporter()
-    setup_monocle_telemetry(
-        workflow_name="generic_mistral_embed",
-        span_processors=[BatchSpanProcessor(custom_exporter)],
-    )
-    yield custom_exporter
+    try:
+        instrumentor = setup_monocle_telemetry(
+            workflow_name="generic_mistral_embed",
+            span_processors=[BatchSpanProcessor(custom_exporter)],
+        )
+        yield custom_exporter
+    finally:
+        # Clean up instrumentor to avoid global state leakage
+        if instrumentor and instrumentor.is_instrumented_by_opentelemetry:
+            instrumentor.uninstrument()
 
 # -----------------------------
 # SYNC TEST

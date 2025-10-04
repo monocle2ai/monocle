@@ -15,11 +15,17 @@ logger = logging.getLogger(__name__)
 
 @pytest.fixture(scope="module")
 def setup():
-    setup_monocle_telemetry(
-        workflow_name="llama_index_1",
-        span_processors=[BatchSpanProcessor(ConsoleSpanExporter())],
-        wrapper_methods=[]
-    )
+    try:
+        instrumentor = setup_monocle_telemetry(
+            workflow_name="llama_index_1",
+            span_processors=[BatchSpanProcessor(ConsoleSpanExporter())],
+            wrapper_methods=[]
+        )
+        yield
+    finally:
+        # Clean up instrumentor to avoid global state leakage
+        if instrumentor and instrumentor.is_instrumented_by_opentelemetry:
+            instrumentor.uninstrument()
     
 @pytest.mark.integration()
 def test_llamaindex_opensearch_sample(setup):   

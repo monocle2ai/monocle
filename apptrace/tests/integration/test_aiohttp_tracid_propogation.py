@@ -23,15 +23,20 @@ async def aiohttp_server(scope="function", autouse=False):
     os.environ[TRACE_PROPOGATION_URLS] = "http://localhost:8081"
     os.environ[SCOPE_CONFIG_PATH] = os.path.join(os.path.dirname(os.path.abspath(__file__)), SCOPE_METHOD_FILE)
     custom_exporter = CustomConsoleSpanExporter()
-    setup_monocle_telemetry(
-        workflow_name="aiohttp_test",
-        span_processors=[SimpleSpanProcessor(custom_exporter)]
-    )
-    
-    runner = await aiohttp_helper.run_server()
+    try:
+        instrumentor = setup_monocle_telemetry(
+            workflow_name="aiohttp_test",
+            span_processors=[SimpleSpanProcessor(custom_exporter)]
+        )
+        
+        runner = await aiohttp_helper.run_server()
 
-    yield custom_exporter
-    await runner.cleanup()
+        yield custom_exporter
+        await runner.cleanup()
+    finally:
+        # Clean up instrumentor to avoid global state leakage
+        if instrumentor and instrumentor.is_instrumented_by_opentelemetry:
+            instrumentor.uninstrument()
 
 
 

@@ -16,11 +16,16 @@ logger = logging.getLogger(__name__)
 def setup():
     memory_exporter = InMemorySpanExporter()
     span_processors = [SimpleSpanProcessor(memory_exporter)]
-    setup_monocle_telemetry(
-                workflow_name="langchain_agent_1",
-                span_processors=[SimpleSpanProcessor(memory_exporter)]
-                )
-    yield memory_exporter
+    try:
+        instrumentor = setup_monocle_telemetry(
+                    workflow_name="langchain_agent_1",
+                    span_processors=[SimpleSpanProcessor(memory_exporter)]
+                    )
+        yield memory_exporter
+    finally:
+        # Clean up instrumentor to avoid global state leakage
+        if instrumentor and instrumentor.is_instrumented_by_opentelemetry:
+            instrumentor.uninstrument()
 
 coffee_menu = {
     "espresso": "A strong and bold coffee shot.",

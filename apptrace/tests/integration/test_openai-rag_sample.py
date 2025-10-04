@@ -20,11 +20,16 @@ INFERENCE_MODEL="gpt-4o-mini"
 @pytest.fixture(scope="module")
 def setup():
     custom_exporter = CustomConsoleSpanExporter()
-    setup_monocle_telemetry(
-                workflow_name="langchain_app_1",
-                span_processors=[BatchSpanProcessor(custom_exporter)],
-                wrapper_methods=[])
-    yield custom_exporter
+    try:
+        instrumentor = setup_monocle_telemetry(
+                    workflow_name="langchain_app_1",
+                    span_processors=[BatchSpanProcessor(custom_exporter)],
+                    wrapper_methods=[])
+        yield custom_exporter
+    finally:
+        # Clean up instrumentor to avoid global state leakage
+        if instrumentor and instrumentor.is_instrumented_by_opentelemetry:
+            instrumentor.uninstrument()
 
 
 # Create vectore store and load data

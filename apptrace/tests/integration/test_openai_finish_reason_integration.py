@@ -24,12 +24,17 @@ pytestmark = pytest.mark.integration
 @pytest.fixture(scope="module")
 def setup():
     custom_exporter = CustomConsoleSpanExporter()
-    setup_monocle_telemetry(
-        workflow_name="openai_integration_tests",
-        span_processors=[SimpleSpanProcessor(custom_exporter)],
-        # service_name="openai_integration_tests"
-    )
-    yield custom_exporter
+    try:
+        instrumentor = setup_monocle_telemetry(
+            workflow_name="openai_integration_tests",
+            span_processors=[SimpleSpanProcessor(custom_exporter)],
+            # service_name="openai_integration_tests"
+        )
+        yield custom_exporter
+    finally:
+        # Clean up instrumentor to avoid global state leakage
+        if instrumentor and instrumentor.is_instrumented_by_opentelemetry:
+            instrumentor.uninstrument()
 
 
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")

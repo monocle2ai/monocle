@@ -17,12 +17,17 @@ from tests.common.helpers import (
 @pytest.fixture(scope="function")
 def setup():
     custom_exporter = CustomConsoleSpanExporter()
-    setup_monocle_telemetry(
-        workflow_name="litellm_app_1",
-        span_processors=[BatchSpanProcessor(custom_exporter)],
-        wrapper_methods=[]
-    )
-    yield custom_exporter
+    try:
+        instrumentor = setup_monocle_telemetry(
+            workflow_name="litellm_app_1",
+            span_processors=[BatchSpanProcessor(custom_exporter)],
+            wrapper_methods=[]
+        )
+        yield custom_exporter
+    finally:
+        # Clean up instrumentor to avoid global state leakage
+        if instrumentor and instrumentor.is_instrumented_by_opentelemetry:
+            instrumentor.uninstrument()
 
 
 

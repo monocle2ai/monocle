@@ -63,7 +63,7 @@ dev = [
   'numpy==1.26.4',
   'types-requests==2.31.0.20240106',
   'InstructorEmbedding==1.0.1',
-  'sentence-transformers==2.6.1',
+  'sentence-transformers==3.3.0',
   'faiss-cpu==1.8.0',
   'pytest==8.3.5',
   'llama-index==0.13.0',
@@ -112,7 +112,7 @@ dev = [
   'huggingface_hub==0.35.3',
   'litellm==1.77.5',
   'google-ai-haystack',
-  'llama-index-llms-gemini=0.6.1'
+  'llama-index-llms-gemini==0.6.1'
 ]
 
 azure = [

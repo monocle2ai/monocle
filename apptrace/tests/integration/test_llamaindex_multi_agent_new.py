@@ -292,7 +292,6 @@ async def run_async_agent():
     logger.info(resp)
 
 
-@pytest.mark.integration()
 @pytest.mark.asyncio
 async def test_async_multi_agent(setup):
     """Test async multi-agent interaction with weather and currency tools."""

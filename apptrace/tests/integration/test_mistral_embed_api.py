@@ -35,7 +35,6 @@ def setup():
 # -----------------------------
 # SYNC TEST
 # -----------------------------
-@pytest.mark.integration()
 def test_mistral_embeddings_sample(setup):
     client = Mistral(api_key=os.getenv("MISTRAL_API_KEY"))
     response = client.embeddings.create(
@@ -81,7 +80,6 @@ def test_mistral_embeddings_sample(setup):
 # -----------------------------
 # INVALID API KEY TEST
 # -----------------------------
-@pytest.mark.integration()
 def test_mistral_embeddings_invalid_api_key(setup):
     try:
         client = Mistral(api_key="invalid_key_123")

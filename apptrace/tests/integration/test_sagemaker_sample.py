@@ -38,7 +38,6 @@ def setup():
             instrumentor.uninstrument()
 
 
-@pytest.mark.integration()
 def test_sagemaker_sample(setup):
     query = "hello"
     similar_documents = search_similar_documents_opensearch(query)

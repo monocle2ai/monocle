@@ -44,7 +44,6 @@ def setup():
             instrumentor.uninstrument()
 
 
-@pytest.mark.integration()
 def test_langchain_sample_blob(setup):
 
     llm = ChatOpenAI(model="gpt-3.5-turbo-0125")

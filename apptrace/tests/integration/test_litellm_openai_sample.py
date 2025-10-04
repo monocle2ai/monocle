@@ -72,7 +72,6 @@ def evaluate_chat_completion(model):
         assert False, f"Test failed due to exception: {e}"
 
 
-@pytest.mark.integration()
 def test_llm_openai(setup):
     openai_api_key = os.getenv("OPENAI_API_KEY")
     if openai_api_key is None:

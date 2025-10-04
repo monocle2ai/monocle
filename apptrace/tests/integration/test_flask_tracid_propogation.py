@@ -38,7 +38,6 @@ def pre_test():
     # clear old spans
    custom_exporter.reset()
 
-@pytest.mark.integration()
 def test_http_flask_scope(setup):
     custom_exporter.reset()
     client_session_id = f"{uuid.uuid4().hex}"

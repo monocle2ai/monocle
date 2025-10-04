@@ -312,7 +312,6 @@ async def setup_agents():
     return supervisor
 
 
-@pytest.mark.integration()
 @pytest.mark.asyncio
 async def test_multi_agent(setup):
     """Test multi-agent interaction with flight and hotel booking."""
@@ -333,7 +332,6 @@ async def test_multi_agent(setup):
     verify_spans(memory_exporter=setup)
 
 
-@pytest.mark.integration()
 @pytest.mark.asyncio
 async def test_async_multi_agent(setup):
     """Test multi-agent interaction with flight and hotel booking."""
@@ -353,7 +351,6 @@ async def test_async_multi_agent(setup):
     logger.info("\n")
     verify_spans(memory_exporter=setup)
 
-@pytest.mark.integration()
 @pytest.mark.asyncio
 async def test_invalid_api_key_error_code_in_span(setup):
     """Test that passing an invalid API key results in error_code in the span."""

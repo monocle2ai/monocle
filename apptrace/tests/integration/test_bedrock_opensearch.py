@@ -41,7 +41,6 @@ def setup():
     custom_exporter.reset()
 
 
-@pytest.mark.integration()
 def test_bedrock_opensearch(setup):
     query = "how?"
     similar_documents = search_similar_documents_opensearch(query)
@@ -152,7 +151,6 @@ def search_similar_documents_opensearch(query):
     return [doc.page_content for doc in docs]
 
 
-@pytest.mark.integration()
 def test_invalid_credentials(setup):
     try:
         boto3.setup_default_session(

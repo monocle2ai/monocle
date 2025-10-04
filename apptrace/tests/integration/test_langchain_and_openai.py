@@ -32,7 +32,6 @@ def setup():
 
 
 # Test multiple chains with OpenAI APIs in between. Verify each has it's workflow and inference spans
-@pytest.mark.integration()
 def test_langchain_with_openai(setup):
     chain1 = setup_simple_chain()
     chain2 = setup_simple_chain()
@@ -76,7 +75,6 @@ def test_langchain_with_openai(setup):
 
 
 # Test multiple chains with OpenAI APIs in between in a single trace Verify there only one workflow and all inference spans
-@pytest.mark.integration()
 def test_langchain_with_openai_single_trace(setup):
     chain1 = setup_simple_chain()
     chain2 = setup_simple_chain()

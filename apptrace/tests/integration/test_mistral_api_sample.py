@@ -35,7 +35,6 @@ def setup():
             instrumentor.uninstrument()
 
 
-@pytest.mark.integration()
 def test_mistral_api_sample(setup):
     client = Mistral(api_key=os.getenv("MISTRAL_API_KEY"))
     response = client.chat.complete(
@@ -97,7 +96,6 @@ def test_mistral_api_sample(setup):
     assert workflow_span.attributes["workflow.name"] == "generic_mistral_1"
     assert workflow_span.attributes["entity.1.type"] == "workflow.mistral"
 
-@pytest.mark.integration()
 @pytest.mark.asyncio
 async def test_mistral_api_sample_async(setup):
     client = Mistral(api_key=os.getenv("MISTRAL_API_KEY"))
@@ -160,7 +158,6 @@ async def test_mistral_api_sample_async(setup):
     assert workflow_span.attributes["entity.1.type"] == "workflow.mistral"
 
 
-@pytest.mark.integration()
 def test_mistral_invalid_api_key(setup):
     try:
         client = Mistral(api_key="invalid_key_123")

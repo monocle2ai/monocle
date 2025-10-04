@@ -47,7 +47,6 @@ def setup():
         if instrumentor and instrumentor.is_instrumented_by_opentelemetry:
             instrumentor.uninstrument()
 
-@pytest.mark.integration()
 def test_langchain_sample_s3(setup):
 
     llm = ChatOpenAI(model="gpt-3.5-turbo-0125")

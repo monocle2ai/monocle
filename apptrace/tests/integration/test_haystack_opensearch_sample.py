@@ -38,7 +38,6 @@ def setup():
         if instrumentor and instrumentor.is_instrumented_by_opentelemetry:
             instrumentor.uninstrument()
 
-@pytest.mark.integration()
 def test_haystack_opensearch_sample(setup):
     # initialize
     api_key = os.getenv("OPENAI_API_KEY")

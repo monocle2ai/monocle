@@ -33,7 +33,6 @@ def setup():
             instrumentor.uninstrument()
 
 
-@pytest.mark.integration()
 @pytest.mark.asyncio
 async def test_openai_response_api_sample_async(setup):
     openai_client = AsyncOpenAI()
@@ -100,7 +99,6 @@ async def test_openai_response_api_sample_async(setup):
     assert workflow_span.attributes["entity.1.name"] == "generic_openai_1"
     assert workflow_span.attributes["entity.1.type"] == "workflow.openai"
 
-@pytest.mark.integration()
 @pytest.mark.asyncio
 async def test_openai_response_api_sample_async_stream(setup):
     openai_client = AsyncOpenAI()
@@ -171,7 +169,6 @@ async def test_openai_response_api_sample_async_stream(setup):
     assert workflow_span.attributes["entity.1.type"] == "workflow.openai"
 
 
-@pytest.mark.integration()
 def test_openai_response_api_sample(setup):
     openai_client = OpenAI()
     response  = openai_client.responses.create(
@@ -237,7 +234,6 @@ def test_openai_response_api_sample(setup):
     assert workflow_span.attributes["entity.1.name"] == "generic_openai_1"
     assert workflow_span.attributes["entity.1.type"] == "workflow.openai"
 
-@pytest.mark.integration()
 def test_azure_openai_response_api_sample(setup):
     azure_client = AzureOpenAI(
         azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),

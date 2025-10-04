@@ -42,7 +42,6 @@ def setup():
         if instrumentor and instrumentor.is_instrumented_by_opentelemetry:
             instrumentor.uninstrument()
 
-@pytest.mark.integration()
 def test_langchain_bedrock_sample(setup):
     bedrock_runtime_client = boto3.client(service_name='bedrock-runtime', region_name='us-east-1')
     llm = ChatBedrockConverse(

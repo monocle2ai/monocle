@@ -35,7 +35,6 @@ def setup():
             instrumentor.uninstrument()
 
 
-@pytest.mark.integration()
 def test_gemini_model_sample(setup):
     client = genai.Client(vertexai=True,project="fluent-radar-408119", location="us-east5")
 

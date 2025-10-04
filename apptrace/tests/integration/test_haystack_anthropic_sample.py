@@ -25,7 +25,6 @@ def setup():
             instrumentor.uninstrument()
 
 
-@pytest.mark.integration()
 def test_haystack_anthropic_sample(setup):
     generator = AnthropicChatGenerator(model="claude-3-5-sonnet-20240620",
                                        generation_kwargs={

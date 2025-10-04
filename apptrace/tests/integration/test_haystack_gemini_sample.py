@@ -30,7 +30,6 @@ def setup():
         if instrumentor and instrumentor.is_instrumented_by_opentelemetry:
             instrumentor.uninstrument()
 
-@pytest.mark.integration()
 def test_haystack_anthropic_sample(setup):
     api_key = os.getenv("GEMINI_API_KEY")
     llm = GoogleAIGeminiChatGenerator(

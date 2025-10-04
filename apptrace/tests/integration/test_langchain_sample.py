@@ -53,7 +53,6 @@ def setup():
 # )
 
 
-@pytest.mark.integration()
 def test_langchain_sample(setup):
     # llm = OpenAI(model="gpt-3.5-turbo-instruct")
     llm = AzureChatOpenAI(

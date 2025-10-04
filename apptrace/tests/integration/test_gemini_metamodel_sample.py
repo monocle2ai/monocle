@@ -38,7 +38,6 @@ def setup():
             instrumentor.uninstrument()
 
 
-@pytest.mark.integration()
 def test_gemini_model_sample(setup):
     client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 
@@ -55,7 +54,6 @@ def test_gemini_model_sample(setup):
     check_span(spans)
 
 
-@pytest.mark.integration()
 def test_gemini_chat_sample(setup):
     client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 

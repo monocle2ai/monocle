@@ -35,7 +35,6 @@ def setup():
         if instrumentor and instrumentor.is_instrumented_by_opentelemetry:
             instrumentor.uninstrument()
 
-@pytest.mark.integration()
 def test_huggingface_api_sample(setup):
     client = InferenceClient(api_key=os.getenv("HUGGING_FACE_API_KEY"))
     response = client.chat_completion(
@@ -98,7 +97,6 @@ def test_huggingface_api_sample(setup):
     assert workflow_span.attributes["workflow.name"] == "generic_hf_1"
     assert workflow_span.attributes["entity.1.type"] == "workflow.huggingface"
 
-@pytest.mark.integration()
 @pytest.mark.asyncio
 async def test_huggingface_api_async_sample(setup):
     # Use AsyncInferenceClient
@@ -164,7 +162,6 @@ async def test_huggingface_api_async_sample(setup):
     assert workflow_span.attributes["workflow.name"] == "generic_hf_1"
     assert workflow_span.attributes["entity.1.type"] == "workflow.huggingface"
 
-@pytest.mark.integration()
 def test_huggingface_invalid_api_key(setup):
     client = InferenceClient(api_key="invalid_key_123")
     try:

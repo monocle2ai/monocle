@@ -32,7 +32,6 @@ def setup():
             instrumentor.uninstrument()
 
 
-@pytest.mark.integration()
 def test_llama_index_anthropic_sample(setup):
     messages = [
         ChatMessage(

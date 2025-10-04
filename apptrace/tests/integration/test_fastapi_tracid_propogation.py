@@ -41,7 +41,6 @@ def setup():
     fastapi_helper.stop_fastapi()
 
 
-@pytest.mark.integration()
 def test_chat_endpoint(setup):
     client_session_id = f"{uuid.uuid4().hex}"
     headers = {"client-id": client_session_id}

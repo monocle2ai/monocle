@@ -32,7 +32,6 @@ def setup():
         if instrumentor and instrumentor.is_instrumented_by_opentelemetry:
             instrumentor.uninstrument()
 
-@pytest.mark.integration()
 def test_anthropic_metamodel_sample(setup):
     client = anthropic.Anthropic()
 
@@ -104,7 +103,6 @@ def test_anthropic_metamodel_sample(setup):
     assert workflow_span.attributes["entity.1.name"] == "anthropic_app_1"
     assert workflow_span.attributes["entity.1.type"] == "workflow.anthropic"
 
-@pytest.mark.integration()
 def test_anthropic_invalid_api_key(setup):
     try:
         client = anthropic.Anthropic(api_key="invalid_key_123")

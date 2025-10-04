@@ -78,7 +78,6 @@ async def run_agent():
     resp = await agent_workflow.run(user_msg="book a flight from BOS to JFK and a book hotel stay at McKittrick Hotel")
     logger.info(resp)
 
-@pytest.mark.integration()
 def test_multi_agent(setup):
     """Test multi-agent interaction with flight and hotel booking."""
 

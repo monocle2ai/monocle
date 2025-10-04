@@ -70,7 +70,6 @@ def get_vector_store() -> Collection:
         vector_store = setup_embedding(chroma_client)
     return vector_store
 
-@pytest.mark.integration()
 def test_gemini_rag_sample(setup):
     client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
     question = "what is latte?"

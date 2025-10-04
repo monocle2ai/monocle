@@ -31,7 +31,6 @@ def setup():
             instrumentor.uninstrument()
 
 
-@pytest.mark.integration()
 @pytest.mark.asyncio
 async def test_openai_api_sample(setup):
     openai = AsyncOpenAI()
@@ -101,7 +100,6 @@ async def test_openai_api_sample(setup):
     assert workflow_span.attributes["entity.1.type"] == "workflow.openai"
 
 
-@pytest.mark.integration()
 @pytest.mark.asyncio
 async def test_openai_api_sample_stream(setup):
     openai = AsyncOpenAI()

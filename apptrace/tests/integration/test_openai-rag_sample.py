@@ -61,7 +61,6 @@ def get_vector_store() -> Collection:
         vector_store = setup_embedding(chroma_client)
     return vector_store
 
-@pytest.mark.integration()
 def test_openai_rag_sample(setup):
     question = "what is latte?"
     openai = OpenAI()

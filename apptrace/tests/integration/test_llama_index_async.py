@@ -34,7 +34,6 @@ def setup():
         if instrumentor and instrumentor.is_instrumented_by_opentelemetry:
             instrumentor.uninstrument()
 
-@pytest.mark.integration()
 @pytest.mark.asyncio
 async def test_llama_index_sample(setup: None):    
     # Creating a Chroma client

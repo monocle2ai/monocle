@@ -40,7 +40,6 @@ def setup():
             instrumentor.uninstrument()
 
 
-@pytest.mark.integration()
 def test_langchain_rag_l_to_m(setup):
     # Load, chunk and index the contents of the blog.
     loader = WebBaseLoader(

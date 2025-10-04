@@ -87,7 +87,6 @@ def book_flight(from_airport: str, to_airport: str) -> str:
 #     return f"The weather in {city} is sunny and 75°F."
 
 
-@pytest.mark.integration()
 @pytest.mark.asyncio
 async def test_agents_sdk_multi_agent(setup):
     """Test multi-agent interaction with handoffs and MCP servers."""
@@ -221,7 +220,6 @@ def verify_multi_agent_spans(memory_exporter=None):
         logger.info(f"Found MCP operations: {mcp_operations}")
 
 
-@pytest.mark.integration()
 @pytest.mark.asyncio
 async def test_agents_sdk_mcp_server(setup):
     """Test OpenAI Agents SDK with MCP server integration."""
@@ -256,7 +254,6 @@ async def test_agents_sdk_mcp_server(setup):
     except ImportError:
         pytest.skip("OpenAI Agents SDK not available")
 
-@pytest.mark.integration()
 @pytest.mark.asyncio
 async def test_invalid_api_key_error_code_in_span(setup):
     """Test that passing an invalid API key results in error_code in the span."""

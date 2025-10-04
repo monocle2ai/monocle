@@ -34,7 +34,6 @@ def setup():
             instrumentor.uninstrument()
 
 
-@pytest.mark.integration()
 def test_llama_index_sample(setup):
     # Creating a Chroma client
     # EphemeralClient operates purely in-memory, PersistentClient will also save to disk

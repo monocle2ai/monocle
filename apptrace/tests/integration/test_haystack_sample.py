@@ -41,7 +41,6 @@ def setup():
         if instrumentor and instrumentor.is_instrumented_by_opentelemetry:
             instrumentor.uninstrument()
 
-@pytest.mark.integration()
 def test_haystack_sample(setup):
     api_key = os.getenv("OPENAI_API_KEY")
     generator = OpenAIGenerator(

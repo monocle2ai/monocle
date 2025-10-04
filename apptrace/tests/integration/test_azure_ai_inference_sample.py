@@ -42,7 +42,6 @@ def setup():
 def pre_test():
     custom_exporter.reset()
 
-@pytest.mark.integration()
 def test_azure_ai_inference_chat_completion_sync(setup):
     """Test synchronous Azure AI Inference chat completion instrumentation."""
     
@@ -127,7 +126,6 @@ def test_azure_ai_inference_chat_completion_sync(setup):
     assert workflow_span.attributes["entity.1.name"] == "azure_ai_inference_integration_test"
     assert workflow_span.attributes["entity.1.type"] == "workflow.generic"
 
-@pytest.mark.integration()
 def test_azure_ai_inference_chat_completion_streaming_sync(setup):
     """Test synchronous Azure AI Inference streaming chat completion instrumentation."""
     
@@ -226,7 +224,6 @@ def test_azure_ai_inference_chat_completion_streaming_sync(setup):
     assert workflow_span.attributes["entity.1.type"] == "workflow.generic"
 
 
-@pytest.mark.integration()
 @pytest.mark.asyncio
 async def test_azure_ai_inference_chat_completion_async(setup):
     """Test asynchronous Azure AI Inference chat completion instrumentation."""
@@ -314,7 +311,6 @@ async def test_azure_ai_inference_chat_completion_async(setup):
         assert workflow_span.attributes["entity.1.type"] == "workflow.generic"
 
 
-@pytest.mark.integration()
 @pytest.mark.asyncio
 async def test_azure_ai_inference_chat_completion_streaming_async(setup):
     """Test asynchronous Azure AI Inference streaming chat completion instrumentation."""
@@ -415,7 +411,6 @@ async def test_azure_ai_inference_chat_completion_streaming_async(setup):
 
 
 # Test for different Azure AI Inference providers
-@pytest.mark.integration()
 def test_azure_ai_inference_different_providers(setup):
     """Test Azure AI Inference with different provider endpoints."""
     

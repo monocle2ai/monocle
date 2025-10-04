@@ -27,7 +27,6 @@ def setup():
         if instrumentor and instrumentor.is_instrumented_by_opentelemetry:
             instrumentor.uninstrument()
     
-@pytest.mark.integration()
 def test_llamaindex_opensearch_sample(setup):   
     # http endpoint for your cluster (opensearch required for vector index usage)
     endpoint = os.getenv("OPEN_SEARCH_DOCSTORE_ENDPOINT")

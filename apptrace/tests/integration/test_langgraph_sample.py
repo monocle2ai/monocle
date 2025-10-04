@@ -75,7 +75,6 @@ tools = [
 llm = ChatOpenAI(model_name="gpt-4", temperature=0)
 
 
-@pytest.mark.integration()
 def test_langgraph_chat_sample(setup):
 
     agent_executor = create_react_agent(llm, tools)

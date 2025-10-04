@@ -26,7 +26,6 @@ def setup():
         if instrumentor and instrumentor.is_instrumented_by_opentelemetry:
             instrumentor.uninstrument()
 
-@pytest.mark.integration()
 def test_langchain_gemini_sample(setup):
     os.environ.setdefault("GOOGLE_API_KEY", "GEMINI_API_KEY")
     llm = ChatGoogleGenerativeAI(

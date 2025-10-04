@@ -30,7 +30,6 @@ def setup():
             instrumentor.uninstrument()
 
 
-@pytest.mark.integration()
 def test_openai_api_sample(setup):
     openai = OpenAI()
     response = openai.chat.completions.create(
@@ -99,7 +98,6 @@ def test_openai_api_sample(setup):
     assert workflow_span.attributes["entity.1.type"] == "workflow.openai"
 
 
-@pytest.mark.integration()
 def test_openai_api_sample_stream(setup):
     openai = OpenAI()
     stream = openai.chat.completions.create(

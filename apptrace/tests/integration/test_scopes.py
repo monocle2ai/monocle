@@ -46,7 +46,6 @@ def setup():
 
 
 
-@pytest.mark.integration()
 def test_scope_api(setup):
     """ Test setting scope via start/stop API. Verify that the scope is effective across chains/traces, and not in effect after stop is called"""
     scope_name = "message"
@@ -87,7 +86,6 @@ def test_scope_api(setup):
         span_attributes = span.attributes
         assert span_attributes.get("scope."+scope_name) is None
 
-@pytest.mark.integration()
 def test_scope_api_with_value(setup):
     """ Test setting scope via start/stop API with specific scope value """
     scope_name = "dummy"
@@ -116,7 +114,6 @@ def run_chain_with_scope(message):
     logger.info(result)
     return result
 
-@pytest.mark.integration()
 def test_scope_wrapper(setup):
     """ Test setting scope at function level using decorator """
     result = run_chain_with_scope("What is Task Decomposition?")
@@ -129,7 +126,6 @@ async def run_chain_async_with_scope(message):
     logger.info(result)
     return result
 
-@pytest.mark.integration()
 def test_async_scope_wrapper(setup):
     """ Test setting scope at async function level using decorator """
     result = asyncio.run(run_chain_async_with_scope("What is Task Decomposition?"))
@@ -146,7 +142,6 @@ def verify_scope_testing(setup, scope_name:str):
         else:
             assert message_scope_id == span_attributes.get("scope."+scope_name)
 
-@pytest.mark.integration()
 def test_scope_config(setup):
     """ Test setting scope at function level using external configuartion """
     test_scope = TestScopes()
@@ -154,7 +149,6 @@ def test_scope_config(setup):
     result = test_scope.config_scope_func("What is Task Decomposition?")
     verify_scope_testing(setup, scope_name = "question")
 
-@pytest.mark.integration()
 def test_async_scope_config(setup):
     """ Test setting scope at function level using external configuartion """
     test_scope = TestScopes()
@@ -162,7 +156,6 @@ def test_async_scope_config(setup):
     result = asyncio.run(test_scope.config_scope_async_func("What is Task Decomposition?"))
     verify_scope_testing(setup, scope_name = "aquestion")
 
-@pytest.mark.integration()
 def test_scope_with_code_block(setup):
     """ Test setting scope with code block """
     CODE_SCOPE_NAME = "chitchat"

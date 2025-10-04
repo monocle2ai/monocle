@@ -30,7 +30,6 @@ def setup():
             instrumentor.uninstrument()
 
 
-@pytest.mark.integration()
 def test_langchain_anthropic_sample(setup):
     llm = ChatAnthropic(
         model="claude-3-5-sonnet-20240620",

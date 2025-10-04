@@ -40,7 +40,6 @@ def setup():
         if instrumentor and instrumentor.is_instrumented_by_opentelemetry:
             instrumentor.uninstrument()
 
-@pytest.mark.integration()
 def test_pytorch_sample(setup):
 
     tokenizer = GPT2Tokenizer.from_pretrained('gpt2')

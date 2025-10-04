@@ -39,7 +39,6 @@ def setup():
         if instrumentor and instrumentor.is_instrumented_by_opentelemetry:
             instrumentor.uninstrument()
 
-@pytest.mark.integration()
 def test_langchain_opensearch_sample(setup):
     # OpenSearch endpoint and credentials
     endpoint = os.environ.get("OPEN_SEARCH_DOCSTORE_ENDPOINT")

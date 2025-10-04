@@ -25,7 +25,6 @@ def setup():
         if instrumentor and instrumentor.is_instrumented_by_opentelemetry:
             instrumentor.uninstrument()
 
-@pytest.mark.integration()
 def test_llamaindex_gemini_sample(setup):
 
     llm = Gemini(

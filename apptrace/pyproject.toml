@@ -44,8 +44,27 @@ pythonpath = [
   "src",
   "tests"
 ]
-markers = [
-  "integration"
+
+# Simple ignore patterns - uncomment lines to ignore specific tests
+# Just uncomment the patterns you want to ignore:
+
+#ignore = [
+#  "tests/integration/",                    # Ignore ALL integration tests
+#  "tests/unit/",                          # Ignore ALL unit tests
+#]
+
+# Or ignore specific test files/patterns:
+#ignore = [
+#  "tests/integration/test_langchain_bedrock_sample.py",
+#  "tests/integration/test_anthropic_*.py",
+#  "tests/integration/test_azure_*.py", 
+#  "tests/integration/test_openai_*.py",
+#  "tests/unit/*_processor_test.py",
+#]
+
+# Test discovery patterns
+testpaths = [
+  "tests"
 ]
 
 [project.optional-dependencies]

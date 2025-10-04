@@ -129,14 +129,12 @@ async def run_agent(test_message: str):
         if event.is_final_response():
             logger.info(event.content)  # End line after response
 
-@pytest.mark.integration()
 @pytest.mark.asyncio
 async def test_multi_agent(setup):
     test_message = "What is the current weather in New York?"
     await run_agent(test_message)
     verify_spans(setup)
 
-@pytest.mark.integration()
 @pytest.mark.asyncio
 async def test_invalid_api_key_error_code_in_span(setup):
     """Test that passing an invalid API key results in error_code in the span."""

@@ -16,17 +16,13 @@ from langchain_chroma import Chroma
 from langchain_community.document_loaders import WebBaseLoader
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import RunnablePassthrough
-from langchain_mistralai import ChatMistralAI
 from langchain_openai import (
     AzureChatOpenAI,
-    AzureOpenAI,
-    ChatOpenAI,
-    OpenAI,
     OpenAIEmbeddings,
 )
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
-from opentelemetry.sdk.trace.export import BatchSpanProcessor, SimpleSpanProcessor
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
 
 logger = logging.getLogger(__name__)
 custom_exporter = CustomConsoleSpanExporter()

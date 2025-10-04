@@ -34,15 +34,21 @@ custom_exporter = CustomConsoleSpanExporter()
 
 @pytest.fixture(scope="module")
 def setup():
-    setup_monocle_telemetry(
-        workflow_name="langchain_app_1",
-        span_processors=[
-            BatchSpanProcessor(
-                custom_exporter, max_queue_size=1, max_export_batch_size=1
-            )
-        ],
-        wrapper_methods=[],
-    )
+    try:
+        instrumentor = setup_monocle_telemetry(
+            workflow_name="langchain_app_1",
+            span_processors=[
+                BatchSpanProcessor(
+                    custom_exporter, max_queue_size=1, max_export_batch_size=1
+                )
+            ],
+            wrapper_methods=[],
+        )
+        yield
+    finally:
+        # Clean up instrumentor to avoid global state leakage
+        if instrumentor and instrumentor.is_instrumented_by_opentelemetry:
+            instrumentor.uninstrument()
 
 
 # llm = ChatMistralAI(

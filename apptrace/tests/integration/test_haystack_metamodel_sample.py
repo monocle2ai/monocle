@@ -24,14 +24,20 @@ logger = logging.getLogger(__name__)
 
 @pytest.fixture(scope="module")
 def setup():
-    custom_exporter = CustomConsoleSpanExporter()
-    setup_monocle_telemetry(
-        workflow_name="haystack_app_1",
-        span_processors=[BatchSpanProcessor(custom_exporter)],
-        wrapper_methods=[
-            ])
-    yield custom_exporter
-    
+    try:
+        custom_exporter = CustomConsoleSpanExporter()
+        instrumentor = setup_monocle_telemetry(
+            workflow_name="haystack_app_1",
+            span_processors=[BatchSpanProcessor(custom_exporter)],
+            wrapper_methods=[
+                ])
+        yield custom_exporter
+
+    finally:
+        # Clean up instrumentor to avoid global state leakage
+        if instrumentor and instrumentor.is_instrumented_by_opentelemetry:
+            instrumentor.uninstrument()
+
 @pytest.mark.integration()
 def test_haystack_metamodel_sample(setup):
     api_key = os.getenv("OPENAI_API_KEY")

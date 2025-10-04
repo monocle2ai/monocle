@@ -26,15 +26,20 @@ MODEL = os.environ.get("ANTHROPIC_MODEL", "claude-3-5-haiku-latest")
 
 @pytest.fixture(scope="module")
 def setup():
-# Setup telemetry
-    custom_exporter = CustomConsoleSpanExporter()
-    setup_monocle_telemetry(
-        workflow_name="anthropic_integration_tests",
-        span_processors=[SimpleSpanProcessor(custom_exporter)],
-        # Add other necessary setup parameters if any, e.g., service_name
-        # service_name="anthropic_integration_tests"
-    )
-    yield custom_exporter
+    try:
+        # Setup telemetry
+        custom_exporter = CustomConsoleSpanExporter()
+        instrumentor = setup_monocle_telemetry(
+            workflow_name="anthropic_integration_tests",
+            span_processors=[SimpleSpanProcessor(custom_exporter)],
+            # Add other necessary setup parameters if any, e.g., service_name
+            # service_name="anthropic_integration_tests"
+        )
+        yield custom_exporter
+    finally:
+        # Clean up instrumentor to avoid global state leakage
+        if instrumentor and instrumentor.is_instrumented_by_opentelemetry:
+            instrumentor.uninstrument()
 
 def find_inference_span_and_event_attributes(spans, event_name="metadata"):
     for span in reversed(spans): # Usually the last span is the inference span

@@ -26,12 +26,18 @@ logger = logging.getLogger(__name__)
 
 @pytest.fixture(scope="module")
 def setup():
-    logging.basicConfig(level=logging.INFO)
-    load_dotenv()
-    setup_monocle_telemetry(
-                workflow_name="langchain_app_1",
-                span_processors=[BatchSpanProcessor(ConsoleSpanExporter())],
-                wrapper_methods=METACHAIN_METHODS, union_with_default_methods=True)
+    try:
+        logging.basicConfig(level=logging.INFO)
+        load_dotenv()
+        instrumentor = setup_monocle_telemetry(
+                    workflow_name="langchain_app_1",
+                    span_processors=[BatchSpanProcessor(ConsoleSpanExporter())],
+                    wrapper_methods=METACHAIN_METHODS, union_with_default_methods=True)
+        yield
+    finally:
+        # Clean up instrumentor to avoid global state leakage
+        if instrumentor and instrumentor.is_instrumented_by_opentelemetry:
+            instrumentor.uninstrument()
 
 @pytest.mark.integration()
 def test_metachain_sample(setup):

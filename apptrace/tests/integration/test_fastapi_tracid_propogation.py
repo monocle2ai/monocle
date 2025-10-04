@@ -22,17 +22,22 @@ logger = logging.getLogger(__name__)
 
 @pytest.fixture(scope="module", autouse=True)
 def setup():
-    os.environ["USER_AGENT"] = "monocle-apptrace-tests"
-    logger.info("Setting up FastAPI server")
-    os.environ[TRACE_PROPOGATION_URLS] = "http://127.0.0.1"
-    os.environ[SCOPE_CONFIG_PATH] = os.path.join(os.path.dirname(os.path.abspath(__file__)), SCOPE_METHOD_FILE)
-    custom_exporter = CustomConsoleSpanExporter()
-    setup_monocle_telemetry(
-        workflow_name="fastapi_test",
-        span_processors=[SimpleSpanProcessor(custom_exporter)]
-    )
-    fastapi_helper.start_fastapi()
-    yield custom_exporter
+    try:
+        os.environ["USER_AGENT"] = "monocle-apptrace-tests"
+        logger.info("Setting up FastAPI server")
+        os.environ[TRACE_PROPOGATION_URLS] = "http://127.0.0.1"
+        os.environ[SCOPE_CONFIG_PATH] = os.path.join(os.path.dirname(os.path.abspath(__file__)), SCOPE_METHOD_FILE)
+        custom_exporter = CustomConsoleSpanExporter()
+        instrumentor = setup_monocle_telemetry(
+            workflow_name="fastapi_test",
+            span_processors=[SimpleSpanProcessor(custom_exporter)]
+        )
+        fastapi_helper.start_fastapi()
+        yield custom_exporter
+    finally:
+        # Clean up instrumentor to avoid global state leakage
+        if instrumentor and instrumentor.is_instrumented_by_opentelemetry:
+            instrumentor.uninstrument()
     fastapi_helper.stop_fastapi()
 
 
@@ -51,7 +56,6 @@ def test_chat_endpoint(setup):
     verify_scopes(setup)
 
 def verify_scopes(setup):
-    scope_name = "conversation"
     spans = setup.get_captured_spans()
     logger.info(f"Total spans captured: {len(spans)}")
     message_scope_id = None
@@ -62,11 +66,11 @@ def verify_scopes(setup):
         logger.info(f"Span attributes: {dict(span_attributes)}")
         if span_attributes.get("span.type", "") in ["inference", "retrieval"]:
             if message_scope_id is None:
-                message_scope_id = span_attributes.get("scope."+scope_name)
-                logger.info(f"Found scope.{scope_name}: {message_scope_id}")
-                assert message_scope_id is not None, f"No scope.{scope_name} found in span attributes: {dict(span_attributes)}"
+                message_scope_id = span_attributes.get("scope."+CONVERSATION_SCOPE_NAME)
+                logger.info(f"Found scope.{CONVERSATION_SCOPE_NAME}: {message_scope_id}")
+                assert message_scope_id is not None, f"No scope.{CONVERSATION_SCOPE_NAME} found in span attributes: {dict(span_attributes)}"
             else:
-                assert message_scope_id == span_attributes.get("scope."+scope_name)
+                assert message_scope_id == span_attributes.get("scope."+CONVERSATION_SCOPE_NAME)
             
         if span_attributes.get("span.type", "") == "http.send":
             if len(span.events) == 2:

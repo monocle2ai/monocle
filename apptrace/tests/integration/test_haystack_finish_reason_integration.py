@@ -23,12 +23,17 @@ logger = logging.getLogger(__name__)
 
 @pytest.fixture(scope="module")
 def setup():
-    custom_exporter = CustomConsoleSpanExporter()
-    setup_monocle_telemetry(
-        workflow_name="haystack_integration_tests",
-        span_processors=[SimpleSpanProcessor(custom_exporter)],
-    )
-    yield custom_exporter
+    try:
+        custom_exporter = CustomConsoleSpanExporter()
+        instrumentor = setup_monocle_telemetry(
+            workflow_name="haystack_integration_tests",
+            span_processors=[SimpleSpanProcessor(custom_exporter)],
+        )
+        yield custom_exporter
+    finally:
+        # Clean up instrumentor to avoid global state leakage
+        if instrumentor and instrumentor.is_instrumented_by_opentelemetry:
+            instrumentor.uninstrument()
 
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY")

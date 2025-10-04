@@ -20,16 +20,22 @@ from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from requests_aws4auth import AWS4Auth
 
 logger = logging.getLogger(__name__)
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="function")
 def setup():
-    custom_exporter = CustomConsoleSpanExporter()
-    setup_monocle_telemetry(
-        workflow_name="sagemaker_workflow_1",
-        span_processors=[BatchSpanProcessor(custom_exporter)],
-        wrapper_methods=[],
-        span_handlers={"botocore_handler":BotoCoreSpanHandler()}
-    )
-    yield custom_exporter
+    instrumentor = None
+    try:
+        custom_exporter = CustomConsoleSpanExporter()
+        instrumentor = setup_monocle_telemetry(
+            workflow_name="sagemaker_workflow_1",
+            span_processors=[BatchSpanProcessor(custom_exporter)],
+            wrapper_methods=[],
+            span_handlers={"botocore_handler":BotoCoreSpanHandler()}
+        )
+        yield custom_exporter
+    finally:
+        # Clean up instrumentor to avoid global state leakage
+        if instrumentor and instrumentor.is_instrumented_by_opentelemetry:
+            instrumentor.uninstrument()
 
 
 @pytest.mark.integration()

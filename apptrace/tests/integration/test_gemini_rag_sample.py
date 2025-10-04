@@ -1,19 +1,17 @@
+import logging
 import os
 import time
+
 import chromadb
+import pytest
 from chromadb import ClientAPI, Collection
-from chromadb.utils import embedding_functions
 from chromadb.errors import NotFoundError
+from chromadb.utils import embedding_functions
+from common.custom_exporter import CustomConsoleSpanExporter
 from google import genai
 from google.genai import types
-import pytest
-from common.custom_exporter import CustomConsoleSpanExporter
-from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
-import logging
-
-custom_exporter = CustomConsoleSpanExporter()
-
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
 
 logger = logging.getLogger(__name__)
 COLLECTION_NAME = "coffee"
@@ -22,11 +20,18 @@ INFERENCE_MODEL_ID = "gemini-2.5-flash"
 
 @pytest.fixture(scope="module")
 def setup():
-    setup_monocle_telemetry(
-        workflow_name="gemini_app_1",
-        span_processors=[BatchSpanProcessor(custom_exporter)],
-        wrapper_methods=[]
-    )
+    try:
+        custom_exporter = CustomConsoleSpanExporter()
+        instrumentor = setup_monocle_telemetry(
+            workflow_name="gemini_app_1",
+            span_processors=[BatchSpanProcessor(custom_exporter)],
+            wrapper_methods=[]
+        )
+        yield custom_exporter
+    finally:
+        # Clean up instrumentor to avoid global state leakage
+        if instrumentor and instrumentor.is_instrumented_by_opentelemetry:
+            instrumentor.uninstrument()
 
 # class GeminiEmbeddingFunction(embedding_functions.EmbeddingFunction):
 #     def __call__(self, input):
@@ -100,7 +105,7 @@ def test_gemini_rag_sample(setup):
     logger.info(answer.text)
 
     found_workflow_span = False
-    spans = custom_exporter.get_captured_spans()
+    spans = setup.get_captured_spans()
     for span in spans:
         span_attributes = span.attributes
 

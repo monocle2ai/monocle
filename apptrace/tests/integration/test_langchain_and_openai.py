@@ -12,18 +12,23 @@ from monocle_apptrace.instrumentation.common.instrumentor import (
     stop_trace,
 )
 from openai import OpenAI
-from opentelemetry.sdk.trace.export import BatchSpanProcessor, SimpleSpanProcessor
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 
 
 @pytest.fixture(scope="module")
 def setup():
-    custom_exporter = CustomConsoleSpanExporter()
-    setup_monocle_telemetry(
-        workflow_name="langchain_app_1",
-        span_processors=[SimpleSpanProcessor(custom_exporter)],
-        wrapper_methods=[],
-    )
-    yield custom_exporter
+    try:
+        custom_exporter = CustomConsoleSpanExporter()
+        instrumentor = setup_monocle_telemetry(
+            workflow_name="langchain_app_1",
+            span_processors=[SimpleSpanProcessor(custom_exporter)],
+            wrapper_methods=[],
+        )
+        yield custom_exporter
+    finally:
+        # Clean up instrumentor to avoid global state leakage
+        if instrumentor and instrumentor.is_instrumented_by_opentelemetry:
+            instrumentor.uninstrument()
 
 
 # Test multiple chains with OpenAI APIs in between. Verify each has it's workflow and inference spans

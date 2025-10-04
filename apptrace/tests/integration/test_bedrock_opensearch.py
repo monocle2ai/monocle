@@ -25,14 +25,20 @@ logger = logging.getLogger(__name__)
 
 @pytest.fixture(scope="module")
 def setup():
-    custom_exporter = CustomConsoleSpanExporter()
-    setup_monocle_telemetry(
-        workflow_name="bedrock_workflow",
-        span_processors=[BatchSpanProcessor(custom_exporter)],
-        wrapper_methods=[],
-        span_handlers={"botocore_handler": BotoCoreSpanHandler()},
-    )
-    yield custom_exporter
+    try:
+        custom_exporter = CustomConsoleSpanExporter()
+        instrumentor = setup_monocle_telemetry(
+            workflow_name="bedrock_workflow",
+            span_processors=[BatchSpanProcessor(custom_exporter)],
+            wrapper_methods=[],
+            span_handlers={"botocore_handler": BotoCoreSpanHandler()},
+        )
+        yield custom_exporter
+    finally:
+        # Clean up instrumentor to avoid global state leakage
+        if instrumentor and instrumentor.is_instrumented_by_opentelemetry:
+            instrumentor.uninstrument()
+    custom_exporter.reset()
 
 
 @pytest.mark.integration()

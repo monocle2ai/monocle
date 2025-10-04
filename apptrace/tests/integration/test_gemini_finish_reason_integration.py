@@ -26,14 +26,19 @@ pytestmark = pytest.mark.integration
 
 @pytest.fixture(scope="module")
 def setup():
-# Setup telemetry
-    custom_exporter = CustomConsoleSpanExporter()
-    setup_monocle_telemetry(
-        workflow_name="gemini_integration_tests",
-        span_processors=[SimpleSpanProcessor(custom_exporter)],
-        # service_name="gemini_integration_tests"
-    )
-    yield custom_exporter
+    try:
+        # Setup telemetry
+        custom_exporter = CustomConsoleSpanExporter()
+        instrumentor = setup_monocle_telemetry(
+            workflow_name="gemini_integration_tests",
+            span_processors=[SimpleSpanProcessor(custom_exporter)],
+            # service_name="gemini_integration_tests"
+        )
+        yield custom_exporter
+    finally:
+        # Clean up instrumentor to avoid global state leakage
+        if instrumentor and instrumentor.is_instrumented_by_opentelemetry:
+            instrumentor.uninstrument()
 
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")

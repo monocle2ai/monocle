@@ -28,13 +28,18 @@ pytestmark = pytest.mark.integration
 # Setup telemetry
 @pytest.fixture(scope="module")
 def setup():
-    custom_exporter = CustomConsoleSpanExporter()
-    setup_monocle_telemetry(
-        workflow_name="bedrock_integration_tests",
-        span_processors=[SimpleSpanProcessor(custom_exporter)],
-        span_handlers={"botocore_handler": BotoCoreSpanHandler()},
-    )
-    yield custom_exporter
+    try:
+        custom_exporter = CustomConsoleSpanExporter()
+        instrumentor = setup_monocle_telemetry(
+            workflow_name="bedrock_integration_tests",
+            span_processors=[SimpleSpanProcessor(custom_exporter)],
+            span_handlers={"botocore_handler": BotoCoreSpanHandler()},
+        )
+        yield custom_exporter
+    finally:
+        # Clean up instrumentor to avoid global state leakage
+        if instrumentor and instrumentor.is_instrumented_by_opentelemetry:
+            instrumentor.uninstrument()
 
 # Default models to test (can be overridden via environment variables)
 AI21_MODEL = os.environ.get("BEDROCK_AI21_MODEL", "ai21.jamba-1-5-mini-v1:0")
@@ -212,7 +217,7 @@ def test_bedrock_finish_reason_tool_use(setup):
         
 
 
-def test_bedrock_finish_reason_content_filter():
+def test_bedrock_finish_reason_content_filter(setup):
     """Test content filtering scenarios (if supported by the model)."""
     client = get_bedrock_client()
     

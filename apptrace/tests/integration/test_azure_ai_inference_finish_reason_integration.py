@@ -35,12 +35,17 @@ AZURE_AI_INFERENCE_KEY = os.environ.get("AZURE_AI_INFERENCE_KEY")
 
 @pytest.fixture(scope="module")
 def setup():
-    custom_exporter = CustomConsoleSpanExporter()
-    setup_monocle_telemetry(
-        workflow_name="azure_ai_inference_integration_tests",
-        span_processors=[SimpleSpanProcessor(custom_exporter)],
-    )
-    yield custom_exporter
+    try:
+        custom_exporter = CustomConsoleSpanExporter()
+        instrumentor = setup_monocle_telemetry(
+            workflow_name="azure_ai_inference_integration_tests",
+            span_processors=[SimpleSpanProcessor(custom_exporter)],
+        )
+        yield custom_exporter
+    finally:
+        # Clean up instrumentor to avoid global state leakage
+        if instrumentor and instrumentor.is_instrumented_by_opentelemetry:
+            instrumentor.uninstrument()
 
 def find_inference_span_and_event_attributes(spans, event_name="metadata"):
     """Find inference span and return event attributes."""

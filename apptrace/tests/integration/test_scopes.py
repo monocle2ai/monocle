@@ -23,13 +23,26 @@ CHAT_SCOPE_NAME = "chat"
 
 @pytest.fixture(scope="function")
 def setup():
-    custom_exporter = CustomConsoleSpanExporter()
-    os.environ[SCOPE_CONFIG_PATH] = os.path.join(os.path.dirname(os.path.abspath(__file__)), SCOPE_METHOD_FILE)
-    setup_monocle_telemetry(
-                workflow_name="langchain_app_1",
-                span_processors=[SimpleSpanProcessor(custom_exporter)],
-                wrapper_methods=[])
-    yield custom_exporter
+    # Save original environment variable value
+    original_scope_config = os.environ.get(SCOPE_CONFIG_PATH)
+    instrumentor = None
+    try:
+        custom_exporter = CustomConsoleSpanExporter()
+        os.environ[SCOPE_CONFIG_PATH] = os.path.join(os.path.dirname(os.path.abspath(__file__)), SCOPE_METHOD_FILE)
+        instrumentor = setup_monocle_telemetry(
+                    workflow_name="langchain_app_1",
+                    span_processors=[SimpleSpanProcessor(custom_exporter)],
+                    wrapper_methods=[])
+        yield custom_exporter
+    finally:
+        # Clean up instrumentor to avoid global state leakage
+        if instrumentor and instrumentor.is_instrumented_by_opentelemetry:
+            instrumentor.uninstrument()
+        # Restore original environment variable value or remove if it wasn't set
+        if original_scope_config is not None:
+            os.environ[SCOPE_CONFIG_PATH] = original_scope_config
+        elif SCOPE_CONFIG_PATH in os.environ:
+            del os.environ[SCOPE_CONFIG_PATH]
 
 
 

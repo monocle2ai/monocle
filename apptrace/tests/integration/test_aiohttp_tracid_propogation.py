@@ -18,7 +18,7 @@ from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 logger = logging.getLogger(__name__)
 
 @pytest_asyncio.fixture
-async def aiohttp_server(scope="module", autouse=True):
+async def aiohttp_server(scope="function", autouse=False):
     logger.info("Setting up aiohttp server")
     os.environ[TRACE_PROPOGATION_URLS] = "http://localhost:8081"
     os.environ[SCOPE_CONFIG_PATH] = os.path.join(os.path.dirname(os.path.abspath(__file__)), SCOPE_METHOD_FILE)

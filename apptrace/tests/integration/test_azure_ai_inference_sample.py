@@ -26,11 +26,17 @@ custom_exporter = CustomConsoleSpanExporter()
 logger = logging.getLogger(__name__)
 @pytest.fixture(scope="module")
 def setup():
-    setup_monocle_telemetry(
-        workflow_name="azure_ai_inference_integration_test",
-        span_processors=[BatchSpanProcessor(custom_exporter)],
-        wrapper_methods=[]
-    )
+    try:
+        instrumentor = setup_monocle_telemetry(
+            workflow_name="azure_ai_inference_integration_test",
+            span_processors=[BatchSpanProcessor(custom_exporter)],
+            wrapper_methods=[]
+        )
+        yield
+    finally:
+        # Clean up instrumentor to avoid global state leakage
+        if instrumentor and instrumentor.is_instrumented_by_opentelemetry:
+            instrumentor.uninstrument()
 
 @pytest.fixture(autouse=True)
 def pre_test():

@@ -14,7 +14,6 @@ from common.helpers import (
 from google import genai
 from google.genai import types
 from monocle_apptrace.instrumentation.common.instrumentor import (
-    set_context_properties,
     setup_monocle_telemetry,
 )
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
@@ -25,13 +24,18 @@ logger = logging.getLogger(__name__)
 
 @pytest.fixture(scope="function")
 def setup():
-    custom_exporter = CustomConsoleSpanExporter()
-    setup_monocle_telemetry(
-        workflow_name="gemini_app_1",
-        span_processors=[BatchSpanProcessor(custom_exporter)],
-        wrapper_methods=[],
-    )
-    yield custom_exporter
+    try:
+        custom_exporter = CustomConsoleSpanExporter()
+        instrumentor = setup_monocle_telemetry(
+            workflow_name="gemini_app_1",
+            span_processors=[BatchSpanProcessor(custom_exporter)],
+            wrapper_methods=[],
+        )
+        yield custom_exporter
+    finally:
+        # Clean up instrumentor to avoid global state leakage
+        if instrumentor and instrumentor.is_instrumented_by_opentelemetry:
+            instrumentor.uninstrument()
 
 
 @pytest.mark.integration()

@@ -12,6 +12,9 @@ import pytest
 import uvicorn
 from a2a.client import A2AClient
 from common.custom_exporter import CustomConsoleSpanExporter
+
+# Import from config/conftest.py
+from config.conftest import temporary_env_var
 from langchain_core.callbacks import (
     AsyncCallbackManagerForToolRun,
     CallbackManagerForToolRun,
@@ -351,35 +354,36 @@ async def test_invalid_api_key_error_code_in_span(setup):
     """Test that passing an invalid API key results in error_code in the span."""
     # Simulate invalid API key by setting an obviously wrong value
     setup.clear()
-    try:
-        os.environ["OPENAI_API_KEY"] = "INVALID_API_KEY"
-        supervisor = await setup_agents()
-        chunk = supervisor.invoke(
-            input={
-                "messages": [
-                    {
-                        "role": "user",
-                        "content": """book a flight from BOS to JFK or LAX. And also book me Hyatt hotel at LAX.""",
-                    }
-                ]
-            }
-        )
-        logger.info(chunk)
-        logger.info("\n")
-        time.sleep(2)
-    except Exception as e:
-        spans = setup.get_finished_spans()
-        found_error_code = False
-        for span in spans:
-            span_attributes = span.attributes
-            if (
-                    "span.type" in span_attributes
-                    and span_attributes["span.type"] == "agentic.invocation"
-                    and "entity.1.name" in span_attributes
-            ):
-                span_input, span_output,_ = span.events
-                assert "error_code" in span_output.attributes
-                assert span_output.attributes["error_code"]== "invalid_api_key"
+    
+    # Using context manager approach for cleaner environment management
+    with temporary_env_var("OPENAI_API_KEY", "INVALID_API_KEY"):
+        try:
+            supervisor = await setup_agents()
+            chunk = supervisor.invoke(
+                input={
+                    "messages": [
+                        {
+                            "role": "user",
+                            "content": """book a flight from BOS to JFK or LAX. And also book me Hyatt hotel at LAX.""",
+                        }
+                    ]
+                }
+            )
+            logger.info(chunk)
+            logger.info("\n")
+            time.sleep(2)
+        except Exception:
+            spans = setup.get_finished_spans()
+            for span in spans:
+                span_attributes = span.attributes
+                if (
+                        "span.type" in span_attributes
+                        and span_attributes["span.type"] == "agentic.invocation"
+                        and "entity.1.name" in span_attributes
+                ):
+                    span_input, span_output, _ = span.events
+                    assert "error_code" in span_output.attributes
+                    assert span_output.attributes["error_code"] == "invalid_api_key"
 
 def verify_spans(memory_exporter=None):
     time.sleep(2)

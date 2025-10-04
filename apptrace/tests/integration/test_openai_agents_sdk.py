@@ -6,6 +6,7 @@ import time
 import pytest
 import uvicorn
 from common.custom_exporter import CustomConsoleSpanExporter
+from config.conftest import temporary_env_var
 from monocle_apptrace.exporters.file_exporter import FileSpanExporter
 from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, SimpleSpanProcessor
@@ -256,52 +257,52 @@ async def test_invalid_api_key_error_code_in_span(setup):
     """Test that passing an invalid API key results in error_code in the span."""
     # Simulate invalid API key by setting an obviously wrong value
     setup.clear()
-    try:
-        os.environ["OPENAI_API_KEY"] = "INVALID_API_KEY"
+    
+    with temporary_env_var("OPENAI_API_KEY", "INVALID_API_KEY"):
         try:
-            from agents import Agent, Runner
-            from agents.mcp import MCPServerStreamableHttp
+            try:
+                from agents import Agent, Runner
+                from agents.mcp import MCPServerStreamableHttp
 
-            # Create MCP server for weather
-            weather_mcp_server = MCPServerStreamableHttp(
-                params={"url": "http://localhost:8001/weather/mcp/"}
-            )
-            await weather_mcp_server.connect()
+                # Create MCP server for weather
+                weather_mcp_server = MCPServerStreamableHttp(
+                    params={"url": "http://localhost:8001/weather/mcp/"}
+                )
+                await weather_mcp_server.connect()
 
-            # Create an agent that uses only MCP tools
-            weather_agent = Agent(
-                name="Weather Assistant",
-                instructions="You are a weather information specialist. Use the available weather tools to provide accurate weather information for cities.",
-                mcp_servers=[weather_mcp_server],
-            )
+                # Create an agent that uses only MCP tools
+                weather_agent = Agent(
+                    name="Weather Assistant",
+                    instructions="You are a weather information specialist. Use the available weather tools to provide accurate weather information for cities.",
+                    mcp_servers=[weather_mcp_server],
+                )
 
-            # Test the agent with weather queries
-            result = await Runner.run(
-                weather_agent,
-                "What's the weather like in New York, London, and Tokyo? Please provide the temperature for each city.",
-            )
+                # Test the agent with weather queries
+                result = await Runner.run(
+                    weather_agent,
+                    "What's the weather like in New York, London, and Tokyo? Please provide the temperature for each city.",
+                )
 
-            logger.info(f"Weather agent result: {result.final_output}")
+                logger.info(f"Weather agent result: {result.final_output}")
 
-            # Verify spans were created
-            verify_mcp_spans(memory_exporter=setup)
+                # Verify spans were created
+                verify_mcp_spans(memory_exporter=setup)
 
-        except ImportError:
-            pytest.skip("OpenAI Agents SDK not available")
+            except ImportError:
+                pytest.skip("OpenAI Agents SDK not available")
 
-    except Exception as e:
-        spans = setup.get_finished_spans()
-        found_error_code = False
-        for span in spans:
-            span_attributes = span.attributes
-            if (
-                    "span.type" in span_attributes
-                    and span_attributes["span.type"] == "agentic.invocation"
-                    and "entity.1.name" in span_attributes
-            ):
-                span_input, span_output, _, _ = span.events
-                assert "error_code" in span_output.attributes
-                assert span_output.attributes["error_code"] == "invalid_api_key"
+        except Exception:
+            spans = setup.get_finished_spans()
+            for span in spans:
+                span_attributes = span.attributes
+                if (
+                        "span.type" in span_attributes
+                        and span_attributes["span.type"] == "agentic.invocation"
+                        and "entity.1.name" in span_attributes
+                ):
+                    span_input, span_output, _, _ = span.events
+                    assert "error_code" in span_output.attributes
+                    assert span_output.attributes["error_code"] == "invalid_api_key"
 
 
 def verify_mcp_spans(memory_exporter=None):

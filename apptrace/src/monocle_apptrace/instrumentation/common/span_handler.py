@@ -136,6 +136,10 @@ class SpanHandler:
 
             if 'attributes' in output_processor and 'attributes' not in skip_processors:
                 arguments = {"instance":instance, "args":args, "kwargs":kwargs, "result":result, "parent_span":parent_span, "span":span}
+                subtype = output_processor.get('subtype')
+                if subtype:
+                    span.subtype_result = subtype(arguments)
+                    span.set_attribute("span.subtype", span.subtype_result)
                 for processors in output_processor["attributes"]:
                     for processor in processors:
                         attribute = processor.get('attribute')

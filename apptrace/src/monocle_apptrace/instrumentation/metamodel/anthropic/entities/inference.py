@@ -1,4 +1,4 @@
-from monocle_apptrace.instrumentation.common.constants import SPAN_TYPES, SPAN_SUBTYPES
+from monocle_apptrace.instrumentation.common.constants import SPAN_TYPES
 from monocle_apptrace.instrumentation.metamodel.anthropic import (
     _helper,
 )
@@ -6,7 +6,7 @@ from monocle_apptrace.instrumentation.common.utils import (get_error_message, re
 
 INFERENCE = {
     "type": SPAN_TYPES.INFERENCE,
-    "subtype": SPAN_SUBTYPES.ENDING,
+    "subtype": lambda arguments: _helper.agent_inference_type(arguments),
     "attributes": [
         [
             {

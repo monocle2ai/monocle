@@ -1,9 +1,10 @@
-from monocle_apptrace.instrumentation.common.constants import SPAN_TYPES
+from monocle_apptrace.instrumentation.common.constants import SPAN_TYPES, SPAN_SUBTYPES
 from monocle_apptrace.instrumentation.metamodel.mistral import _helper
 from monocle_apptrace.instrumentation.common.utils import get_error_message, resolve_from_alias
 
 MISTRAL_INFERENCE = {
     "type": SPAN_TYPES.INFERENCE,
+    "subtype": SPAN_SUBTYPES.ENDING,
     "attributes": [
         [
             {
@@ -83,10 +84,6 @@ MISTRAL_INFERENCE = {
                     "_comment": "finish type mapped from finish reason",
                     "attribute": "finish_type",
                     "accessor": lambda arguments: _helper.map_finish_reason_to_finish_type(_helper.extract_finish_reason(arguments))
-                },
-                {
-                    "attribute": "inference_sub_type",
-                    "accessor": lambda arguments: _helper.agent_inference_type(arguments)
                 }
             ]
         }

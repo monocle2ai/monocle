@@ -1,4 +1,4 @@
-from monocle_apptrace.instrumentation.common.constants import SPAN_TYPES
+from monocle_apptrace.instrumentation.common.constants import SPAN_TYPES, SPAN_SUBTYPES
 from monocle_apptrace.instrumentation.metamodel.langchain import (
     _helper,
 )
@@ -6,6 +6,7 @@ from monocle_apptrace.instrumentation.common.utils import get_error_message, res
 
 INFERENCE = {
     "type": SPAN_TYPES.INFERENCE_FRAMEWORK,
+    "subtype":  SPAN_SUBTYPES.ENDING,
     "attributes": [
         [
             {
@@ -79,10 +80,6 @@ INFERENCE = {
                     "accessor": lambda arguments: _helper.map_finish_reason_to_finish_type(
                         _helper.extract_finish_reason(arguments)
                     )
-                },
-                {
-                    "attribute": "inference_sub_type",
-                    "accessor": lambda arguments: _helper.agent_inference_type(arguments)
                 }
             ]
         }

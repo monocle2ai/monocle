@@ -111,6 +111,28 @@ class TestSpan(BaseModel):
         else:
             raise ValueError("test_type must be either 'positive' or 'negative'.")
 
+class ToolType(str, Enum):
+    OPENAI = "tool.openai"
+    ADK = "tool.adk"
+    LLAMA_INDEX = "tool.llama_index"
+    LANGGRAPH = "tool.langgraph"
+
+class MockTool(BaseModel):
+    """
+    Represents a mock tool implementation for testing purposes in the Monocle testing framework.
+    
+    A MockTool defines a simulated version of a tool that can be used in test cases to
+    mimic the behavior of real tools without invoking external dependencies. This allows
+    for controlled testing of agent interactions and logic.
+    
+    Attributes:
+        name: Name of the mock tool.
+        description: Description of what the mock tool does.
+        response: Predefined response that the mock tool will return when invoked.
+    """
+    name: str = Field(..., description="Name of the tool.")
+    type: ToolType = Field(..., description="Type of the tool.")
+    response: Optional[Any] = Field(..., description="Predefined response from the mock tool. Placeholder for tool input are supported.")
 
 class TestCase(BaseModel):
     """
@@ -139,6 +161,7 @@ class TestCase(BaseModel):
     test_spans: list[TestSpan] = Field(default_factory=list, description="List of spans to include in the test case.")
     expect_errors: Optional[bool] = Field(False, description="Whether to expect errors during the test.")
     expect_warnings: Optional[bool] = Field(False, description="Whether to expect warnings during the test.")
+    mock_tools: Optional[list[MockTool]] = Field([], description="List of mock tool implementations.")
 
     def __init__(self, **data):
         super().__init__(**data)

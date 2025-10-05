@@ -69,18 +69,18 @@ def get_tool_description(arguments):
         return ""
 
 def extract_tool_args(arguments):
-    tool_args = []
+    tool_args = {}
     if len(arguments['args']) > 1:
         for key, value in arguments['args'][2].items():
             # check if value is builtin type or a string
             if value is not None and isinstance(value, (str, int, float, bool)):
-                tool_args.append({key, value})
+                tool_args[key] = value
     else:
         for key, value in arguments['kwargs'].items():
             # check if value is builtin type or a string
             if value is not None and isinstance(value, (str, int, float, bool)):
-                tool_args.append({key, value})
-    return [get_json_dumps(tool_arg) for tool_arg in tool_args]
+                tool_args[key] = value
+    return get_json_dumps(tool_args)
 
 def extract_tool_response(response):
     if hasattr(response, 'raw_output'):

@@ -1,6 +1,7 @@
 import logging
 import os
 from contextlib import contextmanager
+from typing import Union
 from opentelemetry.context import get_value, set_value, attach, detach
 from opentelemetry.sdk.trace import Span
 from opentelemetry.trace.status import Status, StatusCode
@@ -10,8 +11,8 @@ from monocle_apptrace.instrumentation.common.constants import (
     service_type_map,
     MONOCLE_SDK_VERSION, MONOCLE_SDK_LANGUAGE, MONOCLE_DETECTED_SPAN_ERROR
 )
-from monocle_apptrace.instrumentation.common.utils import set_attribute, get_scopes, MonocleSpanException, get_monocle_version
-from monocle_apptrace.instrumentation.common.constants import WORKFLOW_TYPE_KEY, WORKFLOW_TYPE_GENERIC, CHILD_ERROR_CODE
+from monocle_apptrace.instrumentation.common.utils import set_attribute, get_scopes, MonocleSpanException, get_monocle_version, replace_placeholders
+from monocle_apptrace.instrumentation.common.constants import WORKFLOW_TYPE_KEY, WORKFLOW_TYPE_GENERIC, CHILD_ERROR_CODE, MONOCLE_SKIP_EXECUTIONS, SKIPPED_EXECUTION
 
 logger = logging.getLogger(__name__)
 
@@ -114,17 +115,18 @@ class SpanHandler:
                 return True
         return should_skip
 
-    def hydrate_span(self, to_wrap, wrapped, instance, args, kwargs, result, span, parent_span = None, ex:Exception = None) -> bool:
+    def hydrate_span(self, to_wrap, wrapped, instance, args, kwargs, result, span, parent_span = None,
+                    ex:Exception = None, skip_events:list[str] = []) -> bool:
         try:
-            detected_error_in_attribute = self.hydrate_attributes(to_wrap, wrapped, instance, args, kwargs, result, span, parent_span)
-            detected_error_in_event = self.hydrate_events(to_wrap, wrapped, instance, args, kwargs, result, span, parent_span, ex)
+            detected_error_in_attribute = self.hydrate_attributes(to_wrap, wrapped, instance, args, kwargs, result, span, parent_span, skip_events)
+            detected_error_in_event = self.hydrate_events(to_wrap, wrapped, instance, args, kwargs, result, span, parent_span, ex, skip_events)
             if detected_error_in_attribute or detected_error_in_event:
                 span.set_attribute(MONOCLE_DETECTED_SPAN_ERROR, True)
         finally:
             if span.status.status_code == StatusCode.UNSET and ex is None:
                 span.set_status(StatusCode.OK)
 
-    def hydrate_attributes(self, to_wrap, wrapped, instance, args, kwargs, result, span:Span, parent_span:Span) -> bool:
+    def hydrate_attributes(self, to_wrap, wrapped, instance, args, kwargs, result, span:Span, parent_span:Span, skip_events:list[str] = []) -> bool:
         detected_error:bool = False
         span_index = 0
         if SpanHandler.is_root_span(span):
@@ -132,8 +134,7 @@ class SpanHandler:
         if 'output_processor' in to_wrap and to_wrap["output_processor"] is not None:
             output_processor=to_wrap['output_processor']
             self.set_span_type(to_wrap, wrapped, instance, output_processor, span, args, kwargs)
-            skip_processors:list[str] = self.skip_processor(to_wrap, wrapped, instance, span, args, kwargs) or []
-
+            skip_processors:list[str] = list(set(self.skip_processor(to_wrap, wrapped, instance, span, args, kwargs) or []).union(set(skip_events)))
             if 'attributes' in output_processor and 'attributes' not in skip_processors:
                 arguments = {"instance":instance, "args":args, "kwargs":kwargs, "result":result, "parent_span":parent_span, "span":span}
                 subtype = output_processor.get('subtype')
@@ -172,11 +173,12 @@ class SpanHandler:
             span.set_attribute("entity.count", span_index)
         return detected_error
 
-    def hydrate_events(self, to_wrap, wrapped, instance, args, kwargs, ret_result, span: Span, parent_span=None, ex:Exception=None) -> bool:
+    def hydrate_events(self, to_wrap, wrapped, instance, args, kwargs, ret_result, span: Span, parent_span=None, ex:Exception=None,
+                       skip_events:list[str] = []) -> bool:
         detected_error:bool = False
         if 'output_processor' in to_wrap and to_wrap["output_processor"] is not None:
             output_processor=to_wrap['output_processor']
-            skip_processors:list[str] = self.skip_processor(to_wrap, wrapped, instance, span, args, kwargs) or []
+            skip_processors:list[str] = list(set(self.skip_processor(to_wrap, wrapped, instance, span, args, kwargs) or []).union(set(skip_events)))
 
             arguments = {"instance": instance, "args": args, "kwargs": kwargs, "result": ret_result, "exception":ex, "parent_span":parent_span, "span": span}
             # Process events if they are defined in the output_processor.
@@ -306,6 +308,30 @@ class SpanHandler:
         finally:
             SpanHandler.detach_workflow_type(token)
 
+    @staticmethod
+    def get_iput_entity_type(span: Span) -> str:
+        for event in span.events:
+            if event.name == "data.input":
+                return event.attributes.get("entity.type", "")
+
+
+    @staticmethod
+    def skip_execution(span:Span) -> bool:
+        skip_execs = get_value(MONOCLE_SKIP_EXECUTIONS)
+        if skip_execs is not None:
+            skip_exec_entity = skip_execs.get(span.attributes.get("entity.1.name", ""),{})
+            if ((span.attributes.get("span.type") is not None and skip_exec_entity.get("span.type", "") == span.attributes.get("span.type")) and
+                (span.attributes.get("entity.1.type") is not None and skip_exec_entity.get("entity.type", "") == span.attributes.get("entity.1.type"))):
+                span.set_attribute(SKIPPED_EXECUTION, True)
+                response = skip_exec_entity.get("response", None)
+                return True, response
+        return False, None
+
+    @staticmethod
+    def replace_placeholders_in_response(response: Union[dict, list, str], span:Span) -> Union[dict, list, str]:
+        if span.attributes.get(SKIPPED_EXECUTION, False):
+            return replace_placeholders(response, span)
+        return response
 
 class NonFrameworkSpanHandler(SpanHandler):
     # If the language framework is being executed, then skip generating direct openAI attributes and events

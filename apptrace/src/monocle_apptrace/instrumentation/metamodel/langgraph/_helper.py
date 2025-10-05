@@ -67,10 +67,15 @@ def get_status(result):
 
 def extract_tool_input(arguments):
     tool_input = arguments['args'][0]
-    if isinstance(tool_input, str):
-        return [tool_input]
-    else:
-        return list(tool_input.values())
+    return str(tool_input)
+
+    # if isinstance(tool_input, str):
+    #     return [tool_input]
+    # elif isinstance(tool_input, dict):
+    #     # return array of key value pairs
+    #     return [f"'{k}': '{str(v)}'" for k, v in tool_input.items()]
+    # else:
+    #     return [str(tool_input)]
 
 def get_name(instance):
     return instance.name if hasattr(instance, 'name') else ""

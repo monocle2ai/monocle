@@ -11,16 +11,29 @@ from unittest.mock import ANY, patch
 import requests
 import torch
 from common.http_span_exporter import HttpSpanExporter
-from opentelemetry.sdk.trace.export import BatchSpanProcessor
-from transformers import GPT2DoubleHeadsModel, GPT2Tokenizer
-
 from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
 from monocle_apptrace.instrumentation.common.wrapper import task_wrapper
 from monocle_apptrace.instrumentation.common.wrapper_method import WrapperMethod
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from transformers import GPT2DoubleHeadsModel, GPT2Tokenizer
 
 logger = logging.getLogger(__name__)
 
 class TestHandler(unittest.TestCase):
+    instrumentor = None
+
+    def setUp(self):
+        """Set up test environment with clean state"""
+        os.environ["HTTP_API_KEY"] = "key1"
+        os.environ["HTTP_INGESTION_ENDPOINT"] = "https://localhost:3000/api/v1/traces"
+
+    def tearDown(self):
+        """Clean up instrumentation state"""
+        if self.instrumentor is not None:
+            try:
+                self.instrumentor.uninstrument()
+            except Exception as e:
+                logger.warning(f"Uninstrument failed: {e}")
 
     @patch.object(requests.Session, 'post')
     def test_pytorch(self, mock_post):
@@ -30,7 +43,7 @@ class TestHandler(unittest.TestCase):
         mock_post.return_value.status_code = 201
         mock_post.return_value.json.return_value = 'mock response'
 
-        instrumentor = setup_monocle_telemetry(
+        self.instrumentor = setup_monocle_telemetry(
             workflow_name="pytorch_1",
             span_processors=[BatchSpanProcessor(HttpSpanExporter(os.environ["HTTP_INGESTION_ENDPOINT"]))],
             wrapper_methods=[
@@ -74,11 +87,23 @@ class TestHandler(unittest.TestCase):
             dataBodyStr = mock_post.call_args.kwargs['data']
             dataJson =  json.loads(dataBodyStr) # more asserts can be added on individual fields
             
-            assert len(dataJson['batch']) == 1
-            assert dataJson['batch'][0]["name"] == "pytorch.transformer.GPT2DoubleHeadsModel"
+            # The test should expect 2 spans: pytorch span + workflow span
+            assert len(dataJson['batch']) == 2
+            
+            # Look for the pytorch span specifically
+            pytorch_spans = [span for span in dataJson['batch'] if "pytorch.transformer.GPT2DoubleHeadsModel" in span.get("name", "")]
+            assert len(pytorch_spans) == 1, f"Expected exactly 1 pytorch span, but found: {[s.get('name') for s in dataJson['batch']]}"
+            
+            # Assert on the pytorch span
+            pytorch_span = pytorch_spans[0]
+            assert pytorch_span["name"] == "pytorch.transformer.GPT2DoubleHeadsModel"
+            
+            # Verify workflow span is also present
+            workflow_spans = [span for span in dataJson['batch'] if span.get("name") == "workflow"]
+            assert len(workflow_spans) == 1, "Expected exactly 1 workflow span"
         
         finally:
-            instrumentor.uninstrument()
+            pass  # cleanup handled in tearDown
 
 if __name__ == '__main__':
     unittest.main()

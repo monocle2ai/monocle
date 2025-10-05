@@ -1,8 +1,10 @@
 import logging
 import os
 import unittest
+import warnings
 
 from monocle_apptrace.exporters.monocle_exporters import get_monocle_exporter
+
 logger = logging.getLogger(__name__)
 
 class TestHandler(unittest.TestCase):
@@ -14,7 +16,10 @@ class TestHandler(unittest.TestCase):
     def test_fallback_exporter(self):
         """ No Okahu API key, it should fall back to console exporter"""
         os.environ["MONOCLE_EXPORTER"] = "okahu"
-        default_exporter = get_monocle_exporter()
+        # Suppress expected warning about missing OKAHU_API_KEY during fallback test
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", UserWarning)
+            default_exporter = get_monocle_exporter()
         assert default_exporter[0].__class__.__name__ == "ConsoleSpanExporter"
         os.environ.clear()
 

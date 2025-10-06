@@ -99,7 +99,7 @@ jobs:
           set -e
           pytest -rfs apptrace/tests/integration/test*.py --tb=short | tee result.log
           EXIT_CODE=${PIPESTATUS[0]}
-          grep -E 'FAILED.*::' traces.log | cut -d ':' -f 1 | sort | uniq > failed_files.txt
+          grep -E 'FAILED.*::' result.log | cut -d ':' -f 1 | sort | uniq > failed_files.txt
           echo "Failed test files:"
           cat ./failed_files.txt
           LINE_NUM=$(grep -nE "===== .*((failed|passed|skipped|warnings).*)+ in .* ======" result.log | tail -1 | cut -d: -f1)

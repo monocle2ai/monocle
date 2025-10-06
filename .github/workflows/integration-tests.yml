@@ -1,0 +1,119 @@
+name: Monocle Integration Tests
+
+on:
+  push:
+    branches:
+      - "main"
+  pull_request:
+    branches:
+      - "main"
+  workflow_dispatch:
+
+env:
+  AZURE_OPENAI_API_DEPLOYMENT: ${{ secrets.AZURE_OPENAI_API_DEPLOYMENT }}
+  AZURE_OPENAI_API_KEY: ${{ secrets.AZURE_OPENAI_API_KEY }}
+  AZURE_OPENAI_API_VERSION: ${{ secrets.AZURE_OPENAI_API_VERSION }}
+  AZURE_OPENAI_ENDPOINT: ${{ secrets.AZURE_OPENAI_ENDPOINT }}
+  OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+  AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+  ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+  AWS_ACCESS_KEY_BOTO: ${{ secrets.AWS_ACCESS_KEY_BOTO }}
+  AWS_ACCESS_KEY_ID_EXPORTER: ${{ secrets.AWS_ACCESS_KEY_ID_EXPORTER }}
+  AWS_SECRET_ACCESS_KEY_BOTO: ${{ secrets.AWS_SECRET_ACCESS_KEY_BOTO }}
+  AWS_SECRET_ACCESS_KEY_EXPORTER: ${{ secrets.AWS_SECRET_ACCESS_KEY_EXPORTER }}
+  AZURE_AI_CHAT_ENDPOINT: ${{ secrets.AZURE_AI_CHAT_ENDPOINT }}
+  AZURE_AI_CHAT_KEY: ${{ secrets.AZURE_AI_CHAT_KEY }}
+  AZURE_API_BASE: ${{ secrets.AZURE_API_BASE }}
+  AZURE_API_KEY: ${{ secrets.AZURE_API_KEY }}
+  AZURE_API_VERSION: ${{ secrets.AZURE_API_VERSION }}
+  AZURE_OPENAI_EMBED_API_DEPLOYMENT: ${{ secrets.AZURE_OPENAI_EMBED_API_DEPLOYMENT }}
+  GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+  GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
+  HAYSTACK_AUTO_TRACE_ENABLED: ${{ secrets.HAYSTACK_AUTO_TRACE_ENABLED }}
+  MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
+  MONOCLE_AWS_SECRET_ACCESS_KEY: ${{ secrets.MONOCLE_AWS_SECRET_ACCESS_KEY }}
+  MONOCLE_BLOB_CONNECTION_STRING: ${{ secrets.MONOCLE_BLOB_CONNECTION_STRING }}
+  MONOCLE_BLOB_CONTAINER_NAME: ${{ secrets.MONOCLE_BLOB_CONTAINER_NAME }}
+  MONOCLE_REGION_NAME: ${{ secrets.MONOCLE_REGION_NAME }}
+  MONOCLE_S3_BUCKET_NAME: ${{ secrets.MONOCLE_S3_BUCKET_NAME }}
+  MONOCLE_S3_REGION_NAME: ${{ secrets.MONOCLE_S3_REGION_NAME }}
+  MONOCLE_TRACE_PROPAGATATION_URLS: ${{ secrets.MONOCLE_TRACE_PROPAGATATION_URLS }}
+  OPENSEARCH_ENDPOINT_URL: ${{ secrets.OPENSEARCH_ENDPOINT_URL }}
+  OPENSEARCH_ENDPOINT_URL_BOTO: ${{ secrets.OPENSEARCH_ENDPOINT_URL_BOTO }}
+  OPEN_SEARCH_AUTH_PASSWORD: ${{ secrets.OPEN_SEARCH_AUTH_PASSWORD }}
+  OPEN_SEARCH_AUTH_USER: ${{ secrets.OPEN_SEARCH_AUTH_USER }}
+  OPEN_SEARCH_DOCSTORE_ENDPOINT: ${{ secrets.OPEN_SEARCH_DOCSTORE_ENDPOINT }}
+  SAGEMAKER_EMB_ENDPOINT_NAME: ${{ secrets.SAGEMAKER_EMB_ENDPOINT_NAME }}
+  SAGEMAKER_ENDPOINT_NAME: ${{ secrets.SAGEMAKER_ENDPOINT_NAME }}
+  _CLOUD_SDK_MISSING_CREDENTIALS: ${{ secrets._CLOUD_SDK_MISSING_CREDENTIALS }}
+
+jobs:
+  integration-test:
+    runs-on: ubuntu-latest
+    environment: Stage
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      # - name: Export env vars from secret JSON
+      #   env:
+      #     INTEGRATION_TEST_CONFIG: ${{ secrets.INTEGRATION_TEST_CONFIG }}
+        # run: |
+        #   echo "$INTEGRATION_TEST_CONFIG" > env.json
+        #   python <<EOF
+        #   import json, os
+        #   with open('env.json') as f:
+        #       envs = json.load(f)
+        #   with open(os.environ['GITHUB_ENV'], 'a') as env_file:
+        #       for k, v in envs.items():
+        #           print(f'::add-mask::{v}')  # mask secret values in logs
+        #           env_file.write(f'{k}={v}\n')
+
+      - name: Install build dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install build setuptools wheel toml
+
+      - name: Build wheels
+        run: |
+          chmod +x ./.github/scripts/build.sh
+          ./.github/scripts/build.sh
+
+      - name: Install package and dev dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -e '.[dev]'
+
+      - name: Run integration tests
+        id: run-tests
+        run: |
+          set -e
+          pytest tests/integration --tb=short | tee result.log
+          EXIT_CODE=${PIPESTATUS[0]}
+          grep -E 'FAILED.*::' result.log | cut -d ':' -f 1 | sort | uniq > failed_files.txt
+          echo "Failed test files:"
+          cat failed_files.txt
+          exit $EXIT_CODE
+
+      - name: Add Failed Files to Summary (Table)
+        if: always()
+        run: |
+          if [[ -s failed_files.txt ]]; then
+            {
+              echo "### ❌ Failed Test Files"
+              echo ""
+              echo "| File Path |"
+              echo "|-----------|"
+              while read -r file; do
+                echo "| $file |"
+              done < failed_files.txt
+            } >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### ✅ All integration tests passed!" >> $GITHUB_STEP_SUMMARY
+          fi

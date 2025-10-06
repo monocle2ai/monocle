@@ -22,8 +22,7 @@ from google.adk.runners import Runner
 from google.adk.sessions import InMemorySessionService
 from google.adk.tools import load_memory
 from google.genai.types import Content, Part
-from monocle_apptrace import monocle_trace, setup_monocle_telemetry
-from monocle_apptrace.instrumentation.common.utils import get_current_monocle_span
+from monocle_apptrace import setup_monocle_telemetry
 
 # Configure telemetry to track and monitor the AI agent interactions
 setup_monocle_telemetry(
@@ -90,18 +89,14 @@ def add_to_cart(product_id: str, quantity: int) -> dict:
         dict: status and result or error message
     """
     user_id = TEST_USER_ID
+    from opentelemetry import trace
     
-    # Create a custom span for cart operation using Monocle's built-in tracing
-    with monocle_trace(
-        span_name="ecommerce.cart.add_item",
-        attributes={
-            "user.id": user_id,
-            "product.id": product_id,
-            "cart.quantity": quantity
-        }
-    ):
-        # Get the current span to set additional attributes dynamically
-        span = get_current_monocle_span()
+    # Create a custom span for cart operation
+    tracer = trace.get_tracer(__name__)
+    with tracer.start_as_current_span("ecommerce.cart.add_item") as span:
+        span.set_attribute("user.id", user_id)
+        span.set_attribute("product.id", product_id)
+        span.set_attribute("cart.quantity", quantity)
         
         if user_id not in SHOPPING_CARTS:
             SHOPPING_CARTS[user_id] = {}
@@ -152,14 +147,12 @@ def view_cart() -> dict:
         dict: status and cart contents or empty message
     """
     user_id = TEST_USER_ID
+    from opentelemetry import trace
     
-    # Create a custom span for cart viewing using Monocle's built-in tracing
-    with monocle_trace(
-        span_name="ecommerce.cart.view",
-        attributes={"user.id": user_id}
-    ):
-        # Get the current span to set additional attributes dynamically
-        span = get_current_monocle_span()
+    # Create a custom span for cart viewing
+    tracer = trace.get_tracer(__name__)
+    with tracer.start_as_current_span("ecommerce.cart.view") as span:
+        span.set_attribute("user.id", user_id)
         
         if user_id not in SHOPPING_CARTS or not SHOPPING_CARTS[user_id]:
             span.set_attribute("cart.empty", True)
@@ -206,17 +199,14 @@ def mock_payment_process(payment_method: str, billing_address: str) -> dict:
     import uuid
     from datetime import datetime
 
-    # Create a custom span for payment processing using Monocle's built-in tracing
-    with monocle_trace(
-        span_name="ecommerce.payment.process",
-        attributes={
-            "user.id": user_id,
-            "payment.method": payment_method,
-            "billing.address": billing_address
-        }
-    ):
-        # Get the current span to set additional attributes dynamically
-        span = get_current_monocle_span()
+    from opentelemetry import trace
+    
+    # Create a custom span for payment processing
+    tracer = trace.get_tracer(__name__)
+    with tracer.start_as_current_span("ecommerce.payment.process") as span:
+        span.set_attribute("user.id", user_id)
+        span.set_attribute("payment.method", payment_method)
+        span.set_attribute("billing.address", billing_address)
         
         if user_id not in SHOPPING_CARTS or not SHOPPING_CARTS[user_id]:
             span.set_attribute("error.type", "empty_cart")
@@ -286,13 +276,12 @@ def search_products(query: str) -> dict:
     Returns:
         dict: status and search results or no results message
     """
-    # Create a custom span for product search using Monocle's built-in tracing
-    with monocle_trace(
-        span_name="ecommerce.search.products",
-        attributes={"search.query": query}
-    ):
-        # Get the current span to set additional attributes dynamically
-        span = get_current_monocle_span()
+    from opentelemetry import trace
+    
+    # Create a custom span for product search
+    tracer = trace.get_tracer(__name__)
+    with tracer.start_as_current_span("ecommerce.search.products") as span:
+        span.set_attribute("search.query", query)
         
         results = []
         query_lower = query.lower()
@@ -594,7 +583,7 @@ async def demonstrate_ecommerce_agent_flow():
             print(f"  - Order #{order['order_id']}: ${order['total']:.2f} ({order['status']})")
     
     print(f"✓ Product stock updated: Laptop stock now {PRODUCT_CATALOG['laptop_pro']['stock']}, Mouse stock now {PRODUCT_CATALOG['wireless_mouse']['stock']}")
-    print(f"✓ Shopping cart cleared: {view_cart()}")
+    print(f"✓ Shopping cart cleared: {view_cart(TEST_USER_ID)}")
     
     print("\n🛒 E-commerce test completed successfully!")
     print("✅ All agents collaborated effectively with persistent memory")

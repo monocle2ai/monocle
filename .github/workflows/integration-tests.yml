@@ -98,9 +98,9 @@ jobs:
         run: |
           export PYTHONPATH=./apptrace/src:./apptrace/tests
           set -e
-          pytest apptrace/tests/integration/test*.py --tb=short | tee result.log
+          pytest apptrace/tests/integration/test*.py --tb=short -q
           EXIT_CODE=${PIPESTATUS[0]}
-          grep -E 'FAILED.*::' result.log | cut -d ':' -f 1 | sort | uniq > failed_files.txt
+          grep -E 'FAILED.*::' traces.log | cut -d ':' -f 1 | sort | uniq > failed_files.txt
           echo "Failed test files:"
           cat ./failed_files.txt
           exit $EXIT_CODE

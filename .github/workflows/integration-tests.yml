@@ -104,9 +104,15 @@ jobs:
           echo "Failed test files:"
           cat ./failed_files.txt
           exit $EXIT_CODE
+      - name: Tests Execution Summary
+        run: |
+          LINE_NUM=$(grep -n "^=====" ./result.log | tail -1 | cut -d: -f1)
+          tail -n +$LINE_NUM ./result.log
+          
       - name: Failed Tests
         run: |
           cat ./failed_files.txt
+          
       - name: Add Failed Files to Summary (Table)
         if: always()
         run: |

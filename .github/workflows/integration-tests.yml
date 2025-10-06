@@ -98,13 +98,7 @@ jobs:
         run: |
           export PYTHONPATH=./apptrace/src:./apptrace/tests
           set -e
-          pytest apptrace/tests/integration/test_adk_multi_agent.py \
-                 apptrace/tests/integration/test_adk_single_agent.py \
-                 apptrace/tests/integration/test_azure_ai_inference_finish_reason_integration.py \
-                 apptrace/tests/integration/test_azure_ai_inference_sample.py \
-                 apptrace/tests/integration/test_gemini_metamodel_sample.py \
-                 apptrace/tests/integration/test_langchain_chat_sample.py \
-                 --tb=short | tee result.log
+          pytest apptrace/tests/integration/test*.py --tb=short | tee result.log
           EXIT_CODE=${PIPESTATUS[0]}
           grep -E 'FAILED.*::' result.log | cut -d ':' -f 1 | sort | uniq > failed_files.txt
           echo "Failed test files:"

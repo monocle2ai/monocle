@@ -51,7 +51,7 @@ env:
 jobs:
   integration-test:
     runs-on: ubuntu-latest
-    environment: Integration Tests
+    environment: Stage
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5

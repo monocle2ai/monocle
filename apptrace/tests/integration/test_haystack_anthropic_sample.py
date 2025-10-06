@@ -1,20 +1,30 @@
+import logging
 import time
-import pytest
-from haystack_integrations.components.generators.anthropic import AnthropicChatGenerator
-from haystack.dataclasses import ChatMessage
-from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
-from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
-from common.custom_exporter import CustomConsoleSpanExporter
-custom_exporter = CustomConsoleSpanExporter()
 
+import pytest
+from common.custom_exporter import CustomConsoleSpanExporter
+from haystack.dataclasses import ChatMessage
+from haystack_integrations.components.generators.anthropic import AnthropicChatGenerator
+from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
+
+logger = logging.getLogger(__name__)
 @pytest.fixture(scope="module")
 def setup():
-    setup_monocle_telemetry(
-                workflow_name="haystack_app_1",
-                span_processors=[BatchSpanProcessor(custom_exporter)],
-                wrapper_methods=[])
+    try:
+        custom_exporter = CustomConsoleSpanExporter()
+        instrumentor = setup_monocle_telemetry(
+            workflow_name="haystack_app_1",
+            span_processors=[BatchSpanProcessor(custom_exporter)],
+            wrapper_methods=[]
+        )
+        yield custom_exporter
+    finally:
+        # Clean up instrumentor to avoid global state leakage
+        if instrumentor and instrumentor.is_instrumented_by_opentelemetry:
+            instrumentor.uninstrument()
 
-@pytest.mark.integration()
+
 def test_haystack_anthropic_sample(setup):
     generator = AnthropicChatGenerator(model="claude-3-5-sonnet-20240620",
                                        generation_kwargs={
@@ -26,9 +36,9 @@ def test_haystack_anthropic_sample(setup):
                 ChatMessage.from_user("What's Natural Language Processing?")]
     response = generator.run(messages=messages)
     time.sleep(5)
-    print(response)
+    logger.info(response)
 
-    spans = custom_exporter.get_captured_spans()
+    spans = setup.get_captured_spans()
     for span in spans:
         span_attributes = span.attributes
 

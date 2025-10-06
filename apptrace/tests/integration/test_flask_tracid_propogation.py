@@ -1,36 +1,43 @@
+import os
+import uuid
+
 import pytest
-import os, time
-import requests, uuid
-from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+import requests
+from common import flask_helper
+from common.custom_exporter import CustomConsoleSpanExporter
+from monocle_apptrace import setup_monocle_telemetry, start_scope, stop_scope
+from monocle_apptrace.instrumentation.common.constants import (
+    SCOPE_CONFIG_PATH,
+    SCOPE_METHOD_FILE,
+    TRACE_PROPOGATION_URLS,
+)
 from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
-from common.custom_exporter import CustomConsoleSpanExporter
-from tests.common import flask_helper
-from common.custom_exporter import CustomConsoleSpanExporter
-from common.chain_exec import TestScopes, setup_chain
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
-from monocle_apptrace import setup_monocle_telemetry
-from monocle_apptrace import start_scope, stop_scope
-from monocle_apptrace.instrumentation.common.constants import SCOPE_METHOD_FILE, SCOPE_CONFIG_PATH, TRACE_PROPOGATION_URLS
 
 CHAT_SCOPE_NAME = "chat"
 CONVERSATION_SCOPE_NAME = "discussion"
 CONVERSATION_SCOPE_VALUE = "conv1234"
 custom_exporter = CustomConsoleSpanExporter()
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="function", autouse=True)
 def setup():
-    print ("Setting up Flask")
-    os.environ[TRACE_PROPOGATION_URLS] = "http://127.0.0.1"
-    os.environ[SCOPE_CONFIG_PATH] = os.path.join(os.path.dirname(os.path.abspath(__file__)), SCOPE_METHOD_FILE)
-    flask_helper.start_flask()
-    setup_monocle_telemetry(workflow_name = "flask_test", span_processors=[SimpleSpanProcessor(custom_exporter)])
+    try:
+        print ("Setting up Flask")
+        os.environ[TRACE_PROPOGATION_URLS] = "http://127.0.0.1"
+        os.environ[SCOPE_CONFIG_PATH] = os.path.join(os.path.dirname(os.path.abspath(__file__)), SCOPE_METHOD_FILE)
+        flask_helper.start_flask()
+        instrumentor = setup_monocle_telemetry(workflow_name = "flask_test", span_processors=[SimpleSpanProcessor(custom_exporter)])
+        yield
+    finally:
+        # Clean up instrumentor to avoid global state leakage
+        if instrumentor and instrumentor.is_instrumented_by_opentelemetry:
+            instrumentor.uninstrument()
 
 @pytest.fixture(autouse=True)
 def pre_test():
     # clear old spans
    custom_exporter.reset()
 
-@pytest.mark.integration()
 def test_http_flask_scope(setup):
     custom_exporter.reset()
     client_session_id = f"{uuid.uuid4().hex}"

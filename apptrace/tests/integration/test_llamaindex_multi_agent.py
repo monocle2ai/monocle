@@ -1,29 +1,32 @@
 
 import asyncio
+import logging
 import time
-from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
-from llama_index.core.tools import FunctionTool
+
+import pytest
 from llama_index.core.agent.workflow import AgentWorkflow, FunctionAgent
+from llama_index.core.tools import FunctionTool
 from llama_index.llms.openai import OpenAI
 from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
-from opentelemetry.sdk.trace.export import BatchSpanProcessor, SimpleSpanProcessor
-from llama_index.core.agent import ReActAgent
-import logging
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
+
 logger = logging.getLogger(__name__)
 
-import time
-import pytest
-
-memory_exporter = InMemorySpanExporter()
-span_processors=[SimpleSpanProcessor(memory_exporter)]
 
 @pytest.fixture(scope="module")
 def setup():
-    memory_exporter.clear()
-    setup_monocle_telemetry(
-        workflow_name="llamaindex_agent_1",
-        span_processors=[SimpleSpanProcessor(memory_exporter)]
-)
+    memory_exporter = InMemorySpanExporter()
+    try:
+        instrumentor = setup_monocle_telemetry(
+            workflow_name="llamaindex_agent_1",
+            span_processors=[SimpleSpanProcessor(memory_exporter)]
+        )
+        yield memory_exporter
+    finally:
+        # Clean up instrumentor to avoid global state leakage
+        if instrumentor and instrumentor.is_instrumented_by_opentelemetry:
+            instrumentor.uninstrument()
 
 def book_hotel(hotel_name: str):
     """Book a hotel"""
@@ -73,16 +76,15 @@ async def run_agent():
 
     agent_workflow = setup_agents()
     resp = await agent_workflow.run(user_msg="book a flight from BOS to JFK and a book hotel stay at McKittrick Hotel")
-    print(resp)
+    logger.info(resp)
 
-@pytest.mark.integration()
 def test_multi_agent(setup):
     """Test multi-agent interaction with flight and hotel booking."""
 
     asyncio.run(run_agent())
-    verify_spans()
+    verify_spans(memory_exporter=setup)
 
-def verify_spans():
+def verify_spans(memory_exporter = None):
     time.sleep(2)
     found_inference = found_agent = found_tool = False
     found_flight_agent = found_hotel_agent = found_supervisor_agent = False

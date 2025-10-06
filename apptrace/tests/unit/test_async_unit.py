@@ -92,7 +92,7 @@ class TestHandler(unittest.IsolatedAsyncioTestCase):
                 res = await self.dummy.add1(10,raise_error=True)
                 assert False
             except Exception as e:
-                print(f"Got exception {e}")
+                logger.info(f"Got exception {e}")
         exporter.force_flush()
         spans = exporter.captured_spans
         assert len(spans) == 4

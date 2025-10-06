@@ -1,19 +1,31 @@
+import asyncio
+import logging
 import time
-from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
+
+import pytest
+from llama_index.core.agent import ReActAgent
 from llama_index.core.tools import FunctionTool
 from llama_index.llms.openai import OpenAI
 from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
-from opentelemetry.sdk.trace.export import BatchSpanProcessor, SimpleSpanProcessor
-from llama_index.core.agent import ReActAgent
-import pytest
-memory_exporter = InMemorySpanExporter()
-span_processors=[SimpleSpanProcessor(memory_exporter)]
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
+
+logger = logging.getLogger(__name__)
+
 @pytest.fixture(scope="module")
 def setup():
-    setup_monocle_telemetry(
-        workflow_name="llama_index_1",
-        span_processors=[SimpleSpanProcessor(memory_exporter)]
-    )
+    memory_exporter = InMemorySpanExporter()
+    span_processors = [SimpleSpanProcessor(memory_exporter)]
+    try:
+        instrumentor = setup_monocle_telemetry(
+            workflow_name="llama_index_1",
+            span_processors=span_processors
+        )
+        yield memory_exporter
+    finally:
+        # Clean up instrumentor to avoid global state leakage
+        if instrumentor and instrumentor.is_instrumented_by_opentelemetry:
+            instrumentor.uninstrument()
 
 # Define coffee menu
 COFFEE_MENU = {
@@ -51,16 +63,21 @@ order_tool = FunctionTool.from_defaults(
 
 # Initialize LlamaIndex ReAct agent
 llm = OpenAI(model="gpt-4")
-agent = ReActAgent.from_tools([coffee_menu_tool, order_tool], llm=llm)
+agent = ReActAgent(tools=[coffee_menu_tool, order_tool], llm=llm)
 
 def test_llamaindex_agent(setup):
-    print("Welcome to the Coffee Bot! ")
+    logger.info("Welcome to the Coffee Bot! ")
     user_input = "Please order 3 espresso coffees"
-    response = agent.chat(user_input)
+    
+    async def run_agent():
+        response = await agent.run(user_input)
+        return response
+    
+    response = asyncio.run(run_agent())
     time.sleep(5)
-    print(f"Bot: {response}")
+    logger.info(f"Bot: {response}")
 
-    spans = memory_exporter.get_finished_spans()
+    spans = setup.get_finished_spans()
     found_inference_span = found_agent_span = found_tool_span = False
     for span in spans:
         span_attributes = span.attributes
@@ -96,6 +113,8 @@ def test_llamaindex_agent(setup):
     assert found_agent_span, "Agent span not found"
     assert found_tool_span, "Tool span not found"
 
+if __name__ == "__main__":
+    pytest.main([__file__, "-s", "--tb=short"])
 
 # [{
 #     "name": "openai.resources.chat.completions.Completions.create",

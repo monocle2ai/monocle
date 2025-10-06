@@ -10,7 +10,6 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 
 # the method contains the untouched RAG application code
-@pytest.mark.integration()
 def test_langchain_sample_wrapped():
 
     llm = ChatOpenAI(model="gpt-3.5-turbo-0125")

@@ -23,7 +23,6 @@ from monocle_apptrace.instrumentation.metamodel.botocore.handlers.botocore_span_
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, SimpleSpanProcessor
 
 logger = logging.getLogger(__name__)
-pytestmark = pytest.mark.integration
 
 # Setup telemetry
 @pytest.fixture(scope="module")

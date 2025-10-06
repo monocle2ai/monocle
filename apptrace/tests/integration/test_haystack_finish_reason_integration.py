@@ -16,7 +16,6 @@ from monocle_apptrace.instrumentation.metamodel.haystack._helper import (
 )
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 
-pytestmark = pytest.mark.integration
 logger = logging.getLogger(__name__)
 # Setup telemetry
 

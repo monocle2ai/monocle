@@ -13,6 +13,8 @@ from monocle_apptrace.instrumentation.common.span_handler import NonFrameworkSpa
 
 logger = logging.getLogger(__name__)
 
+XAI_CHAT_ROLES = ['invalid', 'user', 'assistant','system', 'function', 'tool']
+
 def extract_messages(kwargs):
     """Extract messages from xAI SDK request and return as JSON list"""
     try:
@@ -38,25 +40,9 @@ def extract_messages_from_instance(instance):
             for msg in instance._proto.messages:
                 # Extract role from protobuf enum
                 if hasattr(msg, 'role'):
-                    # Try different ways to get the role name
-                    if hasattr(msg.role, 'name'):
-                        role = msg.role.name.lower().replace('role_', '')
-                    elif hasattr(msg.role, '_name'):
-                        role = msg.role._name.lower().replace('role_', '')
-                    else:
-                        # Convert enum value to string and extract role
-                        role_str = str(msg.role)
-                        if 'SYSTEM' in role_str:
-                            role = 'system'
-                        elif 'USER' in role_str:
-                            role = 'user'
-                        elif 'ASSISTANT' in role_str:
-                            role = 'assistant'
-                        else:
-                            role = 'unknown'
+                    role = XAI_CHAT_ROLES[msg.role] if 0 <= msg.role < len(XAI_CHAT_ROLES) else 'unknown'
                 else:
                     role = 'unknown'
-                
                 # Extract content from protobuf message
                 content_parts = []
                 for content_item in msg.content:

@@ -33,11 +33,11 @@ dependencies = [
 ]
 
 [tool.pytest.ini_options]
-# log_cli = true
-# log_cli_level = "INFO"
+log_cli = true
+log_cli_level = "INFO"
 # Enable file logging
-log_file = "traces.log"
-log_file_level = "INFO"
+# log_file = "traces.log"
+# log_file_level = "INFO"
 log_format = "%(asctime)s %(levelname)s %(pathname)s:%(lineno)d %(message)s"
 log_date_format = "%Y-%m-%d %H:%M:%S"
 

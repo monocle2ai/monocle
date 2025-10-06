@@ -21,8 +21,6 @@ from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 
 logger = logging.getLogger(__name__)
 
-pytestmark = pytest.mark.integration
-
 
 @pytest.fixture(scope="module")
 def setup():

@@ -1,6 +1,21 @@
 name: Release
 on:
   workflow_dispatch:
+    inputs:
+      app_name:
+        description: 'Application name to build (apptrace, mcp, test_tools, or all)'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - apptrace
+          - mcp
+          - test_tools
+      stable_version:
+        description: 'Version to release (optional - will use detected version if empty)'
+        required: false
+        type: string
 
 jobs:
   release:
@@ -20,7 +35,12 @@ jobs:
 
       - name: Set environment variables
         run: |
-          stable_version=$(./.github/scripts/get-version.sh)
+          # Use input version if provided, otherwise detect from scripts
+          if [[ -n "${{ github.event.inputs.stable_version }}" ]]; then
+            stable_version="${{ github.event.inputs.stable_version }}"
+          else
+            stable_version=$(./.github/scripts/get-version.sh)
+          fi
 
           if [[ $stable_version =~ ^([0-9]+)\.([0-9]+)\.([0-9]+) ]]; then
             stable_major="${BASH_REMATCH[1]}"
@@ -35,6 +55,7 @@ jobs:
           fi
 
           echo "STABLE_VERSION=$stable_version" >> $GITHUB_ENV
+          echo "APP_NAME=${{ github.event.inputs.app_name }}" >> $GITHUB_ENV
 
           echo "PRIOR_VERSION_WHEN_PATCH=$prior_version_when_patch" >> $GITHUB_ENV
 
@@ -63,8 +84,42 @@ jobs:
 
       - name: Build wheels
         run: |
-          chmod +x ./.github/scripts/build.sh
-          ./.github/scripts/build.sh
+          chmod +x ./.github/scripts/build-artifact.sh
+          
+          case "$APP_NAME" in
+            "all")
+              echo "Building all artifacts..."
+              ./.github/scripts/build-artifact.sh apptrace $STABLE_VERSION
+              ./.github/scripts/build-artifact.sh mcp $STABLE_VERSION
+              ./.github/scripts/build-artifact.sh test_tools $STABLE_VERSION
+              ;;
+            "apptrace"|"mcp"|"test_tools")
+              echo "Building $APP_NAME artifact..."
+              ./.github/scripts/build-artifact.sh $APP_NAME $STABLE_VERSION
+              ;;
+            *)
+              echo "Invalid app_name: $APP_NAME. Must be one of: all, apptrace, mcp, test_tools"
+              exit 1
+              ;;
+          esac
+
+      - name: Collect distribution files
+        run: |
+          mkdir -p dist
+          
+          case "$APP_NAME" in
+            "all")
+              cp apptrace/dist/* dist/ 2>/dev/null || true
+              cp mcp/dist/* dist/ 2>/dev/null || true
+              cp test_tools/dist/* dist/ 2>/dev/null || true
+              ;;
+            "apptrace"|"mcp"|"test_tools")
+              cp $APP_NAME/dist/* dist/ 2>/dev/null || true
+              ;;
+          esac
+          
+          echo "Distribution files collected:"
+          ls -la dist/
 
       - name: Install twine
         run: |

@@ -12,6 +12,44 @@ on:
         description: 'Version of the package to release (beta/alpha versions allowed)'
         required: false
         type: string
+      artifact_path:
+        description: 'Path to the artifact directory (defaults to root)'
+        required: false
+        default: '.'
+        type: string
+      artifact_name:
+        description: 'Name of the artifact for logging'
+        required: false
+        default: 'package'
+        type: string
+  workflow_call:
+    inputs:
+      branch:
+        description: 'Branch to build from'
+        required: false
+        default: 'main'
+        type: string
+      version:
+        description: 'Version of the package to release'
+        required: false
+        type: string
+      artifact_path:
+        description: 'Path to the artifact directory'
+        required: false
+        default: '.'
+        type: string
+      artifact_name:
+        description: 'Name of the artifact for logging'
+        required: false
+        default: 'package'
+        type: string
+    secrets:
+      JFROG_REPOSITORY_URL:
+        required: true
+      JFROG_USERNAME:
+        required: true
+      JFROG_PASSWORD:
+        required: true
 
 jobs:
   publish-to-jfrog:
@@ -24,7 +62,7 @@ jobs:
           ref: ${{ github.event_name == 'workflow_dispatch' && inputs.branch || github.ref }}
 
       - name: 🔎 Validate version format
-      # valid versions are. 0.5.0, 0.5.0a1, 0.5.0b1
+        if: inputs.version != ''
         run: |
           version="${{ inputs.version }}"
           if ! [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+([ab][0-9]+)?$ ]]; then
@@ -34,13 +72,13 @@ jobs:
           echo "✅ Version format is valid: $version"
 
       - name: 📝 Update version in pyproject.toml
+        if: inputs.version != ''
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            version="${{ inputs.version || '5.0.0b25' }}"
-            sed -i "s/^version = .*/version = \"$version\"/" pyproject.toml
-            echo "✅ Updated version to $version in pyproject.toml"
-          fi
-          echo "🔍 Current pyproject.toml content:"
+          cd "${{ inputs.artifact_path }}"
+          version="${{ inputs.version }}"
+          sed -i "s/^version = .*/version = \"$version\"/" pyproject.toml
+          echo "✅ Updated ${{ inputs.artifact_name }} version to $version"
+          echo "🔍 Current ${{ inputs.artifact_path }}/pyproject.toml version:"
           grep '^version = ' pyproject.toml
 
       - name: 🐍 Setup Python
@@ -50,9 +88,10 @@ jobs:
 
       - name: ⚙️ Build wheels
         run: |
-          chmod +x ./.github/scripts/build.sh
-          ./.github/scripts/build.sh
-          echo "✅ Build completed. Artifacts in dist/:"
+          cd "${{ inputs.artifact_path }}"
+          python3 -m pip install --upgrade pip build setuptools wheel
+          python3 -m build
+          echo "✅ ${{ inputs.artifact_name }} build completed. Artifacts in ${{ inputs.artifact_path }}/dist/:"
           ls -lh dist/
 
       - name: 📦 Install Twine
@@ -64,6 +103,7 @@ jobs:
           JFROG_USERNAME: ${{ secrets.JFROG_USERNAME }}
           JFROG_PASSWORD: ${{ secrets.JFROG_PASSWORD }}
         run: |
+          cd "${{ inputs.artifact_path }}"
           if [[ -z "$JFROG_URL" ]]; then
             echo "::error::JFROG_REPOSITORY_URL secret is not set"
             exit 1
@@ -78,21 +118,21 @@ jobs:
           fi
           
           echo "🔑 Authenticated as $JFROG_USERNAME"
-          echo "🌐 Publishing to: $JFROG_URL"
+          echo "🌐 Publishing ${{ inputs.artifact_name }} to: $JFROG_URL"
           python3 -m twine upload \
-            --non-interactive --skip-existing \
+            --non-interactive \
             --repository-url "$JFROG_URL" dist/* \
             --username "$JFROG_USERNAME" --password "$JFROG_PASSWORD"
 
       - name: 📋 Summary
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          cd "${{ inputs.artifact_path }}"
+          if [[ -n "${{ inputs.version }}" ]]; then
             version="${{ inputs.version }}"
-            branch="${{ inputs.branch || 'main' }}"
           else
             version=$(grep '^version = ' pyproject.toml | sed 's/version = "\(.*\)"/\1/')
-            branch="${{ github.ref_name }}"
           fi
-          echo "✅ Successfully published version: $version"
+          branch="${{ inputs.branch || github.ref_name }}"
+          echo "✅ Successfully published ${{ inputs.artifact_name }} version: $version"
           echo "📦 Source branch: $branch"
-          echo "🏗️ Uploaded artifacts from: dist/"
+          echo "🏗️ Uploaded artifacts from: ${{ inputs.artifact_path }}/dist/"

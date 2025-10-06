@@ -102,13 +102,13 @@ jobs:
           EXIT_CODE=${PIPESTATUS[0]}
           grep -E 'FAILED.*::' result.log | cut -d ':' -f 1 | sort | uniq > failed_files.txt
           echo "Failed test files:"
-          cat failed_files.txt
+          cat ./failed_files.txt
           exit $EXIT_CODE
 
       - name: Add Failed Files to Summary (Table)
         if: always()
         run: |
-          if [[ -s failed_files.txt ]]; then
+          if [[ -s ./failed_files.txt ]]; then
             {
               echo "### ❌ Failed Test Files"
               echo ""

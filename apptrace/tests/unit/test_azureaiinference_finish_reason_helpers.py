@@ -3,12 +3,13 @@ Unit tests for Azure AI Inference helper functions, particularly finish_reason m
 """
 import unittest
 from types import SimpleNamespace
-from src.monocle_apptrace.instrumentation.metamodel.azureaiinference._helper import (
+
+from monocle_apptrace.instrumentation.metamodel.azureaiinference._helper import (
     extract_finish_reason,
     map_finish_reason_to_finish_type,
 )
-from src.monocle_apptrace.instrumentation.metamodel.finish_types import (
-    AZURE_AI_INFERENCE_FINISH_REASON_MAPPING
+from monocle_apptrace.instrumentation.metamodel.finish_types import (
+    AZURE_AI_INFERENCE_FINISH_REASON_MAPPING,
 )
 
 

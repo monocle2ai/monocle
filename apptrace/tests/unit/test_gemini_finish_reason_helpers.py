@@ -3,12 +3,13 @@ Unit tests for Gemini helper functions, particularly finish_reason mapping.
 """
 import unittest
 from types import SimpleNamespace
-from src.monocle_apptrace.instrumentation.metamodel.gemini._helper import (
+
+from monocle_apptrace.instrumentation.metamodel.finish_types import (
+    GEMINI_FINISH_REASON_MAPPING,
+)
+from monocle_apptrace.instrumentation.metamodel.gemini._helper import (
     extract_finish_reason,
     map_finish_reason_to_finish_type,
-)
-from src.monocle_apptrace.instrumentation.metamodel.finish_types import (
-    GEMINI_FINISH_REASON_MAPPING
 )
 
 
@@ -22,6 +23,7 @@ class TestGeminiFinishReasonHelpers(unittest.TestCase):
             "MAX_TOKENS": "truncated",
             "SAFETY": "content_filter",
             "RECITATION": "content_filter",
+            "MALFORMED_FUNCTION_CALL": "tool_call_error",
             "OTHER": "error",
             "FINISH_REASON_UNSPECIFIED": None
         }
@@ -44,6 +46,10 @@ class TestGeminiFinishReasonHelpers(unittest.TestCase):
     def test_map_finish_reason_to_finish_type_error_cases(self):
         """Test mapping of error-type finish reasons."""
         self.assertEqual(map_finish_reason_to_finish_type("OTHER"), "error")
+
+    def test_map_finish_reason_to_finish_type_tool_call_error_cases(self):
+        """Test mapping of tool call error-type finish reasons."""
+        self.assertEqual(map_finish_reason_to_finish_type("MALFORMED_FUNCTION_CALL"), "tool_call_error")
 
     def test_map_finish_reason_to_finish_type_unspecified(self):
         """Test mapping of unspecified finish reason."""
@@ -120,7 +126,7 @@ class TestGeminiFinishReasonHelpers(unittest.TestCase):
 
     def test_extract_finish_reason_various_reasons(self):
         """Test extraction of various finish reasons."""
-        finish_reasons = ["STOP", "MAX_TOKENS", "SAFETY", "RECITATION", "OTHER", "FINISH_REASON_UNSPECIFIED"]
+        finish_reasons = ["STOP", "MAX_TOKENS", "SAFETY", "RECITATION", "MALFORMED_FUNCTION_CALL", "OTHER", "FINISH_REASON_UNSPECIFIED"]
         
         for reason in finish_reasons:
             with self.subTest(reason=reason):
@@ -165,6 +171,7 @@ class TestGeminiFinishReasonHelpers(unittest.TestCase):
             ("MAX_TOKENS", "truncated"),
             ("SAFETY", "content_filter"),
             ("RECITATION", "content_filter"),
+            ("MALFORMED_FUNCTION_CALL", "tool_call_error"),
             ("OTHER", "error"),
             ("FINISH_REASON_UNSPECIFIED", None),
         ]

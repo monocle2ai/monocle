@@ -1,45 +1,39 @@
-import asyncio
-from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
-from opentelemetry.sdk.trace.export import SimpleSpanProcessor, BatchSpanProcessor
-import uvicorn
-from monocle_apptrace.exporters.file_exporter import FileSpanExporter
-from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
-from langchain_core.messages import HumanMessage, ToolMessage
-from langchain_openai import ChatOpenAI
-from langgraph.prebuilt import create_react_agent
-from langgraph_supervisor import create_supervisor
-from langchain_mcp_adapters.client import MultiServerMCPClient
-import pytest
 import logging
-from tests.integration.servers.mcp.weather_server import app as weather_app
+import os
+import signal
+import subprocess
+import threading
+import time
 from typing import Optional
+from uuid import uuid4
+
+import httpx
+import pytest
+import uvicorn
+from a2a.client import A2AClient
+from common.custom_exporter import CustomConsoleSpanExporter
+
+# Import from config/conftest.py
+from config.conftest import temporary_env_var
 from langchain_core.callbacks import (
     AsyncCallbackManagerForToolRun,
     CallbackManagerForToolRun,
 )
-from a2a.client import A2ACardResolver, A2AClient
 from langchain_core.tools import BaseTool, tool
 from langchain_core.tools.base import ArgsSchema
+from langchain_mcp_adapters.client import MultiServerMCPClient
+from langchain_openai import ChatOpenAI
+from langgraph.prebuilt import create_react_agent
+from langgraph_supervisor import create_supervisor
+from monocle_apptrace.exporters.file_exporter import FileSpanExporter
+from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
+from opentelemetry.sdk.trace.export import BatchSpanProcessor, SimpleSpanProcessor
+from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from pydantic import BaseModel, Field
-import httpx
-from uuid import uuid4
-import subprocess
-import signal
-import os
+
+from integration.servers.mcp.weather_server import app as weather_app
 
 logger = logging.getLogger(__name__)
-
-import time
-import threading
-import multiprocessing
-from common.custom_exporter import CustomConsoleSpanExporter
-memory_exporter = InMemorySpanExporter()
-custom_exporter = CustomConsoleSpanExporter()
-span_processors = [
-    SimpleSpanProcessor(memory_exporter),
-    BatchSpanProcessor(FileSpanExporter()),
-    SimpleSpanProcessor(custom_exporter)
-]
 
 # Global variables to track server processes
 weather_server_process = None
@@ -60,8 +54,8 @@ def start_weather_server():
 
 def start_a2a_server():
     """Start the A2A Currency server on port 10000."""
-    import sys
     import os
+    import sys
 
     # Get the path to the A2A server script
     current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -116,11 +110,24 @@ def start_servers():
 
 @pytest.fixture(scope="module")
 def setup(start_servers):
-    memory_exporter.clear()
-    setup_monocle_telemetry(
-        workflow_name="langchain_agent_1",
-        span_processors=span_processors,
-    )
+    memory_exporter = InMemorySpanExporter()
+    custom_exporter = CustomConsoleSpanExporter()
+    span_processors = [
+        SimpleSpanProcessor(memory_exporter),
+        BatchSpanProcessor(FileSpanExporter()),
+        SimpleSpanProcessor(custom_exporter)
+    ]
+
+    try:
+        instrumentor = setup_monocle_telemetry(
+            workflow_name="langchain_agent_1",
+            span_processors=span_processors,
+        )
+        yield memory_exporter
+    finally:
+        # Clean up instrumentor to avoid global state leakage
+        if instrumentor and instrumentor.is_instrumented_by_opentelemetry:
+            instrumentor.uninstrument()
 
 
 def book_hotel(hotel_name: str):
@@ -305,7 +312,6 @@ async def setup_agents():
     return supervisor
 
 
-@pytest.mark.integration()
 @pytest.mark.asyncio
 async def test_multi_agent(setup):
     """Test multi-agent interaction with flight and hotel booking."""
@@ -321,12 +327,11 @@ async def test_multi_agent(setup):
             ]
         }
     )
-    print(chunk)
-    print("\n")
-    verify_spans()
+    logger.info(chunk)
+    logger.info("\n")
+    verify_spans(memory_exporter=setup)
 
 
-@pytest.mark.integration()
 @pytest.mark.asyncio
 async def test_async_multi_agent(setup):
     """Test multi-agent interaction with flight and hotel booking."""
@@ -342,47 +347,47 @@ async def test_async_multi_agent(setup):
             ]
         }
     )
-    print(chunk)
-    print("\n")
-    verify_spans()
+    logger.info(chunk)
+    logger.info("\n")
+    verify_spans(memory_exporter=setup)
 
-@pytest.mark.integration()
 @pytest.mark.asyncio
 async def test_invalid_api_key_error_code_in_span(setup):
     """Test that passing an invalid API key results in error_code in the span."""
     # Simulate invalid API key by setting an obviously wrong value
-    memory_exporter.clear()
-    try:
-        os.environ["OPENAI_API_KEY"] = "INVALID_API_KEY"
-        supervisor = await setup_agents()
-        chunk = supervisor.invoke(
-            input={
-                "messages": [
-                    {
-                        "role": "user",
-                        "content": """book a flight from BOS to JFK or LAX. And also book me Hyatt hotel at LAX.""",
-                    }
-                ]
-            }
-        )
-        print(chunk)
-        print("\n")
-        time.sleep(2)
-    except Exception as e:
-        spans = memory_exporter.get_finished_spans()
-        found_error_code = False
-        for span in spans:
-            span_attributes = span.attributes
-            if (
-                    "span.type" in span_attributes
-                    and span_attributes["span.type"] == "agentic.invocation"
-                    and "entity.1.name" in span_attributes
-            ):
-                span_input, span_output,_ = span.events
-                assert "error_code" in span_output.attributes
-                assert span_output.attributes["error_code"]== "invalid_api_key"
+    setup.clear()
+    
+    # Using context manager approach for cleaner environment management
+    with temporary_env_var("OPENAI_API_KEY", "INVALID_API_KEY"):
+        try:
+            supervisor = await setup_agents()
+            chunk = supervisor.invoke(
+                input={
+                    "messages": [
+                        {
+                            "role": "user",
+                            "content": """book a flight from BOS to JFK or LAX. And also book me Hyatt hotel at LAX.""",
+                        }
+                    ]
+                }
+            )
+            logger.info(chunk)
+            logger.info("\n")
+            time.sleep(2)
+        except Exception:
+            spans = setup.get_finished_spans()
+            for span in spans:
+                span_attributes = span.attributes
+                if (
+                        "span.type" in span_attributes
+                        and span_attributes["span.type"] == "agentic.invocation"
+                        and "entity.1.name" in span_attributes
+                ):
+                    span_input, span_output, _ = span.events
+                    assert "error_code" in span_output.attributes
+                    assert span_output.attributes["error_code"] == "invalid_api_key"
 
-def verify_spans():
+def verify_spans(memory_exporter=None):
     time.sleep(2)
     found_inference = found_agent = found_tool = False
     found_flight_agent = found_hotel_agent = found_supervisor_agent = False

@@ -1,26 +1,39 @@
+import logging
 import os
 import time
+
 import pytest
-from haystack.utils import Secret
-from haystack_integrations.components.generators.google_ai import GoogleAIGeminiGenerator,GoogleAIGeminiChatGenerator
-from haystack.dataclasses import ChatMessage
-from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
-from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
 from common.custom_exporter import CustomConsoleSpanExporter
+from haystack.dataclasses import ChatMessage
+from haystack.utils import Secret
+from haystack_integrations.components.generators.google_ai import (
+    GoogleAIGeminiChatGenerator,
+)
+from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
+
+logger = logging.getLogger(__name__)
+
 custom_exporter = CustomConsoleSpanExporter()
 
 @pytest.fixture(scope="module")
 def setup():
-    setup_monocle_telemetry(
-                workflow_name="haystack_app_1",
-                span_processors=[BatchSpanProcessor(custom_exporter)],
-                wrapper_methods=[])
+    try:
+        instrumentor = setup_monocle_telemetry(
+            workflow_name="haystack_app_1",
+            span_processors=[BatchSpanProcessor(custom_exporter)],
+            wrapper_methods=[]
+        )
+        yield custom_exporter
+    finally:
+        # Clean up instrumentor to avoid global state leakage
+        if instrumentor and instrumentor.is_instrumented_by_opentelemetry:
+            instrumentor.uninstrument()
 
-@pytest.mark.integration()
 def test_haystack_anthropic_sample(setup):
     api_key = os.getenv("GEMINI_API_KEY")
     llm = GoogleAIGeminiChatGenerator(
-        model="gemini-1.5-pro",
+        model="gemini-2.5-pro",
         api_key= Secret.from_token(api_key),
     )
 
@@ -29,7 +42,7 @@ def test_haystack_anthropic_sample(setup):
 
     response = llm.run(messages=messages)
     time.sleep(5)
-    print(response)
+    logger.info(response)
 
     spans = custom_exporter.get_captured_spans()
     for span in spans:
@@ -41,8 +54,8 @@ def test_haystack_anthropic_sample(setup):
 
             assert span_attributes["entity.1.type"] == "inference.gemini"
             assert "entity.1.inference_endpoint" in span_attributes
-            assert span_attributes["entity.2.name"] == "gemini-1.5-pro"
-            assert span_attributes["entity.2.type"] == "model.llm.gemini-1.5-pro"
+            assert span_attributes["entity.2.name"] == "gemini-2.5-pro"
+            assert span_attributes["entity.2.type"] == "model.llm.gemini-2.5-pro"
 
             # Assertions for metadata
             span_input, span_output, span_metadata = span.events

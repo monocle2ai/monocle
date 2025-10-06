@@ -1,3 +1,4 @@
+
 """
 Integration test for Anthropic Claude finish_reason (stop_reason) and finish_type using the real Anthropic API.
 Tests: end_turn, max_tokens, refusal, tool_use, stop_sequence, pause_turn (if supported).
@@ -8,27 +9,37 @@ Requirements:
 
 Run with: pytest tests/integration/test_anthropic_finish_reason_integration.py
 """
+import logging
 import os
-import pytest
+
 import anthropic
-from opentelemetry.sdk.trace.export import BatchSpanProcessor,SimpleSpanProcessor
+import pytest
+from common.custom_exporter import CustomConsoleSpanExporter  # Assuming this path
 from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
-from tests.common.custom_exporter import CustomConsoleSpanExporter # Assuming this path
+from opentelemetry.sdk.trace.export import BatchSpanProcessor, SimpleSpanProcessor
 
+logger = logging.getLogger(__name__)
 pytestmark = pytest.mark.integration
-
-# Setup telemetry
-custom_exporter = CustomConsoleSpanExporter()
-setup_monocle_telemetry(
-    workflow_name="anthropic_integration_tests",
-    span_processors=[SimpleSpanProcessor(custom_exporter)],
-    # Add other necessary setup parameters if any, e.g., service_name
-    # service_name="anthropic_integration_tests"
-)
-
 
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY")
 MODEL = os.environ.get("ANTHROPIC_MODEL", "claude-3-5-haiku-latest")
+
+@pytest.fixture(scope="module")
+def setup():
+    try:
+        # Setup telemetry
+        custom_exporter = CustomConsoleSpanExporter()
+        instrumentor = setup_monocle_telemetry(
+            workflow_name="anthropic_integration_tests",
+            span_processors=[SimpleSpanProcessor(custom_exporter)],
+            # Add other necessary setup parameters if any, e.g., service_name
+            # service_name="anthropic_integration_tests"
+        )
+        yield custom_exporter
+    finally:
+        # Clean up instrumentor to avoid global state leakage
+        if instrumentor and instrumentor.is_instrumented_by_opentelemetry:
+            instrumentor.uninstrument()
 
 def find_inference_span_and_event_attributes(spans, event_name="metadata"):
     for span in reversed(spans): # Usually the last span is the inference span
@@ -40,12 +51,9 @@ def find_inference_span_and_event_attributes(spans, event_name="metadata"):
 
 # run before each test to ensure exporter is reset
 
-@pytest.fixture(autouse=True)
-def clear_exporter_before_test():
-    custom_exporter.reset()
 
 @pytest.mark.skipif(not ANTHROPIC_API_KEY, reason="ANTHROPIC_API_KEY not set")
-def test_finish_reason_end_turn():
+def test_finish_reason_end_turn(setup):
     """Test stop_reason == 'end_turn' for a normal completion."""
     client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
     resp = client.messages.create(
@@ -54,9 +62,9 @@ def test_finish_reason_end_turn():
         messages=[{"role": "user", "content": "Say hello."}],
     )
     assert resp.stop_reason == "end_turn"
-    print("end_turn stop_reason:", resp.stop_reason)
+    logger.info("end_turn stop_reason: %s", resp.stop_reason)
 
-    spans = custom_exporter.get_captured_spans()
+    spans = setup.get_captured_spans()
     assert spans, "No spans were exported"
     output_event_attrs = find_inference_span_and_event_attributes(spans)
     assert output_event_attrs, "metadata event not found in inference span"
@@ -65,7 +73,7 @@ def test_finish_reason_end_turn():
 
 
 @pytest.mark.skipif(not ANTHROPIC_API_KEY, reason="ANTHROPIC_API_KEY not set")
-def test_finish_reason_max_tokens():
+def test_finish_reason_max_tokens(setup):
     """Test stop_reason == 'max_tokens' by setting a very low max_tokens."""
     client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
     resp = client.messages.create(
@@ -74,9 +82,9 @@ def test_finish_reason_max_tokens():
         messages=[{"role": "user", "content": "Tell me a long story about a dragon."}],
     )
     assert resp.stop_reason == "max_tokens"
-    print("max_tokens stop_reason:", resp.stop_reason)
+    logger.info("max_tokens stop_reason: %s", resp.stop_reason)
 
-    spans = custom_exporter.get_captured_spans()
+    spans = setup.get_captured_spans()
     assert spans, "No spans were exported"
     output_event_attrs = find_inference_span_and_event_attributes(spans)
     assert output_event_attrs, "metadata event not found in inference span"
@@ -85,7 +93,7 @@ def test_finish_reason_max_tokens():
 
 
 @pytest.mark.skipif(not ANTHROPIC_API_KEY, reason="ANTHROPIC_API_KEY not set")
-def test_finish_reason_refusal():
+def test_finish_reason_refusal(setup):
     """Test stop_reason == 'refusal' for a safety refusal."""
     client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
     resp = client.messages.create(
@@ -95,9 +103,9 @@ def test_finish_reason_refusal():
     )
     # Accept either 'refusal' or 'end_turn' (if filter not triggered)
     assert resp.stop_reason in ("refusal", "end_turn")
-    print("refusal stop_reason:", resp.stop_reason)
+    logger.info("refusal stop_reason: %s", resp.stop_reason)
 
-    spans = custom_exporter.get_captured_spans()
+    spans = setup.get_captured_spans()
     assert spans, "No spans were exported"
     output_event_attrs = find_inference_span_and_event_attributes(spans)
     assert output_event_attrs, "metadata event not found in inference span"
@@ -111,7 +119,7 @@ def test_finish_reason_refusal():
 
 
 @pytest.mark.skipif(not ANTHROPIC_API_KEY, reason="ANTHROPIC_API_KEY not set")
-def test_finish_reason_stop_sequence():
+def test_finish_reason_stop_sequence(setup):
     """Test stop_reason == 'stop_sequence' by providing a stop sequence."""
     client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
     resp = client.messages.create(
@@ -122,9 +130,9 @@ def test_finish_reason_stop_sequence():
     )
     # Accept either 'stop_sequence' or 'end_turn' (if not triggered)
     assert resp.stop_reason in ("stop_sequence", "end_turn")
-    print("stop_sequence stop_reason:", resp.stop_reason)
+    logger.info("stop_sequence stop_reason: %s", resp.stop_reason)
 
-    spans = custom_exporter.get_captured_spans()
+    spans = setup.get_captured_spans()
     assert spans, "No spans were exported"
     output_event_attrs = find_inference_span_and_event_attributes(spans)
     assert output_event_attrs, "metadata event not found in inference span"
@@ -138,7 +146,7 @@ def test_finish_reason_stop_sequence():
 
 
 @pytest.mark.skipif(not ANTHROPIC_API_KEY, reason="ANTHROPIC_API_KEY not set")
-def test_finish_reason_tool_use():
+def test_finish_reason_tool_use(setup):
     """Test stop_reason == 'tool_use' if tool use is supported (Claude 3.5+)."""
     client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
     # Tool use requires a tool definition; here we use a dummy tool
@@ -164,9 +172,9 @@ def test_finish_reason_tool_use():
     )
     # Accept either 'tool_use' or 'end_turn' (if not triggered, or if model just answers)
     assert resp.stop_reason in ("tool_use", "end_turn")
-    print("tool_use stop_reason:", resp.stop_reason)
+    logger.info("tool_use stop_reason: %s", resp.stop_reason)
 
-    spans = custom_exporter.get_captured_spans()
+    spans = setup.get_captured_spans()
     assert spans, "No spans were exported"
     output_event_attrs = find_inference_span_and_event_attributes(spans)
     assert output_event_attrs, "metadata event not found in inference span"
@@ -180,11 +188,11 @@ def test_finish_reason_tool_use():
 
 
 @pytest.mark.skipif(not ANTHROPIC_API_KEY, reason="ANTHROPIC_API_KEY not set")
-def test_finish_reason_pause_turn():
+def test_finish_reason_pause_turn(setup):
     # This test is a placeholder as 'pause_turn' is less common and might require specific setup
     # or might not be directly testable with simple API calls if it's for streaming/tool interactions.
     # If you have a reliable way to trigger 'pause_turn', implement it here.
-    print("pause_turn test skipped or not implemented")
+    logger.info("pause_turn test skipped or not implemented")
     pass
 
 if __name__ == "__main__":

@@ -8,22 +8,34 @@ Requirements:
 
 Run with: pytest tests/integration/test_openai_finish_reason_integration.py
 """
+import logging
 import os
-import pytest
+
 import openai
-from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+import pytest
+from common.custom_exporter import CustomConsoleSpanExporter  # Assuming this path
 from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
-from tests.common.custom_exporter import CustomConsoleSpanExporter # Assuming this path
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+
+logger = logging.getLogger(__name__)
 
 pytestmark = pytest.mark.integration
 
-# Setup telemetry
-custom_exporter = CustomConsoleSpanExporter()
-setup_monocle_telemetry(
-    workflow_name="openai_integration_tests",
-    span_processors=[SimpleSpanProcessor(custom_exporter)],
-    # service_name="openai_integration_tests"
-)
+@pytest.fixture(scope="module")
+def setup():
+    custom_exporter = CustomConsoleSpanExporter()
+    try:
+        instrumentor = setup_monocle_telemetry(
+            workflow_name="openai_integration_tests",
+            span_processors=[SimpleSpanProcessor(custom_exporter)],
+            # service_name="openai_integration_tests"
+        )
+        yield custom_exporter
+    finally:
+        # Clean up instrumentor to avoid global state leakage
+        if instrumentor and instrumentor.is_instrumented_by_opentelemetry:
+            instrumentor.uninstrument()
+
 
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
 MODEL = os.environ.get("OPENAI_MODEL", "gpt-4o-mini")
@@ -36,12 +48,9 @@ def find_inference_span_and_event_attributes(spans, event_name="metadata"):
                     return event.attributes
     return None
 
-@pytest.fixture(autouse=True)
-def clear_exporter_before_test():
-    custom_exporter.reset()
 
 @pytest.mark.skipif(not OPENAI_API_KEY, reason="OPENAI_API_KEY not set")
-def test_finish_reason_stop():
+def test_finish_reason_stop(setup):
     """Test finish_reason == 'stop' for a normal completion."""
     client = openai.OpenAI(api_key=OPENAI_API_KEY)
     resp = client.chat.completions.create(
@@ -50,9 +59,9 @@ def test_finish_reason_stop():
         max_tokens=10,
     )
     assert resp.choices[0].finish_reason == "stop"
-    print("stop finish_reason:", resp.choices[0].finish_reason)
+    logger.info(f"OpenAI stop finish_reason: {resp.choices[0].finish_reason}")
 
-    spans = custom_exporter.get_captured_spans()
+    spans = setup.get_captured_spans()
     assert spans, "No spans were exported"
     output_event_attrs = find_inference_span_and_event_attributes(spans)
     assert output_event_attrs, "metadata event not found in inference span"
@@ -61,7 +70,7 @@ def test_finish_reason_stop():
 
 
 @pytest.mark.skipif(not OPENAI_API_KEY, reason="OPENAI_API_KEY not set")
-def test_finish_reason_length():
+def test_finish_reason_length(setup):
     """Test finish_reason == 'length' by setting a very low max_tokens."""
     client = openai.OpenAI(api_key=OPENAI_API_KEY)
     resp = client.chat.completions.create(
@@ -70,9 +79,9 @@ def test_finish_reason_length():
         max_tokens=1,
     )
     assert resp.choices[0].finish_reason == "length"
-    print("length finish_reason:", resp.choices[0].finish_reason)
+    logger.info(f"OpenAI length finish_reason: {resp.choices[0].finish_reason}")
 
-    spans = custom_exporter.get_captured_spans()
+    spans = setup.get_captured_spans()
     assert spans, "No spans were exported"
     output_event_attrs = find_inference_span_and_event_attributes(spans)
     assert output_event_attrs, "metadata event not found in inference span"
@@ -82,7 +91,7 @@ def test_finish_reason_length():
 
 
 @pytest.mark.skipif(not OPENAI_API_KEY, reason="OPENAI_API_KEY not set")
-def test_finish_reason_content_filter():
+def test_finish_reason_content_filter(setup):
     """Test finish_reason == 'content_filter' (may not always trigger)."""
     client = openai.OpenAI(api_key=OPENAI_API_KEY)
     # This prompt is designed to trigger the content filter, but may not always work
@@ -92,11 +101,11 @@ def test_finish_reason_content_filter():
         max_tokens=100,
     )
     finish_reason = resp.choices[0].finish_reason
-    print("content_filter finish_reason:", finish_reason)
+    logger.info(f"OpenAI content_filter finish_reason: {finish_reason}")
     # Accept either 'content_filter' or 'stop' (if filter not triggered)
     assert finish_reason in ("content_filter", "stop")
 
-    spans = custom_exporter.get_captured_spans()
+    spans = setup.get_captured_spans()
     assert spans, "No spans were exported"
     output_event_attrs = find_inference_span_and_event_attributes(spans)
     assert output_event_attrs, "metadata event not found in inference span"
@@ -110,7 +119,7 @@ def test_finish_reason_content_filter():
 
 
 @pytest.mark.skipif(not OPENAI_API_KEY, reason="OPENAI_API_KEY not set")
-def test_finish_reason_function_call():
+def test_finish_reason_function_call(setup):
     """Test finish_reason == 'function_call' or 'tool_calls' using function calling."""
     client = openai.OpenAI(api_key=OPENAI_API_KEY)
     # Use a model that supports function calling
@@ -139,12 +148,12 @@ def test_finish_reason_function_call():
         max_tokens=50, # Increased max_tokens slightly
     )
     finish_reason = resp.choices[0].finish_reason
-    print("function_call/tool_calls finish_reason:", finish_reason)
+    logger.info(f"OpenAI function_call/tool_calls finish_reason: {finish_reason}")
     # OpenAI API uses 'tool_calls' when tools are used.
     # 'function_call' is for the legacy function calling.
     assert finish_reason == "tool_calls" 
 
-    spans = custom_exporter.get_captured_spans()
+    spans = setup.get_captured_spans()
     assert spans, "No spans were exported"
     output_event_attrs = find_inference_span_and_event_attributes(spans)
     assert output_event_attrs, "metadata event not found in inference span"

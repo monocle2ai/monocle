@@ -1,40 +1,37 @@
 # Test multiple chains with OpenAI APIs in between
 import pytest
+from common.chain_exec import setup_simple_chain
+from common.custom_exporter import CustomConsoleSpanExporter
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import RunnablePassthrough
 from langchain_mistralai import ChatMistralAI
 from langchain_openai import ChatOpenAI
-
 from monocle_apptrace.instrumentation.common.instrumentor import (
     setup_monocle_telemetry,
     start_trace,
     stop_trace,
 )
 from openai import OpenAI
-from opentelemetry.sdk.trace.export import BatchSpanProcessor, SimpleSpanProcessor
-from common.custom_exporter import CustomConsoleSpanExporter
-from common.chain_exec import setup_simple_chain
-
-custom_exporter = CustomConsoleSpanExporter()
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 
 
 @pytest.fixture(scope="module")
 def setup():
-    setup_monocle_telemetry(
-        workflow_name="langchain_app_1",
-        span_processors=[SimpleSpanProcessor(custom_exporter)],
-        wrapper_methods=[],
-    )
-
-
-@pytest.fixture(autouse=True)
-def pre_test():
-    # clear old spans
-    custom_exporter.reset()
+    try:
+        custom_exporter = CustomConsoleSpanExporter()
+        instrumentor = setup_monocle_telemetry(
+            workflow_name="langchain_app_1",
+            span_processors=[SimpleSpanProcessor(custom_exporter)],
+            wrapper_methods=[],
+        )
+        yield custom_exporter
+    finally:
+        # Clean up instrumentor to avoid global state leakage
+        if instrumentor and instrumentor.is_instrumented_by_opentelemetry:
+            instrumentor.uninstrument()
 
 
 # Test multiple chains with OpenAI APIs in between. Verify each has it's workflow and inference spans
-@pytest.mark.integration()
 def test_langchain_with_openai(setup):
     chain1 = setup_simple_chain()
     chain2 = setup_simple_chain()
@@ -45,8 +42,9 @@ def test_langchain_with_openai(setup):
         expected_langchain_inference_spans=1,
         expected_openai_inference_spans=0,
         exptected_workflow_spans=1,
+        custom_exporter=setup
     )
-    custom_exporter.reset()
+    setup.reset()
 
     response = openai.chat.completions.create(
         model="gpt-4o-mini",
@@ -62,20 +60,21 @@ def test_langchain_with_openai(setup):
         expected_langchain_inference_spans=0,
         expected_openai_inference_spans=1,
         exptected_workflow_spans=1,
+        custom_exporter=setup   
     )
-    custom_exporter.reset()
+    setup.reset()
 
     chain2.invoke("What is an coffee?")
     verify_spans(
         expected_langchain_inference_spans=1,
         expected_openai_inference_spans=0,
         exptected_workflow_spans=1,
+        custom_exporter=setup
     )
-    custom_exporter.reset()
+    setup.reset()
 
 
 # Test multiple chains with OpenAI APIs in between in a single trace Verify there only one workflow and all inference spans
-@pytest.mark.integration()
 def test_langchain_with_openai_single_trace(setup):
     chain1 = setup_simple_chain()
     chain2 = setup_simple_chain()
@@ -100,6 +99,7 @@ def test_langchain_with_openai_single_trace(setup):
         expected_langchain_inference_spans=2,
         expected_openai_inference_spans=1,
         exptected_workflow_spans=1,
+        custom_exporter=setup
     )
 
 
@@ -107,6 +107,7 @@ def verify_spans(
     expected_langchain_inference_spans: int,
     expected_openai_inference_spans: int,
     exptected_workflow_spans: int,
+    custom_exporter: CustomConsoleSpanExporter,
 ):
     spans = custom_exporter.get_captured_spans()
     workflow_spans = 0

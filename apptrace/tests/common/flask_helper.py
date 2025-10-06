@@ -3,6 +3,9 @@ from threading import Thread
 import time, logging
 import requests
 from common.chain_exec import exec_chain
+import logging
+
+logger = logging.getLogger(__name__)
 PORT=8096
 
 web_app = Flask(__name__)
@@ -14,7 +17,7 @@ def route_executer(request):
         response = exec_chain(question)
         return response
     except Exception as e:
-        print(e)
+        logger.info(e)
         return jsonify({"Status":"Failure --- some error occured"})
 
                 
@@ -34,7 +37,7 @@ def stop_flask():
     pass
 
 def start_flask():
-    print("Going to start Flask server")
+    logger.info("Going to start Flask server")
     flask_thread = Thread(target=lambda: start_server())
     flask_thread.daemon = True
     flask_thread.start()
@@ -42,7 +45,7 @@ def start_flask():
         try:
             response = requests.get(get_url()+"/hello")
             if response.status_code == 200:
-                print("Flask server started")
+                logger.info("Flask server started")
                 break
         except Exception as e:
             pass

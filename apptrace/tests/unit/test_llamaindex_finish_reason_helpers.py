@@ -3,12 +3,13 @@ Unit tests for LlamaIndex helper functions, particularly finish_reason mapping.
 """
 import unittest
 from types import SimpleNamespace
-from src.monocle_apptrace.instrumentation.metamodel.llamaindex._helper import (
+
+from monocle_apptrace.instrumentation.metamodel.finish_types import (
+    LLAMAINDEX_FINISH_REASON_MAPPING,
+)
+from monocle_apptrace.instrumentation.metamodel.llamaindex._helper import (
     extract_finish_reason,
     map_finish_reason_to_finish_type,
-)
-from src.monocle_apptrace.instrumentation.metamodel.finish_types import (
-    LLAMAINDEX_FINISH_REASON_MAPPING
 )
 
 

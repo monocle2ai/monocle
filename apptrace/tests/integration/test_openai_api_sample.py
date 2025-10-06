@@ -1,39 +1,37 @@
-import os
+import logging
 import time
-import pytest
-from opentelemetry.sdk.trace.export import BatchSpanProcessor
-from common.custom_exporter import CustomConsoleSpanExporter
-from monocle_apptrace.instrumentation.common.utils import logger
-from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
-from openai import OpenAI, OpenAIError
 
-from tests.common.helpers import (
+import pytest
+from common.custom_exporter import CustomConsoleSpanExporter
+from common.helpers import (
     find_span_by_type,
     find_spans_by_type,
     validate_inference_span_events,
     verify_inference_span,
 )
+from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
+from monocle_apptrace.instrumentation.common.utils import logger
+from openai import OpenAI, OpenAIError
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
 
-custom_exporter = CustomConsoleSpanExporter()
+logger = logging.getLogger(__name__)
 
-
-@pytest.fixture(autouse=True)
-def clear_spans():
-    """Clear spans before each test"""
-    custom_exporter.reset()
-    yield
-
-
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="function")
 def setup():
-    setup_monocle_telemetry(
-        workflow_name="generic_openai_1",
-        span_processors=[BatchSpanProcessor(custom_exporter)],
-        wrapper_methods=[],
-    )
+    try:
+        custom_exporter = CustomConsoleSpanExporter()
+        instrumentor = setup_monocle_telemetry(
+            workflow_name="generic_openai_1",
+            span_processors=[BatchSpanProcessor(custom_exporter)],
+            wrapper_methods=[],
+        )
+        yield custom_exporter
+    finally:
+        # Clean up instrumentor to avoid global state leakage
+        if instrumentor and instrumentor.is_instrumented_by_opentelemetry:
+            instrumentor.uninstrument()
 
 
-@pytest.mark.integration()
 def test_openai_api_sample(setup):
     openai = OpenAI()
     response = openai.chat.completions.create(
@@ -48,8 +46,8 @@ def test_openai_api_sample(setup):
     )
     time.sleep(5)
 
-    spans = custom_exporter.get_captured_spans()
-    print(f"Captured {len(spans)} spans")
+    spans = setup.get_captured_spans()
+    logger.info(f"Captured {len(spans)} spans")
     
     # Verify we have spans
     assert len(spans) > 0, "No spans captured"
@@ -103,7 +101,6 @@ def test_openai_api_sample(setup):
     assert workflow_span.attributes["entity.1.type"] == "workflow.openai"
 
 
-@pytest.mark.integration()
 def test_openai_invalid_api_key(setup):
     try:
         client = OpenAI(api_key="invalid_key_123")
@@ -111,10 +108,11 @@ def test_openai_invalid_api_key(setup):
             model="gpt-4", messages=[{"role": "user", "content": "test"}]
         )
     except OpenAIError as e:
-        logger.error("Authentication error: %s", str(e))
+        logger.info("Authentication error: %s", str(e))
+        assert e.status_code == 401
 
     time.sleep(5)
-    spans = custom_exporter.get_captured_spans()
+    spans = setup.get_captured_spans()
     for span in spans:
         if (
             span.attributes.get("span.type") == "inference"

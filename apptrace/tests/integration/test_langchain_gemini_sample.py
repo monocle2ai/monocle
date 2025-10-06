@@ -1,27 +1,35 @@
-import time
+import logging
 import os
+import time
+
 import pytest
-from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from common.custom_exporter import CustomConsoleSpanExporter
-from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_google_genai import ChatGoogleGenerativeAI
+from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
 
-custom_exporter = CustomConsoleSpanExporter()
+logger = logging.getLogger(__name__)
 
 @pytest.fixture(scope="module")
 def setup():
-    setup_monocle_telemetry(
-        workflow_name="langchain_app_1",
-        span_processors=[BatchSpanProcessor(custom_exporter)],
-        wrapper_methods=[],
-    )
+    custom_exporter = CustomConsoleSpanExporter()
+    try:
+        instrumentor = setup_monocle_telemetry(
+            workflow_name="langchain_app_1",
+            span_processors=[BatchSpanProcessor(custom_exporter)],
+            wrapper_methods=[],
+        )
+        yield custom_exporter
+    finally:
+        # Clean up instrumentor to avoid global state leakage
+        if instrumentor and instrumentor.is_instrumented_by_opentelemetry:
+            instrumentor.uninstrument()
 
-@pytest.mark.integration()
 def test_langchain_gemini_sample(setup):
     os.environ.setdefault("GOOGLE_API_KEY", "GEMINI_API_KEY")
     llm = ChatGoogleGenerativeAI(
-        model="gemini-1.5-flash",
+        model="gemini-2.5-pro",
         temperature=0,
         max_output_tokens=1024,
         google_api_key=os.getenv("GEMINI_API_KEY"),
@@ -45,10 +53,10 @@ def test_langchain_gemini_sample(setup):
             "input": "I love programming.",
         }
     )
-    print(ai_answer)
+    logger.info(ai_answer)
     time.sleep(5)
     found_workflow_span = False
-    spans = custom_exporter.get_captured_spans()
+    spans = setup.get_captured_spans()
     for span in spans:
         span_attributes = span.attributes
         if "span.type" in span_attributes and (
@@ -57,8 +65,8 @@ def test_langchain_gemini_sample(setup):
             assert span_attributes["entity.1.type"] == "inference.gemini"
             assert "entity.1.provider_name" in span_attributes
             assert "entity.1.inference_endpoint" in span_attributes
-            assert span_attributes["entity.2.name"] == "models/gemini-1.5-flash"
-            assert span_attributes["entity.2.type"] == "model.llm.models/gemini-1.5-flash"
+            assert span_attributes["entity.2.name"] == "models/gemini-2.5-pro"
+            assert span_attributes["entity.2.type"] == "model.llm.models/gemini-2.5-pro"
 
             span_input, span_output, span_metadata = span.events
 

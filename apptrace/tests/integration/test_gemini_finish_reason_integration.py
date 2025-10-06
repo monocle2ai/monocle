@@ -1,3 +1,4 @@
+
 """
 Integration test for Google Gemini finish_reason using the real Gemini API.
 Tests: STOP, MAX_TOKENS, SAFETY, RECITATION, OTHER, FINISH_REASON_UNSPECIFIED.
@@ -8,23 +9,36 @@ Requirements:
 
 Run with: pytest tests/integration/test_gemini_finish_reason_integration.py
 """
+import logging
 import os
+
 import pytest
+from common.custom_exporter import CustomConsoleSpanExporter
 from google import genai
 from google.genai import types
-from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
-from tests.common.custom_exporter import CustomConsoleSpanExporter
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+
+logger = logging.getLogger(__name__)
 
 pytestmark = pytest.mark.integration
 
-# Setup telemetry
-custom_exporter = CustomConsoleSpanExporter()
-setup_monocle_telemetry(
-    workflow_name="gemini_integration_tests",
-    span_processors=[SimpleSpanProcessor(custom_exporter)],
-    # service_name="gemini_integration_tests"
-)
+
+@pytest.fixture(scope="module")
+def setup():
+    try:
+        # Setup telemetry
+        custom_exporter = CustomConsoleSpanExporter()
+        instrumentor = setup_monocle_telemetry(
+            workflow_name="gemini_integration_tests",
+            span_processors=[SimpleSpanProcessor(custom_exporter)],
+            # service_name="gemini_integration_tests"
+        )
+        yield custom_exporter
+    finally:
+        # Clean up instrumentor to avoid global state leakage
+        if instrumentor and instrumentor.is_instrumented_by_opentelemetry:
+            instrumentor.uninstrument()
 
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
@@ -37,12 +51,9 @@ def find_inference_span_and_event_attributes(spans, event_name="metadata"):
                     return event.attributes
     return None
 
-@pytest.fixture(autouse=True)
-def clear_exporter_before_test():
-    custom_exporter.reset()
 
 @pytest.mark.skipif(not GEMINI_API_KEY, reason="GEMINI_API_KEY not set")
-def test_finish_reason_stop():
+def test_finish_reason_stop(setup):
     """Test finish_reason == 'STOP' for a normal completion."""
     client = genai.Client(api_key=GEMINI_API_KEY)
     
@@ -54,9 +65,9 @@ def test_finish_reason_stop():
     # Check the finish reason from the response
     finish_reason = response.candidates[0].finish_reason
     assert finish_reason.name == "STOP"
-    print("STOP finish_reason:", finish_reason.name)
+    logger.info("STOP finish_reason: %s", finish_reason.name)
 
-    spans = custom_exporter.get_captured_spans()
+    spans = setup.get_captured_spans()
     assert spans, "No spans were exported"
     output_event_attrs = find_inference_span_and_event_attributes(spans)
     assert output_event_attrs, "metadata event not found in inference span"
@@ -65,7 +76,7 @@ def test_finish_reason_stop():
 
 
 @pytest.mark.skipif(not GEMINI_API_KEY, reason="GEMINI_API_KEY not set")
-def test_finish_reason_max_tokens():
+def test_finish_reason_max_tokens(setup):
     """Test finish_reason == 'MAX_TOKENS' by setting a very low max_output_tokens."""
     client = genai.Client(api_key=GEMINI_API_KEY)
     
@@ -77,9 +88,9 @@ def test_finish_reason_max_tokens():
     
     finish_reason = response.candidates[0].finish_reason
     assert finish_reason.name == "MAX_TOKENS"
-    print("MAX_TOKENS finish_reason:", finish_reason.name)
+    logger.info("MAX_TOKENS finish_reason: %s", finish_reason.name)
 
-    spans = custom_exporter.get_captured_spans()
+    spans = setup.get_captured_spans()
     assert spans, "No spans were exported"
     output_event_attrs = find_inference_span_and_event_attributes(spans)
     assert output_event_attrs, "metadata event not found in inference span"
@@ -88,7 +99,7 @@ def test_finish_reason_max_tokens():
 
 
 @pytest.mark.skipif(not GEMINI_API_KEY, reason="GEMINI_API_KEY not set")
-def test_finish_reason_safety():
+def test_finish_reason_safety(setup):
     """Test finish_reason == 'SAFETY' (may not always trigger)."""
     client = genai.Client(api_key=GEMINI_API_KEY)
     
@@ -99,12 +110,12 @@ def test_finish_reason_safety():
     )
     
     finish_reason = response.candidates[0].finish_reason
-    print("safety finish_reason:", finish_reason.name)
+    logger.info("safety finish_reason: %s", finish_reason.name)
     
     # Accept either 'SAFETY' or 'STOP' (if filter not triggered)
     assert finish_reason.name in ("SAFETY", "STOP")
 
-    spans = custom_exporter.get_captured_spans()
+    spans = setup.get_captured_spans()
     assert spans, "No spans were exported"
     output_event_attrs = find_inference_span_and_event_attributes(spans)
     assert output_event_attrs, "metadata event not found in inference span"
@@ -118,7 +129,7 @@ def test_finish_reason_safety():
 
 
 @pytest.mark.skipif(not GEMINI_API_KEY, reason="GEMINI_API_KEY not set")
-def test_finish_reason_recitation():
+def test_finish_reason_recitation(setup):
     """Test finish_reason == 'RECITATION' by asking for copyrighted content."""
     client = genai.Client(api_key=GEMINI_API_KEY)
     
@@ -129,12 +140,12 @@ def test_finish_reason_recitation():
     )
     
     finish_reason = response.candidates[0].finish_reason
-    print("recitation finish_reason:", finish_reason.name)
+    logger.info("recitation finish_reason: %s", finish_reason.name)
     
     # Accept either 'RECITATION' or 'STOP' (if filter not triggered)
     assert finish_reason.name in ("RECITATION", "STOP")
 
-    spans = custom_exporter.get_captured_spans()
+    spans = setup.get_captured_spans()
     assert spans, "No spans were exported"
     output_event_attrs = find_inference_span_and_event_attributes(spans)
     assert output_event_attrs, "metadata event not found in inference span"
@@ -148,7 +159,7 @@ def test_finish_reason_recitation():
 
 
 @pytest.mark.skipif(not GEMINI_API_KEY, reason="GEMINI_API_KEY not set")
-def test_finish_reason_with_system_instruction():
+def test_finish_reason_with_system_instruction(setup):
     """Test finish_reason with system instruction (should be STOP for normal completion)."""
     client = genai.Client(api_key=GEMINI_API_KEY)
     
@@ -162,9 +173,9 @@ def test_finish_reason_with_system_instruction():
     
     finish_reason = response.candidates[0].finish_reason
     assert finish_reason.name == "STOP"
-    print("system_instruction finish_reason:", finish_reason.name)
+    logger.info("system_instruction finish_reason: %s", finish_reason.name)
 
-    spans = custom_exporter.get_captured_spans()
+    spans = setup.get_captured_spans()
     assert spans, "No spans were exported"
     output_event_attrs = find_inference_span_and_event_attributes(spans)
     assert output_event_attrs, "metadata event not found in inference span"
@@ -173,7 +184,7 @@ def test_finish_reason_with_system_instruction():
 
 
 @pytest.mark.skipif(not GEMINI_API_KEY, reason="GEMINI_API_KEY not set")
-def test_finish_reason_with_chat():
+def test_finish_reason_with_chat(setup):
     """Test finish_reason in a chat context (should be STOP for normal completion)."""
     client = genai.Client(api_key=GEMINI_API_KEY)
     chat = client.chats.create(model=MODEL)
@@ -182,9 +193,9 @@ def test_finish_reason_with_chat():
     
     finish_reason = response.candidates[0].finish_reason
     assert finish_reason.name == "STOP"
-    print("chat finish_reason:", finish_reason.name)
+    logger.info("chat finish_reason: %s", finish_reason.name)
 
-    spans = custom_exporter.get_captured_spans()
+    spans = setup.get_captured_spans()
     assert spans, "No spans were exported"
     output_event_attrs = find_inference_span_and_event_attributes(spans)
     assert output_event_attrs, "metadata event not found in inference span"
@@ -193,11 +204,11 @@ def test_finish_reason_with_chat():
 
 
 @pytest.mark.skipif(not GEMINI_API_KEY, reason="GEMINI_API_KEY not set")
-def test_finish_reason_other():
+def test_finish_reason_other(setup):
     """Test for OTHER finish_reason (difficult to trigger reliably, placeholder test)."""
     # The OTHER finish_reason is rare and difficult to trigger reliably
     # This test serves as a placeholder for when such cases occur
-    print("OTHER finish_reason test - placeholder (difficult to trigger reliably)")
+    logger.info("OTHER finish_reason test - placeholder (difficult to trigger reliably)")
     
     # If you encounter a scenario that reliably triggers OTHER, implement it here
     # For now, we'll just verify our mapping handles it correctly in unit tests

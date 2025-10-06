@@ -26,8 +26,6 @@ from monocle_apptrace.instrumentation.metamodel.azureaiinference._helper import 
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 
 logger = logging.getLogger(__name__)
-pytestmark = pytest.mark.integration
-
 
 
 AZURE_AI_INFERENCE_ENDPOINT = os.environ.get("AZURE_AI_INFERENCE_ENDPOINT")

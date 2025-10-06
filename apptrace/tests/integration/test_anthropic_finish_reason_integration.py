@@ -19,7 +19,6 @@ from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_t
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, SimpleSpanProcessor
 
 logger = logging.getLogger(__name__)
-pytestmark = pytest.mark.integration
 
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY")
 MODEL = os.environ.get("ANTHROPIC_MODEL", "claude-3-5-haiku-latest")

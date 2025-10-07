@@ -11,11 +11,20 @@ from common.helpers import (
     verify_inference_span,
 )
 from mistralai import Mistral, models
-from apptrace.src.monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
-from apptrace.src.monocle_apptrace.instrumentation.common.utils import logger
+from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
+from monocle_apptrace.instrumentation.common.utils import logger
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 
+<<<<<<< HEAD
 logger = logging.getLogger(__name__)
+=======
+from common.helpers import (
+    find_span_by_type,
+    find_spans_by_type,
+    verify_inference_span,
+    verify_embedding_span,   # <-- add this
+)
+>>>>>>> b518f67 (Fixed PR - Updated imports in test files)
 
 
 @pytest.fixture(scope="module")

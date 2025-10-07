@@ -2,9 +2,20 @@ import asyncio
 import logging
 import os
 import time
+<<<<<<< HEAD
 
 import pytest
 from common.custom_exporter import CustomConsoleSpanExporter
+=======
+import pytest
+from monocle_apptrace.instrumentation.common.utils import logger
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from common.custom_exporter import CustomConsoleSpanExporter
+from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
+from mistralai import Mistral, models
+from monocle_apptrace.instrumentation.metamodel.mistral.methods import MISTRAL_METHODS
+
+>>>>>>> b518f67 (Fixed PR - Updated imports in test files)
 from common.helpers import (
     find_span_by_type,
     find_spans_by_type,

@@ -3,7 +3,17 @@ import os
 import time
 
 import pytest
+<<<<<<< HEAD
 from common.custom_exporter import CustomConsoleSpanExporter
+=======
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from monocle_apptrace.exporters.file_exporter import FileSpanExporter
+from common.custom_exporter import CustomConsoleSpanExporter
+from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
+from monocle_apptrace.instrumentation.metamodel.hugging_face.methods import HUGGING_FACE_METHODS
+from huggingface_hub import InferenceClient
+from huggingface_hub import AsyncInferenceClient
+>>>>>>> b518f67 (Fixed PR - Updated imports in test files)
 from common.helpers import (
     find_span_by_type,
     find_spans_by_type,

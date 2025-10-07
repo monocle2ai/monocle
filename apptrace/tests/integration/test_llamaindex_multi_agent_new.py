@@ -1,37 +1,27 @@
-import asyncio
-import time
-import threading
-import subprocess
-import signal
-import os
 import logging
+import os
+import signal
+import subprocess
+import threading
+import time
 
 import pytest
 import uvicorn
-import httpx
-from pydantic import BaseModel, Field
-
-from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
-from opentelemetry.sdk.trace.export import BatchSpanProcessor, SimpleSpanProcessor
-
-from llama_index.core.tools import FunctionTool
 from llama_index.core.agent.workflow import AgentWorkflow, FunctionAgent
+from llama_index.core.tools import FunctionTool
 from llama_index.llms.openai import OpenAI
 from llama_index.tools.mcp import aget_tools_from_mcp_url
-
 from monocle_apptrace.exporters.file_exporter import FileSpanExporter
 from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
+from opentelemetry.sdk.trace.export import BatchSpanProcessor, SimpleSpanProcessor
+from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
+from pydantic import BaseModel, Field
 
-from tests.integration.servers.mcp.weather_server import app as weather_app
+from integration.servers.mcp.weather_server import app as weather_app
 
 logger = logging.getLogger(__name__)
 
-memory_exporter = InMemorySpanExporter()
-file_exporter = FileSpanExporter()
-span_processors = [
-    SimpleSpanProcessor(memory_exporter),
-    BatchSpanProcessor(file_exporter),
-]
+
 
 # Global variables to track server processes
 weather_server_process = None
@@ -52,8 +42,8 @@ def start_weather_server():
 
 def start_a2a_server():
     """Start the A2A Currency server on port 10000."""
-    import sys
     import os
+    import sys
 
     # Get the path to the A2A server script
     current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -110,12 +100,22 @@ def start_servers():
 
 @pytest.fixture(scope="module")
 def setup(start_servers):
-    memory_exporter.clear()
-    setup_monocle_telemetry(
-        workflow_name="llamaindex_agent_1",
-        span_processors=span_processors,
-    )
-
+    memory_exporter = InMemorySpanExporter()
+    file_exporter = FileSpanExporter()
+    span_processors = [
+        SimpleSpanProcessor(memory_exporter),
+        BatchSpanProcessor(file_exporter),
+    ]
+    try:
+        instrumentor = setup_monocle_telemetry(
+            workflow_name="llamaindex_agent_1",
+            span_processors=span_processors,
+        )
+        yield memory_exporter
+    finally:
+        # Clean up instrumentor to avoid global state leakage
+        if instrumentor and instrumentor.is_instrumented_by_opentelemetry:
+            instrumentor.uninstrument()
 
 def book_hotel(hotel_name: str):
     """Book a hotel"""
@@ -136,20 +136,7 @@ class CurrencyConversionInput(BaseModel):
 
 
 def currency_conversion_tool(message: str) -> str:
-    """Gives currency conversion rate"""
-    try:
-        # Try to import A2A classes
-        from a2a.client import A2ACardResolver, A2AClient
-        from a2a.types import MessageSendParams, SendMessageRequest
-
-        # For LlamaIndex FunctionTool, we need to handle async operations differently
-        # This is a simplified version that would need proper async handling in a real implementation
-        return f"Currency conversion for: {message}. Exchange rate USD to EUR is 0.85 (simulated)"
-
-    except ImportError:
-        return f"A2A Client libraries not available for message: {message}"
-    except Exception as e:
-        return f"Currency conversion error: {str(e)}"
+   return f"Currency conversion for: {message}. Exchange rate USD to EUR is 0.85 (simulated)"
 
 
 def multiply(a: float, b: float) -> float:
@@ -228,7 +215,7 @@ async def setup_agents():
 
     #     agent_workflow = setup_agents()
     #     resp = await agent_workflow.run(user_msg="book a flight from BOS to JFK and a book hotel stay at McKittrick Hotel")
-    #     print(resp)
+    #     logger.info(resp)
 
     # Flight booking agent
     flight_tool = FunctionTool.from_defaults(
@@ -295,13 +282,6 @@ async def setup_agents():
     return agent_workflow
 
 
-# async def run_agent():
-#     """Test multi-agent interaction with flight and hotel booking."""
-#     agent_workflow = await setup_agents()
-#     resp = await agent_workflow.run(user_msg="book a flight from BOS to JFK or LAX. And also book me Hyatt hotel at LAX.")
-#     print(resp)
-
-
 async def run_async_agent():
     """Test async multi-agent interaction with more complex requirements."""
     agent_workflow = await setup_agents()
@@ -309,26 +289,17 @@ async def run_async_agent():
         # user_msg="Book a flight from BOS to JFK, and a hotel stay at McKittrick Hotel at JFK. Give me the cost in INR."
         user_msg="Book a flight from BOS to JFK or LAX, which ever has lower temperature and a hotel stay at McKittrick Hotel at JFK or Sheraton Gateway Hotel at LAX. Give me the cost in INR."
     )
-    print(resp)
+    logger.info(resp)
 
 
-# @pytest.mark.integration()
-# @pytest.mark.asyncio
-# async def test_multi_agent(setup):
-#     """Test multi-agent interaction with flight and hotel booking."""
-#     await run_agent()
-#     verify_spans()
-
-
-@pytest.mark.integration()
 @pytest.mark.asyncio
 async def test_async_multi_agent(setup):
     """Test async multi-agent interaction with weather and currency tools."""
     await run_async_agent()
-    verify_spans()
+    verify_spans(memory_exporter=setup)
 
 
-def verify_spans():
+def verify_spans(memory_exporter=None):
     time.sleep(2)
     found_inference = found_agent = found_tool = False
     found_flight_agent = found_hotel_agent = found_supervisor_agent = False

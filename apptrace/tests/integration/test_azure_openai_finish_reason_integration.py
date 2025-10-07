@@ -9,21 +9,30 @@ Requirements:
 Run with: pytest tests/integration/test_azure_openai_finish_reason_integration.py
 """
 import os
-import pytest
+
 import openai
-from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+import pytest
+from common.custom_exporter import CustomConsoleSpanExporter  # Assuming this path
 from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
-from tests.common.custom_exporter import CustomConsoleSpanExporter # Assuming this path
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 
-pytestmark = pytest.mark.integration
 
-# Setup telemetry
-custom_exporter = CustomConsoleSpanExporter()
-setup_monocle_telemetry(
-    workflow_name="azure_openai_integration_tests",
-    span_processors=[SimpleSpanProcessor(custom_exporter)],
-    # service_name="azure_openai_integration_tests"
-)
+@pytest.fixture(scope="module")
+def setup():
+    try:
+        # Setup telemetry
+        custom_exporter = CustomConsoleSpanExporter()
+        instrumentor = setup_monocle_telemetry(
+            workflow_name="azure_openai_integration_tests",
+            span_processors=[SimpleSpanProcessor(custom_exporter)],
+            # service_name="azure_openai_integration_tests"
+        )
+        yield custom_exporter
+    finally:
+        # Clean up instrumentor to avoid global state leakage
+        if instrumentor and instrumentor.is_instrumented_by_opentelemetry:
+            instrumentor.uninstrument()
+
 
 AZURE_OPENAI_API_KEY = os.environ.get("AZURE_OPENAI_API_KEY")
 AZURE_OPENAI_ENDPOINT = os.environ.get("AZURE_OPENAI_ENDPOINT")
@@ -42,11 +51,11 @@ def find_inference_span_and_event_attributes(spans, event_name="metadata"):
     return None
 
 @pytest.fixture(autouse=True)
-def clear_exporter_before_test():
-    custom_exporter.reset()
+def clear_exporter_before_test(setup):
+    setup.reset()
 
 @pytest.mark.skipif(not all([AZURE_OPENAI_API_KEY, AZURE_OPENAI_ENDPOINT, AZURE_OPENAI_API_VERSION, AZURE_OPENAI_DEPLOYMENT]), reason="Azure OpenAI environment variables not set")
-def test_finish_reason_stop():
+def test_finish_reason_stop(setup):
     """Test finish_reason == 'stop' for a normal completion."""
     client = openai.AzureOpenAI(
         api_key=AZURE_OPENAI_API_KEY,
@@ -61,7 +70,7 @@ def test_finish_reason_stop():
     assert resp.choices[0].finish_reason == "stop"
     print("stop finish_reason:", resp.choices[0].finish_reason)
 
-    spans = custom_exporter.get_captured_spans()
+    spans = setup.get_captured_spans()
     assert spans, "No spans were exported"
     output_event_attrs = find_inference_span_and_event_attributes(spans)
     assert output_event_attrs, "metadata event not found in inference span"
@@ -70,7 +79,7 @@ def test_finish_reason_stop():
 
 
 @pytest.mark.skipif(not all([AZURE_OPENAI_API_KEY, AZURE_OPENAI_ENDPOINT, AZURE_OPENAI_API_VERSION, AZURE_OPENAI_DEPLOYMENT]), reason="Azure OpenAI environment variables not set")
-def test_finish_reason_length():
+def test_finish_reason_length(setup):
     """Test finish_reason == 'length' by setting a very low max_tokens."""
     client = openai.AzureOpenAI(
         api_key=AZURE_OPENAI_API_KEY,
@@ -85,7 +94,7 @@ def test_finish_reason_length():
     assert resp.choices[0].finish_reason == "length"
     print("length finish_reason:", resp.choices[0].finish_reason)
 
-    spans = custom_exporter.get_captured_spans()
+    spans = setup.get_captured_spans()
     assert spans, "No spans were exported"
     output_event_attrs = find_inference_span_and_event_attributes(spans)
     assert output_event_attrs, "metadata event not found in inference span"
@@ -94,7 +103,7 @@ def test_finish_reason_length():
 
 
 @pytest.mark.skipif(not all([AZURE_OPENAI_API_KEY, AZURE_OPENAI_ENDPOINT, AZURE_OPENAI_API_VERSION, AZURE_OPENAI_DEPLOYMENT]), reason="Azure OpenAI environment variables not set")
-def test_finish_reason_content_filter():
+def test_finish_reason_content_filter(setup):
     """Test finish_reason == 'content_filter' (may not always trigger)."""
     client = openai.AzureOpenAI(
         api_key=AZURE_OPENAI_API_KEY,
@@ -113,9 +122,8 @@ def test_finish_reason_content_filter():
         print("content_filter finish_reason (Azure):", finish_reason)
         assert finish_reason in ("content_filter", "stop")
 
-        spans = custom_exporter.get_captured_spans()
-        
-
+        spans = setup.get_captured_spans() 
+        output_event_attrs = find_inference_span_and_event_attributes(spans)
         if finish_reason == "content_filter":
             assert output_event_attrs.get("finish_reason") == "content_filter"
             assert output_event_attrs.get("finish_type") == "content_filter"
@@ -127,7 +135,7 @@ def test_finish_reason_content_filter():
         print(f"Caught BadRequestError (likely content filter): {e}")
         assert "content management policy" in str(e).lower() or "responsible AI" in str(e).lower()
         # Check for span even in case of API error if spans are still generated
-        spans = custom_exporter.get_captured_spans()
+        spans = setup.get_captured_spans()
         assert spans, "No spans were exported"
         output_event_attrs = find_inference_span_and_event_attributes(spans)
         assert output_event_attrs, "metadata event not found in inference span"
@@ -136,7 +144,7 @@ def test_finish_reason_content_filter():
 
 
 @pytest.mark.skipif(not all([AZURE_OPENAI_API_KEY, AZURE_OPENAI_ENDPOINT, AZURE_OPENAI_API_VERSION, AZURE_OPENAI_DEPLOYMENT]), reason="Azure OpenAI environment variables not set")
-def test_finish_reason_function_call():
+def test_finish_reason_function_call(setup):
     """Test finish_reason == 'tool_calls' using function calling (Azure)."""
     client = openai.AzureOpenAI(
         api_key=AZURE_OPENAI_API_KEY,
@@ -181,7 +189,7 @@ def test_finish_reason_function_call():
     assert resp.choices[0].message.tool_calls is not None
     assert resp.choices[0].message.tool_calls[0].function.name == "get_current_weather"
 
-    spans = custom_exporter.get_captured_spans()
+    spans = setup.get_captured_spans()
     assert spans, "No spans were exported"
     output_event_attrs = find_inference_span_and_event_attributes(spans)
     assert output_event_attrs, "metadata event not found in inference span"

@@ -3,32 +3,33 @@ import os
 import time
 
 import pytest
-from custom_litellm.prompt_loader import PromptLoader
-from custom_litellm.llm import LiteLLMClient
 from common.custom_exporter import CustomConsoleSpanExporter
-from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from custom_litellm.llm import LiteLLMClient
+from custom_litellm.prompt_loader import PromptLoader
 from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from tests.common.helpers import (
-    find_span_by_type,
     find_spans_by_type,
-    validate_inference_span_events,
     verify_inference_span,
 )
-custom_exporter = CustomConsoleSpanExporter()
-@pytest.fixture(scope="module")
+
+
+@pytest.fixture(scope="function")
 def setup():
-    setup_monocle_telemetry(
-        workflow_name="litellm_app_1",
-        span_processors=[BatchSpanProcessor(custom_exporter)],
-        wrapper_methods=[]
-    )
+    custom_exporter = CustomConsoleSpanExporter()
+    try:
+        instrumentor = setup_monocle_telemetry(
+            workflow_name="litellm_app_1",
+            span_processors=[BatchSpanProcessor(custom_exporter)],
+            wrapper_methods=[]
+        )
+        yield custom_exporter
+    finally:
+        # Clean up instrumentor to avoid global state leakage
+        if instrumentor and instrumentor.is_instrumented_by_opentelemetry:
+            instrumentor.uninstrument()
 
 
-@pytest.fixture(autouse=True)
-def clear_spans():
-    """Clear spans before each test"""
-    custom_exporter.reset()
-    yield
 
 logger = logging.getLogger(__name__)
 
@@ -63,7 +64,7 @@ def evaluate_chat_completion(model):
         )
         time.sleep(10)
         logger.info(f"Response: {response}")
-        print("Response:" ,response)
+        logger.info("Response:" ,response)
 
 
     except Exception as e:
@@ -71,7 +72,6 @@ def evaluate_chat_completion(model):
         assert False, f"Test failed due to exception: {e}"
 
 
-@pytest.mark.integration()
 def test_llm_openai(setup):
     openai_api_key = os.getenv("OPENAI_API_KEY")
     if openai_api_key is None:
@@ -79,8 +79,8 @@ def test_llm_openai(setup):
     model = "gpt-4o-mini"
     evaluate_chat_completion(model)
 
-    spans = custom_exporter.get_captured_spans()
-    print(f"Captured {len(spans)} spans")
+    spans = setup.get_captured_spans()
+    logger.info(f"Captured {len(spans)} spans")
 
     # Verify we have spans
     assert len(spans) > 0, "No spans captured"
@@ -119,8 +119,8 @@ def test_llm_azure_openai(setup):
     model = "azure/gpt-4o-mini"
     evaluate_chat_completion(model)
 
-    spans = custom_exporter.get_captured_spans()
-    print(f"Captured {len(spans)} spans")
+    spans = setup.get_captured_spans()
+    logger.info(f"Captured {len(spans)} spans")
 
     # Verify we have spans
     assert len(spans) > 0, "No spans captured"

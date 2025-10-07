@@ -1,28 +1,35 @@
 # pylint: disable=protected-access
-from contextlib import contextmanager
-import os
-from typing import AsyncGenerator, Iterator, Optional
 import logging
-from opentelemetry.trace import Tracer
-from opentelemetry.trace.propagation import _SPAN_KEY, set_span_in_context, get_current_span
-from opentelemetry.trace import propagation
-from opentelemetry.context import set_value, attach, detach, get_value
-from opentelemetry.context import create_key, get_value, set_value
+import os
+from contextlib import contextmanager
+from typing import AsyncGenerator, Iterator, Optional
+
+from opentelemetry.context import attach, create_key, detach, get_value, set_value
 from opentelemetry.context.context import Context
+from opentelemetry.trace import Tracer, propagation
+from opentelemetry.trace.propagation import (
+    _SPAN_KEY,
+    get_current_span,
+    set_span_in_context,
+)
 from opentelemetry.trace.span import INVALID_SPAN, Span
 from opentelemetry.trace.status import StatusCode
 
+from monocle_apptrace.instrumentation.common.constants import (
+    ADD_NEW_WORKFLOW,
+    AGENTIC_SPANS,
+    WORKFLOW_TYPE_KEY,
+)
+from monocle_apptrace.instrumentation.common.scope_wrapper import monocle_trace_scope
 from monocle_apptrace.instrumentation.common.span_handler import SpanHandler
 from monocle_apptrace.instrumentation.common.utils import (
+    get_current_monocle_span,
+    remove_scope,
+    set_monocle_span_in_context,
+    set_scope,
     set_scopes,
     with_tracer_wrapper,
-    set_scope,
-    remove_scope,
-    get_current_monocle_span,
-    set_monocle_span_in_context
 )
-from monocle_apptrace.instrumentation.common.constants import WORKFLOW_TYPE_KEY, ADD_NEW_WORKFLOW, AGENTIC_SPANS
-from monocle_apptrace.instrumentation.common.scope_wrapper import monocle_trace_scope
 
 logger = logging.getLogger(__name__)
 ISOLATE_MONOCLE_SPANS = os.getenv("MONOCLE_ISOLATE_SPANS", "true").lower() == "true"
@@ -391,7 +398,15 @@ def start_as_monocle_span(tracer: Tracer, name: str, auto_close_span: bool) -> I
     detach(monocle_span_token)
 
 def get_builtin_scope_names(to_wrap) -> str:
-    output_processor = to_wrap.get("output_processor", None)
+    output_processor = None
+    if "output_processor" in to_wrap:
+        output_processor = to_wrap.get("output_processor", None)
+    if "output_processor_list" in to_wrap:
+        for processor in to_wrap["output_processor_list"]:
+            if processor.get("type", None) in AGENTIC_SPANS:
+                output_processor = processor
+                break
+
     span_type = output_processor.get("type", None) if output_processor else None
     if span_type and span_type in AGENTIC_SPANS:
         return span_type

@@ -9,24 +9,36 @@ Requirements:
 
 Run with: pytest tests/integration/test_bedrock_finish_reason_integration.py
 """
+import logging
 import os
-import pytest
-import boto3
-from botocore.exceptions import ClientError
-from opentelemetry.sdk.trace.export import BatchSpanProcessor, SimpleSpanProcessor
-from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
-from monocle_apptrace.instrumentation.metamodel.botocore.handlers.botocore_span_handler import BotoCoreSpanHandler
-from tests.common.custom_exporter import CustomConsoleSpanExporter
 
-pytestmark = pytest.mark.integration
+import boto3
+import pytest
+from botocore.exceptions import ClientError
+from common.custom_exporter import CustomConsoleSpanExporter
+from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
+from monocle_apptrace.instrumentation.metamodel.botocore.handlers.botocore_span_handler import (
+    BotoCoreSpanHandler,
+)
+from opentelemetry.sdk.trace.export import BatchSpanProcessor, SimpleSpanProcessor
+
+logger = logging.getLogger(__name__)
 
 # Setup telemetry
-custom_exporter = CustomConsoleSpanExporter()
-setup_monocle_telemetry(
-    workflow_name="bedrock_integration_tests",
-    span_processors=[SimpleSpanProcessor(custom_exporter)],
-    span_handlers={"botocore_handler": BotoCoreSpanHandler()},
-)
+@pytest.fixture(scope="module")
+def setup():
+    try:
+        custom_exporter = CustomConsoleSpanExporter()
+        instrumentor = setup_monocle_telemetry(
+            workflow_name="bedrock_integration_tests",
+            span_processors=[SimpleSpanProcessor(custom_exporter)],
+            span_handlers={"botocore_handler": BotoCoreSpanHandler()},
+        )
+        yield custom_exporter
+    finally:
+        # Clean up instrumentor to avoid global state leakage
+        if instrumentor and instrumentor.is_instrumented_by_opentelemetry:
+            instrumentor.uninstrument()
 
 # Default models to test (can be overridden via environment variables)
 AI21_MODEL = os.environ.get("BEDROCK_AI21_MODEL", "ai21.jamba-1-5-mini-v1:0")
@@ -46,12 +58,8 @@ def find_inference_span_and_event_attributes(spans, event_name="metadata"):
                     return event.attributes
     return None
 
-@pytest.fixture(autouse=True)
-def clear_exporter_before_test():
-    """Clear exporter before each test."""
-    custom_exporter.reset()
 
-def test_bedrock_finish_reason_end_turn():
+def test_bedrock_finish_reason_end_turn(setup):
     """Test stopReason == 'end_turn' for a normal completion using Claude via Bedrock."""
     client = get_bedrock_client()
     
@@ -71,9 +79,9 @@ def test_bedrock_finish_reason_end_turn():
     
     # Claude via Bedrock should return end_turn for normal completion
     assert response["stopReason"] == "end_turn"
-    print("end_turn stopReason:", response["stopReason"])
-    
-    spans = custom_exporter.get_captured_spans()
+    logger.info("end_turn stopReason: %s", response["stopReason"])
+
+    spans = setup.get_captured_spans()
     assert spans, "No spans were exported"
     output_event_attrs = find_inference_span_and_event_attributes(spans)
     assert output_event_attrs, "metadata event not found in inference span"
@@ -81,7 +89,7 @@ def test_bedrock_finish_reason_end_turn():
     assert output_event_attrs.get("finish_type") == "success"
 
 
-def test_bedrock_finish_reason_max_tokens():
+def test_bedrock_finish_reason_max_tokens(setup):
     """Test stopReason == 'max_tokens' by setting a very low max_tokens."""
     client = get_bedrock_client()
     
@@ -101,9 +109,9 @@ def test_bedrock_finish_reason_max_tokens():
     
     # Should hit max_tokens limit
     assert response["stopReason"] == "max_tokens"
-    print("max_tokens stopReason:", response["stopReason"])
-    
-    spans = custom_exporter.get_captured_spans()
+    logger.info("max_tokens stopReason: %s", response["stopReason"])
+
+    spans = setup.get_captured_spans()
     assert spans, "No spans were exported"
     output_event_attrs = find_inference_span_and_event_attributes(spans)
     assert output_event_attrs, "metadata event not found in inference span"
@@ -112,7 +120,7 @@ def test_bedrock_finish_reason_max_tokens():
         
     
 
-def test_bedrock_finish_reason_stop_sequence():
+def test_bedrock_finish_reason_stop_sequence(setup):
     """Test stopReason == 'stop_sequence' by providing a stop sequence."""
     client = get_bedrock_client()
     
@@ -133,9 +141,9 @@ def test_bedrock_finish_reason_stop_sequence():
     
     # Accept either 'stop_sequence' or 'end_turn' (if not triggered)
     assert response["stopReason"] in ("stop_sequence", "end_turn")
-    print("stop_sequence stopReason:", response["stopReason"])
-    
-    spans = custom_exporter.get_captured_spans()
+    logger.info("stop_sequence stopReason: %s", response["stopReason"])
+
+    spans = setup.get_captured_spans()
     assert spans, "No spans were exported"
     output_event_attrs = find_inference_span_and_event_attributes(spans)
     assert output_event_attrs, "metadata event not found in inference span"
@@ -147,7 +155,7 @@ def test_bedrock_finish_reason_stop_sequence():
         assert output_event_attrs.get("finish_reason") == "end_turn"
         assert output_event_attrs.get("finish_type") == "success"
 
-def test_bedrock_finish_reason_tool_use():
+def test_bedrock_finish_reason_tool_use(setup):
     """Test stopReason == 'tool_use' if tool use is supported."""
     client = get_bedrock_client()
     
@@ -192,9 +200,9 @@ def test_bedrock_finish_reason_tool_use():
     
     # Accept either 'tool_use' or 'end_turn' (if not triggered)
     assert response["stopReason"] in ("tool_use", "end_turn")
-    print("tool_use stopReason:", response["stopReason"])
-    
-    spans = custom_exporter.get_captured_spans()
+    logger.info("tool_use stopReason: %s", response["stopReason"])
+
+    spans = setup.get_captured_spans()
     assert spans, "No spans were exported"
     output_event_attrs = find_inference_span_and_event_attributes(spans)
     assert output_event_attrs, "metadata event not found in inference span"
@@ -208,7 +216,7 @@ def test_bedrock_finish_reason_tool_use():
         
 
 
-def test_bedrock_finish_reason_content_filter():
+def test_bedrock_finish_reason_content_filter(setup):
     """Test content filtering scenarios (if supported by the model)."""
     client = get_bedrock_client()
     
@@ -230,9 +238,9 @@ def test_bedrock_finish_reason_content_filter():
     # This might return 'end_turn' if the model just refuses politely
     # or 'content_filter' if Bedrock guardrails are active
     assert response["stopReason"] in ("end_turn", "content_filter", "guardrails")
-    print("content_filter stopReason:", response["stopReason"])
-    
-    spans = custom_exporter.get_captured_spans()
+    logger.info("content_filter stopReason: %s", response["stopReason"])
+
+    spans = setup.get_captured_spans()
     assert spans, "No spans were exported"
     output_event_attrs = find_inference_span_and_event_attributes(spans)
     assert output_event_attrs, "metadata event not found in inference span"
@@ -248,7 +256,7 @@ def test_bedrock_finish_reason_content_filter():
         assert output_event_attrs.get("finish_type") == "success"
 
 @pytest.mark.skipif(not os.environ.get("AWS_ACCESS_KEY_ID"), reason="AWS credentials not configured")
-def test_bedrock_finish_reason_error_handling():
+def test_bedrock_finish_reason_error_handling(setup):
     """Test error handling and finish_reason extraction during failures."""
     client = get_bedrock_client()
     
@@ -270,13 +278,13 @@ def test_bedrock_finish_reason_error_handling():
         
         # This should not succeed, but if it does, check the response
         assert "stopReason" in response
-        print("Error case stopReason:", response["stopReason"])
+        logger.info("Error case stopReason: %s", response["stopReason"])
         
     except ClientError as e:
         # Expected case - should capture error span
-        print("Expected error:", str(e))
-        
-        spans = custom_exporter.get_captured_spans()
+        logger.info("Expected error: %s", str(e))
+
+        spans = setup.get_captured_spans()
         assert spans, "No spans were exported"
         output_event_attrs = find_inference_span_and_event_attributes(spans)
         assert output_event_attrs, "metadata event not found in inference span"

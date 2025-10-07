@@ -3,7 +3,10 @@ from monocle_apptrace.instrumentation.common.constants import MONOCLE_SDK_VERSIO
 from monocle_apptrace.instrumentation.common.utils import with_tracer_wrapper
 from monocle_apptrace import monocle_trace_scope_method
 from common.utils import SCOPE_NAME, SCOPE_VALUE
+import logging
 
+
+logger = logging.getLogger(__name__)
 @with_tracer_wrapper
 def dummy_wrapper(tracer: Tracer, handler, to_wrap, wrapped, instance, source_path, args, kwargs):
     if callable(to_wrap.get("span_name_getter")):
@@ -23,7 +26,7 @@ def dummy_wrapper(tracer: Tracer, handler, to_wrap, wrapped, instance, source_pa
 
 class DummyClass:
     def dummy_method(val: int):
-        print("entering dummy_method: " + str(val))
+        logger.info("entering dummy_method: " + str(val))
 
     def dummy_chat(self, prompt: str):
         pass

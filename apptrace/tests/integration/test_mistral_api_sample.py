@@ -2,14 +2,14 @@ import asyncio
 import os
 import time
 import pytest
-from apptrace.src.monocle_apptrace.instrumentation.common.utils import logger
+from monocle_apptrace.instrumentation.common.utils import logger
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from common.custom_exporter import CustomConsoleSpanExporter
-from apptrace.src.monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
+from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
 from mistralai import Mistral, models
-from apptrace.src.monocle_apptrace.instrumentation.metamodel.mistral.methods import MISTRAL_METHODS
+from monocle_apptrace.instrumentation.metamodel.mistral.methods import MISTRAL_METHODS
 
-from tests.common.helpers import (
+from common.helpers import (
     find_span_by_type,
     find_spans_by_type,
     validate_inference_span_events,

@@ -2,12 +2,12 @@ import os
 import time
 import pytest
 from mistralai import Mistral, models
-from apptrace.src.monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
-from apptrace.src.monocle_apptrace.instrumentation.common.utils import logger
+from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
+from monocle_apptrace.instrumentation.common.utils import logger
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from common.custom_exporter import CustomConsoleSpanExporter
 
-from tests.common.helpers import (
+from common.helpers import (
     find_span_by_type,
     find_spans_by_type,
     verify_inference_span,

@@ -28,8 +28,8 @@ from opentelemetry.sdk.trace.export import BatchSpanProcessor
 logger = logging.getLogger(__name__)
 
 exporter_s3 = OpenDALS3Exporter(
-    region_name=os.getenv("MONOCLE_S3_REGION_NAME"),
-    bucket_name=os.getenv("MONOCLE_S3_BUCKET_NAME")
+    region_name=os.getenv("MONOCLE_S3_REGION_NAME" "us-east-1"),
+    bucket_name=os.getenv("MONOCLE_S3_BUCKET_NAME" "monocle-integration-test")
 )
 
 @pytest.fixture(scope="module")

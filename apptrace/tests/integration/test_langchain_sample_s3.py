@@ -26,7 +26,7 @@ from opentelemetry.sdk.trace.export import BatchSpanProcessor
 
 exporter = S3SpanExporter(
     region_name=os.getenv("MONOCLE_S3_REGION_NAME", "us-east-1"),
-    bucket_name=os.getenv("MONOCLE_S3_BUCKET_NAME" "monocle-integration-test")
+    bucket_name=os.getenv("MONOCLE_S3_BUCKET_NAME", "monocle-integration-test")
 )
 logger = logging.getLogger(__name__)
 

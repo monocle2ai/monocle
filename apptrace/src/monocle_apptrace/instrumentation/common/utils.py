@@ -409,7 +409,7 @@ def get_error_message(arguments):
 
 
 def get_status_code(arguments):
-    if arguments["exception"] is not None:
+    if "exception" in arguments and arguments["exception"] is not None:
         return get_exception_status_code(arguments)
     elif hasattr(arguments["result"], "status"):
         return arguments["result"].status

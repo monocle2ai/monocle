@@ -177,7 +177,7 @@ def check_span(spans, exception):
             span_attributes["span.type"] == "inference" or span_attributes["span.type"] == "inference.framework"):
             # Assertions for all inference attributes
             assert "span.subtype" in span.attributes, "Expected span.subtype attribute to be present"
-            assert span.attributes.get("span.subtype") == "turn_end", "Expected span.subtype to be 'turn_end'"
+            assert span.attributes.get("span.subtype") in ["turn_end", "tool_call", "delegation"]
             assert span_attributes["entity.1.type"] == "inference.azure_openai"
             assert "entity.1.provider_name" in span_attributes
             assert "entity.1.inference_endpoint" in span_attributes

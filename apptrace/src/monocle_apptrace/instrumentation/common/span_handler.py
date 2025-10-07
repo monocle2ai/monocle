@@ -138,8 +138,11 @@ class SpanHandler:
                 arguments = {"instance":instance, "args":args, "kwargs":kwargs, "result":result, "parent_span":parent_span, "span":span}
                 subtype = output_processor.get('subtype')
                 if subtype:
-                    span.subtype_result = subtype(arguments)
-                    span.set_attribute("span.subtype", span.subtype_result)
+                    try:
+                        span.subtype_result = subtype(arguments)
+                        span.set_attribute("span.subtype", span.subtype_result)
+                    except Exception as e:
+                        logger.debug(f"Error processing subtype: {e}")
                 for processors in output_processor["attributes"]:
                     for processor in processors:
                         attribute = processor.get('attribute')

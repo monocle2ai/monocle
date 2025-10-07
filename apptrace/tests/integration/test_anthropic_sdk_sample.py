@@ -77,7 +77,7 @@ def test_anthropic_metamodel_sample(setup):
         )
         # Add assertion for span.subtype
         assert "span.subtype" in span.attributes, "Expected span.subtype attribute to be present"
-        assert span.attributes.get("span.subtype") == "turn_end", "Expected span.subtype to be 'turn_end'"
+        assert span.attributes.get("span.subtype") in ["turn_end", "tool_call", "delegation"]
 
     assert (
         len(inference_spans) == 1

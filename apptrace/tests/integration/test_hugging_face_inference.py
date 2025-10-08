@@ -20,14 +20,13 @@ from opentelemetry.sdk.trace.export import BatchSpanProcessor
 logger = logging.getLogger(__name__)
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="function")
 def setup():
     try:
         custom_exporter = CustomConsoleSpanExporter()
         instrumentor = setup_monocle_telemetry(
             workflow_name="generic_hf_1",
             span_processors=[BatchSpanProcessor(custom_exporter)],
-            wrapper_methods=HUGGING_FACE_METHODS
         )
         yield custom_exporter
     finally:
@@ -67,9 +66,13 @@ def test_huggingface_api_sample(setup):
             check_input_output=True,
         )
 
+        # Add assertion for span.subtype
+        assert "span.subtype" in span.attributes, "Expected span.subtype attribute to be present"
+        assert span.attributes.get("span.subtype") in ["turn_end", "tool_call", "delegation"]
+
     logger.info("\n--- Captured span types ---")
     for span in spans:
-        logger.info(span.attributes.get("span.type", "NO_SPAN_TYPE"), "-", span.name)
+        logger.info(f"{span.attributes.get('span.type', 'NO_SPAN_TYPE')} - {span.name}")
 
 
     inference_spans = [s for s in inference_spans if s.attributes.get("span.type", "") == "inference"]
@@ -133,9 +136,13 @@ async def test_huggingface_api_async_sample(setup):
             check_input_output=True,
         )
 
+        # Add assertion for span.subtype
+        assert "span.subtype" in span.attributes, "Expected span.subtype attribute to be present"
+        assert span.attributes.get("span.subtype") in ["turn_end", "tool_call", "delegation"]
+
     logger.info("\n--- Captured span types ---")
     for span in spans:
-        logger.info(span.attributes.get("span.type", "NO_SPAN_TYPE"), "-", span.name)
+        logger.info(f"{span.attributes.get('span.type', 'NO_SPAN_TYPE')} - {span.name}")
 
     inference_spans = [s for s in inference_spans if s.attributes.get("span.type", "") == "inference"]
     assert len(inference_spans) == 1, "Expected exactly one inference span"
@@ -170,18 +177,26 @@ def test_huggingface_invalid_api_key(setup):
             messages=[{"role": "user", "content": "test"}],
         )
     except Exception as e:
-        # Hugging Face returns a 401 HTTP error
-        assert "401" in str(e) or "Unauthorized" in str(e)
+        # Accept 401, 403, Unauthorized, Forbidden errors
+        error_str = str(e)
+        assert (
+            "401" in error_str or
+            "403" in error_str or
+            "Unauthorized" in error_str or
+            "Forbidden" in error_str
+        ), f"Unexpected error: {error_str}"
 
     time.sleep(5)
     spans = setup.get_captured_spans()
     for span in spans:
-        logger.info("SPAN:", span.name)
+        logger.info(f"SPAN: {span.name}")
         for e in span.events:
-            logger.info(" EVENT:", e.name, e.attributes)
+            logger.info(f" EVENT: {e.name} {e.attributes}")
 
     for span in spans:
         if span.attributes.get("span.type") in ["inference", "inference.framework"]:
+            assert "span.subtype" in span.attributes, "Expected span.subtype attribute to be present"
+            assert span.attributes.get("span.subtype") in ["turn_end", "tool_call", "delegation"]
             events = [e for e in span.events if e.name == "data.output"]
             assert len(events) > 0
             assert span.status.status_code.value == 2

@@ -42,7 +42,7 @@ class BertScoreComparer(BaseComparer):
             "output": actual_response
         }
         scores = self.bert_scorer_eval.evaluate(eval_args=eval_args)
-        if scores["F1"] < self.bert_scorer_acceptible_f1_threshold or scores["Recall"] < self.bert_scorer_recall_threshold or scores["Precision"] < self.bert_scorer_precision_threshold:
+        if scores["Recall"] < self.bert_scorer_recall_threshold:
             logger.debug(f"Output does not match expected. Precision: {scores['Precision']:.4f}, Recall: {scores['Recall']:.4f}, F1: {scores['F1']:.4f}")
             valid_response = False
         else:

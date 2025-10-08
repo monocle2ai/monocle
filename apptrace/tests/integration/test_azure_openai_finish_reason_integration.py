@@ -16,7 +16,6 @@ from common.custom_exporter import CustomConsoleSpanExporter  # Assuming this pa
 from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 
-pytestmark = pytest.mark.integration
 
 @pytest.fixture(scope="module")
 def setup():

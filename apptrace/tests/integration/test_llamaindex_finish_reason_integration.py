@@ -18,7 +18,6 @@ from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_t
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 
 logger = logging.getLogger(__name__)
-pytestmark = pytest.mark.integration
 
 
 @pytest.fixture(scope="module")

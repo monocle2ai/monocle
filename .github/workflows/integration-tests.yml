@@ -137,3 +137,84 @@ jobs:
           else
             echo "### ✅ All integration tests passed!" >> $GITHUB_STEP_SUMMARY
           fi
+
+      - name: Prepare email content
+        if: always()
+        run: |
+          # Determine test status
+          if [[ -s ./failed_files.txt ]]; then
+            echo "TEST_STATUS=FAILED" >> $GITHUB_ENV
+            echo "EMAIL_SUBJECT=❌ Monocle Integration Tests FAILED - ${{ github.ref_name }}" >> $GITHUB_ENV
+          else
+            echo "TEST_STATUS=PASSED" >> $GITHUB_ENV
+            echo "EMAIL_SUBJECT=✅ Monocle Integration Tests PASSED - ${{ github.ref_name }}" >> $GITHUB_ENV
+          fi
+          
+          # Create email body
+          cat > email_body.txt << 'EOF'
+          Monocle Integration Test Results
+          
+          Repository: ${{ github.repository }}
+          Branch: ${{ github.ref_name }}
+          Commit: ${{ github.sha }}
+          Workflow: ${{ github.workflow }}
+          Run ID: ${{ github.run_id }}
+          Triggered by: ${{ github.actor }}
+          Event: ${{ github.event_name }}
+          
+          View full results: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          
+          EOF
+          
+          # Add test summary
+          if [[ -s ./test_summary.txt ]]; then
+            echo "Test Summary:" >> email_body.txt
+            cat ./test_summary.txt >> email_body.txt
+            echo "" >> email_body.txt
+          fi
+          
+          # Add failed files if any
+          if [[ -s ./failed_files.txt ]]; then
+            echo "Failed Test Files:" >> email_body.txt
+            cat ./failed_files.txt >> email_body.txt
+            echo "" >> email_body.txt
+          fi
+          
+          #echo "Attachments: Full test log (result.log)" >> email_body.txt
+
+      - name: Send Email Notification
+        if: always()
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp-mail.outlook.com
+          server_port: 587
+          username: ${{ secrets.EMAIL_USERNAME }}
+          password: ${{ secrets.EMAIL_PASSWORD }}
+          subject: "Monocle Integration Test Results"
+          body: file://email_body.txt
+          to: ${{ secrets.EMAIL_TO }}
+          from: ${{ secrets.EMAIL_FROM || 'noreply@github.com' }}
+          attachments: test_summary.txt,failed_files.txt
+          secure: true
+          
+      - name: Send Email Notification (Failure Backup)
+        if: failure() && steps.run-tests.conclusion != 'success'
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp-mail.outlook.com
+          server_port: 587
+          username: ${{ secrets.EMAIL_USERNAME }}
+          password: ${{ secrets.EMAIL_PASSWORD }}
+          subject: "🚨 Monocle Integration Tests - Workflow Failed"
+          body: |
+            The Monocle integration test workflow encountered an error and could not complete successfully.
+            
+            Repository: ${{ github.repository }}
+            Branch: ${{ github.ref_name }}
+            Commit: ${{ github.sha }}
+            Workflow Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+            
+            Please check the workflow logs for more details.
+          to: ${{ secrets.EMAIL_TO }}
+          from: ${{ secrets.EMAIL_FROM || 'noreply@github.com' }}
+          secure: true

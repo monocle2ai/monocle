@@ -95,7 +95,7 @@ def update_span_from_llm_response(result, include_token_counts=False):
         "total_tokens": getattr(result.usage, "total_tokens", 0),
     } if include_token_counts else {}
     # Add other metadata fields like finish_reason, etc.
-    return {**tokens, "inference_sub_type": "turn_end"}
+    return {**tokens}
 
 
 def get_exception_status_code(exc):

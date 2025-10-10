@@ -4,6 +4,7 @@ from monocle_apptrace.instrumentation.common.utils import get_error_message, res
 
 MISTRAL_INFERENCE = {
     "type": SPAN_TYPES.INFERENCE,
+    "subtype": lambda arguments: _helper.agent_inference_type(arguments),
     "attributes": [
         [
             {
@@ -83,10 +84,6 @@ MISTRAL_INFERENCE = {
                     "_comment": "finish type mapped from finish reason",
                     "attribute": "finish_type",
                     "accessor": lambda arguments: _helper.map_finish_reason_to_finish_type(_helper.extract_finish_reason(arguments))
-                },
-                {
-                    "attribute": "inference_sub_type",
-                    "accessor": lambda arguments: _helper.agent_inference_type(arguments)
                 }
             ]
         }

@@ -179,6 +179,14 @@ def verify_multi_agent_spans(memory_exporter=None):
             agent_names.add(span_attributes["entity.1.name"])
             found_agent = True
 
+        # Check for subtype in inference
+        if (
+            "span.type" in span_attributes
+            and span_attributes["span.type"] == "inference"
+        ):
+            assert "span.subtype" in span.attributes, "Expected span.subtype attribute to be present"
+            assert span.attributes.get("span.subtype") in ["turn_end", "tool_call", "delegation"]
+
         # Check for tool spans
         if (
             "span.type" in span_attributes
@@ -330,6 +338,14 @@ def verify_mcp_spans(memory_exporter=None):
             assert "entity.1.name" in span_attributes
             agent_names.add(span_attributes["entity.1.name"])
             found_agent = True
+
+        # Check for subtype in inference
+        if (
+                "span.type" in span_attributes
+                and span_attributes["span.type"] == "inference"
+        ):
+            assert "span.subtype" in span.attributes, "Expected span.subtype attribute to be present"
+            assert span.attributes.get("span.subtype") in ["turn_end", "tool_call", "delegation"]
 
         # Check for MCP tool invocation spans
         if (

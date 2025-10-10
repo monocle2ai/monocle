@@ -133,6 +133,10 @@ async def test_mistral_api_sample_async(setup):
             check_metadata=True,
             check_input_output=True,
         )
+
+        # Add assertion for span.subtype
+        assert "span.subtype" in span.attributes, "Expected span.subtype attribute to be present"
+        assert span.attributes.get("span.subtype") in ["turn_end", "tool_call", "delegation"]
     assert len(inference_spans) == 1, "Expected exactly one inference span"
 
     validate_inference_span_events(

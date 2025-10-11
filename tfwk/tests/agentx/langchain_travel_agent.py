@@ -1,9 +1,12 @@
 import logging
 import os
-from typing import Any, Dict
 from pathlib import Path
+from typing import Any, Dict
 
-from agents import Agent, Runner, function_tool
+from langchain_core.tools import tool
+from langchain_openai import ChatOpenAI
+from langgraph.prebuilt import create_react_agent
+from langgraph_supervisor import create_supervisor
 from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
 
 # Set up logging
@@ -17,12 +20,12 @@ os.environ["MONOCLE_TRACE_OUTPUT_PATH"] = str(trace_output_path)
 
 # Set up Monocle telemetry for file logging
 setup_monocle_telemetry(
-    workflow_name="openai_travel_agent_demo",
+    workflow_name="langchain_travel_agent_demo",
     monocle_exporters_list="file"
 )
 
 # Constants for session management
-APP_NAME = "openai_travel_agent_demo"
+APP_NAME = "langchain_travel_agent_demo"
 USER_ID = "travel_user_123"
 SESSION_ID = "travel_session_456"
 
@@ -49,7 +52,7 @@ def book_flight(from_city: str, to_city: str, travel_date: str = "2025-12-01", i
     
     booking = {
         "status": "success",
-        "booking_id": f"OAI-FL-{hash(f'{from_city}-{to_city}') % 10000:04d}",
+        "booking_id": f"LC-FL-{hash(f'{from_city}-{to_city}') % 10000:04d}",
         "type": "flight",
         "from_city": from_city,
         "to_city": to_city,
@@ -59,7 +62,7 @@ def book_flight(from_city: str, to_city: str, travel_date: str = "2025-12-01", i
         "message": f"Successfully booked {flight_class} flight from {from_city} to {to_city} on {travel_date}"
     }
     
-    logger.info(f"OpenAI Flight booked: {booking['booking_id']} - {from_city} to {to_city}")
+    logger.info(f"LangChain Flight booked: {booking['booking_id']} - {from_city} to {to_city}")
     return booking
 
 
@@ -82,7 +85,7 @@ def book_hotel(hotel_name: str, city: str, check_in_date: str = "2025-12-01", ni
     
     booking = {
         "status": "success",
-        "booking_id": f"OAI-HT-{hash(f'{hotel_name}-{city}') % 10000:04d}",
+        "booking_id": f"LC-HT-{hash(f'{hotel_name}-{city}') % 10000:04d}",
         "type": "hotel",
         "hotel_name": hotel_name,
         "city": city,
@@ -94,7 +97,7 @@ def book_hotel(hotel_name: str, city: str, check_in_date: str = "2025-12-01", ni
         "message": f"Successfully booked {nights} nights at {hotel_name} in {city} starting {check_in_date}"
     }
     
-    logger.info(f"OpenAI Hotel booked: {booking['booking_id']} - {hotel_name} in {city}")
+    logger.info(f"LangChain Hotel booked: {booking['booking_id']} - {hotel_name} in {city}")
     return booking
 
 
@@ -135,125 +138,121 @@ def get_travel_recommendations(destination: str) -> Dict[str, Any]:
         "status": "success"
     }
     
-    logger.info(f"OpenAI Travel recommendations provided for: {destination}")
+    logger.info(f"LangChain Travel recommendations provided for: {destination}")
     return result
 
 
-class OpenAITravelAgentDemo:
-    """OpenAI Agents SDK Travel Agent demonstration with proper session management."""
+@tool
+def book_flight_tool(from_city: str, to_city: str, travel_date: str = "2025-12-01", is_business: bool = False) -> str:
+    """Book a flight between cities."""
+    result = book_flight(from_city, to_city, travel_date, is_business)
+    return result["message"]
+
+
+@tool
+def book_hotel_tool(hotel_name: str, city: str, check_in_date: str = "2025-12-01", nights: int = 1, is_business: bool = False) -> str:
+    """Book a hotel reservation."""
+    result = book_hotel(hotel_name, city, check_in_date, nights, is_business)
+    return result["message"]
+
+
+@tool
+def get_recommendations_tool(destination: str) -> str:
+    """Get travel recommendations for a destination."""
+    result = get_travel_recommendations(destination)
+    recommendations = result["recommendations"]
+    return f"For {destination}: Attractions - {', '.join(recommendations['attractions'])}. Best time: {recommendations['best_time']}. Tips: {recommendations['tips']}"
+
+
+class LangChainTravelAgentDemo:
+    """LangChain Travel Agent demonstration with multi-agent architecture."""
     
     def __init__(self):
-        self.Runner = Runner
-        
-        # Create function tools
-        @function_tool
-        def book_flight_tool(from_city: str, to_city: str, travel_date: str = "2025-12-01", is_business: bool = False) -> str:
-            """Book a flight between cities."""
-            result = book_flight(from_city, to_city, travel_date, is_business)
-            return result["message"]
-
-        @function_tool
-        def book_hotel_tool(hotel_name: str, city: str, check_in_date: str = "2025-12-01", nights: int = 1, is_business: bool = False) -> str:
-            """Book a hotel reservation."""
-            result = book_hotel(hotel_name, city, check_in_date, nights, is_business)
-            return result["message"]
-
-        @function_tool
-        def get_recommendations_tool(destination: str) -> str:
-            """Get travel recommendations for a destination."""
-            result = get_travel_recommendations(destination)
-            recommendations = result["recommendations"]
-            return f"For {destination}: Attractions - {', '.join(recommendations['attractions'])}. Best time: {recommendations['best_time']}. Tips: {recommendations['tips']}"
+        # Store instance reference for delegation tools
+        self._instance = None
         
         # Create specialized agents for different aspects of travel booking
-        self.flight_agent = Agent(
-            name="Flight Assistant",
-            instructions=(
+        self.flight_agent = create_react_agent(
+            model=ChatOpenAI(model="gpt-4o"),
+            tools=[book_flight_tool],
+            prompt=(
                 "You are a helpful flight booking assistant. You can book flights between cities. "
                 "Always confirm the travel details and provide flight booking information. "
                 "Ask for clarification if travel dates or destinations are unclear."
             ),
-            tools=[book_flight_tool]
+            name="Flight_Assistant",
         )
 
-        self.hotel_agent = Agent(
-            name="Hotel Assistant", 
-            instructions=(
+        self.hotel_agent = create_react_agent(
+            model=ChatOpenAI(model="gpt-4o"),
+            tools=[book_hotel_tool],
+            prompt=(
                 "You are a helpful hotel booking assistant. You can book hotels in various cities. "
                 "Always confirm accommodation preferences and provide booking details. "
                 "Ask for clarification if check-in dates or hotel preferences are unclear."
             ),
-            tools=[book_hotel_tool]
+            name="Hotel_Assistant",
         )
 
-        self.recommendations_agent = Agent(
-            name="Recommendations Assistant",
-            instructions=(
+        self.recommendations_agent = create_react_agent(
+            model=ChatOpenAI(model="gpt-4o"),
+            tools=[get_recommendations_tool],
+            prompt=(
                 "You are a travel recommendations expert. Provide helpful travel advice, "
                 "local attractions, best times to visit, and practical tips for destinations. "
                 "Be informative and helpful in your recommendations."
             ),
-            tools=[get_recommendations_tool]
+            name="Recommendations_Assistant",
         )
 
-        # Supervisor agent that coordinates all travel services
-        self.travel_supervisor = Agent(
-            name="Travel Coordinator",
-            instructions=(
+        self.travel_supervisor = create_supervisor(
+            agents=[self.flight_agent, self.hotel_agent, self.recommendations_agent],
+            model=ChatOpenAI(model="gpt-4o"),
+            prompt=(
                 "You are a master travel planning agent that coordinates flight booking, hotel reservations, "
                 "and travel recommendations to provide comprehensive travel planning services. "
                 "Delegate flight bookings to the Flight Assistant, hotel bookings to the Hotel Assistant, "
                 "and travel recommendations to the Recommendations Assistant."
             ),
-            handoffs=[self.flight_agent, self.hotel_agent, self.recommendations_agent],
-            # tools=[book_flight_tool, book_hotel_tool, get_recommendations_tool]
-        )
-        
-    def _mock_process_request(self, user_request: str) -> str:
-        """Mock implementation when OpenAI Agents SDK is not available."""
-        logger.info(f"Mock OpenAI Processing travel request: {user_request}")
-        
-        # Simple mock responses based on request content
-        if "flight" in user_request.lower():
-            return "I'd be happy to help you book a flight. Based on your request, I've found several options and can proceed with booking a business class flight from Delhi to Mumbai for December 15th, 2025 for $800."
-        elif "hotel" in user_request.lower():
-            return "I can help you book hotel accommodation. Based on your preferences, I've found suitable hotels in your destination and can book you a room at the Luxury Resort in Goa for 3 nights starting December 20th."
-        elif "recommend" in user_request.lower() or "attraction" in user_request.lower():
-            return "Here are my travel recommendations for Delhi: Visit Red Fort, India Gate, and Lotus Temple. Best time to visit is October to April. Use metro for transportation and visit early morning for fewer crowds."
-        else:
-            return "I'm your travel planning assistant. I can help you book flights, reserve hotels, and provide travel recommendations for your destination. How can I assist you today?"
-        
-    async def process_travel_request(self, user_request: str) -> str:
+            supervisor_name="Travel_Coordinator",
+        ).compile()
 
-            
-        logger.info(f"OpenAI Processing travel request: {user_request}")
+    async def process_travel_request(self, user_request: str) -> str:
+        """Process travel request using LangChain agents."""
+        logger.info(f"LangChain Processing travel request: {user_request}")
         
         try:
             # Process the request through the supervisor agent using the correct API
-            response = await self.Runner.run(self.travel_supervisor, user_request)
+            response = await self.travel_supervisor.ainvoke(
+                input={
+                    "messages": [
+                        {
+                            "role": "user",
+                            "content": user_request,
+                        }
+                    ]
+                }
+            )
             
-            if response and hasattr(response, 'final_output'):
-                response_text = response.final_output
-                logger.info("OpenAI Agent response received")
-                return response_text
-            elif response and hasattr(response, 'messages') and response.messages:
-                # Get the last message from the agent
-                last_message = response.messages[-1]
-                if hasattr(last_message, 'text'):
-                    response_text = last_message.text
-                elif hasattr(last_message, 'content'):
+            # Extract response from LangChain agent response
+            if response and "messages" in response:
+                last_message = response["messages"][-1]
+                if hasattr(last_message, 'content'):
                     response_text = last_message.content
+                elif isinstance(last_message, dict) and 'content' in last_message:
+                    response_text = last_message['content']
                 else:
                     response_text = str(last_message)
                 
-                logger.info("OpenAI Agent response received")
+                logger.info("LangChain Agent response received")
                 return response_text
             else:
-                logger.warning("No response received from OpenAI agent")
+                logger.warning("No response received from LangChain agent")
                 return "I apologize, but I wasn't able to process your travel request. Please try again."
                 
         except Exception as e:
-            logger.error(f"Error processing OpenAI agent request: {e}")
-            return self._mock_process_request(user_request)
+            logger.error(f"Error processing LangChain agent request: {e}")
+            raise e
+
 
 

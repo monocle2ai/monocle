@@ -16,16 +16,14 @@ import sys
 from typing import Any, Dict
 
 import pytest
+
+# Add the parent directory to the path to import from agentx
+from agentx.openai_travel_agent import OpenAITravelAgentDemo
 from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
 from monocle_tfwk import BaseAgentTest
 from monocle_tfwk.semantic_similarity import semantic_similarity
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
-
-# Add the parent directory to the path to import from agentx
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-from agentx.openai_travel_agent import OpenAITravelAgentDemo
 
 logger = logging.getLogger(__name__)
 

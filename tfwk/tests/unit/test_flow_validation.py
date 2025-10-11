@@ -4,12 +4,13 @@ Simple demonstration of the new sequence and flow validation capabilities
 in the Monocle Testing Framework.
 """
 
-from monocle_tfwk.agent_test import TraceAssertions
+import logging
+import time
+
+import pytest
+from monocle_tfwk.trace_assertions import TraceAssertions
 from opentelemetry.sdk.trace import ReadableSpan
 from opentelemetry.trace import Status, StatusCode
-import time
-import pytest
-import logging
 
 logger = logging.getLogger(__name__)
 

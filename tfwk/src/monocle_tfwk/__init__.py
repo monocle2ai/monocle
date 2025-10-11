@@ -6,13 +6,9 @@ and base test classes, inspired by AgentiTest but designed for trace-based valid
 """
 
 from . import trace_utils
-from .agent_test import (
+from .base_agent_test import (
     BaseAgentTest,
-    TraceAssertions,
     agent_test_context,
-    assert_agent_sequence,
-    assert_output_contains,
-    assert_tool_invocations,
     trace_validator,
 )
 from .semantic_similarity import (
@@ -20,6 +16,7 @@ from .semantic_similarity import (
     semantic_similarity,
     semantic_similarity_score,
 )
+from .trace_assertions import TraceAssertions
 from .trace_utils import TraceQueryEngine
 from .validator import MonocleValidator
 
@@ -35,8 +32,5 @@ __all__ = [
     "semantic_similarity_score",
     "trace_validator",
     "agent_test_context",
-    "assert_agent_sequence",
-    "assert_tool_invocations",
-    "assert_output_contains",
     "trace_utils"
 ]

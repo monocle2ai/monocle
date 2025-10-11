@@ -11,7 +11,7 @@ from monocle_apptrace.instrumentation.common.instrumentor import (
     MonocleInstrumentor,
     setup_monocle_telemetry,
 )
-from opentelemetry.sdk.trace import ReadableSpan, Span
+from opentelemetry.sdk.trace import Span
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 

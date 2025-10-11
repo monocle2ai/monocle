@@ -1,42 +1,31 @@
 """
-Monocle Test Framework (tfwk) - Pytest-style agent testing framework.
+Monocle Test Framework (monocle_tfwk) - A comprehensive testing framework for AI agents.
 
-This package provides an intuitive way to test AI agents using pytest fixtures
-and base test classes, inspired by AgentiTest but designed for trace-based validation.
+This package provides tools for testing AI agent workflows, validating traces,
+and asserting on agent behavior with a fluent API.
+
+Main Components:
+- BaseAgentTest: Base class for agent testing
+- TraceAssertions: Fluent API for trace validation  
+- TraceQueryEngine: Query engine for trace analysis
+- semantic_similarity: Semantic similarity utilities
 """
 
-from . import trace_utils
-from .agent_test import (
-    BaseAgentTest,
-    TraceAssertions,
-    agent_test_context,
-    assert_agent_sequence,
-    assert_output_contains,
-    assert_tool_invocations,
-    trace_validator,
-)
-from .semantic_similarity import (
-    SemanticSimilarityChecker,
-    semantic_similarity,
-    semantic_similarity_score,
-)
-from .trace_utils import TraceQueryEngine
+# Import main classes
+from . import semantic_similarity
+from .assertions import TraceAssertions
+from .assertions.trace_utils import TraceQueryEngine
+from .base_agent_test import BaseAgentTest
+
+# Import validator for backward compatibility  
 from .validator import MonocleValidator
 
-__version__ = "0.1.0"
-
 __all__ = [
-    "BaseAgentTest",
-    "TraceAssertions", 
-    "TraceQueryEngine",
-    "MonocleValidator",
-    "SemanticSimilarityChecker",
-    "semantic_similarity",
-    "semantic_similarity_score",
-    "trace_validator",
-    "agent_test_context",
-    "assert_agent_sequence",
-    "assert_tool_invocations",
-    "assert_output_contains",
-    "trace_utils"
+    'BaseAgentTest',
+    'TraceAssertions', 
+    'TraceQueryEngine',
+    'semantic_similarity',
+    'MonocleValidator'
 ]
+
+__version__ = "0.1.0"

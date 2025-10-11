@@ -9,21 +9,15 @@ This example demonstrates:
 - Proper integration with Monocle's automatic instrumentation
 """
 
-import asyncio
+
 import logging
-import os
-import sys
-from typing import Any, Dict
 
 import pytest
 
 # Add the parent directory to the path to import from agentx
 from agentx.openai_travel_agent import OpenAITravelAgentDemo
-from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
 from monocle_tfwk import BaseAgentTest
 from monocle_tfwk.semantic_similarity import semantic_similarity
-from opentelemetry.sdk.trace.export import SimpleSpanProcessor
-from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 
 logger = logging.getLogger(__name__)
 
@@ -406,7 +400,7 @@ class TestOpenAITravelAgent(BaseAgentTest):
         
         traces = self.assert_traces()
         
-        logger.info(f"\n⏱️ Performance Flow Analysis:")
+        logger.info("\n⏱️ Performance Flow Analysis:")
         logger.info(f"Total request time: {total_time:.3f}s")
         
         # Analyze execution timing

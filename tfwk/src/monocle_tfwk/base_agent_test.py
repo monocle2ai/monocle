@@ -9,7 +9,7 @@ from typing import Any, Callable
 
 import pytest
 
-from .trace_assertions import TraceAssertions
+from .assertions import TraceAssertions
 from .validator import MonocleValidator
 
 logger = logging.getLogger(__name__)

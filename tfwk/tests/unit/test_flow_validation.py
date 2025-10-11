@@ -8,7 +8,7 @@ import logging
 import time
 
 import pytest
-from monocle_tfwk.trace_assertions import TraceAssertions
+from monocle_tfwk.assertions import TraceAssertions
 from opentelemetry.sdk.trace import ReadableSpan
 from opentelemetry.trace import Status, StatusCode
 

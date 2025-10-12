@@ -314,15 +314,16 @@ class SpanHandler:
             if event.name == "data.input":
                 return event.attributes.get("entity.type", "")
 
-
     @staticmethod
-    def skip_execution(span:Span) -> bool:
+    def skip_execution(span:Span) -> tuple[bool, Union[dict, list, str, None]]:
         skip_execs = get_value(MONOCLE_SKIP_EXECUTIONS)
         if skip_execs is not None:
             skip_exec_entity = skip_execs.get(span.attributes.get("entity.1.name", ""),{})
             if ((span.attributes.get("span.type") is not None and skip_exec_entity.get("span.type", "") == span.attributes.get("span.type")) and
                 (span.attributes.get("entity.1.type") is not None and skip_exec_entity.get("entity.type", "") == span.attributes.get("entity.1.type"))):
                 span.set_attribute(SKIPPED_EXECUTION, True)
+                if skip_exec_entity.get("raise_error", False):
+                    raise MonocleSpanException(skip_exec_entity.get("error_message", ""))
                 response = skip_exec_entity.get("response", None)
                 return True, response
         return False, None

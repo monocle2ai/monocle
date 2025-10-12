@@ -116,6 +116,7 @@ class ToolType(str, Enum):
     ADK = "tool.adk"
     LLAMA_INDEX = "tool.llama_index"
     LANGGRAPH = "tool.langgraph"
+    STRANDS = "tool.strands"
 
 class MockTool(BaseModel):
     """
@@ -132,6 +133,8 @@ class MockTool(BaseModel):
     """
     name: str = Field(..., description="Name of the tool.")
     type: ToolType = Field(..., description="Type of the tool.")
+    raise_error: Optional[bool] = Field(False, description="Whether the mock tool should simulate an error when invoked.")
+    error_message: Optional[str] = Field("Simulated tool error", description="Error message to raise if raise_error is True.")
     response: Optional[Any] = Field(..., description="Predefined response from the mock tool. Placeholder for tool input are supported.")
 
 class TestCase(BaseModel):

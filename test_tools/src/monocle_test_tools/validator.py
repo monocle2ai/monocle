@@ -8,7 +8,7 @@ from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanE
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.context import set_value, attach, detach, get_value
 import pytest
-from sqlalchemy import func
+#from sqlalchemy import func
 from monocle_apptrace.exporters.file_exporter import FileSpanExporter, DEFAULT_TRACE_FOLDER
 from contextlib import contextmanager, asynccontextmanager
 import logging
@@ -160,7 +160,9 @@ class MonocleValidator:
             skip_exec[mock_tool.name] = {
                 "entity.type": mock_tool.type,
                 "span.type": "agentic.tool.invocation",
-                "response": mock_tool.response
+                "response": mock_tool.response,
+                "raise_error": mock_tool.raise_error,
+                "error_message": mock_tool.error_message
             }
         if len(skip_exec) > 0:
             token = attach(set_value(MONOCLE_SKIP_EXECUTIONS, skip_exec))

@@ -130,6 +130,8 @@ agent_test_cases:list[TestCase] = [
             {
                 "name": "adk_book_flight_5",
                 "type": "tool.adk",
+                "raise_error": True,
+                "error_message": "Simulated tool failure",
                 "response": {
                     "status": "success",
                     "message": "Flight booked from {{from_airport}} to {{to_airport}}."

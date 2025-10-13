@@ -121,13 +121,6 @@ def _create_span_result(state, stream_start_time):
         finish_reason=state["finish_reason"],
     )
 
-
-def is_deepseek_client(client):
-    base_url = getattr(client, "_client", None) and getattr(client._client, "base_url", "")
-    deepseek_url = PROVIDER_BASE_URLS.get("deepseek", "")
-    sanitized_url = base_url.strip().lower()
-    return sanitized_url.startswith(deepseek_url)
-
 # Registry mapping client detection functions → entity_type
 CLIENT_ENTITY_MAP = {
     "deepseek": "inference.deepseek",

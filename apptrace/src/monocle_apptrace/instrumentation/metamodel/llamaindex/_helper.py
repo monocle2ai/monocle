@@ -20,6 +20,11 @@ from monocle_apptrace.instrumentation.common.utils import (
 from monocle_apptrace.instrumentation.metamodel.finish_types import map_llamaindex_finish_reason_to_finish_type
 
 LLAMAINDEX_AGENT_NAME_KEY = "_active_agent_name"
+
+# Thread-local storage for current agent context
+import threading
+_thread_local = threading.local()
+
 logger = logging.getLogger(__name__)
 
 def get_status(result):
@@ -96,12 +101,27 @@ def get_agent_description(instance) -> str:
         return instance.description
     return ""
 
-def get_source_agent(parent_span:Span) -> str:
-    source_agent_name = parent_span.attributes.get(LLAMAINDEX_AGENT_NAME_KEY, "")
-    if source_agent_name == "" and parent_span.name.startswith("llama_index.core.agent.ReActAgent."):
-        # Fallback to the agent name from the parent span if not set
-        source_agent_name = "ReactAgent"
-    return source_agent_name
+def get_name(instance):
+    return instance.name if hasattr(instance, 'name') else ""
+
+def set_current_agent(agent_name: str):
+    """Set the current agent name in thread-local storage."""
+    _thread_local.current_agent = agent_name
+
+def get_current_agent() -> str:
+    """Get the current agent name from thread-local storage."""
+    return getattr(_thread_local, 'current_agent', '')
+
+def get_source_agent() -> str:
+    """Get the name of the agent that initiated the request."""
+    source_agent = get_value(LLAMAINDEX_AGENT_NAME_KEY)
+    if source_agent is not None and isinstance(source_agent,str) and source_agent != "":
+        return source_agent
+
+    source_agent = get_current_agent()
+    if source_agent:
+        return source_agent
+    return ""
 
 def get_target_agent(results) -> str:
     if hasattr(results, 'raw_input'):

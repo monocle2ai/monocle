@@ -257,11 +257,17 @@ def get_inference_type(instance):
 class OpenAISpanHandler(NonFrameworkSpanHandler):
     def is_teams_span_in_progress(self) -> bool:
         return self.is_framework_span_in_progress() and self.get_workflow_name_in_progress() == WORKFLOW_TYPE_MAP["teams.ai"]
+    
+    def is_llamaindex_span_in_progress(self) -> bool:
+        return self.is_framework_span_in_progress() and self.get_workflow_name_in_progress() == WORKFLOW_TYPE_MAP["llama_index"]
 
-    # If openAI is being called by Teams AI SDK, then retain the metadata part of the span events
+    # If openAI is being called by Teams AI SDK or LlamaIndex, customize event processing
     def skip_processor(self, to_wrap, wrapped, instance, span, args, kwargs) -> list[str]:
         if self.is_teams_span_in_progress():
             return ["attributes", "events.data.input", "events.data.output"]
+        elif self.is_llamaindex_span_in_progress():
+            # For LlamaIndex, we want to keep all inference span attributes and events
+            return []
         else:
             return super().skip_processor(to_wrap, wrapped, instance, span, args, kwargs)
 
@@ -269,6 +275,9 @@ class OpenAISpanHandler(NonFrameworkSpanHandler):
         # If openAI is being called by Teams AI SDK, then copy parent
         if self.is_teams_span_in_progress() and ex is None:
             return super().hydrate_events(to_wrap, wrapped, instance, args, kwargs, ret_result, span=parent_span, parent_span=None, ex=ex)
+        # For LlamaIndex, process events normally on the inference span
+        elif self.is_llamaindex_span_in_progress():
+            return super().hydrate_events(to_wrap, wrapped, instance, args, kwargs, ret_result, span, parent_span=parent_span, ex=ex)
 
         return super().hydrate_events(to_wrap, wrapped, instance, args, kwargs, ret_result, span, parent_span=parent_span, ex=ex)
 

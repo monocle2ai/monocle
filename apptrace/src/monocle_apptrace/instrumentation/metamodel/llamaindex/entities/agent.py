@@ -111,7 +111,7 @@ TOOLS = {
               {
                 "_comment": "name of the agent",
                 "attribute": "name",
-                "accessor": lambda arguments: _helper.get_source_agent(arguments['parent_span'])
+                "accessor": lambda arguments: _helper.get_source_agent()
               },          
               {
                 "_comment": "agent type",
@@ -157,7 +157,7 @@ AGENT_DELEGATION = {
               {
                 "_comment": "name of the agent",
                 "attribute": "from_agent",
-                "accessor": lambda arguments: _helper.get_source_agent(arguments['parent_span'])
+                "accessor": lambda arguments: _helper.get_source_agent()
               },
               {
                 "_comment": "name of the agent called",

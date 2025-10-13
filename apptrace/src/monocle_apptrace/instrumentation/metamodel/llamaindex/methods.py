@@ -89,7 +89,7 @@ LLAMAINDEX_METHODS = [
     {
         "package": "llama_index.core.agent",
         "object": "ReActAgent",
-        "method": "chat",
+        "method": "run",
         "wrapper_method": task_wrapper,
         "output_processor": AGENT
     },

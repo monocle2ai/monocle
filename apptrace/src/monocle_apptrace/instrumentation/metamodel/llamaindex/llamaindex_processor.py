@@ -2,7 +2,7 @@ from opentelemetry.context import attach, detach, get_current, get_value, set_va
 from monocle_apptrace.instrumentation.common.constants import AGENT_PREFIX_KEY
 from monocle_apptrace.instrumentation.common.span_handler import SpanHandler
 from monocle_apptrace.instrumentation.metamodel.llamaindex._helper import (
-    is_delegation_tool, LLAMAINDEX_AGENT_NAME_KEY, get_agent_name
+    is_delegation_tool, LLAMAINDEX_AGENT_NAME_KEY, get_agent_name, get_name, set_current_agent
 )
 from monocle_apptrace.instrumentation.metamodel.llamaindex.entities.agent import (
     AGENT_DELEGATION
@@ -29,6 +29,9 @@ class LlamaIndexToolHandler(DelegationHandler):
     def pre_tracing(self, to_wrap, wrapped, instance, args, kwargs):
         cur_context = get_current()
         cur_context = set_value(TOOL_INVOCATION_STARTED, True, cur_context)
+        current_agent = get_value(LLAMAINDEX_AGENT_NAME_KEY)
+        if current_agent is not None:
+            cur_context = set_value(LLAMAINDEX_AGENT_NAME_KEY, current_agent, cur_context)
         return attach(cur_context)
 
     def post_tracing(self, to_wrap, wrapped, instance, args, kwargs, return_value, token=None):
@@ -44,6 +47,11 @@ class LlamaIndexSingleAgenttToolHandlerWrapper(DelegationHandler):
 class LlamaIndexAgentHandler(SpanHandler):
     def pre_tracing(self, to_wrap, wrapped, instance, args, kwargs):
         cur_context = get_current()
+        agent_name = get_name(instance)
+
+        # Set both OpenTelemetry context and thread-local storage
+        set_current_agent(agent_name)
+        cur_context = set_value(LLAMAINDEX_AGENT_NAME_KEY, agent_name, cur_context)
         cur_context = set_value(AGENT_PREFIX_KEY, "handoff", cur_context)
         return attach(cur_context)
 

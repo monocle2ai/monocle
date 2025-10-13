@@ -227,8 +227,9 @@ async def setup_agents():
         name="flight_assistant",
         tools=[flight_tool],
         llm=llm,
-        system_prompt="""You are a flight booking agent who books flights as per the request. Once you complete the task, you handoff to the coordinator agent only.
-        ""Dont ask for dates or other details, just book the flight directly if you can.""",
+        system_prompt="""You are a flight booking agent who books flights as per the request. 
+        When you receive a flight booking request, immediately use the book_flight tool to complete the booking.
+        After successfully booking the flight, handoff back to the supervisor agent with the booking details.""",
         description="Flight booking agent",
         can_handoff_to=["supervisor"],  # Can handoff to supervisor agent
     )
@@ -243,8 +244,9 @@ async def setup_agents():
         name="hotel_assistant",
         tools=[hotel_tool],
         llm=llm,
-        system_prompt="""You are a hotel booking agent who books hotels as per the request. Once you complete the task, you handoff to the coordinator agent only.
-        Dont ask for dates or other details, just book the hotel directly if you can.""",
+        system_prompt="""You are a hotel booking agent who books hotels as per the request.
+        When you receive a hotel booking request, immediately use the book_hotel tool to complete the booking.
+        After successfully booking the hotel, handoff back to the supervisor agent with the booking details.""",
         description="Hotel booking agent",
         can_handoff_to=["supervisor"],  # Can handoff to supervisor agent
     )
@@ -254,12 +256,15 @@ async def setup_agents():
         name="supervisor",
         tools=supervisor_tools,
         llm=llm,
-        system_prompt="""You are a coordinator agent who manages the flight and hotel booking agents. 
-                         First figure the required destinations and hotels from the input query.
-                         Separate hotel booking and flight booking tasks clearly from the input query.
-                         Dont ask for dates or other details, just book the hotel and flight directly if you can.
-                         Once they complete their tasks, you collect their responses and provide consolidated response to the user.
-                         Before giving back the response to the user, use the currency conversion and multiply tool for converting currencies. Don't use approximate conversions.""",
+        system_prompt="""You are a coordinator agent who manages flight and hotel booking agents. 
+                         
+                         For each user request:
+                         1. First delegate flight booking to the flight_assistant agent
+                         2. After flight booking is complete, delegate hotel booking to the hotel_assistant agent  
+                         3. Once both bookings are complete, use currency conversion tools if needed
+                         4. Provide a consolidated response with all booking details and costs
+                         
+                         Always ensure both agents complete their tasks before providing the final response.""",
         description="Travel booking supervisor agent",
         can_handoff_to=["flight_assistant", "hotel_assistant"],
     )
@@ -286,8 +291,7 @@ async def run_async_agent():
     """Test async multi-agent interaction with more complex requirements."""
     agent_workflow = await setup_agents()
     resp = await agent_workflow.run(
-        # user_msg="Book a flight from BOS to JFK, and a hotel stay at McKittrick Hotel at JFK. Give me the cost in INR."
-        user_msg="Book a flight from BOS to JFK or LAX, which ever has lower temperature and a hotel stay at McKittrick Hotel at JFK or Sheraton Gateway Hotel at LAX. Give me the cost in INR."
+        user_msg="Book a flight from BOS to JFK, and a hotel stay at McKittrick Hotel. Give me the cost in INR."
     )
     logger.info(resp)
 

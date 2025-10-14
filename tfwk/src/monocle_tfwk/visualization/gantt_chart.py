@@ -7,9 +7,17 @@ and hierarchical relationships between spans.
 """
 import json
 from datetime import datetime
+from enum import Enum
 from typing import Any, Dict, List, Optional, Tuple
 
 from monocle_tfwk.assertions.flow_validator import TimelineEvent
+
+
+class VisualizationMode(Enum):
+    """Enumeration of available visualization modes for trace displays."""
+    FULL = "full"
+    COMPACT = "compact"
+    DETAILED = "detailed"
 
 
 class TraceGanttChart:
@@ -223,7 +231,7 @@ class TraceGanttChart:
         for root in self.root_events:
             sort_children(root)
     
-    def generate_gantt_text(self) -> str:
+    def generate_gantt_text(self, show_attributes: bool = True) -> str:
         """Generate a text-based Gantt chart representation."""
         if not self.timeline_events:
             self.parse_spans()
@@ -255,46 +263,69 @@ class TraceGanttChart:
         
         # Generate chart
         for root in self.root_events:
-            lines.extend(self._render_event_tree(root, min_time, total_duration))
+            lines.extend(self._render_event_tree_with_attributes(root, show_attributes=show_attributes))
             lines.append("")
             
         return "\n".join(lines)
     
-    def _render_event_tree(self, event: TimelineEvent, min_time: datetime, total_duration: float, prefix: str = "") -> List[str]:
-        """Render an event and its children as text tree."""
+    def generate_attributes_text(self, show_attributes: bool = True) -> str:
+        """Generate a text-based tree representation with span attributes."""
+        if not self.timeline_events:
+            self.parse_spans()
+            
+        lines = []
+        lines.append("=== Trace Attributes Tree ===")
+        lines.append("")
+        
+        all_events = self.timeline_events
+        if not all_events:
+            return "No timeline events found"
+        
+        lines.append(f"Total spans: {len(all_events)}")
+        lines.append(f"Root spans: {len(self.root_events)}")
+        lines.append("")
+        
+        # Generate attribute tree
+        for root in self.root_events:
+            lines.extend(self._render_event_tree_with_attributes(root, show_attributes=show_attributes))
+            lines.append("")
+            
+        return "\n".join(lines)
+    
+    def _render_event_tree_with_attributes(self, event: TimelineEvent, prefix: str = "", show_attributes: bool = True) -> List[str]:
+        """Render an event and its children as text tree with attributes instead of timing."""
         lines = []
         
-        if not event.start_time:
-            return lines
-            
-        # Calculate relative timing
-        start_offset = (event.start_time - min_time).total_seconds() * 1000
-        duration = event.duration_ms
-        
-        # Create visual bar (simple ASCII representation)
-        bar_width = 40
-        start_pos = int((start_offset / total_duration) * bar_width) if total_duration > 0 else 0
-        duration_width = max(1, int((duration / total_duration) * bar_width)) if total_duration > 0 else 1
-        
-        bar = " " * start_pos + "█" * duration_width
-        bar = bar[:bar_width].ljust(bar_width)
-        
         # Format event info with span name, type and id
-        # Truncate span_id to first 8 characters for readability
-        short_span_id = event.span_id[:8] if len(event.span_id) > 8 else event.span_id
-        event_info = f"{prefix}├─ {event.name} ({event.span_type} | {short_span_id})"
-        if len(event_info) > 70:
-            event_info = event_info[:67] + "..."
-        event_info = event_info.ljust(70)
+        event_header = f"{prefix}├─ ({event.span_type} | {event.span_id}) {event.name}"
+        lines.append(event_header)
         
-        timing_info = f"[{duration:.1f}ms]"
-        
-        lines.append(f"{event_info} |{bar}| {timing_info}")
+        # Only show attributes if requested
+        if show_attributes:
+            # Build attributes dictionary string
+            attr_dict = {}
+            if event.attributes:
+                for key, value in event.attributes.items():
+                    # Skip internal or verbose attributes for cleaner display, including span.type since it's shown above
+                    if key.startswith('_') or key in ['span_source', 'monocle_apptrace.version', 'monocle_apptrace.language', 'span.type']:
+                        continue
+                        
+                    # Don't truncate values - show full content
+                    value_str = str(value)
+                    attr_dict[key] = value_str
+            
+            # Format attributes as individual lines
+            if attr_dict:
+                for key, value in attr_dict.items():
+                    attr_line = f"{prefix}│    {key}: {value}"
+                    lines.append(attr_line)
+                # Add empty line after attributes for readability
+                lines.append(f"{prefix}│")
         
         # Render children
         for i, child in enumerate(event.children):
             child_prefix = prefix + ("│  " if i < len(event.children) - 1 else "   ")
-            lines.extend(self._render_event_tree(child, min_time, total_duration, child_prefix))
+            lines.extend(self._render_event_tree_with_attributes(child, child_prefix, show_attributes))
             
         return lines
     
@@ -388,3 +419,85 @@ class TraceGanttChart:
         }
         
         return json.dumps(data, indent=2, default=str)
+    
+    def generate_visualization_report(self, mode: VisualizationMode = VisualizationMode.FULL) -> str:
+        """
+        Generate a comprehensive visualization and validation report.
+        
+        Args:
+            mode: Visualization mode that determines what to include in the report
+            
+        Returns:
+            Formatted report string
+            
+        Example:
+            ```python
+            gantt = TraceGanttChart(spans)
+            
+            # Full report with all features
+            full_report = gantt.generate_visualization_report(VisualizationMode.FULL)
+            
+            # Compact report - just timeline without attributes
+            compact_report = gantt.generate_visualization_report(VisualizationMode.COMPACT)
+            
+            # Detailed report - attributes-focused
+            detailed_report = gantt.generate_visualization_report(VisualizationMode.DETAILED)
+            ```
+        """
+        # Set parameters based on mode
+        if mode == VisualizationMode.COMPACT:
+            show_attributes = False
+            include_critical_path = False
+            include_mermaid = False
+        elif mode == VisualizationMode.DETAILED:
+            show_attributes = True
+            include_critical_path = False
+            include_mermaid = False
+        else:  # VisualizationMode.FULL
+            show_attributes = True
+            include_critical_path = True
+            include_mermaid = True
+        
+        lines = []
+        lines.append("=" * 60)
+        lines.append("MONOCLE TRACE VISUALIZATION REPORT")
+        lines.append("=" * 60)
+        lines.append("")
+        
+        # Timeline visualization
+        lines.append("TIMELINE VISUALIZATION")
+        lines.append("-" * 30)
+        lines.append(self.generate_gantt_text(show_attributes=show_attributes))
+        lines.append("")
+        
+        # Critical path analysis
+        if include_critical_path:
+            critical_path = self.get_critical_path()
+            if critical_path:
+                lines.append("CRITICAL PATH ANALYSIS")
+                lines.append("-" * 30)
+                total_critical_duration = sum(event.duration_ms for event in critical_path)
+                lines.append(f"Critical path duration: {total_critical_duration:.2f}ms")
+                lines.append("Critical path events:")
+                for event in critical_path:
+                    lines.append(f"  → {event.name} ({event.duration_ms:.1f}ms)")
+                lines.append("")
+        
+        # Mermaid diagram
+        if include_mermaid:
+            lines.append("MERMAID GANTT DIAGRAM")
+            lines.append("-" * 30)
+            lines.append("```mermaid")
+            lines.append(self.generate_mermaid_gantt())
+            lines.append("```")
+            lines.append("")
+        
+        return "\n".join(lines)
+    
+
+
+# Utility functions for backward compatibility and convenience
+
+def create_gantt_from_json_traces(trace_json: str) -> TraceGanttChart:
+    traces = json.loads(trace_json)
+    return TraceGanttChart(traces)

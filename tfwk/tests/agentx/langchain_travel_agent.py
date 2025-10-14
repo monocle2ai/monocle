@@ -1,6 +1,4 @@
 import logging
-import os
-from pathlib import Path
 from typing import Any, Dict
 
 from langchain_core.tools import tool
@@ -12,11 +10,6 @@ from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_t
 # Set up logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
-# Set up trace output path for test cases
-tfwk_root = Path(__file__).parent.parent.parent  # Navigate to tfwk directory
-trace_output_path = tfwk_root / ".monocle" / "test_traces"
-os.environ["MONOCLE_TRACE_OUTPUT_PATH"] = str(trace_output_path)
 
 # Set up Monocle telemetry for file logging
 setup_monocle_telemetry(

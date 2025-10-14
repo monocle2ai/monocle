@@ -4,9 +4,8 @@ Core assertion plugins for basic span operations and filtering.
 This module contains the fundamental assertion plugins that provide basic
 span filtering, counting, and attribute validation capabilities.
 """
-from typing import TYPE_CHECKING, List
+from typing import TYPE_CHECKING
 
-from monocle_tfwk.assertions import trace_utils
 from monocle_tfwk.assertions.plugin_registry import TraceAssertionsPlugin, plugin
 
 if TYPE_CHECKING:
@@ -174,93 +173,188 @@ class FlowAssertionsPlugin(TraceAssertionsPlugin):
     def get_plugin_name(cls) -> str:
         return "flow"
     
-    def assert_flow(self, pattern: str) -> 'TraceAssertions':
+    def assert_flow(self, pattern: str, parent_filter: str = None) -> 'TraceAssertions':
         """
-        Assert that the execution flow matches the given pattern using the existing FlowValidator.
+        Assert that spans follow a specific flow pattern within common parent contexts.
         
-        Pattern Syntax:
-        - "->" or "→": Sequential (A must complete before B starts)
-        - "||": Parallel (A and B execute with overlapping time)
-        - "*": Wildcard (matches any span containing pattern)
-        - "?": Optional (may or may not occur)
-        - "+": One or more (repeats at least once)
+        Validates that spans under the same parent follow the specified pattern.
+        This focuses on parent-child relationships rather than global timing.
+        
+        Args:
+            pattern: Flow pattern using -> (sequence), || (parallel), and grouping
+            parent_filter: Optional pattern to filter which parents to validate under
+        
+        Flow Pattern Syntax:
+        - "A -> B -> C" - Sequential execution within parent scope
+        - "A || B" - Parallel execution within parent scope
+        - "(A || B) -> C" - Mixed patterns within parent scope
+        - Supports wildcards: *, ?
+        - Field prefixes: "name:pattern", "type:pattern"
         
         Examples:
         - "agent.reasoning -> tool_use -> response"
         - "preprocessing -> (embedding || retrieval) -> inference"
-        - "agent.reasoning -> tool_use || knowledge_lookup"
-        - "supervisor -> worker1 || worker2"
+        - "agent.reasoning -> tool_use || knowledge_lookup", parent_filter="workflow"
+        - "worker1 || worker2", parent_filter="type:supervisor"
         """
+        
+        def group_spans_by_parent(spans) -> dict:
+            """Group spans by their parent ID."""
+            groups = {}
+            
+            for span in spans:
+                # Extract parent ID from span.parent SpanContext
+                parent_id = None
+                if hasattr(span, 'parent') and span.parent:
+                    parent_id = hex(span.parent.span_id) if hasattr(span.parent, 'span_id') else None
+                
+                if parent_id not in groups:
+                    groups[parent_id] = []
+                groups[parent_id].append(span)
+                
+            return groups
+        
+        def find_parent_span(parent_id: str, all_spans):
+            """Find parent span by ID."""
+            for span in all_spans:
+                # Extract span ID from span.context
+                span_id = None
+                if hasattr(span, 'context') and span.context:
+                    span_id = hex(span.context.span_id) if hasattr(span.context, 'span_id') else None
+                if span_id == parent_id:
+                    return span
+            return None
+        
+        def get_parent_info(parent_id: str, all_spans) -> str:
+            """Get human-readable parent information for error messages."""
+            if not parent_id:
+                return " (root level)"
+            
+            parent_span = find_parent_span(parent_id, all_spans)
+            if parent_span:
+                parent_type = parent_span.attributes.get('span.type', 'unknown') if parent_span.attributes else 'unknown'
+                return f" (under parent: {parent_span.name} [{parent_type}])"
+            else:
+                return f" (under parent ID: {parent_id})"
+        
+        def match_field_pattern(field_value: str, pattern: str) -> bool:
+            """Match a specific field value against a pattern."""
+            import re
+            
+            if '*' in pattern or '?' in pattern:
+                regex_pattern = pattern.replace('*', '.*').replace('?', '.?')
+                return re.match(regex_pattern, field_value, re.IGNORECASE) is not None
+            
+            return (field_value == pattern or pattern.lower() in field_value.lower())
+        
+        def matches_pattern(span, pattern: str) -> bool:
+            """
+            Check if span matches a pattern (supports wildcards).
+            
+            Pattern matching order:
+            1. span.name (exact match)
+            2. span.type (exact match) 
+            3. span.name (partial match for non-wildcard patterns)
+            4. Regex match for wildcard patterns (* and ?)
+            
+            Use prefixes for specific field matching:
+            - "name:pattern" - match only span.name
+            - "type:pattern" - match only span.type
+            """
+            import re
+            
+            # Handle explicit field prefixes
+            if ':' in pattern:
+                field, value = pattern.split(':', 1)
+                if field == 'name':
+                    return match_field_pattern(span.name, value)
+                elif field == 'type':
+                    span_type = span.attributes.get('span.type', '') if span.attributes else ''
+                    return match_field_pattern(span_type, value)
+            
+            # Convert wildcard pattern to regex
+            if '*' in pattern or '?' in pattern:
+                regex_pattern = pattern.replace('*', '.*').replace('?', '.?')
+                span_type = span.attributes.get('span.type', '') if span.attributes else ''
+                return (re.match(regex_pattern, span.name, re.IGNORECASE) or
+                        re.match(regex_pattern, span_type, re.IGNORECASE))
+            
+            # Exact match (name, type, then partial name)
+            span_type = span.attributes.get('span.type', '') if span.attributes else ''
+            return (span.name == pattern or 
+                    span_type == pattern or
+                    pattern.lower() in span.name.lower())
+        
+        def should_process_group(parent_id: str) -> bool:
+            """Check if a parent group should be processed based on parent_filter."""
+            if not parent_filter:
+                return True  # Process all groups if no filter
+            
+            if not parent_id:
+                return False  # Skip root spans if parent filter is specified
+            
+            parent_span = find_parent_span(parent_id, self._current_spans)
+            return parent_span and matches_pattern(parent_span, parent_filter)
+        
+        def format_validation_error(all_errors: list, single_group: bool = False) -> str:
+            """Format validation error message using consistent multi-group style."""
+            # Use consistent multi-group format for both single and multiple errors
+            error_msg = f"Flow pattern validation failed for '{pattern}' - no matching groups found.\n"
+            error_msg += f"Checked {len(all_errors)} parent group{'s' if len(all_errors) != 1 else ''}:\n"
+            
+            # Show up to 3 groups with detailed violations
+            for i, error_info in enumerate(all_errors[:3]):
+                error_msg += f"\n{i+1}. Group{error_info['parent_info']}:\n"
+                error_msg += f"   Violations: {', '.join(error_info['violations'])}\n"
+            
+            if len(all_errors) > 3:
+                error_msg += f"   ... and {len(all_errors) - 3} more groups\n"
+            
+            return error_msg
+
         try:
             from monocle_tfwk.assertions.flow_validator import FlowValidator
             
-            # Create validator directly from spans - no need for TraceGanttChart
-            validator = FlowValidator.from_spans(self._current_spans)
+            # Group spans by common parent and validate pattern within each group
+            span_groups = group_spans_by_parent(self._current_spans)
+            all_errors = []
             
-            # Validate the pattern
-            result = validator.validate_pattern(pattern)
-            
-            if not result['valid']:
-                violation_details = '\n'.join([f"  - {v}" for v in result['violations']])
-                suggestion_details = '\n'.join([f"  💡 {s}" for s in result['suggestions']]) if result['suggestions'] else ""
-                
-                error_msg = f"Flow pattern validation failed: '{pattern}'\n"
-                error_msg += f"Violations:\n{violation_details}"
-                if suggestion_details:
-                    error_msg += f"\nSuggestions:\n{suggestion_details}"
+            for parent_id, spans in span_groups.items():
+                if not should_process_group(parent_id):
+                    continue
                     
-                raise AssertionError(error_msg)
+                # Validate pattern within this parent's children
+                validator = FlowValidator.from_spans(spans)
+                result = validator.validate_pattern(pattern)
+                
+                if result['valid']:
+                    return self  # Success - return immediately
+                
+                # Store error details for later reporting
+                parent_info = get_parent_info(parent_id, self._current_spans)
+                error_info = {
+                    'parent_info': parent_info,
+                    'violations': result['violations'],
+                    'suggestions': result.get('suggestions', [])
+                }
+                all_errors.append(error_info)
+            
+            # If we reach here, no groups were valid - raise appropriate error
+            if not all_errors:
+                if parent_filter:
+                    raise AssertionError(f"No parent spans found matching filter '{parent_filter}'")
+                else:
+                    raise AssertionError(f"No parent groups found to validate pattern '{pattern}'")
+            
+            # Choose error format based on number of errors and parent filter
+            single_group = len(all_errors) == 1 or parent_filter is not None
+            raise AssertionError(format_validation_error(all_errors, single_group))
                 
         except ImportError as e:
-            # Fallback if visualization module is not available
             raise AssertionError(f"Flow validation requires visualization module: {e}")
+        except AssertionError:
+            raise  # Re-raise our own assertion errors
         except Exception as e:
             raise AssertionError(f"Flow pattern validation failed: {pattern}\nError: {str(e)}")
             
-        return self
-    
-    def assert_conditional_flow(self, condition_agent: str, condition_output_contains: str, 
-                              then_agents: List[str], else_agents: List[str] = None) -> 'TraceAssertions':
-        """Assert a conditional branching flow based on agent output."""
-        # Find the condition agent's output
-        condition_spans = self.get_agents_by_name(condition_agent)
-        assert len(condition_spans) > 0, f"Condition agent '{condition_agent}' not found"
-        
-        condition_output = None
-        for span in condition_spans:
-            output = trace_utils.get_output_from_span(span)
-            if output:
-                condition_output = output
-                break
-        
-        assert condition_output is not None, f"No output found for condition agent '{condition_agent}'"
-        
-        # Determine which branch should be taken
-        condition_met = condition_output_contains.lower() in condition_output.lower()
-        
-        if condition_met:
-            # Verify 'then' agents were called
-            for agent in then_agents:
-                self.assert_agent_called(agent)
-            
-            # Verify 'else' agents were NOT called (if specified)
-            if else_agents:
-                called_agents = self.get_agent_names()
-                unexpected_agents = [agent for agent in else_agents if agent in called_agents]
-                assert not unexpected_agents, (
-                    f"Condition was met (output contains '{condition_output_contains}') but 'else' agents were called: {unexpected_agents}"
-                )
-        else:
-            # Verify 'else' agents were called (if specified)
-            if else_agents:
-                for agent in else_agents:
-                    self.assert_agent_called(agent)
-                
-                # Verify 'then' agents were NOT called
-                called_agents = self.get_agent_names()
-                unexpected_agents = [agent for agent in then_agents if agent in called_agents]
-                assert not unexpected_agents, (
-                    f"Condition was not met (output doesn't contain '{condition_output_contains}') but 'then' agents were called: {unexpected_agents}"
-                )
-        
         return self

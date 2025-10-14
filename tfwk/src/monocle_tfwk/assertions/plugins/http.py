@@ -4,6 +4,12 @@ HTTP assertion plugins for web API and HTTP-related span validation.
 This module provides assertion plugins specifically designed for validating
 HTTP requests, responses, methods, status codes, and flow patterns in web API
 testing scenarios.
+
+Simplified API:
+- Use assert_http_method('GET') instead of assert_get_requests()
+- Use assert_status_code_range(200, 300) instead of assert_success_status_codes()
+- Use assert_http_span_type('http.process') instead of assert_http_process_spans()
+- Use assert_http_flow_sequence(['POST', 'GET', 'PUT', 'DELETE']) for CRUD flows
 """
 import re
 from typing import TYPE_CHECKING, Dict, List, Optional
@@ -17,26 +23,78 @@ if TYPE_CHECKING:
 class HTTPSpan:
     """Wrapper class for HTTP-related span information."""
     
+    # Pre-compiled regex patterns for entity attribute matching (class-level constants)
+    ENTITY_METHOD_PATTERN = re.compile(r'^entity\.\d+\.method$')
+    ENTITY_STATUS_CODE_PATTERN = re.compile(r'^entity\.\d+\.status_code$')
+    ENTITY_URL_PATTERN = re.compile(r'^entity\.\d+\.url$')
+    ENTITY_ROUTE_PATTERN = re.compile(r'^entity\.\d+\.route$')
+    
+    # Standard HTTP attribute sets for organized lookups
+    HTTP_METHOD_ATTRS = {'http.method', 'http.request.method', 'method'}
+    HTTP_STATUS_ATTRS = {'http.status_code', 'http.response.status_code', 'status_code'}
+    HTTP_URL_ATTRS = {'http.url', 'http.target', 'url'}
+    HTTP_ROUTE_ATTRS = {'http.route', 'route'}
+    
+    # HTTP span name indicators
+    REQUEST_INDICATORS = {'request', 'fastapi.request', 'http.request', 'client'}
+    RESPONSE_INDICATORS = {'response', 'fastapi.response', 'http.response'}
+    HTTP_INDICATORS = {'http', 'fastapi', 'request', 'response', 'get_', 'post_', 'put_', 'delete_'}
+    HTTP_METHOD_PREFIXES = ('get ', 'post ', 'put ', 'delete ', 'patch ', 'head ', 'options ')
+    
+    # Span type constants
+    SPAN_TYPE_ATTR = 'span.type'
+    HTTP_PROCESS_SPAN_TYPE = 'http.process'  # Server-side processing
+    HTTP_SEND_SPAN_TYPE = 'http.send'        # Client-side requests
+    
+    # HTTP status code ranges
+    CLIENT_ERROR_MIN = 400
+    SERVER_ERROR_MIN = 500
+    
+    
+    # Time conversion constants
+    NANOSECONDS_TO_MILLISECONDS = 1_000_000
+    
     def __init__(self, span):
         self.span = span
         self.name = span.name
         self.attributes = span.attributes or {}
+    
+    def _get_first_matching_attr(self, attr_set: set) -> Optional[str]:
+        """Get the first matching attribute value from a set of possible attribute names."""
+        for attr_name in attr_set:
+            value = self.attributes.get(attr_name)
+            if value:
+                return value
+        return None
+    
+    def _get_entity_pattern_value(self, pattern) -> Optional[str]:
+        """Get value matching entity pattern from attributes."""
+        for key, value in self.attributes.items():
+            if pattern.match(key):
+                return value
+        return None
         
     @property
     def method(self) -> Optional[str]:
         """Get HTTP method from span attributes."""
-        return (self.attributes.get('http.method') or 
-                self.attributes.get('http.request.method') or
-                self.attributes.get('method') or
-                self.attributes.get('entity.1.method'))
+        # Try standard HTTP method attributes first
+        method = self._get_first_matching_attr(self.HTTP_METHOD_ATTRS)
+        if method:
+            return method
+            
+        # Check for entity.*.method pattern using pre-compiled regex
+        return self._get_entity_pattern_value(self.ENTITY_METHOD_PATTERN)
     
     @property
     def status_code(self) -> Optional[int]:
         """Get HTTP status code from span attributes."""
-        status = (self.attributes.get('http.status_code') or
-                 self.attributes.get('http.response.status_code') or
-                 self.attributes.get('status_code') or
-                 self.attributes.get('entity.1.status_code'))
+        # Try standard HTTP status code attributes first
+        status = self._get_first_matching_attr(self.HTTP_STATUS_ATTRS)
+        
+        if status is None:
+            # Check for entity.*.status_code pattern using pre-compiled regex
+            status = self._get_entity_pattern_value(self.ENTITY_STATUS_CODE_PATTERN)
+                    
         if status is not None:
             try:
                 return int(status)
@@ -47,56 +105,64 @@ class HTTPSpan:
     @property
     def url(self) -> Optional[str]:
         """Get URL from span attributes."""
-        return (self.attributes.get('http.url') or
-                self.attributes.get('http.target') or
-                self.attributes.get('url') or
-                self.attributes.get('entity.1.url'))
+        # Try standard URL attributes first
+        url = self._get_first_matching_attr(self.HTTP_URL_ATTRS)
+        if url:
+            return url
+            
+        # Check for entity.*.url pattern using pre-compiled regex
+        return self._get_entity_pattern_value(self.ENTITY_URL_PATTERN)
     
     @property
     def route(self) -> Optional[str]:
         """Get HTTP route from span attributes."""
-        return (self.attributes.get('http.route') or
-                self.attributes.get('route') or
-                self.attributes.get('entity.1.route'))
+        # Try standard route attributes first
+        route = self._get_first_matching_attr(self.HTTP_ROUTE_ATTRS)
+        if route:
+            return route
+            
+        # Check for entity.*.route pattern using pre-compiled regex
+        return self._get_entity_pattern_value(self.ENTITY_ROUTE_PATTERN)
     
     @property
     def is_request_span(self) -> bool:
         """Check if this is an HTTP request span."""
-        return any(indicator in str(self.name).lower() for indicator in 
-                  ['request', 'fastapi.request', 'http.request', 'client'])
+        name_lower = str(self.name).lower()
+        return any(indicator in name_lower for indicator in self.REQUEST_INDICATORS)
     
     @property 
     def is_response_span(self) -> bool:
         """Check if this is an HTTP response span."""
-        return any(indicator in str(self.name).lower() for indicator in
-                  ['response', 'fastapi.response', 'http.response'])
+        name_lower = str(self.name).lower()
+        return any(indicator in name_lower for indicator in self.RESPONSE_INDICATORS)
     
     @property
     def span_type(self) -> Optional[str]:
         """Get span type from span attributes."""
-        return self.attributes.get('span.type')
+        return self.attributes.get(self.SPAN_TYPE_ATTR)
     
     @property
     def is_http_process_span(self) -> bool:
         """Check if this is an HTTP server-side processing span (http.process)."""
-        return self.span_type == "http.process"
+        return self.span_type == self.HTTP_PROCESS_SPAN_TYPE
     
     @property
     def is_http_send_span(self) -> bool:
         """Check if this is an HTTP client-side request span (http.send)."""
-        return self.span_type == "http.send"
+        return self.span_type == self.HTTP_SEND_SPAN_TYPE
     
     @property
     def is_http_span(self) -> bool:
         """Check if this span is HTTP-related."""
+        name_lower = str(self.name).lower()
+        
         return (self.is_http_process_span or 
                 self.is_http_send_span or
                 self.method is not None or 
                 self.status_code is not None or
                 self.url is not None or
-                any(http_indicator in str(self.name).lower() for http_indicator in 
-                    ['http', 'fastapi', 'request', 'response', 'get_', 'post_', 'put_', 'delete_']) or
-                str(self.name).lower().startswith(('get ', 'post ', 'put ', 'delete ', 'patch ', 'head ', 'options ')))
+                any(indicator in name_lower for indicator in self.HTTP_INDICATORS) or
+                name_lower.startswith(self.HTTP_METHOD_PREFIXES))
 
 
 @plugin
@@ -130,45 +196,15 @@ class HTTPMethodAssertionsPlugin(TraceAssertionsPlugin):
         self._current_spans = [hs.span for hs in matching_spans]
         return self
     
-    def assert_get_requests(self) -> 'TraceAssertions':
-        """Assert GET requests exist."""
-        return self.assert_http_method('GET')
-    
-    def assert_post_requests(self) -> 'TraceAssertions':
-        """Assert POST requests exist."""
-        return self.assert_http_method('POST')
-    
-    def assert_put_requests(self) -> 'TraceAssertions':
-        """Assert PUT requests exist."""
-        return self.assert_http_method('PUT')
-    
-    def assert_delete_requests(self) -> 'TraceAssertions':
-        """Assert DELETE requests exist."""
-        return self.assert_http_method('DELETE')
-    
-    def assert_http_process_spans(self) -> 'TraceAssertions':
-        """Assert HTTP server-side processing spans (http.process) exist."""
-        http_spans = [HTTPSpan(span) for span in self._current_spans if HTTPSpan(span).is_http_span]
-        process_spans = [hs for hs in http_spans if hs.is_http_process_span]
-        
-        assert process_spans, f"No http.process spans found. Found span types: {list(set(hs.span_type for hs in http_spans if hs.span_type))}"
-        
-        self._current_spans = [hs.span for hs in process_spans]
-        return self
-    
-    def assert_http_send_spans(self) -> 'TraceAssertions':
-        """Assert HTTP client-side request spans (http.send) exist."""
-        http_spans = [HTTPSpan(span) for span in self._current_spans if HTTPSpan(span).is_http_span]
-        send_spans = [hs for hs in http_spans if hs.is_http_send_span]
-        
-        assert send_spans, f"No http.send spans found. Found span types: {list(set(hs.span_type for hs in http_spans if hs.span_type))}"
-        
-        self._current_spans = [hs.span for hs in send_spans]
-        return self
+    # Convenience methods - use assert_http_method() directly for better flexibility
     
     def assert_http_span_type(self, span_type: str) -> 'TraceAssertions':
-        """Assert spans of a specific HTTP span type exist."""
-        valid_types = ['http.process', 'http.send']
+        """Assert spans of a specific HTTP span type exist.
+        
+        Args:
+            span_type: 'http.process' (server-side) or 'http.send' (client-side)
+        """
+        valid_types = [HTTPSpan.HTTP_PROCESS_SPAN_TYPE, HTTPSpan.HTTP_SEND_SPAN_TYPE]
         assert span_type in valid_types, f"Invalid span type '{span_type}'. Valid types: {valid_types}"
         
         http_spans = [HTTPSpan(span) for span in self._current_spans if HTTPSpan(span).is_http_span]
@@ -189,35 +225,24 @@ class HTTPMethodAssertionsPlugin(TraceAssertionsPlugin):
         self._current_spans = [hs.span for hs in matching_spans]
         return self
     
-    def assert_success_status_codes(self) -> 'TraceAssertions':
-        """Assert that spans contain success status codes (2xx)."""
+    def assert_status_code_range(self, min_code: int, max_code: int) -> 'TraceAssertions':
+        """Assert that spans contain status codes within the specified range.
+        
+        Args:
+            min_code: Minimum status code (inclusive)
+            max_code: Maximum status code (exclusive)
+            
+        Examples:
+            - assert_status_code_range(200, 300)  # Success codes (2xx)
+            - assert_status_code_range(400, 500)  # Client errors (4xx) 
+            - assert_status_code_range(500, 600)  # Server errors (5xx)
+        """
         http_spans = [HTTPSpan(span) for span in self._current_spans if HTTPSpan(span).is_http_span]
         matching_spans = [hs for hs in http_spans 
-                         if hs.status_code and 200 <= hs.status_code < 300]
+                         if hs.status_code and min_code <= hs.status_code < max_code]
         
-        assert matching_spans, f"No HTTP spans found with success status codes (2xx). Found status codes: {list(set(hs.status_code for hs in http_spans if hs.status_code))}"
-        
-        self._current_spans = [hs.span for hs in matching_spans]
-        return self
-    
-    def assert_client_error_status_codes(self) -> 'TraceAssertions':
-        """Assert that spans contain client error status codes (4xx)."""
-        http_spans = [HTTPSpan(span) for span in self._current_spans if HTTPSpan(span).is_http_span]
-        matching_spans = [hs for hs in http_spans 
-                         if hs.status_code and 400 <= hs.status_code < 500]
-        
-        assert matching_spans, f"No HTTP spans found with client error status codes (4xx). Found status codes: {list(set(hs.status_code for hs in http_spans if hs.status_code))}"
-        
-        self._current_spans = [hs.span for hs in matching_spans]
-        return self
-    
-    def assert_server_error_status_codes(self) -> 'TraceAssertions':
-        """Assert that spans contain server error status codes (5xx)."""
-        http_spans = [HTTPSpan(span) for span in self._current_spans if HTTPSpan(span).is_http_span]
-        matching_spans = [hs for hs in http_spans 
-                         if hs.status_code and 500 <= hs.status_code < 600]
-        
-        assert matching_spans, f"No HTTP spans found with server error status codes (5xx). Found status codes: {list(set(hs.status_code for hs in http_spans if hs.status_code))}"
+        range_name = f"{min_code}-{max_code-1}"
+        assert matching_spans, f"No HTTP spans found with status codes in range {range_name}. Found status codes: {list(set(hs.status_code for hs in http_spans if hs.status_code))}"
         
         self._current_spans = [hs.span for hs in matching_spans]
         return self
@@ -296,9 +321,7 @@ class HTTPFlowAssertionsPlugin(TraceAssertionsPlugin):
         
         assert False, f"Expected HTTP method sequence {expected_methods} not found in actual sequence {actual_methods}"
     
-    def assert_crud_flow(self) -> 'TraceAssertions':
-        """Assert a typical CRUD flow pattern (Create, Read, Update, Delete)."""
-        return self.assert_http_flow_sequence(['POST', 'GET', 'PUT', 'DELETE'])
+    # Use assert_http_flow_sequence(['POST', 'GET', 'PUT', 'DELETE']) for CRUD flows
     
     def assert_api_call_timing(self, max_duration_ms: float) -> 'TraceAssertions':
         """Assert that HTTP API calls complete within specified time."""
@@ -307,7 +330,7 @@ class HTTPFlowAssertionsPlugin(TraceAssertionsPlugin):
         for hs in http_spans:
             if hasattr(hs.span, 'end_time') and hasattr(hs.span, 'start_time'):
                 duration_ns = hs.span.end_time - hs.span.start_time
-                duration_ms = duration_ns / 1_000_000  # Convert nanoseconds to milliseconds
+                duration_ms = duration_ns / HTTPSpan.NANOSECONDS_TO_MILLISECONDS  # Convert nanoseconds to milliseconds
                 
                 assert duration_ms <= max_duration_ms, f"HTTP span '{hs.name}' took {duration_ms:.2f}ms, exceeding limit of {max_duration_ms}ms"
         
@@ -428,7 +451,7 @@ class HTTPValidationPlugin(TraceAssertionsPlugin):
         http_spans = [HTTPSpan(span) for span in self._current_spans if HTTPSpan(span).is_http_span]
         
         error_spans = [hs for hs in http_spans 
-                      if hs.status_code and hs.status_code >= 400]
+                      if hs.status_code and hs.status_code >= HTTPSpan.CLIENT_ERROR_MIN]
         
         if error_spans:
             error_details = [f"{hs.name}: {hs.method} {hs.status_code}" for hs in error_spans]

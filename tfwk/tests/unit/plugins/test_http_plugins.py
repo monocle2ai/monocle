@@ -130,15 +130,15 @@ class TestHTTPPlugins:
         assertions = TraceAssertions(self.mock_http_spans)
         
         # Test specific method assertions
-        get_result = assertions.assert_get_requests()
+        get_result = assertions.assert_http_method('GET')
         assert len(get_result._current_spans) == 2  # GET /users and GET /products/1
         assert any("GET /users" in str(span.name) for span in get_result._current_spans)
         
-        post_result = TraceAssertions(self.mock_http_spans).assert_post_requests()
+        post_result = TraceAssertions(self.mock_http_spans).assert_http_method('POST')
         assert len(post_result._current_spans) == 1
         assert post_result._current_spans[0].name == "POST /users"
         
-        put_result = TraceAssertions(self.mock_http_spans).assert_put_requests()
+        put_result = TraceAssertions(self.mock_http_spans).assert_http_method('PUT')
         assert len(put_result._current_spans) == 1
         assert put_result._current_spans[0].name == "PUT /products/1/stock"
         
@@ -159,11 +159,11 @@ class TestHTTPPlugins:
         assert len(status_200_result._current_spans) == 2  # GET /users and PUT /products/1/stock
         
         # Test success status codes (2xx)
-        success_result = TraceAssertions(self.mock_http_spans).assert_success_status_codes()
+        success_result = TraceAssertions(self.mock_http_spans).assert_status_code_range(200, 300)
         assert len(success_result._current_spans) == 3  # 200, 201, 200
         
         # Test client error status codes (4xx)
-        client_error_result = TraceAssertions(self.mock_http_spans).assert_client_error_status_codes()
+        client_error_result = TraceAssertions(self.mock_http_spans).assert_status_code_range(400, 500)
         assert len(client_error_result._current_spans) == 1  # 404
 
     def test_http_route_and_url_assertions(self):
@@ -183,10 +183,10 @@ class TestHTTPPlugins:
         assertions = TraceAssertions(self.mock_monocle_spans)
         
         # Test method assertions with monocle format
-        get_result = assertions.assert_get_requests()
+        get_result = assertions.assert_http_method('GET')
         assert len(get_result._current_spans) == 1
         
-        post_result = TraceAssertions(self.mock_monocle_spans).assert_post_requests()
+        post_result = TraceAssertions(self.mock_monocle_spans).assert_http_method('POST')
         assert len(post_result._current_spans) == 1
         
         # Test URL pattern with monocle format
@@ -220,7 +220,7 @@ class TestHTTPPlugins:
         """Test chaining multiple HTTP assertions together."""
         # Test successful chaining
         result = TraceAssertions(self.mock_http_spans) \
-            .assert_get_requests() \
+            .assert_http_method('GET') \
             .assert_http_route("/users")
         
         assert len(result._current_spans) == 1
@@ -228,7 +228,7 @@ class TestHTTPPlugins:
         
         # Test chaining that filters down results
         result2 = TraceAssertions(self.mock_http_spans) \
-            .assert_success_status_codes() \
+            .assert_status_code_range(200, 300) \
             .assert_http_method("POST")
         
         assert len(result2._current_spans) == 1
@@ -240,7 +240,7 @@ class TestHTTPPlugins:
         assertions = TraceAssertions(self.mock_non_http_spans)
         
         with pytest.raises(AssertionError, match="No HTTP spans found"):
-            assertions.assert_get_requests()
+            assertions.assert_http_method('GET')
         
         with pytest.raises(AssertionError, match="No HTTP spans found"):
             assertions.assert_http_status_code(200)
@@ -249,7 +249,7 @@ class TestHTTPPlugins:
         empty_assertions = TraceAssertions([])
         
         with pytest.raises(AssertionError, match="No HTTP spans found"):
-            empty_assertions.assert_post_requests()
+            empty_assertions.assert_http_method('POST')
         
         # Test method not found
         assertions = TraceAssertions(self.mock_http_spans)
@@ -301,7 +301,7 @@ class TestHTTPPlugins:
         assertions = TraceAssertions(flow_spans)
         
         # Test CRUD flow detection
-        crud_result = assertions.assert_crud_flow()
+        crud_result = assertions.assert_http_flow_sequence(['POST', 'GET', 'PUT', 'DELETE'])
         assert len(crud_result._current_spans) == 4
         
         # Test specific sequence
@@ -388,7 +388,7 @@ class TestHTTPPlugins:
         assertions = TraceAssertions(mixed_spans)
         
         # Should only find HTTP spans
-        get_result = assertions.assert_get_requests()
+        get_result = assertions.assert_http_method('GET')
         assert len(get_result._current_spans) == 2  # Only HTTP GET requests
         
         # Should filter out non-HTTP spans
@@ -402,14 +402,14 @@ class TestHTTPPlugins:
         assertions = TraceAssertions([no_attrs_span])
         
         with pytest.raises(AssertionError):
-            assertions.assert_get_requests()
+            assertions.assert_http_method('GET')
         
         # Test with spans that have empty attributes
         empty_attrs_span = Mock(name="empty_attrs", attributes={}, context=Mock(trace_id=1))
         empty_assertions = TraceAssertions([empty_attrs_span])
         
         with pytest.raises(AssertionError):
-            empty_assertions.assert_post_requests()
+            empty_assertions.assert_http_method('POST')
         
         # Test with malformed status codes
         malformed_span = Mock(

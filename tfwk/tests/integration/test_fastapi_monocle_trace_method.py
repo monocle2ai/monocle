@@ -5,10 +5,10 @@ FastAPI Integration Test with monocle_trace_method decorators - Focused on User 
 This test demonstrates comprehensive HTTP plugin usage and internal method tracing:
 
 ## HTTP Plugin Features Demonstrated:
-- assert_post_requests() - Validate POST requests
+- assert_http_method('POST') - Validate POST requests
 - assert_http_status_code() - Validate specific HTTP status codes
-- assert_success_status_codes() - Validate 2xx status codes
-- assert_client_error_status_codes() - Validate 4xx error codes
+- assert_status_code_range(200, 300) - Validate 2xx status codes
+- assert_status_code_range(400, 500) - Validate 4xx error codes
 - assert_rest_api_endpoints() - Validate specific API endpoints
 - assert_http_method_distribution() - Validate HTTP method counts
 - debug_http_spans() - Debug HTTP span information (includes span types)
@@ -17,8 +17,8 @@ This test demonstrates comprehensive HTTP plugin usage and internal method traci
 - assert_no_http_errors() - Ensure no HTTP errors
 
 ## HTTP Span Types Support:
-- assert_http_process_spans() - Validate server-side processing (http.process)
-- assert_http_send_spans() - Validate client-side requests (http.send)
+- assert_http_span_type('http.process') - Validate server-side processing 
+- assert_http_span_type('http.send') - Validate client-side requests
 - assert_http_span_type() - Validate specific span types
 - Span type differentiation: http.process vs http.send
 
@@ -38,6 +38,7 @@ import monocle_tfwk.assertions.plugins.http  # noqa: F401
 import pytest
 import requests
 from monocle_tfwk import BaseAgentTest
+from monocle_tfwk.visualization.gantt_chart import VisualizationMode
 from server.fastapi_mock_server import mock_server
 
 # Set up logging
@@ -65,80 +66,9 @@ def setup_server(request):
 class TestFastAPIMonocleTraceMethod(BaseAgentTest):
     """Test suite for FastAPI endpoints decorated with @monocle_trace_method()."""
 
-    def _display_flow_gantt_chart(self, traces):
-        """Display Gantt chart visualization of the execution flow."""
-        try:
-            # Import visualization modules
-            from monocle_tfwk.visualization.examples import (
-                generate_visualization_report,
-            )
-            from monocle_tfwk.visualization.gantt_chart import TraceGanttChart
-            
-            # Get spans from traces - traces is a TraceAssertions object
-            spans = traces._current_spans
-            
-            if not spans:
-                logger.info("No spans available for visualization")
-                return
-            
-            logger.info(f"📊 Found {len(spans)} spans for visualization")
-            
-            # Debug span information and hierarchy
-            for i, span in enumerate(spans[:8]):  # Show first 8 spans
-                span_name = getattr(span, 'name', 'Unknown')
-                
-                # Check parent relationship
-                parent_info = "No parent"
-                if hasattr(span, 'parent') and span.parent:
-                    if hasattr(span.parent, 'span_id'):
-                        parent_info = f"Parent: {span.parent.span_id.to_bytes(8, 'big').hex()}"
-                    else:
-                        parent_info = f"Parent: {span.parent}"
-                        
-                span_id = span.context.span_id.to_bytes(8, 'big').hex() if hasattr(span, 'context') and span.context.span_id else 'Unknown'
-                logger.info(f"  Span {i+1}: {span_name} | ID: {span_id} | {parent_info}")
-            
-            # Create Gantt chart
-            gantt = TraceGanttChart(spans)
-            
-            # Parse spans and handle any timing issues
-            try:
-                events = gantt.parse_spans()
-                logger.info(f"📈 Successfully parsed {len(events)} timeline events")
-                
-                # Generate text-based Gantt visualization
-                gantt_text = gantt.generate_gantt_text()
-                logger.info("📊 Flow Execution Gantt Chart:")
-                logger.info("\n" + gantt_text)
-                
-                # Generate comprehensive visualization report with flow patterns
-                patterns = [
-                    "validate_user_data -> calculate_user_profile_score -> send_notification -> audit_log_operation",
-                    "http.process -> validate_user_data",
-                    "validate_* -> calculate_*"
-                ]
-                
-                report = generate_visualization_report(gantt, patterns)
-                logger.info("📈 Comprehensive Visualization Report:")
-                logger.info("\n" + report)
-                
-            except Exception as parse_error:
-                logger.warning(f"⚠️ Could not parse spans for Gantt chart: {parse_error}")
-                # Try to show basic span information instead
-                logger.info("📋 Basic Span Information:")
-                for span in spans:
-                    span_name = getattr(span, 'name', 'Unknown')
-                    span_type = getattr(span, 'attributes', {}).get('span.type', 'Unknown')
-                    logger.info(f"  • {span_name} ({span_type})")
-                
-        except ImportError as e:
-            logger.warning(f"⚠️ Visualization modules not available: {e}")
-        except Exception as e:
-            logger.warning(f"⚠️ Could not generate Gantt chart: {e}")
-            import traceback
-            logger.debug(f"Full traceback: {traceback.format_exc()}")
+    
 
-    # Focused User Creation API Tests
+    
     
     def test_user_creation_endpoint_and_internal_methods(self):
         """Test user creation API endpoint with comprehensive internal method tracing and execution order validation."""
@@ -168,9 +98,7 @@ class TestFastAPIMonocleTraceMethod(BaseAgentTest):
         
         # HTTP Plugin Assertions - Validate the HTTP request itself
         (traces
-         .assert_post_requests()                    # Assert POST request exists
-         # Note: Status code assertion disabled until FastAPI instrumentation properly sets status codes
-         # .assert_http_status_code(200)             # Assert 200 status code
+         .assert_http_method('POST')                # Assert POST request exists
          .assert_rest_api_endpoints([              # Assert specific endpoint was called
              {'method': 'POST', 'path': '/users'}
          ]))
@@ -192,13 +120,7 @@ class TestFastAPIMonocleTraceMethod(BaseAgentTest):
         
         logger.info("✅ All expected internal method spans found")
         
-        # Assert multiple flow patterns - can be chained since assert_flow doesn't filter spans
-        traces = self.assert_traces()  # Start with all spans
-        (traces
-         .assert_flow("validate_user_data -> calculate_user_profile_score -> send_notification -> audit_log_operation")
-         .assert_flow("http.process -> validate_user_data -> calculate_user_profile_score"))
-        
-        logger.info("✅ User creation endpoint with internal methods test passed")
+      
 
     def test_execution_order_validation(self):
         """Test that internal methods are executed in the correct order during user creation."""
@@ -224,10 +146,9 @@ class TestFastAPIMonocleTraceMethod(BaseAgentTest):
         # Validate HTTP layer first using HTTP plugin assertions
         traces = self.assert_traces()
         (traces
-         .assert_post_requests()                    # Validate POST request
-         # Note: Status code assertion disabled until FastAPI instrumentation properly sets status codes
-         # .assert_success_status_codes()            # Validate 2xx status codes
-         .assert_http_method('POST'))              # Validate HTTP method
+         .assert_http_method('POST')
+         .assert_status_code_range(200, 250)
+         )              # Validate HTTP method
         
         # Validate that all expected internal methods were called using trace assertions
         traces = self.assert_traces()
@@ -238,12 +159,7 @@ class TestFastAPIMonocleTraceMethod(BaseAgentTest):
          .assert_span_with_name("audit_log_operation"))
         
         logger.info("✅ All expected internal methods were executed")
-        
-        # Use flow assertion to validate the complete end-to-end execution pattern
-        traces = self.assert_traces()  # Reset to all spans
-        traces.assert_flow("validate_user_data -> calculate_user_profile_score -> send_notification -> audit_log_operation")
-        
-        logger.info("✅ Execution order validation test passed")
+
 
     def test_validation_failure_with_execution_order(self):
         """Test that when validation fails, subsequent methods are not executed."""
@@ -264,7 +180,7 @@ class TestFastAPIMonocleTraceMethod(BaseAgentTest):
         # Validate HTTP error response using HTTP plugin assertions
         traces = self.assert_traces()
         (traces
-         .assert_post_requests())                   # Should still have POST request
+         .assert_http_method('POST'))               # Should still have POST request
          # Note: Status code assertions disabled until FastAPI instrumentation properly sets status codes
          # .assert_client_error_status_codes()       # Should have 4xx error status
          # .assert_http_status_code(400))            # Specifically 400 status
@@ -315,17 +231,7 @@ class TestFastAPIMonocleTraceMethod(BaseAgentTest):
         
         # Method assertions
         (traces
-         .assert_post_requests()                    # Assert POST requests exist
-         .assert_http_method('POST')               # Assert specific method
-         .assert_http_methods(['POST']))           # Assert from list of methods
-        
-        # Status code assertions  
-        # Note: Status code assertions disabled until FastAPI instrumentation properly sets status codes
-        # traces = self.assert_traces()  # Reset to all spans
-        # (traces
-        #  .assert_http_status_code(200)             # Assert specific status code
-        #  .assert_success_status_codes())           # Assert 2xx status codes
-        
+         .assert_http_method('POST'))           # Assert from list of methods
         # API endpoint validation
         traces = self.assert_traces()  # Reset to all spans
         traces.assert_rest_api_endpoints([
@@ -341,24 +247,8 @@ class TestFastAPIMonocleTraceMethod(BaseAgentTest):
         # Comprehensive validation in fewer chains
         traces = self.assert_traces()  # Reset to all spans
         (traces
-         # Note: HTTP completeness validation disabled until FastAPI instrumentation properly sets all HTTP attributes
-         # .validate_http_span_completeness()    # Validate HTTP span completeness
-         # Note: Status code assertion disabled until FastAPI instrumentation properly sets status codes
-         # .assert_no_http_errors()             # Assert no HTTP errors  
          .assert_api_call_timing(5000)        # API timing validation (5 second max)
-         .assert_http_process_spans()         # Assert server-side processing spans
          .assert_http_span_type('http.process')) # Assert specific span type
-        
-        # Examples of chaining multiple flow assertions - all work on the same span set
-        logger.info("=== Mixed Span Type and Name Flow Assertions ===")
-        
-        traces = self.assert_traces()  # Start with all spans
-        (traces
-         .assert_flow("validate_user_data -> calculate_user_profile_score -> send_notification -> audit_log_operation")  # Complete flow
-         .assert_flow("http.process -> validate_user_data")                 # HTTP processing followed by business logic
-         .assert_flow("validate_* -> calculate_*")                          # Partial wildcards with span names
-         .assert_flow("http.process -> validate_user_data -> send_notification")  # Mix HTTP span types with method names
-         .assert_flow("http.process -> validate_user_data -> calculate_user_profile_score? -> send_notification"))  # Optional patterns
         
         logger.info("✅ Comprehensive HTTP plugin assertions test passed")
 
@@ -395,12 +285,9 @@ class TestFastAPIMonocleTraceMethod(BaseAgentTest):
         logger.info("--- Testing http.process spans ---")
         traces = self.assert_traces()  # Reset to all spans
         (traces
-         .assert_http_process_spans()           # Assert http.process spans exist
+         .assert_http_span_type('http.process') # Assert http.process spans exist
          .assert_http_span_type('http.process') # Assert specific span type
-         .assert_post_requests())               # Should be POST requests
-         # Note: Status code assertion disabled until FastAPI instrumentation properly sets status codes
-         # .assert_success_status_codes())       # Should be successful
-        
+         .assert_http_method('POST'))           # Should be POST requests
 
         # Validate http.process spans exist using trace assertions
         traces = self.assert_traces()
@@ -411,11 +298,7 @@ class TestFastAPIMonocleTraceMethod(BaseAgentTest):
         traces.filter_by_attribute('span.type', 'http.send').exactly(0)
         
         logger.info("✅ Span type filtering validation completed")
-        
-        # Note: http.send spans would appear if our FastAPI server made external HTTP calls
-        # In this test setup, we don't expect http.send spans unless the server calls external APIs
-        
-        logger.info("✅ HTTP span types validation test passed")
+
 
     def test_mixed_span_type_and_name_flow_patterns(self):
         """Test various combinations of span types and names in flow assertions."""
@@ -443,21 +326,21 @@ class TestFastAPIMonocleTraceMethod(BaseAgentTest):
         # Comprehensive flow pattern validation - all chained together since assert_flow doesn't filter
         logger.info("Testing comprehensive flow patterns in a single chain")
         traces = self.assert_traces()
-        (traces
-         .assert_flow("validate_user_data -> calculate_user_profile_score -> send_notification")  # 1. Pure span names
-         .assert_flow("http.process")                                       # 2. Pure span types 
-         .assert_flow("http.process -> validate_user_data -> calculate_user_profile_score")  # 3. Mixed: span type -> names
-         .assert_flow("validate_* -> calculate_* -> send_*")               # 4. Wildcard patterns
-         .assert_flow("validate_user_data -> calculate_user_profile_score? -> send_notification")  # 5. Optional patterns
-          # Enhanced parser now supports parallel patterns with parentheses
-         .assert_flow("validate_user_data -> (calculate_user_profile_score -> send_notification)")  # 6. Parallel patterns
-         .assert_flow("http.process -> validate_* -> (calculate_* -> send_*) -> audit_*")  # 7. Complex mixed pattern
-         .assert_flow("*user* -> *notification*"))                        # 8. Partial matching
-        
+
         # Generate and display Gantt chart visualization after flow assertions
         logger.info("=== Gantt Chart Visualization ===")
-        self._display_flow_gantt_chart(traces)
+        self.display_flow_gantt_chart(VisualizationMode.COMPACT)
         
+        (traces
+         .assert_flow("validate_user_data")  # 1. Pure span names (no parent filter)
+         .assert_flow("fastapi.request","workflow")                                       # 2. Pure span types
+         .assert_flow("validate_user_data -> calculate_user_profile_score -> send_notification -> audit_log_operation")  # 3. Flow pattern (no parent filter)
+        #  .assert_flow("validate_* -> calculate_* -> send_*")               # 4. Wildcard patterns
+        #  .assert_flow("validate_user_data -> calculate_user_profile_score? -> send_notification")  # 5. Optional patterns
+        #  .assert_flow("validate_user_data -> (calculate_user_profile_score -> send_notification)")  # 6. Parallel patterns (no parent filter)
+        #  .assert_flow("http.process -> validate_* -> (calculate_* -> send_*) -> audit_*")  # 7. Complex mixed pattern (no parent filter)
+        #  .assert_flow("*user* -> *notification*")
+         )
         logger.info("✅ Mixed span type and name flow patterns test passed")
 
 

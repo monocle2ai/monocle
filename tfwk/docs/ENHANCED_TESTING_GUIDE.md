@@ -106,13 +106,38 @@ perf_analysis = await traces.ask_llm_about_traces(
 ### Agent Flow Assertions
 
 ```python
-# Define participants for multi-agent workflows
-participants = [("U", "User", "actor", "Human user")]
-# Validate agent flow
-self.assert_traces().assert_agent_flow(flow_pattern)
+# Define participants for multi-agent workflows  
+participants = [
+    ("U", "User", "actor", "Human user initiating requests"),
+    ("TC", "Travel_Coordinator", "agent", "Main orchestration agent"),
+    ("FA", "Flight_Assistant", "agent", "Flight booking specialist"),
+    ("BFT", "book_flight_tool", "tool", "Flight booking tool")
+]
 
-# Agent assertions
+# Comprehensive agentic flow validation
+whole_flow = {
+    "participants": participants,
+    "required": ["TC"],  # Required participants
+    "interactions": [
+        ("U", "TC", "request"),      # User requests Travel Coordinator  
+        ("TC", "FA", "delegation"),  # TC delegates to Flight Assistant
+        ("FA", "BFT", "invocation")  # Flight Assistant calls booking tool
+    ]
+}
+
+# Validate complete agentic workflow
+self.assert_traces().assert_agent_flow(whole_flow)
+
+# Individual agent assertions
 self.assert_trace().has_agent("agent_name")
+self.assert_traces().assert_agent_called("travel_coordinator")
+self.assert_traces().assert_agent_type("agent.openai_agents")
+self.assert_traces().assert_workflow_complete()
+
+# Flow pattern assertions
+self.assert_traces().assert_flow("agent.reasoning -> tool_use -> response")
+self.assert_traces().assert_conditional_flow("coordinator", "needs_booking", 
+                                           ["booking_agent"], ["info_agent"])
 
 # HTTP testing
 self.assert_traces().assert_get_requests(min_count=2)
@@ -140,16 +165,23 @@ The framework uses a plugin system with Core, HTTP, Agent, LLM, and Semantic plu
 ## Advanced Usage Examples
 
 ```python
-# Multi-agent flow testing
-participants = [("U", "User", "actor", "Human user")]
-flow_pattern = {"participants": participants, "required": ["TC"]}
-self.assert_traces().assert_agent_flow(flow_pattern)
+# Parametrized testing for multiple scenarios
+@pytest.mark.parametrize("destination", ["Mumbai", "Delhi", "Goa"])
+def test_booking_destinations(self, agent, destination):
+    result = agent.run(f"Book flight to {destination}")
+    self.assert_traces().contains_input(destination)
 
-# Async testing
-@pytest.mark.asyncio
-async def test_async_agent(self):
-    result = await agent.run("input")
-    self.assert_trace().has_spans(min_count=2)
+# Performance testing with timing constraints
+def test_agent_performance(self, agent):
+    agent.run("Complex booking request")
+    self.assert_traces().assert_total_duration_under(5.0)
+
+# Custom validation helpers
+def assert_booking_workflow_complete(self, traces):
+    """Custom helper for booking validation."""
+    (traces.has_spans(min_count=3)
+     .called_tool("book_flight")
+     .semantically_contains_output("confirmed", threshold=0.8))
 ```
 
 ## Key Features

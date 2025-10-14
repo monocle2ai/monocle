@@ -54,11 +54,11 @@ def pre_process_span(name, tracer, handler, add_workflow_span, to_wrap, wrapped,
             handler.pre_task_processing(to_wrap, wrapped, instance, args, kwargs, span)
         except Exception as e:
             logger.info(f"Warning: Error occurred in pre_task_processing: {e}")
-    try:
-        handler.hydrate_span(to_wrap, wrapped, instance, args, kwargs, None, span, None, None,
-                    skip_events=["events"])
-    except Exception as e:
-        logger.info(f"Warning: Error occurred in hydrate_span pre_process_span: {e}")
+        try:
+            handler.hydrate_span(to_wrap, wrapped, instance, args, kwargs, None, span, None, None,
+                        skip_events=["events"])
+        except Exception as e:
+            logger.info(f"Warning: Error occurred in hydrate_span pre_process_span: {e}")
 
 def post_process_span(handler, to_wrap, wrapped, instance, args, kwargs, return_value, span, parent_span, ex):
     if not (SpanHandler.is_root_span(span) or get_value(ADD_NEW_WORKFLOW) == True):

@@ -357,7 +357,7 @@ class Option(Generic[T]):
 
     def and_then(self, func: Callable[[T], 'Option[U]']) -> 'Option[U]':
         if self.is_some():
-            return func(self.value)
+            return Option(func(self.value))
         return Option(None)
 
 # Example usage

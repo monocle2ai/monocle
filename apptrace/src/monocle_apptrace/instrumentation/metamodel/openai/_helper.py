@@ -300,15 +300,15 @@ class OpenAISpanHandler(NonFrameworkSpanHandler):
         else:
             return super().skip_processor(to_wrap, wrapped, instance, span, args, kwargs)
 
-    def hydrate_events(self, to_wrap, wrapped, instance, args, kwargs, ret_result, span, parent_span=None, ex:Exception=None) -> bool:
+    def hydrate_events(self, to_wrap, wrapped, instance, args, kwargs, ret_result, span, parent_span=None, ex:Exception=None, skip_events:list[str] = []) -> bool:
         # If openAI is being called by Teams AI SDK, then copy parent
         if self.is_teams_span_in_progress() and ex is None:
-            return super().hydrate_events(to_wrap, wrapped, instance, args, kwargs, ret_result, span=parent_span, parent_span=None, ex=ex)
+            return super().hydrate_events(to_wrap, wrapped, instance, args, kwargs, ret_result, span=parent_span, parent_span=None, ex=ex, skip_events=skip_events)
         # For LlamaIndex, process events normally on the inference span
         elif self.is_llamaindex_span_in_progress():
-            return super().hydrate_events(to_wrap, wrapped, instance, args, kwargs, ret_result, span, parent_span=parent_span, ex=ex)
+            return super().hydrate_events(to_wrap, wrapped, instance, args, kwargs, ret_result, span, parent_span=parent_span, ex=ex, skip_events=skip_events)
 
-        return super().hydrate_events(to_wrap, wrapped, instance, args, kwargs, ret_result, span, parent_span=parent_span, ex=ex)
+        return super().hydrate_events(to_wrap, wrapped, instance, args, kwargs, ret_result, span, parent_span=parent_span, ex=ex, skip_events=skip_events)
 
     def post_task_processing(self, to_wrap, wrapped, instance, args, kwargs, result, ex, span, parent_span):
         # TeamsAI doesn't capture the status and other metadata from underlying OpenAI SDK.

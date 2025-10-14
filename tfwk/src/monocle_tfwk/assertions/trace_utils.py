@@ -2,7 +2,7 @@ import logging
 from typing import Any, Dict, List
 
 import jmespath
-from opentelemetry.sdk.trace import ReadableSpan, Span
+from opentelemetry.sdk.trace import Span
 
 logger = logging.getLogger(__name__)
 
@@ -47,19 +47,7 @@ def get_output_from_span(span: Span) -> str:
             return event.attributes.get("response")
     return None
 
-def get_agent_description_from_span(span: Span) -> str:
-    """
-    Extracts the agent description from the span attributes.
 
-    Args:
-        span (Span): The span object from which to extract the agent description.
-
-    Returns:
-        str: The extracted agent description, or an empty string if not found.
-    """
-    if span.attributes.get("span.type") == "agentic_invocation":
-        return span.attributes.get("agent.description")
-    return None
 
 
 class TraceQueryEngine:

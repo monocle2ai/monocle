@@ -45,7 +45,7 @@ The `TraceAssertions` class provides a fluent API for validating agent traces:
 
 ```python
 # Chain assertions for readable test code
-(self.assert_trace()
+(self.assert_traces()
  .has_agent("travel_agent")
  .called_tool("book_flight")
  .with_input_containing("Mumbai")
@@ -129,33 +129,31 @@ whole_flow = {
 self.assert_traces().assert_agent_flow(whole_flow)
 
 # Individual agent assertions
-self.assert_trace().has_agent("agent_name")
+self.assert_traces().has_agent("agent_name")
 self.assert_traces().assert_agent_called("travel_coordinator")
 self.assert_traces().assert_agent_type("agent.openai_agents")
 self.assert_traces().assert_workflow_complete()
 
 # Flow pattern assertions
 self.assert_traces().assert_flow("agent.reasoning -> tool_use -> response")
-self.assert_traces().assert_conditional_flow("coordinator", "needs_booking", 
-                                           ["booking_agent"], ["info_agent"])
 
 # HTTP testing
 self.assert_traces().assert_get_requests(min_count=2)
 self.assert_traces().assert_http_status_code(200)
 
 # Tool assertions
-self.assert_trace().called_tool("tool_name")
+self.assert_traces().called_tool("tool_name")
 
 # Input/output assertions
-self.assert_trace().with_input_containing("search text")
+self.assert_traces().with_input_containing("search text")
 self.assert_traces().semantically_contains_output("booking confirmed", threshold=0.8)
 
 # Span and attribute assertions 
-self.assert_trace().has_spans(min_count=1)
-self.assert_trace().has_attribute("model", "gpt-4")
+self.assert_traces().has_spans(min_count=1)
+self.assert_traces().has_attribute("model", "gpt-4")
 
 # Filtering
-self.assert_trace().filter_by_name("llm.call")
+self.assert_traces().filter_by_name("llm.call")
 ```
 
 ## Plugin Architecture

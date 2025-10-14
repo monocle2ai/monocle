@@ -5,23 +5,17 @@ OpenAI Agents SDK Travel Agent Example with Monocle Testing Framework
 This example demonstrates:
 - Real OpenAI Agents SDK implementation with proper telemetry setup
 - Comprehensive testing with the tfwk framework
-- Practical usage patterns for OpenAI agent app            "interactions": [
-                ("Travel Coordinator", "Flight Assistant", "delegation"),
-                ("Flight Assistant", "Travel Coordinator", "invocation")
-            ]tion testing
+- Practical usage patterns for OpenAI agent application testing
 - Proper integration with Monocle's automatic instrumentation
 """
 
 
-import asyncio
 import logging
-import sys
-from pathlib import Path
 
 import pytest
 from agentx.openai_travel_agent import OpenAITravelAgentDemo
 from monocle_tfwk import BaseAgentTest
-from monocle_tfwk.semantic_similarity import semantic_similarity
+from monocle_tfwk.schema import MonocleSpanType
 
 logger = logging.getLogger(__name__)
 
@@ -56,14 +50,14 @@ class TestOpenAITravelAgent(BaseAgentTest):
             "required": ["TC"],  # Minimum required participants (Travel Coordinator should always be present)
             #"forbidden": [("U", "FA"), ("U", "HA"), ("U", "RA")],  # Direct interactions not allowed
             "interactions": [
-                # Match actual OpenAI Agents SDK span structure using aliases
-                ("U", "TC", "request"),  # User invokes Travel Coordinator
-                ("TC", "RA", "delegation"),  # Travel Coordinator self-interaction
-                ("RA", "GRT", "invocation"),  # Recommendations Assistant invocation
-                ("TC", "FA", "delegation"),         # TC delegates to FA (agentic.delegation)
-                ("FA", "BFT", "invocation"),         # Flight Assistant using book_flight_tool
-                ("TC", "HA", "delegation"),          # TC delegates to HA  
-                ("HA", "BHT", "invocation"),         # Hotel Assistant using book_hotel_tool
+                # Match actual OpenAI Agents SDK span structure using MonocleSpanType enum values
+                ("U", "TC", MonocleSpanType.AGENTIC_REQUEST),  # User invokes Travel Coordinator
+                ("TC", "RA", MonocleSpanType.AGENTIC_DELEGATION),  # Travel Coordinator self-interaction
+                ("RA", "GRT", MonocleSpanType.AGENTIC_TOOL_INVOCATION),  # Recommendations Assistant invocation
+                ("TC", "FA", MonocleSpanType.AGENTIC_DELEGATION),         # TC delegates to FA (agentic.delegation)
+                ("FA", "BFT", MonocleSpanType.AGENTIC_TOOL_INVOCATION),         # Flight Assistant using book_flight_tool
+                ("TC", "HA", MonocleSpanType.AGENTIC_DELEGATION),          # TC delegates to HA  
+                ("HA", "BHT", MonocleSpanType.AGENTIC_TOOL_INVOCATION),         # Hotel Assistant using book_hotel_tool
             ]
         }
     
@@ -98,7 +92,7 @@ class TestOpenAITravelAgent(BaseAgentTest):
         
         
         # Assert the realistic flow pattern
-        (self.assert_trace()  # Get trace assertions
+        (self.assert_traces()  # Get trace assertions
          .assert_agent_flow(self.get_flow())  # Use enhanced flow validation
         )
         

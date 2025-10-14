@@ -7,8 +7,8 @@ using real trace data from the Monocle test suite.
 import json
 
 from monocle_tfwk.assertions.flow_validator import FlowValidator
-from monocle_tfwk.visualization.examples import generate_visualization_report
 from monocle_tfwk.visualization.gantt_chart import TraceGanttChart
+from monocle_tfwk.visualization.visual_utils import generate_visualization_report
 
 
 def create_sample_traces():
@@ -324,13 +324,8 @@ def test_visualization_demo():
     
     # Generate comprehensive report
     gantt = TraceGanttChart(traces)
-    patterns = [
-        "workflow -> retrieval",
-        "retrieval -> inference", 
-        "workflow -> inference"
-    ]
     
-    report = generate_visualization_report(gantt, patterns)
+    report = generate_visualization_report(gantt)
     print(report)
     
     return True

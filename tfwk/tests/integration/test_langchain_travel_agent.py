@@ -20,6 +20,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from agentx.langchain_travel_agent import LangChainTravelAgentDemo
 from monocle_tfwk import BaseAgentTest
+from monocle_tfwk.schema import MonocleSpanType
 
 logger = logging.getLogger(__name__)
 
@@ -60,21 +61,21 @@ class TestLangChainTravelAgent(BaseAgentTest):
             "required": ["TC"],  # Minimum required participants (Travel Coordinator should always be present)
             #"forbidden": [("U", "FA"), ("U", "HA"), ("U", "RA")],  # Direct interactions not allowed
             "interactions": [
-                # Match actual LangChain/LangGraph span structure using aliases
-                ("U", "TC", "request"),  # User invokes Travel Coordinator
-                ("TC", "RA", "delegation"),         # TC delegates to RA
-                ("RA", "GRT", "invocation"),         # Recommendations Assistant using get_recommendations_tool
-                ("TC", "FA", "delegation"),         # TC delegates to FA (agentic.delegation)
-                ("FA", "BFT", "invocation"),         # Flight Assistant using book_flight_tool
-                ("TC", "HA", "delegation"),          # TC delegates to HA  
-                ("HA", "BHT", "invocation"),         # Hotel Assistant using book_hotel_tool
+                # Match actual LangChain/LangGraph span structure using MonocleSpanType enum values
+                ("U", "TC", MonocleSpanType.AGENTIC_REQUEST),  # User invokes Travel Coordinator
+                ("TC", "RA", MonocleSpanType.AGENTIC_DELEGATION),         # TC delegates to RA
+                ("RA", "GRT", MonocleSpanType.AGENTIC_TOOL_INVOCATION),         # Recommendations Assistant using get_recommendations_tool
+                ("TC", "FA", MonocleSpanType.AGENTIC_DELEGATION),         # TC delegates to FA (agentic.delegation)
+                ("FA", "BFT", MonocleSpanType.AGENTIC_TOOL_INVOCATION),         # Flight Assistant using book_flight_tool
+                ("TC", "HA", MonocleSpanType.AGENTIC_DELEGATION),          # TC delegates to HA  
+                ("HA", "BHT", MonocleSpanType.AGENTIC_TOOL_INVOCATION),         # Hotel Assistant using book_hotel_tool
             ]
         }
 
         # Complex travel request that should trigger multiple agent interactions
         travel_request = (
-            "I need to plan a business trip to Mumbai. Please book a business class flight "
-            "from Delhi to Mumbai on December 15th, 2025, recommend things to see, "
+            "I need to plan a business trip to Mumbai. Recommend things to see in Mumbai during my stay. "
+            "Please book a business class flight from Delhi to Mumbai on December 15th, 2025"
             "and book a luxury hotel for 2 nights starting December 15th."
         )
         
@@ -87,9 +88,11 @@ class TestLangChainTravelAgent(BaseAgentTest):
             f"Response should mention travel elements: {result}"
         
         # === SIMPLIFIED AGENTIC FLOW VALIDATION BASED ON OBSERVED PATTERNS ===
-        
+        logger.info("=== Gantt Chart Visualization ===")
+        self.display_flow_gantt_chart()
         # Assert the realistic flow pattern
         traces = self.assert_traces()
+                # Generate and display Gantt chart visualization after flow assertions
         (traces  # Get trace assertions
          .assert_agent_flow(whole_flow)
         )
@@ -125,8 +128,8 @@ class TestLangChainTravelAgent(BaseAgentTest):
         flight_interactions = {
             "participants": self.participants,
             "interactions": [
-                ("TC", "FA", "delegation"),  # Coordinator delegates to Flight Assistant
-                ("FA", "BFT", "invocation")   # Flight Assistant invocation
+                ("TC", "FA", MonocleSpanType.AGENTIC_DELEGATION),  # Coordinator delegates to Flight Assistant
+                ("FA", "BFT", MonocleSpanType.AGENTIC_TOOL_INVOCATION)   # Flight Assistant invocation
             ]
         }
         (self.assert_traces()
@@ -152,8 +155,8 @@ class TestLangChainTravelAgent(BaseAgentTest):
         hotel_interactions = {
             "participants": self.participants,
             "interactions": [
-                ("TC", "HA", "delegation"),   # Coordinator delegates to Hotel Assistant
-                ("HA", "BHT", "invocation")    # Hotel Assistant invocation
+                ("TC", "HA", MonocleSpanType.AGENTIC_DELEGATION),   # Coordinator delegates to Hotel Assistant
+                ("HA", "BHT", MonocleSpanType.AGENTIC_TOOL_INVOCATION)    # Hotel Assistant invocation
             ]
         }
         (self.assert_traces()
@@ -178,8 +181,8 @@ class TestLangChainTravelAgent(BaseAgentTest):
         recommendations_interactions = {
             "participants": self.participants,
             "interactions": [
-                ("TC", "RA", "delegation"),     # Coordinator delegates to Recommendations Assistant
-                ("RA", "GRT", "invocation")      # Recommendations Assistant invocation
+                ("TC", "RA", MonocleSpanType.AGENTIC_DELEGATION),     # Coordinator delegates to Recommendations Assistant
+                ("RA", "GRT", MonocleSpanType.AGENTIC_TOOL_INVOCATION)      # Recommendations Assistant invocation
             ]
         }
         (self.assert_traces()

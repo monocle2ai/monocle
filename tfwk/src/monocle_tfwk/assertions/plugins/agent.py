@@ -8,9 +8,33 @@ from typing import TYPE_CHECKING
 
 from monocle_tfwk.assertions.flow_validator import FlowValidator
 from monocle_tfwk.assertions.plugin_registry import TraceAssertionsPlugin, plugin
+from monocle_tfwk.schema import EntityType, ESpanAttribute, MonocleSpanType
 
 if TYPE_CHECKING:
     from monocle_tfwk.assertions.trace_assertions import TraceAssertions
+
+
+# Module-level constants for agent flow validation
+TARGET_TYPES = [
+    MonocleSpanType.AGENTIC_DELEGATION, 
+    MonocleSpanType.AGENTIC_TOOL_INVOCATION, 
+    MonocleSpanType.AGENTIC_MCP_INVOCATION
+]
+
+# Common patterns for agent detection (constants to reduce duplication)
+USER_PATTERNS = ["user", "human", "input", "request"]
+
+
+def _has_entity_names(*entities) -> bool:
+    """Helper function to check if all entities have names."""
+    return all(entity and 'name' in entity for entity in entities)
+
+
+def _has_first_two_entity_names(entities: list) -> bool:
+    """Helper function to check if first two entities have names."""
+    return (len(entities) >= 2 and 
+            'name' in entities[0] and 
+            'name' in entities[1])
 
 
 def _extract_entities_from_attributes(attributes: dict) -> list:
@@ -53,6 +77,11 @@ class AgentFlowValidator(FlowValidator):
     - Tool names (from entities array and legacy tool.name)  
     - Agent types (from entities array and legacy agent.type)
     - Tool types (from entities array and legacy tool.type)
+    
+    Note: This class includes fallback mechanisms for backward compatibility:
+    - Legacy field support (agent.name, tool.name) for older traces
+    - Multiple matching strategies for robustness
+    - Flexible direction handling for tool invocations
     """
     
     def _matches_step(self, event, step_pattern: str) -> bool:
@@ -76,61 +105,22 @@ class AgentFlowValidator(FlowValidator):
         Checks agent names, tool names, agent types, and tool types
         in addition to standard span type and name matching.
         """
-        # === AGENT NAME MATCHING ===
-        # Check various agent name attributes including entities array
+        # Extract entities once and reuse for all matching operations
         entities = self._extract_entities_from_attributes(event.attributes)
+        step_pattern_lower = step_pattern.lower()
         
+        # Single iteration through entities for all matching types
         for entity in entities:
-            for field_value in entity.values():
-                if isinstance(field_value, str) and field_value.lower() == step_pattern.lower():
-                    return True
-        
-        # Also check legacy agent name fields
-        agent_name = event.attributes.get("agent.name")
-        if agent_name and agent_name.lower() == step_pattern.lower():
-            return True
-                
-        # === TOOL NAME MATCHING ===  
-        # Check various tool name attributes
-        # Only check tool names if this is a tool-related span
-        if event.span_type in ["agentic.tool.invocation", "tool"] or "tool" in event.name.lower():
-            # Check entities array for tool names
-            entities = self._extract_entities_from_attributes(event.attributes)
-            for entity in entities:
-                for field_value in entity.values():
-                    if isinstance(field_value, str) and field_value.lower() == step_pattern.lower():
-                        return True
+            entity_type = entity.get('type', '')
             
-            # Check legacy tool.name field
-            tool_name = event.attributes.get("tool.name")
-            if tool_name and tool_name.lower() == step_pattern.lower():
+            # Check all entity field values for name matching
+            for field_value in entity.values():
+                if isinstance(field_value, str) and field_value.lower() == step_pattern_lower:
+                    return True
+            
+            # Check entity type matching (for agent type patterns)
+            if entity_type and entity_type.lower() == step_pattern_lower:
                 return True
-        
-        # === AGENT TYPE MATCHING ===
-        # Handle agent.type field for agent-related matching patterns
-        entities = self._extract_entities_from_attributes(event.attributes)
-        for entity in entities:
-            entity_type = entity.get('type')
-            if entity_type and entity_type.lower() == step_pattern.lower():
-                return True
-        
-        # Check legacy agent.type field
-        agent_type = event.attributes.get("agent.type")
-        if agent_type and agent_type.lower() == step_pattern.lower():
-            return True
-                
-        # === TOOL TYPE MATCHING ===
-        # Check various tool type attributes using entities array
-        entities = self._extract_entities_from_attributes(event.attributes)
-        for entity in entities:
-            entity_type = entity.get('type')
-            if entity_type and entity_type.lower() == step_pattern.lower():
-                return True
-        
-        # Check legacy tool.type field
-        tool_type = event.attributes.get("tool.type")
-        if tool_type and tool_type.lower() == step_pattern.lower():
-            return True
         
         return False
 
@@ -173,13 +163,13 @@ class AgentFlowValidator(FlowValidator):
             
             # Look for events that match this interaction pattern
             found_match = False
-            for event in self.timeline_events:
-                if self._matches_tuple_interaction(event, participant1, participant2, expected_span_type):
+            for t_event in self.timeline_events:
+                if self._matches_tuple_interaction(t_event, participant1, participant2, expected_span_type):
                     matched_tuples.append({
                         "pattern": pattern_tuple,
-                        "event": event,
-                        "span_type": event.attributes.get("span.type", "unknown"),
-                        "participants": self._extract_participants_from_event(event)
+                        "event": t_event,
+                        "span_type": t_event.attributes.get(ESpanAttribute.SPAN_TYPE, "unknown"),
+                        "participants": self._extract_participants_from_event(t_event)
                     })
                     found_match = True
                     break
@@ -210,18 +200,13 @@ class AgentFlowValidator(FlowValidator):
             expected_span_type: Expected span type for this interaction
         """
         # More flexible span type matching
-        event_span_type = event.attributes.get("span.type", "").lower()
+        event_span_type = event.attributes.get(ESpanAttribute.SPAN_TYPE, "").lower()
         event_name = event.name.lower() if event.name else ""
         
         # Flexible span type matching
         span_type_matches = (
             expected_span_type.lower() in event_span_type or
-            expected_span_type.lower() in event_name or
-            # Map common patterns
-            (expected_span_type == "request" and ("request" in event_span_type or "chat" in event_span_type)) or
-            (expected_span_type == "invocation" and ("invocation" in event_span_type or "tool" in event_span_type)) or
-            (expected_span_type == "delegation" and ("delegation" in event_span_type or "agent" in event_span_type)) or
-            (expected_span_type == "response" and ("response" in event_span_type or "completion" in event_span_type))
+            expected_span_type.lower() in event_name 
         )
         
         if not span_type_matches:
@@ -234,9 +219,9 @@ class AgentFlowValidator(FlowValidator):
         participant_matches = (
             any(participant1.lower() in str(p).lower() for p in event_participants) or
             any(participant2.lower() in str(p).lower() for p in event_participants) or
-            # Also check event name for participant references
-            participant1.lower() in event_name or
-            participant2.lower() in event_name
+            # Check event name for participant references using helper
+            self._check_participant_in_event_name(event_name, participant1) or
+            self._check_participant_in_event_name(event_name, participant2)
         )
         
         return participant_matches
@@ -254,26 +239,36 @@ class AgentFlowValidator(FlowValidator):
                 if isinstance(field_value, str) and field_value and field_value not in participants:
                     participants.append(field_value)
         
-        # Also check legacy fields for backward compatibility
-        legacy_fields = ["agent.name", "tool.name", "caller", "callee", "actor", "target"]
-        for field in legacy_fields:
-            value = event.attributes.get(field)
-            if value and value not in participants:
-                participants.append(str(value))
-        
-        # Also check event name for participant references
-        if event.name:
-            participants.append(event.name)
+        # Add event name as potential participant reference
+        self._add_event_name_as_participant(event.name, participants)
             
         return participants
+    
+    def _add_event_name_as_participant(self, event_name: str, participants: list) -> None:
+        """Helper method to add event name as participant if not already present."""
+        if event_name and event_name not in participants:
+            participants.append(event_name)
+    
+    def _check_event_name_for_pattern(self, event_name: str, patterns: list) -> bool:
+        """Helper method to check if event name contains any of the given patterns."""
+        if not event_name:
+            return False
+        event_name_lower = event_name.lower()
+        return any(pattern in event_name_lower for pattern in patterns)
+    
+    def _check_participant_in_event_name(self, event_name: str, participant: str) -> bool:
+        """Helper method to check if participant is referenced in event name."""
+        if not event_name or not participant:
+            return False
+        return participant.lower() in event_name.lower()
     
     def _get_available_interactions(self) -> list:
         """Get list of available interactions from timeline events for debugging."""
         interactions = []
-        for event in self.timeline_events[:10]:  # Show more events for better debugging
-            participants = self._extract_participants_from_event(event)
-            span_type = event.attributes.get("span.type", "unknown")
-            event_name = event.name if event.name else "unknown"
+        for t_event in self.timeline_events[:10]:  # Show more events for better debugging
+            participants = self._extract_participants_from_event(t_event)
+            span_type = t_event.attributes.get(ESpanAttribute.SPAN_TYPE, "unknown")
+            event_name = t_event.name if t_event.name else "unknown"
             
             # Include both multi-participant and single-participant events for debugging
             if participants:
@@ -338,15 +333,15 @@ class AgentFlowValidator(FlowValidator):
             
             # Find matching events for this interaction
             found_match = False
-            for event in self.timeline_events:
+            for t_event in self.timeline_events:
                 if self._matches_interaction_with_participant_awareness(
-                    event, from_alias, to_alias, interaction_type, participant_registry
+                    t_event, from_alias, to_alias, interaction_type, participant_registry
                 ):
                     matched_interactions.append({
                         "interaction": interaction,
-                        "event": event,
-                        "span_type": event.attributes.get("span.type", "unknown"),
-                        "relationship": self._analyze_span_relationship(event)
+                        "event": t_event,
+                        "span_type": t_event.attributes.get(ESpanAttribute.SPAN_TYPE, "unknown"),
+                        "relationship": self._analyze_span_relationship(t_event)
                     })
                     
                     # Mark participants as found
@@ -367,11 +362,11 @@ class AgentFlowValidator(FlowValidator):
             if isinstance(forbidden, tuple) and len(forbidden) == 2:
                 from_alias, to_alias = forbidden
                 # Check if any events match this forbidden pattern
-                for event in self.timeline_events:
-                    if self._matches_forbidden_interaction(event, from_alias, to_alias, participant_registry):
+                for t_event in self.timeline_events:
+                    if self._matches_forbidden_interaction(t_event, from_alias, to_alias, participant_registry):
                         forbidden_violations.append({
                             "forbidden": forbidden,
-                            "violating_event": event
+                            "violating_event": t_event
                         })
         
         # Check required participants presence
@@ -425,12 +420,12 @@ class AgentFlowValidator(FlowValidator):
             return self._has_child_agent_invocation(event)
         
         # Special handling for agentic.delegation - check from_agent and to_agent fields
-        event_span_type = event.attributes.get("span.type", "").lower()
-        if "agentic.delegation" in event_span_type or interaction_type.lower() == "delegation":
+        event_span_type = event.attributes.get(ESpanAttribute.SPAN_TYPE, "").lower()
+        if MonocleSpanType.AGENTIC_DELEGATION in event_span_type or interaction_type.lower() == "delegation":
             return self._matches_delegation_flow(event, from_alias, to_alias, participant_registry)
         
         # Special handling for agentic.tool.invocation - direction is always agent -> tool
-        if "agentic.tool.invocation" in event_span_type or interaction_type.lower() == "invocation":
+        if MonocleSpanType.AGENTIC_TOOL_INVOCATION in event_span_type or interaction_type.lower() == "invocation":
             return self._matches_tool_invocation_flow(event, from_alias, to_alias, participant_registry)
         
         # Get participant details from registry
@@ -464,10 +459,10 @@ class AgentFlowValidator(FlowValidator):
         # Case 1: Expected pattern - agent -> tool (from_alias=agent, to_alias=tool)
         # Case 2: Actual trace pattern - tool -> agent (but we want to match it as agent -> tool)
         
-        from_is_agent = from_participant.get("type") == "agent"
-        to_is_tool = to_participant.get("type") == "tool"
-        from_is_tool = from_participant.get("type") == "tool"  
-        to_is_agent = to_participant.get("type") == "agent"
+        from_is_agent = from_participant.get("type") == EntityType.AGENT
+        to_is_tool = to_participant.get("type") == EntityType.TOOL
+        from_is_tool = from_participant.get("type") == EntityType.TOOL  
+        to_is_agent = to_participant.get("type") == EntityType.AGENT
         
         # Extract entities once using the centralized method
         entities = self._extract_entities_from_attributes(event.attributes)
@@ -567,37 +562,26 @@ class AgentFlowValidator(FlowValidator):
     
     def _has_child_agent_invocation(self, event) -> bool:
         """
-        Check if this event or any child span has agent invocation patterns.
+        Check if this event or any child span has agentic invocation span types.
         
-        For 'request' type interactions, we look for evidence of agent activity
-        rather than explicit participant matching.
+        For 'request' type interactions, we look for evidence of agent invocation
+        by checking for MonocleSpanType.AGENTIC_INVOCATION specifically.
         """
-        # Check current event for agent invocation patterns
-        event_span_type = event.attributes.get("span.type", "").lower()
-        event_name = event.name.lower() if event.name else ""
+        # Check current event for agentic invocation span type
+        event_span_type = event.attributes.get(ESpanAttribute.SPAN_TYPE, "")
         
-        # Look for agent invocation indicators in current event
-        agent_patterns = ["agent", "invocation", "delegation", "tool", "function", "call", "execute"]
-        if any(pattern in event_span_type or pattern in event_name for pattern in agent_patterns):
+        # Look for specific agentic invocation span type
+        if event_span_type == MonocleSpanType.AGENTIC_INVOCATION:
             return True
         
-        # Check for agent name attributes that indicate agent activity using entities array
+        # Check for agent entities using proper entity type
         entities = self._extract_entities_from_attributes(event.attributes)
         for entity in entities:
-            # Check entity name
-            entity_name = entity.get('name', '')
-            if entity_name and "assistant" in entity_name.lower():
-                return True
-            
-            # Check entity type  
+            # Check entity type for proper agent classification
             entity_type = entity.get('type', '')
-            if entity_type and "agent" in entity_type.lower():
+            if entity_type and EntityType.AGENT in entity_type.lower():
                 return True
         
-        # Also check legacy agent.name field
-        agent_name = event.attributes.get("agent.name", "")
-        if agent_name and "assistant" in agent_name.lower():
-            return True
         
         # If we have timeline events available, check child spans
         if hasattr(self, 'timeline_events'):
@@ -605,54 +589,37 @@ class AgentFlowValidator(FlowValidator):
             current_trace_id = event.trace_id if hasattr(event, 'trace_id') else None
             
             if current_span_id and current_trace_id:
-                for child_event in self.timeline_events:
+                for t_child_event in self.timeline_events:
                     # Check if this is a child span
-                    child_parent_id = getattr(child_event, 'parent_span_id', None) if hasattr(child_event, 'parent_span_id') else None
-                    child_trace_id = getattr(child_event, 'trace_id', None) if hasattr(child_event, 'trace_id') else None
+                    child_parent_id = getattr(t_child_event, 'parent_span_id', None) if hasattr(t_child_event, 'parent_span_id') else None
+                    child_trace_id = getattr(t_child_event, 'trace_id', None) if hasattr(t_child_event, 'trace_id') else None
                     
                     if (child_parent_id == current_span_id and child_trace_id == current_trace_id):
-                        # Check child for agent patterns
-                        child_span_type = child_event.attributes.get("span.type", "").lower()
-                        child_name = child_event.name.lower() if child_event.name else ""
+                        # Check child for agentic invocation span type
+                        child_span_type = t_child_event.attributes.get(ESpanAttribute.SPAN_TYPE, "")
                         
-                        if any(pattern in child_span_type or pattern in child_name for pattern in agent_patterns):
+                        if child_span_type == MonocleSpanType.AGENTIC_INVOCATION:
                             return True
                             
-                        # Check child for agent name attributes using entities array
-                        child_entities = self._extract_entities_from_attributes(child_event.attributes)
+                        # Check child for agent entities using proper entity type
+                        child_entities = self._extract_entities_from_attributes(t_child_event.attributes)
                         for entity in child_entities:
-                            entity_name = entity.get('name', '')
-                            if entity_name and "assistant" in entity_name.lower():
-                                return True
-                            
                             entity_type = entity.get('type', '')  
-                            if entity_type and "agent" in entity_type.lower():
+                            if entity_type and EntityType.AGENT in entity_type.lower():
                                 return True
         
         return False
     
-    def _matches_interaction_type(self, event, interaction_type: str) -> bool:
+    def _matches_interaction_type(self, event, interaction_type: MonocleSpanType) -> bool:
         """Check if event matches the expected interaction type."""
-        event_span_type = event.attributes.get("span.type", "").lower()
+        event_span_type = event.attributes.get(ESpanAttribute.SPAN_TYPE, "").lower()
         event_name = event.name.lower() if event.name else ""
         
-        # Enhanced interaction type matching
-        interaction_type_lower = interaction_type.lower()
+        # Since MonocleSpanType is a StrEnum, we can directly use its string value
+        interaction_type_lower = interaction_type.value.lower()
         
-        # Direct matching
-        if interaction_type_lower in event_span_type or interaction_type_lower in event_name:
-            return True
-        
-        # Pattern-based matching
-        interaction_patterns = {
-            "request": ["request", "chat", "user", "input", "query"],
-            "invocation": ["invocation", "tool", "call", "execute", "function"],
-            "delegation": ["delegation", "agent", "handoff", "transfer", "forward"],
-            "response": ["response", "completion", "output", "result", "answer"]
-        }
-        
-        patterns = interaction_patterns.get(interaction_type_lower, [])
-        return any(pattern in event_span_type or pattern in event_name for pattern in patterns)
+        # Direct matching - exact span type or partial match
+        return interaction_type_lower in event_span_type or interaction_type_lower in event_name
     
     def _extract_enhanced_participants_from_event(self, event, participant_registry: dict) -> dict:
         """Extract participants from event with enhanced participant registry awareness."""
@@ -671,9 +638,6 @@ class AgentFlowValidator(FlowValidator):
                         entity_name.lower() == alias.lower()):
                         participants[alias] = entity_name
                         break
-                else:
-                    # If not in registry, store as raw value
-                    participants["raw_entity_name"] = entity_name
             
             # Check other entity fields like from_agent, to_agent
             for field_name, field_value in entity.items():
@@ -685,26 +649,11 @@ class AgentFlowValidator(FlowValidator):
                             participants[alias] = field_value
                             break
         
-        # Also check legacy fields for backward compatibility
-        legacy_fields = ["agent.name", "tool.name", "actor", "target", "user", "assistant"]
-        for field in legacy_fields:
-            value = event.attributes.get(field)
-            if value:
-                # Try to match against participant registry
-                for alias, participant_info in participant_registry.items():
-                    if (value.lower() == participant_info["name"].lower() or 
-                        value.lower() == alias.lower()):
-                        participants[alias] = value
-                        break
-                else:
-                    # If not in registry, store as raw value
-                    participants[f"raw_{field}"] = value
-        
-        # Also check event name for participant references
+        # Check event name for participant references using helper
         if event.name:
             for alias, participant_info in participant_registry.items():
-                if (alias.lower() in event.name.lower() or 
-                    participant_info["name"].lower() in event.name.lower()):
+                if (self._check_participant_in_event_name(event.name, alias) or 
+                    self._check_participant_in_event_name(event.name, participant_info["name"])):
                     participants[alias] = event.name
         
         return participants
@@ -715,26 +664,22 @@ class AgentFlowValidator(FlowValidator):
         if alias in event_participants:
             return True
         
-        # Type-based matching for tools and agents
+        # Type-based matching
+        return self._matches_participant_by_type(event, participant_info)
+    
+    def _matches_participant_by_type(self, event, participant_info: dict) -> bool:
+        """Helper method to match participant by type."""
         participant_type = participant_info.get("type", "")
+        participant_name = participant_info.get("name", "").lower()
+        event_name_lower = event.name.lower() if event.name else ""
         
-        if participant_type == "tool":
-            # Check if event is tool-related and matches tool name
-            if ("tool" in event.name.lower() and 
-                participant_info.get("name", "").lower() in event.name.lower()):
-                return True
-                
-        elif participant_type == "agent":
-            # Check if event is agent-related and matches agent name  
-            if ("agent" in event.name.lower() and
-                participant_info.get("name", "").lower() in event.name.lower()):
-                return True
-                
+        if participant_type == EntityType.TOOL:
+            return "tool" in event_name_lower and participant_name in event_name_lower
+        elif participant_type == EntityType.AGENT:
+            return "agent" in event_name_lower and participant_name in event_name_lower
         elif participant_type == "actor":
             # Check for user/human-related events
-            event_name_lower = event.name.lower()
-            if any(term in event_name_lower for term in ["user", "human", "input", "request"]):
-                return True
+            return any(term in event_name_lower for term in USER_PATTERNS)
         
         return False
     
@@ -768,12 +713,12 @@ class AgentFlowValidator(FlowValidator):
             relationship_info["type"] = "root"
         else:
             # Check if there are other events with the same parent (siblings)
-            siblings = [e for e in self.timeline_events if e.parent_id == event.parent_id and e.span_id != event.span_id]
+            siblings = [t_e for t_e in self.timeline_events if t_e.parent_id == event.parent_id and t_e.span_id != event.span_id]
             relationship_info["sibling_count"] = len(siblings)
             relationship_info["type"] = "child" if len(siblings) == 0 else "sibling"
         
         # Check if this event has children
-        children = [e for e in self.timeline_events if e.parent_id == event.span_id]
+        children = [t_e for t_e in self.timeline_events if t_e.parent_id == event.span_id]
         relationship_info["has_children"] = len(children) > 0
         relationship_info["child_count"] = len(children)
         
@@ -832,7 +777,7 @@ class AgentAssertionsPlugin(TraceAssertionsPlugin):
     
     @classmethod
     def get_plugin_name(cls) -> str:
-        return "agent"
+        return EntityType.AGENT
     
     def assert_agent_called(self, agent_name: str) -> 'TraceAssertions':
         """Assert that an agent with the given name was called."""
@@ -844,7 +789,7 @@ class AgentAssertionsPlugin(TraceAssertionsPlugin):
         """Assert that a tool with the given name was called."""
         matching_spans = [
             span for span in self._current_spans
-            if span.attributes.get("tool.name") == tool_name
+            if span.attributes.get("tool.name") == tool_name  # Legacy field, no schema equivalent
         ]
         assert matching_spans, f"No tool named '{tool_name}' found in traces"
         self._current_spans = matching_spans
@@ -917,21 +862,20 @@ class AgentAssertionsPlugin(TraceAssertionsPlugin):
             
             # Find all target span types regardless of whether they're leaf spans
             # All these spans represent important interactions in the agent flow
-            target_types = ['agentic.delegation', 'agentic.tool.invocation', 'agentic.mcp.invocation']
-            type_conditions = [f'attributes."span.type" == \'{t}\'' for t in target_types]
+            type_conditions = [f'attributes."{ESpanAttribute.SPAN_TYPE}" == \'{t}\'' for t in TARGET_TYPES]
             target_spans_query = f"[?{' || '.join(type_conditions)}]"
             target_spans = self.query_engine.query(target_spans_query) or []
             
             # Find agentic.request spans (user requests)
-            request_spans_query = "[?attributes.\"span.type\" == 'agentic.request']"
+            request_spans_query = f"[?attributes.\"{ESpanAttribute.SPAN_TYPE}\" == '{MonocleSpanType.AGENTIC_REQUEST}']"
             request_spans = self.query_engine.query(request_spans_query) or []
             
             # Find agentic.invocation spans (agent invocations)
-            invocation_spans_query = "[?attributes.\"span.type\" == 'agentic.invocation']"
+            invocation_spans_query = f"[?attributes.\"{ESpanAttribute.SPAN_TYPE}\" == '{MonocleSpanType.AGENTIC_INVOCATION}']"
             invocation_spans = self.query_engine.query(invocation_spans_query) or []
             
             # Debug: Let's see what span types are actually available
-            all_span_types_query = "[].attributes.\"span.type\" | [?@ != null] | sort(@)"
+            all_span_types_query = f"[].attributes.\"{ESpanAttribute.SPAN_TYPE}\" | [?@ != null] | sort(@)"
             all_span_types = self.query_engine.query(all_span_types_query) or []
             unique_span_types = list(set(all_span_types))
             print(f"DEBUG: Available span types: {unique_span_types}")
@@ -940,10 +884,10 @@ class AgentAssertionsPlugin(TraceAssertionsPlugin):
             # Debug: Show which spans were found
             print("DEBUG: Collected spans found:")
             for i, span in enumerate(target_spans):
-                span_type = span.get('attributes', {}).get('span.type', 'UNKNOWN')
+                span_type = span.get('attributes', {}).get(ESpanAttribute.SPAN_TYPE, 'UNKNOWN')
                 span_id = span.get('span_id', 'NO_ID')
                 print(f"  {i+1}. {span_type} (ID: {span_id})")
-                if span_type in ('agentic.delegation', 'agentic.tool.invocation', 'agentic.mcp.invocation'):
+                if span_type in TARGET_TYPES:
                     entities = extract_entities(span.get('attributes', {}))
                     print(f"     Entities: {entities}")
             
@@ -983,22 +927,22 @@ class AgentAssertionsPlugin(TraceAssertionsPlugin):
             # In a full implementation, we'd traverse the parent-child hierarchy
             
             # Check if leaf span has indicators of being part of an agentic flow
-            span_type = leaf_span.get('attributes', {}).get('span.type', '')
+            span_type = leaf_span.get('attributes', {}).get(ESpanAttribute.SPAN_TYPE, '')
             
-            if any(agentic_type in span_type for agentic_type in ['agentic.delegation', 'agentic.tool.invocation', 'agentic.mcp.invocation']):
+            if any(agentic_type in span_type for agentic_type in TARGET_TYPES):
                 return {
                     'leaf': leaf_span,
                     'path': [leaf_span],  # Simplified - in full impl would include full parent chain
-                    'root_type': 'agentic.invocation',  # Assumed for now
+                    'root_type': MonocleSpanType.AGENTIC_INVOCATION,  # Assumed for now
                     'span_ids': [leaf_span.get('span_id', 'unknown')]
                 }
             
             # Handle agentic.request spans - they don't need to be under invocation
-            if 'agentic.request' in span_type:
+            if MonocleSpanType.AGENTIC_REQUEST in span_type:
                 return {
                     'leaf': leaf_span,
                     'path': [leaf_span],  
-                    'root_type': 'agentic.request',
+                    'root_type': MonocleSpanType.AGENTIC_REQUEST,
                     'span_ids': [leaf_span.get('span_id', 'unknown')]
                 }
             
@@ -1045,7 +989,7 @@ class AgentAssertionsPlugin(TraceAssertionsPlugin):
                     tuples.append(tuple_info)
                 else:
                     # Regular span processing
-                    span_type = attributes.get('span.type', '')
+                    span_type = attributes.get(ESpanAttribute.SPAN_TYPE, '')
                     from_participant, to_participant = _extract_participants_from_span(attributes, span_type)
                     
                     if from_participant and to_participant:
@@ -1067,7 +1011,7 @@ class AgentAssertionsPlugin(TraceAssertionsPlugin):
             """
             entities = extract_entities(attributes)
             
-            if 'agentic.delegation' in span_type:
+            if MonocleSpanType.AGENTIC_DELEGATION in span_type:
                 # Extract from_agent and to_agent from entities
                 from_agent = ''
                 to_agent = ''
@@ -1079,29 +1023,30 @@ class AgentAssertionsPlugin(TraceAssertionsPlugin):
                 
                 return (from_agent, to_agent) if from_agent and to_agent else (None, None)
 
-            elif ('agentic.tool.invocation' in span_type or 'agentic.mcp.invocation' in span_type):
+            elif (MonocleSpanType.AGENTIC_TOOL_INVOCATION in span_type or MonocleSpanType.AGENTIC_MCP_INVOCATION in span_type):
                 if len(entities) < 2:
                     return (None, None)
                 
-                # Find agent and tool entities
+                # Find agent and tool entities by type
                 agent_entity = None
                 tool_entity = None
                 
                 for entity in entities:
-                    if 'type' in entity:
-                        if 'agent' in entity['type']:
-                            agent_entity = entity
-                        elif 'tool' in entity['type']:
-                            tool_entity = entity
+                    entity_type = entity.get('type', '')
+                    if EntityType.AGENT in entity_type:
+                        agent_entity = entity
+                    elif EntityType.TOOL in entity_type:
+                        tool_entity = entity
                 
-                # Return agent -> tool order
-                if agent_entity and tool_entity and 'name' in agent_entity and 'name' in tool_entity:
+                # Return agent -> tool order if both found with names
+                if _has_entity_names(agent_entity, tool_entity):
                     return (agent_entity['name'], tool_entity['name'])
-                elif len(entities) >= 2 and 'name' in entities[0] and 'name' in entities[1]:
-                    # Fallback to first two entities
+                
+                # Fallback: use first two entities if they have names
+                if _has_first_two_entity_names(entities):
                     return (entities[0]['name'], entities[1]['name'])
-                else:
-                    return (None, None)
+                
+                return (None, None)
             
             
             return (None, None)
@@ -1210,7 +1155,6 @@ class AgentAssertionsPlugin(TraceAssertionsPlugin):
                 
                 # Check type match
                 if not _interaction_types_match(expected_type, actual_type):
-                    print(f"  Type mismatch: {expected_type} vs {actual_type}")
                     continue
                 
                 # Check participant match (case-insensitive, flexible matching)
@@ -1249,28 +1193,17 @@ class AgentAssertionsPlugin(TraceAssertionsPlugin):
             
             return from_matches and to_matches
         
-        def _interaction_types_match(expected_type: str, actual_type: str) -> bool:
-            """Check if interaction types match with flexible mapping."""
-            expected_lower = expected_type.lower()
-            actual_lower = actual_type.lower()
+        def _interaction_types_match(expected_type, actual_type) -> bool:
+            """Check if interaction types match with exact enum/string comparison."""
+            # Convert to string values if enum objects
+            expected_str = expected_type.value if hasattr(expected_type, 'value') else str(expected_type)
+            actual_str = actual_type.value if hasattr(actual_type, 'value') else str(actual_type)
             
-            # Direct match
-            if expected_lower == actual_lower:
-                return True
+            expected_lower = expected_str.lower()
+            actual_lower = actual_str.lower()
             
-            # Pattern matching
-            type_mappings = {
-                'invocation': ['invocation', 'tool', 'call', 'invoke'],
-                'delegation': ['delegation', 'delegate', 'handoff'],
-                'request': ['request', 'input', 'query'],
-                'response': ['response', 'output', 'result']
-            }
-            
-            for pattern_type, aliases in type_mappings.items():
-                if expected_lower in aliases and actual_lower in aliases:
-                    return True
-            
-            return expected_lower in actual_lower or actual_lower in expected_lower
+            # Direct exact match or partial match
+            return expected_lower == actual_lower or expected_lower in actual_lower or actual_lower in expected_lower
         
         # Step 1: Collect branches using JMESPath queries
         branches = _collect_agentic_branches()

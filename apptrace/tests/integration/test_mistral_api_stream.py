@@ -3,8 +3,8 @@ import pytest
 import time
 import asyncio
 from mistralai import Mistral, models
-from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from common.custom_exporter import CustomConsoleSpanExporter
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
 from common.helpers import (
     find_span_by_type,
@@ -15,16 +15,25 @@ from common.helpers import (
 from monocle_apptrace.instrumentation.metamodel.mistral._helper import (
     map_mistral_finish_reason_to_finish_type,
 )
- 
+  
 custom_exporter = CustomConsoleSpanExporter()
- 
-@pytest.fixture(scope="module")
+
+@pytest.fixture(scope="function")
 def setup():
-    setup_monocle_telemetry(
-        workflow_name="generic_mistral_1",
-        span_processors=[BatchSpanProcessor(custom_exporter)],
-        wrapper_methods=[],
-    )
+    instrumentor = None
+    try:
+        # Setup Monocle telemetry with custom exporter for span capture
+        instrumentor = setup_monocle_telemetry(
+            workflow_name="generic_mistral_1",
+            span_processors=[SimpleSpanProcessor(custom_exporter)],
+            wrapper_methods=[]
+        )
+        # Yield the exporter so tests can access captured spans
+        yield custom_exporter
+    finally:
+        # CRITICAL: Clean up instrumentor to avoid global state leakage
+        if instrumentor and instrumentor.is_instrumented_by_opentelemetry:
+            instrumentor.uninstrument()
  
 @pytest.fixture(autouse=True)
 def clear_spans():

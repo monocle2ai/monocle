@@ -128,6 +128,7 @@ TOOLS = {
             {
                 "_comment": "tool type",
                 "attribute": "type",
+                "phase": "post_execution",
                 "accessor": lambda arguments: _helper.get_tool_type(arguments["span"]),
             },
             {
@@ -206,6 +207,7 @@ AGENT_DELEGATION = {
             {
                 "_comment": "name of the target agent",
                 "attribute": "to_agent",
+                "phase": "post_execution",
                 "accessor": lambda arguments: _helper.extract_handoff_target(arguments),
             },
         ]

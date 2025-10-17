@@ -330,6 +330,7 @@ class SpanHandler:
                 if skip_exec_entity.get("raise_error", False):
                     raise MonocleSpanException(skip_exec_entity.get("error_message", ""))
                 response = skip_exec_entity.get("response", None)
+                response = replace_placeholders(response, span)
                 return True, response
         return False, None
 

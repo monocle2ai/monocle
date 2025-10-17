@@ -1,0 +1,6 @@
+pytest
+pytest-asyncio
+mistralai
+opentelemetry-sdk
+monocle_apptrace
+llama-index

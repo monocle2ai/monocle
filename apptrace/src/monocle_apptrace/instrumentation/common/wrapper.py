@@ -2,16 +2,12 @@
 import logging
 import os
 from contextlib import contextmanager
-from typing import AsyncGenerator, Iterator, Optional
-
-from opentelemetry.context import attach, create_key, detach, get_value, set_value
-from opentelemetry.context.context import Context
-from opentelemetry.trace import Tracer, propagation
-from opentelemetry.trace.propagation import (
-    _SPAN_KEY,
-    get_current_span,
-    set_span_in_context,
-)
+import os
+from typing import AsyncGenerator, Iterator
+import logging
+from opentelemetry.trace import Tracer
+from opentelemetry.trace.propagation import set_span_in_context, get_current_span
+from opentelemetry.context import set_value, attach, detach, get_value
 from opentelemetry.trace.span import INVALID_SPAN, Span
 from opentelemetry.trace.status import StatusCode
 
@@ -32,7 +28,10 @@ from monocle_apptrace.instrumentation.common.utils import (
 )
 
 logger = logging.getLogger(__name__)
-ISOLATE_MONOCLE_SPANS = os.getenv("MONOCLE_ISOLATE_SPANS", "true").lower() == "true"
+
+def should_isolate_monocle_spans() -> bool:
+    """Check if Monocle spans should be isolated from OpenTelemetry context."""
+    return os.getenv("MONOCLE_ISOLATE_SPANS", "true").lower() == "true"
 
 def get_auto_close_span(to_wrap, kwargs):
     try:
@@ -45,7 +44,16 @@ def get_auto_close_span(to_wrap, kwargs):
 
 def pre_process_span(name, tracer, handler, add_workflow_span, to_wrap, wrapped, instance, args, kwargs, span, source_path):
     SpanHandler.set_default_monocle_attributes(span, source_path)
-    if SpanHandler.is_root_span(span) or add_workflow_span:
+    
+    # Determine workflow span creation logic
+    is_true_root = SpanHandler.is_root_span(span)
+    
+    if not should_isolate_monocle_spans():
+        should_create_workflow = is_true_root
+    else:
+        should_create_workflow = (add_workflow_span or is_true_root)
+    
+    if should_create_workflow:
         # This is a direct API call of a non-framework type
         SpanHandler.set_workflow_properties(span, to_wrap)
     else:
@@ -380,12 +388,16 @@ def evaluate_scope_values(args, kwargs, to_wrap, scope_values):
 @contextmanager
 def start_as_monocle_span(tracer: Tracer, name: str, auto_close_span: bool) -> Iterator["Span"]:
     """ Wrapper to OTEL start_as_current_span to isolate monocle and non monocle spans.
-        This essentiall links monocle and non-monocle spans separately which is default behavior.
+        This essentially links monocle and non-monocle spans separately which is default behavior.
         It can be optionally overridden by setting the environment variable MONOCLE_ISOLATE_SPANS to false.
     """
-    if not ISOLATE_MONOCLE_SPANS:
-        # If not isolating, use the default start_as_current_span
-        yield tracer.start_as_current_span(name, end_on_exit=auto_close_span)
+    
+    isolate_spans = should_isolate_monocle_spans()
+    
+    if not isolate_spans:
+        # If not isolating, use the default start_as_current_span for unified tracing
+        with tracer.start_as_current_span(name, end_on_exit=auto_close_span) as span:
+            yield span
         return
     original_span = get_current_span()
     monocle_span_token = attach(set_span_in_context(get_current_monocle_span()))

@@ -12,7 +12,8 @@ from monocle_apptrace.instrumentation.common.constants import (
     SCOPE_METHOD_FILE,
     TRACE_PROPOGATION_URLS,
 )
-from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor, BatchSpanProcessor
+from monocle_apptrace.exporters.file_exporter import FileSpanExporter
 
 CHAT_SCOPE_NAME = "chat"
 CONVERSATION_SCOPE_NAME = "discussion"
@@ -28,11 +29,13 @@ def setup():
         os.environ[TRACE_PROPOGATION_URLS] = "http://127.0.0.1"
         os.environ[SCOPE_CONFIG_PATH] = os.path.join(os.path.dirname(os.path.abspath(__file__)), SCOPE_METHOD_FILE)
         custom_exporter = CustomConsoleSpanExporter()
+        fastapi_helper.start_fastapi()
+        import time
+        time.sleep(5)  # Give server time to start
         instrumentor = setup_monocle_telemetry(
             workflow_name="fastapi_test",
-            span_processors=[SimpleSpanProcessor(custom_exporter)]
+            monocle_exporters_list="file"
         )
-        fastapi_helper.start_fastapi()
         yield custom_exporter
     finally:
         # Clean up instrumentor to avoid global state leakage
@@ -44,7 +47,7 @@ def setup():
 def test_chat_endpoint(setup):
     client_session_id = f"{uuid.uuid4().hex}"
     headers = {"client-id": client_session_id}
-    url = fastapi_helper.get_url()
+    url = "http://127.0.0.1:8096"
     question = "What is Task Decomposition?"
     token = start_scope(CONVERSATION_SCOPE_NAME, CONVERSATION_SCOPE_VALUE)
     resp = requests.get(f"{url}/chat?question={question}", headers=headers, data={"test": "123"})

@@ -831,7 +831,7 @@ class AgentAssertionsPlugin(TraceAssertionsPlugin):
         
         return entities
     
-    def assert_agent_flow(self, expected_pattern) -> 'TraceAssertions':
+    def assert_agent_flow(self, expected_pattern: dict) -> 'TraceAssertions':
         """
         Assert agent flow using JMESPath-based branch collection and validation.
         
@@ -842,7 +842,7 @@ class AgentAssertionsPlugin(TraceAssertionsPlugin):
         4. For an agentic.request, check these tuples against expected interactions
         
         Args:
-            expected_pattern: Flow definition dict or list of tuples
+            expected_pattern: Flow definition dict
         
         Returns:
             TraceAssertions: Self for method chaining
@@ -893,7 +893,7 @@ class AgentAssertionsPlugin(TraceAssertionsPlugin):
             
             # Add target spans as branches
             for target_span in target_spans:
-                branch = _trace_branch_to_invocation(target_span, [])
+                branch = _trace_branch_to_invocation(target_span)
                 if branch:
                     branches.append(branch)
             
@@ -917,7 +917,7 @@ class AgentAssertionsPlugin(TraceAssertionsPlugin):
             
             return branches
         
-        def _trace_branch_to_invocation(leaf_span: dict, invocation_spans: list) -> dict:
+        def _trace_branch_to_invocation(leaf_span: dict) -> dict:
             """
             Trace a leaf span back to see if it's under an agentic.invocation.
             
@@ -980,7 +980,7 @@ class AgentAssertionsPlugin(TraceAssertionsPlugin):
                             break
                     
                     tuple_info = {
-                        'tuple': ('U', agent_name, 'request'),  # User -> Agent request
+                        'tuple': ('U', agent_name, MonocleSpanType.AGENTIC_REQUEST.value),  # User -> Agent request with string value
                         'span_ids': branch['span_ids'],
                         'start_time': leaf.get('start_time', 0),
                         'attributes': attributes,
@@ -994,7 +994,7 @@ class AgentAssertionsPlugin(TraceAssertionsPlugin):
                     
                     if from_participant and to_participant:
                         tuple_info = {
-                            'tuple': (from_participant, to_participant, span_type.split('.')[-1]),  # Use last part (delegation, invocation, etc)
+                            'tuple': (from_participant, to_participant, span_type),  # Use full span type
                             'span_ids': branch['span_ids'],
                             'start_time': leaf.get('start_time', 0),
                             'attributes': attributes,
@@ -1058,6 +1058,28 @@ class AgentAssertionsPlugin(TraceAssertionsPlugin):
             """
             return sorted(tuples, key=lambda t: t['start_time'])
         
+        def _convert_interactions_to_full_names(expected_pattern: dict):
+            """Convert all alias-based interactions to use full names from participant registry."""
+            # Build registry from participants
+            participants_registry = {}
+            for participant in expected_pattern.get('participants', []):
+                if isinstance(participant, tuple) and len(participant) >= 4:
+                    alias, name, ptype, description = participant[:4]
+                    participants_registry[alias] = {"name": name, "type": ptype, "description": description}
+            
+            # Convert interactions to use full names
+            converted_interactions = []
+            for interaction in expected_pattern.get('interactions', []):
+                if len(interaction) == 3:
+                    from_alias, to_alias, interaction_type = interaction
+                    from_name = participants_registry.get(from_alias, {}).get('name', from_alias)
+                    to_name = participants_registry.get(to_alias, {}).get('name', to_alias)
+                    # Convert enum to string value if needed
+                    type_str = interaction_type.value if hasattr(interaction_type, 'value') else str(interaction_type)
+                    converted_interactions.append((from_name, to_name, type_str))
+            
+            return converted_interactions
+
         def _validate_interaction_tuples(interaction_tuples: list, expected_pattern):
             """
             Validate collected interaction tuples against expected pattern.
@@ -1065,133 +1087,55 @@ class AgentAssertionsPlugin(TraceAssertionsPlugin):
             # Extract just the tuple parts for comparison
             actual_interactions = [t['tuple'] for t in interaction_tuples]
             
-            # Handle different expected pattern formats
-            if isinstance(expected_pattern, dict):
-                expected_interactions = expected_pattern.get('interactions', [])
-                participants_registry = _build_participants_registry(expected_pattern.get('participants', []))
-                
-                # Validate each expected interaction
-                violations = []
-                for expected in expected_interactions:
-                    if not _find_matching_interaction(expected, actual_interactions, participants_registry):
-                        violations.append(f"No matching event found for interaction: {expected}")
-                
-                if violations:
-                    available_info = f"Available interactions found in traces: {actual_interactions}"
-                    error_message = f"Agent flow validation failed: {violations}\n{available_info}"
-                    raise AssertionError(error_message)
-                    
-            elif isinstance(expected_pattern, list):
-                # Legacy tuple format
-                violations = []
-                for expected_tuple in expected_pattern:
-                    if not any(_tuples_match(expected_tuple, actual) for actual in actual_interactions):
-                        violations.append(f"No matching event found for interaction: {expected_tuple}")
-                
-                if violations:
-                    available_info = f"Available interactions found in traces: {actual_interactions}"
-                    error_message = f"Agent flow validation failed: {violations}\n{available_info}"
-                    raise AssertionError(error_message)
-            else:
-                raise AssertionError(f"Expected pattern must be dict or list, got: {type(expected_pattern)}")
+            # Convert expected interactions to full names at the start
+            expected_interactions = _convert_interactions_to_full_names(expected_pattern)
+            
+            # Validate each expected interaction
+            violations = []
+            for expected in expected_interactions:
+                if not _find_matching_interaction(expected, actual_interactions):
+                    violations.append(f"No matching event found for interaction: {expected}")
+            
+            if violations:
+                available_info = f"Available interactions found in traces: {actual_interactions}"
+                error_message = f"Agent flow validation failed: {violations}\n{available_info}"
+                raise AssertionError(error_message)
         
-        def _build_participants_registry(participants: list) -> dict:
-            """Build participant registry from participants definition."""
-            registry = {}
-            for participant in participants:
-                if isinstance(participant, tuple) and len(participant) >= 4:
-                    alias, name, ptype, description = participant[:4]
-                    registry[alias] = {"name": name, "type": ptype, "description": description}
-            print(f"DEBUG: Built registry: {registry}")
-            return registry
-        
-        def _participant_name_matches(expected_alias: str, actual_name: str, participant_info: dict) -> bool:
-            """
-            Check if an actual participant name matches an expected alias using flexible matching.
-            Always matches on lowercase for case-insensitive comparison.
-            """
-            if not actual_name:
-                return False
-                
-            # Always convert to lowercase for comparison
-            expected_alias_lower = expected_alias.lower()
-            actual_name_lower = actual_name.lower()
-            registry_name_lower = participant_info.get("name", "").lower()
-            
-            # Direct alias match
-            if expected_alias_lower == actual_name_lower:
-                return True
-            
-            # Registry name match (case-insensitive)
-            if registry_name_lower and registry_name_lower == actual_name_lower:
-                return True
-                
-            # Partial matches (contains) - case insensitive
-            if registry_name_lower and (registry_name_lower in actual_name_lower or actual_name_lower in registry_name_lower):
-                return True
-                
-            # Handle name variations like flight_assistant vs Flight_Assistant (normalized)
-            if registry_name_lower:
-                # Normalize underscores for comparison
-                normalized_registry = registry_name_lower.replace("_", "")
-                normalized_actual = actual_name_lower.replace("_", "")
-                if normalized_registry == normalized_actual:
-                    return True
-            
-            return False
-
-        def _find_matching_interaction(expected: tuple, actual_interactions: list, registry: dict) -> bool:
-            """Find if expected interaction matches any actual interaction using registry."""
+        def _find_matching_interaction(expected: tuple, actual_interactions: list) -> bool:
+            """Find if expected interaction matches any actual interaction."""
             expected_from, expected_to, expected_type = expected
-            
-            # Get participant info from registry
-            from_info = registry.get(expected_from, {"name": expected_from})
-            to_info = registry.get(expected_to, {"name": expected_to})
-            
-            print(f"DEBUG: Looking for {expected} with from_info={from_info}, to_info={to_info}")
             
             for actual in actual_interactions:
                 actual_from, actual_to, actual_type = actual
                 
-                # Check type match
-                if not _interaction_types_match(expected_type, actual_type):
+                # Convert actual type to string for comparison
+                actual_type_str = actual_type.value if hasattr(actual_type, 'value') else str(actual_type)
+                
+                # Check type match (case-insensitive)
+                if not _interaction_types_match(expected_type, actual_type_str):
                     continue
                 
-                # Check participant match (case-insensitive, flexible matching)
-                from_matches = _participant_name_matches(expected_from, actual_from, from_info)
-                to_matches = _participant_name_matches(expected_to, actual_to, to_info)
+                # Check participant matches (case-insensitive, partial matching)
+                from_matches = (
+                    expected_from.lower() == actual_from.lower() or
+                    expected_from.lower() in actual_from.lower() or
+                    actual_from.lower() in expected_from.lower()
+                )
                 
-                print(f"  Checking {actual}: from_matches={from_matches}, to_matches={to_matches}")
+                to_matches = (
+                    expected_to.lower() == actual_to.lower() or
+                    expected_to.lower() in actual_to.lower() or
+                    actual_to.lower() in expected_to.lower()
+                )
                 
                 if from_matches and to_matches:
                     return True
             
             return False
+
+
         
-        def _tuples_match(expected: tuple, actual: tuple) -> bool:
-            """Check if two tuples match with flexible matching."""
-            if len(expected) != len(actual):
-                return False
-            
-            expected_from, expected_to, expected_type = expected
-            actual_from, actual_to, actual_type = actual
-            
-            # Type matching
-            if not _interaction_types_match(expected_type, actual_type):
-                return False
-            
-            # Participant matching (case-insensitive, partial)
-            from_matches = (
-                expected_from.lower() in actual_from.lower() or
-                actual_from.lower() in expected_from.lower()
-            )
-            
-            to_matches = (
-                expected_to.lower() in actual_to.lower() or  
-                actual_to.lower() in expected_to.lower()
-            )
-            
-            return from_matches and to_matches
+
         
         def _interaction_types_match(expected_type, actual_type) -> bool:
             """Check if interaction types match with exact enum/string comparison."""

@@ -1,0 +1,89 @@
+[build-system]
+requires = ["hatchling", "hatch-build-scripts"]
+build-backend = "hatchling.build"
+
+[[tool.hatch.build.hooks.build-scripts.scripts]]
+commands = [
+    "echo 'Running a pre-build step..copying license'",
+    "if [ -f \"LICENSE\" ]; then echo \"✅ LICENSE already exists\"; elif [ -f \"../LICENSE\" ]; then cp \"../LICENSE\" \"LICENSE\" && echo \"✅ LICENSE copied from parent\"; else echo \"❌ ERROR: LICENSE not found\" && exit 1; fi"
+]
+
+[project]
+name = "monocle_tfwk"
+version = "0.1.0"
+authors = [
+  { name="Okahu Inc.", email="okahu-pypi@okahu.ai" },
+]
+description = "Pytest-style testing framework for monocle AI agent tracing"
+readme = "README.md"
+requires-python = ">=3.8"
+license = {text = "Apache-2.0"}
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: OS Independent",
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Topic :: Software Development :: Testing",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+dependencies = [
+    # Core dependencies
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.26.0",
+    
+    # OpenTelemetry dependencies
+    "opentelemetry-api>=1.0.0",
+    "opentelemetry-sdk>=1.0.0",
+    
+    # Monocle dependencies
+    "monocle_apptrace>=0.5.0",
+    
+    # Query engine dependencies
+    "jmespath>=1.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest-cov>=4.0.0",
+    "black>=23.0.0",
+    "flake8>=6.0.0",
+    "mypy>=1.0.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/monocle2ai/monocle"
+Repository = "https://github.com/monocle2ai/monocle"
+Documentation = "https://github.com/monocle2ai/monocle/tree/main/tfwk"
+Issues = "https://github.com/monocle2ai/monocle/issues"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v --tb=short"
+asyncio_mode = "auto"
+log_cli = true
+log_cli_level = "INFO"
+# Enable file logging
+#log_file = "traces.log"
+#log_file_level = "INFO"
+log_format = "%(asctime)s %(levelname)s %(pathname)s:%(lineno)d %(message)s"
+log_date_format = "%Y-%m-%d %H:%M:%S"
+
+pythonpath = [
+  "src",
+  "tests"
+]
+
+[tool.black]
+line-length = 88
+target-version = ['py38']
+
+[tool.mypy]
+python_version = "3.8"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true

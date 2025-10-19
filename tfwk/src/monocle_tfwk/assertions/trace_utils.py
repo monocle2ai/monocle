@@ -59,8 +59,16 @@ class TraceQueryEngine:
         # Convert spans to a queryable format
         self.span_data = []
         for span in traces.spans:
+            # Extract span ID properly - handle both ReadableSpan and dict formats
+            span_id = None
+            if hasattr(span, 'context') and hasattr(span.context, 'span_id') and span.context.span_id:
+                span_id = span.context.span_id.to_bytes(8, 'big').hex()
+            elif hasattr(span, 'span_id'):
+                span_id = str(span.span_id)
+            
             span_dict = {
                 'name': span.name,
+                'span_id': span_id,
                 'attributes': dict(span.attributes) if hasattr(span, 'attributes') and span.attributes else {},
                 'start_time': span.start_time if hasattr(span, 'start_time') else None,
                 'end_time': span.end_time if hasattr(span, 'end_time') else None,

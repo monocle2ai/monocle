@@ -59,7 +59,7 @@ class TestLangChainTravelAgent(BaseAgentTest):
         whole_flow = {
             "participants": self.participants,
             "required": ["TC"],  # Minimum required participants (Travel Coordinator should always be present)
-            #"forbidden": [("U", "FA"), ("U", "HA"), ("U", "RA")],  # Direct interactions not allowed
+            "forbidden": [("U", "FA"), ("U", "HA"), ("U", "RA")],  # Direct interactions not allowed
             "interactions": [
                 # Match actual LangChain/LangGraph span structure using MonocleSpanType enum values
                 ("U", "TC", MonocleSpanType.AGENTIC_REQUEST),  # User invokes Travel Coordinator
@@ -76,7 +76,7 @@ class TestLangChainTravelAgent(BaseAgentTest):
         travel_request = (
             "I need to plan a business trip to Mumbai. Recommend things to see in Mumbai during my stay. "
             "Please book a business class flight from Delhi to Mumbai on December 15th, 2025"
-            "and book a luxury hotel for 2 nights starting December 15th."
+            "and book a luxury hotel for 2 nights starting December 15th, without waiting for my response"
         )
         
         # Process the travel request
@@ -112,13 +112,13 @@ class TestLangChainTravelAgent(BaseAgentTest):
         
 
 
-    # @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_flight_booking_specific_flow(self, travel_agent):
         """
         Test flight booking specific workflow with targeted flow validation.
         """
         logger.info("🧪 Testing flight booking specific flow")
-        flight_request = "Book a business class flight from Delhi to Mumbai on December 15th, 2025"
+        flight_request = "Book a business class flight from Delhi to Mumbai on December 15th, 2025 without waiting for my response"
         result = await travel_agent.process_travel_request(flight_request)
         
         # Validate response content
@@ -145,7 +145,7 @@ class TestLangChainTravelAgent(BaseAgentTest):
         Test hotel booking specific workflow with targeted flow validation.
         """
         logger.info("🧪 Testing hotel booking specific flow")
-        hotel_request = "Book a luxury hotel in Goa for 3 nights starting December 20th"
+        hotel_request = "Book a luxury hotel in Goa for 3 nights starting December 20th, without waiting for my response"
         result = await travel_agent.process_travel_request(hotel_request)
         
         # Validate response content

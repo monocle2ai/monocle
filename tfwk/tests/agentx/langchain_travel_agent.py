@@ -1,10 +1,17 @@
+import asyncio
 import logging
-from typing import Any, Dict
+import os
+from typing import Annotated, Any, Dict, List, TypedDict
 
+from langchain_core.messages import BaseMessage, HumanMessage
 from langchain_core.tools import tool
 from langchain_openai import ChatOpenAI
-from langgraph.prebuilt import create_react_agent
-from langgraph_supervisor import create_supervisor
+from langgraph.checkpoint.memory import MemorySaver  # 👈 UPDATED IMPORT
+from langgraph.graph import END, StateGraph
+from langgraph.graph.message import add_messages
+from langgraph.prebuilt import (
+    create_react_agent as langgraph_create_react_agent,
+)
 from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
 
 # Set up logging
@@ -17,28 +24,16 @@ setup_monocle_telemetry(
     monocle_exporters_list="file"
 )
 
-# Constants for session management
-APP_NAME = "langchain_travel_agent_demo"
-USER_ID = "travel_user_123"
-SESSION_ID = "travel_session_456"
 
+# ==================================================================
+# ## 1. Mock Tool Functions
+# (Tools remain unchanged)
+# ==================================================================
 
-def book_flight(from_city: str, to_city: str, travel_date: str = "2025-12-01", is_business: bool = False) -> Dict[str, Any]:
-    """Books a flight from one city to another.
-
-    Args:
-        from_city (str): The city from which the flight departs.
-        to_city (str): The city to which the flight arrives.
-        travel_date (str): The date of the flight in YYYY-MM-DD format.
-        is_business (bool): Whether to book business class.
-
-    Returns:
-        Dict[str, Any]: Flight booking details with status, booking ID, and cost.
-    """
+def book_flight_internal(from_city: str, to_city: str, travel_date: str = "2025-12-01", is_business: bool = False) -> Dict[str, Any]:
+    """Internal function for flight booking logic."""
     flight_class = "business" if is_business else "economy"
     base_price = 800 if is_business else 400
-    
-    # Add premium for popular destinations
     popular_destinations = ["Mumbai", "Delhi", "Goa", "Bangalore"]
     if to_city in popular_destinations:
         base_price += 200
@@ -47,126 +42,83 @@ def book_flight(from_city: str, to_city: str, travel_date: str = "2025-12-01", i
         "status": "success",
         "booking_id": f"LC-FL-{hash(f'{from_city}-{to_city}') % 10000:04d}",
         "type": "flight",
-        "from_city": from_city,
-        "to_city": to_city,
-        "travel_date": travel_date,
-        "class": flight_class,
-        "price": base_price,
         "message": f"Successfully booked {flight_class} flight from {from_city} to {to_city} on {travel_date}"
     }
-    
-    logger.info(f"LangChain Flight booked: {booking['booking_id']} - {from_city} to {to_city}")
+    logger.info(f"Flight booked: {booking['booking_id']}")
     return booking
 
-
-def book_hotel(hotel_name: str, city: str, check_in_date: str = "2025-12-01", nights: int = 1, is_business: bool = False) -> Dict[str, Any]:
-    """Books a hotel for a stay.
-
-    Args:
-        hotel_name (str): The name of the hotel to book.
-        city (str): The city where the hotel is located.
-        check_in_date (str): The check-in date in YYYY-MM-DD format.
-        nights (int): The number of nights to stay.
-        is_business (bool): Whether this is a business booking.
-
-    Returns:
-        Dict[str, Any]: Hotel booking details with status, booking ID, and cost.
-    """
+def book_hotel_internal(hotel_name: str, city: str, check_in_date: str = "2025-12-01", nights: int = 1, is_business: bool = False) -> Dict[str, Any]:
+    """Internal function for hotel booking logic."""
     hotel_tier = "luxury" if is_business else "standard"
-    base_price_per_night = 300 if is_business else 150
-    total_price = base_price_per_night * nights
     
     booking = {
         "status": "success",
         "booking_id": f"LC-HT-{hash(f'{hotel_name}-{city}') % 10000:04d}",
         "type": "hotel",
-        "hotel_name": hotel_name,
-        "city": city,
-        "check_in_date": check_in_date,
-        "nights": nights,
-        "tier": hotel_tier,
-        "price_per_night": base_price_per_night,
-        "total_price": total_price,
         "message": f"Successfully booked {nights} nights at {hotel_name} in {city} starting {check_in_date}"
     }
-    
-    logger.info(f"LangChain Hotel booked: {booking['booking_id']} - {hotel_name} in {city}")
+    logger.info(f"Hotel booked: {booking['booking_id']}")
     return booking
 
-
-def get_travel_recommendations(destination: str) -> Dict[str, Any]:
-    """Get travel recommendations for a destination.
-
-    Args:
-        destination (str): The destination city.
-
-    Returns:
-        Dict[str, Any]: Travel recommendations including attractions and tips.
-    """
+def get_travel_recommendations_internal(destination: str) -> Dict[str, Any]:
+    """Internal function for recommendations logic."""
     recommendations = {
-        "Mumbai": {
-            "attractions": ["Gateway of India", "Marine Drive", "Bollywood Studios"],
-            "best_time": "October to March",
-            "tips": "Try local street food, book hotels near transportation hubs"
-        },
-        "Delhi": {
-            "attractions": ["Red Fort", "India Gate", "Lotus Temple"],
-            "best_time": "October to April",
-            "tips": "Use metro for transportation, visit in early morning for less crowds"
-        },
-        "Goa": {
-            "attractions": ["Beaches", "Old Goa Churches", "Spice Plantations"],
-            "best_time": "November to March",
-            "tips": "Rent a scooter, try seafood, book beach-side accommodations"
-        }
+        "Mumbai": {"attractions": ["Gateway of India", "Marine Drive"], "best_time": "October to March", "tips": "Try local street food"},
+        "Delhi": {"attractions": ["Red Fort", "India Gate"], "best_time": "October to April", "tips": "Use metro for transportation"},
+        "Goa": {"attractions": ["Beaches", "Old Goa Churches"], "best_time": "November to March", "tips": "Rent a scooter"},
     }
     
     result = {
         "destination": destination,
         "recommendations": recommendations.get(destination, {
-            "attractions": ["Local markets", "Cultural sites", "Natural landmarks"],
-            "best_time": "Check local weather patterns",
-            "tips": "Research local customs and transportation options"
+            "attractions": ["Local markets"], "best_time": "Check local weather", "tips": "Research local customs"
         }),
         "status": "success"
     }
-    
-    logger.info(f"LangChain Travel recommendations provided for: {destination}")
+    logger.info(f"Travel recommendations provided for: {destination}")
     return result
-
 
 @tool
 def book_flight_tool(from_city: str, to_city: str, travel_date: str = "2025-12-01", is_business: bool = False) -> str:
-    """Book a flight between cities."""
-    result = book_flight(from_city, to_city, travel_date, is_business)
+    """Book a flight between cities. Use this for actual flight booking."""
+    result = book_flight_internal(from_city, to_city, travel_date, is_business)
     return result["message"]
-
 
 @tool
 def book_hotel_tool(hotel_name: str, city: str, check_in_date: str = "2025-12-01", nights: int = 1, is_business: bool = False) -> str:
-    """Book a hotel reservation."""
-    result = book_hotel(hotel_name, city, check_in_date, nights, is_business)
+    """Book a hotel reservation. Use this for actual hotel booking."""
+    result = book_hotel_internal(hotel_name, city, check_in_date, nights, is_business)
     return result["message"]
-
 
 @tool
 def get_recommendations_tool(destination: str) -> str:
-    """Get travel recommendations for a destination."""
-    result = get_travel_recommendations(destination)
+    """Get travel recommendations for a destination. Use this for travel advice."""
+    result = get_travel_recommendations_internal(destination)
     recommendations = result["recommendations"]
     return f"For {destination}: Attractions - {', '.join(recommendations['attractions'])}. Best time: {recommendations['best_time']}. Tips: {recommendations['tips']}"
 
+ALL_TOOLS = [book_flight_tool, book_hotel_tool, get_recommendations_tool]
 
-class LangChainTravelAgentDemo:
-    """LangChain Travel Agent demonstration with multi-agent architecture."""
-    
-    def __init__(self):
-        # Store instance reference for delegation tools
-        self._instance = None
-        
-        # Create specialized agents for different aspects of travel booking
-        self.flight_agent = create_react_agent(
-            model=ChatOpenAI(model="gpt-4o"),
+# ==================================================================
+# ## 2. LangGraph State Definition
+# ==================================================================
+
+class AgentState(TypedDict):
+    messages: Annotated[List[BaseMessage], add_messages]
+    next: str
+
+# ==================================================================
+# ## 3. Agent and Router Definitions
+# ==================================================================
+
+LLM = ChatOpenAI(model="gpt-4o", temperature=0)
+
+# (Agent definitions using langgraph_create_react_agent remain the same as the user's last provided code)
+# NOTE: If you are still encountering the 'system_prompt' or 'prompt' error, you must use the
+# manual graph construction from the previous answer. We assume the current structure works for now.
+
+flight_agent = langgraph_create_react_agent(
+            model=LLM,
             tools=[book_flight_tool],
             prompt=(
                 "You are a helpful flight booking assistant. You can book flights between cities. "
@@ -176,19 +128,19 @@ class LangChainTravelAgentDemo:
             name="Flight_Assistant",
         )
 
-        self.hotel_agent = create_react_agent(
-            model=ChatOpenAI(model="gpt-4o"),
+hotel_agent = langgraph_create_react_agent(
+            model=LLM,
             tools=[book_hotel_tool],
             prompt=(
-                "You are a helpful hotel booking assistant. You can book hotels in various cities. "
+                "You are a helpful hotel booking assistant and can book hotels in various cities. "
                 "Always confirm accommodation preferences and provide booking details. "
-                "Ask for clarification if check-in dates or hotel preferences are unclear."
+                "Ask for clarification if check-in dates or hotel preferences are unclear, but don't go in circles"
             ),
             name="Hotel_Assistant",
         )
 
-        self.recommendations_agent = create_react_agent(
-            model=ChatOpenAI(model="gpt-4o"),
+recommendations_agent = langgraph_create_react_agent(
+            model=LLM,
             tools=[get_recommendations_tool],
             prompt=(
                 "You are a travel recommendations expert. Provide helpful travel advice, "
@@ -198,54 +150,145 @@ class LangChainTravelAgentDemo:
             name="Recommendations_Assistant",
         )
 
-        self.travel_supervisor = create_supervisor(
-            agents=[self.flight_agent, self.hotel_agent, self.recommendations_agent],
-            model=ChatOpenAI(model="gpt-4o"),
-            prompt=(
-                "You are a master travel planning agent that coordinates flight booking, hotel reservations, "
-                "and travel recommendations to provide comprehensive travel planning services. "
-                "Delegate flight bookings to the Flight Assistant, hotel bookings to the Hotel Assistant, "
-                "and travel recommendations to the Recommendations Assistant."
-            ),
-            supervisor_name="Travel_Coordinator",
-        ).compile()
+
+def route_agent(state: AgentState):
+    logger.info("Router: Determining next step...")
+    
+    system_prompt = (
+        "You are the Travel Coordinator. Your job is to route the user's request "
+        "to the correct specialized agent: 'flight_agent', 'hotel_agent', or 'recommendations_agent'. "
+        "If the request is a general greeting, an apology, a summary, or not clearly related to one of the three areas, "
+        "route to 'END' to respond directly. "
+        "If a specific booking or recommendation is requested, route to the relevant agent."
+        "The available agents are: flight_agent, hotel_agent, recommendations_agent."
+        "You MUST respond with ONLY the name of the next node (e.g., 'flight_agent', 'hotel_agent', 'END')."
+    )
+    
+    user_message = state["messages"][-1]
+    
+    # We pass the full history to the router LLM to maintain context for routing
+    routing_messages = state["messages"] + [HumanMessage(content=system_prompt)]
+    
+    response = LLM.invoke(routing_messages)
+    route = response.content.strip().lower().replace(' ', '_')
+    
+    if 'flight' in route:
+        next_node = 'flight_agent'
+    elif 'hotel' in route:
+        next_node = 'hotel_agent'
+    elif 'recommendations' in route or 'expert' in route:
+        next_node = 'recommendations_agent'
+    else:
+        next_node = END 
+        
+    logger.info(f"Router selected: {next_node}")
+    return {"next": next_node}
+
+
+
+# ==================================================================
+# ## 5. Execution Class (Fixed for context)
+# ==================================================================
+
+class LangChainTravelAgentDemo:
+
+    def __init__(self):
+        self.travel_coordinator = self.__initialize_graph__()
+        # Use a fixed thread ID for the entire session
+        self.thread_id = "demo-travel-session-1" 
+
+    def __initialize_graph__(self):
+                # ==================================================================
+        # ## 4. Build the Graph
+        # ==================================================================
+
+        graph_builder = StateGraph(AgentState)
+
+        graph_builder.add_node("router", route_agent)
+        graph_builder.add_node("flight_agent", flight_agent)
+        graph_builder.add_node("hotel_agent", hotel_agent)
+        graph_builder.add_node("recommendations_agent", recommendations_agent)
+
+        graph_builder.set_entry_point("router")
+
+        graph_builder.add_conditional_edges(
+            "router", 
+            lambda x: x["next"], 
+            {
+                "flight_agent": "flight_agent",
+                "hotel_agent": "hotel_agent",
+                "recommendations_agent": "recommendations_agent",
+                END: END
+            }
+        )
+
+        graph_builder.add_edge("flight_agent", END)
+        graph_builder.add_edge("hotel_agent", END)
+        graph_builder.add_edge("recommendations_agent", END)
+
+        # 6. Set up memory (checkpointing) 👈 UPDATED STEP
+        memory = MemorySaver()  # In-memory checkpointing for context
+
+        # 7. Compile the graph, passing the memory object 👈 NEW STEP
+        return  graph_builder.compile(checkpointer=memory)
 
     async def process_travel_request(self, user_request: str) -> str:
-        """Process travel request using LangChain agents."""
-        logger.info(f"LangChain Processing travel request: {user_request}")
+        """Process travel request using the compiled LangGraph supervisor."""
+        logger.info(f"Processing request: {user_request}")
         
         try:
-            # Process the request through the supervisor agent using the correct API
-            response = await self.travel_supervisor.ainvoke(
+            # 1. Configuration object with thread_id for memory
+            config = {"configurable": {"thread_id": self.thread_id}}
+
+            # 2. Invoke the coordinator, passing the configuration
+            response = await self.travel_coordinator.ainvoke(
                 input={
-                    "messages": [
-                        {
-                            "role": "user",
-                            "content": user_request,
-                        }
-                    ]
-                }
+                    "messages": [HumanMessage(content=user_request)]
+                },
+                config=config 
             )
             
-            # Extract response from LangChain agent response
             if response and "messages" in response:
                 last_message = response["messages"][-1]
-                if hasattr(last_message, 'content'):
-                    response_text = last_message.content
-                elif isinstance(last_message, dict) and 'content' in last_message:
-                    response_text = last_message['content']
-                else:
-                    response_text = str(last_message)
+                response_text = getattr(last_message, 'content', str(last_message))
                 
-                logger.info("LangChain Agent response received")
+                logger.info("Agent response received")
                 return response_text
             else:
-                logger.warning("No response received from LangChain agent")
+                logger.warning("No final response received.")
                 return "I apologize, but I wasn't able to process your travel request. Please try again."
                 
         except Exception as e:
-            logger.error(f"Error processing LangChain agent request: {e}")
-            raise e
+            logger.error(f"Error processing agent request: {e}")
+            return f"An unexpected error occurred: {e}"
 
 
 
+
+# Interactive terminal interface
+if __name__ == "__main__":
+    
+    if not os.getenv("OPENAI_API_KEY"):
+        print("ERROR: Please set the OPENAI_API_KEY environment variable.")
+    else:
+        # Pass the compiled graph to the class
+        agent = LangChainTravelAgentDemo() 
+
+        print("Welcome to the LangGraph Travel Agent Demo! Type 'exit' to quit.")
+        print("Try a multi-turn conversation: 'Find me a flight to Delhi.' then 'What about a hotel there?'")
+
+        while True:
+            try:
+                user_input = input("\nYour request: ").strip()
+                if user_input.lower() in {"exit", "quit"}:
+                    print("Goodbye!")
+                    break
+                
+                result = asyncio.run(agent.process_travel_request(user_input))
+                print(f"\nAgent: {result}")
+
+            except (KeyboardInterrupt, EOFError):
+                print("\nGoodbye!")
+                break
+            except Exception as e:
+                print(f"Error: {e}")

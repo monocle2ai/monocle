@@ -12,7 +12,7 @@ Main Components:
 """
 
 # Import main classes
-from . import semantic_similarity
+from . import agents, semantic_similarity
 from .assertions import TraceAssertions
 from .assertions.trace_utils import TraceQueryEngine
 from .base_agent_test import BaseAgentTest
@@ -25,7 +25,6 @@ __all__ = [
     'TraceAssertions', 
     'TraceQueryEngine',
     'semantic_similarity',
-    'MonocleValidator'
+    'MonocleValidator',
+    'agents'
 ]
-
-__version__ = "0.1.0"

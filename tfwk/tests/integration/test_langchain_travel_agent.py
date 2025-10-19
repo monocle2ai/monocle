@@ -1,26 +1,13 @@
-#!/usr/bin/env python3
-"""
-LangChain Travel Agent Example with Monocle Testing Framework
-
-This example demonstrates:
-- Real LangChain/LangGraph implementation with proper telemetry setup
-- Comprehensive testing with the tfwk framework
-- Practical usage patterns for LangChain agent application testing
-- Proper integration with Monocle's automatic instrumentation
-"""
-
+import json
 import logging
-import sys
-from pathlib import Path
+import textwrap
 
 import pytest
-
-# Add the parent directory to the path to import from agentx
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
 from agentx.langchain_travel_agent import LangChainTravelAgentDemo
 from monocle_tfwk import BaseAgentTest
+from monocle_tfwk.agents.simulator import TestAgent
 from monocle_tfwk.schema import MonocleSpanType
+from monocle_tfwk.visualization.gantt_chart import VisualizationMode
 
 logger = logging.getLogger(__name__)
 
@@ -59,66 +46,92 @@ class TestLangChainTravelAgent(BaseAgentTest):
         whole_flow = {
             "participants": self.participants,
             "required": ["TC"],  # Minimum required participants (Travel Coordinator should always be present)
-            #"forbidden": [("U", "FA"), ("U", "HA"), ("U", "RA")],  # Direct interactions not allowed
+            "forbidden": [("U", "FA"), ("U", "HA"), ("U", "RA")],  # Direct interactions not allowed
             "interactions": [
                 # Match actual LangChain/LangGraph span structure using MonocleSpanType enum values
-                ("U", "TC", MonocleSpanType.AGENTIC_REQUEST),  # User invokes Travel Coordinator
-                ("TC", "RA", MonocleSpanType.AGENTIC_DELEGATION),         # TC delegates to RA
-                ("RA", "GRT", MonocleSpanType.AGENTIC_TOOL_INVOCATION),         # Recommendations Assistant using get_recommendations_tool
-                ("TC", "FA", MonocleSpanType.AGENTIC_DELEGATION),         # TC delegates to FA (agentic.delegation)
+                #("U", "TC", MonocleSpanType.AGENTIC_REQUEST),  # User invokes Travel Coordinator
+                # ("TC", "RA", MonocleSpanType.AGENTIC_DELEGATION),         # TC delegates to RA
+                # ("RA", "GRT", MonocleSpanType.AGENTIC_TOOL_INVOCATION),         # Recommendations Assistant using get_recommendations_tool
+                # ("TC", "FA", MonocleSpanType.AGENTIC_DELEGATION),         # TC delegates to FA (agentic.delegation)
                 ("FA", "BFT", MonocleSpanType.AGENTIC_TOOL_INVOCATION),         # Flight Assistant using book_flight_tool
-                ("TC", "HA", MonocleSpanType.AGENTIC_DELEGATION),          # TC delegates to HA  
+                # ("TC", "HA", MonocleSpanType.AGENTIC_DELEGATION),          # TC delegates to HA  
                 ("HA", "BHT", MonocleSpanType.AGENTIC_TOOL_INVOCATION),         # Hotel Assistant using book_hotel_tool
             ]
         }
 
-        # Complex travel request that should trigger multiple agent interactions
-        travel_request = (
-            "I need to plan a business trip to Mumbai. Recommend things to see in Mumbai during my stay. "
-            "Please book a business class flight from Delhi to Mumbai on December 15th, 2025"
-            "and book a luxury hotel for 2 nights starting December 15th."
-        )
+        logger.info("🧪 Testing hotel booking specific flow")
         
-        # Process the travel request
-        result = await travel_agent.process_travel_request(travel_request)
+        test_persona = {
+            "goal": "Please book 1. business class flight from Delhi to Mumbai on December 15th, 2025 for a single traveller\
+                     2. and luxury hotel for 2 nights starting December 15th.",
+            "data": {
+                "destination": "Mumbai",
+                "date": "December 15th, 2025",
+                "passengers": 1,
+                "hotel_nights": 2
+            },
+            "initial_query_prompt": textwrap.dedent("""
+                You are a user conversing with a travel agent.
+                Your goal is: {goal}
+                Your data is: {persona_data}
+                Just say something like "Hi, I need a travel plan."
+            """).strip(),
+            "clarification_prompt": textwrap.dedent("""
+                You are a user answering a clarification question from a travel agent.
+                Your goal is to provide answers to complete the clarification.
+                You use the following persona data:
+                {persona_data}
+
+                You will be given the conversation history and a final question from the agent.
+                Your job is to answer questions till the goal is achieved, using the information from your persona data or make up any missing details.
+                - Do not be overly conversational.
+                - Just provide the specific information requested.
+            """).strip()
+        }
+
+        # Set up the second TestAgent, passing the *method* as the tool
+        try:
+            tester = TestAgent(tool_to_test=travel_agent.process_travel_request, user_persona=test_persona)
+            # Run the simulation (now awaited)
+            conversation = await tester.run_test(15)
+            assert any(keyword in str(conversation[-1]).lower() for keyword in ["flight", "hotel", "mumbai"]), \
+                f"Response should mention travel elements: {conversation}"
+
+        except (ValueError, TypeError) as e:
+            assert False, f"❌ failed to create user simulator: {e}"
         
-        # Basic assertions on response
-        assert result and len(result) > 0, "Should receive non-empty response"
-        assert any(keyword in result.lower() for keyword in ["flight", "hotel", "mumbai"]), \
-            f"Response should mention travel elements: {result}"
         
         # === SIMPLIFIED AGENTIC FLOW VALIDATION BASED ON OBSERVED PATTERNS ===
         logger.info("=== Gantt Chart Visualization ===")
-        self.display_flow_gantt_chart()
+        self.display_flow_gantt_chart(VisualizationMode.DETAILED)
         # Assert the realistic flow pattern
         traces = self.assert_traces()
-                # Generate and display Gantt chart visualization after flow assertions
         (traces  # Get trace assertions
          .assert_agent_flow(whole_flow)
         )
 
         # Test the JSON format confirmation
         confirmation = await traces.ask_llm_about_traces(
-            "Is the hotel booking confirmed? "
+            "Is the flight and hotel booking confirmed? "
             "Return your answer in JSON format with this exact structure: "
             '{"confirmed": true/false, "reason": "brief explanation"}'
         )
         
         # Extract and assert the confirmed field
-        import json
+  
         confirmation_data = json.loads(confirmation)
         assert confirmation_data["confirmed"], f"Hotel booking should be confirmed: {confirmation}"
         logger.info(f"✅ Full travel booking flow validation passed {confirmation}")
         
 
 
-    # @pytest.mark.asyncio
+    @pytest.mark.asyncio
     async def test_flight_booking_specific_flow(self, travel_agent):
         """
         Test flight booking specific workflow with targeted flow validation.
         """
         logger.info("🧪 Testing flight booking specific flow")
-        flight_request = "Book a business class flight from Delhi to Mumbai on December 15th, 2025"
+        flight_request = "Book a business class flight from Delhi to Mumbai on December 15th, 2025 without waiting for my response"
         result = await travel_agent.process_travel_request(flight_request)
         
         # Validate response content
@@ -128,7 +141,7 @@ class TestLangChainTravelAgent(BaseAgentTest):
         flight_interactions = {
             "participants": self.participants,
             "interactions": [
-                ("TC", "FA", MonocleSpanType.AGENTIC_DELEGATION),  # Coordinator delegates to Flight Assistant
+                #("TC", "FA", MonocleSpanType.AGENTIC_DELEGATION),  # Coordinator delegates to Flight Assistant
                 ("FA", "BFT", MonocleSpanType.AGENTIC_TOOL_INVOCATION)   # Flight Assistant invocation
             ]
         }
@@ -137,25 +150,61 @@ class TestLangChainTravelAgent(BaseAgentTest):
         )
         logger.info("✅ Flight booking flow validation passed")
 
-    #TODO: The following test can fail as sometimes the ("HA", "BHT", "invocation") is missing
-    # in the traces json. This requires the instrumentation to be fixed.
+    
+
     @pytest.mark.asyncio
     async def test_hotel_booking_specific_flow(self, travel_agent):
         """
         Test hotel booking specific workflow with targeted flow validation.
         """
         logger.info("🧪 Testing hotel booking specific flow")
-        hotel_request = "Book a luxury hotel in Goa for 3 nights starting December 20th"
-        result = await travel_agent.process_travel_request(hotel_request)
         
-        # Validate response content
-        assert "hotel" in result.lower(), f"Response should mention hotel: {result}"
+        test_persona = {
+            "goal": "Book a luxury hotel in Goa for 3 nights starting December 20th",
+            "data": {
+                "destination": "Goa",
+                "date": "December 20th, 2025",
+                "passengers": 4
+            },
+            "initial_query_prompt": textwrap.dedent("""
+                You are a user simulator starting a conversation with a booking agent.
+                Your goal is: {goal}
+                Your data is: {persona_data}
+                Start the conversation VAGUELY. Do not provide all the information. 
+                Just say something like "Hi, I need to book a hotel."
+            """).strip(),
+            "clarification_prompt": textwrap.dedent("""
+                You are a user simulator answering a clarification question from a booking agent.
+                Your goal is to provide answers to complete the clarification.
+                You use the following persona data:
+                {persona_data}
+
+                You will be given the conversation history and a final question from the agent.
+                Your job is to answer ONLY that final question, using the information from your persona data,
+                or make up any missing details.
+                - Do not be overly conversational.
+                - Just provide the specific information requested.
+            """).strip()
+        }
+
+        # Set up the second TestAgent, passing the *method* as the tool
+        try:
+            user_simulator = TestAgent(tool_to_test=travel_agent.process_travel_request, user_persona=test_persona)
+            conversation = await user_simulator.run_test()
+            assert any(keyword in str(conversation[-1]).lower() for keyword in ["hotel", "goa"]), \
+                f"Response should mention travel elements: {conversation}"
+        except (ValueError, TypeError) as e:
+             assert False, f"❌ failed to create user simulator: {e}"
+
         
+        # logger.info("=== Gantt Chart Visualization ===")
+        # self.display_flow_gantt_chart(VisualizationMode.DETAILED)
+
         # Validate specific hotel booking interactions using actual LangChain/LangGraph patterns
         hotel_interactions = {
             "participants": self.participants,
             "interactions": [
-                ("TC", "HA", MonocleSpanType.AGENTIC_DELEGATION),   # Coordinator delegates to Hotel Assistant
+                #("TC", "HA", MonocleSpanType.AGENTIC_DELEGATION),   # Coordinator delegates to Hotel Assistant
                 ("HA", "BHT", MonocleSpanType.AGENTIC_TOOL_INVOCATION)    # Hotel Assistant invocation
             ]
         }
@@ -181,7 +230,7 @@ class TestLangChainTravelAgent(BaseAgentTest):
         recommendations_interactions = {
             "participants": self.participants,
             "interactions": [
-                ("TC", "RA", MonocleSpanType.AGENTIC_DELEGATION),     # Coordinator delegates to Recommendations Assistant
+                #("TC", "RA", MonocleSpanType.AGENTIC_DELEGATION),     # Coordinator delegates to Recommendations Assistant
                 ("RA", "GRT", MonocleSpanType.AGENTIC_TOOL_INVOCATION)      # Recommendations Assistant invocation
             ]
         }

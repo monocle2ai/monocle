@@ -1,3 +1,4 @@
+import ast
 import logging, json
 import os
 import traceback
@@ -483,7 +484,13 @@ def get_input_event_from_span(events: list[dict], search_key:str) -> Optional[Ma
         if event.name == "data.input":
             try:
                 #load the input attribute as dictionary from string
-                input_dict = json.loads(event.attributes.get("input", "{}"))
+                try:
+                    input_dict = json.loads(event.attributes.get("input", "{}"))
+                except Exception as e:
+                    if isinstance(e, json.JSONDecodeError):
+                        input_dict = ast.literal_eval(event.attributes.get("input", {}))
+                    else:
+                        raise
                 if search_key in input_dict:
                     input_request = input_dict[search_key]
             except Exception as e:

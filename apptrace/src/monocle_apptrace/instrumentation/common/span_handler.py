@@ -214,6 +214,13 @@ class SpanHandler:
                                         event_attributes[attribute_key] = result
                                     else:
                                         event_attributes.update(result)
+                                if not is_post_exec and event_name == "data.input" and attribute_key == "input" and result:
+                                    # append memory to input if available
+                                    # update the result with new input
+                                    pass
+                                elif not detected_error and is_post_exec and event_name == "data.output" and attribute_key == "response" and result:
+                                    # capture memory
+                                    pass
                             except Exception as e:
                                 logger.debug(f"Error evaluating accessor for attribute '{attribute_key}': {e}")
                     matching_timestamp = getattr(ret_result, "timestamps", {}).get(event_name, None)

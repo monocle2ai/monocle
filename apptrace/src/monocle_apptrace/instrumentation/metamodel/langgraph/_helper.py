@@ -58,6 +58,8 @@ def update_span_from_llm_response(response):
 def extract_tool_response(result):
     if result is not None and hasattr(result, 'content'):
         return result.content
+    if isinstance(result, str):
+        return result
     return None
 
 def get_status(result):
@@ -66,7 +68,12 @@ def get_status(result):
     return None
 
 def extract_tool_input(arguments):
-    tool_input = arguments['args'][0]
+    if arguments['args'] and len(arguments['args']) > 0:
+        tool_input = arguments['args'][0]
+    else:
+        tool_input:dict = arguments['kwargs'].copy()
+        tool_input.pop('run_manager', None)  # remove run_manager if exists
+        tool_input.pop('config', None)  # remove config if exists
     return str(tool_input)
 
     # if isinstance(tool_input, str):

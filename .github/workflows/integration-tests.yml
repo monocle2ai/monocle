@@ -100,14 +100,18 @@ jobs:
           pytest -rfs apptrace/tests/unit/test*.py --tb=short | tee unitresult.log
           EXIT_CODE=${PIPESTATUS[0]}
           grep -E 'FAILED.*::' unitresult.log | cut -d ':' -f 1 | sort | uniq > unitfailed_files.txt
+          echo "" >> failed_files.txt
           echo "Failed unit test files:"
           echo "Failed unit test files:" >> failed_files.txt
           cat ./unitfailed_files.txt
           cat ./unitfailed_files.txt >> failed_files.txt
+          echo "" >> failed_files.txt
           LINE_NUM=$(grep -nE "===== .*((failed|passed|skipped|warnings).*)+ in .* ======" unitresult.log | tail -1 | cut -d: -f1)
           tail -n +$LINE_NUM ./unitresult.log > unittest_summary.txt
+          echo "" >> test_summary.txt
           echo "Unit Test Summary:" >> test_summary.txt
           cat ./unittest_summary.txt >> test_summary.txt
+          echo "" >> test_summary.txt
           exit $EXIT_CODE
 
       
@@ -123,7 +127,6 @@ jobs:
               while read -r file; do
                 echo "| $file |"
               done < unittest_summary.txt
-              echo "|--------------------|"
             } >> $GITHUB_STEP_SUMMARY
           fi
           
@@ -139,7 +142,6 @@ jobs:
               while read -r file; do
                 echo "| $file |"
               done < unitfailed_files.txt
-              echo "|--------------------|"
             } >> $GITHUB_STEP_SUMMARY
           else
             echo "### ✅ All unit and integration tests passed!" >> $GITHUB_STEP_SUMMARY
@@ -156,13 +158,17 @@ jobs:
           EXIT_CODE=${PIPESTATUS[0]}
           grep -E 'FAILED.*::' integration_test_result.log | cut -d ':' -f 1 | sort | uniq >> integrationtest_failed_files.txt
           echo "Failed Integration test files:"
+          echo "" >> failed_files.txt
           echo "Failed Integration test files:" >> failed_files.txt
           cat ./integrationtest_failed_files.txt
           cat ./integrationtest_failed_files.txt >> failed_files.txt
+          echo "" >> failed_files.txt
           LINE_NUM=$(grep -nE "===== .*((failed|passed|skipped|warnings).*)+ in .* ======" integration_test_result.log | tail -1 | cut -d: -f1)
           tail -n +$LINE_NUM ./integration_test_result.log >> integration_test_summary.txt
+          echo "" >> integration_test_summary.txt
           echo "Integration Test Summary:" >> test_summary.txt
           cat ./integration_test_summary.txt >> test_summary.txt
+          echo "" >> integration_test_summary.txt
           exit $EXIT_CODE
 
       - name: Add Test Summary to Summary (Table)
@@ -177,7 +183,6 @@ jobs:
               while read -r file; do
                 echo "| $file |"
               done < integration_test_summary.txt
-              echo "|---------------------------|"
             } >> $GITHUB_STEP_SUMMARY
           fi
           
@@ -193,7 +198,6 @@ jobs:
               while read -r file; do
                 echo "| $file |"
               done < integrationtest_failed_files.txt
-              echo "|-----------------------------|"
             } >> $GITHUB_STEP_SUMMARY
           else
             echo "### ✅ All unit and integration tests passed!" >> $GITHUB_STEP_SUMMARY

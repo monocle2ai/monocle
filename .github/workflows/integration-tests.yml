@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  integration-test:
+  Unit-Integration-Test:
     runs-on: ubuntu-latest
     environment: Stage
     env:
@@ -99,55 +99,101 @@ jobs:
           set -e
           pytest -rfs apptrace/tests/unit/test*.py --tb=short | tee unitresult.log
           EXIT_CODE=${PIPESTATUS[0]}
-          grep -E 'FAILED.*::' unitresult.log | cut -d ':' -f 1 | sort | uniq > failed_files.txt
-          echo "Failed test files:"
-          cat ./failed_files.txt
+          grep -E 'FAILED.*::' unitresult.log | cut -d ':' -f 1 | sort | uniq > unitfailed_files.txt
+          echo "Failed unit test files:"
+          echo "Failed unit test files:" >> failed_files.txt
+          cat ./unitfailed_files.txt
+          cat ./unitfailed_files.txt >> failed_files.txt
           LINE_NUM=$(grep -nE "===== .*((failed|passed|skipped|warnings).*)+ in .* ======" unitresult.log | tail -1 | cut -d: -f1)
-          tail -n +$LINE_NUM ./unitresult.log > test_summary.txt
+          tail -n +$LINE_NUM ./unitresult.log > unittest_summary.txt
+          echo "Unit Test Summary:" >> test_summary.txt
+          cat ./unittest_summary.txt >> test_summary.txt
           exit $EXIT_CODE
 
-      - name: Run Integration tests
-        if: always()
-        id: run-integration-tests
-        run: |
-          export PYTHONPATH=./apptrace/src:./apptrace/tests
-          set -e
-          pytest -rfs apptrace/tests/integration/test*.py --tb=short | tee integrationresult.log
-          EXIT_CODE=${PIPESTATUS[0]}
-          grep -E 'FAILED.*::' integrationresult.log | cut -d ':' -f 1 | sort | uniq >> failed_files.txt
-          echo "Failed test files:"
-          cat ./failed_files.txt
-          LINE_NUM=$(grep -nE "===== .*((failed|passed|skipped|warnings).*)+ in .* ======" integrationresult.log | tail -1 | cut -d: -f1)
-          tail -n +$LINE_NUM ./integrationresult.log >> test_summary.txt
-          exit $EXIT_CODE
-
+      
       - name: Add Test Summary to Summary (Table)
         if: always()
         run: |
-          if [[ -s ./test_summary.txt ]]; then
+          if [[ -s ./unittest_summary.txt ]]; then
             {
-              echo "### Test Summay"
+              echo "### Unit Test Summary"
               echo ""
-              echo "| Test Summay |"
-              echo "|-------------|"
+              echo "| Unit Test Summary |"
+              echo "|--------------------|"
               while read -r file; do
                 echo "| $file |"
-              done < test_summary.txt
+              done < unittest_summary.txt
+              echo "|--------------------|"
             } >> $GITHUB_STEP_SUMMARY
           fi
           
       - name: Add Failed Files to Summary (Table)
         if: always()
         run: |
-          if [[ -s ./failed_files.txt ]]; then
+          if [[ -s ./unitfailed_files.txt ]]; then
             {
-              echo "### ❌ Failed Test Files"
+              echo "### ❌ Failed Unit Test Files"
               echo ""
-              echo "| File Path |"
-              echo "|-----------|"
+              echo "| Failed Unit Test File Path |"
+              echo "|-----------------------------|"
               while read -r file; do
                 echo "| $file |"
-              done < failed_files.txt
+              done < unitfailed_files.txt
+              echo "|--------------------|"
+            } >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### ✅ All unit and integration tests passed!" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      
+      - name: Run Integration tests
+        if: always()
+        id: run-integration-tests
+        run: |
+          export PYTHONPATH=./apptrace/src:./apptrace/tests
+          set -e
+          pytest -rfs apptrace/tests/integration/test*.py --tb=short | tee integration_test_result.log
+          EXIT_CODE=${PIPESTATUS[0]}
+          grep -E 'FAILED.*::' integration_test_result.log | cut -d ':' -f 1 | sort | uniq >> integrationtest_failed_files.txt
+          echo "Failed Integration test files:"
+          echo "Failed Integration test files:" >> failed_files.txt
+          cat ./integrationtest_failed_files.txt
+          cat ./integrationtest_failed_files.txt >> failed_files.txt
+          LINE_NUM=$(grep -nE "===== .*((failed|passed|skipped|warnings).*)+ in .* ======" integration_test_result.log | tail -1 | cut -d: -f1)
+          tail -n +$LINE_NUM ./integration_test_result.log >> integration_test_summary.txt
+          echo "Integration Test Summary:" >> test_summary.txt
+          cat ./integration_test_summary.txt >> test_summary.txt
+          exit $EXIT_CODE
+
+      - name: Add Test Summary to Summary (Table)
+        if: always()
+        run: |
+          if [[ -s ./integration_test_summary.txt ]]; then
+            {
+              echo "### Integration Test Summary"
+              echo ""
+              echo "| Integration Test Summary |"
+              echo "|---------------------------|"
+              while read -r file; do
+                echo "| $file |"
+              done < integration_test_summary.txt
+              echo "|---------------------------|"
+            } >> $GITHUB_STEP_SUMMARY
+          fi
+          
+      - name: Add Failed Files to Summary (Table)
+        if: always()
+        run: |
+          if [[ -s ./integrationtest_failed_files.txt ]]; then
+            {
+              echo "### ❌ Integration Failed Test Files"
+              echo ""
+              echo "| Integration Test Failed File Path |"
+              echo "|-----------------------------|"
+              while read -r file; do
+                echo "| $file |"
+              done < integrationtest_failed_files.txt
+              echo "|-----------------------------|"
             } >> $GITHUB_STEP_SUMMARY
           else
             echo "### ✅ All unit and integration tests passed!" >> $GITHUB_STEP_SUMMARY
@@ -194,7 +240,7 @@ jobs:
             cat ./failed_files.txt >> email_body.txt
             echo "" >> email_body.txt
           fi
-          
+
           #echo "Attachments: Full test log (result.log)" >> email_body.txt
   
       - name: Send Email Notification

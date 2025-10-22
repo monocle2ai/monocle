@@ -92,18 +92,32 @@ jobs:
           pip install -e '.[azure]'
           pip install -e '.[aws]'
 
-      - name: Run integration tests
-        id: run-tests
+      - name: Run Unit tests
+        id: run-unit-tests
         run: |
           export PYTHONPATH=./apptrace/src:./apptrace/tests
           set -e
-          pytest -rfs apptrace/tests/integration/test*.py --tb=short | tee result.log
+          pytest -rfs apptrace/tests/unit/test*.py --tb=short | tee unitresult.log
           EXIT_CODE=${PIPESTATUS[0]}
-          grep -E 'FAILED.*::' result.log | cut -d ':' -f 1 | sort | uniq > failed_files.txt
+          grep -E 'FAILED.*::' unitresult.log | cut -d ':' -f 1 | sort | uniq > failed_files.txt
           echo "Failed test files:"
           cat ./failed_files.txt
-          LINE_NUM=$(grep -nE "===== .*((failed|passed|skipped|warnings).*)+ in .* ======" result.log | tail -1 | cut -d: -f1)
-          tail -n +$LINE_NUM ./result.log > test_summary.txt
+          LINE_NUM=$(grep -nE "===== .*((failed|passed|skipped|warnings).*)+ in .* ======" unitresult.log | tail -1 | cut -d: -f1)
+          tail -n +$LINE_NUM ./unitresult.log > test_summary.txt
+          exit $EXIT_CODE
+
+      - name: Run integration tests
+        id: run-integration-tests
+        run: |
+          export PYTHONPATH=./apptrace/src:./apptrace/tests
+          set -e
+          pytest -rfs apptrace/tests/integration/test*.py --tb=short | tee integrationresult.log
+          EXIT_CODE=${PIPESTATUS[0]}
+          grep -E 'FAILED.*::' integrationresult.log | cut -d ':' -f 1 | sort | uniq >> failed_files.txt
+          echo "Failed test files:"
+          cat ./failed_files.txt
+          LINE_NUM=$(grep -nE "===== .*((failed|passed|skipped|warnings).*)+ in .* ======" integrationresult.log | tail -1 | cut -d: -f1)
+          tail -n +$LINE_NUM ./integrationresult.log >> test_summary.txt
           exit $EXIT_CODE
 
       - name: Add Test Summary to Summary (Table)

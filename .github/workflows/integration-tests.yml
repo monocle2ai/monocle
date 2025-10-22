@@ -1,4 +1,4 @@
-name: Monocle Integration Tests
+name: Run Monocle Unit and Integration Tests
 
 on:
   push:
@@ -106,7 +106,8 @@ jobs:
           tail -n +$LINE_NUM ./unitresult.log > test_summary.txt
           exit $EXIT_CODE
 
-      - name: Run integration tests
+      - name: Run Integration tests
+        if: always()
         id: run-integration-tests
         run: |
           export PYTHONPATH=./apptrace/src:./apptrace/tests
@@ -149,7 +150,7 @@ jobs:
               done < failed_files.txt
             } >> $GITHUB_STEP_SUMMARY
           else
-            echo "### ✅ All integration tests passed!" >> $GITHUB_STEP_SUMMARY
+            echo "### ✅ All unit and integration tests passed!" >> $GITHUB_STEP_SUMMARY
           fi
 
       - name: Prepare email content
@@ -158,15 +159,15 @@ jobs:
           # Determine test status
           if [[ -s ./failed_files.txt ]]; then
             echo "TEST_STATUS=FAILED" >> $GITHUB_ENV
-            echo "EMAIL_SUBJECT=❌ Monocle Integration Tests FAILED - ${{ github.ref_name }}" >> $GITHUB_ENV
+            echo "EMAIL_SUBJECT=❌ Monocle Unit and Integration Tests FAILED - ${{ github.ref_name }}" >> $GITHUB_ENV
           else
             echo "TEST_STATUS=PASSED" >> $GITHUB_ENV
-            echo "EMAIL_SUBJECT=✅ Monocle Integration Tests PASSED - ${{ github.ref_name }}" >> $GITHUB_ENV
+            echo "EMAIL_SUBJECT=✅ Monocle Unit and Integration Tests PASSED - ${{ github.ref_name }}" >> $GITHUB_ENV
           fi
           
           # Create email body
           cat > email_body.txt << 'EOF'
-          Monocle Integration Test Results
+          Monocle Unit and Integration Test Results
           
           Repository: ${{ github.repository }}
           Branch: ${{ github.ref_name }}

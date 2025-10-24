@@ -110,7 +110,7 @@ DEFAULT_METHODS_LIST = (
     A2A_CLIENT_METHODS +
     LITELLM_METHODS +
     ADK_METHODS +
-    MISTRAL_METHODS +
+    MISTRAL_METHODS + 
     HUGGING_FACE_METHODS
 )
 
@@ -133,5 +133,5 @@ MONOCLE_SPAN_HANDLERS: Dict[str, SpanHandler] = {
     "llamaindex_tool_handler": LlamaIndexToolHandler(),
     "llamaindex_agent_handler": LlamaIndexAgentHandler(),
     "llamaindex_single_agent_tool_handler": LlamaIndexSingleAgenttToolHandlerWrapper(),
-    "lambda_func_handler": lambdaSpanHandler(),
+    "lambda_func_handler": lambdaSpanHandler()
 }

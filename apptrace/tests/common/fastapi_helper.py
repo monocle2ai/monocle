@@ -54,15 +54,15 @@ def start_fastapi():
     # server_process = multiprocessing.Process(target=start_server)
     # server_process.daemon = True
     # server_process.start()
-    for i in range(15):
-        try:
-            response = requests.get(get_url() + "/hello")
-            if response.status_code == 200:
-                logger.info("FastAPI server started successfully")
-                break
-        except Exception:
-            pass
-        time.sleep(1)
+    # for i in range(15):
+    #     try:
+    #         response = requests.get(get_url() + "/hello")
+    #         if response.status_code == 200:
+    #             logger.info("FastAPI server started successfully")
+    #             break
+    #     except Exception:
+    #         pass
+    time.sleep(5)
 
 def get_url() -> str:
     return f"http://127.0.0.1:{PORT}"

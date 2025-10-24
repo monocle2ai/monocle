@@ -6,7 +6,7 @@ logger = logging.getLogger(__name__)
 class LGRunner(AgentRunner):
     async def run_agent_async(self, root_agent, request: Union[str, dict]):
         if isinstance(request, str):
-            request = {
+            input = {
                 "messages": [
                 {
                     "role": "user",
@@ -20,7 +20,7 @@ class LGRunner(AgentRunner):
         logger.debug(chunk["messages"][-1].content)
         return chunk["messages"][-1].content
 
-    def run_agent(lg_agent, request: Union[str, dict]):
+    def run_agent(self, lg_agent, request: Union[str, dict]):
         if isinstance(request, str):
             request = {
                 "messages": [

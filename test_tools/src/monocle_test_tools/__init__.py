@@ -15,7 +15,9 @@ from .schema import (
     Entity,
     EntityType,
     SpanType,
-    Evaluation
+    Evaluation,
+    MockTool,
+    ToolType
 )
 
 from .evals import ( BaseEval, BertScorerEval)

@@ -143,7 +143,14 @@ async def test_agents_sdk_multi_agent(setup):
         # Test the multi-agent workflow with weather information
         result = await Runner.run(
             coordinator,
-            "I need to book a flight from NYC to LAX and also book the Hilton hotel in Los Angeles. Also check the weather in Los Angeles and New York to help with travel planning.",
+            "Please help me with my complete travel needs:Book a flight from NYC to LAX using the flight agent. Also check the weather in both cities. Please delegate to the appropriate specialized agents.",
+        )
+
+        logger.info(f"Multi-agent result: {result.final_output}")
+
+        result = await Runner.run(
+            coordinator,
+            "Please help me with my complete travel needs: Book the Hilton hotel in Los Angeles using the hotel agent, Also check the weather in both cities. Please delegate to the appropriate specialized agents.",
         )
 
         logger.info(f"Multi-agent result: {result.final_output}")
@@ -160,6 +167,7 @@ def verify_multi_agent_spans(memory_exporter=None):
     # Allow time for spans to be processed
 
     found_agent = found_tool = found_delegation = found_mcp = False
+    found_flight_delegation = found_hotel_delegation = False
     agent_names = set()
     tool_names = set()
     mcp_operations = set()
@@ -192,7 +200,10 @@ def verify_multi_agent_spans(memory_exporter=None):
             "span.type" in span_attributes
             and span_attributes["span.type"] == "agentic.tool.invocation"
         ):
-            assert span_attributes["entity.1.type"] == "tool.mcp"
+            if "is_mcp" in span_attributes and span_attributes["is_mcp"]:
+                assert span_attributes["entity.1.type"] == "tool.mcp"
+            else:
+                assert span_attributes["entity.1.type"] == "tool.openai_agents"
             assert "entity.1.name" in span_attributes
             tool_names.add(span_attributes["entity.1.name"])
             found_tool = True
@@ -206,6 +217,12 @@ def verify_multi_agent_spans(memory_exporter=None):
             assert "entity.1.from_agent" in span_attributes
             assert "entity.1.to_agent" in span_attributes
             found_delegation = True
+            
+            # Check for specific agent delegations
+            if span_attributes["entity.1.to_agent"] == "Flight Agent":
+                found_flight_delegation = True
+            elif span_attributes["entity.1.to_agent"] == "Hotel Agent":
+                found_hotel_delegation = True
 
         # Check for MCP-related spans
         if (
@@ -218,6 +235,8 @@ def verify_multi_agent_spans(memory_exporter=None):
     assert found_agent, "Agent span not found"
     assert found_tool, "Tool span not found"
     assert found_delegation, "Delegation span not found"
+    assert found_flight_delegation, "Flight Agent delegation span not found"
+    assert found_hotel_delegation, "Hotel Agent delegation span not found"
     assert found_mcp, "MCP operation span not found"
     # Note: Delegation might not always occur depending on the model's decisions
     # Note: MCP spans might not always occur depending on whether MCP tools are called

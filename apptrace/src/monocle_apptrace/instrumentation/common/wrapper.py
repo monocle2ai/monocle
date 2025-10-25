@@ -105,12 +105,13 @@ def monocle_wrapper_span_processor(tracer: Tracer, handler: SpanHandler, to_wrap
                 except Exception as e:
                     logger.info(f"Warning: Error occurred in hydrate_span pre_process_span: {e}")
                 try:
-                    return_value, span_status = monocle_wrapper_span_processor(tracer, handler, to_wrap, wrapped, instance, source_path, False, args, kwargs)
+                    with monocle_trace_scope(get_builtin_scope_names(to_wrap)):
+                        return_value, span_status = monocle_wrapper_span_processor(tracer, handler, to_wrap, wrapped, instance, source_path, False, args, kwargs)
                 except Exception as e:
                     ex = e
                     raise
                 finally:
-                    return_value = post_process_span_internal(return_value)
+                    return_value = post_process_span(handler, to_wrap, wrapped, instance, args, kwargs, return_value, span, parent_span ,ex)
             else:
                 try:
                     handler.hydrate_span(to_wrap, wrapped, instance, args, kwargs, None, span, parent_span, ex,
@@ -192,12 +193,13 @@ async def amonocle_wrapper_span_processor(tracer: Tracer, handler: SpanHandler, 
                     logger.info(f"Warning: Error occurred in hydrate_span pre_process_span: {e}")
 
                 try:
-                    return_value, span_status = await amonocle_wrapper_span_processor(tracer, handler, to_wrap, wrapped, instance, source_path, False, args, kwargs)
+                    with monocle_trace_scope(get_builtin_scope_names(to_wrap)):
+                        return_value, span_status = await amonocle_wrapper_span_processor(tracer, handler, to_wrap, wrapped, instance, source_path, False, args, kwargs)
                 except Exception as e:
                     ex = e
                     raise
                 finally:
-                    return_value = post_process_span_internal(return_value)
+                    return_value = post_process_span(handler, to_wrap, wrapped, instance, args, kwargs, return_value, span, parent_span ,ex)
             else:
                 try:
                     handler.hydrate_span(to_wrap, wrapped, instance, args, kwargs, None, span, parent_span, ex,
@@ -253,9 +255,10 @@ async def amonocle_iter_wrapper_span_processor(tracer: Tracer, handler: SpanHand
                 except Exception as e:
                     logger.info(f"Warning: Error occurred in hydrate_span pre_process_span: {e}")
                 try:
-                    async for item in amonocle_iter_wrapper_span_processor(tracer, handler, to_wrap, wrapped, instance, source_path, False, args, kwargs):
-                        last_item = item
-                        yield item
+                    with monocle_trace_scope(get_builtin_scope_names(to_wrap)):
+                        async for item in amonocle_iter_wrapper_span_processor(tracer, handler, to_wrap, wrapped, instance, source_path, False, args, kwargs):
+                            last_item = item
+                            yield item
                 except Exception as e:
                     ex = e
                     raise

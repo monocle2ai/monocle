@@ -6,7 +6,7 @@ from typing import Annotated, Any, Dict, List, TypedDict
 from langchain_core.messages import BaseMessage, HumanMessage
 from langchain_core.tools import tool
 from langchain_openai import ChatOpenAI
-from langgraph.checkpoint.memory import MemorySaver  # 👈 UPDATED IMPORT
+from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import END, StateGraph
 from langgraph.graph.message import add_messages
 from langgraph.prebuilt import (
@@ -23,12 +23,6 @@ setup_monocle_telemetry(
     workflow_name="langchain_travel_agent_demo",
     monocle_exporters_list="file"
 )
-
-
-# ==================================================================
-# ## 1. Mock Tool Functions
-# (Tools remain unchanged)
-# ==================================================================
 
 def book_flight_internal(from_city: str, to_city: str, travel_date: str = "2025-12-01", is_business: bool = False) -> Dict[str, Any]:
     """Internal function for flight booking logic."""
@@ -100,7 +94,7 @@ def get_recommendations_tool(destination: str) -> str:
 ALL_TOOLS = [book_flight_tool, book_hotel_tool, get_recommendations_tool]
 
 # ==================================================================
-# ## 2. LangGraph State Definition
+# LangGraph State Definition
 # ==================================================================
 
 class AgentState(TypedDict):
@@ -108,7 +102,7 @@ class AgentState(TypedDict):
     next: str
 
 # ==================================================================
-# ## 3. Agent and Router Definitions
+# Agent and Router Definitions
 # ==================================================================
 
 LLM = ChatOpenAI(model="gpt-4o", temperature=0)
@@ -187,7 +181,7 @@ def route_agent(state: AgentState):
 
 
 # ==================================================================
-# ## 5. Execution Class (Fixed for context)
+# Execution Class (Fixed for context)
 # ==================================================================
 
 class LangChainTravelAgentDemo:
@@ -198,8 +192,8 @@ class LangChainTravelAgentDemo:
         self.thread_id = "demo-travel-session-1" 
 
     def __initialize_graph__(self):
-                # ==================================================================
-        # ## 4. Build the Graph
+        # ==================================================================
+        # Build the Graph
         # ==================================================================
 
         graph_builder = StateGraph(AgentState)
@@ -226,10 +220,10 @@ class LangChainTravelAgentDemo:
         graph_builder.add_edge("hotel_agent", END)
         graph_builder.add_edge("recommendations_agent", END)
 
-        # 6. Set up memory (checkpointing) 👈 UPDATED STEP
+        # 6. Set up memory (checkpointing)
         memory = MemorySaver()  # In-memory checkpointing for context
 
-        # 7. Compile the graph, passing the memory object 👈 NEW STEP
+        # 7. Compile the graph, passing the memory object 
         return  graph_builder.compile(checkpointer=memory)
 
     async def process_travel_request(self, user_request: str) -> str:

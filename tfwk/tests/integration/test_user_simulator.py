@@ -12,7 +12,7 @@ async def test_travel_agent_vague_user():
     booking_app = LangChainTravelAgentDemo()
     test_persona_1 = {
         "goal": "Book a flight to Paris for 2 people tomorrow.",
-        "data": {
+        "persona_data": {
             # "source": "New York",
             "destination": "Paris",
             "date": "tomorrow",

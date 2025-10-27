@@ -64,7 +64,7 @@ class TestLangChainTravelAgent(BaseAgentTest):
         test_persona = {
             "goal": "Please book 1. business class flight from Delhi to Mumbai on December 15th, 2025 for a single traveller\
                      2. and luxury hotel for 2 nights starting December 15th.",
-            "data": {
+            "persona_data": {
                 "destination": "Mumbai",
                 "date": "December 15th, 2025",
                 "passengers": 1,
@@ -161,7 +161,7 @@ class TestLangChainTravelAgent(BaseAgentTest):
         
         test_persona = {
             "goal": "Book a luxury hotel in Goa for 3 nights starting December 20th",
-            "data": {
+            "persona_data": {
                 "destination": "Goa",
                 "date": "December 20th, 2025",
                 "passengers": 4

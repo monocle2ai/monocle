@@ -7,8 +7,6 @@ import textwrap
 from enum import StrEnum
 from typing import Any, Callable, Dict
 
-import httpx
-
 # --- Persona Schema ---
 # The persona dictionary must have the following structure:
 # {
@@ -79,73 +77,49 @@ class TestAgent:
         logger.info(f"TestAgent initialized with persona goal: {self.persona.get(PersonaKeys.GOAL)}")
 
     async def _call_openai_api(self, system_prompt: str, user_prompt: str, max_retries: int = 5) -> str:
-        """Calls the OpenAI API with exponential backoff."""
-        
-        # --- Removed Mocking Logic ---
+        """Calls the OpenAI API using openai.OpenAI client, enforcing JSON output."""
+        try:
+            import openai
+        except ImportError:
+            logger.info("   [TestAgent LLM ERROR] openai package not installed.")
+            return "Error: openai package not installed."
         if not self.api_key:
             logger.info("   [TestAgent LLM ERROR] API key not set. Cannot generate simulated answer.")
             return "Error: OPENAI_API_KEY is missing."
-        # --- End Removed Mocking Logic ---
 
-
-        # OpenAI-specific payload using constants
-        payload = {
-            "model": MODEL,
-            "messages": [
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt}
-            ],
-            "temperature": TEMPERATURE,
-            "top_p": TOP_P,
-            "max_tokens": MAX_TOKENS,
-        }
-
-        # OpenAI uses Bearer token authentication
-        headers = {
-            'Content-Type': 'application/json',
-            'Authorization': f'Bearer {self.api_key}'
-        }
-        base_delay_s = 1
-
-        # Use httpx.AsyncClient for async requests
-        async with httpx.AsyncClient(timeout=60.0) as client:
-            for attempt in range(max_retries):
-                try:
-                    logger.info(f"   [TestAgent LLM Call] Attempt {attempt+1} to OpenAI API...")
-                    response = await client.post(API_URL, json=payload, headers=headers)
-
-                    if response.status_code == 200:
-                        result = response.json()
-                        # Extract text from the OpenAI response
-                        text = result.get("choices", [{}])[0].get("message", {}).get("content", "")
-
-                        if text:
-                            logger.info("   [TestAgent LLM Success] Received response.")
-                            return text.strip()
-                        else:
-                            logger.info(f"   [TestAgent LLM WARNING] Received 200 OK but no text in response: {result}")
-                            # Fallthrough to retry logic
-
-                    elif response.status_code == 429 or response.status_code >= 500:
-                        # Throttling or server error, time to back off
-                        logger.info(f"   [TestAgent LLM Retryable Error] Status {response.status_code}. Retrying...")
-
-                    else:
-                        # Client-side error (4xx) that isn't 429. Don't retry.
-                        logger.info(f"   [TestAgent LLM Non-Retryable Error] Status {response.status_code}: {response.text}")
-                        return f"Error: Failed to call LLM with status {response.status_code}"
-
-                except httpx.RequestError as e:
-                    logger.info(f"   [TestAgent LLM Request Error] An error occurred while requesting {e.request.url!r}: {e}")
-                    # This is likely retryable (e.g., connection error)
-
-                # If we're here, we need to retry
+        client = openai.OpenAI(api_key=self.api_key)
+        
+        # --- FIX 1: Add JSON requirement to the prompt for API validation ---
+        # This addresses the Error code 400: "'messages' must contain the word 'json' in some form..."
+        json_enforcement_prompt = "\n\nYour final response MUST be a valid JSON object."
+        modified_system_prompt = system_prompt + json_enforcement_prompt
+        
+        for attempt in range(max_retries):
+            try:
+                logger.info(f"   [TestAgent LLM Call] Attempt {attempt+1} to OpenAI API...")
+                
+                completion = client.chat.completions.create(
+                    model=MODEL,
+                    messages=[
+                        {"role": "system", "content": modified_system_prompt},
+                        {"role": "user", "content": user_prompt}
+                    ],
+                    temperature=TEMPERATURE,
+                    max_tokens=MAX_TOKENS,
+                    response_format={"type": "json_object"}
+                )
+                text = completion.choices[0].message.content.strip()
+                if text:
+                    logger.info("   [TestAgent LLM Success] Received response.")
+                    return text
+                else:
+                    logger.info(f"   [TestAgent LLM WARNING] Received response but no text: {completion}")
+            except Exception as e:
+                logger.info(f"   [TestAgent LLM Error] {e}")
                 if attempt < max_retries - 1:
-                    # Exponential backoff with jitter
-                    delay = (base_delay_s * (2 ** attempt)) + (random.uniform(0, 1))
+                    delay = (1 * (2 ** attempt)) + (random.uniform(0, 1))
                     logger.info(f"   [TestAgent LLM Retry] Waiting {delay:.2f}s before next attempt...")
                     await asyncio.sleep(delay)
-
         logger.info(f"   [TestAgent LLM ERROR] Failed to get response after {max_retries} attempts.")
         return "Error: LLM call failed after all retries."
         
@@ -177,16 +151,29 @@ class TestAgent:
             # Handle error from LLM call
             logger.info(f"   [TestAgent ERROR] Failed to generate initial query: {initial_query}")
             return "Error: Failed to generate initial query."
-        return initial_query
+        
+        # NOTE: If this first call is *not* meant to return JSON,
+        # you would need a separate LLM call function without the 
+        # response_format={"type": "json_object"} parameter.
+        # For now, we assume the initial query is a simple string the tool expects.
+        try:
+            # The initial query generator is often used to create a simple string.
+            # We will attempt to parse the JSON and extract a 'response' key if it exists,
+            # otherwise, we return the raw text (this is an assumption for 'gpt-4o' usage).
+            result_dict = json.loads(initial_query)
+            return result_dict.get("response", initial_query)
+        except json.JSONDecodeError:
+            return initial_query
+        except AttributeError:
+            # If the result isn't a string (shouldn't happen, but defensive)
+            return str(initial_query)
 
 
-    async def _simulate_user_answer_llm(self, question: str) -> str:
+    async def _simulate_user_answer_llm(self, question: str) -> dict:
         """
         Simulates a user's response based on the persona using an LLM.
-        The prompt logic is defined *in the persona*.
+        Returns a dict: {"response": ..., "goal_achieved": ...}
         """
-        
-        # 1. Build the System Prompt (from the persona)
         persona_data_str = json.dumps(self.persona.get(PersonaKeys.PERSONA_DATA, {}))
         persona_goal = self.persona.get(PersonaKeys.GOAL, "No goal specified.")
 
@@ -196,11 +183,11 @@ class TestAgent:
                 goal=persona_goal,
                 persona_data=persona_data_str
             )
+            # Removed redundant JSON instruction, as it is now in _call_openai_api
         except (KeyError, TypeError) as e:
             logger.info(f"   [TestAgent ERROR] Invalid '{PersonaKeys.CLARIFICATION_PROMPT}' template: {e}")
-            return f"Error: Invalid {PersonaKeys.CLARIFICATION_PROMPT} in persona."
+            return {"response": f"Error: Invalid {PersonaKeys.CLARIFICATION_PROMPT} in persona.", "goal_achieved": False}
 
-        # 2. Build the User Prompt (the input to the LLM) - Always use conversation_history
         history_str = ""
         for turn in self.conversation_history:
             if 'user' in turn:
@@ -224,16 +211,32 @@ class TestAgent:
             {question}
             </question>
 
-            Based on your instructions and the conversation so far, either answer the question or indicate that the conversation is complete if the user's goal is achieved.
+            Based on your instructions and the conversation so far, check whether all objectives in the goal are met or not.
+            If not all objectives are met, as user's persona, provide the specific information requested by the agent.
+            Your answer in JSON format with this exact structure: "
+            '{{"goal_achieved": true/false, "information": "your answer as the user persona"}}'
         """).strip()
 
-        # 3. Call the LLM
         response_text = await self._call_openai_api(system_prompt, user_prompt)
 
         if response_text.startswith("Error:"):
-            return None # Propagate failure
+            return {"information": response_text, "goal_achieved": False}
 
-        return response_text
+        # Try to parse as JSON
+        try:
+            result = json.loads(response_text)
+            if isinstance(result, dict) and "information" in result and "goal_achieved" in result:
+                return result
+        except Exception as e:
+            logger.info(f"   [TestAgent ERROR] Could not parse LLM response as JSON: {e}. Raw: {response_text}")
+
+        # Fallback: heuristic for goal_achieved
+        goal_achieved = any(
+            phrase in response_text.lower() for phrase in [
+                "conversation is complete", "goal achieved", "no further action", "thank you", "done"
+            ]
+        )
+        return {"information": response_text, "goal_achieved": goal_achieved}
 
     async def run_test(self, max_turns: int = 5) -> list:
         """
@@ -267,6 +270,7 @@ class TestAgent:
             self.conversation_history.append({'user': current_query})
             # 2. AppAgent processes the request (calling the generic tool)
             try:
+                # current_query is now guaranteed to be a string
                 app_response = await self.safe_tool_to_test(current_query)
             except Exception as e:
                 logger.info("\n--- Test Failed ---")
@@ -281,16 +285,33 @@ class TestAgent:
             # 4. TestAgent analyzes the response
             # Let the LLM decide if the conversation is complete or needs clarification
             simulated_answer = await self._simulate_user_answer_llm(response_text)
+            logger.info(f"[TestAgent (LLM) Simulated Answer]: {json.dumps(simulated_answer, indent=2)}")
+            
+            # Error check (string or None)
             if simulated_answer is None or (isinstance(simulated_answer, str) and simulated_answer.startswith("Error:")):
                 logger.info("\n--- Test Ended ---")
                 logger.info(f"TestAgent (LLM) did not generate a further answer. Final result: {response_text}")
                 return self.conversation_history
+            
+            # --- FIX 3: Extract the string 'information' from the dictionary ---
+            # This addresses the validation error: 'Input should be a valid string'
+            next_user_message = simulated_answer.get("information")
+            goal_achieved = simulated_answer.get("goal_achieved", False)
+
             # Heuristic: If the LLM says the conversation is complete, end
-            if any(phrase in simulated_answer.lower() for phrase in ["conversation is complete", "goal achieved", "no further action", "thank you", "done"]):
+            if goal_achieved:
                 logger.info("\n--- Test Succeeded ---")
                 logger.info(f"Final Result: {response_text}")
                 return self.conversation_history
-            current_query = simulated_answer
+                
+            # Set the next query to be the *string* content
+            current_query = next_user_message
+            
+            if current_query is None:
+                # Fail if 'response' key was missing
+                logger.info("\n--- Test Ended ---")
+                logger.info("TestAgent (LLM) response was malformed (missing 'response' key).")
+                return self.conversation_history
+
         logger.info(f"\n--- Test Ended: Max turns ({max_turns}) reached ---")
         return self.conversation_history
-

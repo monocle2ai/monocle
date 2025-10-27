@@ -62,8 +62,7 @@ class TestLangChainTravelAgent(BaseAgentTest):
         logger.info("🧪 Testing hotel booking specific flow")
         
         test_persona = {
-            "goal": "Please book 1. business class flight from Delhi to Mumbai on December 15th, 2025 for a single traveller\
-                     2. and luxury hotel for 2 nights starting December 15th.",
+            "goal": "Recommend places to see in Mumbai and book business class flight from Delhi to Mumbai on December 15th, 2025 for a single traveller and luxury hotel for 2 nights starting December 15th.",
             "persona_data": {
                 "destination": "Mumbai",
                 "date": "December 15th, 2025",

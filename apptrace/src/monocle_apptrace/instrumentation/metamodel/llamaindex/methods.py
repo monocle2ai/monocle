@@ -94,13 +94,6 @@ LLAMAINDEX_METHODS = [
         "output_processor": AGENT
     },
     {
-        "package": "llama_index.core.agent",
-        "object": "ReActAgent",
-        "method": "achat",
-        "wrapper_method": atask_wrapper,
-        "output_processor": AGENT
-    },
-    {
         "package": "llama_index.core.agent.workflow.function_agent",
         "object": "FunctionAgent",
         "method": "finalize",

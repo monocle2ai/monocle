@@ -11,7 +11,7 @@ A2A_CLIENT_METHODS = [
     #     "output_processor": A2A_RESOLVE,
     # },
     {
-        "package": "a2a.client.client",
+        "package": "a2a.client",
         "object": "A2AClient",
         "method": "send_message",
         "wrapper_method": atask_wrapper,

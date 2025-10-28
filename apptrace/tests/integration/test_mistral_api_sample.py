@@ -2,7 +2,6 @@ import asyncio
 import logging
 import os
 import time
-
 import pytest
 from common.custom_exporter import CustomConsoleSpanExporter
 from common.helpers import (
@@ -14,7 +13,8 @@ from common.helpers import (
 from mistralai import Mistral, models
 from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
 from monocle_apptrace.instrumentation.common.utils import logger
-from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+from config.conftest import temporary_env_var
 
 logger = logging.getLogger(__name__)
 
@@ -25,8 +25,8 @@ def setup():
     try:
         instrumentor = setup_monocle_telemetry(
             workflow_name="generic_mistral_1",
-            span_processors=[BatchSpanProcessor(custom_exporter)],
-            # wrapper_methods=MISTRAL_METHODS,
+            span_processors=[SimpleSpanProcessor(custom_exporter)],
+            wrapper_methods=[]
         )
         yield custom_exporter
     finally:
@@ -163,35 +163,37 @@ async def test_mistral_api_sample_async(setup):
 
 
 def test_mistral_invalid_api_key(setup):
-    try:
-        client = Mistral(api_key="invalid_key_123")
-        client.chat.complete(
-            model="mistral-small",
-            messages=[{"role": "user", "content": "test"}],
-        )
-    except models.SDKError as e:
-        # e.status_code is correct
-        assert e.status_code == 401
-        # The response body contains the actual "Unauthorized" text
-        assert '"Unauthorized"' in e.body
+    """Test handling of invalid API key using temporary environment variable"""
+    with temporary_env_var("MISTRAL_API_KEY", "invalid_key_123"):
+        try:
+            client = Mistral()
+            client.chat.complete(
+                model="mistral-small",
+                messages=[{"role": "user", "content": "test"}],
+            )
+        except models.SDKError as e:
+            # e.status_code is correct
+            assert e.status_code == 401
+            # The response body contains the actual "Unauthorized" text
+            assert '"Unauthorized"' in e.body
 
-    # Wait for spans to be flushed
-    time.sleep(5)
-    spans = setup.get_captured_spans()
+        # Wait for spans to be flushed
+        time.sleep(5)
+        spans = setup.get_captured_spans()
 
-    for span in spans:
-        if span.attributes.get("span.type") in ["inference", "inference.framework"]:
-            events = [e for e in span.events if e.name == "data.output"]
-            assert len(events) > 0
-            # Span should have ERROR status
-            assert span.status.status_code.value == 2
+        for span in spans:
+            if span.attributes.get("span.type") in ["inference", "inference.framework"]:
+                events = [e for e in span.events if e.name == "data.output"]
+                assert len(events) > 0
+                # Span should have ERROR status
+                assert span.status.status_code.value == 2
 
-            # Current error_code in span is just "error"
-            error_code = events[0].attributes.get("error_code")
-            assert error_code == "error"
+                # Current error_code in span is just "error"
+                error_code = events[0].attributes.get("error_code")
+                assert error_code == "error"
 
-            response = events[0].attributes.get("response")
-            assert response is None or response == ""
+                response = events[0].attributes.get("response")
+                assert response is None or response == ""
 
 
 if __name__ == "__main__":

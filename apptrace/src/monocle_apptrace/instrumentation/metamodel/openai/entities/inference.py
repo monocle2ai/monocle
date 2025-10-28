@@ -11,6 +11,7 @@ from monocle_apptrace.instrumentation.common.utils import (
     patch_instance_method,
     resolve_from_alias,
 )
+from monocle_apptrace.instrumentation.common.constants import PROVIDER_BASE_URLS
 
 logger = logging.getLogger(__name__)
 
@@ -120,6 +121,24 @@ def _create_span_result(state, stream_start_time):
         finish_reason=state["finish_reason"],
     )
 
+# Registry mapping client detection functions → entity_type
+CLIENT_ENTITY_MAP = {
+    "deepseek": "inference.deepseek",
+    # add more clients in future
+}
+
+def get_entity_type(response, helper=None):
+    for client_name, entity in CLIENT_ENTITY_MAP.items():
+        check_fn = globals().get(f"is_{client_name}_client")
+        if check_fn and check_fn(response):
+            return entity
+
+    # fallback to helper if available
+    if helper and hasattr(helper, "get_inference_type"):
+        return "inference." + helper.get_inference_type(response)
+
+    # default fallback
+    return "inference.openai"
 
 def process_stream(to_wrap, response, span_processor):
     stream_start_time = time.time_ns()

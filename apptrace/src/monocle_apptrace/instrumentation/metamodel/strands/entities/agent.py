@@ -125,7 +125,7 @@ TOOLS = {
               {
                 "_comment": "agent type",
                 "attribute": "type",
-                "accessor": lambda arguments:'agent.langgraph'
+                "accessor": lambda arguments:'agent.strands'
               }
         ]
       ],

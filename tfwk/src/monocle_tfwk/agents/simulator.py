@@ -29,7 +29,7 @@ MODEL = "gpt-4o"  # You can change this to gpt-4, gpt-4o, etc.
 API_URL = "https://api.openai.com/v1/chat/completions"
 TEMPERATURE = 0.01
 TOP_P = 1
-MAX_TOKENS = 2000  # OpenAI uses max_tokens, not maxOutputTokens
+MAX_TOKENS = 4000  # OpenAI uses max_tokens, not maxOutputTokens
 
 logger = logging.getLogger(__name__)
 
@@ -39,7 +39,7 @@ class TestAgent:
 
     DEFAULT_CLARIFICATION_PROMPT = textwrap.dedent("""
         You are a user answering a clarification question from an agent.
-        Your goal is to provide answers to complete the clarification.
+        Your goal is {goal}
         You use the following persona data:
         {persona_data}
 
@@ -212,11 +212,6 @@ class TestAgent:
                 history_str += f"Agent: {turn['assistant']}\n"
 
         user_prompt = textwrap.dedent(f"""
-            Here is the goal you are trying to achieve:
-            <goal>
-            {persona_goal}
-            </goal>
-
             Here is the conversation so far:
             <history>
             {history_str.strip()}

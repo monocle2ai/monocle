@@ -24,18 +24,6 @@ async def test_travel_agent_vague_user():
             Your data is: {persona_data}
             Start the conversation VAGUELY. Do not provide all the information. 
             Just say something like "Hi, I need to book a flight."
-        """).strip(),
-        "clarification_prompt": textwrap.dedent("""
-            You are a user simulator answering a clarification question from a booking agent.
-            Your goal is to provide answers to complete the clarification.
-            You use the following persona data:
-            {persona_data}
-
-            You will be given the conversation history and a final question from the agent.
-            Your job is to answer ONLY that final question, using the information from your persona data,
-            or make up any missing details.
-            - Do not be overly conversational.
-            - Just provide the specific information requested.
         """).strip()
     }
 

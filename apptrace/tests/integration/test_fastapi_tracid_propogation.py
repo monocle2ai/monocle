@@ -70,7 +70,23 @@ def verify_scopes(setup):
                 assert message_scope_id is not None, f"No scope.{CONVERSATION_SCOPE_NAME} found in span attributes: {dict(span_attributes)}"
             else:
                 assert message_scope_id == span_attributes.get("scope."+CONVERSATION_SCOPE_NAME)
+        
+        # Verify FastAPI response spans specifically
+        if span.name == "fastapi.response":
+            assert span_attributes.get("span.type", "") == "http.send"
+            logger.info("Found FastAPI response span with correct span.type: http.send")
             
+            # Verify the span has the expected events
+            if len(span.events) == 2:
+                span_input, span_output = span.events
+                assert span_input.name == "data.input", f"Expected input event name 'data.input', got '{span_input.name}'"
+                assert span_output.name == "data.output", f"Expected output event name 'data.output', got '{span_output.name}'"
+                
+                # Check that we have error_code in output
+                if 'error_code' in span_output.attributes:
+                    assert span_output.attributes['error_code'] == "200", f"Expected error_code '200', got '{span_output.attributes['error_code']}'"
+                    logger.info("FastAPI response span has correct error_code: 200")
+
         if span_attributes.get("span.type", "") == "http.send":
             if len(span.events) == 2:
                 span_input, span_output = span.events

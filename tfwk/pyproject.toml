@@ -41,7 +41,7 @@ dependencies = [
     "monocle_apptrace>=0.5.0",
     
     # Query engine dependencies
-    "jmespath>=1.0.0",
+    "jmespath>=1.0.0"
 ]
 
 [project.optional-dependencies]
@@ -50,6 +50,8 @@ dev = [
     "black>=23.0.0",
     "flake8>=6.0.0",
     "mypy>=1.0.0",
+    "mem0ai >=1.0.0",
+    "chromadb>=1.0.15"
 ]
 
 [project.urls]

@@ -73,18 +73,7 @@ class TestLangChainTravelAgent(BaseAgentTest):
                 You are a user conversing with a travel agent.
                 Your goal is: {goal}
                 Your data is: {persona_data}
-                Just say something like "Hi, I need a travel plan."
-            """).strip(),
-            "clarification_prompt": textwrap.dedent("""
-                You are a user answering a clarification question from a travel agent.
-                Your goal is to provide answers to complete the clarification.
-                You use the following persona data:
-                {persona_data}
-
-                You will be given the conversation history and a final question from the agent.
-                Your job is to answer questions till the goal is achieved, using the information from your persona data or make up any missing details.
-                - Do not be overly conversational.
-                - Just provide the specific information requested.
+                Just say something like "Hi, plan my stay and travel to Mumbai"
             """).strip()
         }
 
@@ -171,18 +160,6 @@ class TestLangChainTravelAgent(BaseAgentTest):
                 Your data is: {persona_data}
                 Start the conversation VAGUELY. Do not provide all the information. 
                 Just say something like "Hi, I need to book a hotel."
-            """).strip(),
-            "clarification_prompt": textwrap.dedent("""
-                You are a user simulator answering a clarification question from a booking agent.
-                Your goal is to provide answers to complete the clarification.
-                You use the following persona data:
-                {persona_data}
-
-                You will be given the conversation history and a final question from the agent.
-                Your job is to answer ONLY that final question, using the information from your persona data,
-                or make up any missing details.
-                - Do not be overly conversational.
-                - Just provide the specific information requested.
             """).strip()
         }
 

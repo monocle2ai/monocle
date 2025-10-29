@@ -36,6 +36,18 @@ logger = logging.getLogger(__name__)
 
 # --- This class is now LLM-powered (OpenAI) ---
 class TestAgent:
+
+    DEFAULT_CLARIFICATION_PROMPT = textwrap.dedent("""
+        You are a user answering a clarification question from an agent.
+        Your goal is to provide answers to complete the clarification.
+        You use the following persona data:
+        {persona_data}
+
+        You will be given the conversation history and a final question from the agent.
+        Your job is to answer questions till the goal is achieved, using the information from your persona data or make up any missing details.
+        - Do not be overly conversational.
+        - Just provide the specific information requested.
+    """).strip()
     # conversation_history: List[dict]  # [{'user': ...}, {'assistant': ...}, ...]
     """
     Represents a generic, domain-agnostic testing agent that simulates a user.
@@ -59,8 +71,13 @@ class TestAgent:
         if not asyncio.iscoroutinefunction(tool_to_test):
             raise TypeError("The 'tool_to_test' must be an async function (defined with 'async def').")
             
+
         self.app_tool = tool_to_test
-        self.persona = user_persona
+        # If clarification_prompt is missing, use the default
+        persona = dict(user_persona)
+        if PersonaKeys.CLARIFICATION_PROMPT not in persona:
+            persona[PersonaKeys.CLARIFICATION_PROMPT] = self.DEFAULT_CLARIFICATION_PROMPT
+        self.persona = persona
         self.conversation_history = []  # [{'user': ...}, {'assistant': ...}, ...]
 
         # Validate persona structure
@@ -144,7 +161,6 @@ class TestAgent:
 
         # The user prompt is generic, asking the LLM to execute its instructions
         user_prompt = "Please generate the initial message now."
-        
         logger.info("   [TestAgent LLM Call] Generating initial query...")
         initial_query = await self._call_openai_api(system_prompt, user_prompt)
         if initial_query.startswith("Error:"):
@@ -264,9 +280,11 @@ class TestAgent:
         logger.info(f"Initial Query (Generated): '{current_query}'")
 
         for turn in range(max_turns):
-            logger.info(f"\n--- Turn {turn + 1} ---")
+            # Bold for turn header
+            logger.info(f"\n\033[1m--- Turn {turn + 1} ---\033[0m")
             # 1. TestAgent "speaks" to the AppAgent (its tool)
-            logger.info(f"[TestAgent -> AppAgent]: {current_query}")
+            # Cyan for TestAgent -> AppAgent
+            logger.info(f"\033[96m[TestAgent -> AppAgent]: {current_query}\033[0m")
             self.conversation_history.append({'user': current_query})
             # 2. AppAgent processes the request (calling the generic tool)
             try:
@@ -277,7 +295,8 @@ class TestAgent:
                 logger.info(f"The application tool itself raised an exception: {e}")
                 return self.conversation_history
             # 3. TestAgent "hears" the AppAgent's response
-            logger.info(f"[AppAgent -> TestAgent]: {json.dumps(app_response, indent=2)}")
+            # Green for AppAgent -> TestAgent
+            logger.info(f"\033[92m[AppAgent -> TestAgent]: {json.dumps(app_response, indent=2)}\033[0m")
             # Store the *dictionary* response for full context
             response_text = app_response.get("response")
             self.conversation_history.append({'assistant': response_text})
@@ -285,7 +304,7 @@ class TestAgent:
             # 4. TestAgent analyzes the response
             # Let the LLM decide if the conversation is complete or needs clarification
             simulated_answer = await self._simulate_user_answer_llm(response_text)
-            logger.info(f"[TestAgent (LLM) Simulated Answer]: {json.dumps(simulated_answer, indent=2)}")
+            #logger.info(f"[TestAgent (LLM) Simulated Answer]: {json.dumps(simulated_answer, indent=2)}")
             
             # Error check (string or None)
             if simulated_answer is None or (isinstance(simulated_answer, str) and simulated_answer.startswith("Error:")):

@@ -30,7 +30,7 @@ from monocle_apptrace.instrumentation.common.utils import (
     set_scopes,
     with_tracer_wrapper,
 )
-
+from monocle_apptrace.instrumentation.metamodel.langgraph.langgraph_processor import ParentCommandFilterSpan
 logger = logging.getLogger(__name__)
 ISOLATE_MONOCLE_SPANS = os.getenv("MONOCLE_ISOLATE_SPANS", "true").lower() == "true"
 
@@ -385,16 +385,27 @@ def start_as_monocle_span(tracer: Tracer, name: str, auto_close_span: bool) -> I
     """
     if not ISOLATE_MONOCLE_SPANS:
         # If not isolating, use the default start_as_current_span
-        yield tracer.start_as_current_span(name, end_on_exit=auto_close_span)
+        with tracer.start_as_current_span(name, end_on_exit=auto_close_span) as span:
+            # Wrap the span to filter ParentCommand exceptions
+            filtered_span = ParentCommandFilterSpan(span)
+            # Monkey-patch the record_exception method on the original span
+            span.record_exception = filtered_span.record_exception
+            yield span
         return
     original_span = get_current_span()
     monocle_span_token = attach(set_span_in_context(get_current_monocle_span()))
     with tracer.start_as_current_span(name, end_on_exit=auto_close_span) as span:
         new_monocle_token = attach(set_monocle_span_in_context(span))
         original_span_token = attach(set_span_in_context(original_span))
-        yield span
-        detach(original_span_token)
-        detach(new_monocle_token)
+        try:
+            # Wrap the span to filter ParentCommand exceptions
+            filtered_span = ParentCommandFilterSpan(span)
+            # Monkey-patch the record_exception method on the original span
+            span.record_exception = filtered_span.record_exception
+            yield span
+        finally:
+            detach(original_span_token)
+            detach(new_monocle_token)
     detach(monocle_span_token)
 
 def get_builtin_scope_names(to_wrap) -> str:

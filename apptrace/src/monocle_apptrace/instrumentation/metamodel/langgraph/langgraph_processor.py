@@ -47,4 +47,32 @@ class LanggraphToolHandler(SpanHandler):
             agent_request_wrapper = to_wrap
 
         return super().hydrate_span(agent_request_wrapper, wrapped, instance, args, kwargs, result, span, parent_span, ex)
-    
+
+class ParentCommandFilterSpan:
+    """A wrapper that filters out ParentCommand exceptions from being recorded in the span."""
+
+    def __init__(self, span):
+        self._span = span
+        self._original_record_exception = span.record_exception
+
+    def record_exception(self, exception, attributes=None, timestamp=None, escaped=False):
+        """Override record_exception to filter out ParentCommand exceptions."""
+        try:
+            from langgraph.errors import ParentCommand
+            if isinstance(exception, ParentCommand):
+                # Don't record ParentCommand exceptions
+                return
+        except ImportError:
+            pass
+        # Record all other exceptions normally
+        return self._original_record_exception(exception, attributes, timestamp, escaped)
+
+    def __getattr__(self, name):
+        """Delegate all other attributes to the original span."""
+        return getattr(self._span, name)
+
+    def __enter__(self):
+        return self._span.__enter__()
+
+    def __exit__(self, exception_type, exception_value, traceback):
+        return self._span.__exit__(exception_type, exception_value, traceback)

@@ -246,16 +246,8 @@ def get_parent_span() -> Span:
 
 def extract_http_headers(headers) -> object:
     global http_scopes
-    current_context = get_current()
-    trace_context = extract(headers, context=current_context)
-    
-    # Only set new workflow if there's no existing trace context
-    if trace_context == current_context:  # No context was extracted from headers
-        trace_context = set_value(ADD_NEW_WORKFLOW, True, trace_context)
-    else:
-        # Preserve existing trace context
-        trace_context = set_value(ADD_NEW_WORKFLOW, False, trace_context)
-    
+    trace_context:Context = extract(headers, context=get_current())
+    trace_context = set_value(ADD_NEW_WORKFLOW, True, trace_context)
     imported_scope:dict[str, object] = {}
     for http_header, http_scope in http_scopes.items():
         if http_header in headers:

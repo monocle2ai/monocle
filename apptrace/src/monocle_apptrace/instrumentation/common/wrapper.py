@@ -379,55 +379,19 @@ def start_as_monocle_span(tracer: Tracer, name: str, auto_close_span: bool) -> I
         It can be optionally overridden by setting the environment variable MONOCLE_ISOLATE_SPANS to false.
     """
     if not ISOLATE_MONOCLE_SPANS:
-         # If not isolating, use the default start_as_current_span
+        # If not isolating, use the default start_as_current_span
         yield tracer.start_as_current_span(name, end_on_exit=auto_close_span)
- 
-    # Get current spans from both contexts
+        return
+    
     original_span = get_current_span()
-    monocle_span = get_current_monocle_span()
-    
-    # Determine trace context
-    parent_span = None
-    trace_id = None
-    span_id = None
-    
-    # First check monocle context, then fall back to original context
-    if monocle_span and monocle_span.is_recording():
-        parent_span = monocle_span
-        ctx = monocle_span.get_span_context()
-        trace_id = ctx.trace_id
-        span_id = ctx.span_id
-    elif original_span and original_span.is_recording():
-        parent_span = original_span
-        ctx = original_span.get_span_context()
-        trace_id = ctx.trace_id
-        span_id = ctx.span_id
- 
-    # Store current context and create new span
-    token = attach(set_span_in_context(parent_span)) if parent_span else None
-    
-    try:
-        with tracer.start_as_current_span(name, end_on_exit=auto_close_span) as span:
-            # Ensure trace context propagation
-            if trace_id:
-                # Always propagate trace_id to maintain trace continuity
-                span.context._trace_id = trace_id
-                
-                # For non-root spans, also set parent span ID
-                if not SpanHandler.is_root_span(span) and span_id:
-                    span.context._parent_span_id = span_id
-            
-            # Update both contexts while maintaining trace linkage
-            monocle_ctx = set_monocle_span_in_context(span)
-            new_token = attach(monocle_ctx)
-            try:
-                yield span
-            finally:
-                detach(new_token)
-    finally:
-        detach(token)
-    return
- 
+    monocle_span_token = attach(set_span_in_context(get_current_monocle_span()))
+    with tracer.start_as_current_span(name, end_on_exit=auto_close_span) as span:
+        new_monocle_token = attach(set_monocle_span_in_context(span))
+        original_span_token = attach(set_span_in_context(original_span))
+        yield span
+        detach(original_span_token)
+        detach(new_monocle_token)
+    detach(monocle_span_token)
 
 def get_builtin_scope_names(to_wrap) -> str:
     output_processor = None

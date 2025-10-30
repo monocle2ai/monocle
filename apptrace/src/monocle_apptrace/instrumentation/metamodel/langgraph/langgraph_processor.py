@@ -1,3 +1,4 @@
+import logging
 from opentelemetry.context import set_value, attach, detach, get_value
 from monocle_apptrace.instrumentation.common.constants import AGENT_PREFIX_KEY, SCOPE_NAME
 from monocle_apptrace.instrumentation.common.span_handler import SpanHandler
@@ -8,6 +9,38 @@ from monocle_apptrace.instrumentation.metamodel.langgraph.entities.inference imp
     AGENT_DELEGATION, AGENT_REQUEST
 )
 from monocle_apptrace.instrumentation.common.scope_wrapper import start_scope, stop_scope
+
+logger = logging.getLogger(__name__)
+
+# Import ParentCommand to filter it out from exception handling
+try:
+    from langgraph.errors import ParentCommand
+except ImportError:
+    # Fallback if langgraph.errors is not available or structure changes
+    ParentCommand = None
+
+
+class ParentCommandFilterSpan:
+    """A wrapper for spans that filters out ParentCommand exceptions from being recorded."""
+    
+    def __init__(self, span):
+        self.span = span
+        self.original_record_exception = span.record_exception
+        
+    def record_exception(self, exception, attributes=None, timestamp=None, escaped=False):
+        """Filter out ParentCommand exceptions before recording them."""
+        try:
+            # Check if this is a ParentCommand exception
+            if ParentCommand is not None and isinstance(exception, ParentCommand):
+                logger.debug("Filtering out ParentCommand exception from span recording")
+                return  # Don't record ParentCommand exceptions
+            
+            # For all other exceptions, use the original record_exception method
+            return self.original_record_exception(exception, attributes, timestamp, escaped)
+        except Exception as e:
+            logger.debug(f"Error in ParentCommand filtering: {e}")
+            # If filtering fails, fall back to original behavior
+            return self.original_record_exception(exception, attributes, timestamp, escaped)
 
 class LanggraphAgentHandler(SpanHandler):
     def pre_tracing(self, to_wrap, wrapped, instance, args, kwargs):
@@ -23,10 +56,31 @@ class LanggraphAgentHandler(SpanHandler):
         if token is not None:
             detach(token)
 
+    def pre_task_processing(self, to_wrap, wrapped, instance, args, kwargs, span):
+        """Apply ParentCommand filtering to the span before task execution."""
+        # Apply ParentCommand filtering to this span
+        self._apply_parent_command_filtering(span)
+        super().pre_task_processing(to_wrap, wrapped, instance, args, kwargs, span)
+
+    def _apply_parent_command_filtering(self, span):
+        """Apply ParentCommand exception filtering to a span."""
+        try:
+            if hasattr(span, 'record_exception'):
+                # Create a filtered wrapper and replace the record_exception method
+                filter_wrapper = ParentCommandFilterSpan(span)
+                span.record_exception = filter_wrapper.record_exception
+                logger.debug("Applied ParentCommand filtering to LangGraph agent span")
+        except Exception as e:
+            logger.debug(f"Failed to apply ParentCommand filtering: {e}")
+
     # In multi agent scenarios, the root agent is the one that orchestrates the other agents. LangGraph generates an extra root level invoke()
     # call on top of the supervisor agent invoke().
     # This span handler resets the parent invoke call as generic type to avoid duplicate attributes/events in supervisor span and this root span.
     def hydrate_span(self, to_wrap, wrapped, instance, args, kwargs, result, span, parent_span = None, ex:Exception = None) -> bool:
+        # Filter out ParentCommand exceptions as they are LangGraph control flow mechanisms, not actual errors
+        if ParentCommand is not None and isinstance(ex, ParentCommand):
+            ex = None  # Suppress the ParentCommand exception from being recorded
+            
         if is_root_agent_name(instance) and "parent.agent.span" in span.attributes:
             agent_request_wrapper = to_wrap.copy()
             agent_request_wrapper["output_processor"] = AGENT_REQUEST
@@ -39,7 +93,29 @@ class LanggraphAgentHandler(SpanHandler):
 class LanggraphToolHandler(SpanHandler):
     # LangGraph uses an internal tool to initate delegation to other agents. The method is tool invoke() with tool name as `transfer_to_<agent_name>`.
     # Hence we usea different output processor for tool invoke() to format the span as agentic.delegation.
+    
+    def pre_task_processing(self, to_wrap, wrapped, instance, args, kwargs, span):
+        """Apply ParentCommand filtering to the span before task execution."""
+        # Apply ParentCommand filtering to this span
+        self._apply_parent_command_filtering(span)
+        super().pre_task_processing(to_wrap, wrapped, instance, args, kwargs, span)
+
+    def _apply_parent_command_filtering(self, span):
+        """Apply ParentCommand exception filtering to a span."""
+        try:
+            if hasattr(span, 'record_exception'):
+                # Create a filtered wrapper and replace the record_exception method
+                filter_wrapper = ParentCommandFilterSpan(span)
+                span.record_exception = filter_wrapper.record_exception
+                logger.debug("Applied ParentCommand filtering to LangGraph tool span")
+        except Exception as e:
+            logger.debug(f"Failed to apply ParentCommand filtering: {e}")
+    
     def hydrate_span(self, to_wrap, wrapped, instance, args, kwargs, result, span, parent_span = None, ex:Exception = None) -> bool:
+        # Filter out ParentCommand exceptions as they are LangGraph control flow mechanisms, not actual errors
+        if ParentCommand is not None and isinstance(ex, ParentCommand):
+            ex = None  # Suppress the ParentCommand exception from being recorded
+            
         if is_delegation_tool(instance):
             agent_request_wrapper = to_wrap.copy()
             agent_request_wrapper["output_processor"] = AGENT_DELEGATION
@@ -47,32 +123,4 @@ class LanggraphToolHandler(SpanHandler):
             agent_request_wrapper = to_wrap
 
         return super().hydrate_span(agent_request_wrapper, wrapped, instance, args, kwargs, result, span, parent_span, ex)
-
-class ParentCommandFilterSpan:
-    """A wrapper that filters out ParentCommand exceptions from being recorded in the span."""
-
-    def __init__(self, span):
-        self._span = span
-        self._original_record_exception = span.record_exception
-
-    def record_exception(self, exception, attributes=None, timestamp=None, escaped=False):
-        """Override record_exception to filter out ParentCommand exceptions."""
-        try:
-            from langgraph.errors import ParentCommand
-            if isinstance(exception, ParentCommand):
-                # Don't record ParentCommand exceptions
-                return
-        except ImportError:
-            pass
-        # Record all other exceptions normally
-        return self._original_record_exception(exception, attributes, timestamp, escaped)
-
-    def __getattr__(self, name):
-        """Delegate all other attributes to the original span."""
-        return getattr(self._span, name)
-
-    def __enter__(self):
-        return self._span.__enter__()
-
-    def __exit__(self, exception_type, exception_value, traceback):
-        return self._span.__exit__(exception_type, exception_value, traceback)
+    

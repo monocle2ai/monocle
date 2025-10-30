@@ -23,29 +23,21 @@ def get_url(args) -> str:
     return f"{scheme}://{host}:{port}{path}"
 
 def get_route(scope) -> str:
-    route = scope.get('path', '')
-    if not route:
-        route = scope.get('raw_path', b'').decode('utf-8')
-    return route
+    return scope.get('path', '')
 
 def get_method(scope) -> str:
-    return scope.get('method', scope.get('type', ''))
+    return scope.get('method', '')
 
 def get_params(args) -> dict:
     try:
-        if isinstance(args, dict):
-            query_bytes = args.get("query_string", "")
-            if isinstance(query_bytes, bytes):
-                query_str = query_bytes.decode('utf-8')
-            else:
-                query_str = str(query_bytes)
-            params = urllib.parse.parse_qs(query_str)
-            return params
-        elif hasattr(args, 'query_params'):
-            return dict(args.query_params)
+        query_bytes = args.get("query_string", "")
+        query_str = query_bytes.decode('utf-8')
+        params = urllib.parse.parse_qs(query_str)
+        question = params.get('question', [''])[0]
+        return question
     except Exception as e:
         logger.warning(f"Error extracting params: {e}")
-    return {}
+        return {}
 
 def extract_response(response) -> str:
     try:
@@ -80,73 +72,17 @@ def fastapi_post_tracing():
     token_data.current_token = None
 
 class FastAPISpanHandler(SpanHandler):
-    def __init__(self):
-        super().__init__()
-        self._trace_id = None
-        self._root_span = None
-        self._context_token = None
+    def pre_tracing(self, to_wrap, wrapped, instance, args, kwargs):
+        scope = args[0] if args else {}
+        fastapi_pre_tracing(scope)
+        return super().pre_tracing(to_wrap, wrapped, instance, args, kwargs)
 
-    async def on_pre_tracing(self, func, fn_args, fn_kwargs):
-        """
-        Pre tracing handler
-
-        Args:
-            func: Original function
-            fn_args: Function args
-            fn_kwargs: Function kwargs
-
-        Returns:
-            None
-        """
-        from opentelemetry import context, trace
-        from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
-        from opentelemetry.context.context import Context
-        
-        # Get the request object from ASGI scope
-        scope = fn_args[0] if fn_args else {}
-        if not isinstance(scope, dict):
-            return
-            
-        # Get current context before we start
-        current_ctx = context.get_current()
-        
-        # Store current context for restoration
-        self._parent_context = current_ctx
-        
-        # Create new context with scope token if we have one
-        scope_token = getattr(scope, 'scope_token', None)
-        if scope_token:
-            new_ctx = Context(scope_token)
-            self._context_token = context.attach(new_ctx)
-            
-        # Set span name
-        self._span_name = self.force_request_span_name(fn_args)
-        
-        # Get active span to pass context
-        span = trace.get_current_span()
-        if span:
-            # Ensure trace state is passed to child spans
-            self._trace_id = format(span.get_span_context().trace_id, "032x")
-
-        self._span_name = self.force_request_span_name(fn_args)
-
-    def post_tracing(self, to_wrap, wrapped, instance, args, kwargs, return_value):
-        try:
-            fastapi_post_tracing()
-        finally:
-            # Detach the context we attached in pre_tracing
-            if hasattr(self, '_context_token'):
-                from opentelemetry import context
-                context.detach(self._context_token)
-                del self._context_token
-            # Clear stored context
-            self._trace_id = None
-            self._root_span = None
-            self._parent_context = None
-        return super().post_tracing(to_wrap, wrapped, instance, args, kwargs, return_value)
+    def post_tracing(self, to_wrap, wrapped, instance, args, kwargs, return_value, token):
+        fastapi_post_tracing()
+        return super().post_tracing(to_wrap, wrapped, instance, args, kwargs, return_value, token)
 
 class FastAPIResponseSpanHandler(SpanHandler):
-    def post_tracing(self, to_wrap, wrapped, instance, args, kwargs, return_value):
+    def post_tracing(self, to_wrap, wrapped, instance, args, kwargs, return_value, token):
         try:
             ctx = get_current()
             if ctx is not None:
@@ -156,4 +92,4 @@ class FastAPIResponseSpanHandler(SpanHandler):
                                         return_value, parent_span=parent_span)
         except Exception as e:
             logger.info(f"Failed to propagate fastapi response: {e}")
-        super().post_tracing(to_wrap, wrapped, instance, args, kwargs, return_value)
+        super().post_tracing(to_wrap, wrapped, instance, args, kwargs, return_value, token)

@@ -65,29 +65,29 @@ def test_modular_plugins():
             print(f"✗ Agent plugin failed: {e}")
         
         # Test content plugin methods (should be injected)
-        if hasattr(assertions, 'with_input_containing'):
+        if hasattr(assertions, 'input_contains'):
             print("✓ Content plugin: methods available")
         else:
             print("✗ Content plugin: methods not available")
-            
+
         # Test LLM plugin methods
         if hasattr(assertions, 'llm_calls'):
             print("✓ LLM plugin: methods available")
         else:
             print("✗ LLM plugin: methods not available")
-        
+
         # Test semantic plugin methods
         if hasattr(assertions, 'semantically_contains_output'):
             print("✓ Semantic plugin: methods available")
         else:
             print("✗ Semantic plugin: methods not available")
-        
+
         # Test performance plugin methods
         if hasattr(assertions, 'within_time_limit'):
             print("✓ Performance plugin: methods available")
         else:
             print("✗ Performance plugin: methods not available")
-        
+
         # Test method chaining still works
         try:
             (assertions
@@ -96,35 +96,35 @@ def test_modular_plugins():
             print("✓ Method chaining works with plugins")
         except Exception as e:
             print(f"✗ Method chaining failed: {e}")
-        
+
         # Test custom plugin registration
         @plugin
         class TestModularPlugin(TraceAssertionsPlugin):
             @classmethod
             def get_plugin_name(cls) -> str:
                 return "test_modular"
-            
+
             def custom_modular_assertion(self, value: str) -> 'TraceAssertions':
                 """Test method for modular plugin system."""
                 print(f"   Custom modular assertion called with: {value}")
                 return self
-        
+
         # Create new instance to get the new plugin
         new_assertions = TraceAssertions(spans)
-        
+
         if hasattr(new_assertions, 'custom_modular_assertion'):
             new_assertions.custom_modular_assertion("test_value")
             print("✓ Custom plugin registration and injection works")
         else:
             print("✗ Custom plugin registration failed")
-        
+
         # List all available plugins
         plugins = TraceAssertions.list_plugins()
         print(f"\n📋 Available plugins ({len(plugins)}):")
         for name, plugin_class in plugins.items():
             methods = plugin_class.get_assertion_methods()
             print(f"   • {name}: {len(methods)} methods")
-        
+
         print("\n✅ Modular plugin system is working correctly!")
         return True
         

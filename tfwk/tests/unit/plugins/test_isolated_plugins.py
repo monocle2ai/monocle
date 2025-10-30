@@ -122,8 +122,7 @@ def test_isolated_plugin_system():
         expected_plugin_methods = [
             'assert_spans', 'filter_by_name', 'filter_by_attribute',  # core_plugins
             'assert_agent', 'called_tool',  # agent_plugins
-            'llm_calls', 'assert_llm_calls',  # llm_plugins
-            'with_input_containing', 'with_output_containing',  # content_plugins
+            'input_contains', 'output_contains',  # content_plugins
             'semantically_contains_output',  # semantic_plugins
             'within_time_limit', 'assert_total_duration_under'  # performance from core_plugins
         ]

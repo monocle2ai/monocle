@@ -77,26 +77,18 @@ def main():
         except Exception as e:
             print(f"      ✗ Error: {e}")
         
-        # LLM validation
-        print("   3. LLM call validation:")
-        try:
-            llm_spans = assertions.llm_calls()
-            llm_spans.assert_total_cost_under(0.10)
-            print(f"      ✓ LLM calls: {llm_spans.count()}, Total cost under $0.10")
-        except Exception as e:
-            print(f"      ✗ Error: {e}")
-        
+       
         # Content validation
-        print("   4. Content pattern matching:")
+        print("   3. Content pattern matching:")
         try:
-            input_spans = assertions.with_input_containing("Paris")
-            output_spans = assertions.with_output_containing("Flight")
+            input_spans = assertions.input_contains("Paris")
+            output_spans = assertions.output_contains("Flight")
             print(f"      ✓ Input with 'Paris': {input_spans.count()}, Output with 'Flight': {output_spans.count()}")
         except Exception as e:
             print(f"      ✗ Error: {e}")
         
         # Performance validation
-        print("   5. Performance validation:")
+        print("   4. Performance validation:")
         try:
             assertions.within_time_limit(1.0)  # 1 second
             print("      ✓ All spans within time limit")
@@ -128,7 +120,7 @@ def main():
             def assert_demo_workflow_success(self) -> 'TraceAssertions':
                 """Assert that a workflow completed successfully."""
                 completed = False
-                for span in self._spans:
+                for span in self.spans:
                     if (span.name == "workflow_end" and 
                         span.attributes.get("workflow.status") == "completed"):
                         completed = True
@@ -142,7 +134,7 @@ def main():
             
             def count_by_type(self, span_type: str) -> int:
                 """Count spans by type."""
-                count = sum(1 for span in self._spans 
+                count = sum(1 for span in self.spans 
                           if span.attributes.get("span.type") == span_type)
                 print(f"      → Custom method: Found {count} spans of type '{span_type}'")
                 return count

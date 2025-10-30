@@ -22,7 +22,7 @@ class ContentAssertionsPlugin(TraceAssertionsPlugin):
     def get_plugin_name(cls) -> str:
         return "content"
     
-    def with_input_containing(self, text: str) -> 'TraceAssertions':
+    def input_contains(self, text: str) -> 'TraceAssertions':
         """Assert that input contains the specified text."""
         matching_spans = []
         for span in self._current_spans:
@@ -32,8 +32,8 @@ class ContentAssertionsPlugin(TraceAssertionsPlugin):
         assert matching_spans, f"No spans found with input containing '{text}'"
         self._current_spans = matching_spans
         return self
-        
-    def with_output_containing(self, text: str) -> 'TraceAssertions':
+
+    def output_contains(self, text: str) -> 'TraceAssertions':
         """Assert that output contains the specified text."""
         matching_spans = []
         for span in self._current_spans:
@@ -43,16 +43,8 @@ class ContentAssertionsPlugin(TraceAssertionsPlugin):
         assert matching_spans, f"No spans found with output containing '{text}'"
         self._current_spans = matching_spans
         return self
-    
-    def contains_input(self, text: str) -> 'TraceAssertions':
-        """Assert that spans contain the specified text in input."""
-        return self.with_input_containing(text)
-        
-    def contains_output(self, text: str) -> 'TraceAssertions':
-        """Assert that spans contain the specified text in output."""
-        return self.with_output_containing(text)
-    
-    def with_input_matching_pattern(self, pattern: str) -> 'TraceAssertions':
+
+    def input_matches(self, pattern: str) -> 'TraceAssertions':
         """Assert that input matches a regex pattern."""
         import re
         matching_spans = []
@@ -63,8 +55,8 @@ class ContentAssertionsPlugin(TraceAssertionsPlugin):
         assert matching_spans, f"No spans found with input matching pattern '{pattern}'"
         self._current_spans = matching_spans
         return self
-    
-    def with_output_matching_pattern(self, pattern: str) -> 'TraceAssertions':
+
+    def output_matches(self, pattern: str) -> 'TraceAssertions':
         """Assert that output matches a regex pattern."""
         import re
         matching_spans = []
@@ -75,8 +67,8 @@ class ContentAssertionsPlugin(TraceAssertionsPlugin):
         assert matching_spans, f"No spans found with output matching pattern '{pattern}'"
         self._current_spans = matching_spans
         return self
-    
-    def with_input_not_containing(self, text: str) -> 'TraceAssertions':
+
+    def input_not_contains(self, text: str) -> 'TraceAssertions':
         """Assert that input does NOT contain the specified text."""
         violating_spans = []
         for span in self._current_spans:
@@ -85,8 +77,8 @@ class ContentAssertionsPlugin(TraceAssertionsPlugin):
                 violating_spans.append(span.name)
         assert not violating_spans, f"Found spans with input containing '{text}': {violating_spans}"
         return self
-    
-    def with_output_not_containing(self, text: str) -> 'TraceAssertions':
+
+    def output_not_contains(self, text: str) -> 'TraceAssertions':
         """Assert that output does NOT contain the specified text."""
         violating_spans = []
         for span in self._current_spans:
@@ -95,8 +87,8 @@ class ContentAssertionsPlugin(TraceAssertionsPlugin):
                 violating_spans.append(span.name)
         assert not violating_spans, f"Found spans with output containing '{text}': {violating_spans}"
         return self
-    
-    def with_input_length_between(self, min_length: int, max_length: int) -> 'TraceAssertions':
+
+    def input_length_between(self, min_length: int, max_length: int) -> 'TraceAssertions':
         """Assert that input text length is within specified range."""
         invalid_spans = []
         for span in self._current_spans:
@@ -105,13 +97,12 @@ class ContentAssertionsPlugin(TraceAssertionsPlugin):
                 length = len(input_text)
                 if not (min_length <= length <= max_length):
                     invalid_spans.append((span.name, length))
-        
         assert not invalid_spans, (
             f"Found spans with input length outside range [{min_length}, {max_length}]: {invalid_spans}"
         )
         return self
-    
-    def with_output_length_between(self, min_length: int, max_length: int) -> 'TraceAssertions':
+
+    def output_length_between(self, min_length: int, max_length: int) -> 'TraceAssertions':
         """Assert that output text length is within specified range."""
         invalid_spans = []
         for span in self._current_spans:
@@ -120,7 +111,6 @@ class ContentAssertionsPlugin(TraceAssertionsPlugin):
                 length = len(output_text)
                 if not (min_length <= length <= max_length):
                     invalid_spans.append((span.name, length))
-        
         assert not invalid_spans, (
             f"Found spans with output length outside range [{min_length}, {max_length}]: {invalid_spans}"
         )

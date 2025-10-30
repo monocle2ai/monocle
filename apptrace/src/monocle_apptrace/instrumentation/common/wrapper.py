@@ -384,19 +384,16 @@ def start_as_monocle_span(tracer: Tracer, name: str, auto_close_span: bool) -> I
     """
     if not ISOLATE_MONOCLE_SPANS:
         # If not isolating, use the default start_as_current_span
-        with tracer.start_as_current_span(name, end_on_exit=auto_close_span) as span:
-            yield span
+        yield tracer.start_as_current_span(name, end_on_exit=auto_close_span)
         return
     original_span = get_current_span()
     monocle_span_token = attach(set_span_in_context(get_current_monocle_span()))
     with tracer.start_as_current_span(name, end_on_exit=auto_close_span) as span:
         new_monocle_token = attach(set_monocle_span_in_context(span))
         original_span_token = attach(set_span_in_context(original_span))
-        try:
-            yield span
-        finally:
-            detach(original_span_token)
-            detach(new_monocle_token)
+        yield span
+        detach(original_span_token)
+        detach(new_monocle_token)
     detach(monocle_span_token)
 
 def get_builtin_scope_names(to_wrap) -> str:

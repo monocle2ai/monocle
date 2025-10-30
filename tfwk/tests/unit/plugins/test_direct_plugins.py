@@ -104,17 +104,17 @@ def test_direct_plugin_system():
             print("   ✗ LLM plugin: llm_calls not available")
         
         # Test content plugin methods if available
-        if hasattr(assertions, 'with_output_containing'):
+        if hasattr(assertions, 'output_contains'):
             print("   ✓ Content plugin: methods available")
         else:
             print("   ✗ Content plugin: methods not available")
-        
+
         # Test semantic plugin methods if available  
         if hasattr(assertions, 'semantically_contains_output'):
             print("   ✓ Semantic plugin: methods available")
         else:
             print("   ✗ Semantic plugin: methods not available")
-        
+
         # Test performance plugin methods if available
         if hasattr(assertions, 'within_time_limit'):
             try:
@@ -124,7 +124,7 @@ def test_direct_plugin_system():
                 print(f"   ✗ Performance plugin: within_time_limit failed: {e}")
         else:
             print("   ✗ Performance plugin: within_time_limit not available")
-        
+
         # Test method chaining
         print("\n🔗 Testing method chaining:")
         try:
@@ -134,34 +134,34 @@ def test_direct_plugin_system():
             print(f"   ✓ Method chaining works (result has {result.count()} spans)")
         except Exception as e:
             print(f"   ✗ Method chaining failed: {e}")
-        
+
         # Test custom plugin registration
         print("\n🔌 Testing custom plugin registration:")
-        
+
         @plugin
         class TestDirectPlugin(TraceAssertionsPlugin):
             @classmethod
             def get_plugin_name(cls) -> str:
                 return "test_direct"
-            
+
             def custom_direct_assertion(self, value: str) -> 'TraceAssertions':
                 """Test method for direct plugin system."""
                 print(f"      Custom assertion called with: {value}")
                 return self
-        
+
         # Create new instance to get the new plugin
         new_assertions = TraceAssertions(spans)
-        
+
         if hasattr(new_assertions, 'custom_direct_assertion'):
             new_assertions.custom_direct_assertion("test_value")
             print("   ✓ Custom plugin registration works")
         else:
             print("   ✗ Custom plugin registration failed")
-        
+
         # Final plugin count
         final_plugins = TraceAssertions.list_plugins()
         print(f"\n📊 Final plugin count: {len(final_plugins)}")
-        
+
         print("\n✅ Direct plugin system test completed successfully!")
         return True
         

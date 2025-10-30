@@ -67,9 +67,8 @@ class TraceAssertions:
     All assertion methods return the TraceAssertions instance to enable fluent chaining:
         ```python
         (assertions
-         .llm_calls()
          .assert_spans(min_count=1)
-         .with_output_containing("result")
+         .output_contains("result")
          .completed_successfully())
         ```
     

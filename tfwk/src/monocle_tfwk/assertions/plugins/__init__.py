@@ -7,6 +7,6 @@ all plugins automatically.
 """
 
 # Import all plugin modules to trigger registration
-from . import agent, content, core, http, llm, semantic
+from . import agent, content, core, http, semantic
 
-__all__ = ['agent', 'content', 'core', 'http', 'llm', 'semantic']
+__all__ = ['agent', 'content', 'core', 'http', 'semantic']

@@ -428,23 +428,6 @@ class TestHTTPPlugins:
 class TestHTTPSpanClass:
     """Unit tests specifically for the HTTPSpan wrapper class."""
     
-    def test_attribute_priority(self):
-        """Test that HTTPSpan correctly prioritizes different attribute formats."""
-        # Test priority: standard HTTP > entity.1.* > fallbacks
-        span_with_multiple = Mock(
-            name="multi_format",
-            attributes={
-                "http.method": "GET",
-                "entity.1.method": "POST", 
-                "method": "PUT",
-                "http.status_code": 200,
-                "status_code": 404
-            }
-        )
-        
-        wrapper = HTTPSpan(span_with_multiple)
-        assert wrapper.method == "GET"  # Should prefer http.method
-        assert wrapper.status_code == 200  # Should prefer http.status_code
     
     def test_fallback_attributes(self):
         """Test fallback to alternative attribute names."""

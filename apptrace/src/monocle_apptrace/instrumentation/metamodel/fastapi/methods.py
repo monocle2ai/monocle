@@ -6,7 +6,7 @@ FASTAPI_METHODS = [
         "package": "fastapi",
         "object": "FastAPI",
         "method": "__call__",
-        "wrapper_method": task_wrapper,
+        "wrapper_method": atask_wrapper,
         "span_name": "fastapi.request",
         "span_handler": "fastapi_handler",
         "output_processor": FASTAPI_HTTP_PROCESSOR,

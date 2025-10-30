@@ -42,6 +42,7 @@ def get_auto_close_span(to_wrap, kwargs):
 def pre_process_span(name, tracer, handler, add_workflow_span, to_wrap, wrapped, instance, args, kwargs, span, source_path):
     SpanHandler.set_default_monocle_attributes(span, source_path)
     if SpanHandler.is_root_span(span) or add_workflow_span:
+        # This is a direct API call of a non-framework type
         SpanHandler.set_workflow_properties(span, to_wrap)
     else:
         SpanHandler.set_non_workflow_properties(span)

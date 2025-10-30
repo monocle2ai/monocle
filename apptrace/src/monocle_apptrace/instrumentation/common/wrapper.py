@@ -30,6 +30,7 @@ from monocle_apptrace.instrumentation.common.utils import (
     set_scopes,
     with_tracer_wrapper,
 )
+
 logger = logging.getLogger(__name__)
 ISOLATE_MONOCLE_SPANS = os.getenv("MONOCLE_ISOLATE_SPANS", "true").lower() == "true"
 

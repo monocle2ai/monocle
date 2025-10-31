@@ -2,16 +2,12 @@
 import logging
 import os
 from contextlib import contextmanager
-from typing import AsyncGenerator, Iterator, Optional
-
-from opentelemetry.context import attach, create_key, detach, get_value, set_value
-from opentelemetry.context.context import Context
-from opentelemetry.trace import Tracer, propagation
-from opentelemetry.trace.propagation import (
-    _SPAN_KEY,
-    get_current_span,
-    set_span_in_context,
-)
+import os
+from typing import AsyncGenerator, Iterator
+import logging
+from opentelemetry.trace import Tracer
+from opentelemetry.trace.propagation import set_span_in_context, get_current_span
+from opentelemetry.context import set_value, attach, detach, get_value
 from opentelemetry.trace.span import INVALID_SPAN, Span
 from opentelemetry.trace.status import StatusCode
 
@@ -380,13 +376,14 @@ def evaluate_scope_values(args, kwargs, to_wrap, scope_values):
 @contextmanager
 def start_as_monocle_span(tracer: Tracer, name: str, auto_close_span: bool) -> Iterator["Span"]:
     """ Wrapper to OTEL start_as_current_span to isolate monocle and non monocle spans.
-        This essentiall links monocle and non-monocle spans separately which is default behavior.
+        This essentially links monocle and non-monocle spans separately which is default behavior.
         It can be optionally overridden by setting the environment variable MONOCLE_ISOLATE_SPANS to false.
     """
     if not ISOLATE_MONOCLE_SPANS:
         # If not isolating, use the default start_as_current_span
         yield tracer.start_as_current_span(name, end_on_exit=auto_close_span)
         return
+    
     original_span = get_current_span()
     monocle_span_token = attach(set_span_in_context(get_current_monocle_span()))
     with tracer.start_as_current_span(name, end_on_exit=auto_close_span) as span:

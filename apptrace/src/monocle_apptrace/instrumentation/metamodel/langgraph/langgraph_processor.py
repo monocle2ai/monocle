@@ -9,16 +9,12 @@ from monocle_apptrace.instrumentation.metamodel.langgraph.entities.inference imp
     AGENT_DELEGATION, AGENT_REQUEST
 )
 from monocle_apptrace.instrumentation.common.scope_wrapper import start_scope, stop_scope
-
-logger = logging.getLogger(__name__)
-
-# Import ParentCommand to filter it out from exception handling
 try:
     from langgraph.errors import ParentCommand
 except ImportError:
-    # Fallback if langgraph.errors is not available or structure changes
     ParentCommand = None
 
+logger = logging.getLogger(__name__)
 
 class ParentCommandFilterSpan:
     """A wrapper for spans that filters out ParentCommand exceptions from being recorded."""

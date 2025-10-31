@@ -157,6 +157,7 @@ class TestCase(BaseModel):
         expect_errors: Flag indicating whether the test should expect errors to occur.
         expect_warnings: Flag indicating whether the test should expect warnings to occur.
     """
+    test_name: Optional[str] = Field("monocle_test", description="Name of the test case.")
     test_input: Optional[Tuple[Any, ...]] = Field(None, description="Input prompt or data for the test case.")
     test_output: Optional[Any] = Field(None, description="Expected output for the test case.")
     comparer: Optional[Union[str, BaseComparer]] = Field(DefaultComparer(), description="Comparison method for the test case.")

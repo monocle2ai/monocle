@@ -1,6 +1,7 @@
 import os
 from functools import wraps
 import inspect
+import uuid
 import jsonschema, json
 from typing import Optional, Union
 from opentelemetry.sdk.trace import Span, ReadableSpan, StatusCode
@@ -74,6 +75,10 @@ class MonocleValidator:
                 if token is not None:
                     detach(token)
 
+    @staticmethod
+    def test_id_generator(val):
+        return f"{val.test_name}_{uuid.uuid4().hex[:8]}"
+
     def monocle_testcase(self, test_cases_array: list[Union[TestCase, dict]]):
         test_cases: list[TestCase] = []
         for tc in test_cases_array:
@@ -85,12 +90,12 @@ class MonocleValidator:
         def decorator(func):
             if inspect.iscoroutinefunction(func):
                 @pytest.mark.asyncio
-                @pytest.mark.parametrize("test_case", test_cases)
+                @pytest.mark.parametrize("test_case", test_cases, ids = MonocleValidator.test_id_generator)
                 async def wrapper(test_case, request, *args, **kwargs):
                     with self.monocle_exporter_wrapper(test_case, request):
                         return await func(test_case, *args, **kwargs)
             else:
-                @pytest.mark.parametrize("test_case", test_cases)
+                @pytest.mark.parametrize("test_case", test_cases, ids = MonocleValidator.test_id_generator)
                 def wrapper(test_case, request, *args, **kwargs):
                     with self.monocle_exporter_wrapper(test_case, request):
                         return func(test_case, *args, **kwargs)

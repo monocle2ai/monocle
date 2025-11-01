@@ -1,22 +1,29 @@
 import os
 from functools import wraps
 import inspect
+import uuid
 import jsonschema, json
 from typing import Optional, Union
 from opentelemetry.sdk.trace import Span, ReadableSpan, StatusCode
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+from opentelemetry.context import set_value, attach, detach, get_value
 import pytest
-from sqlalchemy import func
+#from sqlalchemy import func
 from monocle_apptrace.exporters.file_exporter import FileSpanExporter, DEFAULT_TRACE_FOLDER
 from contextlib import contextmanager, asynccontextmanager
 import logging
 from monocle_apptrace.instrumentation.common.instrumentor import MonocleInstrumentor, setup_monocle_telemetry
 from pydantic import BaseModel, ValidationError
-from monocle_test_tools.schema import SpanType, TestSpan, TestCase, Evaluation, EvalInputs
+from monocle_test_tools.schema import SpanType, TestSpan, TestCase, Evaluation, EvalInputs, MockTool, ToolType
 from monocle_test_tools.comparer.base_comparer import BaseComparer
 from monocle_test_tools.runner.runner import get_agent_runner
 from monocle_test_tools import trace_utils
+from monocle_apptrace.instrumentation.metamodel.adk.methods import ADK_METHODS
+from monocle_apptrace.instrumentation.metamodel.adk.entities.tool import TOOL as ADK_TOOL
+from monocle_apptrace.instrumentation.metamodel.langgraph.methods import LANGGRAPH_METHODS
+from monocle_apptrace.instrumentation.metamodel.langgraph.entities.inference import TOOLS as LANGGRAPH_TOOL
+from monocle_apptrace.instrumentation.common.constants import MONOCLE_SKIP_EXECUTIONS
 
 logger = logging.getLogger(__name__)
 
@@ -54,6 +61,7 @@ class MonocleValidator:
     def monocle_exporter_wrapper(self, test_case: TestCase, request):
         test_case_name = request.node.name if request is not None else (test_case.test_case_name if test_case is not None else "monocle_test")
         self.file_exporter.set_service_name(test_case_name)
+        token = self._set_wrapper_methods(test_case.mock_tools)
         try:
             yield
         finally:
@@ -64,6 +72,12 @@ class MonocleValidator:
                 self.file_exporter.force_flush()
                 self.file_exporter.shutdown()
                 self._spans = []
+                if token is not None:
+                    detach(token)
+
+    @staticmethod
+    def test_id_generator(val):
+        return f"{val.test_name}_{uuid.uuid4().hex[:8]}"
 
     def monocle_testcase(self, test_cases_array: list[Union[TestCase, dict]]):
         test_cases: list[TestCase] = []
@@ -76,12 +90,12 @@ class MonocleValidator:
         def decorator(func):
             if inspect.iscoroutinefunction(func):
                 @pytest.mark.asyncio
-                @pytest.mark.parametrize("test_case", test_cases)
+                @pytest.mark.parametrize("test_case", test_cases, ids = MonocleValidator.test_id_generator)
                 async def wrapper(test_case, request, *args, **kwargs):
                     with self.monocle_exporter_wrapper(test_case, request):
                         return await func(test_case, *args, **kwargs)
             else:
-                @pytest.mark.parametrize("test_case", test_cases)
+                @pytest.mark.parametrize("test_case", test_cases, ids = MonocleValidator.test_id_generator)
                 def wrapper(test_case, request, *args, **kwargs):
                     with self.monocle_exporter_wrapper(test_case, request):
                         return func(test_case, *args, **kwargs)
@@ -143,6 +157,21 @@ class MonocleValidator:
                 raise
         self.validate_result(test_case, result)
         return result
+
+    def _set_wrapper_methods(self, mock_tools: list[MockTool]) -> list[dict]:
+        skip_exec: dict[str, dict] = {}
+        token = None
+        for mock_tool in mock_tools:
+            skip_exec[mock_tool.name] = {
+                "entity.type": mock_tool.type,
+                "span.type": "agentic.tool.invocation",
+                "response": mock_tool.response,
+                "raise_error": mock_tool.raise_error,
+                "error_message": mock_tool.error_message
+            }
+        if len(skip_exec) > 0:
+            token = attach(set_value(MONOCLE_SKIP_EXECUTIONS, skip_exec))
+        return token
 
     def validate(self, test_case:TestCase) -> bool:
         """Validate the test case against the collected spans.

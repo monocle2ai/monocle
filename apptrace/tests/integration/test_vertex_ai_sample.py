@@ -1,5 +1,6 @@
 # Enable Monocle Tracing
 import logging
+import os
 import time
 
 import pytest
@@ -36,7 +37,7 @@ def setup():
 
 
 def test_gemini_model_sample(setup):
-    client = genai.Client(vertexai=True,project="fluent-radar-408119", location="us-east5")
+    client = genai.Client(vertexai=True, project=os.environ.get("GCP_PROJECT"), location=os.environ.get("GCP_REGION"))
 
     response = client.models.generate_content(
         model="gemini-2.5-flash",

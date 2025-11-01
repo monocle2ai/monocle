@@ -1,5 +1,6 @@
 import logging
 import time
+import os
 
 import pytest
 from common.custom_exporter import CustomConsoleSpanExporter
@@ -7,6 +8,7 @@ from haystack.dataclasses import ChatMessage
 from haystack_integrations.components.generators.anthropic import AnthropicChatGenerator
 from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
+ANTHROPIC_MODEL = os.environ.get("ANTHROPIC_MODEL")
 
 logger = logging.getLogger(__name__)
 @pytest.fixture(scope="module")
@@ -26,7 +28,7 @@ def setup():
 
 
 def test_haystack_anthropic_sample(setup):
-    generator = AnthropicChatGenerator(model="claude-3-5-sonnet-20240620",
+    generator = AnthropicChatGenerator(model=ANTHROPIC_MODEL,
                                        generation_kwargs={
                                            "max_tokens": 1000,
                                            "temperature": 0.7,
@@ -48,8 +50,8 @@ def test_haystack_anthropic_sample(setup):
 
             assert span_attributes["entity.1.type"] == "inference.anthropic"
             assert "entity.1.inference_endpoint" in span_attributes
-            assert span_attributes["entity.2.name"] == "claude-3-5-sonnet-20240620"
-            assert span_attributes["entity.2.type"] == "model.llm.claude-3-5-sonnet-20240620"
+            assert span_attributes["entity.2.name"] == ANTHROPIC_MODEL 
+            assert span_attributes["entity.2.type"] == "model.llm." + ANTHROPIC_MODEL
 
             # Assertions for metadata
             span_input, span_output, span_metadata = span.events

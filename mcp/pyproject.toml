@@ -10,7 +10,7 @@ commands = [
 
 [project]
 name = "monocle_mcp"
-version = "0.1.0"
+version = "0.6.0"
 description = "Monocle MCP server: prompts and tools for enabling and analyzing Monocle tracing in GenAI apps."
 readme = "README.md"
 requires-python = ">=3.8"

@@ -1,4 +1,5 @@
 import time
+import os
 
 import pytest
 from common.custom_exporter import CustomConsoleSpanExporter
@@ -12,6 +13,7 @@ from langchain_anthropic import ChatAnthropic
 from langchain_core.prompts import ChatPromptTemplate
 from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
+ANTHROPIC_MODEL = os.environ.get("ANTHROPIC_MODEL")
 
 
 @pytest.fixture(scope="module")
@@ -32,7 +34,7 @@ def setup():
 
 def test_langchain_anthropic_sample(setup):
     llm = ChatAnthropic(
-        model="claude-3-5-sonnet-20240620",
+        model=ANTHROPIC_MODEL,
         temperature=0,
         max_tokens=1024,
         timeout=None,
@@ -76,8 +78,8 @@ def test_langchain_anthropic_sample(setup):
         verify_inference_span(
             span=span,
             entity_type="inference.anthropic",
-            model_name="claude-3-5-sonnet-20240620",
-            model_type="model.llm.claude-3-5-sonnet-20240620",
+            model_name=ANTHROPIC_MODEL,
+            model_type="model.llm." + ANTHROPIC_MODEL,
             check_metadata=True,
             check_input_output=True,
         )

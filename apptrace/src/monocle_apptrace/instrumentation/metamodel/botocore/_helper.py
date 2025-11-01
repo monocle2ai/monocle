@@ -7,6 +7,8 @@ import logging
 import json
 from io import BytesIO
 from functools import wraps
+
+from rfc3986 import urlparse
 from monocle_apptrace.instrumentation.common.span_handler import SpanHandler
 from monocle_apptrace.instrumentation.common.utils import ( get_exception_message, get_json_dumps, get_status_code,)
 from monocle_apptrace.instrumentation.metamodel.finish_types import map_bedrock_finish_reason_to_finish_type
@@ -194,3 +196,6 @@ def extract_finish_reason(arguments):
 def map_finish_reason_to_finish_type(finish_reason):
     """Map Bedrock finish_reason/stopReason to finish_type."""
     return map_bedrock_finish_reason_to_finish_type(finish_reason)
+
+def extract_provider_name(instance):
+    return urlparse(instance.meta.endpoint_url).hostname

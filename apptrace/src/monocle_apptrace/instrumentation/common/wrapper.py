@@ -97,7 +97,7 @@ def monocle_wrapper_span_processor(tracer: Tracer, handler: SpanHandler, to_wrap
                 span.end()
         else:
             ex:Exception = None
-            to_wrap = get_wrapper_with_next_processor(to_wrap, handler, instance, args, kwargs)
+            to_wrap = get_wrapper_with_next_processor(to_wrap, handler, instance, span, parent_span, args, kwargs)
             if has_more_processors(to_wrap):
                 try:
                     handler.hydrate_span(to_wrap, wrapped, instance, args, kwargs, None, span, parent_span, ex,
@@ -184,7 +184,7 @@ async def amonocle_wrapper_span_processor(tracer: Tracer, handler: SpanHandler, 
                 span.end()
         else:
             ex:Exception = None
-            to_wrap = get_wrapper_with_next_processor(to_wrap, handler, instance, args, kwargs)
+            to_wrap = get_wrapper_with_next_processor(to_wrap, handler, instance, span, parent_span,args, kwargs)
             if has_more_processors(to_wrap):
                 try:
                     handler.hydrate_span(to_wrap, wrapped, instance, args, kwargs, None, span, parent_span, ex,
@@ -247,7 +247,7 @@ async def amonocle_iter_wrapper_span_processor(tracer: Tracer, handler: SpanHand
                 span.end()
         else:
             ex:Exception = None
-            to_wrap = get_wrapper_with_next_processor(to_wrap, handler, instance, args, kwargs)
+            to_wrap = get_wrapper_with_next_processor(to_wrap, handler, span, parent_span, instance, args, kwargs)
             if has_more_processors(to_wrap):
                 try:
                     handler.hydrate_span(to_wrap, wrapped, instance, args, kwargs, None, span, parent_span, ex,
@@ -460,12 +460,12 @@ def get_builtin_scope_names(to_wrap) -> str:
         return span_type
     return None
 
-def get_wrapper_with_next_processor(to_wrap, handler, instance, args, kwargs):
+def get_wrapper_with_next_processor(to_wrap, handler, instance, span, parent_span, args, kwargs):
     if has_more_processors(to_wrap):
         next_output_processor_list = to_wrap.get('output_processor_list',[]).copy()
         while len(next_output_processor_list) > 0:
             next_output_processor = next_output_processor_list.pop(0)
-            if handler.should_skip(next_output_processor, instance, args, kwargs):
+            if handler.should_skip(next_output_processor, instance, span, parent_span, args, kwargs):
                 next_output_processor = None
             else:
                 break

@@ -15,6 +15,10 @@ INFERENCE = {
             {
                 "attribute": "inference_endpoint",
                 "accessor": lambda arguments: arguments['instance'].meta.endpoint_url
+            },
+            {
+                "attribute": "provider_name",
+                "accessor": lambda arguments: _helper.extract_provider_name(arguments['instance'])
             }
         ],
         [

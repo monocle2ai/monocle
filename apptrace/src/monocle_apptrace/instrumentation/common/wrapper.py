@@ -455,7 +455,7 @@ def get_builtin_scope_names(to_wrap) -> str:
                 output_processor = processor
                 break
 
-    span_type = output_processor.get("type", None) if output_processor else None
+    span_type = output_processor.get("type", None) if output_processor and isinstance(output_processor, dict) else None
     if span_type and span_type in AGENTIC_SPANS:
         return span_type
     return None

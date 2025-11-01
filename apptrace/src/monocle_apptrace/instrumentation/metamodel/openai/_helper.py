@@ -193,8 +193,8 @@ def extract_assistant_message(arguments):
 def extract_provider_name(instance):
     # Try to get host from base_url if it's a parsed object
     provider_url: Option[str] = try_option(getattr, instance._client.base_url, 'host')
-    if provider_url.unwrap_or(None):
-        return provider_url.unwrap()
+    if provider_url.unwrap_or(None) is not None:
+        return provider_url.unwrap_or(None)
 
     # If base_url is just a string (e.g., "https://api.deepseek.com")
     base_url = getattr(instance._client, "base_url", None)

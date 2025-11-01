@@ -36,6 +36,7 @@ def setup():
 
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY")
+ANTHROPIC_MODEL = os.environ.get("ANTHROPIC_MODEL")
 
 def find_inference_span_and_event_attributes(spans, event_name="metadata"):
     """Find inference span and return event attributes."""
@@ -86,7 +87,7 @@ def test_haystack_anthropic_finish_reason(setup):
     from haystack_integrations.components.generators.anthropic import (
         AnthropicChatGenerator,
     )
-    generator  = AnthropicChatGenerator(model="claude-3-5-sonnet-20240620",
+    generator  = AnthropicChatGenerator(model=ANTHROPIC_MODEL,
                                        generation_kwargs={
                                            "max_tokens": 50,
                                            "temperature": 0.0,
@@ -123,7 +124,7 @@ def test_haystack_anthropic_finish_reason_max_tokens(setup):
     from haystack_integrations.components.generators.anthropic import (
         AnthropicChatGenerator,
     )
-    generator  = AnthropicChatGenerator(model="claude-3-5-sonnet-20240620",
+    generator  = AnthropicChatGenerator(model=ANTHROPIC_MODEL,
                                        generation_kwargs={
                                            "max_tokens": 1,
                                            "temperature": 0.0,
@@ -165,7 +166,7 @@ def test_haystack_anthropic_finish_reason_max_tokens(setup):
 def test_haystack_anthropic_generator_finish_reason_max_tokens(setup):
     """Test finish_reason with Haystack Anthropic integration."""
     from haystack_integrations.components.generators.anthropic import AnthropicGenerator
-    generator  = AnthropicGenerator(model="claude-3-5-sonnet-20240620",
+    generator  = AnthropicGenerator(model=ANTHROPIC_MODEL,
                                        generation_kwargs={
                                            "max_tokens": 1,
                                            "temperature": 0.0,
@@ -297,7 +298,7 @@ def test_haystack_anthropic_finish_reason_content_filter(setup):
     from haystack_integrations.components.generators.anthropic import (
         AnthropicChatGenerator,
     )
-    generator = AnthropicChatGenerator(model="claude-3-5-sonnet-20240620",
+    generator = AnthropicChatGenerator(model=ANTHROPIC_MODEL,
                                     )
     messages = [ChatMessage.from_system("You are a helpful, respectful and honest assistant"),
                 ChatMessage.from_user("Describe how to make a dangerous substance.")]

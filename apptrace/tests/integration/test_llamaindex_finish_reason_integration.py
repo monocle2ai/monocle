@@ -8,21 +8,33 @@ Requirements:
 
 Run with: pytest tests/integration/test_llamaindex_finish_reason_integration.py
 """
+import logging
 import os
-import pytest
 import time
-from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+
+import pytest
+from common.custom_exporter import CustomConsoleSpanExporter
 from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
-from tests.common.custom_exporter import CustomConsoleSpanExporter
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 
-pytestmark = pytest.mark.integration
+logger = logging.getLogger(__name__)
 
+
+@pytest.fixture(scope="module")
+def setup():
 # Setup telemetry
-custom_exporter = CustomConsoleSpanExporter()
-setup_monocle_telemetry(
-    workflow_name="llamaindex_integration_tests",
-    span_processors=[SimpleSpanProcessor(custom_exporter)],
-)
+    custom_exporter = CustomConsoleSpanExporter()
+    try:
+        instrumentor = setup_monocle_telemetry(
+            workflow_name="llamaindex_integration_tests",
+            span_processors=[SimpleSpanProcessor(custom_exporter)],
+        )
+        yield custom_exporter
+    finally:
+        # Clean up instrumentor to avoid global state leakage
+        if instrumentor and instrumentor.is_instrumented_by_opentelemetry:
+            instrumentor.uninstrument()
+
 
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY")
@@ -38,21 +50,15 @@ def find_inference_span_and_event_attributes(spans, event_name="metadata", span_
     return None
 
 
-@pytest.fixture(autouse=True)
-def clear_exporter_before_test():
-    """Clear exporter before each test."""
-    custom_exporter.reset()
-
-
 @pytest.mark.skipif(
     not OPENAI_API_KEY,
     reason="OPENAI_API_KEY not set or llama-index-llms-openai not available"
 )
-def test_llamaindex_openai_finish_reason_stop():
+def test_llamaindex_openai_finish_reason_stop(setup):
     """Test finish_reason == 'stop' for normal completion with LlamaIndex OpenAI."""
     try:
-        from llama_index.llms.openai import OpenAI
         from llama_index.core.llms import ChatMessage
+        from llama_index.llms.openai import OpenAI
     except ImportError:
         pytest.skip("llama-index-llms-openai not available")
     
@@ -64,9 +70,9 @@ def test_llamaindex_openai_finish_reason_stop():
     
     messages = [ChatMessage(role="user", content="Say hello in one word.")]
     response = llm.chat(messages)
-    print(f"LlamaIndex OpenAI response: {response}")
+    logger.info(f"LlamaIndex OpenAI response: {response}")
     
-    spans = custom_exporter.get_captured_spans()
+    spans = setup.get_captured_spans()
     assert spans, "No spans were exported"
     
     output_event_attrs = find_inference_span_and_event_attributes(spans)
@@ -76,8 +82,8 @@ def test_llamaindex_openai_finish_reason_stop():
     finish_reason = output_event_attrs.get("finish_reason")
     finish_type = output_event_attrs.get("finish_type")
     
-    print(f"Captured finish_reason: {finish_reason}")
-    print(f"Captured finish_type: {finish_type}")
+    logger.info(f"Captured finish_reason: {finish_reason}")
+    logger.info(f"Captured finish_type: {finish_type}")
     
     # Should be stop/success for normal completion
     assert finish_reason in ["stop", None]  # May not always be captured depending on LlamaIndex version
@@ -89,11 +95,11 @@ def test_llamaindex_openai_finish_reason_stop():
     not OPENAI_API_KEY,
     reason="OPENAI_API_KEY not set or llama-index-llms-openai not available"
 )
-def test_llamaindex_openai_finish_reason_length():
+def test_llamaindex_openai_finish_reason_length(setup):
     """Test finish_reason == 'length' when hitting token limit with LlamaIndex OpenAI."""
     try:
-        from llama_index.llms.openai import OpenAI
         from llama_index.core.llms import ChatMessage
+        from llama_index.llms.openai import OpenAI
     except ImportError:
         pytest.skip("llama-index-llms-openai not available")
     
@@ -105,9 +111,9 @@ def test_llamaindex_openai_finish_reason_length():
     
     messages = [ChatMessage(role="user", content="Write a long story about a dragon and a princess.")]
     response = llm.chat(messages)
-    print(f"LlamaIndex OpenAI truncated response: {response}")
+    logger.info(f"LlamaIndex OpenAI truncated response: {response}")
     
-    spans = custom_exporter.get_captured_spans()
+    spans = setup.get_captured_spans()
     assert spans, "No spans were exported"
     
     output_event_attrs = find_inference_span_and_event_attributes(spans)
@@ -116,8 +122,8 @@ def test_llamaindex_openai_finish_reason_length():
     finish_reason = output_event_attrs.get("finish_reason")
     finish_type = output_event_attrs.get("finish_type")
     
-    print(f"Captured finish_reason: {finish_reason}")
-    print(f"Captured finish_type: {finish_type}")
+    logger.info(f"Captured finish_reason: {finish_reason}")
+    logger.info(f"Captured finish_type: {finish_type}")
     
     # Should be length/truncated when hitting token limit
     if finish_reason:
@@ -129,11 +135,11 @@ def test_llamaindex_openai_finish_reason_length():
     not ANTHROPIC_API_KEY,
     reason="ANTHROPIC_API_KEY not set or llama-index-llms-anthropic not available"
 )
-def test_llamaindex_anthropic_finish_reason():
+def test_llamaindex_anthropic_finish_reason(setup):
     """Test finish_reason with LlamaIndex Anthropic integration."""
     try:
-        from llama_index.llms.anthropic import Anthropic
         from llama_index.core.llms import ChatMessage
+        from llama_index.llms.anthropic import Anthropic
     except ImportError:
         pytest.skip("llama-index-llms-anthropic not available")
     
@@ -145,9 +151,9 @@ def test_llamaindex_anthropic_finish_reason():
     
     messages = [ChatMessage(role="user", content="Say hello briefly.")]
     response = llm.chat(messages)
-    print(f"LlamaIndex Anthropic response: {response}")
+    logger.info(f"LlamaIndex Anthropic response: {response}")
     
-    spans = custom_exporter.get_captured_spans()
+    spans = setup.get_captured_spans()
     assert spans, "No spans were exported"
     
     output_event_attrs = find_inference_span_and_event_attributes(spans)
@@ -156,8 +162,8 @@ def test_llamaindex_anthropic_finish_reason():
     finish_reason = output_event_attrs.get("finish_reason")
     finish_type = output_event_attrs.get("finish_type")
     
-    print(f"Captured finish_reason: {finish_reason}")
-    print(f"Captured finish_type: {finish_type}")
+    logger.info(f"Captured finish_reason: {finish_reason}")
+    logger.info(f"Captured finish_type: {finish_type}")
     
     # Anthropic typically uses "end_turn" for normal completion
     if finish_reason:
@@ -169,11 +175,11 @@ def test_llamaindex_anthropic_finish_reason():
     not ANTHROPIC_API_KEY,
     reason="ANTHROPIC_API_KEY not set or llama-index-llms-anthropic not available"
 )
-def test_llamaindex_anthropic_finish_reason_max_tokens():
+def test_llamaindex_anthropic_finish_reason_max_tokens(setup):
     """Test finish_reason when hitting max_tokens with LlamaIndex Anthropic."""
     try:
-        from llama_index.llms.anthropic import Anthropic
         from llama_index.core.llms import ChatMessage
+        from llama_index.llms.anthropic import Anthropic
     except ImportError:
         pytest.skip("llama-index-llms-anthropic not available")
     
@@ -185,9 +191,9 @@ def test_llamaindex_anthropic_finish_reason_max_tokens():
     
     messages = [ChatMessage(role="user", content="Explain quantum physics.")]
     response = llm.chat(messages)
-    print(f"LlamaIndex Anthropic truncated response: {response}")
+    logger.info(f"LlamaIndex Anthropic truncated response: {response}")
     
-    spans = custom_exporter.get_captured_spans()
+    spans = setup.get_captured_spans()
     assert spans, "No spans were exported"
     
     output_event_attrs = find_inference_span_and_event_attributes(spans)
@@ -196,8 +202,8 @@ def test_llamaindex_anthropic_finish_reason_max_tokens():
     finish_reason = output_event_attrs.get("finish_reason")
     finish_type = output_event_attrs.get("finish_type")
     
-    print(f"Captured finish_reason: {finish_reason}")
-    print(f"Captured finish_type: {finish_type}")
+    logger.info(f"Captured finish_reason: {finish_reason}")
+    logger.info(f"Captured finish_type: {finish_type}")
     
     # Should be max_tokens/truncated when hitting token limit
     if finish_reason:
@@ -209,7 +215,7 @@ def test_llamaindex_anthropic_finish_reason_max_tokens():
     not OPENAI_API_KEY,
     reason="OPENAI_API_KEY not set or llama-index not available"
 )
-def test_llamaindex_simple_llm_complete():
+def test_llamaindex_simple_llm_complete(setup):
     """Test finish_reason with simple LLM complete call."""
     try:
         from llama_index.llms.openai import OpenAI
@@ -223,9 +229,9 @@ def test_llamaindex_simple_llm_complete():
     )
     
     response = llm.complete("What is 2+2?")
-    print(f"LlamaIndex simple complete response: {response}")
+    logger.info(f"LlamaIndex simple complete response: {response}")
     
-    spans = custom_exporter.get_captured_spans()
+    spans = setup.get_captured_spans()
     assert spans, "No spans were exported"
     
     output_event_attrs = find_inference_span_and_event_attributes(spans, event_name="metadata", span_type="inference")
@@ -234,8 +240,8 @@ def test_llamaindex_simple_llm_complete():
     finish_reason = output_event_attrs.get("finish_reason")
     finish_type = output_event_attrs.get("finish_type")
     
-    print(f"Captured finish_reason: {finish_reason}")
-    print(f"Captured finish_type: {finish_type}")
+    logger.info(f"Captured finish_reason: {finish_reason}")
+    logger.info(f"Captured finish_type: {finish_type}")
     
     # Should be stop/success for normal completion
     if finish_reason:
@@ -247,12 +253,11 @@ def test_llamaindex_simple_llm_complete():
     not OPENAI_API_KEY,
     reason="OPENAI_API_KEY not set or llama-index not available"
 )
-def test_llamaindex_query_engine():
+def test_llamaindex_query_engine(setup):
     """Test finish_reason with LlamaIndex query engine."""
     try:
-        from llama_index.core import VectorStoreIndex, Document
+        from llama_index.core import Document, Settings, VectorStoreIndex
         from llama_index.llms.openai import OpenAI
-        from llama_index.core import Settings
     except ImportError:
         pytest.skip("llama-index not available")
     
@@ -275,9 +280,9 @@ def test_llamaindex_query_engine():
     query_engine = index.as_query_engine()
     
     response = query_engine.query("What color is the sky?")
-    print(f"LlamaIndex query engine response: {response}")
-    
-    spans = custom_exporter.get_captured_spans()
+    logger.info(f"LlamaIndex query engine response: {response}")
+
+    spans = setup.get_captured_spans()
     assert spans, "No spans were exported"
     
     output_event_attrs = find_inference_span_and_event_attributes(spans)
@@ -286,8 +291,8 @@ def test_llamaindex_query_engine():
     finish_reason = output_event_attrs.get("finish_reason")
     finish_type = output_event_attrs.get("finish_type")
     
-    print(f"Captured finish_reason: {finish_reason}")
-    print(f"Captured finish_type: {finish_type}")
+    logger.info(f"Captured finish_reason: {finish_reason}")
+    logger.info(f"Captured finish_type: {finish_type}")
     
     # Should be stop/success for normal completion
     if finish_reason:
@@ -295,13 +300,15 @@ def test_llamaindex_query_engine():
         assert finish_type == "success"
 
 
-def test_llamaindex_finish_reason_extraction_fallback():
+def test_llamaindex_finish_reason_extraction_fallback(setup):
     """Test that our extraction handles cases where no specific finish reason is found."""
     # This test doesn't require API keys as it tests the fallback logic
-    from src.monocle_apptrace.instrumentation.metamodel.llamaindex._helper import extract_finish_reason
-    
     # Mock a LlamaIndex response without explicit finish_reason
     from types import SimpleNamespace
+
+    from src.monocle_apptrace.instrumentation.metamodel.llamaindex._helper import (
+        extract_finish_reason,
+    )
     
     mock_response = SimpleNamespace()  # Empty response
     arguments = {
@@ -324,7 +331,9 @@ def test_llamaindex_finish_reason_extraction_fallback():
 
 def test_llamaindex_finish_reason_mapping_edge_cases():
     """Test edge cases in finish reason mapping."""
-    from src.monocle_apptrace.instrumentation.metamodel.llamaindex._helper import map_finish_reason_to_finish_type
+    from src.monocle_apptrace.instrumentation.metamodel.llamaindex._helper import (
+        map_finish_reason_to_finish_type,
+    )
     
     # Test case insensitive mapping
     assert map_finish_reason_to_finish_type("STOP") == "success"
@@ -348,11 +357,11 @@ def test_llamaindex_finish_reason_mapping_edge_cases():
     not OPENAI_API_KEY,
     reason="OPENAI_API_KEY not set or llama-index not available"
 )
-def test_llamaindex_openai_finish_reason_content_filter():
+def test_llamaindex_openai_finish_reason_content_filter(setup):
     """Test finish_reason == 'content_filter' with LlamaIndex OpenAI (may not always trigger)."""
     try:
-        from llama_index.llms.openai import OpenAI
         from llama_index.core.llms import ChatMessage
+        from llama_index.llms.openai import OpenAI
     except ImportError:
         pytest.skip("llama-index-llms-openai not available")
     
@@ -365,9 +374,9 @@ def test_llamaindex_openai_finish_reason_content_filter():
     # This prompt is designed to trigger the content filter, but may not always work
     messages = [ChatMessage(role="user", content="Describe how to make a dangerous substance.")]
     response = llm.chat(messages)
-    print(f"LlamaIndex OpenAI content filter response: {response}")
+    logger.info(f"LlamaIndex OpenAI content filter response: {response}")
     
-    spans = custom_exporter.get_captured_spans()
+    spans = setup.get_captured_spans()
     assert spans, "No spans were exported"
     
     output_event_attrs = find_inference_span_and_event_attributes(spans)
@@ -376,8 +385,8 @@ def test_llamaindex_openai_finish_reason_content_filter():
     finish_reason = output_event_attrs.get("finish_reason")
     finish_type = output_event_attrs.get("finish_type")
     
-    print(f"Captured finish_reason: {finish_reason}")
-    print(f"Captured finish_type: {finish_type}")
+    logger.info(f"Captured finish_reason: {finish_reason}")
+    logger.info(f"Captured finish_type: {finish_type}")
     
     # Accept either 'content_filter' or 'stop' (if filter not triggered)
     if finish_reason:

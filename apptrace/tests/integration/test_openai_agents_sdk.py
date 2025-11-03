@@ -1,26 +1,21 @@
-import asyncio
-import pytest
 import logging
+import os
 import threading
+import time
+
+import pytest
 import uvicorn
-from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
-from opentelemetry.sdk.trace.export import SimpleSpanProcessor, BatchSpanProcessor
+from common.custom_exporter import CustomConsoleSpanExporter
+from config.conftest import temporary_env_var
 from monocle_apptrace.exporters.file_exporter import FileSpanExporter
 from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
-from tests.integration.servers.mcp.weather_server import app as weather_app
-from common.custom_exporter import CustomConsoleSpanExporter
-import time
-import os
+from opentelemetry.sdk.trace.export import BatchSpanProcessor, SimpleSpanProcessor
+from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
+
+from integration.servers.mcp.weather_server import app as weather_app
 
 logger = logging.getLogger(__name__)
 
-memory_exporter = InMemorySpanExporter()
-custom_exporter = CustomConsoleSpanExporter()
-span_processors = [
-    SimpleSpanProcessor(memory_exporter),
-    BatchSpanProcessor(FileSpanExporter()),
-    SimpleSpanProcessor(custom_exporter)
-]
 
 # Global variable to track weather server process
 weather_server_process = None
@@ -54,12 +49,25 @@ def start_weather_server_fixture():
 
 @pytest.fixture(scope="module")
 def setup(start_weather_server_fixture):
-    memory_exporter.clear()
-    setup_monocle_telemetry(
-        workflow_name="agents_sdk_dev_1",
-        # monocle_exporters_list="file, okahu"
-        span_processors=span_processors,
-    )
+    
+    memory_exporter = InMemorySpanExporter()
+    custom_exporter = CustomConsoleSpanExporter()
+    span_processors = [
+        SimpleSpanProcessor(memory_exporter),
+        BatchSpanProcessor(FileSpanExporter()),
+        SimpleSpanProcessor(custom_exporter)
+    ]
+    try:
+        instrumentor = setup_monocle_telemetry(
+            workflow_name="agents_sdk_dev_1",
+            # monocle_exporters_list="file, okahu"
+            span_processors=span_processors,
+        )
+        yield memory_exporter
+    finally:
+        # Clean up instrumentor to avoid global state leakage
+        if instrumentor and instrumentor.is_instrumented_by_opentelemetry:
+            instrumentor.uninstrument()
 
 
 def book_hotel(hotel_name: str) -> str:
@@ -79,7 +87,6 @@ def book_flight(from_airport: str, to_airport: str) -> str:
 #     return f"The weather in {city} is sunny and 75°F."
 
 
-@pytest.mark.integration()
 @pytest.mark.asyncio
 async def test_agents_sdk_multi_agent(setup):
     """Test multi-agent interaction with handoffs and MCP servers."""
@@ -136,23 +143,31 @@ async def test_agents_sdk_multi_agent(setup):
         # Test the multi-agent workflow with weather information
         result = await Runner.run(
             coordinator,
-            "I need to book a flight from NYC to LAX and also book the Hilton hotel in Los Angeles. Also check the weather in Los Angeles and New York to help with travel planning.",
+            "Please help me with my complete travel needs:Book a flight from NYC to LAX using the flight agent. Also check the weather in both cities. Please delegate to the appropriate specialized agents.",
         )
 
-        print(f"Multi-agent result: {result.final_output}")
+        logger.info(f"Multi-agent result: {result.final_output}")
+
+        result = await Runner.run(
+            coordinator,
+            "Please help me with my complete travel needs: Book the Hilton hotel in Los Angeles using the hotel agent, Also check the weather in both cities. Please delegate to the appropriate specialized agents.",
+        )
+
+        logger.info(f"Multi-agent result: {result.final_output}")
 
         # Verify spans were created
-        verify_multi_agent_spans()
+        verify_multi_agent_spans(memory_exporter=setup)
 
     except ImportError:
         pytest.skip("OpenAI Agents SDK not available")
 
-def verify_multi_agent_spans():
+def verify_multi_agent_spans(memory_exporter=None):
     """Verify that multi-agent spans were created."""
     time.sleep(2)
     # Allow time for spans to be processed
 
     found_agent = found_tool = found_delegation = found_mcp = False
+    found_flight_delegation = found_hotel_delegation = False
     agent_names = set()
     tool_names = set()
     mcp_operations = set()
@@ -172,12 +187,23 @@ def verify_multi_agent_spans():
             agent_names.add(span_attributes["entity.1.name"])
             found_agent = True
 
+        # Check for subtype in inference
+        if (
+            "span.type" in span_attributes
+            and span_attributes["span.type"] == "inference"
+        ):
+            assert "span.subtype" in span.attributes, "Expected span.subtype attribute to be present"
+            assert span.attributes.get("span.subtype") in ["turn_end", "tool_call", "delegation"]
+
         # Check for tool spans
         if (
             "span.type" in span_attributes
             and span_attributes["span.type"] == "agentic.tool.invocation"
         ):
-            assert span_attributes["entity.1.type"] == "tool.mcp"
+            if "is_mcp" in span_attributes and span_attributes["is_mcp"]:
+                assert span_attributes["entity.1.type"] == "tool.mcp"
+            else:
+                assert span_attributes["entity.1.type"] == "tool.openai_agents"
             assert "entity.1.name" in span_attributes
             tool_names.add(span_attributes["entity.1.name"])
             found_tool = True
@@ -191,6 +217,12 @@ def verify_multi_agent_spans():
             assert "entity.1.from_agent" in span_attributes
             assert "entity.1.to_agent" in span_attributes
             found_delegation = True
+            
+            # Check for specific agent delegations
+            if span_attributes["entity.1.to_agent"] == "Flight Agent":
+                found_flight_delegation = True
+            elif span_attributes["entity.1.to_agent"] == "Hotel Agent":
+                found_hotel_delegation = True
 
         # Check for MCP-related spans
         if (
@@ -203,17 +235,18 @@ def verify_multi_agent_spans():
     assert found_agent, "Agent span not found"
     assert found_tool, "Tool span not found"
     assert found_delegation, "Delegation span not found"
+    assert found_flight_delegation, "Flight Agent delegation span not found"
+    assert found_hotel_delegation, "Hotel Agent delegation span not found"
     assert found_mcp, "MCP operation span not found"
     # Note: Delegation might not always occur depending on the model's decisions
     # Note: MCP spans might not always occur depending on whether MCP tools are called
 
-    print(f"Found agents: {agent_names}")
-    print(f"Found tools: {tool_names}")
+    logger.info(f"Found agents: {agent_names}")
+    logger.info(f"Found tools: {tool_names}")
     if mcp_operations:
-        print(f"Found MCP operations: {mcp_operations}")
+        logger.info(f"Found MCP operations: {mcp_operations}")
 
 
-@pytest.mark.integration()
 @pytest.mark.asyncio
 async def test_agents_sdk_mcp_server(setup):
     """Test OpenAI Agents SDK with MCP server integration."""
@@ -240,69 +273,68 @@ async def test_agents_sdk_mcp_server(setup):
             "What's the weather like in New York, London, and Tokyo? Please provide the temperature for each city.",
         )
 
-        print(f"Weather agent result: {result.final_output}")
+        logger.info(f"Weather agent result: {result.final_output}")
 
         # Verify spans were created
-        verify_mcp_spans()
+        verify_mcp_spans(memory_exporter=setup)
 
     except ImportError:
         pytest.skip("OpenAI Agents SDK not available")
 
-@pytest.mark.integration()
 @pytest.mark.asyncio
 async def test_invalid_api_key_error_code_in_span(setup):
     """Test that passing an invalid API key results in error_code in the span."""
     # Simulate invalid API key by setting an obviously wrong value
-    memory_exporter.clear()
-    try:
-        os.environ["OPENAI_API_KEY"] = "INVALID_API_KEY"
+    setup.clear()
+    
+    with temporary_env_var("OPENAI_API_KEY", "INVALID_API_KEY"):
         try:
-            from agents import Agent, Runner
-            from agents.mcp import MCPServerStreamableHttp
+            try:
+                from agents import Agent, Runner
+                from agents.mcp import MCPServerStreamableHttp
 
-            # Create MCP server for weather
-            weather_mcp_server = MCPServerStreamableHttp(
-                params={"url": "http://localhost:8001/weather/mcp/"}
-            )
-            await weather_mcp_server.connect()
+                # Create MCP server for weather
+                weather_mcp_server = MCPServerStreamableHttp(
+                    params={"url": "http://localhost:8001/weather/mcp/"}
+                )
+                await weather_mcp_server.connect()
 
-            # Create an agent that uses only MCP tools
-            weather_agent = Agent(
-                name="Weather Assistant",
-                instructions="You are a weather information specialist. Use the available weather tools to provide accurate weather information for cities.",
-                mcp_servers=[weather_mcp_server],
-            )
+                # Create an agent that uses only MCP tools
+                weather_agent = Agent(
+                    name="Weather Assistant",
+                    instructions="You are a weather information specialist. Use the available weather tools to provide accurate weather information for cities.",
+                    mcp_servers=[weather_mcp_server],
+                )
 
-            # Test the agent with weather queries
-            result = await Runner.run(
-                weather_agent,
-                "What's the weather like in New York, London, and Tokyo? Please provide the temperature for each city.",
-            )
+                # Test the agent with weather queries
+                result = await Runner.run(
+                    weather_agent,
+                    "What's the weather like in New York, London, and Tokyo? Please provide the temperature for each city.",
+                )
 
-            print(f"Weather agent result: {result.final_output}")
+                logger.info(f"Weather agent result: {result.final_output}")
 
-            # Verify spans were created
-            verify_mcp_spans()
+                # Verify spans were created
+                verify_mcp_spans(memory_exporter=setup)
 
-        except ImportError:
-            pytest.skip("OpenAI Agents SDK not available")
+            except ImportError:
+                pytest.skip("OpenAI Agents SDK not available")
 
-    except Exception as e:
-        spans = memory_exporter.get_finished_spans()
-        found_error_code = False
-        for span in spans:
-            span_attributes = span.attributes
-            if (
-                    "span.type" in span_attributes
-                    and span_attributes["span.type"] == "agentic.invocation"
-                    and "entity.1.name" in span_attributes
-            ):
-                span_input, span_output, _, _ = span.events
-                assert "error_code" in span_output.attributes
-                assert span_output.attributes["error_code"] == "invalid_api_key"
+        except Exception:
+            spans = setup.get_finished_spans()
+            for span in spans:
+                span_attributes = span.attributes
+                if (
+                        "span.type" in span_attributes
+                        and span_attributes["span.type"] == "agentic.invocation"
+                        and "entity.1.name" in span_attributes
+                ):
+                    span_input, span_output, _, _ = span.events
+                    assert "error_code" in span_output.attributes
+                    assert span_output.attributes["error_code"] == "invalid_api_key"
 
 
-def verify_mcp_spans():
+def verify_mcp_spans(memory_exporter=None):
     """Verify that MCP-related spans were created."""
     time.sleep(2)
     # Allow time for spans to be processed
@@ -326,6 +358,14 @@ def verify_mcp_spans():
             agent_names.add(span_attributes["entity.1.name"])
             found_agent = True
 
+        # Check for subtype in inference
+        if (
+                "span.type" in span_attributes
+                and span_attributes["span.type"] == "inference"
+        ):
+            assert "span.subtype" in span.attributes, "Expected span.subtype attribute to be present"
+            assert span.attributes.get("span.subtype") in ["turn_end", "tool_call", "delegation"]
+
         # Check for MCP tool invocation spans
         if (
             "span.type" in span_attributes
@@ -346,9 +386,9 @@ def verify_mcp_spans():
     assert found_agent, "Agent span not found"
     # Note: MCP tool spans might not always occur depending on whether MCP tools are called
 
-    print(f"Found agents: {agent_names}")
+    logger.info(f"Found agents: {agent_names}")
     if mcp_tool_names:
-        print(f"Found MCP tools: {mcp_tool_names}")
+        logger.info(f"Found MCP tools: {mcp_tool_names}")
 
 
 if __name__ == "__main__":

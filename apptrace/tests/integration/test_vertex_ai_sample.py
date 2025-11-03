@@ -1,39 +1,43 @@
 # Enable Monocle Tracing
+import logging
+import os
 import time
 
+import pytest
+from common.custom_exporter import CustomConsoleSpanExporter
+from common.helpers import (
+    find_span_by_type,
+    find_spans_by_type,
+    validate_inference_span_events,
+    verify_inference_span,
+)
+from google import genai
+from google.genai import types
 from monocle_apptrace.instrumentation.common.instrumentor import (
-    set_context_properties,
     setup_monocle_telemetry,
 )
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
-from common.custom_exporter import CustomConsoleSpanExporter
-from common.helpers import (
-    validate_inference_span_events,
-    verify_inference_span,
-    find_span_by_type,
-    find_spans_by_type,
-)
-import os
-from google import genai
-from google.genai import types
 
-import pytest
+logger = logging.getLogger(__name__)
 
-custom_exporter = CustomConsoleSpanExporter()
-
-
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="function")
 def setup():
-    setup_monocle_telemetry(
-        workflow_name="vertexai_app_1",
-        span_processors=[BatchSpanProcessor(custom_exporter)],
-        wrapper_methods=[],
-    )
+    try:
+        custom_exporter = CustomConsoleSpanExporter()
+        instrumentor = setup_monocle_telemetry(
+            workflow_name="vertexai_app_1",
+            span_processors=[BatchSpanProcessor(custom_exporter)],
+            wrapper_methods=[],
+        )
+        yield custom_exporter
+    finally:
+        # Clean up instrumentor to avoid global state leakage
+        if instrumentor and instrumentor.is_instrumented_by_opentelemetry:
+            instrumentor.uninstrument()
 
 
-@pytest.mark.integration()
 def test_gemini_model_sample(setup):
-    client = genai.Client(vertexai=True,project="fluent-radar-408119", location="us-east5")
+    client = genai.Client(vertexai=True, project=os.environ.get("GCP_PROJECT"), location=os.environ.get("GCP_REGION"))
 
     response = client.models.generate_content(
         model="gemini-2.5-flash",
@@ -43,15 +47,10 @@ def test_gemini_model_sample(setup):
         contents="Hello there",
     )
     time.sleep(5)
-    print(response.text)
-    spans = custom_exporter.get_captured_spans()
+    logger.info(response.text)
+    spans = setup.get_captured_spans()
     check_span(spans)
 
-
-@pytest.fixture(autouse=True)
-def pre_test():
-    # clear old spans
-    custom_exporter.reset()
 
 def check_span(spans):
     """Verify spans using flexible utilities."""

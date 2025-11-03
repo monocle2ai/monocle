@@ -1,37 +1,43 @@
-import asyncio
+import logging
 import os
 import time
+
 import pytest
-from opentelemetry.sdk.trace.export import BatchSpanProcessor
-from monocle_apptrace.exporters.file_exporter import FileSpanExporter
-from tests.common.custom_exporter import CustomConsoleSpanExporter
-from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
-from monocle_apptrace.instrumentation.metamodel.hugging_face.methods import HUGGING_FACE_METHODS
-from huggingface_hub import InferenceClient
-from huggingface_hub import AsyncInferenceClient
-from tests.common.helpers import (
+from common.custom_exporter import CustomConsoleSpanExporter
+from common.helpers import (
     find_span_by_type,
     find_spans_by_type,
     validate_inference_span_events,
     verify_inference_span,
 )
+from huggingface_hub import AsyncInferenceClient, InferenceClient
+from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
+from monocle_apptrace.instrumentation.metamodel.hugging_face.methods import (
+    HUGGING_FACE_METHODS,
+)
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+from config.conftest import temporary_env_var
 
-custom_exporter = CustomConsoleSpanExporter()
+logger = logging.getLogger(__name__)
 
-@pytest.fixture(autouse=True)
-def clear_spans():
-    custom_exporter.reset()
-    yield
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="function")
 def setup():
-    setup_monocle_telemetry(
-        workflow_name="generic_hf_1",
-        span_processors=[BatchSpanProcessor(custom_exporter)],
-        #wrapper_methods=HUGGING_FACE_METHODS,
-    )
+    custom_exporter = CustomConsoleSpanExporter()
+    instrumentor = None
+    try:
+        instrumentor = setup_monocle_telemetry(
+            workflow_name="generic_hf_1",
+            span_processors=[SimpleSpanProcessor(custom_exporter)],
+            wrapper_methods=[]
+        )
+        yield custom_exporter
+    finally:
+        # Clean up instrumentor to avoid global state leakage
+        if instrumentor and instrumentor.is_instrumented_by_opentelemetry:
+            instrumentor.uninstrument()
 
-@pytest.mark.integration()
+
 def test_huggingface_api_sample(setup):
     client = InferenceClient(api_key=os.getenv("HUGGING_FACE_API_KEY"))
     response = client.chat_completion(
@@ -47,8 +53,8 @@ def test_huggingface_api_sample(setup):
 
     time.sleep(5)  # wait for spans
 
-    spans = custom_exporter.get_captured_spans()
-    print(f"Captured {len(spans)} spans")
+    spans = setup.get_captured_spans()
+    logger.info(f"Captured {len(spans)} spans")
     assert len(spans) > 0, "No spans captured"
 
     inference_spans = find_spans_by_type(spans, "inference") or find_spans_by_type(spans, "inference.framework")
@@ -64,9 +70,13 @@ def test_huggingface_api_sample(setup):
             check_input_output=True,
         )
 
-    print("\n--- Captured span types ---")
+        # Add assertion for span.subtype
+        assert "span.subtype" in span.attributes, "Expected span.subtype attribute to be present"
+        assert span.attributes.get("span.subtype") in ["turn_end", "tool_call", "delegation"]
+
+    logger.info("\n--- Captured span types ---")
     for span in spans:
-        print(span.attributes.get("span.type", "NO_SPAN_TYPE"), "-", span.name)
+        logger.info(f"{span.attributes.get('span.type', 'NO_SPAN_TYPE')} - {span.name}")
 
 
     inference_spans = [s for s in inference_spans if s.attributes.get("span.type", "") == "inference"]
@@ -94,7 +104,6 @@ def test_huggingface_api_sample(setup):
     assert workflow_span.attributes["workflow.name"] == "generic_hf_1"
     assert workflow_span.attributes["entity.1.type"] == "workflow.huggingface"
 
-@pytest.mark.integration()
 @pytest.mark.asyncio
 async def test_huggingface_api_async_sample(setup):
     # Use AsyncInferenceClient
@@ -114,8 +123,8 @@ async def test_huggingface_api_async_sample(setup):
 
     time.sleep(5)  # wait for spans
 
-    spans = custom_exporter.get_captured_spans()
-    print(f"Captured {len(spans)} spans")
+    spans = setup.get_captured_spans()
+    logger.info(f"Captured {len(spans)} spans")
     assert len(spans) > 0, "No spans captured"
 
     inference_spans = find_spans_by_type(spans, "inference") or find_spans_by_type(spans, "inference.framework")
@@ -131,9 +140,13 @@ async def test_huggingface_api_async_sample(setup):
             check_input_output=True,
         )
 
-    print("\n--- Captured span types ---")
+        # Add assertion for span.subtype
+        assert "span.subtype" in span.attributes, "Expected span.subtype attribute to be present"
+        assert span.attributes.get("span.subtype") in ["turn_end", "tool_call", "delegation"]
+
+    logger.info("\n--- Captured span types ---")
     for span in spans:
-        print(span.attributes.get("span.type", "NO_SPAN_TYPE"), "-", span.name)
+        logger.info(f"{span.attributes.get('span.type', 'NO_SPAN_TYPE')} - {span.name}")
 
     inference_spans = [s for s in inference_spans if s.attributes.get("span.type", "") == "inference"]
     assert len(inference_spans) == 1, "Expected exactly one inference span"
@@ -160,34 +173,45 @@ async def test_huggingface_api_async_sample(setup):
     assert workflow_span.attributes["workflow.name"] == "generic_hf_1"
     assert workflow_span.attributes["entity.1.type"] == "workflow.huggingface"
 
-@pytest.mark.integration()
 def test_huggingface_invalid_api_key(setup):
-    client = InferenceClient(api_key="invalid_key_123")
-    try:
-        client.chat_completion(
-            model="openai/gpt-oss-120b",
-            messages=[{"role": "user", "content": "test"}],
-        )
-    except Exception as e:
-        # Hugging Face returns a 401 HTTP error
-        assert "401" in str(e) or "Unauthorized" in str(e)
+    """Test Hugging Face client with invalid API key using temporary environment variable"""
+    with temporary_env_var("HUGGINGFACEHUB_API_TOKEN", "invalid_key_123"):
+        client = InferenceClient()  # No key passed explicitly — taken from env
+        try:
+            client.chat_completion(
+                model="openai/gpt-oss-120b",
+                messages=[{"role": "user", "content": "test"}],
+            )
+        except Exception as e:
+            # Accept 401, 403, Unauthorized, Forbidden errors
+            error_str = str(e)
+            assert (
+                "401" in error_str
+                or "403" in error_str
+                or "Unauthorized" in error_str
+                or "Forbidden" in error_str
+                or "provide an api_key" in error_str
+            ), f"Unexpected error: {error_str}"
 
-    time.sleep(5)
-    spans = custom_exporter.get_captured_spans()
-    for span in spans:
-        print("SPAN:", span.name)
-        for e in span.events:
-            print(" EVENT:", e.name, e.attributes)
+        # Allow spans to flush
+        time.sleep(5)
+        spans = setup.get_captured_spans()
+        for span in spans:
+            logger.info(f"SPAN: {span.name}")
+            for e in span.events:
+                logger.info(f" EVENT: {e.name} {e.attributes}")
 
-    for span in spans:
-        if span.attributes.get("span.type") in ["inference", "inference.framework"]:
-            events = [e for e in span.events if e.name == "data.output"]
-            assert len(events) > 0
-            assert span.status.status_code.value == 2
-            error_code = events[0].attributes.get("error_code")
-            assert error_code == "error"
-            response = events[0].attributes.get("response")
-            assert response is None or response == ""
+        for span in spans:
+            if span.attributes.get("span.type") in ["inference", "inference.framework"]:
+                assert "span.subtype" in span.attributes, "Expected span.subtype attribute to be present"
+                assert span.attributes.get("span.subtype") in ["turn_end", "tool_call", "delegation"]
+                events = [e for e in span.events if e.name == "data.output"]
+                assert len(events) > 0
+                assert span.status.status_code.value == 2
+                error_code = events[0].attributes.get("error_code")
+                assert error_code == "error"
+                response = events[0].attributes.get("response")
+                assert response is None or response == ""
 
 
 if __name__ == "__main__":

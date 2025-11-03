@@ -1,37 +1,27 @@
-import asyncio
-import time
-import threading
-import subprocess
-import signal
-import os
 import logging
+import os
+import signal
+import subprocess
+import threading
+import time
 
 import pytest
 import uvicorn
-import httpx
-from pydantic import BaseModel, Field
-
-from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
-from opentelemetry.sdk.trace.export import BatchSpanProcessor, SimpleSpanProcessor
-
-from llama_index.core.tools import FunctionTool
 from llama_index.core.agent.workflow import AgentWorkflow, FunctionAgent
+from llama_index.core.tools import FunctionTool
 from llama_index.llms.openai import OpenAI
 from llama_index.tools.mcp import aget_tools_from_mcp_url
-
 from monocle_apptrace.exporters.file_exporter import FileSpanExporter
 from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
+from opentelemetry.sdk.trace.export import BatchSpanProcessor, SimpleSpanProcessor
+from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
+from pydantic import BaseModel, Field
 
-from tests.integration.servers.mcp.weather_server import app as weather_app
+from integration.servers.mcp.weather_server import app as weather_app
 
 logger = logging.getLogger(__name__)
 
-memory_exporter = InMemorySpanExporter()
-file_exporter = FileSpanExporter()
-span_processors = [
-    SimpleSpanProcessor(memory_exporter),
-    BatchSpanProcessor(file_exporter),
-]
+
 
 # Global variables to track server processes
 weather_server_process = None
@@ -52,8 +42,8 @@ def start_weather_server():
 
 def start_a2a_server():
     """Start the A2A Currency server on port 10000."""
-    import sys
     import os
+    import sys
 
     # Get the path to the A2A server script
     current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -110,12 +100,22 @@ def start_servers():
 
 @pytest.fixture(scope="module")
 def setup(start_servers):
-    memory_exporter.clear()
-    setup_monocle_telemetry(
-        workflow_name="llamaindex_agent_1",
-        span_processors=span_processors,
-    )
-
+    memory_exporter = InMemorySpanExporter()
+    file_exporter = FileSpanExporter()
+    span_processors = [
+        SimpleSpanProcessor(memory_exporter),
+        BatchSpanProcessor(file_exporter),
+    ]
+    try:
+        instrumentor = setup_monocle_telemetry(
+            workflow_name="llamaindex_agent_1",
+            span_processors=span_processors,
+        )
+        yield memory_exporter
+    finally:
+        # Clean up instrumentor to avoid global state leakage
+        if instrumentor and instrumentor.is_instrumented_by_opentelemetry:
+            instrumentor.uninstrument()
 
 def book_hotel(hotel_name: str):
     """Book a hotel"""
@@ -136,20 +136,7 @@ class CurrencyConversionInput(BaseModel):
 
 
 def currency_conversion_tool(message: str) -> str:
-    """Gives currency conversion rate"""
-    try:
-        # Try to import A2A classes
-        from a2a.client import A2ACardResolver, A2AClient
-        from a2a.types import MessageSendParams, SendMessageRequest
-
-        # For LlamaIndex FunctionTool, we need to handle async operations differently
-        # This is a simplified version that would need proper async handling in a real implementation
-        return f"Currency conversion for: {message}. Exchange rate USD to EUR is 0.85 (simulated)"
-
-    except ImportError:
-        return f"A2A Client libraries not available for message: {message}"
-    except Exception as e:
-        return f"Currency conversion error: {str(e)}"
+   return f"Currency conversion for: {message}. Exchange rate USD to EUR is 0.85 (simulated)"
 
 
 def multiply(a: float, b: float) -> float:
@@ -228,7 +215,7 @@ async def setup_agents():
 
     #     agent_workflow = setup_agents()
     #     resp = await agent_workflow.run(user_msg="book a flight from BOS to JFK and a book hotel stay at McKittrick Hotel")
-    #     print(resp)
+    #     logger.info(resp)
 
     # Flight booking agent
     flight_tool = FunctionTool.from_defaults(
@@ -240,8 +227,9 @@ async def setup_agents():
         name="flight_assistant",
         tools=[flight_tool],
         llm=llm,
-        system_prompt="""You are a flight booking agent who books flights as per the request. Once you complete the task, you handoff to the coordinator agent only.
-        ""Dont ask for dates or other details, just book the flight directly if you can.""",
+        system_prompt="""You are a flight booking agent who books flights as per the request. 
+        When you receive a flight booking request, immediately use the book_flight tool to complete the booking.
+        After successfully booking the flight, handoff back to the supervisor agent with the booking details.""",
         description="Flight booking agent",
         can_handoff_to=["supervisor"],  # Can handoff to supervisor agent
     )
@@ -256,8 +244,9 @@ async def setup_agents():
         name="hotel_assistant",
         tools=[hotel_tool],
         llm=llm,
-        system_prompt="""You are a hotel booking agent who books hotels as per the request. Once you complete the task, you handoff to the coordinator agent only.
-        Dont ask for dates or other details, just book the hotel directly if you can.""",
+        system_prompt="""You are a hotel booking agent who books hotels as per the request.
+        When you receive a hotel booking request, immediately use the book_hotel tool to complete the booking.
+        After successfully booking the hotel, handoff back to the supervisor agent with the booking details.""",
         description="Hotel booking agent",
         can_handoff_to=["supervisor"],  # Can handoff to supervisor agent
     )
@@ -267,12 +256,15 @@ async def setup_agents():
         name="supervisor",
         tools=supervisor_tools,
         llm=llm,
-        system_prompt="""You are a coordinator agent who manages the flight and hotel booking agents. 
-                         First figure the required destinations and hotels from the input query.
-                         Separate hotel booking and flight booking tasks clearly from the input query.
-                         Dont ask for dates or other details, just book the hotel and flight directly if you can.
-                         Once they complete their tasks, you collect their responses and provide consolidated response to the user.
-                         Before giving back the response to the user, use the currency conversion and multiply tool for converting currencies. Don't use approximate conversions.""",
+        system_prompt="""You are a coordinator agent who manages flight and hotel booking agents. 
+                         
+                         For each user request:
+                         1. First delegate flight booking to the flight_assistant agent
+                         2. After flight booking is complete, delegate hotel booking to the hotel_assistant agent  
+                         3. Once both bookings are complete, use currency conversion tools if needed
+                         4. Provide a consolidated response with all booking details and costs
+                         
+                         Always ensure both agents complete their tasks before providing the final response.""",
         description="Travel booking supervisor agent",
         can_handoff_to=["flight_assistant", "hotel_assistant"],
     )
@@ -295,40 +287,23 @@ async def setup_agents():
     return agent_workflow
 
 
-# async def run_agent():
-#     """Test multi-agent interaction with flight and hotel booking."""
-#     agent_workflow = await setup_agents()
-#     resp = await agent_workflow.run(user_msg="book a flight from BOS to JFK or LAX. And also book me Hyatt hotel at LAX.")
-#     print(resp)
-
-
 async def run_async_agent():
     """Test async multi-agent interaction with more complex requirements."""
     agent_workflow = await setup_agents()
     resp = await agent_workflow.run(
-        # user_msg="Book a flight from BOS to JFK, and a hotel stay at McKittrick Hotel at JFK. Give me the cost in INR."
-        user_msg="Book a flight from BOS to JFK or LAX, which ever has lower temperature and a hotel stay at McKittrick Hotel at JFK or Sheraton Gateway Hotel at LAX. Give me the cost in INR."
+        user_msg="Book a flight from BOS to JFK, and a hotel stay at McKittrick Hotel. Give me the cost in INR."
     )
-    print(resp)
+    logger.info(resp)
 
 
-# @pytest.mark.integration()
-# @pytest.mark.asyncio
-# async def test_multi_agent(setup):
-#     """Test multi-agent interaction with flight and hotel booking."""
-#     await run_agent()
-#     verify_spans()
-
-
-@pytest.mark.integration()
 @pytest.mark.asyncio
 async def test_async_multi_agent(setup):
     """Test async multi-agent interaction with weather and currency tools."""
     await run_async_agent()
-    verify_spans()
+    verify_spans(memory_exporter=setup)
 
 
-def verify_spans():
+def verify_spans(memory_exporter=None):
     time.sleep(2)
     found_inference = found_agent = found_tool = False
     found_flight_agent = found_hotel_agent = found_supervisor_agent = False

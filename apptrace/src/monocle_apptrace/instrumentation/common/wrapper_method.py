@@ -39,6 +39,7 @@ from monocle_apptrace.instrumentation.metamodel.a2a.methods import A2A_CLIENT_ME
 from monocle_apptrace.instrumentation.metamodel.litellm.methods import LITELLM_METHODS
 from monocle_apptrace.instrumentation.metamodel.adk.methods import ADK_METHODS
 from monocle_apptrace.instrumentation.metamodel.mistral.methods import MISTRAL_METHODS
+from monocle_apptrace.instrumentation.metamodel.strands.methods import STRAND_METHODS
 
 class WrapperMethod:
     def __init__(
@@ -111,7 +112,8 @@ DEFAULT_METHODS_LIST = (
     LITELLM_METHODS +
     ADK_METHODS +
     MISTRAL_METHODS +
-    HUGGING_FACE_METHODS
+    HUGGING_FACE_METHODS +
+    STRAND_METHODS
 )
 
 MONOCLE_SPAN_HANDLERS: Dict[str, SpanHandler] = {
@@ -133,5 +135,5 @@ MONOCLE_SPAN_HANDLERS: Dict[str, SpanHandler] = {
     "llamaindex_tool_handler": LlamaIndexToolHandler(),
     "llamaindex_agent_handler": LlamaIndexAgentHandler(),
     "llamaindex_single_agent_tool_handler": LlamaIndexSingleAgenttToolHandlerWrapper(),
-    "lambda_func_handler": lambdaSpanHandler(),
+    "lambda_func_handler": lambdaSpanHandler()
 }

@@ -208,4 +208,3 @@
 - Add Embeddings Span in Gemini Metamodel ([#228](https://github.com/monocle2ai/monocle/pull/228))
 - Agent metamodel updates for LangGraph ([#227](https://github.com/monocle2ai/monocle/pull/227))
 - Add fastapi metamodel with fastapi tracid propogation testcase ([#226](https://github.com/monocle2ai/monocle/pull/226))
-

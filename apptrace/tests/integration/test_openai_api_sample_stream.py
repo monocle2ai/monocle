@@ -1,32 +1,36 @@
-import os
-import time
-import pytest
 import asyncio
-from opentelemetry.sdk.trace.export import BatchSpanProcessor
+import logging
+
+import pytest
 from common.custom_exporter import CustomConsoleSpanExporter
+from common.helpers import (
+    find_span_by_type,
+    find_spans_by_type,
+    validate_inference_span_events,
+    verify_inference_span,
+)
 from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
 from openai import AsyncOpenAI
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
 
-from tests.common.helpers import find_span_by_type, find_spans_by_type, validate_inference_span_events, verify_inference_span
+logger = logging.getLogger(__name__)
 
-custom_exporter = CustomConsoleSpanExporter()
-
-
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="function")
 def setup():
-    setup_monocle_telemetry(
-        workflow_name="generic_openai_1",
-        span_processors=[BatchSpanProcessor(custom_exporter)],
-        wrapper_methods=[],
-    )
+    custom_exporter = CustomConsoleSpanExporter()
+    try:
+        instrumentor = setup_monocle_telemetry(
+            workflow_name="generic_openai_1",
+            span_processors=[BatchSpanProcessor(custom_exporter)],
+            wrapper_methods=[],
+        )
+        yield custom_exporter
+    finally:
+        # Clean up instrumentor to avoid global state leakage
+        if instrumentor and instrumentor.is_instrumented_by_opentelemetry:
+            instrumentor.uninstrument()
 
-@pytest.fixture(autouse=True)
-def clear_spans():
-    """Clear spans before each test"""
-    custom_exporter.reset()
-    yield
 
-@pytest.mark.integration()
 @pytest.mark.asyncio
 async def test_openai_api_sample(setup):
     openai = AsyncOpenAI()
@@ -42,8 +46,8 @@ async def test_openai_api_sample(setup):
     )
     await asyncio.sleep(5)
 
-    spans = custom_exporter.get_captured_spans()
-    print(f"Captured {len(spans)} spans")
+    spans = setup.get_captured_spans()
+    logger.info(f"Captured {len(spans)} spans")
     
     # Verify we have spans
     assert len(spans) > 0, "No spans captured"
@@ -96,7 +100,6 @@ async def test_openai_api_sample(setup):
     assert workflow_span.attributes["entity.1.type"] == "workflow.openai"
 
 
-@pytest.mark.integration()
 @pytest.mark.asyncio
 async def test_openai_api_sample_stream(setup):
     openai = AsyncOpenAI()
@@ -123,13 +126,13 @@ async def test_openai_api_sample_stream(setup):
             collected_messages.append(chunk.choices[0].delta.content)
 
     full_response = "".join(collected_messages)
-    print("Streamed response:", full_response)
+    logger.info(f"Streamed response: {full_response}")
 
     # Wait for spans to be processed
     await asyncio.sleep(5)
 
-    spans = custom_exporter.get_captured_spans()
-    print(f"Captured {len(spans)} spans")
+    spans = setup.get_captured_spans()
+    logger.info(f"Captured {len(spans)} spans")
     
     # Verify we have spans
     assert len(spans) > 0, "No spans captured"

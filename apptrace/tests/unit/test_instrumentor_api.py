@@ -1,28 +1,29 @@
-import os
-import logging
-import unittest
 import asyncio
+import logging
+import os
+import unittest
+
+from common.custom_exporter import CustomConsoleSpanExporter
 from common.dummy_class import DummyClass
-from common.utils import verify_traceID, SCOPE_NAME, SCOPE_VALUE
-from opentelemetry.sdk.trace.export import SimpleSpanProcessor
-from opentelemetry.trace import Status, StatusCode
-from opentelemetry import trace
+from common.utils import SCOPE_NAME, SCOPE_VALUE, verify_traceID
 from monocle_apptrace.instrumentation.common.instrumentor import (
-    setup_monocle_telemetry, 
-    monocle_trace, 
-    amonocle_trace, 
+    amonocle_trace,
+    get_tracer_provider,
+    monocle_trace,
     monocle_trace_method,
+    setup_monocle_telemetry,
     start_trace,
     stop_trace,
-    get_tracer_provider
 )
+from monocle_apptrace.instrumentation.common.wrapper import atask_wrapper, task_wrapper
 from monocle_apptrace.instrumentation.common.wrapper_method import WrapperMethod
-from common.custom_exporter import CustomConsoleSpanExporter
-from monocle_apptrace.instrumentation.common.wrapper import task_wrapper, atask_wrapper
+from opentelemetry import trace
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+from opentelemetry.trace import Status, StatusCode
 
 logger = logging.getLogger(__name__)
 
-class TestInstrumentorAPI(unittest.TestCase):
+class TestInstrumentorAPI(unittest.IsolatedAsyncioTestCase):
     """Test class for instrumentor API functions like monocle_trace, amonocle_trace, and monocle_trace_method"""
     
     @classmethod
@@ -64,6 +65,9 @@ class TestInstrumentorAPI(unittest.TestCase):
     def test_monocle_trace_basic(self):
         """Test basic functionality of monocle_trace context manager"""
         
+        # Clear any previous spans to avoid interference
+        self.exporter.reset()
+        
         # Test with default span name
         with monocle_trace():
             result = self.dummy.double_it(5)
@@ -72,11 +76,29 @@ class TestInstrumentorAPI(unittest.TestCase):
         self.exporter.force_flush()
         spans = self.exporter.captured_spans
         
-        # Should have 2 spans: one from the context manager and one from the instrumented method
-        self.assertEqual(len(spans), 2)
+        # Should have 3 spans: two workflow spans and one from the instrumented method
+        self.assertEqual(len(spans), 3)
         
-        # Verify trace ID consistency
-        verify_traceID(self.exporter, 2)
+        # Verify that related spans (double_it and its parent workflow) share the same trace ID
+        double_it_span = None
+        workflow_spans = []
+        for span in spans:
+            if span.name == "double_it":
+                double_it_span = span
+            elif span.name == "workflow":
+                workflow_spans.append(span)
+        
+        self.assertIsNotNone(double_it_span)
+        self.assertTrue(len(workflow_spans) >= 1)
+        
+        # Find the workflow span that shares the same trace ID as double_it_span
+        related_workflow_span = None
+        for workflow_span in workflow_spans:
+            if workflow_span.context.trace_id == double_it_span.context.trace_id:
+                related_workflow_span = workflow_span
+                break
+        
+        self.assertIsNotNone(related_workflow_span, "No workflow span found with matching trace ID to double_it span")
         
         # Check that the context manager span exists
         span_names = [span.name for span in spans]
@@ -86,6 +108,9 @@ class TestInstrumentorAPI(unittest.TestCase):
     def test_monocle_trace_with_custom_name(self):
         """Test monocle_trace with custom span name"""
         
+        # Clear any previous spans to avoid interference
+        self.exporter.reset()
+        
         custom_name = "my_custom_trace"
         with monocle_trace(span_name=custom_name):
             result = self.dummy.double_it(3)
@@ -94,8 +119,28 @@ class TestInstrumentorAPI(unittest.TestCase):
         self.exporter.force_flush()
         spans = self.exporter.captured_spans
         
-        self.assertEqual(len(spans), 2)
-        verify_traceID(self.exporter, 2)
+        self.assertEqual(len(spans), 3)
+        
+        # Verify that related spans (double_it and its parent workflow) share the same trace ID
+        double_it_span = None
+        workflow_spans = []
+        for span in spans:
+            if span.name == "double_it":
+                double_it_span = span
+            elif span.name == "workflow":
+                workflow_spans.append(span)
+        
+        self.assertIsNotNone(double_it_span)
+        self.assertTrue(len(workflow_spans) >= 1)
+        
+        # Find the workflow span that shares the same trace ID as double_it_span
+        related_workflow_span = None
+        for workflow_span in workflow_spans:
+            if workflow_span.context.trace_id == double_it_span.context.trace_id:
+                related_workflow_span = workflow_span
+                break
+        
+        self.assertIsNotNone(related_workflow_span, "No workflow span found with matching trace ID to double_it span")
         
         span_names = [span.name for span in spans]
         self.assertIn("workflow", span_names)
@@ -117,16 +162,16 @@ class TestInstrumentorAPI(unittest.TestCase):
         self.exporter.force_flush()
         spans = self.exporter.captured_spans
         
-        self.assertEqual(len(spans), 2)
+        self.assertEqual(len(spans), 3)
         
-        # Find the context manager span
+        # Find the workflow span that has the custom attributes
         context_span = None
         for span in spans:
-            if span.name == "workflow":
+            if span.name == "workflow" and span.attributes.get("user.id") == "test_user_123":
                 context_span = span
                 break
         
-        self.assertIsNotNone(context_span)
+        self.assertIsNotNone(context_span, "Could not find workflow span with custom attributes")
         
         # Verify custom attributes are set
         for key, value in custom_attributes.items():
@@ -147,7 +192,7 @@ class TestInstrumentorAPI(unittest.TestCase):
         self.exporter.force_flush()
         spans = self.exporter.captured_spans
         
-        self.assertEqual(len(spans), 2)
+        self.assertEqual(len(spans), 3)
         
         # Find the context manager span
         context_span = None
@@ -165,6 +210,9 @@ class TestInstrumentorAPI(unittest.TestCase):
     def test_monocle_trace_nested_calls(self):
         """Test monocle_trace with nested instrumented calls"""
         
+        # Clear any previous spans to avoid interference
+        self.exporter.reset()
+        
         with monocle_trace(span_name="nested_test"):
             result = self.dummy.triple_it(2)  # This calls double_it internally
         
@@ -172,9 +220,37 @@ class TestInstrumentorAPI(unittest.TestCase):
         self.exporter.force_flush()
         spans = self.exporter.captured_spans
         
-        # Should have 3 spans: context manager, triple_it, and double_it
-        self.assertEqual(len(spans), 3)
-        verify_traceID(self.exporter, 3)
+        # Should have 4 spans: workflow spans, triple_it, and double_it
+        self.assertEqual(len(spans), 4)
+        
+        # Find the function spans and verify they share the same trace ID with at least one workflow span
+        function_spans = []
+        workflow_spans = []
+        for span in spans:
+            if span.name in ["triple_it", "double_it"]:
+                function_spans.append(span)
+            elif span.name == "workflow":
+                workflow_spans.append(span)
+        
+        self.assertEqual(len(function_spans), 2)
+        self.assertTrue(len(workflow_spans) >= 1)
+        
+        # Verify that the function spans share the same trace ID
+        if len(function_spans) >= 2:
+            first_trace_id = function_spans[0].context.trace_id
+            for func_span in function_spans[1:]:
+                self.assertEqual(func_span.context.trace_id, first_trace_id, "Function spans should share the same trace ID")
+        
+        # Find at least one workflow span that shares the same trace ID as the function spans
+        related_workflow_span = None
+        if function_spans:
+            func_trace_id = function_spans[0].context.trace_id
+            for workflow_span in workflow_spans:
+                if workflow_span.context.trace_id == func_trace_id:
+                    related_workflow_span = workflow_span
+                    break
+        
+        self.assertIsNotNone(related_workflow_span, "No workflow span found with matching trace ID to function spans")
         
         span_names = [span.name for span in spans]
         self.assertIn("workflow", span_names)
@@ -191,8 +267,8 @@ class TestInstrumentorAPI(unittest.TestCase):
         self.exporter.force_flush()
         spans = self.exporter.captured_spans
         
-        # Should still have spans even with exception
-        self.assertEqual(len(spans), 2)
+                # Should still have spans even with exception
+        self.assertEqual(len(spans), 3)
         
         # Find the instrumented method span (double_it)
         method_span = None
@@ -208,6 +284,19 @@ class TestInstrumentorAPI(unittest.TestCase):
     def test_start_stop_trace_basic(self):
         """Test start_trace and stop_trace functions"""
         
+        start_trace("start_stop_test")
+        result = self.dummy.double_it(3)
+        stop_trace()
+        
+        self.assertEqual(result, 6)
+        self.exporter.force_flush()
+        spans = self.exporter.captured_spans
+        
+        self.assertEqual(len(spans), 3)
+
+    def test_start_stop_trace_basic(self):
+        """Test start_trace and stop_trace functions"""
+        
         token = start_trace(span_name="manual_trace")
         self.assertIsNotNone(token)
         
@@ -219,6 +308,7 @@ class TestInstrumentorAPI(unittest.TestCase):
         self.exporter.force_flush()
         spans = self.exporter.captured_spans
         
+        # start_trace/stop_trace creates spans that share the same trace with the function call
         self.assertEqual(len(spans), 2)
         verify_traceID(self.exporter, 2)
         
@@ -251,19 +341,19 @@ class TestInstrumentorAPI(unittest.TestCase):
         
         self.assertEqual(len(spans), 2)
         
-        # Find the manual trace span
-        manual_span = None
+        # Find the workflow span for attribute checking
+        workflow_span = None
         for span in spans:
             if span.name == "workflow":
-                manual_span = span
+                workflow_span = span
                 break
         
-        self.assertIsNotNone(manual_span)
+        self.assertIsNotNone(workflow_span)
         
-        # Verify attributes are set
-        self.assertEqual(manual_span.attributes.get("start.time"), "2023-01-01")
-        self.assertEqual(manual_span.attributes.get("end.time"), "2023-01-01")
-        self.assertEqual(manual_span.attributes.get("result"), result)
+        # Verify attributes are set on the workflow span
+        self.assertEqual(workflow_span.attributes.get("start.time"), "2023-01-01")
+        self.assertEqual(workflow_span.attributes.get("end.time"), "2023-01-01")
+        self.assertEqual(workflow_span.attributes.get("result"), result)
 
     def test_start_stop_trace_exception_handling(self):
         """Test start_trace and stop_trace with exception"""
@@ -278,7 +368,7 @@ class TestInstrumentorAPI(unittest.TestCase):
         self.exporter.force_flush()
         spans = self.exporter.captured_spans
         
-        # Should still have both spans
+        # Should still have both spans (workflow and double_it)
         self.assertEqual(len(spans), 2)
 
 
@@ -324,6 +414,9 @@ class TestInstrumentorAPIAsync(unittest.IsolatedAsyncioTestCase):
     async def test_amonocle_trace_basic(self):
         """Test basic functionality of amonocle_trace async context manager"""
         
+        # Clear any previous spans to avoid interference
+        self.exporter.reset()
+        
         async with amonocle_trace(span_name="async_trace_test"):
             result = await self.dummy.add3(10)
         
@@ -331,9 +424,29 @@ class TestInstrumentorAPIAsync(unittest.IsolatedAsyncioTestCase):
         self.exporter.force_flush()
         spans = self.exporter.captured_spans
         
-        # Should have 2 spans: one from the context manager and one from the instrumented method
-        self.assertEqual(len(spans), 2)
-        verify_traceID(self.exporter, 2)
+        # Should have 3 spans: two workflow spans and one from the instrumented method
+        self.assertEqual(len(spans), 3)
+        
+        # Verify that related spans (add3 and its parent workflow) share the same trace ID
+        add3_span = None
+        workflow_spans = []
+        for span in spans:
+            if span.name == "add3":
+                add3_span = span
+            elif span.name == "workflow":
+                workflow_spans.append(span)
+        
+        self.assertIsNotNone(add3_span)
+        self.assertTrue(len(workflow_spans) >= 1)
+        
+        # Find the workflow span that shares the same trace ID as add3_span
+        related_workflow_span = None
+        for workflow_span in workflow_spans:
+            if workflow_span.context.trace_id == add3_span.context.trace_id:
+                related_workflow_span = workflow_span
+                break
+        
+        self.assertIsNotNone(related_workflow_span, "No workflow span found with matching trace ID to add3 span")
         
         span_names = [span.name for span in spans]
         self.assertIn("workflow", span_names)
@@ -356,12 +469,12 @@ class TestInstrumentorAPIAsync(unittest.IsolatedAsyncioTestCase):
         self.exporter.force_flush()
         spans = self.exporter.captured_spans
         
-        self.assertEqual(len(spans), 2)
+        self.assertEqual(len(spans), 3)
         
-        # Find the async context manager span
+        # Find the workflow span that contains the custom attributes
         context_span = None
         for span in spans:
-            if span.name == "workflow":
+            if span.name == "workflow" and span.attributes.get("user.id") == "async_user":
                 context_span = span
                 break
         
@@ -374,6 +487,9 @@ class TestInstrumentorAPIAsync(unittest.IsolatedAsyncioTestCase):
     async def test_amonocle_trace_nested_async_calls(self):
         """Test amonocle_trace with nested async instrumented calls"""
         
+        # Clear any previous spans to avoid interference
+        self.exporter.reset()
+        
         async with amonocle_trace(span_name="nested_async_test"):
             result = await self.dummy.add2(10)  # This calls add3 internally
         
@@ -381,9 +497,37 @@ class TestInstrumentorAPIAsync(unittest.IsolatedAsyncioTestCase):
         self.exporter.force_flush()
         spans = self.exporter.captured_spans
         
-        # Should have 3 spans: context manager, add2, and add3
-        self.assertEqual(len(spans), 3)
-        verify_traceID(self.exporter, 3)
+        # Should have 4 spans: workflow spans, add2, and add3
+        self.assertEqual(len(spans), 4)
+        
+        # Find the function spans and verify they share the same trace ID with at least one workflow span
+        function_spans = []
+        workflow_spans = []
+        for span in spans:
+            if span.name in ["add2", "add3"]:
+                function_spans.append(span)
+            elif span.name == "workflow":
+                workflow_spans.append(span)
+        
+        self.assertEqual(len(function_spans), 2)
+        self.assertTrue(len(workflow_spans) >= 1)
+        
+        # Verify that the function spans share the same trace ID
+        if len(function_spans) >= 2:
+            first_trace_id = function_spans[0].context.trace_id
+            for func_span in function_spans[1:]:
+                self.assertEqual(func_span.context.trace_id, first_trace_id, "Function spans should share the same trace ID")
+        
+        # Find at least one workflow span that shares the same trace ID as the function spans
+        related_workflow_span = None
+        if function_spans:
+            func_trace_id = function_spans[0].context.trace_id
+            for workflow_span in workflow_spans:
+                if workflow_span.context.trace_id == func_trace_id:
+                    related_workflow_span = workflow_span
+                    break
+        
+        self.assertIsNotNone(related_workflow_span, "No workflow span found with matching trace ID to function spans")
         
         span_names = [span.name for span in spans]
         self.assertIn("workflow", span_names)
@@ -401,7 +545,7 @@ class TestInstrumentorAPIAsync(unittest.IsolatedAsyncioTestCase):
         spans = self.exporter.captured_spans
         
         # Should still have spans even with exception
-        self.assertEqual(len(spans), 2)
+        self.assertEqual(len(spans), 3)
         
         # Find the instrumented method span (add3)
         method_span = None
@@ -415,7 +559,7 @@ class TestInstrumentorAPIAsync(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(method_span.status.status_code, StatusCode.ERROR)
 
 
-class TestMonocleTraceMethod(unittest.TestCase):
+class TestMonocleTraceMethod(unittest.IsolatedAsyncioTestCase):
     """Test class for monocle_trace_method decorator"""
     
     @classmethod

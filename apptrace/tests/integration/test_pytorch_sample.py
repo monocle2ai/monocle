@@ -1,39 +1,45 @@
 
 
+import logging
+
 import pytest
 import torch
-from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
-from transformers import GPT2DoubleHeadsModel, GPT2Tokenizer
-
 from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
 from monocle_apptrace.instrumentation.common.wrapper import task_wrapper
 from monocle_apptrace.instrumentation.common.wrapper_method import WrapperMethod
+from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
+from transformers import GPT2DoubleHeadsModel, GPT2Tokenizer
 
-
+logger = logging.getLogger(__name__)
 @pytest.fixture(scope="module")
 def setup():
-    setup_monocle_telemetry(
-        workflow_name="pytorch_1",
-        span_processors=[BatchSpanProcessor(ConsoleSpanExporter())],
-        wrapper_methods=[
-                    WrapperMethod(
-                        package="transformers",
-                        object_name="GPT2DoubleHeadsModel",
-                        method="forward",
-                        span_name="pytorch.transformer.GPT2DoubleHeadsModel",
-                        output_processor="output_processor",
-                        wrapper_method=task_wrapper),
-                    WrapperMethod(
-                        package="transformers",
-                        object_name="PreTrainedModel",
-                        method="from_pretrained",
-                        span_name="pytorch.transformer.PreTrainedModel",
-                        output_processor="output_processor",
-                        wrapper_method=task_wrapper),
-                ]
-        )
+    try:
+        instrumentor = setup_monocle_telemetry(
+            workflow_name="pytorch_1",
+            span_processors=[BatchSpanProcessor(ConsoleSpanExporter())],
+            wrapper_methods=[
+                        WrapperMethod(
+                            package="transformers",
+                            object_name="GPT2DoubleHeadsModel",
+                            method="forward",
+                            span_name="pytorch.transformer.GPT2DoubleHeadsModel",
+                            output_processor="output_processor",
+                            wrapper_method=task_wrapper),
+                        WrapperMethod(
+                            package="transformers",
+                            object_name="PreTrainedModel",
+                            method="from_pretrained",
+                            span_name="pytorch.transformer.PreTrainedModel",
+                            output_processor="output_processor",
+                            wrapper_method=task_wrapper),
+                    ]
+            )
+        yield
+    finally:
+        # Clean up instrumentor to avoid global state leakage
+        if instrumentor and instrumentor.is_instrumented_by_opentelemetry:
+            instrumentor.uninstrument()
 
-@pytest.mark.integration()
 def test_pytorch_sample(setup):
 
     tokenizer = GPT2Tokenizer.from_pretrained('gpt2')
@@ -53,7 +59,7 @@ def test_pytorch_sample(setup):
     # the trace gets generated for the forward method which gets called here
     outputs = model(input_ids, mc_token_ids=mc_token_ids)
     lm_prediction_scores, mc_prediction_scores = outputs[:2]
-    print("done")
+    logger.info("done")
 
 #{
 #     "name": "pytorch.transformer.PreTrainedModel",
@@ -108,3 +114,5 @@ def test_pytorch_sample(setup):
 #     }
 # }
 
+if __name__ == "__main__":
+    pytest.main([__file__, "-s", "--tb=short"])

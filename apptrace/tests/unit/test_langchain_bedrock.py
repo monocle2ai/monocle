@@ -3,7 +3,6 @@ import unittest
 from unittest.mock import MagicMock, patch
 
 import requests
-
 from monocle_apptrace.instrumentation.common.span_handler import SpanHandler
 from monocle_apptrace.instrumentation.metamodel.langchain import _helper
 
@@ -22,10 +21,23 @@ class TestProcessSpan(unittest.TestCase):
         span.set_attribute = MagicMock()
         instance = MagicMock()
 
-        args = (MagicMock(messages=[
-            MagicMock(content="System message", type="system"),
-            MagicMock(content="What is Task Decomposition?", type="user")
-        ]), {})
+        # Create proper mock objects that behave like real message objects
+        system_msg = MagicMock()
+        system_msg.content = "System message"
+        system_msg.type = "system"
+        
+        user_msg = MagicMock()
+        user_msg.content = "What is Task Decomposition?"
+        user_msg.type = "user"
+        
+        # Create a mock that doesn't have a 'text' attribute to avoid the early return
+        first_arg = MagicMock()
+        first_arg.messages = [system_msg, user_msg]
+        # Explicitly delete text attribute if it exists as a MagicMock
+        if hasattr(first_arg, 'text'):
+            delattr(first_arg, 'text')
+        
+        args = (first_arg, {})
         kwargs = {"key1": "value1", "provider_name": "value1"}
         return_value = "test_return_value"
         wrapped = MagicMock()
@@ -63,7 +75,7 @@ class TestProcessSpan(unittest.TestCase):
         span.set_attribute.assert_any_call("entity.count", 1)
         span.set_attribute.assert_any_call("span.type", "inference")
         span.set_attribute.assert_any_call("entity.1.provider_name", "value1")
-        span.add_event.assert_any_call(name="data.input", attributes={'user': ["{'system': 'System message'}", "{'user': 'What is Task Decomposition?'}"]})
+        span.add_event.assert_any_call(name="data.input", attributes={'user': ['{"system": "System message"}', '{"user": "What is Task Decomposition?"}']})
 
 if __name__ == '__main__':
     unittest.main()

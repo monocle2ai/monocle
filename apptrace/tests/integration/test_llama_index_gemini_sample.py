@@ -1,27 +1,44 @@
-import time
+import logging
 import os
+import subprocess
+import sys
+import time
+
 import pytest
-from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from common.custom_exporter import CustomConsoleSpanExporter
-from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
 from llama_index.core.llms import ChatMessage
-from llama_index.llms.gemini import Gemini
+from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
 
-custom_exporter = CustomConsoleSpanExporter()
-
+logger = logging.getLogger(__name__)
 @pytest.fixture(scope="module")
 def setup():
-    setup_monocle_telemetry(
-        workflow_name="llamaindex_app_1",
-        span_processors=[BatchSpanProcessor(custom_exporter)],
-        wrapper_methods=[],
-    )
+    subprocess.check_call([sys.executable, "-m", "pip", "install", ".[dev_gemini]"])
+    custom_exporter = CustomConsoleSpanExporter()
+    try:
+        instrumentor = setup_monocle_telemetry(
+            workflow_name="llamaindex_app_1",
+            span_processors=[BatchSpanProcessor(custom_exporter)],
+            wrapper_methods=[],
+        )
+        yield custom_exporter
+    finally:
+        # Clean up instrumentor to avoid global state leakage
+        if instrumentor and instrumentor.is_instrumented_by_opentelemetry:
+            instrumentor.uninstrument()
 
-@pytest.mark.integration()
-def test_llamaindex_gemini_sample(setup):
+# module cleanup function
+@pytest.fixture(scope="module", autouse=True)
+def cleanup_module():
+    yield
+    subprocess.check_call([sys.executable, "-m", "pip", "uninstall", "-y", "llama-index-llms-gemini"])
 
+def test_llamaindex_gemini_sample(setup, venv):
+    # dynamically import Gemini after installing the package
+    from llama_index.llms.gemini.base import Gemini
+    
     llm = Gemini(
-        model="gemini-1.5-flash",
+        model="gemini-2.5-pro",
         api_key=os.getenv("GEMINI_API_KEY"),
         temperature=0,
         max_output_tokens=1024,
@@ -34,18 +51,18 @@ def test_llamaindex_gemini_sample(setup):
     ]
 
     ai_answer = llm.chat(messages)
-    print(ai_answer)
+    logger.info(ai_answer)
     time.sleep(5)
     found_workflow_span = False
-    spans = custom_exporter.get_captured_spans()
+    spans = setup.get_captured_spans()
     for span in spans:
         span_attributes = span.attributes
         if "span.type" in span_attributes and (span_attributes["span.type"] == "inference" or span_attributes["span.type"] == "inference.framework"):
             assert span_attributes["entity.1.type"] == "inference.gemini"
             assert "entity.1.provider_name" in span_attributes
             assert "entity.1.inference_endpoint" in span_attributes
-            assert span_attributes["entity.2.name"] == "gemini-1.5-flash"
-            assert span_attributes["entity.2.type"] == "model.llm.gemini-1.5-flash"
+            assert span_attributes["entity.2.name"] == "gemini-2.5-pro"
+            assert span_attributes["entity.2.type"] == "model.llm.gemini-2.5-pro"
 
             # Assertions for metadata
             span_input, span_output, span_metadata = span.events

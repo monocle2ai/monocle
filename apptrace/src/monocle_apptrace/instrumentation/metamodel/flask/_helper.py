@@ -73,7 +73,7 @@ class FlaskSpanHandler(SpanHandler):
         flask_post_tracing(token)
 
 class FlaskResponseSpanHandler(SpanHandler):
-    def post_tracing(self, to_wrap, wrapped, instance, args, kwargs, return_value):
+    def post_tracing(self, to_wrap, wrapped, instance, args, kwargs, return_value, token):
         try:
             _parent_span_context = get_current()
             if _parent_span_context is not None:
@@ -82,4 +82,4 @@ class FlaskResponseSpanHandler(SpanHandler):
                     self.hydrate_events(to_wrap, wrapped, instance, args, kwargs, return_value, parent_span=parent_span)
         except Exception as e:
             logger.info(f"Failed to propogate flask response: {e}")
-        super().post_tracing(to_wrap, wrapped, instance, args, kwargs, return_value)
+        super().post_tracing(to_wrap, wrapped, instance, args, kwargs, return_value, token)

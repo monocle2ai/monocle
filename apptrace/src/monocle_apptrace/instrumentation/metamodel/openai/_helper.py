@@ -5,6 +5,7 @@ and assistant messages from various input formats.
 
 import json
 import logging
+from urllib.parse import urlparse
 from opentelemetry.context import get_value
 from monocle_apptrace.instrumentation.common.utils import (
     Option,
@@ -22,6 +23,12 @@ from monocle_apptrace.instrumentation.metamodel.finish_types import (
 from monocle_apptrace.instrumentation.common.constants import AGENT_PREFIX_KEY, CHILD_ERROR_CODE, INFERENCE_AGENT_DELEGATION, INFERENCE_TURN_END, INFERENCE_TOOL_CALL
 
 logger = logging.getLogger(__name__)
+
+# Mapping of URL substrings to provider names
+URL_MAP = {
+    "deepseek.com": "deepseek",
+    # add more providers here as needed
+}
 
 def extract_messages(kwargs):
     """Extract system and user messages"""
@@ -184,8 +191,19 @@ def extract_assistant_message(arguments):
 
 
 def extract_provider_name(instance):
+    # Try to get host from base_url if it's a parsed object
     provider_url: Option[str] = try_option(getattr, instance._client.base_url, 'host')
-    return provider_url.unwrap_or(None)
+    if provider_url.unwrap_or(None) is not None:
+        return provider_url.unwrap_or(None)
+
+    # If base_url is just a string (e.g., "https://api.deepseek.com")
+    base_url = getattr(instance._client, "base_url", None)
+    if isinstance(base_url, str):
+        parsed = urlparse(base_url)
+        if parsed.hostname:
+            return parsed.hostname
+
+    return None
 
 
 def extract_inference_endpoint(instance):
@@ -248,29 +266,49 @@ def extract_vector_output(vector_output):
     return ""
 
 def get_inference_type(instance):
+    # Check if it's Azure OpenAI first
     inference_type: Option[str] = try_option(getattr, instance._client, '_api_version')
     if inference_type.unwrap_or(None):
         return 'azure_openai'
-    else:
-        return 'openai'
+
+    # Check based on base_url using the mapping
+    base_url = getattr(instance, "base_url", None) or getattr(instance._client, "base_url", None)
+    
+    if base_url:
+        base_url_str = str(base_url).lower()
+        for key, name in URL_MAP.items():
+            if key in base_url_str:
+                return name
+
+    # fallback default
+    return "openai"
 
 class OpenAISpanHandler(NonFrameworkSpanHandler):
     def is_teams_span_in_progress(self) -> bool:
         return self.is_framework_span_in_progress() and self.get_workflow_name_in_progress() == WORKFLOW_TYPE_MAP["teams.ai"]
+    
+    def is_llamaindex_span_in_progress(self) -> bool:
+        return self.is_framework_span_in_progress() and self.get_workflow_name_in_progress() == WORKFLOW_TYPE_MAP["llama_index"]
 
-    # If openAI is being called by Teams AI SDK, then retain the metadata part of the span events
+    # If openAI is being called by Teams AI SDK or LlamaIndex, customize event processing
     def skip_processor(self, to_wrap, wrapped, instance, span, args, kwargs) -> list[str]:
         if self.is_teams_span_in_progress():
             return ["attributes", "events.data.input", "events.data.output"]
+        elif self.is_llamaindex_span_in_progress():
+            # For LlamaIndex, we want to keep all inference span attributes and events
+            return []
         else:
             return super().skip_processor(to_wrap, wrapped, instance, span, args, kwargs)
 
-    def hydrate_events(self, to_wrap, wrapped, instance, args, kwargs, ret_result, span, parent_span=None, ex:Exception=None) -> bool:
+    def hydrate_events(self, to_wrap, wrapped, instance, args, kwargs, ret_result, span, parent_span=None, ex:Exception=None, is_post_exec:bool=False) -> bool:
         # If openAI is being called by Teams AI SDK, then copy parent
         if self.is_teams_span_in_progress() and ex is None:
-            return super().hydrate_events(to_wrap, wrapped, instance, args, kwargs, ret_result, span=parent_span, parent_span=None, ex=ex)
+            return super().hydrate_events(to_wrap, wrapped, instance, args, kwargs, ret_result, span=parent_span, parent_span=None, ex=ex, is_post_exec=is_post_exec)
+        # For LlamaIndex, process events normally on the inference span
+        elif self.is_llamaindex_span_in_progress():
+            return super().hydrate_events(to_wrap, wrapped, instance, args, kwargs, ret_result, span, parent_span=parent_span, ex=ex, is_post_exec=is_post_exec)
 
-        return super().hydrate_events(to_wrap, wrapped, instance, args, kwargs, ret_result, span, parent_span=parent_span, ex=ex)
+        return super().hydrate_events(to_wrap, wrapped, instance, args, kwargs, ret_result, span, parent_span=parent_span, ex=ex, is_post_exec=is_post_exec)
 
     def post_task_processing(self, to_wrap, wrapped, instance, args, kwargs, result, ex, span, parent_span):
         # TeamsAI doesn't capture the status and other metadata from underlying OpenAI SDK.
@@ -316,3 +354,5 @@ def agent_inference_type(arguments):
             return INFERENCE_AGENT_DELEGATION
         return INFERENCE_TOOL_CALL
     return INFERENCE_TURN_END
+
+

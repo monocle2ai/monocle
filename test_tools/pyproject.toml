@@ -41,6 +41,7 @@ dependencies = [
     # Evaluation dependencies
     "bert-score>=0.3.0",
     "transformers>=4.0.0",
+    "sentence-transformers==3.3.0"
 ]
 
 [project.optional-dependencies]

@@ -92,6 +92,9 @@ CHILD_ERROR_CODE = "child.error.code"
 
 AGENT_PREFIX_KEY = "monocle.agent.prefix"
 
+MONOCLE_SKIP_EXECUTIONS = "monocle.skip_executions"
+SKIPPED_EXECUTION = "monocle.skipped_execution"
+
 # agentic sub types
 INFERENCE_AGENT_DELEGATION = "delegation"
 INFERENCE_TOOL_CALL = "tool_call"

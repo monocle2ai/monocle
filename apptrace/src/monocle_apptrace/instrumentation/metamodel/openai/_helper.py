@@ -193,8 +193,8 @@ def extract_assistant_message(arguments):
 def extract_provider_name(instance):
     # Try to get host from base_url if it's a parsed object
     provider_url: Option[str] = try_option(getattr, instance._client.base_url, 'host')
-    if provider_url.unwrap_or(None):
-        return provider_url.unwrap()
+    if provider_url.unwrap_or(None) is not None:
+        return provider_url.unwrap_or(None)
 
     # If base_url is just a string (e.g., "https://api.deepseek.com")
     base_url = getattr(instance._client, "base_url", None)
@@ -300,15 +300,15 @@ class OpenAISpanHandler(NonFrameworkSpanHandler):
         else:
             return super().skip_processor(to_wrap, wrapped, instance, span, args, kwargs)
 
-    def hydrate_events(self, to_wrap, wrapped, instance, args, kwargs, ret_result, span, parent_span=None, ex:Exception=None) -> bool:
+    def hydrate_events(self, to_wrap, wrapped, instance, args, kwargs, ret_result, span, parent_span=None, ex:Exception=None, is_post_exec:bool=False) -> bool:
         # If openAI is being called by Teams AI SDK, then copy parent
         if self.is_teams_span_in_progress() and ex is None:
-            return super().hydrate_events(to_wrap, wrapped, instance, args, kwargs, ret_result, span=parent_span, parent_span=None, ex=ex)
+            return super().hydrate_events(to_wrap, wrapped, instance, args, kwargs, ret_result, span=parent_span, parent_span=None, ex=ex, is_post_exec=is_post_exec)
         # For LlamaIndex, process events normally on the inference span
         elif self.is_llamaindex_span_in_progress():
-            return super().hydrate_events(to_wrap, wrapped, instance, args, kwargs, ret_result, span, parent_span=parent_span, ex=ex)
+            return super().hydrate_events(to_wrap, wrapped, instance, args, kwargs, ret_result, span, parent_span=parent_span, ex=ex, is_post_exec=is_post_exec)
 
-        return super().hydrate_events(to_wrap, wrapped, instance, args, kwargs, ret_result, span, parent_span=parent_span, ex=ex)
+        return super().hydrate_events(to_wrap, wrapped, instance, args, kwargs, ret_result, span, parent_span=parent_span, ex=ex, is_post_exec=is_post_exec)
 
     def post_task_processing(self, to_wrap, wrapped, instance, args, kwargs, result, ex, span, parent_span):
         # TeamsAI doesn't capture the status and other metadata from underlying OpenAI SDK.

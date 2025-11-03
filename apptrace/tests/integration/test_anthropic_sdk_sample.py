@@ -1,5 +1,6 @@
 import logging
 import time
+import os
 
 import anthropic
 import pytest
@@ -15,6 +16,7 @@ from monocle_apptrace.instrumentation.common.utils import logger
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 
 logger = logging.getLogger(__name__)
+ANTHROPIC_MODEL = os.environ.get("ANTHROPIC_MODEL")
 
 
 @pytest.fixture(scope="function")
@@ -37,7 +39,7 @@ def test_anthropic_metamodel_sample(setup):
 
     # Send a prompt to Claude
     response = client.messages.create(
-        model="claude-3-5-sonnet-20240620",  # You can use claude-3-haiku, claude-3-sonnet, etc.
+        model=ANTHROPIC_MODEL,  # You can use claude-3-haiku, claude-3-sonnet, etc.
         max_tokens=512,
         temperature=0.7,
         system= "You are a helpful assistant to answer questions about coffee.",
@@ -70,8 +72,8 @@ def test_anthropic_metamodel_sample(setup):
         verify_inference_span(
             span=span,
             entity_type="inference.anthropic",
-            model_name="claude-3-5-sonnet-20240620",
-            model_type="model.llm.claude-3-5-sonnet-20240620",
+            model_name=ANTHROPIC_MODEL,
+            model_type="model.llm." + ANTHROPIC_MODEL,
             check_metadata=True,
             check_input_output=True,
         )
@@ -111,7 +113,7 @@ def test_anthropic_invalid_api_key(setup):
     try:
         client = anthropic.Anthropic(api_key="invalid_key_123")
         response = client.messages.create(
-            model="claude-3-sonnet-20240620",
+            model=ANTHROPIC_MODEL,
             max_tokens=512,
             system="You are a helpful assistant to answer questions about coffee.",
             messages=[

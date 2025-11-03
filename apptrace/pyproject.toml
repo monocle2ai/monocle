@@ -78,13 +78,13 @@ dev = [
   'langchain-chroma==0.2.4',
   'langchain-community==0.3.24',
   'langchain==0.3.25',
-  'datasets==2.20.0',
+  'datasets==4.3.0',
   'numpy==1.26.4',
   'types-requests==2.31.0.20240106',
   'InstructorEmbedding==1.0.1',
-  'sentence-transformers==3.3.0',
   'faiss-cpu==1.8.0',
   'pytest==8.3.5',
+  'pytest-venv',
   'llama-index==0.13.0',
   'llama-index-llms-openai==0.5.0',
   'llama-index-tools-mcp==0.3.0',
@@ -96,7 +96,7 @@ dev = [
   'mistral-haystack==0.0.2',
   'langchain-aws==0.2.23',
   'azure-storage-blob==12.22.0', # this is for blob exporter
-  'boto3==1.37.24', # this is for aws exporter
+  'boto3==1.39.0', # this is for aws exporter
   'llama-index-vector-stores-opensearch==0.6.0',
   'haystack-ai==2.3.0',
   'llama-index-llms-azure-openai==0.4.0',
@@ -130,8 +130,20 @@ dev = [
   'mistralai==1.9.9',
   'huggingface_hub==0.35.3',
   'litellm==1.77.5',
-  'google-ai-haystack',
-  'llama-index-llms-gemini==0.6.1'
+  'google-ai-haystack'
+]
+
+dev_tranformers = [
+    'sentence-transformers==3.3.0'
+]
+
+dev_gemini = [
+  'llama-index-llms-gemini==0.6.0'
+]
+
+dev_strands = [
+  'strands-agents==1.11.0',
+  'strands-agents-tools==0.2.10'
 ]
 
 azure = [

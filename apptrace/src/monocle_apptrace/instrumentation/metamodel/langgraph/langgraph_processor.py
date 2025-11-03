@@ -52,11 +52,11 @@ class LanggraphAgentHandler(SpanHandler):
         if token is not None:
             detach(token)
 
-    def pre_task_processing(self, to_wrap, wrapped, instance, args, kwargs, span):
+    def post_task_processing(self, to_wrap, wrapped, instance, args, kwargs, result, ex, span, parent_span):
         """Apply ParentCommand filtering to the span before task execution."""
         # Apply ParentCommand filtering to this span
         self._apply_parent_command_filtering(span)
-        super().pre_task_processing(to_wrap, wrapped, instance, args, kwargs, span)
+        super().post_task_processing(to_wrap, wrapped, instance, args, kwargs, result, ex, span, parent_span)
 
     def _apply_parent_command_filtering(self, span):
         """Apply ParentCommand exception filtering to a span."""
@@ -90,11 +90,11 @@ class LanggraphAgentHandler(SpanHandler):
 class LanggraphToolHandler(SpanHandler):
     # LangGraph uses an internal tool to initate delegation to other agents. The method is tool invoke() with tool name as `transfer_to_<agent_name>`.
     # Hence we usea different output processor for tool invoke() to format the span as agentic.delegation.
-    def pre_task_processing(self, to_wrap, wrapped, instance, args, kwargs, span):
+    def post_task_processing(self, to_wrap, wrapped, instance, args, kwargs, result, ex, span, parent_span):
         """Apply ParentCommand filtering to the span before task execution."""
         # Apply ParentCommand filtering to this span
         self._apply_parent_command_filtering(span)
-        super().pre_task_processing(to_wrap, wrapped, instance, args, kwargs, span)
+        super().post_task_processing(to_wrap, wrapped, instance, args, kwargs, result, ex, span, parent_span)
 
     def _apply_parent_command_filtering(self, span):
         """Apply ParentCommand exception filtering to a span."""

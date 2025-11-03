@@ -366,6 +366,7 @@ class TraceAssertions:
         """Count the number of LLM inference calls using JMESPath."""
         return self.query_engine.count_llm_calls()
     
+    
     async def ask_llm_about_traces(self, question: str) -> str:
         """
         Ask an LLM any question about the trace data.
@@ -447,4 +448,34 @@ class TraceAssertions:
             return "OpenAI not available for LLM analysis"
         except Exception as e:
             return f"Error in LLM analysis: {str(e)}"
+    
+    def _extract_entities_from_attributes(self, attributes: dict) -> list:
+        """
+        Extract entities array from span attributes.
+        
+        Returns: [{'name': '', 'type': '', 'from_agent': '', 'to_agent': '', ...}, ...]
+        """
+        entities = []
+        
+        # Find all entity numbers by looking for entity.X. prefixes
+        entity_numbers = set()
+        for key in attributes.keys():
+            if key.startswith('entity.'):
+                parts = key.split('.')
+                if len(parts) >= 2 and parts[1].isdigit():
+                    entity_numbers.add(int(parts[1]))
+        
+        # Build entities array
+        for i in sorted(entity_numbers):
+            entity = {}
+            # Collect all attributes for this entity
+            for key, value in attributes.items():
+                if key.startswith(f'entity.{i}.'):
+                    attr_name = key.replace(f'entity.{i}.', '')
+                    entity[attr_name] = value
+            
+            if entity:  # Only add if entity has attributes
+                entities.append(entity)
+        
+        return entities
   

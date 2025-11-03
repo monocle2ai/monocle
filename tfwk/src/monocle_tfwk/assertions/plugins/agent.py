@@ -785,51 +785,56 @@ class AgentAssertionsPlugin(TraceAssertionsPlugin):
         assert len(agent_spans) > 0, f"Agent '{agent_name}' was not called. Available agents: {self.get_agent_names()}"
         return self
         
+    def get_called_tools(self) -> list[str]:
+        """
+        Get a list of all tool names that were called in the current traces.
+        
+        Returns:
+            List of tool names that were invoked during the traced execution
+        """
+        tool_names = []
+        
+        for span in self._current_spans:
+            # Check legacy attribute first
+            legacy_tool = span.attributes.get("tool.name")
+            if legacy_tool and legacy_tool not in tool_names:
+                tool_names.append(legacy_tool)
+                continue
+                
+            # Check entities array for tool names
+            entities = self._extract_entities_from_attributes(span.attributes)
+            for entity in entities:
+                if 'tool' in entity.get('type', '').lower():
+                    tool_name = entity.get('name', '')
+                    if tool_name and tool_name not in tool_names:
+                        tool_names.append(tool_name)
+        
+        return tool_names
+
     def called_tool(self, tool_name: str) -> 'TraceAssertions':
         """Assert that a tool with the given name was called."""
-        matching_spans = [
-            span for span in self._current_spans
-            if span.attributes.get("tool.name") == tool_name  # Legacy field, no schema equivalent
-        ]
+        matching_spans = []
+        
+        for span in self._current_spans:     
+            # Check entities array for tool name
+            entities = self._extract_entities_from_attributes(span.attributes)
+            for entity in entities:
+                if (entity.get('name') == tool_name and 
+                    'tool' in entity.get('type', '').lower()):
+                    matching_spans.append(span)
+                    break
+        
         assert matching_spans, f"No tool named '{tool_name}' found in traces"
         self._current_spans = matching_spans
         return self
-    
+
     def assert_agent_type(self, agent_type: str) -> 'TraceAssertions':
         """Assert that traces contain a specific agent type using JMESPath."""
         found = self.query_engine.has_agent_type(agent_type)
         assert found, f"Agent type '{agent_type}' not found in traces"
         return self
     
-    def _extract_entities_from_attributes(self, attributes: dict) -> list:
-        """
-        Extract entities array from span attributes.
-        
-        Returns: [{'name': '', 'type': '', 'from_agent': '', 'to_agent': '', ...}, ...]
-        """
-        entities = []
-        
-        # Find all entity numbers by looking for entity.X. prefixes
-        entity_numbers = set()
-        for key in attributes.keys():
-            if key.startswith('entity.'):
-                parts = key.split('.')
-                if len(parts) >= 2 and parts[1].isdigit():
-                    entity_numbers.add(int(parts[1]))
-        
-        # Build entities array
-        for i in sorted(entity_numbers):
-            entity = {}
-            # Collect all attributes for this entity
-            for key, value in attributes.items():
-                if key.startswith(f'entity.{i}.'):
-                    attr_name = key.replace(f'entity.{i}.', '')
-                    entity[attr_name] = value
-            
-            if entity:  # Only add if entity has attributes
-                entities.append(entity)
-        
-        return entities
+    
     
     def assert_agent_flow(self, expected_pattern: dict) -> 'TraceAssertions':
         """

@@ -7,9 +7,9 @@ similarity thresholds.
 """
 from typing import TYPE_CHECKING
 
-from monocle_tfwk import semantic_similarity
 from monocle_tfwk.assertions import trace_utils
 from monocle_tfwk.assertions.plugin_registry import TraceAssertionsPlugin, plugin
+from monocle_tfwk.semantic_similarity import semantic_similarity
 
 if TYPE_CHECKING:
     from monocle_tfwk.assertions.trace_assertions import TraceAssertions
@@ -45,13 +45,6 @@ class SemanticAssertionsPlugin(TraceAssertionsPlugin):
         self._current_spans = matching_spans
         return self
         
-    def output_semantically_matches(self, expected_text: str, threshold: float = 0.75) -> 'TraceAssertions':
-        """Alias for semantically_contains_output for better readability."""
-        return self.semantically_contains_output(expected_text, threshold)
-    
-    def input_semantically_matches(self, expected_text: str, threshold: float = 0.75) -> 'TraceAssertions':
-        """Alias for semantically_contains_input for better readability."""
-        return self.semantically_contains_input(expected_text, threshold)
     
     def semantically_similar_to_any(self, text_options: list, threshold: float = 0.75, 
                                   check_input: bool = True, check_output: bool = True) -> 'TraceAssertions':

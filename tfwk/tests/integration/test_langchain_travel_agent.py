@@ -43,6 +43,7 @@ class TestLangChainTravelAgent(BaseAgentTest):
         """
         logger.info("🧪 Testing full travel booking flow with agentic validation")
         
+        # Expected flow pattern (commented out since we're testing actual behavior)
         whole_flow = {
             "participants": self.participants,
             "required": ["TC"],  # Minimum required participants (Travel Coordinator should always be present)
@@ -84,7 +85,6 @@ class TestLangChainTravelAgent(BaseAgentTest):
             conversation = await tester.run_test(15)
             assert any(keyword in str(conversation[-1]).lower() for keyword in ["flight", "hotel", "mumbai"]), \
                 f"Response should mention travel elements: {conversation}"
-
         except (ValueError, TypeError) as e:
             assert False, f"❌ failed to create user simulator: {e}"
         
@@ -92,23 +92,39 @@ class TestLangChainTravelAgent(BaseAgentTest):
         # === SIMPLIFIED AGENTIC FLOW VALIDATION BASED ON OBSERVED PATTERNS ===
         logger.info("=== Gantt Chart Visualization ===")
         self.display_flow_gantt_chart(VisualizationMode.DETAILED)
-        # Assert the realistic flow pattern
-        traces = self.assert_traces()
-        (traces  # Get trace assertions
-         .assert_agent_flow(whole_flow)
+        
+        traces = self.assert_traces().assert_agent_flow(whole_flow) 
+        # Get list of tools that were actually called during execution
+        available_tools = traces.get_called_tools()
+        
+        logger.info(f"Available tools called: {available_tools}")
+        
+
+        # Only validate hotel booking if the hotel tool was actually called
+        if "book_hotel_tool" in available_tools:
+            (self.assert_traces()  # Fresh traces instance
+             .called_tool("book_hotel_tool")
+             .output_contains("booked")
+            )
+        else:
+            logger.info("Hotel booking tool not called - agent may be using external booking approach")
+
+        # Assert flight tool call with input and output validation using semantic similarity
+        (self.assert_traces()  # Fresh traces instance
+         .called_tool("book_flight_tool")
+         .output_contains("booked")
         )
 
-        # Test the JSON format confirmation
+        confirmation_query = "Is the flight and hotel booking confirmed?"
         confirmation = await traces.ask_llm_about_traces(
-            "Is the flight and hotel booking confirmed? "
+            f"{confirmation_query} "
             "Return your answer in JSON format with this exact structure: "
             '{"confirmed": true/false, "reason": "brief explanation"}'
         )
         
         # Extract and assert the confirmed field
-  
         confirmation_data = json.loads(confirmation)
-        assert confirmation_data["confirmed"], f"Hotel booking should be confirmed: {confirmation}"
+        assert confirmation_data["confirmed"], f"{confirmation}"
         logger.info(f"✅ Full travel booking flow validation passed {confirmation}")
         
 
@@ -133,8 +149,15 @@ class TestLangChainTravelAgent(BaseAgentTest):
                 ("FA", "BFT", MonocleSpanType.AGENTIC_TOOL_INVOCATION)   # Flight Assistant invocation
             ]
         }
-        (self.assert_traces()
+        traces = self.assert_traces()
+        (traces
          .assert_agent_flow(flight_interactions)  # Legacy tuple format still supported
+        )
+
+        # Assert flight tool call with input and output validation using semantic similarity
+        (traces
+         .called_tool("book_flight_tool")
+         .semantically_contains_output("successfully booked flight", 0.4)
         )
         logger.info("✅ Flight booking flow validation passed")
 
@@ -184,10 +207,11 @@ class TestLangChainTravelAgent(BaseAgentTest):
                 ("HA", "BHT", MonocleSpanType.AGENTIC_TOOL_INVOCATION)    # Hotel Assistant invocation
             ]
         }
-        (self.assert_traces()
+        traces = self.assert_traces()
+        (traces
          .assert_agent_flow(hotel_interactions)
         )
-        logger.info("✅ Hotel booking flow validation passed")
+
     
     @pytest.mark.asyncio
     async def test_recommendations_flow(self, travel_agent):

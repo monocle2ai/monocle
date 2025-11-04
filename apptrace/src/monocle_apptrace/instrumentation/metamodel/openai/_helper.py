@@ -321,7 +321,7 @@ class OpenAISpanHandler(NonFrameworkSpanHandler):
 def extract_finish_reason(arguments):
     """Extract finish_reason from OpenAI response"""
     try:
-        if arguments["exception"] is not None:
+        if "exception" in arguments and arguments["exception"] is not None:
             if hasattr(arguments["exception"], "code") and arguments["exception"].code in OPENAI_FINISH_REASON_MAPPING.keys():
                 return arguments["exception"].code
         response = arguments["result"]
@@ -354,5 +354,52 @@ def agent_inference_type(arguments):
             return INFERENCE_AGENT_DELEGATION
         return INFERENCE_TOOL_CALL
     return INFERENCE_TURN_END
+
+def extract_tool_name(arguments):
+    """Extract tool name from OpenAI response when finish_type is tool_call"""
+    try:
+        finish_type = map_finish_reason_to_finish_type(extract_finish_reason(arguments))
+        if finish_type != "tool_call":
+            return None
+            
+        response = arguments["result"]
+        
+        # Handle streaming responses
+        if hasattr(response, "tools") and isinstance(response.tools, list) and len(response.tools) > 0:
+            return response.tools[0].get("name", "")
+        
+        # Handle non-streaming responses with tool_calls
+        if response is not None and hasattr(response, "choices") and len(response.choices) > 0:
+            if hasattr(response.choices[0], "message") and hasattr(response.choices[0].message, "tool_calls"):
+                tool_calls = response.choices[0].message.tool_calls
+                if tool_calls and len(tool_calls) > 0:
+                    return tool_calls[0].function.name
+        
+        # Try to extract from parsed assistant message
+        message = json.loads(extract_assistant_message(arguments))
+        if message and message.get("tools") and isinstance(message["tools"], list) and len(message["tools"]) > 0:
+            return message["tools"][0].get("tool_name", "")
+            
+    except Exception as e:
+        logger.warning("Warning: Error occurred in extract_tool_name: %s", str(e))
+    
+    return None
+
+def extract_tool_type(arguments):
+    """Extract tool type from OpenAI response when finish_type is tool_call"""
+    try:
+        finish_type = map_finish_reason_to_finish_type(extract_finish_reason(arguments))
+        if finish_type != "tool_call":
+            return None
+            
+        # For OpenAI, the tool type is typically "tool.function"
+        tool_name = extract_tool_name(arguments)
+        if tool_name:
+            return "tool.function"
+            
+    except Exception as e:
+        logger.warning("Warning: Error occurred in extract_tool_type: %s", str(e))
+    
+    return None
 
 

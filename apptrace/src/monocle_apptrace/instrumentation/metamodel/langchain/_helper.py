@@ -265,3 +265,60 @@ def extract_finish_reason(arguments):
 def map_finish_reason_to_finish_type(finish_reason):
     """Map LangChain finish_reason to finish_type."""
     return map_langchain_finish_reason_to_finish_type(finish_reason)
+
+def extract_tool_name(arguments):
+    """Extract tool name from LangChain response when finish_type is tool_call"""
+    try:
+        finish_type = map_finish_reason_to_finish_type(extract_finish_reason(arguments))
+        if finish_type != "tool_call":
+            return None
+            
+        response = arguments["result"]
+        
+        # Handle LangChain AIMessage with tool_calls
+        if hasattr(response, "tool_calls") and response.tool_calls:
+            if len(response.tool_calls) > 0:
+                return response.tool_calls[0].get('name', '')
+        
+        # Handle LangChain response with additional_kwargs containing tool_calls
+        if hasattr(response, "additional_kwargs") and response.additional_kwargs:
+            kwargs = response.additional_kwargs
+            if isinstance(kwargs, dict) and "tool_calls" in kwargs:
+                tool_calls = kwargs["tool_calls"]
+                if tool_calls and len(tool_calls) > 0:
+                    if hasattr(tool_calls[0], 'function'):
+                        return tool_calls[0].function.name
+                    elif isinstance(tool_calls[0], dict) and 'function' in tool_calls[0]:
+                        return tool_calls[0]['function'].get('name', '')
+        
+        # Handle generation responses with tool calls
+        if hasattr(response, "generations") and response.generations:
+            generations = response.generations
+            if isinstance(generations, list) and len(generations) > 0:
+                for generation in generations:
+                    if hasattr(generation, "message") and hasattr(generation.message, "tool_calls"):
+                        tool_calls = generation.message.tool_calls
+                        if tool_calls and len(tool_calls) > 0:
+                            return tool_calls[0].get('name', '')
+                            
+    except Exception as e:
+        logger.warning("Warning: Error occurred in extract_tool_name: %s", str(e))
+    
+    return None
+
+def extract_tool_type(arguments):
+    """Extract tool type from LangChain response when finish_type is tool_call"""
+    try:
+        finish_type = map_finish_reason_to_finish_type(extract_finish_reason(arguments))
+        if finish_type != "tool_call":
+            return None
+            
+        # For LangChain, the tool type is typically "tool.function"
+        tool_name = extract_tool_name(arguments)
+        if tool_name:
+            return "tool.function"
+            
+    except Exception as e:
+        logger.warning("Warning: Error occurred in extract_tool_type: %s", str(e))
+    
+    return None

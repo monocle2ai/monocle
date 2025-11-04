@@ -6,9 +6,10 @@ from monocle_apptrace.instrumentation.metamodel.langgraph._helper import (
    DELEGATION_NAME_PREFIX, get_name, is_root_agent_name, is_delegation_tool, LANGGRAPTH_AGENT_NAME_KEY
 )
 from monocle_apptrace.instrumentation.metamodel.langgraph.entities.inference import (
-    AGENT_DELEGATION, AGENT_REQUEST
+    AGENT_DELEGATION, AGENT_REQUEST, AGENT
 )
 from monocle_apptrace.instrumentation.common.scope_wrapper import start_scope, stop_scope
+from monocle_apptrace.instrumentation.common.utils import is_scope_set
 try:
     from langgraph.errors import ParentCommand
 except ImportError:
@@ -43,10 +44,13 @@ class LanggraphAgentHandler(SpanHandler):
         context = set_value(LANGGRAPTH_AGENT_NAME_KEY, get_name(instance))
         context = set_value(AGENT_PREFIX_KEY, DELEGATION_NAME_PREFIX, context)
         scope_name = AGENT_REQUEST.get("type")
-        if scope_name is not None and is_root_agent_name(instance) and get_value(scope_name, context) is None:
-            return start_scope(scope_name, scope_value=None, context=context)
+        if not is_scope_set(scope_name):
+            agent_request_wrapper = to_wrap.copy()
+            agent_request_wrapper["output_processor"] = AGENT_REQUEST
+#            return start_scope(scope_name, scope_value=None, context=context)
+            return attach(context), agent_request_wrapper
         else:
-            return attach(context)
+            return attach(context), None
 
     def post_tracing(self, to_wrap, wrapped, instance, args, kwargs, result, token):
         if token is not None:
@@ -77,17 +81,18 @@ class LanggraphAgentHandler(SpanHandler):
         # Filter out ParentCommand exceptions as they are LangGraph control flow mechanisms, not actual errors
         if ParentCommand is not None and isinstance(ex, ParentCommand):
             ex = None  # Suppress the ParentCommand exception from being recorded
-            
-        if is_root_agent_name(instance) and "parent.agent.span" in span.attributes:
-            agent_request_wrapper = to_wrap.copy()
-            agent_request_wrapper["output_processor"] = AGENT_REQUEST
-        else:
-            agent_request_wrapper = to_wrap
-            if hasattr(instance, 'name') and parent_span is not None and not SpanHandler.is_root_span(parent_span):
-                parent_span.set_attribute("parent.agent.span", True)
-        return super().hydrate_span(agent_request_wrapper, wrapped, instance, args, kwargs, result, span, parent_span, ex, is_post_exec)
+
+        return super().hydrate_span(to_wrap, wrapped, instance, args, kwargs, result, span, parent_span, ex, is_post_exec)
 
 class LanggraphToolHandler(SpanHandler):
+    def pre_tracing(self, to_wrap, wrapped, instance, args, kwargs):
+        if is_delegation_tool(instance):
+            agent_request_wrapper = to_wrap.copy()
+            agent_request_wrapper["output_processor"] = AGENT_DELEGATION
+        else:
+            agent_request_wrapper = None
+        return None, agent_request_wrapper
+
     # LangGraph uses an internal tool to initate delegation to other agents. The method is tool invoke() with tool name as `transfer_to_<agent_name>`.
     # Hence we usea different output processor for tool invoke() to format the span as agentic.delegation.
     def post_task_processing(self, to_wrap, wrapped, instance, args, kwargs, result, ex, span, parent_span):
@@ -106,17 +111,9 @@ class LanggraphToolHandler(SpanHandler):
                 logger.debug("Applied ParentCommand filtering to LangGraph tool span")
         except Exception as e:
             logger.debug(f"Failed to apply ParentCommand filtering: {e}")
-    
+
     def hydrate_span(self, to_wrap, wrapped, instance, args, kwargs, result, span, parent_span = None, ex:Exception = None, is_post_exec:bool= False) -> bool:
         # Filter out ParentCommand exceptions as they are LangGraph control flow mechanisms, not actual errors
         if ParentCommand is not None and isinstance(ex, ParentCommand):
             ex = None  # Suppress the ParentCommand exception from being recorded
-            
-        if is_delegation_tool(instance):
-            agent_request_wrapper = to_wrap.copy()
-            agent_request_wrapper["output_processor"] = AGENT_DELEGATION
-        else:
-            agent_request_wrapper = to_wrap
-
-        return super().hydrate_span(agent_request_wrapper, wrapped, instance, args, kwargs, result, span, parent_span, ex, is_post_exec)
-    
+        return super().hydrate_span(to_wrap, wrapped, instance, args, kwargs, result, span, parent_span, ex, is_post_exec)

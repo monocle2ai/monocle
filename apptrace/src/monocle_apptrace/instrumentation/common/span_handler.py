@@ -50,7 +50,7 @@ class SpanHandler:
         pass
 
     def pre_tracing(self, to_wrap, wrapped, instance, args, kwargs):
-        pass
+        return None, None
 
     def post_tracing(self, to_wrap, wrapped, instance, args, kwargs, return_value, token=None):
         pass

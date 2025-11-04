@@ -145,7 +145,9 @@ def monocle_wrapper(tracer: Tracer, handler: SpanHandler, to_wrap, wrapped, inst
     token = None
     try:
         try:
-            pre_trace_token = handler.pre_tracing(to_wrap, wrapped, instance, args, kwargs)
+            pre_trace_token, alternate_to_wrapp = handler.pre_tracing(to_wrap, wrapped, instance, args, kwargs)
+            if alternate_to_wrapp is not None:
+                to_wrap = alternate_to_wrapp
         except Exception as e:
             logger.info(f"Warning: Error occurred in pre_tracing: {e}")
         if to_wrap.get('skip_span', False) or handler.skip_span(to_wrap, wrapped, instance, args, kwargs):
@@ -299,7 +301,9 @@ async def amonocle_wrapper(tracer: Tracer, handler: SpanHandler, to_wrap, wrappe
     pre_trace_token = None
     try:
         try:
-            pre_trace_token = handler.pre_tracing(to_wrap, wrapped, instance, args, kwargs)
+            pre_trace_token, alternate_to_wrapp = handler.pre_tracing(to_wrap, wrapped, instance, args, kwargs)
+            if alternate_to_wrapp is not None:
+                to_wrap = alternate_to_wrapp
         except Exception as e:
             logger.info(f"Warning: Error occurred in pre_tracing: {e}")
         if to_wrap.get('skip_span', False) or handler.skip_span(to_wrap, wrapped, instance, args, kwargs):
@@ -325,7 +329,9 @@ async def amonocle_iter_wrapper(tracer: Tracer, handler: SpanHandler, to_wrap, w
     pre_trace_token = None
     try:
         try:
-            pre_trace_token = handler.pre_tracing(to_wrap, wrapped, instance, args, kwargs)
+            pre_trace_token, alternate_to_wrapp = handler.pre_tracing(to_wrap, wrapped, instance, args, kwargs)
+            if alternate_to_wrapp is not None:
+                to_wrap = alternate_to_wrapp
         except Exception as e:
             logger.info(f"Warning: Error occurred in pre_tracing: {e}")
         if to_wrap.get('skip_span', False) or handler.skip_span(to_wrap, wrapped, instance, args, kwargs):

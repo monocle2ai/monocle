@@ -70,6 +70,8 @@ def extract_tool_response(result):
         return result.content
     if isinstance(result, str):
         return result
+    if isinstance(result[0], str):
+        return result[0]
     return None
 
 def get_status(result):

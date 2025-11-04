@@ -457,6 +457,11 @@ def verify_spans(memory_exporter=None):
             elif span_attributes["entity.1.name"] == "book_hotel":
                 found_book_hotel_tool = True
             found_tool = True
+            span_input, span_output = span.events
+            assert "input" in span_input.attributes
+            assert span_input.attributes["input"] != ""
+            assert "response" in span_output.attributes
+            assert span_output.attributes["response"] != ""
 
         if (
                 "span.type" in span_attributes

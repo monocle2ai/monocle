@@ -1,6 +1,6 @@
 ## Version 0.6.6 (2025-11-05)
 - Handle langgraph request input ([#321](https://github.com/monocle2ai/monocle/pull/321))
-- fastapi methods update to fix corotine issue during server start ([#322](https://github.com/monocle2ai/monocle/pull/322))
+- fastapi methods update to fix coroutine issue during server start ([#322](https://github.com/monocle2ai/monocle/pull/322))
 
 ## Version 0.6.5 (2025-11-03)
  

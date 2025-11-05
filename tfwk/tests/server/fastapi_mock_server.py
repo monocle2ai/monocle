@@ -7,7 +7,7 @@ with @monocle_trace_method() to test trace generation in web API scenarios.
 import logging
 import threading
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, List, Optional
 from uuid import uuid4
 
@@ -22,6 +22,10 @@ from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
 
+setup_monocle_telemetry(
+            workflow_name="fast_api_mock_server",
+            monocle_exporters_list="file"
+        )
 # --- Mock Data Models ---
 class User(BaseModel):
     id: str
@@ -147,7 +151,7 @@ def audit_log_operation(operation: str, entity_type: str, entity_id: str, user_c
     time.sleep(0.01)  # Simulate audit log write
     
     audit_entry = {
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
         "operation": operation,
         "entity_type": entity_type,
         "entity_id": entity_id,
@@ -392,16 +396,6 @@ class MockAPIServer:
         self.server_thread = threading.Thread(target=run_server, daemon=True)
         self.server_thread.start()
 
-        # IMPORTANT: setup_monocle_telemetry must be called AFTER the FastAPI app is created and server started.
-        # This is because the instrumentation wraps the FastAPI.__call__ method with async tracing wrappers.
-        # If setup_monocle_telemetry is called before the FastAPI app exists, the instrumentation cannot
-        # properly wrap the ASGI callable, leading to "TypeError: 'coroutine' object is not callable" errors.
-        # The wrapper needs to intercept the actual FastAPI instance's __call__ method to maintain 
-        # ASGI protocol compatibility with uvicorn's async request handling.
-        setup_monocle_telemetry(
-            workflow_name="fast_api_mock_server",
-            monocle_exporters_list="file"
-        )
         
         # Wait for server to start
         import requests

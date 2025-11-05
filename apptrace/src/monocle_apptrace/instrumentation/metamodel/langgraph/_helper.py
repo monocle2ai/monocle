@@ -22,9 +22,19 @@ def agent_instructions(arguments):
     else:
         return arguments['kwargs']['agent'].instructions
 
+def extract_request_agent_input(arguments):
+    if arguments['kwargs'] is not None and 'input' in arguments['kwargs']:
+        history = arguments['kwargs']['input']['messages']
+        messages = []
+        for message in history:
+            if 'content' in message and 'role' in message and message['role'] == "user":  # Check if the message is a UserMessage
+                messages.append(message['content'])
+        return messages
+    return []
+
 def extract_agent_input(arguments):
-    if arguments['result'] is not None and 'messages' in arguments['result']:
-        history = arguments['result']['messages']
+    if arguments['args'] is not None and len(arguments['args']) > 0 and 'messages' in arguments['args'][0]:
+        history = arguments['args'][0]['messages']
         messages = []
         for message in history:
             if hasattr(message, 'content') and hasattr(message, 'type') and message.type == "human":  # Check if the message is a HumanMessage
@@ -60,6 +70,8 @@ def extract_tool_response(result):
         return result.content
     if isinstance(result, str):
         return result
+    if isinstance(result[0], str):
+        return result[0]
     return None
 
 def get_status(result):

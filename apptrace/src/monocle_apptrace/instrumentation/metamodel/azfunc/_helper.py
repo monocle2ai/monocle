@@ -84,7 +84,7 @@ def azure_func_post_tracing(token):
 class azureSpanHandler(SpanHandler):
 
     def pre_tracing(self, to_wrap, wrapped, instance, args, kwargs):
-        return azure_func_pre_tracing(kwargs)
+        return azure_func_pre_tracing(kwargs), None
     
     def post_tracing(self, to_wrap, wrapped, instance, args, kwargs, return_value, token):
         azure_func_post_tracing(token)

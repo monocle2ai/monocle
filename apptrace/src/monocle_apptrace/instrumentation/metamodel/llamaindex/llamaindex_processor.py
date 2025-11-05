@@ -32,7 +32,7 @@ class LlamaIndexToolHandler(DelegationHandler):
         current_agent = get_value(LLAMAINDEX_AGENT_NAME_KEY)
         if current_agent is not None:
             cur_context = set_value(LLAMAINDEX_AGENT_NAME_KEY, current_agent, cur_context)
-        return attach(cur_context)
+        return attach(cur_context), None
 
     def post_tracing(self, to_wrap, wrapped, instance, args, kwargs, return_value, token=None):
         if token:
@@ -53,7 +53,7 @@ class LlamaIndexAgentHandler(SpanHandler):
         set_current_agent(agent_name)
         cur_context = set_value(LLAMAINDEX_AGENT_NAME_KEY, agent_name, cur_context)
         cur_context = set_value(AGENT_PREFIX_KEY, "handoff", cur_context)
-        return attach(cur_context)
+        return attach(cur_context), None
 
     def post_tracing(self, to_wrap, wrapped, instance, args, kwargs, return_value, token=None):
         if token:

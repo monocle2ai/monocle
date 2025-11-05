@@ -218,12 +218,15 @@ def remove_scopes(token:object) -> None:
     if token is not None:
         detach(token)
 
-def get_scopes() -> dict[str, object]:
+def get_scopes(scope_name: Optional[str] = None) -> dict[str, object]:
     monocle_scopes:dict[str, object] = {}
     for key, val in baggage.get_all().items():
-        if key.startswith(MONOCLE_SCOPE_NAME_PREFIX):
+        if key.startswith(MONOCLE_SCOPE_NAME_PREFIX) and (scope_name is None or key == f"{MONOCLE_SCOPE_NAME_PREFIX}{scope_name}"):
             monocle_scopes[key[len(MONOCLE_SCOPE_NAME_PREFIX):]] = val
     return monocle_scopes
+
+def is_scope_set(scepe_name: str) -> bool:
+    return len(get_scopes(scepe_name)) > 0
 
 def get_baggage_for_scopes():
     baggage_context:Context = None

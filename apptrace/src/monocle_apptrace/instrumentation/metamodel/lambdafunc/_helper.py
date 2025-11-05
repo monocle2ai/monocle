@@ -83,7 +83,7 @@ def lambda_func_post_tracing(token):
 
 class lambdaSpanHandler(SpanHandler):
     def pre_tracing(self, to_wrap, wrapped, instance, args, kwargs):
-        return lambda_func_pre_tracing(kwargs)
+        return lambda_func_pre_tracing(kwargs), None
 
     def post_tracing(self, to_wrap, wrapped, instance, args, kwargs, return_value,token):
         lambda_func_post_tracing(token)

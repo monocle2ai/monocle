@@ -67,7 +67,7 @@ def get_function_name(args) -> str:
 class aiohttpSpanHandler(SpanHandler):
 
     def pre_tracing(self, to_wrap, wrapped, instance, args, kwargs):
-        return aiohttp_pre_tracing(args)
+        return aiohttp_pre_tracing(args), None
     
     def post_tracing(self, to_wrap, wrapped, instance, args, kwargs, return_value, token):
         aiohttp_post_tracing(token)

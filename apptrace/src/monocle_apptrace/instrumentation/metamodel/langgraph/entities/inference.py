@@ -73,7 +73,7 @@ AGENT_REQUEST = {
             {
                 "_comment": "this is Agent input",
                 "attribute": "input",
-                "accessor": lambda arguments: _helper.extract_agent_input(arguments)
+                "accessor": lambda arguments: _helper.extract_request_agent_input(arguments)
             }
           ]
         },

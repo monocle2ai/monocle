@@ -21,6 +21,7 @@ from monocle_apptrace.instrumentation.metamodel.finish_types import (
     OPENAI_FINISH_REASON_MAPPING
 )
 from monocle_apptrace.instrumentation.common.constants import AGENT_PREFIX_KEY, CHILD_ERROR_CODE, INFERENCE_AGENT_DELEGATION, INFERENCE_TURN_END, INFERENCE_TOOL_CALL
+from contextlib import suppress
 
 logger = logging.getLogger(__name__)
 
@@ -355,31 +356,38 @@ def agent_inference_type(arguments):
         return INFERENCE_TOOL_CALL
     return INFERENCE_TURN_END
 
+def _get_first_tool_call(response):
+    """Helper function to extract the first tool call from various LangChain response formats"""
+
+    with suppress(AttributeError, IndexError, TypeError):
+        if response is not None and hasattr(response, "choices") and len(response.choices) > 0:
+            if hasattr(response.choices[0], "message") and hasattr(response.choices[0].message, "tool_calls"):
+                tool_calls = response.choices[0].message.tool_calls
+                if tool_calls and len(tool_calls) > 0:
+                    return tool_calls[0]
+
+    return None
+
 def extract_tool_name(arguments):
     """Extract tool name from OpenAI response when finish_type is tool_call"""
     try:
         finish_type = map_finish_reason_to_finish_type(extract_finish_reason(arguments))
         if finish_type != "tool_call":
             return None
-            
-        response = arguments["result"]
-        
-        # Handle streaming responses
-        if hasattr(response, "tools") and isinstance(response.tools, list) and len(response.tools) > 0:
-            return response.tools[0].get("name", "")
-        
-        # Handle non-streaming responses with tool_calls
-        if response is not None and hasattr(response, "choices") and len(response.choices) > 0:
-            if hasattr(response.choices[0], "message") and hasattr(response.choices[0].message, "tool_calls"):
-                tool_calls = response.choices[0].message.tool_calls
-                if tool_calls and len(tool_calls) > 0:
-                    return tool_calls[0].function.name
-        
-        # Try to extract from parsed assistant message
-        message = json.loads(extract_assistant_message(arguments))
-        if message and message.get("tools") and isinstance(message["tools"], list) and len(message["tools"]) > 0:
-            return message["tools"][0].get("tool_name", "")
-            
+
+        tool_call = _get_first_tool_call(arguments["result"])
+        if not tool_call:
+            return None
+
+        # Try different name extraction approaches
+        for getter in [
+            lambda tc: tc.function.name  # object with function.name
+        ]:
+            try:
+                return getter(tool_call)
+            except (KeyError, AttributeError, TypeError):
+                continue
+
     except Exception as e:
         logger.warning("Warning: Error occurred in extract_tool_name: %s", str(e))
     
@@ -391,8 +399,7 @@ def extract_tool_type(arguments):
         finish_type = map_finish_reason_to_finish_type(extract_finish_reason(arguments))
         if finish_type != "tool_call":
             return None
-            
-        # For OpenAI, the tool type is typically "tool.function"
+
         tool_name = extract_tool_name(arguments)
         if tool_name:
             return "tool.function"

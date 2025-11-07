@@ -114,3 +114,5 @@ def test_pytorch_sample(setup):
 #     }
 # }
 
+if __name__ == "__main__":
+    pytest.main([__file__, "-s", "--tb=short"])

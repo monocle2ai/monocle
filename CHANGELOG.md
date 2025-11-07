@@ -1,3 +1,22 @@
+## Version 0.6.6 (2025-11-05)
+- Handle langgraph request input ([#321](https://github.com/monocle2ai/monocle/pull/321))
+- fastapi methods update to fix coroutine issue during server start ([#322](https://github.com/monocle2ai/monocle/pull/322))
+
+## Version 0.6.5 (2025-11-03)
+ 
+- Added scope agentic invocation ([#282](https://github.com/monocle2ai/monocle/pull/282))
+- Standardize the inference sub type similar to other span.subtypes ([#303](https://github.com/monocle2ai/monocle/pull/303))
+- Fix mcp package name in Readme ([#300](https://github.com/monocle2ai/monocle/pull/300))
+- Fix llamaindex agent and Llamaindex multi_agent ([#309](https://github.com/monocle2ai/monocle/pull/309))
+- Fixed mistral async embed error ([#301](https://github.com/monocle2ai/monocle/pull/301))
+- Deepseek inference instrumentation ([#285](https://github.com/monocle2ai/monocle/pull/285))
+- Fix OpenAI agentic flow broken ([#313](https://github.com/monocle2ai/monocle/pull/313))
+- Fastapi and flask unified tracing fix ([#312](https://github.com/monocle2ai/monocle/pull/312))
+- Support skiping entity execution and mock response. ([#311](https://github.com/monocle2ai/monocle/pull/311))
+- Use sentense tranformer for similarity comparer ([#305](https://github.com/monocle2ai/monocle/pull/305))
+- Fix Langrraph ParentCommand Exception ([#316](https://github.com/monocle2ai/monocle/pull/316))
+- AWS Strands framework support ([#314](https://github.com/monocle2ai/monocle/pull/314))
+
 ## Version 0.6.0 (2025-10-01)
 
 - Monocle testing framework ([#288](https://github.com/monocle2ai/monocle/pull/288))

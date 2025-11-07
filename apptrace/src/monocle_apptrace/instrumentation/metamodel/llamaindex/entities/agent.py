@@ -162,7 +162,8 @@ AGENT_DELEGATION = {
               {
                 "_comment": "name of the agent called",
                 "attribute": "to_agent",
-                "accessor": lambda arguments: _helper.get_target_agent(arguments['result'])
+                "accessor": lambda arguments: _helper.get_target_agent(arguments['result']),
+                "phase": "post_execution"
               }
         ]
       ]

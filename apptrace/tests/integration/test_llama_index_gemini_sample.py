@@ -1,17 +1,19 @@
 import logging
 import os
+import subprocess
+import sys
 import time
 
 import pytest
 from common.custom_exporter import CustomConsoleSpanExporter
 from llama_index.core.llms import ChatMessage
-from llama_index.llms.gemini import Gemini
 from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 
 logger = logging.getLogger(__name__)
 @pytest.fixture(scope="module")
 def setup():
+    subprocess.check_call([sys.executable, "-m", "pip", "install", ".[dev_gemini]"])
     custom_exporter = CustomConsoleSpanExporter()
     try:
         instrumentor = setup_monocle_telemetry(
@@ -25,8 +27,16 @@ def setup():
         if instrumentor and instrumentor.is_instrumented_by_opentelemetry:
             instrumentor.uninstrument()
 
-def test_llamaindex_gemini_sample(setup):
+# module cleanup function
+@pytest.fixture(scope="module", autouse=True)
+def cleanup_module():
+    yield
+    subprocess.check_call([sys.executable, "-m", "pip", "uninstall", "-y", "llama-index-llms-gemini"])
 
+def test_llamaindex_gemini_sample(setup, venv):
+    # dynamically import Gemini after installing the package
+    from llama_index.llms.gemini.base import Gemini
+    
     llm = Gemini(
         model="gemini-2.5-pro",
         api_key=os.getenv("GEMINI_API_KEY"),

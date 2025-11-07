@@ -1,5 +1,6 @@
 import logging
 import time
+import os
 
 import pytest
 from common.custom_exporter import CustomConsoleSpanExporter
@@ -13,6 +14,7 @@ from llama_index.core.llms import ChatMessage
 from llama_index.llms.anthropic import Anthropic
 from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
+ANTHROPIC_MODEL = os.environ.get("ANTHROPIC_MODEL")
 
 logger = logging.getLogger(__name__)
 
@@ -39,7 +41,7 @@ def test_llama_index_anthropic_sample(setup):
         ),
         ChatMessage(role="user", content="Tell me a story in 10 words"),
     ]
-    llm = Anthropic(model="claude-3-5-sonnet-20240620")
+    llm = Anthropic(model=ANTHROPIC_MODEL)
 
     response = llm.chat(messages)
 
@@ -61,8 +63,8 @@ def test_llama_index_anthropic_sample(setup):
         verify_inference_span(
             span=span,
             entity_type="inference.anthropic",
-            model_name="claude-3-5-sonnet-20240620",
-            model_type="model.llm.claude-3-5-sonnet-20240620",
+            model_name=ANTHROPIC_MODEL,
+            model_type="model.llm." + ANTHROPIC_MODEL,
             check_metadata=True,
             check_input_output=True,
         )

@@ -98,6 +98,7 @@ TOOLS = {
               {
                 "_comment": "tool type",
                 "attribute": "type",
+                "phase": "post_execution",
                 "accessor": lambda arguments: _helper.get_tool_type(arguments['span'])
               },
               {

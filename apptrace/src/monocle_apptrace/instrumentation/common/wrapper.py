@@ -249,7 +249,7 @@ async def amonocle_iter_wrapper_span_processor(tracer: Tracer, handler: SpanHand
                 span.end()
         else:
             ex:Exception = None
-            to_wrap = get_wrapper_with_next_processor(to_wrap, handler, span, parent_span, instance, args, kwargs)
+            to_wrap = get_wrapper_with_next_processor(to_wrap, handler, instance, span, parent_span, args, kwargs)
             if has_more_processors(to_wrap):
                 try:
                     handler.hydrate_span(to_wrap, wrapped, instance, args, kwargs, None, span, parent_span, ex,

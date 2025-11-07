@@ -1,4 +1,5 @@
 import logging
+from contextlib import suppress
 from monocle_apptrace.instrumentation.common.utils import (
     get_exception_message,
     get_json_dumps,
@@ -105,6 +106,10 @@ def extract_finish_reason(arguments):
             return None
             
         response = arguments["result"]
+
+        with suppress(IndexError, AttributeError):
+            if response.part is not None and response.parts[0].function_call is not None:
+                return "function_call"
         
         # Handle Gemini response structure
         if (response is not None and 

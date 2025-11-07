@@ -20,7 +20,7 @@ INFERENCE = {
             {
                 "attribute": "provider_name",
                 "accessor": lambda arguments: 'gcp'
-            }        
+            }
         ],
         [
             {

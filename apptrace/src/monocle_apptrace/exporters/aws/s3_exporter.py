@@ -1,6 +1,4 @@
 import os
-import time
-import random
 import datetime
 import logging
 import asyncio
@@ -17,9 +15,11 @@ from opentelemetry.sdk.trace import ReadableSpan
 from opentelemetry.sdk.trace.export import SpanExporter, SpanExportResult
 from monocle_apptrace.exporters.base_exporter import SpanExporterBase
 from monocle_apptrace.exporters.exporter_processor import ExportTaskProcessor
-from typing import Sequence, Optional
+from typing import Sequence, Optional, Dict, List, Tuple
 import json
 logger = logging.getLogger(__name__)
+
+HANDLE_TIMEOUT_SECONDS = 60
 
 class S3SpanExporter(SpanExporterBase):
     def __init__(self, bucket_name=None, region_name=None, task_processor: Optional[ExportTaskProcessor] = None):
@@ -29,6 +29,8 @@ class S3SpanExporter(SpanExporterBase):
         DEFAULT_TIME_FORMAT = "%Y-%m-%d__%H.%M.%S"
         self.max_batch_size = 500
         self.export_interval = 1
+        # Dictionary to store spans by trace_id: {trace_id: (spans_list, creation_time, has_root_span)}
+        self.trace_spans: Dict[int, Tuple[List[ReadableSpan], datetime.datetime, bool]] = {}
         if(os.getenv('MONOCLE_AWS_ACCESS_KEY_ID') and os.getenv('MONOCLE_AWS_SECRET_ACCESS_KEY')):
             self.s3_client = boto3.client(
                 's3',
@@ -46,8 +48,6 @@ class S3SpanExporter(SpanExporterBase):
         self.bucket_name = bucket_name or os.getenv('MONOCLE_S3_BUCKET_NAME','default-bucket')
         self.file_prefix = os.getenv('MONOCLE_S3_KEY_PREFIX', DEFAULT_FILE_PREFIX)
         self.time_format = DEFAULT_TIME_FORMAT
-        self.export_queue = []
-        self.last_export_time = time.time()
         self.task_processor = task_processor
         if self.task_processor is not None:
             self.task_processor.start()
@@ -92,6 +92,47 @@ class S3SpanExporter(SpanExporterBase):
             logger.error(f"Type error while checking bucket existence: {e}")
             raise e
 
+    def _cleanup_expired_traces(self) -> None:
+        """Upload and remove traces that have exceeded the timeout."""
+        current_time = datetime.datetime.now()
+        expired_trace_ids = []
+        
+        for trace_id, (spans, creation_time, _) in self.trace_spans.items():
+            if (current_time - creation_time).total_seconds() > HANDLE_TIMEOUT_SECONDS:
+                expired_trace_ids.append(trace_id)
+        
+        for trace_id in expired_trace_ids:
+            self._upload_trace(trace_id)
+
+    def _add_spans_to_trace(self, trace_id: int, spans: List[ReadableSpan], has_root: bool = False) -> None:
+        """Add spans to a trace buffer, creating it if needed."""
+        if trace_id in self.trace_spans:
+            existing_spans, creation_time, existing_root = self.trace_spans[trace_id]
+            existing_spans.extend(spans)
+            has_root = has_root or existing_root
+            self.trace_spans[trace_id] = (existing_spans, creation_time, has_root)
+        else:
+            self.trace_spans[trace_id] = (spans.copy(), datetime.datetime.now(), has_root)
+
+    def _upload_trace(self, trace_id: int) -> None:
+        """Upload a specific trace to S3 and remove it from the buffer."""
+        if trace_id not in self.trace_spans:
+            return
+        
+        spans, _, _ = self.trace_spans[trace_id]
+        if len(spans) == 0:
+            del self.trace_spans[trace_id]
+            return
+        
+        serialized_data = self.__serialize_spans(spans)
+        if serialized_data:
+            try:
+                self.__upload_to_s3_with_trace_id(serialized_data, trace_id)
+            except Exception as e:
+                logger.error(f"Failed to upload trace {hex(trace_id)}: {e}")
+        
+        del self.trace_spans[trace_id]
+
     def export(self, spans: Sequence[ReadableSpan]) -> SpanExportResult:
         """Synchronous export method that internally handles async logic."""
         try:
@@ -106,18 +147,44 @@ class S3SpanExporter(SpanExporterBase):
     async def __export_async(self, spans: Sequence[ReadableSpan]) -> SpanExportResult:
         try:
             logger.info(f"__export_async {len(spans)} spans to S3.")
-            # Add spans to the export queue
+            
+            # Cleanup expired traces first
+            self._cleanup_expired_traces()
+            
+            # Group spans by trace_id
+            spans_by_trace = {}
+            root_span_traces = set()
+            
             for span in spans:
-                self.export_queue.append(span)
-                # If the queue reaches MAX_BATCH_SIZE, export the spans
-                if len(self.export_queue) >= self.max_batch_size:
-                    await self.__export_spans()
-
-            # Check if it's time to force a flush
-            current_time = time.time()
-            if current_time - self.last_export_time >= self.export_interval:
-                await self.__export_spans()  # Export spans if time interval has passed
-                self.last_export_time = current_time  # Reset the last export time
+                if self.skip_export(span):
+                    continue
+                
+                trace_id = span.context.trace_id
+                if trace_id not in spans_by_trace:
+                    spans_by_trace[trace_id] = []
+                spans_by_trace[trace_id].append(span)
+                
+                # Check if this span is a root span (no parent)
+                if not span.parent:
+                    root_span_traces.add(trace_id)
+            
+            # Add spans to their respective trace buffers
+            for trace_id, trace_spans in spans_by_trace.items():
+                has_root = trace_id in root_span_traces
+                self._add_spans_to_trace(trace_id, trace_spans, has_root)
+            
+            # Upload complete traces (those with root spans)
+            for trace_id in root_span_traces:
+                if self.task_processor is not None and callable(getattr(self.task_processor, 'queue_task', None)):
+                    # Queue the upload task
+                    if trace_id in self.trace_spans:
+                        spans_to_upload, _, _ = self.trace_spans[trace_id]
+                        serialized_data = self.__serialize_spans(spans_to_upload)
+                        if serialized_data:
+                            self.task_processor.queue_task(self.__upload_to_s3_with_trace_id, serialized_data, trace_id, True)
+                        del self.trace_spans[trace_id]
+                else:
+                    self._upload_trace(trace_id)
 
             return SpanExportResult.SUCCESS
         except Exception as e:
@@ -140,44 +207,35 @@ class S3SpanExporter(SpanExporterBase):
             return ndjson_data
         except Exception as e:
             logger.warning(f"Error serializing spans: {e}")
-
-
-    async def __export_spans(self):
-        if len(self.export_queue) == 0:
-            return
-
-        # Take a batch of spans from the queue
-        batch_to_export = self.export_queue[:self.max_batch_size]
-        serialized_data = self.__serialize_spans(batch_to_export)
-        self.export_queue = self.export_queue[self.max_batch_size:]
-        # to calculate is_root_span loop over each span in batch_to_export and check if parent id is none or null
-        is_root_span = any(not span.parent for span in batch_to_export)
-        logger.info(f"Exporting {len(batch_to_export)} spans to S3 is_root_span : {is_root_span}.")
-        if self.task_processor is not None and callable(getattr(self.task_processor, 'queue_task', None)):
-            self.task_processor.queue_task(self.__upload_to_s3, serialized_data, is_root_span)
-        else:
-            try:
-                self.__upload_to_s3(serialized_data)
-            except Exception as e:
-                logger.error(f"Failed to upload span batch: {e}")
+            return ""
 
     @SpanExporterBase.retry_with_backoff(exceptions=(EndpointConnectionError, ConnectionClosedError, ReadTimeoutError, ConnectTimeoutError))
-    def __upload_to_s3(self, span_data_batch: str):
+    def __upload_to_s3_with_trace_id(self, span_data_batch: str, trace_id: int):
+        """Upload spans for a specific trace to S3 with trace ID in filename."""
         current_time = datetime.datetime.now().strftime(self.time_format)
         prefix = self.file_prefix + os.environ.get('MONOCLE_S3_KEY_PREFIX_CURRENT', '')
-        file_name = f"{prefix}{current_time}.ndjson"
+        file_name = f"{prefix}{current_time}_{hex(trace_id)}.ndjson"
         self.s3_client.put_object(
             Bucket=self.bucket_name,
             Key=file_name,
             Body=span_data_batch
         )
-        logger.debug(f"Span batch uploaded to AWS S3 as {file_name}.")
+        logger.debug(f"Trace {hex(trace_id)} uploaded to AWS S3 as {file_name}.")
 
     async def force_flush(self, timeout_millis: int = 30000) -> bool:
-        await self.__export_spans()  # Export any remaining spans in the queue
+        """Flush all pending traces to S3."""
+        trace_ids_to_upload = list(self.trace_spans.keys())
+        for trace_id in trace_ids_to_upload:
+            self._upload_trace(trace_id)
         return True
 
     def shutdown(self) -> None:
+        """Upload all pending traces and shutdown."""
+        # Upload all remaining traces
+        trace_ids_to_upload = list(self.trace_spans.keys())
+        for trace_id in trace_ids_to_upload:
+            self._upload_trace(trace_id)
+        
         if hasattr(self, 'task_processor') and self.task_processor is not None:
             self.task_processor.stop()
         logger.info("S3SpanExporter has been shut down.")

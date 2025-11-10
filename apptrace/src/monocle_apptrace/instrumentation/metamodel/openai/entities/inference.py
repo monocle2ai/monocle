@@ -244,6 +244,18 @@ INFERENCE = {
                 ),
             },
         ],
+        [
+            {
+                "_comment": "Tool name when finish_type is tool_call",
+                "attribute": "name",
+                "accessor": lambda arguments: _helper.extract_tool_name(arguments),
+            },
+            {
+                "_comment": "Tool type when finish_type is tool_call", 
+                "attribute": "type",
+                "accessor": lambda arguments: _helper.extract_tool_type(arguments),
+            },
+        ],
     ],
     "events": [
         {

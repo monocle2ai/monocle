@@ -63,9 +63,7 @@ class OkahuSpanExporter(SpanExporterBase):
                 continue
             # create a object from serialized span
             obj = json.loads(span.to_json())
-            if obj["parent_id"] is None:
-                obj["parent_id"] = "None"
-            else:
+            if obj["parent_id"] is not None:
                 obj["parent_id"] = remove_0x_from_start(obj["parent_id"])
             if obj["context"] is not None:
                 obj["context"]["trace_id"] = remove_0x_from_start(obj["context"]["trace_id"])

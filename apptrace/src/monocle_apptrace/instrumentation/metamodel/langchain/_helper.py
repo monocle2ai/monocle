@@ -16,7 +16,7 @@ from monocle_apptrace.instrumentation.common.utils import (
     get_status_code,
 )
 from monocle_apptrace.instrumentation.metamodel.finish_types import map_langchain_finish_reason_to_finish_type
-
+from contextlib import suppress
 
 logger = logging.getLogger(__name__)
 
@@ -265,3 +265,54 @@ def extract_finish_reason(arguments):
 def map_finish_reason_to_finish_type(finish_reason):
     """Map LangChain finish_reason to finish_type."""
     return map_langchain_finish_reason_to_finish_type(finish_reason)
+
+
+def _get_first_tool_call(response):
+    """Helper function to extract the first tool call from various LangChain response formats"""
+
+    with suppress(AttributeError, IndexError, TypeError):
+        if response.tool_calls:
+            return response.tool_calls[0]
+
+    return None
+
+def extract_tool_name(arguments):
+    """Extract tool name from LangChain response when finish_type is tool_call"""
+    try:
+        finish_type = map_finish_reason_to_finish_type(extract_finish_reason(arguments))
+        if finish_type != "tool_call":
+            return None
+
+        tool_call = _get_first_tool_call(arguments["result"])
+        if not tool_call:
+            return None
+
+        # Try different name extraction approaches
+        for getter in [
+            lambda tc: tc['name'],  # dict with name key
+        ]:
+            try:
+                return getter(tool_call)
+            except (KeyError, AttributeError, TypeError):
+                continue
+                            
+    except Exception as e:
+        logger.warning("Warning: Error occurred in extract_tool_name: %s", str(e))
+    
+    return None
+
+def extract_tool_type(arguments):
+    """Extract tool type from LangChain response when finish_type is tool_call"""
+    try:
+        finish_type = map_finish_reason_to_finish_type(extract_finish_reason(arguments))
+        if finish_type != "tool_call":
+            return None
+
+        tool_name = extract_tool_name(arguments)
+        if tool_name:
+            return "tool.function"
+            
+    except Exception as e:
+        logger.warning("Warning: Error occurred in extract_tool_type: %s", str(e))
+    
+    return None

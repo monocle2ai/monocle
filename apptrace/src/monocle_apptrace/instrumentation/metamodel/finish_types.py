@@ -19,8 +19,8 @@ class FinishType(Enum):
 # OpenAI finish reason mapping
 OPENAI_FINISH_REASON_MAPPING = {
     "stop": FinishType.SUCCESS.value,
-    "tool_calls": FinishType.SUCCESS.value,
-    "function_call": FinishType.SUCCESS.value,  # deprecated but still possible
+    "tool_calls": FinishType.TOOL_CALL.value,
+    "function_call": FinishType.TOOL_CALL.value,  # deprecated but still possible
     "length": FinishType.TRUNCATED.value,
     "content_filter": FinishType.CONTENT_FILTER.value
 }
@@ -199,8 +199,8 @@ LANGCHAIN_FINISH_REASON_MAPPING = {
     "token_limit": FinishType.TRUNCATED.value,
     
     # Tool/function calling
-    "tool_calls": FinishType.SUCCESS.value,
-    "function_call": FinishType.SUCCESS.value,
+    "tool_calls": FinishType.TOOL_CALL.value,
+    "function_call": FinishType.TOOL_CALL.value,
     
     # Content filtering and safety
     "content_filter": FinishType.CONTENT_FILTER.value,

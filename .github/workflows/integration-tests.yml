@@ -51,6 +51,14 @@ jobs:
       SAGEMAKER_EMB_ENDPOINT_NAME: ${{ secrets.SAGEMAKER_EMB_ENDPOINT_NAME }}
       SAGEMAKER_ENDPOINT_NAME: ${{ secrets.SAGEMAKER_ENDPOINT_NAME }}
       _CLOUD_SDK_MISSING_CREDENTIALS: ${{ secrets._CLOUD_SDK_MISSING_CREDENTIALS }}
+      GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+      BEDROCK_MODEL: ${{ secrets.BEDROCK_MODEL }}
+      ANTHROPIC_MODEL: ${{ secrets.ANTHROPIC_MODEL }}
+      HUGGING_FACE_API_KEY: ${{ secrets.HUGGING_FACE_API_KEY }}
+      DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+      GCP_PROJECT: ${{ secrets.GCP_PROJECT }}
+      GCP_REGION: ${{ secrets.GCP_REGION }}
+      VERTEX_AI_API_KEY: ${{ secrets.VERTEX_AI_API_KEY }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
@@ -163,7 +171,7 @@ jobs:
           cat ./integrationtest_failed_files.txt
           cat ./integrationtest_failed_files.txt >> failed_files.txt
           echo "" >> failed_files.txt
-          LINE_NUM=$(grep -nE "===== .*((failed|passed|skipped|warnings).*)+ in .* ======" integration_test_result.log | tail -1 | cut -d: -f1)
+          LINE_NUM=$(grep -nE "= .*((failed|passed|skipped|warnings).*)+ in .* =" integration_test_result.log | tail -1 | cut -d: -f1)
           tail -n +$LINE_NUM ./integration_test_result.log >> integration_test_summary.txt
           echo "" >> integration_test_summary.txt
           echo "Integration Test Summary:" >> test_summary.txt

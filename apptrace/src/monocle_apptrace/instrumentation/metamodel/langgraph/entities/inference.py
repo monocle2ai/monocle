@@ -23,7 +23,19 @@ AGENT = {
                 "_comment": "agent description",
                 "attribute": "description",
                 "accessor": lambda arguments: _helper.get_agent_description(arguments['instance'])
-              }
+              },
+        ],
+        [
+              {
+                  "_comment": "from_agent invocation id",
+                  "attribute": "from_agent_id",
+                  "accessor": lambda arguments: _helper.extract_from_agent_invocation_id(arguments['parent_span'])
+              },
+              {
+                  "_comment": "from_agent invocation id",
+                  "attribute": "from_agent",
+                  "accessor": lambda arguments: _helper.extract_from_agent_name(arguments['parent_span'])
+              }   
         ]
       ],
       "events": [
@@ -56,7 +68,7 @@ AGENT = {
 
 AGENT_REQUEST = {
       "type": SPAN_TYPES.AGENTIC_REQUEST,
-      "subtype": SPAN_SUBTYPES.PLANNING,
+      "subtype": SPAN_SUBTYPES.TURN,
       "attributes": [
         [
               {

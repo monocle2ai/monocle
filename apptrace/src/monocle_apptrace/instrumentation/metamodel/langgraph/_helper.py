@@ -1,5 +1,6 @@
 from opentelemetry.context import get_value
 from monocle_apptrace.instrumentation.common.utils import resolve_from_alias
+from monocle_apptrace.instrumentation.common.constants import AGENT_NAME_KEY, LAST_AGENT_INVOCATION_ID, LAST_AGENT_NAME
 import logging
 logger = logging.getLogger(__name__)
 
@@ -15,6 +16,16 @@ def extract_agent_response(response):
     except Exception as e:
         logger.warning("Warning: Error occurred in handle_response: %s", str(e))
     return ""
+
+def extract_from_agent_invocation_id(parent_span):
+    if parent_span is not None:
+        return parent_span.attributes.get(LAST_AGENT_INVOCATION_ID)
+    return None
+
+def extract_from_agent_name(parent_span):
+    if parent_span is not None:
+        return parent_span.attributes.get(LAST_AGENT_NAME)
+    return None
 
 def agent_instructions(arguments):
     if callable(arguments['kwargs']['agent'].instructions):
@@ -146,7 +157,7 @@ def is_root_agent_name(instance) -> bool:
 
 def get_source_agent() -> str:
     """Get the name of the agent that initiated the request."""
-    from_agent = get_value(LANGGRAPTH_AGENT_NAME_KEY)
+    from_agent = get_value(AGENT_NAME_KEY)
     return from_agent if from_agent is not None else ""
 
 def get_description(instance) -> str:
@@ -159,3 +170,9 @@ def get_agent_description(instance) -> str:
 def get_tool_description(instance) -> str:
     """Get the description of the tool."""
     return get_description(instance)
+
+def extract_thread_id(kwargs) -> str:
+    thread_id = None
+    if 'config' in kwargs and 'configurable' in kwargs['config']:
+        thread_id = kwargs['config']['configurable'].get('thread_id')
+    return thread_id

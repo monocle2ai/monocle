@@ -1,15 +1,18 @@
 import logging
 from opentelemetry.context import set_value, attach, detach, get_value
-from monocle_apptrace.instrumentation.common.constants import AGENT_PREFIX_KEY, SCOPE_NAME
+from monocle_apptrace.instrumentation.common.constants import (
+    AGENT_PREFIX_KEY, SCOPE_NAME, AGENT_NAME_KEY, AGENT_INVOCATION_SPAN_NAME,
+    LAST_AGENT_INVOCATION_ID, LAST_AGENT_NAME, AGENT_SESSION
+)
 from monocle_apptrace.instrumentation.common.span_handler import SpanHandler
 from monocle_apptrace.instrumentation.metamodel.langgraph._helper import (
-   DELEGATION_NAME_PREFIX, get_name, is_root_agent_name, is_delegation_tool, LANGGRAPTH_AGENT_NAME_KEY
+   DELEGATION_NAME_PREFIX, get_name, is_root_agent_name, is_delegation_tool, extract_thread_id
 )
 from monocle_apptrace.instrumentation.metamodel.langgraph.entities.inference import (
     AGENT_DELEGATION, AGENT_REQUEST, AGENT
 )
 from monocle_apptrace.instrumentation.common.scope_wrapper import start_scope, stop_scope
-from monocle_apptrace.instrumentation.common.utils import is_scope_set
+from monocle_apptrace.instrumentation.common.utils import is_scope_set, get_scopes
 try:
     from langgraph.errors import ParentCommand
 except ImportError:
@@ -41,15 +44,19 @@ class ParentCommandFilterSpan:
 
 class LanggraphAgentHandler(SpanHandler):
     def pre_tracing(self, to_wrap, wrapped, instance, args, kwargs):
-        context = set_value(LANGGRAPTH_AGENT_NAME_KEY, get_name(instance))
+        context = set_value(AGENT_NAME_KEY, get_name(instance)) ## TODO: move to core!!
         context = set_value(AGENT_PREFIX_KEY, DELEGATION_NAME_PREFIX, context)
         scope_name = AGENT_REQUEST.get("type")
         if not is_scope_set(scope_name):
             agent_request_wrapper = to_wrap.copy()
             agent_request_wrapper["output_processor"] = AGENT_REQUEST
-#            return start_scope(scope_name, scope_value=None, context=context)
+            session_id = extract_thread_id(kwargs)
+            if session_id is not None:
+                return start_scope(AGENT_SESSION, scope_value=session_id, context=context), agent_request_wrapper
             return attach(context), agent_request_wrapper
         else:
+            # parent_agent_invocation_id = get_scopes(AGENT_INVOCATION_SPAN_NAME).get(AGENT_INVOCATION_SPAN_NAME)
+            # context = set_value(CALLING_AGENT_INVOCATION_ID, parent_agent_invocation_id, context) ## ## TODO: move to core!!
             return attach(context), None
 
     def post_tracing(self, to_wrap, wrapped, instance, args, kwargs, result, token):
@@ -60,6 +67,10 @@ class LanggraphAgentHandler(SpanHandler):
         """Apply ParentCommand filtering to the span before task execution."""
         # Apply ParentCommand filtering to this span
         self._apply_parent_command_filtering(span)
+        invocation_id = get_scopes(AGENT_INVOCATION_SPAN_NAME).get(AGENT_INVOCATION_SPAN_NAME)
+        if parent_span is not None:
+            parent_span.set_attribute(LAST_AGENT_INVOCATION_ID, invocation_id)
+            parent_agent_name = parent_span.set_attribute(LAST_AGENT_NAME, get_value(AGENT_NAME_KEY))
         super().post_task_processing(to_wrap, wrapped, instance, args, kwargs, result, ex, span, parent_span)
 
     def _apply_parent_command_filtering(self, span):
@@ -85,13 +96,18 @@ class LanggraphAgentHandler(SpanHandler):
         return super().hydrate_span(to_wrap, wrapped, instance, args, kwargs, result, span, parent_span, ex, is_post_exec)
 
 class LanggraphToolHandler(SpanHandler):
-    def pre_tracing(self, to_wrap, wrapped, instance, args, kwargs):
+    # def pre_tracing(self, to_wrap, wrapped, instance, args, kwargs):
+    #     if is_delegation_tool(instance):
+    #         agent_request_wrapper = to_wrap.copy()
+    #         agent_request_wrapper["output_processor"] = AGENT_DELEGATION
+    #     else:
+    #         agent_request_wrapper = None
+    #     return None, agent_request_wrapper
+
+    def skip_span(self, to_wrap, wrapped, instance, args, kwargs):
         if is_delegation_tool(instance):
-            agent_request_wrapper = to_wrap.copy()
-            agent_request_wrapper["output_processor"] = AGENT_DELEGATION
-        else:
-            agent_request_wrapper = None
-        return None, agent_request_wrapper
+            return True 
+        return super().skip_span(to_wrap, wrapped, instance, args, kwargs)
 
     # LangGraph uses an internal tool to initate delegation to other agents. The method is tool invoke() with tool name as `transfer_to_<agent_name>`.
     # Hence we usea different output processor for tool invoke() to format the span as agentic.delegation.

@@ -91,6 +91,12 @@ HTTP_SUCCESS_CODES = ("200", "201", "202", "204", "205", "206")
 CHILD_ERROR_CODE = "child.error.code"
 
 AGENT_PREFIX_KEY = "monocle.agent.prefix"
+AGENT_NAME_KEY = "monocle.agent.name"
+AGENT_SESSION = "monocle.agent.session"
+FROM_AGENT_INVOCATION_ID = "monocle.from.agent.id"
+FROM_AGENT_NAME = "monocle.from.agent.name"
+LAST_AGENT_NAME = "monocle.last.agent.name"
+LAST_AGENT_INVOCATION_ID = "monocle.last.agent.invocation.id"
 
 MONOCLE_SKIP_EXECUTIONS = "monocle.skip_executions"
 SKIPPED_EXECUTION = "monocle.skipped_execution"
@@ -135,6 +141,8 @@ SPAN_SUBTYPE_DOMAIN_SPECIFIC = "domain_specific"
 # 8 generic (we may skip this property)
 SPAN_SUBTYPE_GENERIC = "generic"
 
+SPAN_SUBTYPE_TURN = "turn"
+
 class SPAN_TYPES:
     GENERIC = "generic"
     AGENTIC_DELEGATION = "agentic.delegation"
@@ -154,6 +162,7 @@ class SPAN_TYPES:
 
 class SPAN_SUBTYPES:
     PLANNING = SPAN_SUBTYPE_PLANNING
+    TURN = SPAN_SUBTYPE_TURN
     ROUTING = SPAN_SUBTYPE_ROUTING
     CONTENT_PROCESSING = SPAN_SUBTYPE_CONTENT_PROCESSING
     CONTENT_GENERATION = SPAN_SUBTYPE_CONTENT_GENERATION

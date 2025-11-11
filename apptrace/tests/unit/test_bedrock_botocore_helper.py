@@ -201,7 +201,7 @@ class TestBedrockHelperFunctions:
             ("end_turn", "success"),
             ("stop", "success"),
             ("completed", "success"),
-            ("tool_use", "success")
+            ("tool_use", "tool_call")
         ]
         
         for reason, expected in test_cases:

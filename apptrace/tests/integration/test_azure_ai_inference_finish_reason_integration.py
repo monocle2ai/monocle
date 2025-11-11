@@ -257,6 +257,16 @@ def test_azure_ai_inference_with_tools(setup):
         spans = setup.get_captured_spans()
         assert spans, "No spans were exported"
         
+        # Find inference span and get both span and event attributes
+        inference_span = None
+        for span in reversed(spans):
+            if span.attributes.get("span.type") == "inference":
+                inference_span = span
+                break
+        
+        assert inference_span, "No inference span found"
+        span_attributes = inference_span.attributes
+        
         output_event_attrs = find_inference_span_and_event_attributes(spans)
         assert output_event_attrs, "metadata event not found in inference span"
         
@@ -266,10 +276,18 @@ def test_azure_ai_inference_with_tools(setup):
         logger.info(f"Captured finish_reason: {finish_reason}")
         logger.info(f"Captured finish_type: {finish_type}")
         
-        # Should be tool_calls/success for tool calling
+        # Should be tool_calls/tool_call for tool calling
         if finish_reason:
             assert finish_reason in ["tool_calls", "function_call", "stop"]
-            assert finish_type == "success"
+            if finish_reason in ["tool_calls", "function_call"]:
+                assert finish_type == "tool_call"
+                # Verify entity.3 attributes when finish_type is tool_call
+                assert "entity.3.name" in span_attributes, "entity.3.name should be present when finish_type is tool_call"
+                assert "entity.3.type" in span_attributes, "entity.3.type should be present when finish_type is tool_call"
+                assert span_attributes["entity.3.name"] == "get_weather", f"Expected tool name 'get_weather', got '{span_attributes.get('entity.3.name')}'"
+                assert span_attributes["entity.3.type"] == "tool.function", f"Expected tool type 'tool.function', got '{span_attributes.get('entity.3.type')}'"
+            else:
+                assert finish_type == "success"
     
     except Exception as e:
         # Some Azure AI models might not support tools

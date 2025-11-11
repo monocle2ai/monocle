@@ -8,6 +8,7 @@ from monocle_apptrace.instrumentation.common.utils import (
     get_status_code,
 )
 from monocle_apptrace.instrumentation.metamodel.finish_types import map_azure_ai_inference_finish_reason_to_finish_type
+from contextlib import suppress
 
 logger = logging.getLogger(__name__)
 
@@ -294,3 +295,57 @@ def extract_finish_reason(arguments: Dict[str, Any]) -> Optional[str]:
 def map_finish_reason_to_finish_type(finish_reason: Optional[str]) -> Optional[str]:
     """Map Azure AI Inference finish_reason to finish_type."""
     return map_azure_ai_inference_finish_reason_to_finish_type(finish_reason)
+
+def _get_first_tool_call(response):
+    """Helper function to extract the first tool call from various LangChain response formats"""
+    with suppress(AttributeError, IndexError, TypeError):
+        if hasattr(response, "choices") and response.choices:
+            choice = response.choices[0]
+            if hasattr(choice, "message") and hasattr(choice.message, "tool_calls"):
+                tool_calls = choice.message.tool_calls
+                if tool_calls and len(tool_calls) > 0:
+                    first_tool_call = tool_calls[0]
+                    return first_tool_call
+
+    return None
+
+def extract_tool_name(arguments: Dict[str, Any]) -> Optional[str]:
+    """Extract tool name from Azure AI Inference response when finish_type is tool_call."""
+    try:
+        finish_type = map_finish_reason_to_finish_type(extract_finish_reason(arguments))
+        if finish_type != "tool_call":
+            return None
+
+        tool_call = _get_first_tool_call(arguments["result"])
+        if not tool_call:
+            return None
+
+        for getter in [
+            lambda tc: tc.function.name,  # dict with name key
+            lambda tc: tc.name,
+        ]:
+            try:
+                return getter(tool_call)
+            except (KeyError, AttributeError, TypeError):
+                continue
+
+    except Exception as e:
+        logger.warning("Warning: Error occurred in extract_tool_name: %s", str(e))
+    
+    return None
+
+def extract_tool_type(arguments: Dict[str, Any]) -> Optional[str]:
+    """Extract tool type from Azure AI Inference response when finish_type is tool_call."""
+    try:
+        finish_type = map_finish_reason_to_finish_type(extract_finish_reason(arguments))
+        if finish_type != "tool_call":
+            return None
+
+        tool_name = extract_tool_name(arguments)
+        if tool_name:
+            return "tool.function"
+            
+    except Exception as e:
+        logger.warning("Warning: Error occurred in extract_tool_type: %s", str(e))
+    
+    return None

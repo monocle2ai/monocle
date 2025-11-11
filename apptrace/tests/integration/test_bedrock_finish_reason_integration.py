@@ -59,6 +59,18 @@ def find_inference_span_and_event_attributes(spans, event_name="metadata"):
     return None
 
 
+def find_inference_span_with_tool_call(spans):
+    """Find inference span where finish_type is tool_call and return the span."""
+    for span in reversed(spans):
+        if span.attributes.get("span.type") == "inference":
+            for event in span.events:
+                if event.name == "metadata":
+                    finish_type = event.attributes.get("finish_type")
+                    if finish_type == "tool_call":
+                        return span
+    return None
+
+
 def test_bedrock_finish_reason_end_turn(setup):
     """Test stopReason == 'end_turn' for a normal completion using Claude via Bedrock."""
     client = get_bedrock_client()
@@ -209,7 +221,22 @@ def test_bedrock_finish_reason_tool_use(setup):
     
     if response["stopReason"] == "tool_use":
         assert output_event_attrs.get("finish_reason") == "tool_use"
-        assert output_event_attrs.get("finish_type") == "success"
+        assert output_event_attrs.get("finish_type") == "tool_call"
+        # Find the inference span with tool_call finish_type
+        tool_call_span = find_inference_span_with_tool_call(spans)
+        assert tool_call_span is not None, "No inference span with finish_type=tool_call found"
+
+        # Validate entity.3.name and entity.3.type
+        entity_3_name = tool_call_span.attributes.get("entity.3.name")
+        entity_3_type = tool_call_span.attributes.get("entity.3.type")
+
+        assert entity_3_name == "get_weather", f"Expected entity.3.name='get_weather', got '{entity_3_name}'"
+        assert entity_3_type == "tool.function", f"Expected entity.3.type='tool.function', got '{entity_3_type}'"
+
+        logger.info("✓ entity.3.name = '%s'", entity_3_name)
+        logger.info("✓ entity.3.type = '%s'", entity_3_type)
+        logger.info("✓ finish_type = '%s'", output_event_attrs.get("finish_type"))
+
     elif response["stopReason"] == "end_turn":
         assert output_event_attrs.get("finish_reason") == "end_turn"
         assert output_event_attrs.get("finish_type") == "success"

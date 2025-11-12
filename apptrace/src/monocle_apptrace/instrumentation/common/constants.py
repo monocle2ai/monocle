@@ -92,7 +92,6 @@ CHILD_ERROR_CODE = "child.error.code"
 
 AGENT_PREFIX_KEY = "monocle.agent.prefix"
 AGENT_NAME_KEY = "monocle.agent.name"
-AGENT_SESSION = "monocle.agent.session"
 FROM_AGENT_INVOCATION_ID = "monocle.from.agent.id"
 FROM_AGENT_NAME = "monocle.from.agent.name"
 LAST_AGENT_NAME = "monocle.last.agent.name"
@@ -108,7 +107,7 @@ INFERENCE_TURN_END = "turn_end"
 
 SCOPE_NAME = "scope_name"
 AGENT_INVOCATION_SPAN_NAME = "agentic.invocation"
-AGENT_REQUEST_SPAN_NAME = "agentic.request"
+AGENT_REQUEST_SPAN_NAME = "agentic.turn"
 AGENT_SESSION = "agentic.session"
 
 AGENTIC_SPANS = [AGENT_INVOCATION_SPAN_NAME, AGENT_REQUEST_SPAN_NAME]
@@ -149,7 +148,7 @@ class SPAN_TYPES:
     AGENTIC_TOOL_INVOCATION = "agentic.tool.invocation"
     AGENTIC_INVOCATION = "agentic.invocation"
     AGENTIC_MCP_INVOCATION = "agentic.mcp.invocation"
-    AGENTIC_REQUEST = "agentic.request"
+    AGENTIC_REQUEST = "agentic.turn"
 
     # http.process
     HTTP_PROCESS = "http.process"
@@ -180,8 +179,8 @@ MAP_ATTRIBUTES_TO_SPAN_SUBTYPE = {
 
     # agentic span.types
     SPAN_TYPES.AGENTIC_DELEGATION: SPAN_SUBTYPES.ROUTING,
-    SPAN_TYPES.AGENTIC_TOOL_INVOCATION: SPAN_SUBTYPES.ROUTING,
-    SPAN_TYPES.AGENTIC_INVOCATION: SPAN_SUBTYPES.ROUTING,
+    SPAN_TYPES.AGENTIC_TOOL_INVOCATION: SPAN_SUBTYPES.CONTENT_GENERATION,
+    SPAN_TYPES.AGENTIC_INVOCATION: SPAN_SUBTYPES.CONTENT_PROCESSING,
     SPAN_TYPES.AGENTIC_MCP_INVOCATION: SPAN_SUBTYPES.ROUTING,
     
     # MAYBE?

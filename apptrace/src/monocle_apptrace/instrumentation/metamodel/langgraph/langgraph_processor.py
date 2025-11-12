@@ -69,8 +69,12 @@ class LanggraphAgentHandler(SpanHandler):
         self._apply_parent_command_filtering(span)
         invocation_id = get_scopes(AGENT_INVOCATION_SPAN_NAME).get(AGENT_INVOCATION_SPAN_NAME)
         if parent_span is not None:
-            parent_span.set_attribute(LAST_AGENT_INVOCATION_ID, invocation_id)
-            parent_agent_name = parent_span.set_attribute(LAST_AGENT_NAME, get_value(AGENT_NAME_KEY))
+            if invocation_id is not None:
+                parent_span.set_attribute(LAST_AGENT_INVOCATION_ID, invocation_id)
+            agent_name = get_value(AGENT_NAME_KEY)
+            if agent_name is not None:
+                parent_span.set_attribute(LAST_AGENT_NAME, agent_name)
+            parent_agent_name = parent_span.set_attribute(LAST_AGENT_NAME, )
         super().post_task_processing(to_wrap, wrapped, instance, args, kwargs, result, ex, span, parent_span)
 
     def _apply_parent_command_filtering(self, span):

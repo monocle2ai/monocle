@@ -6,7 +6,7 @@ from monocle_apptrace.instrumentation.common.utils import get_error_message
 
 AGENT = {
       "type": SPAN_TYPES.AGENTIC_INVOCATION,
-      "subtype": SPAN_SUBTYPES.ROUTING,
+      "subtype": SPAN_SUBTYPES.CONTENT_PROCESSING,
       "attributes": [
         [
               {
@@ -28,7 +28,7 @@ AGENT = {
         [
               {
                   "_comment": "from_agent invocation id",
-                  "attribute": "from_agent_id",
+                  "attribute": "from_agent_invocation_id",
                   "accessor": lambda arguments: _helper.extract_from_agent_invocation_id(arguments['parent_span'])
               },
               {
@@ -104,7 +104,7 @@ AGENT_REQUEST = {
 
 TOOLS = {
       "type": SPAN_TYPES.AGENTIC_TOOL_INVOCATION,
-      "subtype": SPAN_SUBTYPES.ROUTING,
+      "subtype": SPAN_SUBTYPES.CONTENT_GENERATION,
       "attributes": [
         [
               {

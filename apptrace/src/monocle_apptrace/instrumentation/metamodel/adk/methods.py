@@ -26,6 +26,7 @@ ADK_METHODS = [
       "object": "Runner",
       "method": "run_async",
       "wrapper_method": atask_iter_wrapper,
+      "span_handler": "adk_handler",
       "output_processor": REQUEST,
     }
 ]

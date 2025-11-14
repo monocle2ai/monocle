@@ -20,7 +20,8 @@ INFERENCE = {
             {
                 "attribute": "provider_name",
                 "accessor": lambda arguments: 'gcp'
-            }        ],
+            }
+        ],
         [
             {
                 "_comment": "LLM Model",

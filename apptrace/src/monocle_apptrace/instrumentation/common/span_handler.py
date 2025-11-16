@@ -53,7 +53,8 @@ class SpanHandler:
         return None, None
 
     def post_tracing(self, to_wrap, wrapped, instance, args, kwargs, return_value, token=None):
-        pass
+        if token:
+            detach(token)
 
     def skip_span(self, to_wrap, wrapped, instance, args, kwargs) -> bool:
         return False
@@ -363,3 +364,5 @@ class NonFrameworkSpanHandler(SpanHandler):
             span.set_attribute("span.type", span_type)
         return span_type
 
+class AgenticSpanHandler(SpanHandler):
+    pass

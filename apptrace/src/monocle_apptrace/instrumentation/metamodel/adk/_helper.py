@@ -7,9 +7,13 @@ from ast import arguments
 import json
 from typing import Any, Dict, Optional
 from monocle_apptrace.instrumentation.metamodel.finish_types import map_adk_finish_reason_to_finish_type
+<<<<<<< HEAD
 from monocle_apptrace.instrumentation.common.span_handler import SpanHandler
 from monocle_apptrace.instrumentation.common.utils import set_scope, remove_scope
 from monocle_apptrace.instrumentation.common.constants import AGENT_SESSION
+=======
+from monocle_apptrace.instrumentation.common.constants import AGENT_INVOCATION_SPAN_NAME
+>>>>>>> 09542b5 (Agent turn span with langgraph session id capture)
 
 def get_model_name(args):
     return args[0].model if hasattr(args[0], 'model') else None
@@ -163,6 +167,11 @@ def get_delegating_agent(arguments) -> str:
             return None
     return from_agent
 
+def extract_from_agent_invocation_id(parent_span):
+    if parent_span is not None:
+        return parent_span.attributes.get("scope." + AGENT_INVOCATION_SPAN_NAME)
+    return None
+
 def should_skip_delegation(arguments):
     """
     Determine whether to skip the delegation based on the arguments.
@@ -186,6 +195,7 @@ def extract_tool_input(arguments: Dict[str, Any]) -> Any:
         Any: The extracted input data
     """
     return json.dumps(arguments['kwargs'].get('args', {}))
+
 
 def extract_tool_response(result: Any) -> Any:
     """

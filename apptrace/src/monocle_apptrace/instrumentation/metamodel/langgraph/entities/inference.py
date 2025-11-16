@@ -24,17 +24,15 @@ AGENT = {
                 "attribute": "description",
                 "accessor": lambda arguments: _helper.get_agent_description(arguments['instance'])
               },
-        ],
-        [
               {
-                  "_comment": "from_agent invocation id",
-                  "attribute": "from_agent_invocation_id",
-                  "accessor": lambda arguments: _helper.extract_from_agent_invocation_id(arguments['parent_span'])
+                "_comment": "delegating agent name",
+                "attribute": "from_agent",
+                "accessor": lambda arguments: _helper.extract_from_agent_name(arguments['parent_span'])
               },
               {
-                  "_comment": "from_agent invocation id",
-                  "attribute": "from_agent",
-                  "accessor": lambda arguments: _helper.extract_from_agent_name(arguments['parent_span'])
+                "_comment": "from_agent invocation id",
+                "attribute": "from_agent_invocation",
+                "accessor": lambda arguments: _helper.extract_from_agent_invocation_id(arguments['parent_span'])
               }   
         ]
       ],
@@ -85,7 +83,7 @@ AGENT_REQUEST = {
             {
                 "_comment": "this is Agent input",
                 "attribute": "input",
-                "accessor": lambda arguments: _helper.extract_request_agent_input(arguments)
+                "accessor": lambda arguments: _helper.extract_agent_input(arguments)
             }
           ]
         },

@@ -39,6 +39,7 @@ from monocle_apptrace.instrumentation.metamodel.mcp.mcp_processor import MCPAgen
 from monocle_apptrace.instrumentation.metamodel.a2a.methods import A2A_CLIENT_METHODS
 from monocle_apptrace.instrumentation.metamodel.litellm.methods import LITELLM_METHODS
 from monocle_apptrace.instrumentation.metamodel.adk.methods import ADK_METHODS
+from monocle_apptrace.instrumentation.metamodel.adk.adk_handler import AdkAgentHandler
 from monocle_apptrace.instrumentation.metamodel.mistral.methods import MISTRAL_METHODS
 from monocle_apptrace.instrumentation.metamodel.strands.methods import STRAND_METHODS
 from monocle_apptrace.instrumentation.metamodel.adk._helper import AdkSpanHandler
@@ -139,5 +140,9 @@ MONOCLE_SPAN_HANDLERS: Dict[str, SpanHandler] = {
     "llamaindex_agent_handler": LlamaIndexAgentHandler(),
     "llamaindex_single_agent_tool_handler": LlamaIndexSingleAgenttToolHandlerWrapper(),
     "lambda_func_handler": lambdaSpanHandler(),
+<<<<<<< HEAD
     "adk_handler": AdkSpanHandler()
+=======
+    "adk_agent_handler": AdkAgentHandler(),
+>>>>>>> 09542b5 (Agent turn span with langgraph session id capture)
 }

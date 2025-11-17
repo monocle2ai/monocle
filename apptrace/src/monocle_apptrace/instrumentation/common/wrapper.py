@@ -2,16 +2,12 @@
 import logging
 import os
 from contextlib import contextmanager
-from typing import AsyncGenerator, Iterator, Optional
-
-from opentelemetry.context import attach, create_key, detach, get_value, set_value
-from opentelemetry.context.context import Context
-from opentelemetry.trace import Tracer, propagation
-from opentelemetry.trace.propagation import (
-    _SPAN_KEY,
-    get_current_span,
-    set_span_in_context,
-)
+import os
+from typing import AsyncGenerator, Iterator
+import logging
+from opentelemetry.trace import Tracer
+from opentelemetry.trace.propagation import set_span_in_context, get_current_span
+from opentelemetry.context import set_value, attach, detach, get_value
 from opentelemetry.trace.span import INVALID_SPAN, Span
 from opentelemetry.trace.status import StatusCode
 
@@ -29,6 +25,10 @@ from monocle_apptrace.instrumentation.common.utils import (
     set_scope,
     set_scopes,
     with_tracer_wrapper,
+    set_scope,
+    remove_scope,
+    get_current_monocle_span,
+    set_monocle_span_in_context,
 )
 
 logger = logging.getLogger(__name__)
@@ -60,7 +60,9 @@ def post_process_span(handler, to_wrap, wrapped, instance, args, kwargs, return_
         try:
             if parent_span == INVALID_SPAN:
                 parent_span = None
-            handler.hydrate_span(to_wrap, wrapped, instance, args, kwargs, return_value, span, parent_span, ex)
+            handler.hydrate_span(to_wrap, wrapped, instance, args, kwargs, return_value, span, parent_span, ex,
+                    is_post_exec=True)
+            return_value = SpanHandler.replace_placeholders_in_response(return_value, span)
         except Exception as e:
             logger.info(f"Warning: Error occurred in hydrate_span: {e}")
         
@@ -68,6 +70,7 @@ def post_process_span(handler, to_wrap, wrapped, instance, args, kwargs, return_
             handler.post_task_processing(to_wrap, wrapped, instance, args, kwargs, return_value, ex, span, parent_span)
         except Exception as e:
             logger.info(f"Warning: Error occurred in post_task_processing: {e}")
+        return return_value
 
 def get_span_name(to_wrap, instance):
     if to_wrap.get("span_name"):
@@ -94,19 +97,32 @@ def monocle_wrapper_span_processor(tracer: Tracer, handler: SpanHandler, to_wrap
                 span.end()
         else:
             ex:Exception = None
-            to_wrap = get_wrapper_with_next_processor(to_wrap, handler, instance, args, kwargs)
+            to_wrap = get_wrapper_with_next_processor(to_wrap, handler, instance, span, parent_span, args, kwargs)
             if has_more_processors(to_wrap):
                 try:
-                    return_value, span_status = monocle_wrapper_span_processor(tracer, handler, to_wrap, wrapped, instance, source_path, False, args, kwargs)
+                    handler.hydrate_span(to_wrap, wrapped, instance, args, kwargs, None, span, parent_span, ex,
+                                is_post_exec=False)
+                except Exception as e:
+                    logger.info(f"Warning: Error occurred in hydrate_span pre_process_span: {e}")
+                try:
+                    with monocle_trace_scope(get_builtin_scope_names(to_wrap)):
+                        return_value, span_status = monocle_wrapper_span_processor(tracer, handler, to_wrap, wrapped, instance, source_path, False, args, kwargs)
                 except Exception as e:
                     ex = e
                     raise
                 finally:
-                    post_process_span_internal(return_value)
+                    return_value = post_process_span(handler, to_wrap, wrapped, instance, args, kwargs, return_value, span, parent_span ,ex)
             else:
                 try:
-                    with SpanHandler.workflow_type(to_wrap, span):
-                        return_value = wrapped(*args, **kwargs)
+                    handler.hydrate_span(to_wrap, wrapped, instance, args, kwargs, None, span, parent_span, ex,
+                                is_post_exec=False)
+                except Exception as e:
+                    logger.info(f"Warning: Error occurred in hydrate_span pre_process_span: {e}")
+                try:
+                    skip_execution, return_value = SpanHandler.skip_execution(span)
+                    if not skip_execution:
+                        with SpanHandler.workflow_type(to_wrap, span):
+                            return_value = wrapped(*args, **kwargs)
                 except Exception as e:
                     ex = e
                     raise
@@ -115,10 +131,11 @@ def monocle_wrapper_span_processor(tracer: Tracer, handler: SpanHandler, to_wrap
                         post_process_span(handler, to_wrap, wrapped, instance, args, kwargs, ret_val, span, parent_span ,ex)
                         if not auto_close_span:
                             span.end()
+                        return ret_val
                     if ex is None and not auto_close_span and to_wrap.get("output_processor") and to_wrap.get("output_processor").get("response_processor"):
                         to_wrap.get("output_processor").get("response_processor")(to_wrap, return_value, post_process_span_internal)
                     else:
-                        post_process_span_internal(return_value)
+                        return_value = post_process_span_internal(return_value)
             span_status = span.status
     return return_value, span_status
 
@@ -128,7 +145,9 @@ def monocle_wrapper(tracer: Tracer, handler: SpanHandler, to_wrap, wrapped, inst
     token = None
     try:
         try:
-            pre_trace_token = handler.pre_tracing(to_wrap, wrapped, instance, args, kwargs)
+            pre_trace_token, alternate_to_wrapp = handler.pre_tracing(to_wrap, wrapped, instance, args, kwargs)
+            if alternate_to_wrapp is not None:
+                to_wrap = alternate_to_wrapp
         except Exception as e:
             logger.info(f"Warning: Error occurred in pre_tracing: {e}")
         if to_wrap.get('skip_span', False) or handler.skip_span(to_wrap, wrapped, instance, args, kwargs):
@@ -167,31 +186,46 @@ async def amonocle_wrapper_span_processor(tracer: Tracer, handler: SpanHandler, 
                 span.end()
         else:
             ex:Exception = None
-            to_wrap = get_wrapper_with_next_processor(to_wrap, handler, instance, args, kwargs)
+            to_wrap = get_wrapper_with_next_processor(to_wrap, handler, instance, span, parent_span,args, kwargs)
             if has_more_processors(to_wrap):
                 try:
-                    return_value, span_status = await amonocle_wrapper_span_processor(tracer, handler, to_wrap, wrapped, instance, source_path, False, args, kwargs)
+                    handler.hydrate_span(to_wrap, wrapped, instance, args, kwargs, None, span, parent_span, ex,
+                                    is_post_exec=False)
+                except Exception as e:
+                    logger.info(f"Warning: Error occurred in hydrate_span pre_process_span: {e}")
+
+                try:
+                    with monocle_trace_scope(get_builtin_scope_names(to_wrap)):
+                        return_value, span_status = await amonocle_wrapper_span_processor(tracer, handler, to_wrap, wrapped, instance, source_path, False, args, kwargs)
                 except Exception as e:
                     ex = e
                     raise
                 finally:
-                    post_process_span_internal(return_value)
+                    return_value = post_process_span(handler, to_wrap, wrapped, instance, args, kwargs, return_value, span, parent_span ,ex)
             else:
                 try:
-                    with SpanHandler.workflow_type(to_wrap, span):
-                        return_value = await wrapped(*args, **kwargs)
+                    handler.hydrate_span(to_wrap, wrapped, instance, args, kwargs, None, span, parent_span, ex,
+                                is_post_exec=False)
+                except Exception as e:
+                    logger.info(f"Warning: Error occurred in hydrate_span pre_process_span: {e}")
+                try:
+                    skip_execution, return_value = SpanHandler.skip_execution(span)
+                    if not skip_execution:
+                        with SpanHandler.workflow_type(to_wrap, span):
+                            return_value = await wrapped(*args, **kwargs)
                 except Exception as e:
                     ex = e
                     raise
                 finally:
                     def post_process_span_internal(ret_val):
-                        post_process_span(handler, to_wrap, wrapped, instance, args, kwargs, ret_val, span, parent_span, ex)
+                        ret_val = post_process_span(handler, to_wrap, wrapped, instance, args, kwargs, ret_val, span, parent_span, ex)
                         if not auto_close_span:
                             span.end()
+                        return ret_val
                     if ex is None and not auto_close_span and to_wrap.get("output_processor") and to_wrap.get("output_processor").get("response_processor"):
                         to_wrap.get("output_processor").get("response_processor")(to_wrap, return_value, post_process_span_internal)
                     else:
-                        post_process_span_internal(return_value)
+                        return_value = post_process_span_internal(return_value)
         span_status = span.status
     return return_value, span_status
 
@@ -215,35 +249,50 @@ async def amonocle_iter_wrapper_span_processor(tracer: Tracer, handler: SpanHand
                 span.end()
         else:
             ex:Exception = None
-            to_wrap = get_wrapper_with_next_processor(to_wrap, handler, instance, args, kwargs)
+            to_wrap = get_wrapper_with_next_processor(to_wrap, handler, span, parent_span, instance, args, kwargs)
             if has_more_processors(to_wrap):
                 try:
-                    async for item in amonocle_iter_wrapper_span_processor(tracer, handler, to_wrap, wrapped, instance, source_path, False, args, kwargs):
-                        last_item = item
-                        yield item
+                    handler.hydrate_span(to_wrap, wrapped, instance, args, kwargs, None, span, parent_span, ex,
+                                is_post_exec=False)
                 except Exception as e:
-                    ex = e
-                    raise
-                finally:
-                    post_process_span(handler, to_wrap, wrapped, instance, args, kwargs, last_item, span, parent_span, ex)
-            else:
+                    logger.info(f"Warning: Error occurred in hydrate_span pre_process_span: {e}")
                 try:
-                    with SpanHandler.workflow_type(to_wrap, span):
-                        async for item in wrapped(*args, **kwargs):
+                    with monocle_trace_scope(get_builtin_scope_names(to_wrap)):
+                        async for item in amonocle_iter_wrapper_span_processor(tracer, handler, to_wrap, wrapped, instance, source_path, False, args, kwargs):
                             last_item = item
                             yield item
                 except Exception as e:
                     ex = e
                     raise
                 finally:
+                    last_item = post_process_span(handler, to_wrap, wrapped, instance, args, kwargs, last_item, span, parent_span, ex)
+            else:
+                try:
+                    handler.hydrate_span(to_wrap, wrapped, instance, args, kwargs, None, span, parent_span, ex,
+                                is_post_exec=False)
+                except Exception as e:
+                    logger.info(f"Warning: Error occurred in hydrate_span pre_process_span: {e}")
+                try:
+                    skip_execution, last_item = SpanHandler.skip_execution(span)
+                    if not skip_execution:
+                        with SpanHandler.workflow_type(to_wrap, span):
+                            async for item in wrapped(*args, **kwargs):
+                                last_item = item
+                                yield item
+                    else:
+                        yield last_item
+                except Exception as e:
+                    ex = e
+                    raise
+                finally:
                     def post_process_span_internal(ret_val):
-                        post_process_span(handler, to_wrap, wrapped, instance, args, kwargs, ret_val, span, parent_span, ex)
+                        ret_val = post_process_span(handler, to_wrap, wrapped, instance, args, kwargs, ret_val, span, parent_span, ex)
                         if not auto_close_span:
                             span.end()
                     if ex is None and not auto_close_span and to_wrap.get("output_processor") and to_wrap.get("output_processor").get("response_processor"):
                         to_wrap.get("output_processor").get("response_processor")(to_wrap, None, post_process_span_internal)
                     else:
-                        post_process_span_internal(last_item)
+                        last_item = post_process_span_internal(last_item)
     return
 
 async def amonocle_wrapper(tracer: Tracer, handler: SpanHandler, to_wrap, wrapped, instance, source_path, args, kwargs):
@@ -252,7 +301,9 @@ async def amonocle_wrapper(tracer: Tracer, handler: SpanHandler, to_wrap, wrappe
     pre_trace_token = None
     try:
         try:
-            pre_trace_token = handler.pre_tracing(to_wrap, wrapped, instance, args, kwargs)
+            pre_trace_token, alternate_to_wrapp = handler.pre_tracing(to_wrap, wrapped, instance, args, kwargs)
+            if alternate_to_wrapp is not None:
+                to_wrap = alternate_to_wrapp
         except Exception as e:
             logger.info(f"Warning: Error occurred in pre_tracing: {e}")
         if to_wrap.get('skip_span', False) or handler.skip_span(to_wrap, wrapped, instance, args, kwargs):
@@ -278,7 +329,9 @@ async def amonocle_iter_wrapper(tracer: Tracer, handler: SpanHandler, to_wrap, w
     pre_trace_token = None
     try:
         try:
-            pre_trace_token = handler.pre_tracing(to_wrap, wrapped, instance, args, kwargs)
+            pre_trace_token, alternate_to_wrapp = handler.pre_tracing(to_wrap, wrapped, instance, args, kwargs)
+            if alternate_to_wrapp is not None:
+                to_wrap = alternate_to_wrapp
         except Exception as e:
             logger.info(f"Warning: Error occurred in pre_tracing: {e}")
         if to_wrap.get('skip_span', False) or handler.skip_span(to_wrap, wrapped, instance, args, kwargs):
@@ -380,13 +433,14 @@ def evaluate_scope_values(args, kwargs, to_wrap, scope_values):
 @contextmanager
 def start_as_monocle_span(tracer: Tracer, name: str, auto_close_span: bool) -> Iterator["Span"]:
     """ Wrapper to OTEL start_as_current_span to isolate monocle and non monocle spans.
-        This essentiall links monocle and non-monocle spans separately which is default behavior.
+        This essentially links monocle and non-monocle spans separately which is default behavior.
         It can be optionally overridden by setting the environment variable MONOCLE_ISOLATE_SPANS to false.
     """
     if not ISOLATE_MONOCLE_SPANS:
         # If not isolating, use the default start_as_current_span
         yield tracer.start_as_current_span(name, end_on_exit=auto_close_span)
         return
+    
     original_span = get_current_span()
     monocle_span_token = attach(set_span_in_context(get_current_monocle_span()))
     with tracer.start_as_current_span(name, end_on_exit=auto_close_span) as span:
@@ -407,17 +461,17 @@ def get_builtin_scope_names(to_wrap) -> str:
                 output_processor = processor
                 break
 
-    span_type = output_processor.get("type", None) if output_processor else None
+    span_type = output_processor.get("type", None) if output_processor and isinstance(output_processor, dict) else None
     if span_type and span_type in AGENTIC_SPANS:
         return span_type
     return None
 
-def get_wrapper_with_next_processor(to_wrap, handler, instance, args, kwargs):
+def get_wrapper_with_next_processor(to_wrap, handler, instance, span, parent_span, args, kwargs):
     if has_more_processors(to_wrap):
         next_output_processor_list = to_wrap.get('output_processor_list',[]).copy()
         while len(next_output_processor_list) > 0:
             next_output_processor = next_output_processor_list.pop(0)
-            if handler.should_skip(next_output_processor, instance, args, kwargs):
+            if handler.should_skip(next_output_processor, instance, span, parent_span, args, kwargs):
                 next_output_processor = None
             else:
                 break

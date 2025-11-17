@@ -190,6 +190,7 @@ def test_huggingface_invalid_api_key(setup):
                 or "403" in error_str
                 or "Unauthorized" in error_str
                 or "Forbidden" in error_str
+                or "provide an api_key" in error_str
             ), f"Unexpected error: {error_str}"
 
         # Allow spans to flush

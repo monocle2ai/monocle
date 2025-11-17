@@ -149,14 +149,32 @@ def test_finish_reason_function_call(setup):
     logger.info(f"OpenAI function_call/tool_calls finish_reason: {finish_reason}")
     # OpenAI API uses 'tool_calls' when tools are used.
     # 'function_call' is for the legacy function calling.
-    assert finish_reason == "tool_calls" 
+    assert finish_reason == "tool_calls"
 
     spans = setup.get_captured_spans()
     assert spans, "No spans were exported"
+
+    # Find inference span and get both span and event attributes
+    inference_span = None
+    for span in reversed(spans):
+        if span.attributes.get("span.type") == "inference":
+            inference_span = span
+            break
+
+    assert inference_span, "No inference span found"
+    span_attributes = inference_span.attributes
+
+    # Get output event attributes
     output_event_attrs = find_inference_span_and_event_attributes(spans)
     assert output_event_attrs, "metadata event not found in inference span"
     assert output_event_attrs.get("finish_reason") == "tool_calls"
-    assert output_event_attrs.get("finish_type") == "success"
+    assert output_event_attrs.get("finish_type") == "tool_call"
+
+    # Verify entity.3 attributes when finish_type is tool_call
+    assert "entity.3.name" in span_attributes, "entity.3.name should be present when finish_type is tool_call"
+    assert "entity.3.type" in span_attributes, "entity.3.type should be present when finish_type is tool_call"
+    assert span_attributes["entity.3.name"] == "get_current_weather", f"Expected tool name 'get_current_weather', got '{span_attributes.get('entity.3.name')}'"
+    assert span_attributes["entity.3.type"] == "tool.function", f"Expected tool type 'tool.function', got '{span_attributes.get('entity.3.type')}'"
 
 
 if __name__ == "__main__":

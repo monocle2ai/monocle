@@ -393,9 +393,23 @@ def verify_spans(memory_exporter=None):
     found_flight_agent = found_hotel_agent = found_supervisor_agent = False
     found_book_hotel_tool = found_book_flight_tool = False
     found_book_flight_delegation = found_book_hotel_delegation = False
+    parent_command_exceptions_found = []
     spans = memory_exporter.get_finished_spans()
     for span in spans:
         span_attributes = span.attributes
+        
+        # Check for ParentCommand exceptions in span events
+        for event in span.events:
+            if hasattr(event, 'attributes') and event.attributes:
+                # Check if this is an exception event with ParentCommand
+                if (event.attributes.get("exception.type") == "langgraph.errors.ParentCommand" or
+                    "ParentCommand" in str(event.attributes.get("exception.type", ""))):
+                    parent_command_exceptions_found.append({
+                        "span_name": span.name,
+                        "span_id": span.context.span_id,
+                        "exception_type": event.attributes.get("exception.type"),
+                        "exception_message": event.attributes.get("exception.message", "")
+                    })
 
         if "span.type" in span_attributes and (
                 span_attributes["span.type"] == "inference"
@@ -443,6 +457,11 @@ def verify_spans(memory_exporter=None):
             elif span_attributes["entity.1.name"] == "book_hotel":
                 found_book_hotel_tool = True
             found_tool = True
+            span_input, span_output = span.events
+            assert "input" in span_input.attributes
+            assert span_input.attributes["input"] != ""
+            assert "response" in span_output.attributes
+            assert span_output.attributes["response"] != ""
 
         if (
                 "span.type" in span_attributes
@@ -456,6 +475,18 @@ def verify_spans(memory_exporter=None):
                 found_book_flight_delegation = True
             elif span_attributes["entity.1.to_agent"] == "hotel_assistant":
                 found_book_hotel_delegation = True
+        if (
+                "span.type" in span_attributes
+                and span_attributes["span.type"] == "agentic.request"
+        ):
+            assert "entity.1.type" in span_attributes
+            assert span_attributes["entity.1.type"] == "agent.langgraph"
+            assert "scope.agentic.request" in span_attributes
+            span_input, span_output = span.events
+            assert "input" in span_input.attributes
+            assert span_input.attributes["input"] != ""
+            assert "response" in span_output.attributes
+            assert span_output.attributes["response"] != ""
 
     assert found_inference, "Inference span not found"
     assert found_agent, "Agent span not found"
@@ -467,6 +498,12 @@ def verify_spans(memory_exporter=None):
     assert found_supervisor_agent, "Supervisor agent span not found"
     assert found_book_flight_tool, "Book flight tool span not found"
     assert found_book_hotel_tool, "Book hotel tool span not found"
+    
+    # Verify that no ParentCommand exceptions are recorded in spans
+    assert len(parent_command_exceptions_found) == 0, (
+        f"Found {len(parent_command_exceptions_found)} ParentCommand exceptions in spans. "
+        f"These should be suppressed by the ParentCommand filter. Found exceptions: {parent_command_exceptions_found}"
+    )
 
 
 if __name__ == "__main__":

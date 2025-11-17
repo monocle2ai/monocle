@@ -1,7 +1,8 @@
+import ast
 import logging, json
 import os
 import traceback
-from typing import Callable, Generic, Optional, TypeVar, Mapping
+from typing import Callable, Generic, Optional, TypeVar, Mapping, Union
 
 from opentelemetry.context import attach, detach, get_current, get_value, set_value, Context
 from opentelemetry.trace import NonRecordingSpan, Span
@@ -217,12 +218,15 @@ def remove_scopes(token:object) -> None:
     if token is not None:
         detach(token)
 
-def get_scopes() -> dict[str, object]:
+def get_scopes(scope_name: Optional[str] = None) -> dict[str, object]:
     monocle_scopes:dict[str, object] = {}
     for key, val in baggage.get_all().items():
-        if key.startswith(MONOCLE_SCOPE_NAME_PREFIX):
+        if key.startswith(MONOCLE_SCOPE_NAME_PREFIX) and (scope_name is None or key == f"{MONOCLE_SCOPE_NAME_PREFIX}{scope_name}"):
             monocle_scopes[key[len(MONOCLE_SCOPE_NAME_PREFIX):]] = val
     return monocle_scopes
+
+def is_scope_set(scepe_name: str) -> bool:
+    return len(get_scopes(scepe_name)) > 0
 
 def get_baggage_for_scopes():
     baggage_context:Context = None
@@ -357,7 +361,7 @@ class Option(Generic[T]):
 
     def and_then(self, func: Callable[[T], 'Option[U]']) -> 'Option[U]':
         if self.is_some():
-            return func(self.value)
+            return Option(func(self.value))
         return Option(None)
 
 # Example usage
@@ -468,3 +472,56 @@ def get_current_monocle_span(context: Optional[Context] = None) -> Span:
     if span is None or not isinstance(span, Span):
         return INVALID_SPAN
     return span
+
+def get_input_event_from_span(events: list[dict], search_key:str) -> Optional[Mapping]:
+    """Extract the 'data.input' event from the span if it exists.
+
+    Args:
+        span: The Span to extract the event from.
+
+    Returns:
+        The 'data.input' event if it exists, None otherwise.
+    """
+    input_request = None
+    for event in events:
+        if event.name == "data.input":
+            try:
+                #load the input attribute as dictionary from string
+                try:
+                    input_dict = json.loads(event.attributes.get("input", "{}"))
+                except Exception as e:
+                    if isinstance(e, json.JSONDecodeError):
+                        input_dict = ast.literal_eval(event.attributes.get("input", {}))
+                    else:
+                        raise
+                if search_key in input_dict:
+                    input_request = input_dict[search_key]
+            except Exception as e:
+                logger.debug(f"Error parsing input event attribute: {e}")
+            break
+    return input_request
+
+def replace_placeholders(obj: Union[dict, list, str], span: Span) -> Union[dict, list, str]:
+    """Replace placeholders in strings with span context values."""
+    if isinstance(obj, dict):
+        return {k: replace_placeholders(v, span) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [replace_placeholders(item, span) for item in obj]
+    elif isinstance(obj, str):
+        startIndex = 0
+        while True:
+            start = obj.find("{{", startIndex)
+            end = obj.find("}}", start + 2)
+            if start == -1 or end == -1:
+                break
+            key = obj[start + 2:end].strip()
+            value = get_input_event_from_span(span.events, key)
+            if value is not None:
+                obj = obj[:start] + str(value) + obj[end + 2:]
+            startIndex = start + len(str(value))
+            if startIndex >= len(obj):
+                break
+        return obj
+    else:
+        return obj
+

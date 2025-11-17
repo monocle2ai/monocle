@@ -3,10 +3,10 @@ from monocle_apptrace.instrumentation.metamodel.fastapi.entities.http import FAS
 
 FASTAPI_METHODS = [
     {
-        "package": "fastapi",
-        "object": "FastAPI",
-        "method": "__call__",
-        "wrapper_method": task_wrapper,
+        "package": "fastapi.routing",
+        "object": "APIRoute",
+        "method": "handle",
+        "wrapper_method": atask_wrapper,
         "span_name": "fastapi.request",
         "span_handler": "fastapi_handler",
         "output_processor": FASTAPI_HTTP_PROCESSOR,

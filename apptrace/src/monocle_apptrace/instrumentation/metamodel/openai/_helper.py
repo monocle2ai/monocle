@@ -21,6 +21,7 @@ from monocle_apptrace.instrumentation.metamodel.finish_types import (
     OPENAI_FINISH_REASON_MAPPING
 )
 from monocle_apptrace.instrumentation.common.constants import AGENT_PREFIX_KEY, CHILD_ERROR_CODE, INFERENCE_AGENT_DELEGATION, INFERENCE_TURN_END, INFERENCE_TOOL_CALL
+from contextlib import suppress
 
 logger = logging.getLogger(__name__)
 
@@ -193,8 +194,8 @@ def extract_assistant_message(arguments):
 def extract_provider_name(instance):
     # Try to get host from base_url if it's a parsed object
     provider_url: Option[str] = try_option(getattr, instance._client.base_url, 'host')
-    if provider_url.unwrap_or(None):
-        return provider_url.unwrap()
+    if provider_url.unwrap_or(None) is not None:
+        return provider_url.unwrap_or(None)
 
     # If base_url is just a string (e.g., "https://api.deepseek.com")
     base_url = getattr(instance._client, "base_url", None)
@@ -300,15 +301,15 @@ class OpenAISpanHandler(NonFrameworkSpanHandler):
         else:
             return super().skip_processor(to_wrap, wrapped, instance, span, args, kwargs)
 
-    def hydrate_events(self, to_wrap, wrapped, instance, args, kwargs, ret_result, span, parent_span=None, ex:Exception=None) -> bool:
+    def hydrate_events(self, to_wrap, wrapped, instance, args, kwargs, ret_result, span, parent_span=None, ex:Exception=None, is_post_exec:bool=False) -> bool:
         # If openAI is being called by Teams AI SDK, then copy parent
         if self.is_teams_span_in_progress() and ex is None:
-            return super().hydrate_events(to_wrap, wrapped, instance, args, kwargs, ret_result, span=parent_span, parent_span=None, ex=ex)
+            return super().hydrate_events(to_wrap, wrapped, instance, args, kwargs, ret_result, span=parent_span, parent_span=None, ex=ex, is_post_exec=is_post_exec)
         # For LlamaIndex, process events normally on the inference span
         elif self.is_llamaindex_span_in_progress():
-            return super().hydrate_events(to_wrap, wrapped, instance, args, kwargs, ret_result, span, parent_span=parent_span, ex=ex)
+            return super().hydrate_events(to_wrap, wrapped, instance, args, kwargs, ret_result, span, parent_span=parent_span, ex=ex, is_post_exec=is_post_exec)
 
-        return super().hydrate_events(to_wrap, wrapped, instance, args, kwargs, ret_result, span, parent_span=parent_span, ex=ex)
+        return super().hydrate_events(to_wrap, wrapped, instance, args, kwargs, ret_result, span, parent_span=parent_span, ex=ex, is_post_exec=is_post_exec)
 
     def post_task_processing(self, to_wrap, wrapped, instance, args, kwargs, result, ex, span, parent_span):
         # TeamsAI doesn't capture the status and other metadata from underlying OpenAI SDK.
@@ -321,7 +322,7 @@ class OpenAISpanHandler(NonFrameworkSpanHandler):
 def extract_finish_reason(arguments):
     """Extract finish_reason from OpenAI response"""
     try:
-        if arguments["exception"] is not None:
+        if "exception" in arguments and arguments["exception"] is not None:
             if hasattr(arguments["exception"], "code") and arguments["exception"].code in OPENAI_FINISH_REASON_MAPPING.keys():
                 return arguments["exception"].code
         response = arguments["result"]
@@ -354,5 +355,58 @@ def agent_inference_type(arguments):
             return INFERENCE_AGENT_DELEGATION
         return INFERENCE_TOOL_CALL
     return INFERENCE_TURN_END
+
+def _get_first_tool_call(response):
+    """Helper function to extract the first tool call from various LangChain response formats"""
+
+    with suppress(AttributeError, IndexError, TypeError):
+        if response is not None and hasattr(response, "choices") and len(response.choices) > 0:
+            if hasattr(response.choices[0], "message") and hasattr(response.choices[0].message, "tool_calls"):
+                tool_calls = response.choices[0].message.tool_calls
+                if tool_calls and len(tool_calls) > 0:
+                    return tool_calls[0]
+
+    return None
+
+def extract_tool_name(arguments):
+    """Extract tool name from OpenAI response when finish_type is tool_call"""
+    try:
+        finish_type = map_finish_reason_to_finish_type(extract_finish_reason(arguments))
+        if finish_type != "tool_call":
+            return None
+
+        tool_call = _get_first_tool_call(arguments["result"])
+        if not tool_call:
+            return None
+
+        # Try different name extraction approaches
+        for getter in [
+            lambda tc: tc.function.name  # object with function.name
+        ]:
+            try:
+                return getter(tool_call)
+            except (KeyError, AttributeError, TypeError):
+                continue
+
+    except Exception as e:
+        logger.warning("Warning: Error occurred in extract_tool_name: %s", str(e))
+    
+    return None
+
+def extract_tool_type(arguments):
+    """Extract tool type from OpenAI response when finish_type is tool_call"""
+    try:
+        finish_type = map_finish_reason_to_finish_type(extract_finish_reason(arguments))
+        if finish_type != "tool_call":
+            return None
+
+        tool_name = extract_tool_name(arguments)
+        if tool_name:
+            return "tool.function"
+            
+    except Exception as e:
+        logger.warning("Warning: Error occurred in extract_tool_type: %s", str(e))
+    
+    return None
 
 

@@ -134,12 +134,12 @@ def extract_tool_input(arguments):
                 1
             ]  # Second argument is usually the JSON string with params
             if isinstance(tool_input, str):
-                return [tool_input]
+                return tool_input
             elif isinstance(tool_input, dict):
-                return [get_json_dumps(tool_input)]
+                return get_json_dumps(tool_input)
 
         # Fallback to all args
-        return [str(arg) for arg in arguments["args"]]
+        return str(arguments["args"])
     except Exception as e:
         logger.warning("Warning: Error occurred in extract_tool_input: %s", str(e))
     return []

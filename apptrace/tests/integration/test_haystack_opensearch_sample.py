@@ -1,15 +1,13 @@
+from asyncio import subprocess
 import logging
 import os
+import sys
 
 import pytest
 from common.custom_exporter import CustomConsoleSpanExporter
 from datasets import load_dataset
 from haystack import Document, Pipeline
 from haystack.components.builders import PromptBuilder
-from haystack.components.embedders import (
-    SentenceTransformersDocumentEmbedder,
-    SentenceTransformersTextEmbedder,
-)
 from haystack.components.generators import OpenAIGenerator
 from haystack.document_stores.types import DuplicatePolicy
 from haystack.utils import Secret
@@ -26,6 +24,7 @@ logger = logging.getLogger(__name__)
 @pytest.fixture(scope="module")
 def setup():
     try:
+        subprocess.check_call([sys.executable, "-m", "pip", "install", ".[dev_tranformers]"])
         custom_exporter = CustomConsoleSpanExporter()
         instrumentor = setup_monocle_telemetry(
             workflow_name="haystack_app_1",
@@ -38,7 +37,16 @@ def setup():
         if instrumentor and instrumentor.is_instrumented_by_opentelemetry:
             instrumentor.uninstrument()
 
+@pytest.fixture(scope="module", autouse=True)
+def cleanup_module():
+    yield
+    subprocess.check_call([sys.executable, "-m", "pip", "uninstall", "-y","sentence-transformers"])
+
 def test_haystack_opensearch_sample(setup):
+    from haystack.components.embedders import (
+        SentenceTransformersDocumentEmbedder,
+        SentenceTransformersTextEmbedder,
+    )
     # initialize
     api_key = os.getenv("OPENAI_API_KEY")
     http_auth=(os.getenv("OPEN_SEARCH_AUTH_USER"), os.getenv("OPEN_SEARCH_AUTH_PASSWORD"))

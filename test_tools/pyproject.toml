@@ -10,7 +10,7 @@ commands = [
 
 [project]
 name = "monocle_test_tools"
-version = "0.1.0"
+version = "0.6.0"
 authors = [
   { name="Okahu Inc.", email="okahu-pypi@okahu.ai" },
 ]
@@ -41,6 +41,7 @@ dependencies = [
     # Evaluation dependencies
     "bert-score>=0.3.0",
     "transformers>=4.0.0",
+    "sentence-transformers==3.3.0"
 ]
 
 [project.optional-dependencies]
@@ -103,6 +104,7 @@ log_cli = true
 log_cli_level = "INFO"
 log_cli_format = "%(asctime)s [%(levelname)8s] %(name)s: %(message)s"
 log_cli_date_format = "%Y-%m-%d %H:%M:%S"
+pythonpath = ["src", "tests", "../apptrace/src"]
 
 markers = [
     "unit: marks tests as unit tests",

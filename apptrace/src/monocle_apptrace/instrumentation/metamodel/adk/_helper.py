@@ -4,6 +4,7 @@ This module provides utility functions to extract various attributes from agent 
 """
 
 from ast import arguments
+import json
 from typing import Any, Dict, Optional
 from monocle_apptrace.instrumentation.metamodel.finish_types import map_adk_finish_reason_to_finish_type
 
@@ -181,7 +182,7 @@ def extract_tool_input(arguments: Dict[str, Any]) -> Any:
     Returns:
         Any: The extracted input data
     """
-    return [str(arguments['kwargs'].get('args'))]
+    return json.dumps(arguments['kwargs'].get('args', {}))
 
 def extract_tool_response(result: Any) -> Any:
     """

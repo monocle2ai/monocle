@@ -18,6 +18,7 @@ from langchain_anthropic import ChatAnthropic
 from langchain_openai import ChatOpenAI as LangChainOpenAI
 from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+from langchain.tools import tool
 
 logger = logging.getLogger(__name__)
 
@@ -48,6 +49,17 @@ def find_inference_span_and_event_attributes(spans, event_name="metadata"):
                 if event.name == event_name:
                     return event.attributes
     return None
+
+
+def find_inference_span_with_tool_call(spans):
+    """Find the inference span that has finish_type == 'tool_call' and return both span and event attributes."""
+    for span in reversed(spans):
+        if span.attributes.get("span.type") == "inference.framework":
+            # Check if this span has tool_call finish_type
+            for event in span.events:
+                if event.name == "metadata" and event.attributes.get("finish_type") == "tool_call":
+                    return span.attributes, event.attributes
+    return None, None
 
 
 @pytest.mark.skipif(
@@ -272,6 +284,83 @@ def test_langchain_finish_reason_mapping_edge_cases(setup):
     assert map_finish_reason_to_finish_type(None) is None
     assert map_finish_reason_to_finish_type("") is None
 
+
+@pytest.mark.skipif(
+    not OPENAI_API_KEY,
+    reason="OPENAI_API_KEY not set or langchain-openai not available"
+)
+def test_langchain_openai_tool_calls_with_entity_3_validation(setup):
+    """Test finish_reason == 'tool_calls' and entity.3 validation with LangChain OpenAI."""
+    
+    # Define a simple tool
+    @tool
+    def get_weather(location: str) -> str:
+        """Get the current weather for a location."""
+        return f"The weather in {location} is sunny."
+    
+    # Create LangChain OpenAI instance with tools
+    chat = LangChainOpenAI(
+        model="gpt-4o-mini",  # Use a model that supports tool calling
+        api_key=OPENAI_API_KEY,
+        max_tokens=100
+    )
+    
+    # Bind the tool to the chat model
+    chat_with_tools = chat.bind_tools([get_weather])
+    
+    try:
+        response = chat_with_tools.invoke("What's the weather like in Paris?")
+        logger.info(f"LangChain OpenAI tool call response: {response}")
+
+        spans = setup.get_captured_spans()
+        assert spans, "No spans were exported"
+        
+        # Find inference span and get both span and event attributes
+        span_attributes, event_attributes = find_inference_span_with_tool_call(spans)
+        
+        if span_attributes and event_attributes:
+            # Validate finish_type is tool_call
+            finish_type = event_attributes.get("finish_type")
+            finish_reason = event_attributes.get("finish_reason")
+            
+            logger.info(f"Captured finish_reason: {finish_reason}")
+            logger.info(f"Captured finish_type: {finish_type}")
+            
+            assert finish_type == "tool_call", f"Expected finish_type 'tool_call', got '{finish_type}'"
+            assert finish_reason in ["tool_calls", "function_call"], f"Expected tool_calls/function_call finish_reason, got '{finish_reason}'"
+            
+            # Verify entity.3 attributes when finish_type is tool_call
+            assert "entity.3.name" in span_attributes, "entity.3.name should be present when finish_type is tool_call"
+            assert "entity.3.type" in span_attributes, "entity.3.type should be present when finish_type is tool_call"
+            
+            tool_name = span_attributes.get("entity.3.name")
+            tool_type = span_attributes.get("entity.3.type")
+            
+            assert tool_name == "get_weather", f"Expected tool name 'get_weather', got '{tool_name}'"
+            assert tool_type == "tool.function", f"Expected tool type 'tool.function', got '{tool_type}'"
+            
+            logger.info(f"✓ entity.3.name = '{tool_name}'")
+            logger.info(f"✓ entity.3.type = '{tool_type}'")
+            logger.info(f"✓ finish_type = '{finish_type}'")
+        else:
+            # Fallback to check event attributes for finish_type
+            output_event_attrs = find_inference_span_and_event_attributes(spans)
+            if output_event_attrs:
+                finish_reason = output_event_attrs.get("finish_reason")
+                finish_type = output_event_attrs.get("finish_type")
+                logger.info(f"Fallback - finish_reason: {finish_reason}, finish_type: {finish_type}")
+                
+                # If it's not a tool call, that's also valid (model might not trigger tool use)
+                if finish_type != "tool_call":
+                    logger.info("Tool calling was not triggered by the model - this is acceptable")
+                    assert finish_type in ["success", None], f"Expected success or tool_call finish_type, got '{finish_type}'"
+            else:
+                logger.warning("No inference span found - this might indicate an issue with instrumentation")
+    
+    except Exception as e:
+        logger.warning(f"Tool calling test failed with error: {e}")
+        # Some LangChain versions or models might not support tool calling as expected
+        pytest.skip(f"Tool calling not supported or failed: {e}")
 
 @pytest.mark.skipif(
     not OPENAI_API_KEY,

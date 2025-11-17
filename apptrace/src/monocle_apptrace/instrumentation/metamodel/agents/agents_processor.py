@@ -138,39 +138,17 @@ class AgentsSpanHandler(BaseSpanHandler):
             if len(args) > 0:
                 agent = args[0]
                 agent_name = get_runner_agent_name(agent)
-                # if agent_name:
-                #     self.agent_context_token = attach(
-                #         set_value(AGENTS_AGENT_NAME_KEY, agent_name)
-                #     )
                 return agent_name
         except Exception as e:
             logger.warning("Warning: Error setting agent context: %s", str(e))
         return ""
 
-    # def clear_agent_context(self):
-    #     """Clear the agent context."""
-    #     if self.agent_context_token:
-    #         detach(self.agent_context_token)
-    #         self.agent_context_token = None
-
     def pre_tracing(self, to_wrap, wrapped, instance, args, kwargs):
         """Pre-tracing for agent tasks."""
-#        agent_name = self._get_agent_name(to_wrap, wrapped, instance, args, kwargs) 
         agent_name = get_agent_name(args, kwargs)
         context = set_value(AGENTS_AGENT_NAME_KEY, agent_name)
         context = set_value(AGENT_PREFIX_KEY, DELEGATION_NAME_PREFIX, context)
         return attach(context)
-
-    # def post_task_processing(
-    #     self, to_wrap, wrapped, instance, args, kwargs, result, ex, span, parent_span
-    # ):
-    #     """Post-processing for agent tasks."""
-    #     self.clear_agent_context()
-    #     context = set_value(AGENT_PREFIX_KEY, None)
-    #     attach(context)
-    #     return super().post_task_processing(
-    #         to_wrap, wrapped, instance, args, kwargs, result, ex, span, parent_span
-    #     )
 
     def post_task_processing(self, to_wrap, wrapped, instance, args, kwargs, result, ex, span, parent_span):
         """Post-processing for agent tasks."""

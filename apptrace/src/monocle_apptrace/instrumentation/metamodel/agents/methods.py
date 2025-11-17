@@ -44,12 +44,5 @@ AGENTS_METHODS = [
         "method": "__init__",  # Empty string means wrap the function itself
         "wrapper_method": constructor_wrapper,
         "output_processor": TOOLS,
-    # },
-    # {
-    #     "package": "agents.handoffs",
-    #     "object": "Handoff",
-    #     "method": "__init__",  # Empty string means wrap the function itself
-    #     "wrapper_method": handoff_constructor_wrapper,
-    #     "output_processor": AGENT_DELEGATION,
     },
 ]

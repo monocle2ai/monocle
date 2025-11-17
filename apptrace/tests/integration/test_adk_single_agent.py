@@ -203,8 +203,8 @@ def verify_spans(memory_exporter):
                 found_tool = True
 
         if 'monocle_apptrace.version' in span_attributes:
-            assert "scope.adk.session_id" in span_attributes, f"scope.adk.session_id not found in span {span.name}"
-            assert span_attributes["scope.adk.session_id"] == SESSION_ID, f"Expected session_id {SESSION_ID}, got {span_attributes.get('scope.adk.session_id')}"
+            assert "scope.agentic.session" in span_attributes, f"scope.agentic.session not found in span {span.name}"
+            assert span_attributes["scope.agentic.session"] == SESSION_ID, f"Expected session {SESSION_ID}, got {span_attributes.get('scope.agentic.session')}"
 
     assert found_inference, "Inference span not found"
     assert found_agent, "Agent span not found"

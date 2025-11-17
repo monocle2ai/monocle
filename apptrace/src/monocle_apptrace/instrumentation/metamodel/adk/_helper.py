@@ -8,7 +8,8 @@ import json
 from typing import Any, Dict, Optional
 from monocle_apptrace.instrumentation.metamodel.finish_types import map_adk_finish_reason_to_finish_type
 from monocle_apptrace.instrumentation.common.span_handler import SpanHandler
-from monocle_apptrace.instrumentation.common.utils import set_scope
+from monocle_apptrace.instrumentation.common.utils import set_scope, remove_scope
+from monocle_apptrace.instrumentation.common.constants import AGENT_SESSION
 
 def get_model_name(args):
     return args[0].model if hasattr(args[0], 'model') else None
@@ -216,8 +217,25 @@ class AdkSpanHandler(SpanHandler):
 
     def pre_tracing(self, to_wrap, wrapped, instance, args, kwargs):
         """Set session_id scope before tracing begins."""
-        session_id = kwargs.get('session_id')
-        if session_id:
-            set_scope('adk.session_id', session_id)
+        session_id_token = None
 
-        return super().pre_tracing(to_wrap, wrapped, instance, args, kwargs)
+        if hasattr(instance, '__class__') and instance.__class__.__name__ == 'Runner':
+            session_id = kwargs.get('session_id')
+            if session_id:
+                session_id_token = set_scope(AGENT_SESSION, session_id)
+
+        parent_token, alternate_to_wrap = super().pre_tracing(to_wrap, wrapped, instance, args, kwargs)
+
+        return (parent_token, session_id_token), alternate_to_wrap
+
+    def post_tracing(self, to_wrap, wrapped, instance, args, kwargs, result, token=None):
+        """Clean up scopes after tracing."""
+        if token and isinstance(token, tuple) and len(token) == 2:
+            parent_token, session_id_token = token
+
+            if session_id_token:
+                remove_scope(session_id_token)
+
+            super().post_tracing(to_wrap, wrapped, instance, args, kwargs, result, parent_token)
+        else:
+            super().post_tracing(to_wrap, wrapped, instance, args, kwargs, result, token)

@@ -12,7 +12,7 @@ from monocle_apptrace.instrumentation.metamodel.langgraph.entities.inference imp
     AGENT_DELEGATION, AGENT_REQUEST, AGENT
 )
 from monocle_apptrace.instrumentation.common.scope_wrapper import start_scope, stop_scope
-from monocle_apptrace.instrumentation.common.utils import is_scope_set, get_scopes
+from monocle_apptrace.instrumentation.common.utils import is_scope_set, get_scopes, propogate_agent_name_to_parent_span
 try:
     from langgraph.errors import ParentCommand
 except ImportError:
@@ -64,16 +64,7 @@ class LanggraphAgentHandler(SpanHandler):
         """Apply ParentCommand filtering to the span before task execution."""
         # Apply ParentCommand filtering to this span
         self._apply_parent_command_filtering(span)
-        invocation_id = get_scopes(AGENT_INVOCATION_SPAN_NAME).get(AGENT_INVOCATION_SPAN_NAME)
-        if parent_span is not None:
-            if invocation_id is not None:
-                parent_span.set_attribute(LAST_AGENT_INVOCATION_ID, invocation_id)
-            agent_name = get_value(AGENT_NAME_KEY)
-            if agent_name is not None:
-                parent_span.set_attribute(LAST_AGENT_NAME, agent_name)
-#            parent_agent_name = parent_span.set_attribute(LAST_AGENT_NAME, )
-        span.set_attribute(LAST_AGENT_INVOCATION_ID, "")
-        span.set_attribute(LAST_AGENT_NAME, "")
+        propogate_agent_name_to_parent_span(span, parent_span)
         super().post_task_processing(to_wrap, wrapped, instance, args, kwargs, result, ex, span, parent_span)
 
     def _apply_parent_command_filtering(self, span):

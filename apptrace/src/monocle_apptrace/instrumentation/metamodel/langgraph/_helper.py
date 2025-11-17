@@ -17,16 +17,6 @@ def extract_agent_response(response):
         logger.warning("Warning: Error occurred in handle_response: %s", str(e))
     return ""
 
-def extract_from_agent_invocation_id(parent_span):
-    if parent_span is not None:
-        return parent_span.attributes.get(LAST_AGENT_INVOCATION_ID)
-    return None
-
-def extract_from_agent_name(parent_span):
-    if parent_span is not None:
-        return parent_span.attributes.get(LAST_AGENT_NAME)
-    return None
-
 def agent_instructions(arguments):
     if callable(arguments['kwargs']['agent'].instructions):
         return arguments['kwargs']['agent'].instructions(arguments['kwargs']['context_variables'])

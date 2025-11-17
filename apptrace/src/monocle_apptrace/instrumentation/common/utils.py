@@ -10,7 +10,10 @@ from opentelemetry.trace.propagation import _SPAN_KEY
 from opentelemetry.sdk.trace import id_generator, TracerProvider
 from opentelemetry.propagate import extract
 from opentelemetry import baggage
-from monocle_apptrace.instrumentation.common.constants import MONOCLE_SCOPE_NAME_PREFIX, SCOPE_METHOD_FILE, SCOPE_CONFIG_PATH, llm_type_map, MONOCLE_SDK_VERSION, ADD_NEW_WORKFLOW
+from monocle_apptrace.instrumentation.common.constants import (
+    MONOCLE_SCOPE_NAME_PREFIX, SCOPE_METHOD_FILE, SCOPE_CONFIG_PATH, llm_type_map, MONOCLE_SDK_VERSION, ADD_NEW_WORKFLOW,
+    AGENT_INVOCATION_SPAN_NAME, LAST_AGENT_INVOCATION_ID, LAST_AGENT_NAME
+)
 from importlib.metadata import version
 from opentelemetry.trace.span import INVALID_SPAN
 _MONOCLE_SPAN_KEY = "monocle" + _SPAN_KEY
@@ -525,3 +528,26 @@ def replace_placeholders(obj: Union[dict, list, str], span: Span) -> Union[dict,
     else:
         return obj
 
+def propogate_agent_name_to_parent_span(span: Span, parent_span: Span):
+    """Propagate agent name from child span to parent span."""
+    if span.attributes.get("type") != AGENT_INVOCATION_SPAN_NAME:
+        return
+    invocation_id = get_scopes(AGENT_INVOCATION_SPAN_NAME).get(AGENT_INVOCATION_SPAN_NAME)
+    if parent_span is not None:
+        if invocation_id is not None:
+            parent_span.set_attribute(LAST_AGENT_INVOCATION_ID, invocation_id)
+        agent_name = get_value(AGENT_NAME_KEY)
+        if agent_name is not None:
+            parent_span.set_attribute(LAST_AGENT_NAME, agent_name)
+    span.set_attribute(LAST_AGENT_INVOCATION_ID, "")
+    span.set_attribute(LAST_AGENT_NAME, "")
+
+def extract_from_agent_invocation_id(parent_span):
+    if parent_span is not None:
+        return parent_span.attributes.get(LAST_AGENT_INVOCATION_ID)
+    return None
+
+def extract_from_agent_name(parent_span):
+    if parent_span is not None:
+        return parent_span.attributes.get(LAST_AGENT_NAME)
+    return None

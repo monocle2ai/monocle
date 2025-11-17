@@ -2,7 +2,7 @@ from monocle_apptrace.instrumentation.common.constants import AGENT_REQUEST_SPAN
 from monocle_apptrace.instrumentation.metamodel.langgraph import (
     _helper
 )
-from monocle_apptrace.instrumentation.common.utils import get_error_message
+from monocle_apptrace.instrumentation.common.utils import get_error_message, extract_from_agent_name, extract_from_agent_invocation_id
 
 AGENT = {
       "type": SPAN_TYPES.AGENTIC_INVOCATION,
@@ -27,12 +27,12 @@ AGENT = {
               {
                 "_comment": "delegating agent name",
                 "attribute": "from_agent",
-                "accessor": lambda arguments: _helper.extract_from_agent_name(arguments['parent_span'])
+                "accessor": lambda arguments: extract_from_agent_name(arguments['parent_span'])
               },
               {
                 "_comment": "from_agent invocation id",
                 "attribute": "from_agent_invocation",
-                "accessor": lambda arguments: _helper.extract_from_agent_invocation_id(arguments['parent_span'])
+                "accessor": lambda arguments: extract_from_agent_invocation_id(arguments['parent_span'])
               }   
         ]
       ],

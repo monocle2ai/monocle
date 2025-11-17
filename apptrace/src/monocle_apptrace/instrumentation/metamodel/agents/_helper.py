@@ -67,14 +67,14 @@ def extract_agent_input(arguments):
     return []
 
 
-def get_agent_name(arguments) -> str:
+def get_agent_name(args, kwargs) -> str:
     """Get the name of an agent."""
     instance = None
     # For Runner methods, the agent is passed as an argument, not instance
-    if arguments["args"] and len(arguments["args"]) > 0:
-        instance = arguments["args"][0]
+    if args and len(args) > 0:
+        instance = args[0]
     else:
-        instance = arguments["kwargs"].get("agent")
+        instance = kwargs.get("agent")
     if instance is None:
         return "Unknown Agent"
     return get_name(instance)

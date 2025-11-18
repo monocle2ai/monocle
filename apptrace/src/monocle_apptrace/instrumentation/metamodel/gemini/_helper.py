@@ -109,7 +109,7 @@ def extract_finish_reason(arguments):
 
         with suppress(IndexError, AttributeError):
             if response.part is not None and response.parts[0].function_call is not None:
-                return "function_call"
+                return "FUNCTION_CALL"
         
         # Handle Gemini response structure
         if (response is not None and 

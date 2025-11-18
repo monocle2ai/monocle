@@ -3,7 +3,7 @@ from monocle_apptrace.instrumentation.metamodel.fastmcp import _helper
 
 PROMPTS = {
     "type": SPAN_TYPES.AGENTIC_MCP_INVOCATION,
-    "subtype": SPAN_SUBTYPES.ROUTING,
+    "subtype": SPAN_SUBTYPES.CONTENT_GENERATION,
     "attributes": [
         [
             {
@@ -50,7 +50,7 @@ PROMPTS = {
 
 LIST_PROMPTS = {
     "type": SPAN_TYPES.AGENTIC_MCP_INVOCATION,
-    "subtype": SPAN_SUBTYPES.ROUTING,
+    "subtype": SPAN_SUBTYPES.COMMUNICATION,
     "attributes": [
         [
             {

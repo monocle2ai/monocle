@@ -224,18 +224,4 @@ class AdkSpanHandler(SpanHandler):
             if session_id:
                 session_id_token = set_scope(AGENT_SESSION, session_id)
 
-        parent_token, alternate_to_wrap = super().pre_tracing(to_wrap, wrapped, instance, args, kwargs)
-
-        return (parent_token, session_id_token), alternate_to_wrap
-
-    def post_tracing(self, to_wrap, wrapped, instance, args, kwargs, result, token=None):
-        """Clean up scopes after tracing."""
-        if token and isinstance(token, tuple) and len(token) == 2:
-            parent_token, session_id_token = token
-
-            if session_id_token:
-                remove_scope(session_id_token)
-
-            super().post_tracing(to_wrap, wrapped, instance, args, kwargs, result, parent_token)
-        else:
-            super().post_tracing(to_wrap, wrapped, instance, args, kwargs, result, token)
+        return session_id_token, None

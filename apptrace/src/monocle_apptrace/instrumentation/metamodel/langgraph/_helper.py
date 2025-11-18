@@ -27,8 +27,32 @@ def extract_request_agent_input(arguments):
         history = arguments['kwargs']['input']['messages']
         messages = []
         for message in history:
-            if 'content' in message and 'role' in message and message['role'] == "user":  # Check if the message is a UserMessage
-                messages.append(message['content'])
+            is_user_message = False
+            content = None
+            # Check if message is from user/human using multiple getter approaches
+            for getter in [
+                lambda m: m['role'] == "user",  # dict with role key
+                lambda m: m.type == "human",  # object with type attribute
+            ]:
+                try:
+                    if getter(message):
+                        is_user_message = True
+                        break
+                except (KeyError, AttributeError, TypeError):
+                    continue
+
+            if is_user_message:
+                for content_getter in [
+                    lambda m: m['content'],  # dict with content key
+                    lambda m: m.content,     # object with content attribute
+                ]:
+                    try:
+                        content = content_getter(message)
+                        break
+                    except (KeyError, AttributeError, TypeError):
+                        continue
+                if content is not None:
+                    messages.append(content)
         return messages
     return []
 

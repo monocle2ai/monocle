@@ -18,8 +18,6 @@ class TestBedrockFinishReasonMapping:
             "stop",
             "stop_sequence",
             "completed",
-            "tool_use",
-            "function_call",
             "endoftext",
             "COMPLETE",
             "FINISH"
@@ -28,6 +26,17 @@ class TestBedrockFinishReasonMapping:
         for reason in success_reasons:
             result = map_bedrock_finish_reason_to_finish_type(reason)
             assert result == FinishType.SUCCESS.value, f"Expected 'success' for {reason}, got {result}"
+    
+    def test_tool_call_reasons(self):
+        """Test that tool call reasons map to 'tool_call' finish type."""
+        tool_call_reasons = [
+            "tool_use",
+            "function_call"
+        ]
+        
+        for reason in tool_call_reasons:
+            result = map_bedrock_finish_reason_to_finish_type(reason)
+            assert result == FinishType.TOOL_CALL.value, f"Expected 'tool_call' for {reason}, got {result}"
     
     def test_truncated_reasons(self):
         """Test that truncated reasons map to 'truncated' finish type."""
@@ -141,7 +150,7 @@ class TestBedrockFinishReasonMapping:
         model_specific_cases = [
             # Claude models
             ("end_turn", FinishType.SUCCESS.value),
-            ("tool_use", FinishType.SUCCESS.value),
+            ("tool_use", FinishType.TOOL_CALL.value),
             
             # AI21 models
             ("endoftext", FinishType.SUCCESS.value),

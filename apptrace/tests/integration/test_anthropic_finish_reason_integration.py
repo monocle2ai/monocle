@@ -175,15 +175,51 @@ def test_finish_reason_tool_use(setup):
 
     spans = setup.get_captured_spans()
     assert spans, "No spans were exported"
+    
+    # Find inference span and get both span and event attributes
+    inference_span = None
+    for span in reversed(spans):
+        if span.attributes.get("span.type") == "inference":
+            inference_span = span
+            break
+    
+    assert inference_span, "No inference span found"
+    span_attributes = inference_span.attributes
+    
     output_event_attrs = find_inference_span_and_event_attributes(spans)
     assert output_event_attrs, "metadata event not found in inference span"
 
     if resp.stop_reason == "tool_use":
         assert output_event_attrs.get("finish_reason") == "tool_use"
-        assert output_event_attrs.get("finish_type") == "success"
+        assert output_event_attrs.get("finish_type") == "tool_call"
+        
+        # Verify that tool call is properly detected at the span level
+        assert span_attributes.get("span.subtype") == "tool_call", "span.subtype should be 'tool_call' when tools are used"
+        assert span_attributes.get("entity.count") == 3, "entity.count should be 3 when tools are used (provider, model, tool)"
+        
+        # Verify tool information is captured in the response (from data.output event)
+        output_event = None
+        for event in inference_span.events:
+            if event.name == "data.output":
+                output_event = event
+                break
+        
+        assert output_event is not None, "data.output event should exist"
+        response_data = output_event.attributes.get("response", "")
+        assert "get_current_weather" in response_data, f"Tool name should be in response data: {response_data}"
+        assert "tool_name" in response_data, f"Response should contain tool_name field: {response_data}"
+        
+
+        assert span_attributes["entity.3.name"] == "get_current_weather", f"Expected tool name 'get_current_weather', got '{span_attributes.get('entity.3.name')}'"
+        assert span_attributes["entity.3.type"] == "tool.function", f"Expected tool type 'tool.function', got '{span_attributes.get('entity.3.type')}'"
+
+
     elif resp.stop_reason == "end_turn":
         assert output_event_attrs.get("finish_reason") == "end_turn"
         assert output_event_attrs.get("finish_type") == "success"
+        # When finish_type is success, entity.3 attributes should not be present
+        assert "entity.3.name" not in span_attributes, "entity.3.name should not be present when finish_type is success"
+        assert "entity.3.type" not in span_attributes, "entity.3.type should not be present when finish_type is success"
 
 
 @pytest.mark.skipif(not ANTHROPIC_API_KEY, reason="ANTHROPIC_API_KEY not set")

@@ -154,11 +154,16 @@ def verify_spans(memory_exporter):
 
             # Assertions for metadata
             span_input, span_output, span_metadata = span.events
+            assert "input" in span_input.attributes
+            assert span_input.attributes["input"] is not None and span_input.attributes["input"] != ""
+            assert "response" in span_output.attributes
+            assert span_output.attributes["response"] is not None and span_output.attributes["response"] != ""
             assert "completion_tokens" in span_metadata.attributes
             assert "prompt_tokens" in span_metadata.attributes
             assert "total_tokens" in span_metadata.attributes
+            assert "finish_type" in span_metadata.attributes
+            assert "finish_reason" in span_metadata.attributes
             found_inference = True
-
 
         if (
                 "span.type" in span_attributes
@@ -192,6 +197,9 @@ def verify_spans(memory_exporter):
             elif span_attributes["entity.1.name"] == "book_hotel":
                 found_book_hotel_tool = True
             found_tool = True
+            span_input, span_output = span.events
+            assert "input" in span_input.attributes
+            assert "response" in span_output.attributes
 
         if (
                 "span.type" in span_attributes

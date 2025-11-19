@@ -1,4 +1,5 @@
 import logging
+from contextlib import suppress
 from monocle_apptrace.instrumentation.common.utils import (
     get_exception_message,
     get_json_dumps,
@@ -48,11 +49,14 @@ def extract_assistant_message(arguments):
     try:
         status = get_status_code(arguments)
         messages = []
-        role = "assistant"
+        role = "model"
         if hasattr(arguments['result'], "candidates") and len(arguments['result'].candidates) > 0 and hasattr(arguments['result'].candidates[0], "content") and hasattr(arguments['result'].candidates[0].content, "role"):
                 role = arguments["result"].candidates[0].content.role
         if status == 'success':
-            if hasattr(arguments['result'], "text") and len(arguments['result'].text):
+            if arguments["result"].parts[0].function_call is not None:
+                role = "ai"
+                messages.append({role: f'"model": {arguments["result"].parts[0].function_call.name}, "args": {arguments["result"].parts[0].function_call.args}'})
+            elif hasattr(arguments['result'], "text") and len(arguments['result'].text):
                 messages.append({role: arguments['result'].text})
         else:
             if arguments["exception"] is not None:
@@ -102,6 +106,10 @@ def extract_finish_reason(arguments):
             return None
             
         response = arguments["result"]
+
+        with suppress(IndexError, AttributeError):
+            if response.part is not None and response.parts[0].function_call is not None:
+                return "FUNCTION_CALL"
         
         # Handle Gemini response structure
         if (response is not None and 

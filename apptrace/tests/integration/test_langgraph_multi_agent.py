@@ -121,7 +121,7 @@ def setup(start_servers):
     try:
         instrumentor = setup_monocle_telemetry(
             workflow_name="langchain_agent_1",
-#            span_processors=span_processors,
+            span_processors=span_processors,
         )
         yield memory_exporter
     finally:

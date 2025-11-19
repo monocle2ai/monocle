@@ -143,31 +143,59 @@ SPAN_SUBTYPE_GENERIC = "generic"
 SPAN_SUBTYPE_TURN = "turn"
 
 class SPAN_TYPES:
+    # Generic/uncategorized span type
     GENERIC = "generic"
+
+    # Agent to agent transitions - Deprecated
     AGENTIC_DELEGATION = "agentic.delegation"
+
+    # A tool is invoked by an agent
     AGENTIC_TOOL_INVOCATION = "agentic.tool.invocation"
+
+    # An agent is invoked
     AGENTIC_INVOCATION = "agentic.invocation"
+
+    # An agent executes a tool over MCP
     AGENTIC_MCP_INVOCATION = "agentic.mcp.invocation"
+
+    # An agent request / turn ie the initial request sent to an agent from an external source
     AGENTIC_REQUEST = "agentic.turn"
 
-    # http.process
+    # HTTP route processing
     HTTP_PROCESS = "http.process"
+
+    # Client sending HTTP request
     HTTP_SEND = "http.send"
 
+    # Vector retrieval operation
     RETRIEVAL = "retrieval"
+
+    # LLM Inference operation, directly from a framework/workflow to the LLM provider
     INFERENCE = "inference"
+
+    # LLM inference operation invoked by an LLM orchestration framework (eg LangChain, LlamaIndex, etc)
     INFERENCE_FRAMEWORK = "inference.framework"
 
-
 class SPAN_SUBTYPES:
+    # Agentic planing
     PLANNING = SPAN_SUBTYPE_PLANNING
+
+    # Agentic turn
     TURN = SPAN_SUBTYPE_TURN
+
+    # Agentic routing decision
     ROUTING = SPAN_SUBTYPE_ROUTING
+
+    # Handling content/request
     CONTENT_PROCESSING = SPAN_SUBTYPE_CONTENT_PROCESSING
+
+    # Generating content (eg tool invocation)
     CONTENT_GENERATION = SPAN_SUBTYPE_CONTENT_GENERATION
+
+    # Returning info/metdata to caller
     COMMUNICATION = SPAN_SUBTYPE_COMMUNICATION
-    TRANSFORMATIONS = SPAN_SUBTYPE_TRANSFORMATIONS
-    DOMAIN_SPECIFIC = SPAN_SUBTYPE_DOMAIN_SPECIFIC
+
+    # uncategorized / generic
     GENERIC = SPAN_SUBTYPE_GENERIC
 
 

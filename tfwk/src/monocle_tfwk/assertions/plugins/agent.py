@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 
 from monocle_tfwk.assertions.flow_validator import FlowValidator
 from monocle_tfwk.assertions.plugin_registry import TraceAssertionsPlugin, plugin
+from monocle_tfwk.assertions.trace_assertions import _format_timestamp
 from monocle_tfwk.schema import EntityType, ESpanAttribute, MonocleSpanType
 
 if TYPE_CHECKING:
@@ -825,8 +826,12 @@ class AgentAssertionsPlugin(TraceAssertionsPlugin):
                     break
         
         assert matching_spans, f"No tool named '{tool_name}' found in traces"
-        self._current_spans = matching_spans
-        return self
+        
+        # Create a copy to preserve the original traces instance
+        from monocle_tfwk.assertions.trace_assertions import TraceAssertions
+        new_assertions = TraceAssertions(self._all_spans)
+        new_assertions._current_spans = matching_spans
+        return new_assertions
 
     def assert_agent_type(self, agent_type: str) -> 'TraceAssertions':
         """Assert that traces contain a specific agent type using JMESPath."""
@@ -1167,3 +1172,36 @@ class AgentAssertionsPlugin(TraceAssertionsPlugin):
         _validate_interaction_tuples(sorted_tuples, expected_pattern)
         
         return self
+    
+
+    def assert_precedes(self, other_assertions: 'TraceAssertions') -> 'TraceAssertions':
+        """
+        Assert that the current spans occur chronologically before the spans in other_assertions.
+        This method compares the start times of the earliest spans in both assertion chains
+        to validate chronological sequence.
+        """
+        if not self._current_spans:
+            raise AssertionError("No spans found in current assertions for chronological comparison")
+        
+        if not other_assertions._current_spans:
+            raise AssertionError("No spans found in comparison assertions for chronological comparison")
+        
+        # Get the earliest start time from current spans
+        current_earliest = min(span.start_time for span in self._current_spans)
+        
+        # Get the earliest start time from other spans  
+        other_earliest = min(span.start_time for span in other_assertions._current_spans)
+        
+        assert current_earliest < other_earliest, \
+            f"Chronological sequence validation failed. " \
+            f"Current spans started at {_format_timestamp(current_earliest)}, " \
+            f"but comparison spans started earlier at {_format_timestamp(other_earliest)}. " \
+            f"Expected current spans to occur before comparison spans."
+        
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"✅ Chronological sequence validated: "
+                   f"Current ({_format_timestamp(current_earliest)}) → "
+                   f"Other ({_format_timestamp(other_earliest)})")
+        
+        return other_assertions

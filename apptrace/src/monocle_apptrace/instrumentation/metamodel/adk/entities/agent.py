@@ -29,7 +29,7 @@ AGENT = {
               },
               {
                 "_comment": "last agent invocation id",
-                "attribute": "from_agent_invocation",
+                "attribute": "from_agent_span_id",
                 "accessor": lambda arguments: _helper.extract_from_agent_invocation_id(arguments['parent_span'])
               }
         ]

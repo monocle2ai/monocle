@@ -2,7 +2,7 @@ import logging
 from types import SimpleNamespace
 from opentelemetry.context import attach, set_value, detach
 from opentelemetry.trace import Tracer
-from monocle_apptrace.instrumentation.common.constants import AGENT_PREFIX_KEY
+from monocle_apptrace.instrumentation.common.constants import AGENT_NAME_KEY, AGENT_PREFIX_KEY
 from monocle_apptrace.instrumentation.common.span_handler import (
     SpanHandler as BaseSpanHandler,
 )
@@ -146,10 +146,11 @@ class AgentsSpanHandler(BaseSpanHandler):
     def pre_tracing(self, to_wrap, wrapped, instance, args, kwargs):
         """Pre-tracing for agent tasks."""
         agent_name = get_agent_name(args, kwargs)
-        context = set_value(AGENTS_AGENT_NAME_KEY, agent_name)
+        context = set_value(AGENT_NAME_KEY, agent_name)
         context = set_value(AGENT_PREFIX_KEY, DELEGATION_NAME_PREFIX, context)
         return attach(context)
 
     def post_task_processing(self, to_wrap, wrapped, instance, args, kwargs, result, ex, span, parent_span):
         """Post-processing for agent tasks."""
         propogate_agent_name_to_parent_span(span, parent_span)
+        super().post_task_processing(to_wrap, wrapped, instance, args, kwargs, result, ex, span, parent_span)

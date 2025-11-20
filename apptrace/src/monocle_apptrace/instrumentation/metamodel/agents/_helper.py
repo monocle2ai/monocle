@@ -1,4 +1,5 @@
 from opentelemetry.context import get_value
+from monocle_apptrace.instrumentation.common.constants import AGENT_NAME_KEY
 from monocle_apptrace.instrumentation.common.utils import (
     resolve_from_alias,
     get_json_dumps,
@@ -176,7 +177,7 @@ def is_root_agent_name(instance) -> bool:
 
 def get_source_agent() -> str:
     """Get the name of the agent that initiated the request."""
-    from_agent = get_value(AGENTS_AGENT_NAME_KEY)
+    from_agent = get_value(AGENT_NAME_KEY)
     return from_agent if from_agent is not None else ""
 
 

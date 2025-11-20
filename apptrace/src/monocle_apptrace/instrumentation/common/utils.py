@@ -11,8 +11,8 @@ from opentelemetry.sdk.trace import id_generator, TracerProvider
 from opentelemetry.propagate import extract
 from opentelemetry import baggage
 from monocle_apptrace.instrumentation.common.constants import (
-    MONOCLE_SCOPE_NAME_PREFIX, SCOPE_METHOD_FILE, SCOPE_CONFIG_PATH, llm_type_map, MONOCLE_SDK_VERSION, ADD_NEW_WORKFLOW,
-    AGENT_INVOCATION_SPAN_NAME, LAST_AGENT_INVOCATION_ID, LAST_AGENT_NAME
+    LAST_INFERENCE, MONOCLE_SCOPE_NAME_PREFIX, SCOPE_METHOD_FILE, SCOPE_CONFIG_PATH, SPAN_TYPES, llm_type_map, MONOCLE_SDK_VERSION, ADD_NEW_WORKFLOW, AGENT_NAME_KEY,
+    AGENT_INVOCATION_SPAN_NAME, LAST_AGENT_INVOCATION_ID, LAST_AGENT_NAME, INFERENCE_DECISION, INFERENCE_AGENT_DELEGATION, INFERENCE_TOOL_CALL, INFERENCE_TURN_END, SPAN_SUBTYPES
 )
 from importlib.metadata import version
 from opentelemetry.trace.span import INVALID_SPAN
@@ -530,17 +530,34 @@ def replace_placeholders(obj: Union[dict, list, str], span: Span) -> Union[dict,
 
 def propogate_agent_name_to_parent_span(span: Span, parent_span: Span):
     """Propagate agent name from child span to parent span."""
-    if span.attributes.get("type") != AGENT_INVOCATION_SPAN_NAME:
+    if span.attributes.get("span.type") != AGENT_INVOCATION_SPAN_NAME:
         return
-    invocation_id = get_scopes(AGENT_INVOCATION_SPAN_NAME).get(AGENT_INVOCATION_SPAN_NAME)
     if parent_span is not None:
-        if invocation_id is not None:
-            parent_span.set_attribute(LAST_AGENT_INVOCATION_ID, invocation_id)
+        parent_span.set_attribute(LAST_AGENT_INVOCATION_ID, hex(span.context.span_id))
         agent_name = get_value(AGENT_NAME_KEY)
         if agent_name is not None:
             parent_span.set_attribute(LAST_AGENT_NAME, agent_name)
     span.set_attribute(LAST_AGENT_INVOCATION_ID, "")
     span.set_attribute(LAST_AGENT_NAME, "")
+
+def propogate_inference_info_to_parent_span(span: Span, parent_span: Span):
+    """Propagate inference information from child span to parent span. Copy the parent span's last inference id to tool spans.
+        This way we link the inference span that's resulted in the tool call or agent delegation decision to the tool/agent invocation span."""
+    if parent_span is not None and parent_span != INVALID_SPAN:
+        ## save last inference id in parent span
+        if span.attributes.get("span.type") in [SPAN_TYPES.INFERENCE, SPAN_TYPES.INFERENCE_FRAMEWORK] \
+                and span.attributes.get("span.subtype") in [INFERENCE_AGENT_DELEGATION, INFERENCE_TOOL_CALL, INFERENCE_TURN_END]:
+            parent_span.set_attribute(LAST_INFERENCE, hex(span.context.span_id))   # f"{span.context.span_id} {span.attributes.get('subtype','')}"
+        # copy last infernce span id from parent span to tool span
+        elif span.attributes.get("span.type") in [SPAN_TYPES.AGENTIC_TOOL_INVOCATION, SPAN_TYPES.AGENTIC_INVOCATION]:
+            if LAST_INFERENCE in parent_span.attributes:
+                span.set_attribute(INFERENCE_DECISION, parent_span.attributes.get(LAST_INFERENCE))
+        # propagate last inference id from child span to parent span
+        if LAST_INFERENCE in span.attributes and  (
+                span.attributes.get("span.type") not in [SPAN_TYPES.AGENTIC_DELEGATION] \
+                or parent_span.attributes.get("span.subtype", "") not in [SPAN_SUBTYPES.ROUTING]
+        ):
+            parent_span.set_attribute(LAST_INFERENCE, span.attributes.get(LAST_INFERENCE))
 
 def extract_from_agent_invocation_id(parent_span):
     if parent_span is not None:

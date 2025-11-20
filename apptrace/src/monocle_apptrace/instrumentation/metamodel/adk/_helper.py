@@ -169,7 +169,8 @@ def get_delegating_agent(arguments) -> str:
 
 def extract_from_agent_invocation_id(parent_span):
     if parent_span is not None:
-        return parent_span.attributes.get("scope." + AGENT_INVOCATION_SPAN_NAME)
+#        return parent_span.attributes.get("scope." + AGENT_INVOCATION_SPAN_NAME)
+        return hex(parent_span.context.span_id)
     return None
 
 def should_skip_delegation(arguments):

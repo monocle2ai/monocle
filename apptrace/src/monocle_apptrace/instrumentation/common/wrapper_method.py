@@ -31,6 +31,7 @@ from monocle_apptrace.instrumentation.metamodel.azfunc.methods import AZFUNC_HTT
 from monocle_apptrace.instrumentation.metamodel.gemini.methods import GEMINI_METHODS
 from monocle_apptrace.instrumentation.metamodel.fastapi.methods import FASTAPI_METHODS
 from monocle_apptrace.instrumentation.metamodel.fastapi._helper import FastAPISpanHandler, FastAPIResponseSpanHandler
+from monocle_apptrace.instrumentation.metamodel.fastmcp.methods import FASTMCP_METHODS
 from monocle_apptrace.instrumentation.metamodel.lambdafunc._helper import lambdaSpanHandler
 from monocle_apptrace.instrumentation.metamodel.lambdafunc.methods import LAMBDA_HTTP_METHODS
 from monocle_apptrace.instrumentation.metamodel.mcp.methods import MCP_METHODS
@@ -107,6 +108,7 @@ DEFAULT_METHODS_LIST = (
     AZFUNC_HTTP_METHODS + 
     GEMINI_METHODS + 
     FASTAPI_METHODS + 
+    FASTMCP_METHODS +
     LAMBDA_HTTP_METHODS +
     MCP_METHODS + 
     A2A_CLIENT_METHODS +

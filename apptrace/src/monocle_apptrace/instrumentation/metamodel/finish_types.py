@@ -63,8 +63,8 @@ LLAMAINDEX_FINISH_REASON_MAPPING = {
     "truncated": FinishType.TRUNCATED.value,
     
     # Tool/function calling
-    "tool_calls": FinishType.SUCCESS.value,
-    "function_call": FinishType.SUCCESS.value,
+    "tool_calls": FinishType.TOOL_CALL.value,
+    "function_call": FinishType.TOOL_CALL.value,
     "agent_finish": FinishType.SUCCESS.value,
     
     # Content filtering and safety
@@ -249,8 +249,9 @@ HAYSTACK_FINISH_REASON_MAPPING = {
     "token_limit": FinishType.TRUNCATED.value,
 
     # Tool/function calling
-    "tool_calls": FinishType.SUCCESS.value,
-    "function_call": FinishType.SUCCESS.value,
+    "tool_calls": FinishType.TOOL_CALL.value,
+    "function_call": FinishType.TOOL_CALL.value,
+    "tool_use": FinishType.TOOL_CALL.value,  # Anthropic tool use finish reason
 
     # Content filtering and safety
     "content_filter": FinishType.CONTENT_FILTER.value,

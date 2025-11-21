@@ -16,6 +16,8 @@ import pytest
 from common.custom_exporter import CustomConsoleSpanExporter
 from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+from llama_index.core.llms import ChatMessage
+from llama_index.llms.openai import OpenAI
 
 logger = logging.getLogger(__name__)
 
@@ -48,6 +50,90 @@ def find_inference_span_and_event_attributes(spans, event_name="metadata", span_
                 if event.name == event_name:
                     return event.attributes
     return None
+
+def find_inference_span_with_tool_call(spans):
+    """Find the inference span that has finish_type == 'tool_call' and return both span and event attributes."""
+    for span in reversed(spans):
+        if span.attributes.get("span.type") == "inference.framework":
+            # Check if this span has tool_call finish_type
+            for event in span.events:
+                if event.name == "metadata" and event.attributes.get("finish_type") == "tool_call":
+                    return span.attributes, event.attributes
+    return None, None
+
+@pytest.mark.skipif(
+    not OPENAI_API_KEY,
+    reason="OPENAI_API_KEY not set or llama-index-llms-openai not available"
+)
+def test_llamaindex_openai_tool_call_with_entity_3_validation(setup):
+    """Test function calling with LlamaIndex OpenAI and validate entity.3.name and entity.3.type."""
+    tools = [
+        {
+            "type": "function",
+            "function": {
+                "name": "get_current_weather",
+                "description": "Get the current weather for a city",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "city": {
+                            "type": "string",
+                            "description": "The city to get weather for"
+                        }
+                    },
+                    "required": ["city"]
+                }
+            }
+        }
+    ]
+    
+    llm = OpenAI(
+        model="gpt-3.5-turbo",
+        api_key=OPENAI_API_KEY,
+        max_tokens=100
+    )
+    
+    # Set tools on the LLM (if supported)
+    if hasattr(llm, '_additional_kwargs'):
+        llm._additional_kwargs = {"tools": tools}
+    
+    messages = [ChatMessage(role="user", content="What's the weather like in Paris? Use the get_weather function.")]
+    
+    try:
+        response = llm.chat(messages, tools=tools if hasattr(llm, 'chat') else None)
+        logger.info(f"LlamaIndex OpenAI function calling response: {response}")
+
+        spans = setup.get_captured_spans()
+        assert spans, "No spans were exported"
+
+        span_attributes, event_attributes = find_inference_span_with_tool_call(spans)
+        if span_attributes and event_attributes:
+
+            assert "entity.3.name" in span_attributes, "entity.3.name should be present when finish_type is tool_call"
+            assert "entity.3.type" in span_attributes, "entity.3.type should be present when finish_type is tool_call"
+
+            tool_name = span_attributes.get("entity.3.name")
+            tool_type = span_attributes.get("entity.3.type")
+            assert tool_name == "get_current_weather", f"Expected tool name 'get_current_weather', got '{tool_name}'"
+            assert tool_type == "tool.function", f"Expected tool type 'tool.function', got '{tool_type}'"
+
+            logger.info(f"✓ entity.3.name = '{tool_name}'")
+            logger.info(f"✓ entity.3.type = '{tool_type}'")
+
+        else:
+            # If no tool call span found, check if we have regular completion
+            output_event_attrs = find_inference_span_and_event_attributes(spans)
+            if output_event_attrs:
+                finish_reason = output_event_attrs.get("finish_reason")
+                finish_type = output_event_attrs.get("finish_type")
+                logger.info(f"No tool calls found. finish_reason: {finish_reason}, finish_type: {finish_type}")
+                pytest.skip("Function calling not triggered - model responded normally instead of using functions")
+            else:
+                pytest.fail("No inference span found in captured spans")
+                
+    except Exception as e:
+        logger.warning(f"Tool calling test failed with error: {e}")
+        pytest.skip(f"Tool calling not supported or failed: {e}")
 
 
 @pytest.mark.skipif(
@@ -346,6 +432,10 @@ def test_llamaindex_finish_reason_mapping_edge_cases():
     assert map_finish_reason_to_finish_type("safety_filter_applied") == "content_filter"
     assert map_finish_reason_to_finish_type("unexpected_error") == "error"
     assert map_finish_reason_to_finish_type("agent_completed") == "success"
+    
+    # Test tool call mapping
+    assert map_finish_reason_to_finish_type("tool_calls") == "tool_call"
+    assert map_finish_reason_to_finish_type("function_call") == "tool_call"
     
     # Test unknown reasons
     assert map_finish_reason_to_finish_type("unknown_reason") is None

@@ -32,8 +32,8 @@ class TestLlamaIndexFinishReasonHelpers(unittest.TestCase):
             "truncated": "truncated",
             
             # Tool/function calling
-            "tool_calls": "success",
-            "function_call": "success",
+            "tool_calls": "tool_call",
+            "function_call": "tool_call",
             "agent_finish": "success",
             
             # Content filtering and safety
@@ -62,10 +62,14 @@ class TestLlamaIndexFinishReasonHelpers(unittest.TestCase):
 
     def test_map_finish_reason_to_finish_type_success_cases(self):
         """Test mapping of success-type finish reasons."""
-        success_reasons = ["stop", "complete", "finished", "success", "tool_calls", "function_call", "agent_finish", "end_turn", "stop_sequence", "STOP"]
+        success_reasons = ["stop", "complete", "finished", "success", "agent_finish", "end_turn", "stop_sequence", "STOP"]
+        tool_call_reasons = ["tool_calls", "function_call"]
         for reason in success_reasons:
             with self.subTest(reason=reason):
                 self.assertEqual(map_finish_reason_to_finish_type(reason), "success")
+        for reason in tool_call_reasons:
+            with self.subTest(reason=reason):
+                self.assertEqual(map_finish_reason_to_finish_type(reason), "tool_call")
 
     def test_map_finish_reason_to_finish_type_truncated_cases(self):
         """Test mapping of truncated-type finish reasons."""
@@ -378,7 +382,7 @@ class TestLlamaIndexFinishReasonHelpers(unittest.TestCase):
         
         arguments = {"exception": None, "result": tool_response}
         self.assertEqual(extract_finish_reason(arguments), "tool_calls")
-        self.assertEqual(map_finish_reason_to_finish_type("tool_calls"), "success")
+        self.assertEqual(map_finish_reason_to_finish_type("tool_calls"), "tool_call")
         
         # Scenario 4: Truncated response
         truncated_response = SimpleNamespace(

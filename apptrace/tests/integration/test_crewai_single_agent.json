@@ -1,0 +1,392 @@
+[{
+    "name": "openai.resources.chat.completions.Completions.create",
+    "context": {
+        "trace_id": "0xa9b83ac6ecdaf5f07131dd390ea6d79c",
+        "span_id": "0x58d8fd99b17923d2",
+        "trace_state": "[]"
+    },
+    "kind": "SpanKind.INTERNAL",
+    "parent_id": "0x157ced48bc4f42fb",
+    "start_time": "2025-11-21T20:40:25.399236Z",
+    "end_time": "2025-11-21T20:40:26.378199Z",
+    "status": {
+        "status_code": "OK"
+    },
+    "attributes": {
+        "monocle_apptrace.version": "0.6.6",
+        "monocle_apptrace.language": "python",
+        "span_source": "/Users/devika/Desktop/Monocle_2/monocle/.venv/lib/python3.11/site-packages/openai/_legacy_response.py:364",
+        "workflow.name": "crewai_simple_test",
+        "span.type": "inference.modelapi",
+        "scope.agentic.request": "0xbeec58e7cfdfe2e2f5142bd550a88eb0",
+        "scope.agentic.invocation": "0x262f465effc6162e5c72d6bda3e6aef9"
+    },
+    "events": [],
+    "links": [],
+    "resource": {
+        "attributes": {
+            "service.name": "crewAI-telemetry"
+        },
+        "schema_url": ""
+    }
+}
+,{
+    "name": "litellm.llms.openai.openai.OpenAIChatCompletion.completion",
+    "context": {
+        "trace_id": "0xa9b83ac6ecdaf5f07131dd390ea6d79c",
+        "span_id": "0x157ced48bc4f42fb",
+        "trace_state": "[]"
+    },
+    "kind": "SpanKind.INTERNAL",
+    "parent_id": "0x6af9dd0778786d85",
+    "start_time": "2025-11-21T20:40:25.393292Z",
+    "end_time": "2025-11-21T20:40:26.386595Z",
+    "status": {
+        "status_code": "OK"
+    },
+    "attributes": {
+        "monocle_apptrace.version": "0.6.6",
+        "monocle_apptrace.language": "python",
+        "span_source": "/Users/devika/Desktop/Monocle_2/monocle/.venv/lib/python3.11/site-packages/litellm/main.py:1869",
+        "workflow.name": "crewai_simple_test",
+        "entity.1.type": "inference.openai",
+        "entity.1.provider_name": "api.openai.com",
+        "entity.1.inference_endpoint": "https://api.openai.com/v1",
+        "entity.2.name": "gpt-4.1",
+        "entity.2.type": "model.llm.gpt-4.1",
+        "span.type": "inference",
+        "scope.agentic.request": "0xbeec58e7cfdfe2e2f5142bd550a88eb0",
+        "scope.agentic.invocation": "0x262f465effc6162e5c72d6bda3e6aef9",
+        "entity.count": 2
+    },
+    "events": [
+        {
+            "name": "data.input",
+            "timestamp": "2025-11-21T20:40:25.393358Z",
+            "attributes": {
+                "input": [
+                    "{\"system\": \"You are Hotel Booking Agent. You help people book hotels.\\nYour personal goal is: Book hotels for travelers\\nYou ONLY have access to the following tools, and should NEVER make up tools that are not listed here:\\n\\nTool Name: book_hotel\\nTool Arguments: {'hotel_name': {'description': None, 'type': 'str'}, 'city': {'description': None, 'type': 'str'}, 'nights': {'description': None, 'type': 'int'}}\\nTool Description: Book a hotel reservation\\n\\nIMPORTANT: Use the following format in your response:\\n\\n```\\nThought: you should always think about what to do\\nAction: the action to take, only one name of [book_hotel], just the name, exactly as it's written.\\nAction Input: the input to the action, just a simple JSON object, enclosed in curly braces, using \\\" to wrap keys and values.\\nObservation: the result of the action\\n```\\n\\nOnce all necessary information is gathered, return the following format:\\n\\n```\\nThought: I now know the final answer\\nFinal Answer: the final answer to the original input question\\n```\"}",
+                    "{\"user\": \"\\nCurrent Task: Book a hotel room at Marriott in New York for 2 nights.\\n\\nThis is the expected criteria for your final answer: Hotel booking confirmation\\nyou MUST return the actual complete content as the final answer, not a summary.\\n\\nBegin! This is VERY important to you, use the tools available and give your best Final Answer, your job depends on it!\\n\\nThought:\"}"
+                ]
+            }
+        },
+        {
+            "name": "data.output",
+            "timestamp": "2025-11-21T20:40:26.386550Z",
+            "attributes": {
+                "response": "{\"assistant\": \"Thought: I need to book a room at Marriott in New York for 2 nights.\\nAction: book_hotel\\nAction Input: {\\\"hotel_name\\\": \\\"Marriott\\\", \\\"city\\\": \\\"New York\\\", \\\"nights\\\": 2}\"}"
+            }
+        },
+        {
+            "name": "metadata",
+            "timestamp": "2025-11-21T20:40:26.386578Z",
+            "attributes": {
+                "completion_tokens": 49,
+                "prompt_tokens": 314,
+                "total_tokens": 363
+            }
+        }
+    ],
+    "links": [],
+    "resource": {
+        "attributes": {
+            "service.name": "crewAI-telemetry"
+        },
+        "schema_url": ""
+    }
+}
+,{
+    "name": "crewai.tools.structured_tool.CrewStructuredTool.invoke",
+    "context": {
+        "trace_id": "0xa9b83ac6ecdaf5f07131dd390ea6d79c",
+        "span_id": "0xabccdb53675be2cd",
+        "trace_state": "[]"
+    },
+    "kind": "SpanKind.INTERNAL",
+    "parent_id": "0x6af9dd0778786d85",
+    "start_time": "2025-11-21T20:40:26.395847Z",
+    "end_time": "2025-11-21T20:40:26.503692Z",
+    "status": {
+        "status_code": "OK"
+    },
+    "attributes": {
+        "monocle_apptrace.version": "0.6.6",
+        "monocle_apptrace.language": "python",
+        "span_source": "/Users/devika/Desktop/Monocle_2/monocle/.venv/lib/python3.11/site-packages/crewai/tools/tool_usage.py:238",
+        "workflow.name": "crewai_simple_test",
+        "entity.1.name": "book_hotel",
+        "entity.1.description": "Tool Name: book_hotel\nTool Arguments: {'hotel_name': {'description': None, 'type': 'str'}, 'city': {'description': None, 'type': 'str'}, 'nights': {'description': None, 'type': 'int'}}\nTool Description: Book a hotel reservation",
+        "entity.2.name": "Hotel Booking Agent",
+        "entity.2.type": "agent.crewai",
+        "span.type": "agentic.tool.invocation",
+        "entity.1.type": "tool.crewai",
+        "scope.agentic.request": "0xbeec58e7cfdfe2e2f5142bd550a88eb0",
+        "scope.agentic.invocation": "0x262f465effc6162e5c72d6bda3e6aef9",
+        "entity.count": 2,
+        "span.subtype": "routing"
+    },
+    "events": [
+        {
+            "name": "data.input",
+            "timestamp": "2025-11-21T20:40:26.396608Z",
+            "attributes": {
+                "input": [
+                    "input: {'hotel_name': 'Marriott', 'city': 'New York', 'nights': 2, 'security_context': {'agent_fingerprint': {'uuid_str': 'ba56e063-895a-4a85-bab8-d94c53c59951', 'created_at': '2025-11-21T15:40:26.390674', 'metadata': {}}, 'task_fingerprint': {'uuid_str': 'c7515538-c216-4095-a96e-78ab620b4e2f', 'created_at': '2025-11-21T15:40:25.383248', 'metadata': {}}}}"
+                ]
+            }
+        },
+        {
+            "name": "data.output",
+            "timestamp": "2025-11-21T20:40:26.503617Z",
+            "attributes": {
+                "response": "YOUR BOOKING CONFIRMED #BK307820: Marriott in New York for 2 nights - $300"
+            }
+        }
+    ],
+    "links": [],
+    "resource": {
+        "attributes": {
+            "service.name": "crewAI-telemetry"
+        },
+        "schema_url": ""
+    }
+}
+,{
+    "name": "openai.resources.chat.completions.Completions.create",
+    "context": {
+        "trace_id": "0xa9b83ac6ecdaf5f07131dd390ea6d79c",
+        "span_id": "0xaf5f9e55b76ddf8e",
+        "trace_state": "[]"
+    },
+    "kind": "SpanKind.INTERNAL",
+    "parent_id": "0x82da88ac7821675a",
+    "start_time": "2025-11-21T20:40:26.517903Z",
+    "end_time": "2025-11-21T20:40:27.195132Z",
+    "status": {
+        "status_code": "OK"
+    },
+    "attributes": {
+        "monocle_apptrace.version": "0.6.6",
+        "monocle_apptrace.language": "python",
+        "span_source": "/Users/devika/Desktop/Monocle_2/monocle/.venv/lib/python3.11/site-packages/openai/_legacy_response.py:364",
+        "workflow.name": "crewai_simple_test",
+        "span.type": "inference.modelapi",
+        "scope.agentic.request": "0xbeec58e7cfdfe2e2f5142bd550a88eb0",
+        "scope.agentic.invocation": "0x262f465effc6162e5c72d6bda3e6aef9"
+    },
+    "events": [],
+    "links": [],
+    "resource": {
+        "attributes": {
+            "service.name": "crewAI-telemetry"
+        },
+        "schema_url": ""
+    }
+}
+,{
+    "name": "litellm.llms.openai.openai.OpenAIChatCompletion.completion",
+    "context": {
+        "trace_id": "0xa9b83ac6ecdaf5f07131dd390ea6d79c",
+        "span_id": "0x82da88ac7821675a",
+        "trace_state": "[]"
+    },
+    "kind": "SpanKind.INTERNAL",
+    "parent_id": "0x6af9dd0778786d85",
+    "start_time": "2025-11-21T20:40:26.516688Z",
+    "end_time": "2025-11-21T20:40:27.195853Z",
+    "status": {
+        "status_code": "OK"
+    },
+    "attributes": {
+        "monocle_apptrace.version": "0.6.6",
+        "monocle_apptrace.language": "python",
+        "span_source": "/Users/devika/Desktop/Monocle_2/monocle/.venv/lib/python3.11/site-packages/litellm/main.py:1869",
+        "workflow.name": "crewai_simple_test",
+        "entity.1.type": "inference.openai",
+        "entity.1.provider_name": "api.openai.com",
+        "entity.1.inference_endpoint": "https://api.openai.com/v1",
+        "entity.2.name": "gpt-4.1",
+        "entity.2.type": "model.llm.gpt-4.1",
+        "span.type": "inference",
+        "scope.agentic.request": "0xbeec58e7cfdfe2e2f5142bd550a88eb0",
+        "scope.agentic.invocation": "0x262f465effc6162e5c72d6bda3e6aef9",
+        "entity.count": 2
+    },
+    "events": [
+        {
+            "name": "data.input",
+            "timestamp": "2025-11-21T20:40:26.516855Z",
+            "attributes": {
+                "input": [
+                    "{\"system\": \"You are Hotel Booking Agent. You help people book hotels.\\nYour personal goal is: Book hotels for travelers\\nYou ONLY have access to the following tools, and should NEVER make up tools that are not listed here:\\n\\nTool Name: book_hotel\\nTool Arguments: {'hotel_name': {'description': None, 'type': 'str'}, 'city': {'description': None, 'type': 'str'}, 'nights': {'description': None, 'type': 'int'}}\\nTool Description: Book a hotel reservation\\n\\nIMPORTANT: Use the following format in your response:\\n\\n```\\nThought: you should always think about what to do\\nAction: the action to take, only one name of [book_hotel], just the name, exactly as it's written.\\nAction Input: the input to the action, just a simple JSON object, enclosed in curly braces, using \\\" to wrap keys and values.\\nObservation: the result of the action\\n```\\n\\nOnce all necessary information is gathered, return the following format:\\n\\n```\\nThought: I now know the final answer\\nFinal Answer: the final answer to the original input question\\n```\"}",
+                    "{\"user\": \"\\nCurrent Task: Book a hotel room at Marriott in New York for 2 nights.\\n\\nThis is the expected criteria for your final answer: Hotel booking confirmation\\nyou MUST return the actual complete content as the final answer, not a summary.\\n\\nBegin! This is VERY important to you, use the tools available and give your best Final Answer, your job depends on it!\\n\\nThought:\"}",
+                    "{\"assistant\": \"Thought: I need to book a room at Marriott in New York for 2 nights.\\nAction: book_hotel\\nAction Input: {\\\"hotel_name\\\": \\\"Marriott\\\", \\\"city\\\": \\\"New York\\\", \\\"nights\\\": 2}\\nObservation: YOUR BOOKING CONFIRMED #BK307820: Marriott in New York for 2 nights - $300\"}"
+                ]
+            }
+        },
+        {
+            "name": "data.output",
+            "timestamp": "2025-11-21T20:40:27.195825Z",
+            "attributes": {
+                "response": "{\"assistant\": \"Thought: I now know the final answer\\nFinal Answer: YOUR BOOKING CONFIRMED #BK307820: Marriott in New York for 2 nights - $300\"}"
+            }
+        },
+        {
+            "name": "metadata",
+            "timestamp": "2025-11-21T20:40:27.195842Z",
+            "attributes": {
+                "completion_tokens": 34,
+                "prompt_tokens": 391,
+                "total_tokens": 425
+            }
+        }
+    ],
+    "links": [],
+    "resource": {
+        "attributes": {
+            "service.name": "crewAI-telemetry"
+        },
+        "schema_url": ""
+    }
+}
+,{
+    "name": "crewai.agent.Agent.execute_task",
+    "context": {
+        "trace_id": "0xa9b83ac6ecdaf5f07131dd390ea6d79c",
+        "span_id": "0x6af9dd0778786d85",
+        "trace_state": "[]"
+    },
+    "kind": "SpanKind.INTERNAL",
+    "parent_id": "0x04d85f979c45c051",
+    "start_time": "2025-11-21T20:40:25.388275Z",
+    "end_time": "2025-11-21T20:40:27.198901Z",
+    "status": {
+        "status_code": "OK"
+    },
+    "attributes": {
+        "monocle_apptrace.version": "0.6.6",
+        "monocle_apptrace.language": "python",
+        "span_source": "/Users/devika/Desktop/Monocle_2/monocle/.venv/lib/python3.11/site-packages/crewai/task.py:420",
+        "workflow.name": "crewai_simple_test",
+        "entity.1.type": "agent.crewai",
+        "entity.1.name": "Hotel Booking Agent",
+        "entity.1.description": "You help people book hotels.",
+        "span.type": "agentic.invocation",
+        "scope.agentic.request": "0xbeec58e7cfdfe2e2f5142bd550a88eb0",
+        "scope.agentic.invocation": "0x262f465effc6162e5c72d6bda3e6aef9",
+        "entity.count": 1,
+        "span.subtype": "routing"
+    },
+    "events": [
+        {
+            "name": "data.input",
+            "timestamp": "2025-11-21T20:40:25.388314Z",
+            "attributes": {
+                "input": [
+                    "Book a hotel room at Marriott in New York for 2 nights."
+                ]
+            }
+        },
+        {
+            "name": "data.output",
+            "timestamp": "2025-11-21T20:40:27.198888Z",
+            "attributes": {
+                "response": "YOUR BOOKING CONFIRMED #BK307820: Marriott in New York for 2 nights - $300"
+            }
+        }
+    ],
+    "links": [],
+    "resource": {
+        "attributes": {
+            "service.name": "crewAI-telemetry"
+        },
+        "schema_url": ""
+    }
+}
+,{
+    "name": "crewai.crew.Crew.kickoff",
+    "context": {
+        "trace_id": "0xa9b83ac6ecdaf5f07131dd390ea6d79c",
+        "span_id": "0x04d85f979c45c051",
+        "trace_state": "[]"
+    },
+    "kind": "SpanKind.INTERNAL",
+    "parent_id": "0xa831e742a021a8f5",
+    "start_time": "2025-11-21T20:40:25.385466Z",
+    "end_time": "2025-11-21T20:40:27.201946Z",
+    "status": {
+        "status_code": "OK"
+    },
+    "attributes": {
+        "monocle_apptrace.version": "0.6.6",
+        "monocle_apptrace.language": "python",
+        "span_source": "/Users/devika/Desktop/Monocle_2/monocle/apptrace/tests/integration/test_crewai_single_agent.py:98",
+        "workflow.name": "crewai_simple_test",
+        "entity.1.type": "agent.crewai",
+        "span.type": "agentic.request",
+        "scope.agentic.request": "0xbeec58e7cfdfe2e2f5142bd550a88eb0",
+        "entity.count": 1,
+        "span.subtype": "planning"
+    },
+    "events": [
+        {
+            "name": "data.input",
+            "timestamp": "2025-11-21T20:40:25.385496Z",
+            "attributes": {
+                "input": [
+                    "Book Marriott Hotel in New York for 2 nights for next week"
+                ]
+            }
+        },
+        {
+            "name": "data.output",
+            "timestamp": "2025-11-21T20:40:27.201935Z",
+            "attributes": {
+                "response": "YOUR BOOKING CONFIRMED #BK307820: Marriott in New York for 2 nights - $300"
+            }
+        }
+    ],
+    "links": [],
+    "resource": {
+        "attributes": {
+            "service.name": "crewAI-telemetry"
+        },
+        "schema_url": ""
+    }
+}
+,{
+    "name": "workflow",
+    "context": {
+        "trace_id": "0xa9b83ac6ecdaf5f07131dd390ea6d79c",
+        "span_id": "0xa831e742a021a8f5",
+        "trace_state": "[]"
+    },
+    "kind": "SpanKind.INTERNAL",
+    "parent_id": null,
+    "start_time": "2025-11-21T20:40:25.385420Z",
+    "end_time": "2025-11-21T20:40:27.202081Z",
+    "status": {
+        "status_code": "OK"
+    },
+    "attributes": {
+        "monocle_apptrace.version": "0.6.6",
+        "monocle_apptrace.language": "python",
+        "span_source": "/Users/devika/Desktop/Monocle_2/monocle/apptrace/tests/integration/test_crewai_single_agent.py:98",
+        "scope.agentic.request": "0xbeec58e7cfdfe2e2f5142bd550a88eb0",
+        "workflow.name": "crewai_simple_test",
+        "span.type": "workflow",
+        "entity.1.name": "crewai_simple_test",
+        "entity.1.type": "workflow.generic",
+        "entity.2.type": "app_hosting.generic",
+        "entity.2.name": "generic"
+    },
+    "events": [],
+    "links": [],
+    "resource": {
+        "attributes": {
+            "service.name": "crewAI-telemetry"
+        },
+        "schema_url": ""
+    }
+}
+]

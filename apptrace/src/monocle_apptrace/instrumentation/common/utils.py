@@ -547,17 +547,30 @@ def propogate_inference_info_to_parent_span(span: Span, parent_span: Span):
         ## save last inference id in parent span
         if span.attributes.get("span.type") in [SPAN_TYPES.INFERENCE, SPAN_TYPES.INFERENCE_FRAMEWORK] \
                 and span.attributes.get("span.subtype") in [INFERENCE_AGENT_DELEGATION, INFERENCE_TOOL_CALL, INFERENCE_TURN_END]:
-            parent_span.set_attribute(LAST_INFERENCE, hex(span.context.span_id))   # f"{span.context.span_id} {span.attributes.get('subtype','')}"
+            parent_span.set_attribute(LAST_INFERENCE, f"{hex(span.context.span_id)}:{span.attributes.get('entity.3.name', '')}")
         # copy last infernce span id from parent span to tool span
         elif span.attributes.get("span.type") in [SPAN_TYPES.AGENTIC_TOOL_INVOCATION, SPAN_TYPES.AGENTIC_INVOCATION]:
-            if LAST_INFERENCE in parent_span.attributes:
-                span.set_attribute(INFERENCE_DECISION, parent_span.attributes.get(LAST_INFERENCE))
+            if LAST_INFERENCE in parent_span.attributes and verify_tool_names_in_spans(span, parent_span):
+                span.set_attribute(INFERENCE_DECISION, parent_span.attributes.get(LAST_INFERENCE).split(":")[0])
         # propagate last inference id from child span to parent span
         if LAST_INFERENCE in span.attributes and  (
                 span.attributes.get("span.type") not in [SPAN_TYPES.AGENTIC_DELEGATION] \
                 or parent_span.attributes.get("span.subtype", "") not in [SPAN_SUBTYPES.ROUTING]
         ):
             parent_span.set_attribute(LAST_INFERENCE, span.attributes.get(LAST_INFERENCE))
+
+def verify_tool_names_in_spans(span: Span, parent_span: Span) -> bool:
+    """Compare tool names in child and parent spans to check if they match."""
+    if span is None or parent_span is None or span == INVALID_SPAN or parent_span == INVALID_SPAN:
+        return False
+
+    tool_name_from_agentic_span = span.attributes.get("entity.1.name", None)
+    tool_name_from_inference_span = parent_span.attributes.get(LAST_INFERENCE, None)
+    if tool_name_from_agentic_span is not None and tool_name_from_inference_span is not None:
+        tool_name_from_inference_span = tool_name_from_inference_span.split(":")[1]
+        # In case of agentic delegation, tool names may be prefixed with agent name, so we check for containment
+        return tool_name_from_agentic_span in tool_name_from_inference_span
+    return False
 
 def extract_from_agent_invocation_id(parent_span):
     if parent_span is not None:

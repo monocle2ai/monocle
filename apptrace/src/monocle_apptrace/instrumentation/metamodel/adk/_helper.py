@@ -7,13 +7,9 @@ from ast import arguments
 import json
 from typing import Any, Dict, Optional
 from monocle_apptrace.instrumentation.metamodel.finish_types import map_adk_finish_reason_to_finish_type
-<<<<<<< HEAD
 from monocle_apptrace.instrumentation.common.span_handler import SpanHandler
 from monocle_apptrace.instrumentation.common.utils import set_scope, remove_scope
-from monocle_apptrace.instrumentation.common.constants import AGENT_SESSION
-=======
 from monocle_apptrace.instrumentation.common.constants import AGENT_INVOCATION_SPAN_NAME
->>>>>>> 09542b5 (Agent turn span with langgraph session id capture)
 
 def get_model_name(args):
     return args[0].model if hasattr(args[0], 'model') else None
@@ -169,8 +165,7 @@ def get_delegating_agent(arguments) -> str:
 
 def extract_from_agent_invocation_id(parent_span):
     if parent_span is not None:
-#        return parent_span.attributes.get("scope." + AGENT_INVOCATION_SPAN_NAME)
-        return hex(parent_span.context.span_id)
+        return parent_span.attributes.get("scope." + AGENT_INVOCATION_SPAN_NAME)
     return None
 
 def should_skip_delegation(arguments):
@@ -222,17 +217,3 @@ def get_target_agent(instance: Any) -> str:
     """
     return getattr(instance, 'name', getattr(instance, '__name__', 'unknown_target_agent'))
 
-
-class AdkSpanHandler(SpanHandler):
-    """Custom span handler for ADK instrumentation that adds session_id scope."""
-
-    def pre_tracing(self, to_wrap, wrapped, instance, args, kwargs):
-        """Set session_id scope before tracing begins."""
-        session_id_token = None
-
-        if hasattr(instance, '__class__') and instance.__class__.__name__ == 'Runner':
-            session_id = kwargs.get('session_id')
-            if session_id:
-                session_id_token = set_scope(AGENT_SESSION, session_id)
-
-        return session_id_token, None

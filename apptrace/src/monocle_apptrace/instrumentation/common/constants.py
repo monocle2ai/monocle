@@ -108,15 +108,12 @@ INFERENCE_TURN_END = "turn_end"
 SCOPE_NAME = "scope_name"
 AGENT_INVOCATION_SPAN_NAME = "agentic.invocation"
 AGENT_REQUEST_SPAN_NAME = "agentic.turn"
-<<<<<<< HEAD
 AGENT_SESSION = "agentic.session"
-=======
 LAST_INFERENCE = "last.inference"
 INFERENCE_DECISION = "inference.decision.span.id"
->>>>>>> 41c97d8 (Link tool/agent to spans to inferences)
 
 AGENTIC_SPANS = [AGENT_INVOCATION_SPAN_NAME, AGENT_REQUEST_SPAN_NAME]
-
+ANY_AGENT = "*"
 # Span sub types
 
 ## OPTIONAL right next to span.type,  span.subtype:

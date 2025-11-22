@@ -1,0 +1,620 @@
+[{
+    "name": "google.genai.models.AsyncModels.generate_content",
+    "context": {
+        "trace_id": "0xbdd45f1cd66c99ab9d2dc63ece3ee024",
+        "span_id": "0x2c54e46432c47192",
+        "trace_state": "[]"
+    },
+    "kind": "SpanKind.INTERNAL",
+    "parent_id": "0x1d2affec5ba1011d",
+    "start_time": "2025-11-19T04:45:15.721227Z",
+    "end_time": "2025-11-19T04:45:16.762084Z",
+    "status": {
+        "status_code": "OK"
+    },
+    "attributes": {
+        "monocle_apptrace.version": "0.6.0",
+        "monocle_apptrace.language": "python",
+        "span_source": "/Users/prasad/repos/monocle2ai/monocle-test-framework/.venv/lib/python3.12/site-packages/google/adk/models/google_llm.py:198",
+        "workflow.name": "langchain_agent_1",
+        "entity.1.type": "inference.gemini",
+        "entity.1.inference_endpoint": "https://generativelanguage.googleapis.com/",
+        "entity.1.provider_name": "gcp",
+        "entity.2.name": "gemini-2.0-flash",
+        "entity.2.type": "model.llm.gemini-2.0-flash",
+        "span.type": "inference",
+        "scope.agentic.turn": "0x8d4f20f2ceb8b9e3653605d0f648ca65",
+        "scope.agentic.invocation": "0x22d8ab800277c1d2ae9754cda06385c0",
+        "entity.count": 2
+    },
+    "events": [
+        {
+            "name": "data.input",
+            "timestamp": "2025-11-19T04:45:15.721279Z",
+            "attributes": {
+                "input": [
+                    "{\"system\": \"You are a helpful agent who can assist users in booking flights.\\n\\nYou are an agent. Your internal name is \\\"flight_assistant\\\".\\n\\n The description about you is \\\"Agent to book flights based on user queries.\\\"\"}",
+                    "{\"user\": \"Book a flight from San Francisco to Mumbai, book Taj Mahal hotel in Mumbai.\"}"
+                ]
+            }
+        },
+        {
+            "name": "data.output",
+            "timestamp": "2025-11-19T04:45:16.761951Z",
+            "attributes": {
+                "response": "{\"model\": \"Sorry, I can only book flights. I cannot book hotels.\\n\"}"
+            }
+        },
+        {
+            "name": "metadata",
+            "timestamp": "2025-11-19T04:45:16.762012Z",
+            "attributes": {
+                "completion_tokens": 26,
+                "prompt_tokens": 137,
+                "total_tokens": 163,
+                "finish_reason": "STOP",
+                "finish_type": "success"
+            }
+        }
+    ],
+    "links": [],
+    "resource": {
+        "attributes": {
+            "service.name": "langchain_agent_1"
+        },
+        "schema_url": ""
+    }
+}
+,{
+    "name": "google.adk.tools.function_tool.FunctionTool.run_async",
+    "context": {
+        "trace_id": "0xbdd45f1cd66c99ab9d2dc63ece3ee024",
+        "span_id": "0x18a92e6bcf6cb11e",
+        "trace_state": "[]"
+    },
+    "kind": "SpanKind.INTERNAL",
+    "parent_id": "0x1d2affec5ba1011d",
+    "start_time": "2025-11-19T04:45:16.765421Z",
+    "end_time": "2025-11-19T04:45:16.765831Z",
+    "status": {
+        "status_code": "OK"
+    },
+    "attributes": {
+        "monocle_apptrace.version": "0.6.0",
+        "monocle_apptrace.language": "python",
+        "span_source": "/Users/prasad/repos/monocle2ai/monocle-test-framework/.venv/lib/python3.12/site-packages/google/adk/flows/llm_flows/functions.py:603",
+        "workflow.name": "langchain_agent_1",
+        "entity.1.type": "tool.adk",
+        "entity.1.name": "book_flight",
+        "entity.1.description": "Books a flight from one airport to another.\n\nArgs:\n    from_airport (str): The airport from which the flight departs.\n    to_airport (str): The airport to which the flight arrives.\n\nReturns:\n    dict: status and message.",
+        "entity.2.name": "flight_assistant",
+        "entity.2.type": "agent.adk",
+        "span.type": "agentic.tool.invocation",
+        "scope.agentic.turn": "0x8d4f20f2ceb8b9e3653605d0f648ca65",
+        "scope.agentic.invocation": "0x22d8ab800277c1d2ae9754cda06385c0",
+        "entity.count": 2,
+        "span.subtype": "content_generation"
+    },
+    "events": [
+        {
+            "name": "data.input",
+            "timestamp": "2025-11-19T04:45:16.765574Z",
+            "attributes": {
+                "input": "{\"to_airport\": \"Mumbai\", \"from_airport\": \"San Francisco\"}"
+            }
+        },
+        {
+            "name": "data.output",
+            "timestamp": "2025-11-19T04:45:16.765807Z",
+            "attributes": {
+                "response": "{'status': 'success', 'message': 'Flight booked from San Francisco to Mumbai.'}"
+            }
+        }
+    ],
+    "links": [],
+    "resource": {
+        "attributes": {
+            "service.name": "langchain_agent_1"
+        },
+        "schema_url": ""
+    }
+}
+,{
+    "name": "google.genai.models.AsyncModels.generate_content",
+    "context": {
+        "trace_id": "0xbdd45f1cd66c99ab9d2dc63ece3ee024",
+        "span_id": "0x7bbfd7fa845eeff6",
+        "trace_state": "[]"
+    },
+    "kind": "SpanKind.INTERNAL",
+    "parent_id": "0x1d2affec5ba1011d",
+    "start_time": "2025-11-19T04:45:16.795628Z",
+    "end_time": "2025-11-19T04:45:17.580628Z",
+    "status": {
+        "status_code": "OK"
+    },
+    "attributes": {
+        "monocle_apptrace.version": "0.6.0",
+        "monocle_apptrace.language": "python",
+        "span_source": "/Users/prasad/repos/monocle2ai/monocle-test-framework/.venv/lib/python3.12/site-packages/google/adk/models/google_llm.py:198",
+        "workflow.name": "langchain_agent_1",
+        "entity.1.type": "inference.gemini",
+        "entity.1.inference_endpoint": "https://generativelanguage.googleapis.com/",
+        "entity.1.provider_name": "gcp",
+        "entity.2.name": "gemini-2.0-flash",
+        "entity.2.type": "model.llm.gemini-2.0-flash",
+        "span.type": "inference",
+        "scope.agentic.turn": "0x8d4f20f2ceb8b9e3653605d0f648ca65",
+        "scope.agentic.invocation": "0x22d8ab800277c1d2ae9754cda06385c0",
+        "entity.count": 2
+    },
+    "events": [
+        {
+            "name": "data.input",
+            "timestamp": "2025-11-19T04:45:16.795709Z",
+            "attributes": {
+                "input": [
+                    "{\"system\": \"You are a helpful agent who can assist users in booking flights.\\n\\nYou are an agent. Your internal name is \\\"flight_assistant\\\".\\n\\n The description about you is \\\"Agent to book flights based on user queries.\\\"\"}",
+                    "{\"user\": \"Book a flight from San Francisco to Mumbai, book Taj Mahal hotel in Mumbai.\"}",
+                    "{\"model\": \"Sorry, I can only book flights. I cannot book hotels.\\n\"}",
+                    "{\"user\": null}"
+                ]
+            }
+        },
+        {
+            "name": "data.output",
+            "timestamp": "2025-11-19T04:45:17.580512Z",
+            "attributes": {
+                "response": "{\"model\": \"OK. I have booked a flight for you from San Francisco to Mumbai.\\n\"}"
+            }
+        },
+        {
+            "name": "metadata",
+            "timestamp": "2025-11-19T04:45:17.580577Z",
+            "attributes": {
+                "completion_tokens": 16,
+                "prompt_tokens": 177,
+                "total_tokens": 193,
+                "finish_reason": "STOP",
+                "finish_type": "success"
+            }
+        }
+    ],
+    "links": [],
+    "resource": {
+        "attributes": {
+            "service.name": "langchain_agent_1"
+        },
+        "schema_url": ""
+    }
+}
+,{
+    "name": "google.adk.agents.base_agent.BaseAgent.run_async",
+    "context": {
+        "trace_id": "0xbdd45f1cd66c99ab9d2dc63ece3ee024",
+        "span_id": "0x1d2affec5ba1011d",
+        "trace_state": "[]"
+    },
+    "kind": "SpanKind.INTERNAL",
+    "parent_id": "0xdec71930f23fcfc4",
+    "start_time": "2025-11-19T04:45:15.706743Z",
+    "end_time": "2025-11-19T04:45:17.582763Z",
+    "status": {
+        "status_code": "OK"
+    },
+    "attributes": {
+        "monocle_apptrace.version": "0.6.0",
+        "monocle_apptrace.language": "python",
+        "span_source": "/Users/prasad/repos/monocle2ai/monocle-test-framework/.venv/lib/python3.12/site-packages/google/adk/agents/sequential_agent.py:44",
+        "workflow.name": "langchain_agent_1",
+        "entity.1.type": "agent.adk",
+        "entity.1.name": "flight_assistant",
+        "entity.1.description": "Agent to book flights based on user queries.",
+        "entity.1.from_agent": "supervisor",
+        "entity.1.from_agent_invocation": "0x4cbfb66f6aa01e7330ce4e094ecf46b6",
+        "span.type": "agentic.invocation",
+        "scope.agentic.turn": "0x8d4f20f2ceb8b9e3653605d0f648ca65",
+        "scope.agentic.invocation": "0x22d8ab800277c1d2ae9754cda06385c0",
+        "entity.count": 1,
+        "span.subtype": "content_processing"
+    },
+    "events": [
+        {
+            "name": "data.input",
+            "timestamp": "2025-11-19T04:45:15.706780Z",
+            "attributes": {
+                "input": [
+                    "Book a flight from San Francisco to Mumbai, book Taj Mahal hotel in Mumbai."
+                ]
+            }
+        },
+        {
+            "name": "data.output",
+            "timestamp": "2025-11-19T04:45:17.582740Z",
+            "attributes": {
+                "response": "OK. I have booked a flight for you from San Francisco to Mumbai.\n"
+            }
+        }
+    ],
+    "links": [],
+    "resource": {
+        "attributes": {
+            "service.name": "langchain_agent_1"
+        },
+        "schema_url": ""
+    }
+}
+,{
+    "name": "google.genai.models.AsyncModels.generate_content",
+    "context": {
+        "trace_id": "0xbdd45f1cd66c99ab9d2dc63ece3ee024",
+        "span_id": "0x180bbc7af7eb79f1",
+        "trace_state": "[]"
+    },
+    "kind": "SpanKind.INTERNAL",
+    "parent_id": "0x10b2f56812a86252",
+    "start_time": "2025-11-19T04:45:17.608893Z",
+    "end_time": "2025-11-19T04:45:18.398417Z",
+    "status": {
+        "status_code": "OK"
+    },
+    "attributes": {
+        "monocle_apptrace.version": "0.6.0",
+        "monocle_apptrace.language": "python",
+        "span_source": "/Users/prasad/repos/monocle2ai/monocle-test-framework/.venv/lib/python3.12/site-packages/google/adk/models/google_llm.py:198",
+        "workflow.name": "langchain_agent_1",
+        "entity.1.type": "inference.gemini",
+        "entity.1.inference_endpoint": "https://generativelanguage.googleapis.com/",
+        "entity.1.provider_name": "gcp",
+        "entity.2.name": "gemini-2.0-flash",
+        "entity.2.type": "model.llm.gemini-2.0-flash",
+        "span.type": "inference",
+        "scope.agentic.turn": "0x8d4f20f2ceb8b9e3653605d0f648ca65",
+        "scope.agentic.invocation": "0x95eb6ed15b2ce4a05265f269a9f73009",
+        "entity.count": 2
+    },
+    "events": [
+        {
+            "name": "data.input",
+            "timestamp": "2025-11-19T04:45:17.608979Z",
+            "attributes": {
+                "input": [
+                    "{\"system\": \"You are a helpful agent who can assist users in booking hotels.\\n\\nYou are an agent. Your internal name is \\\"hotel_assistant\\\".\\n\\n The description about you is \\\"Agent to book hotels based on user queries.\\\"\"}",
+                    "{\"user\": \"Book a flight from San Francisco to Mumbai, book Taj Mahal hotel in Mumbai.\"}",
+                    "{\"user\": \"For context:\"}",
+                    "{\"user\": \"For context:\"}",
+                    "{\"user\": \"For context:\"}"
+                ]
+            }
+        },
+        {
+            "name": "data.output",
+            "timestamp": "2025-11-19T04:45:18.398318Z",
+            "attributes": {}
+        },
+        {
+            "name": "metadata",
+            "timestamp": "2025-11-19T04:45:18.398380Z",
+            "attributes": {
+                "completion_tokens": 10,
+                "prompt_tokens": 247,
+                "total_tokens": 257,
+                "finish_reason": "STOP",
+                "finish_type": "success"
+            }
+        }
+    ],
+    "links": [],
+    "resource": {
+        "attributes": {
+            "service.name": "langchain_agent_1"
+        },
+        "schema_url": ""
+    }
+}
+,{
+    "name": "google.adk.tools.function_tool.FunctionTool.run_async",
+    "context": {
+        "trace_id": "0xbdd45f1cd66c99ab9d2dc63ece3ee024",
+        "span_id": "0xd0bcf2fb50ffa82a",
+        "trace_state": "[]"
+    },
+    "kind": "SpanKind.INTERNAL",
+    "parent_id": "0x10b2f56812a86252",
+    "start_time": "2025-11-19T04:45:18.400330Z",
+    "end_time": "2025-11-19T04:45:18.400649Z",
+    "status": {
+        "status_code": "OK"
+    },
+    "attributes": {
+        "monocle_apptrace.version": "0.6.0",
+        "monocle_apptrace.language": "python",
+        "span_source": "/Users/prasad/repos/monocle2ai/monocle-test-framework/.venv/lib/python3.12/site-packages/google/adk/flows/llm_flows/functions.py:603",
+        "workflow.name": "langchain_agent_1",
+        "entity.1.type": "tool.adk",
+        "entity.1.name": "book_hotel",
+        "entity.1.description": "Books a hotel for a stay.\n\nArgs:\n    hotel_name (str): The name of the hotel to book.\n    city (str): The city where the hotel is located.\n\nReturns:\n    dict: status and message.",
+        "entity.2.name": "hotel_assistant",
+        "entity.2.type": "agent.adk",
+        "span.type": "agentic.tool.invocation",
+        "scope.agentic.turn": "0x8d4f20f2ceb8b9e3653605d0f648ca65",
+        "scope.agentic.invocation": "0x95eb6ed15b2ce4a05265f269a9f73009",
+        "entity.count": 2,
+        "span.subtype": "content_generation"
+    },
+    "events": [
+        {
+            "name": "data.input",
+            "timestamp": "2025-11-19T04:45:18.400464Z",
+            "attributes": {
+                "input": "{\"hotel_name\": \"Taj Mahal\", \"city\": \"Mumbai\"}"
+            }
+        },
+        {
+            "name": "data.output",
+            "timestamp": "2025-11-19T04:45:18.400630Z",
+            "attributes": {
+                "response": "{'status': 'success', 'message': 'Successfully booked a stay at Taj Mahal in Mumbai.'}"
+            }
+        }
+    ],
+    "links": [],
+    "resource": {
+        "attributes": {
+            "service.name": "langchain_agent_1"
+        },
+        "schema_url": ""
+    }
+}
+,{
+    "name": "google.genai.models.AsyncModels.generate_content",
+    "context": {
+        "trace_id": "0xbdd45f1cd66c99ab9d2dc63ece3ee024",
+        "span_id": "0x8d7e49fdbfd223d2",
+        "trace_state": "[]"
+    },
+    "kind": "SpanKind.INTERNAL",
+    "parent_id": "0x10b2f56812a86252",
+    "start_time": "2025-11-19T04:45:18.429965Z",
+    "end_time": "2025-11-19T04:45:19.314995Z",
+    "status": {
+        "status_code": "OK"
+    },
+    "attributes": {
+        "monocle_apptrace.version": "0.6.0",
+        "monocle_apptrace.language": "python",
+        "span_source": "/Users/prasad/repos/monocle2ai/monocle-test-framework/.venv/lib/python3.12/site-packages/google/adk/models/google_llm.py:198",
+        "workflow.name": "langchain_agent_1",
+        "entity.1.type": "inference.gemini",
+        "entity.1.inference_endpoint": "https://generativelanguage.googleapis.com/",
+        "entity.1.provider_name": "gcp",
+        "entity.2.name": "gemini-2.0-flash",
+        "entity.2.type": "model.llm.gemini-2.0-flash",
+        "span.type": "inference",
+        "scope.agentic.turn": "0x8d4f20f2ceb8b9e3653605d0f648ca65",
+        "scope.agentic.invocation": "0x95eb6ed15b2ce4a05265f269a9f73009",
+        "entity.count": 2
+    },
+    "events": [
+        {
+            "name": "data.input",
+            "timestamp": "2025-11-19T04:45:18.430086Z",
+            "attributes": {
+                "input": [
+                    "{\"system\": \"You are a helpful agent who can assist users in booking hotels.\\n\\nYou are an agent. Your internal name is \\\"hotel_assistant\\\".\\n\\n The description about you is \\\"Agent to book hotels based on user queries.\\\"\"}",
+                    "{\"user\": \"Book a flight from San Francisco to Mumbai, book Taj Mahal hotel in Mumbai.\"}",
+                    "{\"user\": \"For context:\"}",
+                    "{\"user\": \"For context:\"}",
+                    "{\"user\": \"For context:\"}",
+                    "{\"model\": null}",
+                    "{\"user\": null}"
+                ]
+            }
+        },
+        {
+            "name": "data.output",
+            "timestamp": "2025-11-19T04:45:19.314926Z",
+            "attributes": {
+                "response": "{\"model\": \"OK. I have booked a stay at Taj Mahal in Mumbai.\\n\"}"
+            }
+        },
+        {
+            "name": "metadata",
+            "timestamp": "2025-11-19T04:45:19.314968Z",
+            "attributes": {
+                "completion_tokens": 14,
+                "prompt_tokens": 273,
+                "total_tokens": 287,
+                "finish_reason": "STOP",
+                "finish_type": "success"
+            }
+        }
+    ],
+    "links": [],
+    "resource": {
+        "attributes": {
+            "service.name": "langchain_agent_1"
+        },
+        "schema_url": ""
+    }
+}
+,{
+    "name": "google.adk.agents.base_agent.BaseAgent.run_async",
+    "context": {
+        "trace_id": "0xbdd45f1cd66c99ab9d2dc63ece3ee024",
+        "span_id": "0x10b2f56812a86252",
+        "trace_state": "[]"
+    },
+    "kind": "SpanKind.INTERNAL",
+    "parent_id": "0xdec71930f23fcfc4",
+    "start_time": "2025-11-19T04:45:17.583786Z",
+    "end_time": "2025-11-19T04:45:19.316286Z",
+    "status": {
+        "status_code": "OK"
+    },
+    "attributes": {
+        "monocle_apptrace.version": "0.6.0",
+        "monocle_apptrace.language": "python",
+        "span_source": "/Users/prasad/repos/monocle2ai/monocle-test-framework/.venv/lib/python3.12/site-packages/google/adk/agents/sequential_agent.py:44",
+        "workflow.name": "langchain_agent_1",
+        "entity.1.type": "agent.adk",
+        "entity.1.name": "hotel_assistant",
+        "entity.1.description": "Agent to book hotels based on user queries.",
+        "entity.1.from_agent": "supervisor",
+        "entity.1.from_agent_invocation": "0x4cbfb66f6aa01e7330ce4e094ecf46b6",
+        "span.type": "agentic.invocation",
+        "scope.agentic.turn": "0x8d4f20f2ceb8b9e3653605d0f648ca65",
+        "scope.agentic.invocation": "0x95eb6ed15b2ce4a05265f269a9f73009",
+        "entity.count": 1,
+        "span.subtype": "content_processing"
+    },
+    "events": [
+        {
+            "name": "data.input",
+            "timestamp": "2025-11-19T04:45:17.583958Z",
+            "attributes": {
+                "input": [
+                    "Book a flight from San Francisco to Mumbai, book Taj Mahal hotel in Mumbai."
+                ]
+            }
+        },
+        {
+            "name": "data.output",
+            "timestamp": "2025-11-19T04:45:19.316269Z",
+            "attributes": {
+                "response": "OK. I have booked a stay at Taj Mahal in Mumbai.\n"
+            }
+        }
+    ],
+    "links": [],
+    "resource": {
+        "attributes": {
+            "service.name": "langchain_agent_1"
+        },
+        "schema_url": ""
+    }
+}
+,{
+    "name": "google.adk.agents.base_agent.BaseAgent.run_async",
+    "context": {
+        "trace_id": "0xbdd45f1cd66c99ab9d2dc63ece3ee024",
+        "span_id": "0xdec71930f23fcfc4",
+        "trace_state": "[]"
+    },
+    "kind": "SpanKind.INTERNAL",
+    "parent_id": "0x052fcc0d881546bd",
+    "start_time": "2025-11-19T04:45:15.706180Z",
+    "end_time": "2025-11-19T04:45:19.316370Z",
+    "status": {
+        "status_code": "OK"
+    },
+    "attributes": {
+        "monocle_apptrace.version": "0.6.0",
+        "monocle_apptrace.language": "python",
+        "span_source": "/Users/prasad/repos/monocle2ai/monocle-test-framework/.venv/lib/python3.12/site-packages/google/adk/runners.py:230",
+        "workflow.name": "langchain_agent_1",
+        "entity.1.type": "agent.adk",
+        "entity.1.name": "supervisor",
+        "entity.1.description": "Supervisor agent that coordinates the flight booking and hotel booking. Provide a consolidated response.",
+        "span.type": "agentic.invocation",
+        "scope.agentic.turn": "0x8d4f20f2ceb8b9e3653605d0f648ca65",
+        "scope.agentic.invocation": "0x4cbfb66f6aa01e7330ce4e094ecf46b6",
+        "entity.count": 1,
+        "span.subtype": "routing"
+    },
+    "events": [],
+    "links": [],
+    "resource": {
+        "attributes": {
+            "service.name": "langchain_agent_1"
+        },
+        "schema_url": ""
+    }
+}
+,{
+    "name": "google.adk.runners.Runner.run_async",
+    "context": {
+        "trace_id": "0xbdd45f1cd66c99ab9d2dc63ece3ee024",
+        "span_id": "0x052fcc0d881546bd",
+        "trace_state": "[]"
+    },
+    "kind": "SpanKind.INTERNAL",
+    "parent_id": "0x53bbb169baded798",
+    "start_time": "2025-11-19T04:45:15.705135Z",
+    "end_time": "2025-11-19T04:45:19.316464Z",
+    "status": {
+        "status_code": "OK"
+    },
+    "attributes": {
+        "monocle_apptrace.version": "0.6.0",
+        "monocle_apptrace.language": "python",
+        "span_source": "/Users/prasad/repos/monocle2ai/monocle-test-framework/apptrace/tests/integration/test_adk_multi_agent.py:119",
+        "workflow.name": "langchain_agent_1",
+        "entity.1.type": "agent.adk",
+        "span.type": "agentic.turn",
+        "scope.agentic.turn": "0x8d4f20f2ceb8b9e3653605d0f648ca65",
+        "entity.count": 1,
+        "span.subtype": "turn"
+    },
+    "events": [
+        {
+            "name": "data.input",
+            "timestamp": "2025-11-19T04:45:15.705174Z",
+            "attributes": {
+                "input": [
+                    "Book a flight from San Francisco to Mumbai, book Taj Mahal hotel in Mumbai."
+                ]
+            }
+        },
+        {
+            "name": "data.output",
+            "timestamp": "2025-11-19T04:45:19.316453Z",
+            "attributes": {
+                "response": "OK. I have booked a stay at Taj Mahal in Mumbai.\n"
+            }
+        }
+    ],
+    "links": [],
+    "resource": {
+        "attributes": {
+            "service.name": "langchain_agent_1"
+        },
+        "schema_url": ""
+    }
+}
+,{
+    "name": "workflow",
+    "context": {
+        "trace_id": "0xbdd45f1cd66c99ab9d2dc63ece3ee024",
+        "span_id": "0x53bbb169baded798",
+        "trace_state": "[]"
+    },
+    "kind": "SpanKind.INTERNAL",
+    "parent_id": null,
+    "start_time": "2025-11-19T04:45:15.704998Z",
+    "end_time": "2025-11-19T04:45:19.316480Z",
+    "status": {
+        "status_code": "OK"
+    },
+    "attributes": {
+        "monocle_apptrace.version": "0.6.0",
+        "monocle_apptrace.language": "python",
+        "span_source": "/Users/prasad/repos/monocle2ai/monocle-test-framework/apptrace/tests/integration/test_adk_multi_agent.py:119",
+        "scope.agentic.turn": "0x8d4f20f2ceb8b9e3653605d0f648ca65",
+        "workflow.name": "langchain_agent_1",
+        "span.type": "workflow",
+        "entity.1.name": "langchain_agent_1",
+        "entity.1.type": "workflow.generic",
+        "entity.2.type": "app_hosting.generic",
+        "entity.2.name": "generic"
+    },
+    "events": [],
+    "links": [],
+    "resource": {
+        "attributes": {
+            "service.name": "langchain_agent_1"
+        },
+        "schema_url": ""
+    }
+}
+]

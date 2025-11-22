@@ -3,7 +3,7 @@ from monocle_apptrace.instrumentation.common.utils import get_error_message
 from monocle_apptrace.instrumentation.metamodel.adk import _helper
 TOOL = {
       "type": SPAN_TYPES.AGENTIC_TOOL_INVOCATION,
-      "subtype": SPAN_SUBTYPES.ROUTING,
+      "subtype": SPAN_SUBTYPES.CONTENT_GENERATION,
       "attributes": [
         [
               {

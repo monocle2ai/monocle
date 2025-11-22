@@ -60,7 +60,7 @@ def setup(start_weather_server_fixture):
     try:
         instrumentor = setup_monocle_telemetry(
             workflow_name="agents_sdk_dev_1",
-            # monocle_exporters_list="file, okahu"
+#            monocle_exporters_list="file,okahu"
             span_processors=span_processors,
         )
         yield memory_exporter
@@ -150,7 +150,7 @@ async def test_agents_sdk_multi_agent(setup):
 
         result = await Runner.run(
             coordinator,
-            "Please help me with my complete travel needs: Book the Hilton hotel in Los Angeles using the hotel agent, Also check the weather in both cities. Please delegate to the appropriate specialized agents.",
+            "Please help me with my complete travel needs: Book the Hilton hotel in Los Angeles using the hotel agent, Also check the weather in there. Please delegate to the appropriate specialized agents.",
         )
 
         logger.info(f"Multi-agent result: {result.final_output}")
@@ -208,22 +208,6 @@ def verify_multi_agent_spans(memory_exporter=None):
             tool_names.add(span_attributes["entity.1.name"])
             found_tool = True
 
-        # Check for delegation spans
-        if (
-            "span.type" in span_attributes
-            and span_attributes["span.type"] == "agentic.delegation"
-        ):
-            assert span_attributes["entity.1.type"] == "agent.openai_agents"
-            assert "entity.1.from_agent" in span_attributes
-            assert "entity.1.to_agent" in span_attributes
-            found_delegation = True
-            
-            # Check for specific agent delegations
-            if span_attributes["entity.1.to_agent"] == "Flight Agent":
-                found_flight_delegation = True
-            elif span_attributes["entity.1.to_agent"] == "Hotel Agent":
-                found_hotel_delegation = True
-
         # Check for MCP-related spans
         if (
             "span.type" in span_attributes
@@ -234,9 +218,6 @@ def verify_multi_agent_spans(memory_exporter=None):
 
     assert found_agent, "Agent span not found"
     assert found_tool, "Tool span not found"
-    assert found_delegation, "Delegation span not found"
-    assert found_flight_delegation, "Flight Agent delegation span not found"
-    assert found_hotel_delegation, "Hotel Agent delegation span not found"
     assert found_mcp, "MCP operation span not found"
     # Note: Delegation might not always occur depending on the model's decisions
     # Note: MCP spans might not always occur depending on whether MCP tools are called

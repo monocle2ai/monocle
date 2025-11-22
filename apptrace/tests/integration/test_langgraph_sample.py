@@ -93,7 +93,7 @@ def test_langgraph_chat_sample(setup):
     time.sleep(5)
     spans = setup.get_finished_spans()
 
-    found_inference = found_agent = found_tool = False
+    found_inference = found_agent = found_tool = found_turn = False
 
     for span in spans:
         span_attributes = span.attributes
@@ -127,7 +127,20 @@ def test_langgraph_chat_sample(setup):
             assert span_attributes["entity.1.name"] == "OrderCoffee"
             assert span_attributes["entity.1.type"] == "tool.langgraph"
             found_tool = True
+        
+        if "span.type" in span_attributes and span_attributes["span.type"] == "agentic.turn":
+            assert "scope.agentic.turn" in span_attributes
+            span_input, span_output = span.events
+            assert "input" in span_input.attributes
+            assert span_input.attributes["input"] != ""
+            assert "response" in span_output.attributes
+            assert span_output.attributes["response"] != ""
+            found_turn = True
 
     assert found_inference, "Inference span not found"
     assert found_agent, "Agent span not found"
     assert found_tool, "Tool span not found"
+    assert found_turn, "Turn span not found"
+
+if __name__ == "__main__":
+    pytest.main([__file__, "-s", "--tb=short"])

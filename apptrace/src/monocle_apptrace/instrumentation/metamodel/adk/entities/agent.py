@@ -4,7 +4,7 @@ from monocle_apptrace.instrumentation.metamodel.adk import _helper
 from monocle_apptrace.instrumentation.common.utils import get_error_message
 AGENT = {
       "type": SPAN_TYPES.AGENTIC_INVOCATION,
-      "subtype": SPAN_SUBTYPES.ROUTING,
+      "subtype": SPAN_SUBTYPES.CONTENT_PROCESSING,
       "attributes": [
         [
               {
@@ -26,7 +26,12 @@ AGENT = {
                 "_comment": "delegating agent name",
                 "attribute": "from_agent",
                 "accessor": lambda arguments: _helper.get_delegating_agent(arguments)
-            }
+              },
+              {
+                "_comment": "last agent invocation id",
+                "attribute": "from_agent_span_id",
+                "accessor": lambda arguments: _helper.extract_from_agent_invocation_id(arguments['parent_span'])
+              }
         ]
       ],
       "events": [
@@ -61,8 +66,40 @@ AGENT = {
       ]
     }
 
+AGENT_ORCHESTRATOR = {
+      "type": SPAN_TYPES.AGENTIC_INVOCATION,
+      "subtype": SPAN_SUBTYPES.ROUTING,
+      "attributes": [
+        [
+              {
+                "_comment": "agent type",
+                "attribute": "type",
+                "accessor": lambda arguments:'agent.adk'
+              },
+              {
+                "_comment": "name of the agent",
+                "attribute": "name",
+                "accessor": lambda arguments: _helper.get_agent_name(arguments['instance'])
+              },
+              {
+                "_comment": "agent description",
+                "attribute": "description",
+                "accessor": lambda arguments: _helper.get_agent_description(arguments['instance'])
+              },
+              {
+                "_comment": "delegating agent name",
+                "attribute": "from_agent",
+                "accessor": lambda arguments: _helper.get_delegating_agent(arguments)
+            }
+        ]
+      ],
+      "events": [
+      ]
+    }
+
 REQUEST = {
-      "type": "agentic.request",
+      "type": SPAN_TYPES.AGENTIC_REQUEST,
+      "subtype": SPAN_SUBTYPES.TURN,
       "attributes": [
         [
               {

@@ -115,18 +115,21 @@ def create_multi_agent_crew():
 
     # Create tasks
     hotel_task = Task(
+        name="Hotel Booking Task",
         description="Book a hotel room at Marriott in New York for 2 nights.",
         expected_output="Hotel booking confirmation with confirmation number and cost",
         agent=hotel_agent
     )
 
     flight_task = Task(
+        name = "Flight Booking Task",
         description="Book a flight from Los Angeles to New York for next week.",
         expected_output="Flight booking confirmation with confirmation number and cost",
         agent=flight_agent
     )
 
     supervisor_task = Task(
+        name = "Travel Booking Supervision Task",
         description="Coordinate a complete travel package: book both flight from Los Angeles to New York and hotel accommodation at Marriott in New York for 2 nights. Ensure both bookings are completed successfully.",
         expected_output="Complete travel booking summary with both flight and hotel confirmations",
         agent=supervisor_agent

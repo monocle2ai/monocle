@@ -75,6 +75,7 @@ def create_simple_crew():
 
     # Create simple task
     task = Task(
+        name = "Hotel Booking Task",
         description="Book a hotel room at Marriott in New York for 2 nights.",
         expected_output="Hotel booking confirmation",
         agent=agent

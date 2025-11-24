@@ -22,6 +22,24 @@ CREW_AI_METHODS = [
         "span_handler": "crew_ai_agent_handler",
         "output_processor": AGENT,
     },
+
+    # Task execution
+    {
+        "package": "crewai.task",
+        "object": "Task",
+        "method": "execute_sync",
+        "wrapper_method": task_wrapper,
+        "span_handler": "crew_ai_task_handler",
+        "output_processor": AGENT,
+    },
+    {
+        "package": "crewai.task",
+        "object": "Task",
+        "method": "execute_async",
+        "wrapper_method": atask_wrapper,
+        "span_handler": "crew_ai_task_handler",
+        "output_processor": AGENT,
+    },
     
     # Tool execution - public interface
     {

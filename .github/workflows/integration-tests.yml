@@ -103,9 +103,10 @@ jobs:
       - name: Run Unit tests
         id: run-unit-tests
         run: |
-          export PYTHONPATH=./apptrace/src:./apptrace/tests
+          cd apptrace
+          export PYTHONPATH=./src:./tests
           set -e
-          pytest -rfs apptrace/tests/unit/test*.py --tb=short | tee unitresult.log
+          pytest -rfs tests/unit/test*.py --tb=short | tee unitresult.log
           EXIT_CODE=${PIPESTATUS[0]}
           grep -E 'FAILED.*::' unitresult.log | cut -d ':' -f 1 | sort | uniq > unitfailed_files.txt
           echo "" >> failed_files.txt
@@ -126,6 +127,7 @@ jobs:
       - name: Add Test Summary to Summary (Table)
         if: always()
         run: |
+          cd apptrace
           if [[ -s ./unittest_summary.txt ]]; then
             {
               echo "### Unit Test Summary"
@@ -141,6 +143,7 @@ jobs:
       - name: Add Failed Files to Summary (Table)
         if: always()
         run: |
+          cd apptrace
           if [[ -s ./unitfailed_files.txt ]]; then
             {
               echo "### ❌ Failed Unit Test Files"
@@ -160,9 +163,10 @@ jobs:
         if: always()
         id: run-integration-tests
         run: |
-          export PYTHONPATH=./apptrace/src:./apptrace/tests
+          cd apptrace
+          export PYTHONPATH=./src:./tests
           set -e
-          pytest -rfs apptrace/tests/integration/test*.py --tb=short | tee integration_test_result.log
+          pytest -rfs tests/integration/test*.py --tb=short | tee integration_test_result.log
           EXIT_CODE=${PIPESTATUS[0]}
           grep -E 'FAILED.*::' integration_test_result.log | cut -d ':' -f 1 | sort | uniq >> integrationtest_failed_files.txt
           echo "Failed Integration test files:"
@@ -182,6 +186,7 @@ jobs:
       - name: Add Test Summary to Summary (Table)
         if: always()
         run: |
+          cd apptrace
           if [[ -s ./integration_test_summary.txt ]]; then
             {
               echo "### Integration Test Summary"
@@ -197,6 +202,7 @@ jobs:
       - name: Add Failed Files to Summary (Table)
         if: always()
         run: |
+          cd apptrace
           if [[ -s ./integrationtest_failed_files.txt ]]; then
             {
               echo "### ❌ Integration Failed Test Files"
@@ -214,6 +220,9 @@ jobs:
       - name: Prepare email content
         if: always()
         run: |
+          cp apptrace/failed_files.txt ./
+          cp apptrace/test_summary.txt ./
+          
           # Determine test status
           if [[ -s ./failed_files.txt ]]; then
             echo "TEST_STATUS=FAILED" >> $GITHUB_ENV
@@ -269,4 +278,3 @@ jobs:
           from: ${{ secrets.EMAIL_FROM }}
           body: file://email_body.txt
           attachments: test_summary.txt,failed_files.txt
-

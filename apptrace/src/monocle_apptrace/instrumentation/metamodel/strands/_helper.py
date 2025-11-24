@@ -1,6 +1,31 @@
 
 from monocle_apptrace.instrumentation.common.constants import SPAN_TYPES
 
+__all__ = [
+    "extract_session_id",
+    "get_agent_name",
+    "get_agent_description",
+    "extract_agent_input",
+    "extract_agent_response",
+    "get_tool_type",
+    "get_tool_name",
+    "get_tool_description",
+    "get_source_agent",
+    "extract_tool_input",
+    "extract_tool_response",
+    "should_skip_delegation",
+    "should_skip_request",
+]
+
+
+def extract_session_id(instance):
+    # AWS Strands manages sessions through a session_manager object
+    # The session_id is typically accessible via instance.session_manager.session_id
+    if hasattr(instance, 'session_manager') and instance.session_manager is not None:
+        if hasattr(instance.session_manager, 'session_id'):
+            return instance.session_manager.session_id
+    return None
+
 
 def get_agent_name(instance):
     return instance.name

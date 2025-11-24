@@ -5,6 +5,9 @@ from monocle_apptrace.instrumentation.metamodel.openai.entities.inference import
 from monocle_apptrace.instrumentation.metamodel.openai.entities.retrieval import (
     RETRIEVAL,
 )
+from monocle_apptrace.instrumentation.metamodel.openai.entities.agent import (
+    AGENT,
+)
 
 OPENAI_METHODS = [
     {
@@ -54,6 +57,22 @@ OPENAI_METHODS = [
         "wrapper_method": atask_wrapper,
         "span_handler": "openai_handler",
         "output_processor": INFERENCE
+    },
+    {
+        "package": "agents",
+        "object": "Runner",
+        "method": "run",
+        "wrapper_method": task_wrapper,
+        "span_handler": "openai_agents_handler",
+        "output_processor": AGENT
+    },
+    {
+        "package": "agents",
+        "object": "Runner",
+        "method": "arun",
+        "wrapper_method": atask_wrapper,
+        "span_handler": "openai_agents_handler",
+        "output_processor": AGENT
     }
 
 ]

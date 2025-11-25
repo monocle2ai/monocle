@@ -138,7 +138,22 @@ class SpanHandler:
             skip_processors:list[str] = self.skip_processor(to_wrap, wrapped, instance, span, args, kwargs) or []
             if 'attributes' in output_processor and 'attributes' not in skip_processors:
                 arguments = {"instance":instance, "args":args, "kwargs":kwargs, "result":result, "parent_span":parent_span, "span":span}
+                
+                # During post_execution, we need to find the next available entity index
+                if is_post_exec:
+                    # Find the highest entity index that has any attributes
+                    max_entity_index = 0
+                    for attr_name in span.attributes:
+                        if attr_name.startswith("entity."):
+                            # Extract entity number from attribute like "entity.2.type"
+                            parts = attr_name.split(".")
+                            if len(parts) >= 2 and parts[1].isdigit():
+                                entity_num = int(parts[1])
+                                max_entity_index = max(max_entity_index, entity_num)
+                    span_index = max(span_index, max_entity_index)
+                
                 for processors in output_processor["attributes"]:
+                    entity_has_attributes = False
                     for processor in processors:
                         attribute = processor.get('attribute')
                         accessor = processor.get('accessor')
@@ -150,6 +165,7 @@ class SpanHandler:
                                     processor_result = accessor(arguments)
                                     if processor_result and isinstance(processor_result, (str, list)):
                                         span.set_attribute(attribute_name, processor_result)
+                                        entity_has_attributes = True
                             except MonocleSpanException as e:
                                 span.set_status(StatusCode.ERROR, e.message)
                                 detected_error = True
@@ -157,13 +173,16 @@ class SpanHandler:
                                 logger.debug(f"Error processing accessor: {e}")
                         else:
                             logger.debug(f"{' and '.join([key for key in ['attribute', 'accessor'] if not processor.get(key)])} not found or incorrect in entity JSON")
-                    span_index += 1
+                    
+                    # Only increment span_index if this entity actually has attributes set
+                    if entity_has_attributes:
+                        span_index += 1
 
         # set scopes as attributes by calling get_scopes()
         # scopes is a Mapping[str:object], iterate directly with .items()
         for scope_key, scope_value in get_scopes().items():
             span.set_attribute(f"scope.{scope_key}", scope_value)
-        
+
         if span_index > 0:
             span.set_attribute("entity.count", span_index)
         return detected_error

@@ -16,7 +16,7 @@ from monocle_apptrace.instrumentation.common.utils import (
     get_exception_message,
 )
 from monocle_apptrace.instrumentation.metamodel.finish_types import map_mistral_finish_reason_to_finish_type
-from monocle_apptrace.instrumentation.common.constants import AGENT_PREFIX_KEY, INFERENCE_AGENT_DELEGATION, INFERENCE_TURN_END, INFERENCE_TOOL_CALL
+from monocle_apptrace.instrumentation.common.constants import AGENT_PREFIX_KEY, INFERENCE_AGENT_DELEGATION, INFERENCE_TURN_END, INFERENCE_TOOL_CALL, TOOL_TYPE
 from contextlib import suppress
 
 logger = logging.getLogger(__name__)
@@ -285,7 +285,7 @@ def extract_tool_type(arguments):
 
         tool_name = extract_tool_name(arguments)
         if tool_name:
-            return "tool.function"
+            return TOOL_TYPE
             
     except Exception as e:
         logger.warning("Warning: Error occurred in extract_tool_type: %s", str(e))

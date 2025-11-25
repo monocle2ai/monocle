@@ -1,38 +1,44 @@
 from types import SimpleNamespace
 
 from monocle_apptrace.instrumentation.common.constants import AGENT_SESSION
+from monocle_apptrace.instrumentation.common.utils import get_scopes
 import monocle_apptrace.instrumentation.metamodel.openai.openai_processor as processor
 
-RunnerMock = type("Runner", (), {})
 
+class Runner:
 
-def test_openai_agents_handler_sets_session_scope(monkeypatch):
+    pass
+
+def test_openai_agents_handler_sets_session_scope():
     handler = processor.OpenAIAgentsSpanHandler()
-    session = SimpleNamespace(session_id="sess-openai")
+    session = SimpleNamespace(session_id="abc_123")
 
-    scope_calls = []
-    monkeypatch.setattr(
-        processor,
-        "set_scope",
-        lambda key, value: scope_calls.append((key, value)) or "scope-token",
-    )
-    remove_calls = []
-    monkeypatch.setattr(processor, "remove_scope", lambda token: remove_calls.append(token))
-    monkeypatch.setattr(processor, "extract_session_id_from_agents", lambda kwargs: kwargs["session"].session_id)
+    previous_scope = get_scopes().get(AGENT_SESSION)
 
-    token, _ = handler.pre_tracing({}, None, RunnerMock(), (), {"session": session})
+    token, _ = handler.pre_tracing({}, None, Runner(), (), {"session": session})
 
-    assert token == "scope-token"
-    assert scope_calls == [(AGENT_SESSION, "sess-openai")]
+    try:
+        assert token is not None, "Expected token when session_id provided"
+        assert (
+            get_scopes().get(AGENT_SESSION) == "abc_123"
+        ), "Session scope should match provided session_id"
+    finally:
+        handler.post_tracing({}, None, Runner(), (), {"session": session}, None, token)
 
-    handler.post_tracing({}, None, RunnerMock(), (), {"session": session}, None, token)
-    assert remove_calls == ["scope-token"]
+    assert (
+        get_scopes().get(AGENT_SESSION) == previous_scope
+    ), "Session scope should be restored after cleanup"
 
 
-def test_openai_agents_handler_ignores_non_runner_instances(monkeypatch):
+def test_openai_agents_handler_ignores_non_runner_instances():
     handler = processor.OpenAIAgentsSpanHandler()
-    monkeypatch.setattr(processor, "set_scope", lambda key, value: (_ for _ in ()).throw(RuntimeError("should not be called")))
+    previous_scope = get_scopes().get(AGENT_SESSION)
 
     token, _ = handler.pre_tracing({}, None, object(), (), {"session": object()})
-    assert token is None
+    handler.post_tracing({}, None, object(), (), {"session": object()}, None, token)
+
+    assert token is None, "Token should stay None when instance isn't a Runner"
+    assert (
+        get_scopes().get(AGENT_SESSION) == previous_scope
+    ), "Session scope should remain unchanged for non-runner instances"
 

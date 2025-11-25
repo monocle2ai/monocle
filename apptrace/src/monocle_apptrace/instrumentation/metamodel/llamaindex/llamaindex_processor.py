@@ -56,26 +56,14 @@ class LlamaIndexAgentHandler(SpanHandler):
         cur_context = set_value(AGENT_PREFIX_KEY, "handoff", cur_context)
         
         # Attach context before applying session scopes so baggage stays active
-        context_token = attach(cur_context)
-
-        session_id_token = None
         session_id = extract_session_id(kwargs)
+        session_id_token = None
         if session_id:
-            session_id_token = set_scope(AGENT_SESSION, session_id)
+            session_id_token = set_scope(AGENT_SESSION, session_id, cur_context)
 
-        return (context_token, session_id_token), None
+        return session_id_token, None
 
-    def post_tracing(self, to_wrap, wrapped, instance, args, kwargs, return_value, token=None):
-        if token:
-            context_token, session_id_token = token if isinstance(token, tuple) else (token, None)
-            
-            # Clean up session scope
-            if session_id_token:
-                remove_scope(session_id_token)
-            
-            # Clean up context
-            if context_token:
-                detach(context_token)
+
     
     # LlamaIndex uses direct OpenAI call for agent inferences. Given that the workflow type is set to llamaindex, the openAI inference does not record the input/output events.
     # To avoid this, we set the workflow type to generic for agent inference spans so we can capture the prompts and responses.

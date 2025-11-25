@@ -18,7 +18,5 @@ class StrandsSpanHandler(SpanHandler):
 
         return session_id_token, None
 
-    def post_tracing(self, to_wrap, wrapped, instance, args, kwargs, return_value, token):
-        if token:
-            remove_scope(token)
+
 

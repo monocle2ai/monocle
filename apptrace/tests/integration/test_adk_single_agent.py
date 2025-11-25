@@ -202,6 +202,10 @@ def verify_spans(memory_exporter):
             if span_attributes["entity.1.name"] == "get_weather":
                 found_tool = True
 
+        if 'monocle_apptrace.version' in span_attributes:
+            assert "scope.agentic.session" in span_attributes, f"scope.agentic.session not found in span {span.name}"
+            assert span_attributes["scope.agentic.session"] == SESSION_ID, f"Expected session {SESSION_ID}, got {span_attributes.get('scope.agentic.session')}"
+
     assert found_inference, "Inference span not found"
     assert found_agent, "Agent span not found"
     assert found_tool, "Tool span not found"

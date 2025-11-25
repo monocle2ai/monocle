@@ -31,6 +31,7 @@ from monocle_apptrace.instrumentation.metamodel.azfunc.methods import AZFUNC_HTT
 from monocle_apptrace.instrumentation.metamodel.gemini.methods import GEMINI_METHODS
 from monocle_apptrace.instrumentation.metamodel.fastapi.methods import FASTAPI_METHODS
 from monocle_apptrace.instrumentation.metamodel.fastapi._helper import FastAPISpanHandler, FastAPIResponseSpanHandler
+from monocle_apptrace.instrumentation.metamodel.fastmcp.methods import FASTMCP_METHODS
 from monocle_apptrace.instrumentation.metamodel.lambdafunc._helper import lambdaSpanHandler
 from monocle_apptrace.instrumentation.metamodel.lambdafunc.methods import LAMBDA_HTTP_METHODS
 from monocle_apptrace.instrumentation.metamodel.mcp.methods import MCP_METHODS
@@ -40,6 +41,7 @@ from monocle_apptrace.instrumentation.metamodel.litellm.methods import LITELLM_M
 from monocle_apptrace.instrumentation.metamodel.adk.methods import ADK_METHODS
 from monocle_apptrace.instrumentation.metamodel.mistral.methods import MISTRAL_METHODS
 from monocle_apptrace.instrumentation.metamodel.strands.methods import STRAND_METHODS
+from monocle_apptrace.instrumentation.metamodel.adk._helper import AdkSpanHandler
 
 class WrapperMethod:
     def __init__(
@@ -106,6 +108,7 @@ DEFAULT_METHODS_LIST = (
     AZFUNC_HTTP_METHODS + 
     GEMINI_METHODS + 
     FASTAPI_METHODS + 
+    FASTMCP_METHODS +
     LAMBDA_HTTP_METHODS +
     MCP_METHODS + 
     A2A_CLIENT_METHODS +
@@ -135,5 +138,6 @@ MONOCLE_SPAN_HANDLERS: Dict[str, SpanHandler] = {
     "llamaindex_tool_handler": LlamaIndexToolHandler(),
     "llamaindex_agent_handler": LlamaIndexAgentHandler(),
     "llamaindex_single_agent_tool_handler": LlamaIndexSingleAgenttToolHandlerWrapper(),
-    "lambda_func_handler": lambdaSpanHandler()
+    "lambda_func_handler": lambdaSpanHandler(),
+    "adk_handler": AdkSpanHandler()
 }

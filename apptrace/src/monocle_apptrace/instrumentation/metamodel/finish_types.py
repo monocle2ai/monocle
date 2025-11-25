@@ -38,6 +38,7 @@ ANTHROPIC_FINISH_REASON_MAPPING = {
 # Gemini finish reason mapping
 GEMINI_FINISH_REASON_MAPPING = {
     "STOP": FinishType.SUCCESS.value,
+    "FUNCTION_CALL": FinishType.TOOL_CALL.value,
     "MAX_TOKENS": FinishType.TRUNCATED.value,
     "SAFETY": FinishType.CONTENT_FILTER.value,
     "RECITATION": FinishType.CONTENT_FILTER.value,

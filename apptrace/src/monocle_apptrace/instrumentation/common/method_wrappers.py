@@ -9,7 +9,7 @@ from opentelemetry.trace.span import INVALID_SPAN
 from opentelemetry.trace import get_tracer
 from contextlib import contextmanager, asynccontextmanager
 from monocle_apptrace.instrumentation.common.span_handler import SpanHandler
-from monocle_apptrace.instrumentation.common.wrapper import atask_wrapper, get_current_monocle_span, set_monocle_span_in_context, task_wrapper
+from monocle_apptrace.instrumentation.common.wrapper import atask_wrapper, get_current_monocle_span, set_monocle_span_in_context, task_wrapper, start_as_monocle_span
 from monocle_apptrace.instrumentation.common.utils import (
     http_route_handler, http_async_route_handler
 )
@@ -107,8 +107,8 @@ def monocle_trace(
     try:
         tracer = get_tracer(instrumenting_module_name=MONOCLE_INSTRUMENTOR, tracer_provider=get_tracer_provider())
         span_name = span_name or "custom_span"
-                
-        with tracer.start_as_current_span(span_name) as span:
+
+        with start_as_monocle_span(tracer, span_name, auto_close_span=True) as span:
             # Set default monocle attributes
             SpanHandler.set_default_monocle_attributes(span)
             if SpanHandler.is_root_span(span):
@@ -145,7 +145,7 @@ async def amonocle_trace(
         tracer = get_tracer(instrumenting_module_name=MONOCLE_INSTRUMENTOR, tracer_provider=get_tracer_provider())
         span_name = span_name or "custom_span"
 
-        with tracer.start_as_current_span(span_name) as span:
+        with start_as_monocle_span(tracer, span_name, auto_close_span=True) as span:
             # Set default monocle attributes
             SpanHandler.set_default_monocle_attributes(span)
             if SpanHandler.is_root_span(span):

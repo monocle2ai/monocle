@@ -1,8 +1,9 @@
 from opentelemetry.context import attach, detach, get_current, get_value, set_value, Context
-from monocle_apptrace.instrumentation.common.constants import AGENT_PREFIX_KEY
+from monocle_apptrace.instrumentation.common.constants import AGENT_PREFIX_KEY, AGENT_SESSION
 from monocle_apptrace.instrumentation.common.span_handler import SpanHandler
+from monocle_apptrace.instrumentation.common.utils import set_scope, remove_scope
 from monocle_apptrace.instrumentation.metamodel.llamaindex._helper import (
-    is_delegation_tool, LLAMAINDEX_AGENT_NAME_KEY, get_agent_name, get_name, set_current_agent
+    is_delegation_tool, LLAMAINDEX_AGENT_NAME_KEY, get_agent_name, get_name, set_current_agent, extract_session_id
 )
 from monocle_apptrace.instrumentation.metamodel.llamaindex.entities.agent import (
     AGENT_DELEGATION
@@ -53,11 +54,16 @@ class LlamaIndexAgentHandler(SpanHandler):
         set_current_agent(agent_name)
         cur_context = set_value(LLAMAINDEX_AGENT_NAME_KEY, agent_name, cur_context)
         cur_context = set_value(AGENT_PREFIX_KEY, "handoff", cur_context)
-        return attach(cur_context), None
+        
+        # Attach context before applying session scopes so baggage stays active
+        session_id = extract_session_id(kwargs)
+        session_id_token = None
+        if session_id:
+            session_id_token = set_scope(AGENT_SESSION, session_id, cur_context)
 
-    def post_tracing(self, to_wrap, wrapped, instance, args, kwargs, return_value, token=None):
-        if token:
-            detach(token)
+        return session_id_token, None
+
+
     
     # LlamaIndex uses direct OpenAI call for agent inferences. Given that the workflow type is set to llamaindex, the openAI inference does not record the input/output events.
     # To avoid this, we set the workflow type to generic for agent inference spans so we can capture the prompts and responses.

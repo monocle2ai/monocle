@@ -8,6 +8,7 @@ STRAND_METHODS = [
         "object": "Agent",
         "method": "__call__",
         "wrapper_method": task_wrapper,
+        "span_handler": "strands_handler",
         "output_processor_list": [AGENT_REQUEST, AGENT_DELEGATION, AGENT]
     },
     {

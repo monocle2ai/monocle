@@ -50,10 +50,9 @@ class MonocleValidator:
         test_trace_path:str = os.path.join(".", DEFAULT_TRACE_FOLDER, "test_traces")
         os.environ["MONOCLE_TRACE_OUTPUT_PATH"] = test_trace_path
         if exporter_list is None:
-            exporter_list = "memory, file"
-        else:
-            if "memory" not in exporter_list:
-                exporter_list = exporter_list + ",memory"
+            exporter_list = os.getenv("MONOCLE_EXPORTER", "memory, file")
+        if "memory" not in exporter_list:
+            exporter_list = exporter_list + ",memory"
         self.instrumentor = setup_monocle_telemetry(workflow_name="monocle_validator",
                                               monocle_exporters_list=exporter_list)
         for exporter in self.instrumentor.exporters:

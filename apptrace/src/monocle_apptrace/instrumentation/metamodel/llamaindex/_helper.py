@@ -27,6 +27,16 @@ _thread_local = threading.local()
 
 logger = logging.getLogger(__name__)
 
+
+def extract_session_id(kwargs):
+    # LlamaIndex passes memory via 'memory' kwarg
+    memory = kwargs.get('memory')
+    if memory is not None:
+        # Memory objects have a session_id attribute
+        if hasattr(memory, 'session_id'):
+            return memory.session_id
+    return None
+
 def get_status(result):
     if result is not None and hasattr(result, 'status'):
         return result.status

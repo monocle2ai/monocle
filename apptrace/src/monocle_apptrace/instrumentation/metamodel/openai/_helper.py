@@ -15,12 +15,11 @@ from monocle_apptrace.instrumentation.common.utils import (
     get_parent_span,
     get_status_code,
 )
-from monocle_apptrace.instrumentation.common.span_handler import NonFrameworkSpanHandler, WORKFLOW_TYPE_MAP
 from monocle_apptrace.instrumentation.metamodel.finish_types import (
     map_openai_finish_reason_to_finish_type,
     OPENAI_FINISH_REASON_MAPPING
 )
-from monocle_apptrace.instrumentation.common.constants import AGENT_PREFIX_KEY, CHILD_ERROR_CODE, INFERENCE_AGENT_DELEGATION, INFERENCE_TURN_END, INFERENCE_TOOL_CALL
+from monocle_apptrace.instrumentation.common.constants import AGENT_PREFIX_KEY, INFERENCE_AGENT_DELEGATION, INFERENCE_TURN_END, INFERENCE_TOOL_CALL
 from contextlib import suppress
 
 logger = logging.getLogger(__name__)
@@ -284,41 +283,6 @@ def get_inference_type(instance):
     # fallback default
     return "openai"
 
-class OpenAISpanHandler(NonFrameworkSpanHandler):
-    def is_teams_span_in_progress(self) -> bool:
-        return self.is_framework_span_in_progress() and self.get_workflow_name_in_progress() == WORKFLOW_TYPE_MAP["teams.ai"]
-    
-    def is_llamaindex_span_in_progress(self) -> bool:
-        return self.is_framework_span_in_progress() and self.get_workflow_name_in_progress() == WORKFLOW_TYPE_MAP["llama_index"]
-
-    # If openAI is being called by Teams AI SDK or LlamaIndex, customize event processing
-    def skip_processor(self, to_wrap, wrapped, instance, span, args, kwargs) -> list[str]:
-        if self.is_teams_span_in_progress():
-            return ["attributes", "events.data.input", "events.data.output"]
-        elif self.is_llamaindex_span_in_progress():
-            # For LlamaIndex, we want to keep all inference span attributes and events
-            return []
-        else:
-            return super().skip_processor(to_wrap, wrapped, instance, span, args, kwargs)
-
-    def hydrate_events(self, to_wrap, wrapped, instance, args, kwargs, ret_result, span, parent_span=None, ex:Exception=None, is_post_exec:bool=False) -> bool:
-        # If openAI is being called by Teams AI SDK, then copy parent
-        if self.is_teams_span_in_progress() and ex is None:
-            return super().hydrate_events(to_wrap, wrapped, instance, args, kwargs, ret_result, span=parent_span, parent_span=None, ex=ex, is_post_exec=is_post_exec)
-        # For LlamaIndex, process events normally on the inference span
-        elif self.is_llamaindex_span_in_progress():
-            return super().hydrate_events(to_wrap, wrapped, instance, args, kwargs, ret_result, span, parent_span=parent_span, ex=ex, is_post_exec=is_post_exec)
-
-        return super().hydrate_events(to_wrap, wrapped, instance, args, kwargs, ret_result, span, parent_span=parent_span, ex=ex, is_post_exec=is_post_exec)
-
-    def post_task_processing(self, to_wrap, wrapped, instance, args, kwargs, result, ex, span, parent_span):
-        # TeamsAI doesn't capture the status and other metadata from underlying OpenAI SDK.
-        # Thus we save the OpenAI status code in the parent span and retrieve it here to preserve meaningful error codes.
-        if self.is_teams_span_in_progress() and ex is not None:
-            if len(span.events) > 1 and span.events[1].name == "data.output" and span.events[1].attributes.get("error_code") is not None:
-                parent_span.set_attribute(CHILD_ERROR_CODE, span.events[1].attributes.get("error_code"))
-        super().post_task_processing(to_wrap, wrapped, instance, args, kwargs, result, ex, span, parent_span)
-
 def extract_finish_reason(arguments):
     """Extract finish_reason from OpenAI response"""
     try:
@@ -396,17 +360,33 @@ def extract_tool_name(arguments):
 def extract_tool_type(arguments):
     """Extract tool type from OpenAI response when finish_type is tool_call"""
     try:
-        finish_type = map_finish_reason_to_finish_type(extract_finish_reason(arguments))
-        if finish_type != "tool_call":
+        if arguments.get("exception") is not None:
             return None
-
-        tool_name = extract_tool_name(arguments)
-        if tool_name:
-            return "tool.function"
+        
+        response = arguments.get("result")
+        if response is None:
+            return None
+        
+        # Check for tool calls in the response
+        tool_call = _get_first_tool_call(response)
+        if tool_call:
+            # Return generic tool type for OpenAI tools
+            return "tool.openai"
             
     except Exception as e:
         logger.warning("Warning: Error occurred in extract_tool_type: %s", str(e))
+        return None
     
+    return None
+
+
+def extract_session_id_from_agents(kwargs):
+    # OpenAI Agents passes session via 'session' kwarg
+    session = kwargs.get('session')
+    if session is not None:
+        # Session objects have a session_id attribute
+        if hasattr(session, 'session_id'):
+            return session.session_id
     return None
 
 

@@ -1,5 +1,6 @@
 import logging
 from contextlib import suppress
+from monocle_apptrace.instrumentation.common.constants import TOOL_TYPE
 from monocle_apptrace.instrumentation.common.utils import (
     get_exception_message,
     get_json_dumps,
@@ -102,13 +103,13 @@ def update_span_from_llm_response(response, instance):
 def extract_finish_reason(arguments):
     """Extract finish_reason from Gemini response"""
     try:
-        if arguments["exception"] is not None:
+        if "exception" in arguments and arguments["exception"] is not None:
             return None
             
         response = arguments["result"]
 
         with suppress(IndexError, AttributeError):
-            if response.part is not None and response.parts[0].function_call is not None:
+            if response.parts is not None and response.parts[0].function_call is not None:
                 return "FUNCTION_CALL"
         
         # Handle Gemini response structure
@@ -126,3 +127,53 @@ def extract_finish_reason(arguments):
 def map_finish_reason_to_finish_type(finish_reason):
     """Map Gemini finish_reason to finish_type based on the possible errors mapping"""
     return map_gemini_finish_reason_to_finish_type(finish_reason)
+
+def _get_first_tool_call(response):
+
+    with suppress(AttributeError, IndexError, TypeError):
+        if hasattr(response,"parts") and len(response.parts)>0:
+            for part in response.parts:
+                if hasattr(part,"function_call") and part.function_call is not None:
+                    return part.function_call
+
+    return None
+
+def extract_tool_name(arguments):
+    """Extract tool name from Gemini response when function calls are present"""
+    try:
+        finish_type = map_finish_reason_to_finish_type(extract_finish_reason(arguments))
+        if finish_type != "tool_call":
+            return None
+
+        tool_call = _get_first_tool_call(arguments["result"])
+        if not tool_call:
+            return None
+
+        for getter in [
+            lambda tc: tc.name,
+        ]:
+            try:
+                return getter(tool_call)
+            except (KeyError, AttributeError, TypeError):
+                continue
+
+    except Exception as e:
+        logger.warning("Warning: Error occurred in extract_tool_name: %s", str(e))
+
+    return None
+
+def extract_tool_type(arguments):
+    """Extract tool type from Gemini response when function calls are present"""
+    try:
+        finish_type = map_finish_reason_to_finish_type(extract_finish_reason(arguments))
+        if finish_type != "tool_call":
+            return None
+
+        tool_name = extract_tool_name(arguments)
+        if tool_name:
+            return TOOL_TYPE
+
+    except Exception as e:
+        logger.warning("Warning: Error occurred in extract_tool_type: %s", str(e))
+
+    return None

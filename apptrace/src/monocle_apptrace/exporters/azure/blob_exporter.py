@@ -7,7 +7,7 @@ from azure.core.exceptions import ResourceNotFoundError, ClientAuthenticationErr
 from opentelemetry.sdk.trace import ReadableSpan
 from opentelemetry.sdk.trace.export import SpanExporter, SpanExportResult
 from typing import Sequence, Optional, Dict, List, Tuple
-from monocle_apptrace.exporters.base_exporter import SpanExporterBase
+from monocle_apptrace.exporters.base_exporter import SpanExporterBase, format_trace_id_without_0x
 from monocle_apptrace.exporters.exporter_processor import ExportTaskProcessor
 import json
 from monocle_apptrace.instrumentation.common.constants import MONOCLE_SDK_VERSION
@@ -103,7 +103,7 @@ class AzureBlobSpanExporter(SpanExporterBase):
             try:
                 self.__upload_to_blob_with_trace_id(serialized_data, trace_id)
             except Exception as e:
-                logger.error(f"Failed to upload trace {hex(trace_id)}: {e}")
+                logger.error(f"Failed to upload trace {format_trace_id_without_0x(trace_id)}: {e}")
         
         del self.trace_spans[trace_id]
 
@@ -184,10 +184,10 @@ class AzureBlobSpanExporter(SpanExporterBase):
     def __upload_to_blob_with_trace_id(self, span_data_batch: str, trace_id: int):
         """Upload spans for a specific trace to Azure Blob with trace ID in filename."""
         current_time = datetime.datetime.now().strftime(self.time_format)
-        file_name = f"{self.file_prefix}{current_time}_{hex(trace_id)}.ndjson"
+        file_name = f"{self.file_prefix}{current_time}_{format_trace_id_without_0x(trace_id)}.ndjson"
         blob_client = self.blob_service_client.get_blob_client(container=self.container_name, blob=file_name)
         blob_client.upload_blob(span_data_batch, overwrite=True)
-        logger.debug(f"Trace {hex(trace_id)} uploaded to Azure Blob Storage as {file_name}.")
+        logger.debug(f"Trace {format_trace_id_without_0x(trace_id)} uploaded to Azure Blob Storage as {file_name}.")
 
     async def force_flush(self, timeout_millis: int = 30000) -> bool:
         """Flush all pending traces to Azure Blob."""

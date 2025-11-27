@@ -63,11 +63,6 @@ class OkahuSpanExporter(SpanExporterBase):
                 continue
             # create a object from serialized span
             obj = json.loads(span.to_json())
-            if obj["parent_id"] is not None:
-                obj["parent_id"] = remove_0x_from_start(obj["parent_id"])
-            if obj["context"] is not None:
-                obj["context"]["trace_id"] = remove_0x_from_start(obj["context"]["trace_id"])
-                obj["context"]["span_id"] = remove_0x_from_start(obj["context"]["span_id"])
             span_list["batch"].append(obj)
 
         # Calculate is_root_span by checking if any span has no parent
@@ -109,10 +104,3 @@ class OkahuSpanExporter(SpanExporterBase):
 
     def force_flush(self, timeout_millis: int = 30000) -> bool:
         return True
-
-
-# only removes the first occurrence of 0x from the string
-def remove_0x_from_start(my_str: str):
-    if my_str.startswith("0x"):
-        return my_str.replace("0x", "", 1)
-    return my_str

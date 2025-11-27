@@ -204,12 +204,12 @@ def extract_provider_name(instance):
     return urlparse(instance.meta.endpoint_url).hostname
 
 def _get_first_tool_call(response):
-    """Helper function to extract the first tool call from various LangChain response formats"""
+    """Helper function to extract the first tool call from various Boto response formats"""
     with suppress(AttributeError, IndexError, TypeError):
         if "output" in response and "message" in response["output"]:
             message = response["output"]["message"]
             if "content" in message and isinstance(message["content"], list):
-                for content_block in message["content"]:
+                for content_block in reversed(message["content"]):
                     return content_block
 
     return None

@@ -43,7 +43,6 @@ from monocle_apptrace.instrumentation.metamodel.adk.adk_handler import AdkSpanHa
 from monocle_apptrace.instrumentation.metamodel.mistral.methods import MISTRAL_METHODS
 from monocle_apptrace.instrumentation.metamodel.strands.methods import STRAND_METHODS
 from monocle_apptrace.instrumentation.metamodel.strands.strands_processor import StrandsSpanHandler
-from monocle_apptrace.instrumentation.metamodel.adk._helper import AdkSpanHandler
 
 class WrapperMethod:
     def __init__(

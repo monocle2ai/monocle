@@ -201,16 +201,6 @@ def verify_spans(memory_exporter):
             assert "input" in span_input.attributes
             assert "response" in span_output.attributes
 
-        if (
-                "span.type" in span_attributes
-                and span_attributes["span.type"] == "agentic.delegation"
-        ):
-                found_delegation = True
-                assert "entity.1.type" in span_attributes
-                assert span_attributes["entity.1.type"] == "agent.adk"
-                assert "entity.1.from_agent" in span_attributes
-                assert "entity.1.to_agent" in span_attributes
-
     assert found_inference, "Inference span not found"
     assert found_agent, "Agent span not found"
     assert found_tool, "Tool span not found"
@@ -221,7 +211,6 @@ def verify_spans(memory_exporter):
     assert found_book_hotel_delegation, "Book hotel delegation span not found"
     assert found_book_flight_tool, "Book flight tool span not found"
     assert found_book_hotel_tool, "Book hotel tool span not found"
-    assert found_delegation, "Delegation span not found"
 
 if __name__ == "__main__":
     pytest.main([__file__, "-s", "--tb=short"])

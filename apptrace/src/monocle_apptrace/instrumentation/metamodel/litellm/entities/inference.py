@@ -9,6 +9,7 @@ from monocle_apptrace.instrumentation.common.utils import (
 )
 INFERENCE = {
     "type": SPAN_TYPES.INFERENCE,
+    "subtype": lambda arguments: _helper.agent_inference_type(arguments),
     "attributes": [
         [
             {
@@ -65,6 +66,20 @@ INFERENCE = {
                 ),
             },
         ],
+        [
+            {
+                "_comment": "Tool name when finish_type is tool_call",
+                "attribute": "name",
+                "phase": "post_execution",
+                "accessor": lambda arguments: _helper.extract_tool_name(arguments),
+            },
+            {
+                "_comment": "Tool type when finish_type is tool_call", 
+                "attribute": "type",
+                "phase": "post_execution",
+                "accessor": lambda arguments: _helper.extract_tool_type(arguments),
+            },
+        ],
     ],
     "events": [
         {
@@ -102,6 +117,17 @@ INFERENCE = {
                     "accessor": lambda arguments: _helper.update_span_from_llm_response(
                         arguments["result"]
                     ),
+                },
+                {
+                    "_comment": "finish reason from LiteLLM response",
+                    "attribute": "finish_reason",
+                    "accessor": lambda arguments: _helper.extract_finish_reason(arguments)
+                },
+                {
+                    "_comment": "finish type mapped from finish reason",
+                    "attribute": "finish_type",
+                    "accessor": lambda arguments: _helper.map_finish_reason_to_finish_type(
+                        _helper.extract_finish_reason(arguments))
                 }
             ],
         },

@@ -52,3 +52,12 @@ class SpanExporterBase(ABC):
             return wrapper
 
         return decorator
+    
+
+def format_trace_id_without_0x(trace_id: int) -> str:
+    """Format trace_id as 32-character lowercase hex string without 0x prefix."""
+    return f"{trace_id:032x}"
+
+def format_span_id_without_0x(span_id: int) -> str:
+    """Format span_id as 16-character lowercase hex string without 0x prefix."""
+    return f"{span_id:016x}"

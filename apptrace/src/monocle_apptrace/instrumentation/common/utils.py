@@ -7,7 +7,7 @@ from typing import Callable, Generic, Optional, TypeVar, Mapping, Union
 from opentelemetry.context import attach, detach, get_current, get_value, set_value, Context
 from opentelemetry.trace import NonRecordingSpan, Span
 from opentelemetry.trace.propagation import _SPAN_KEY
-from opentelemetry.sdk.trace import id_generator, TracerProvider
+from opentelemetry.sdk.trace import id_generator, TracerProvider, ReadableSpan
 from opentelemetry.propagate import extract
 from opentelemetry import baggage
 from monocle_apptrace.instrumentation.common.constants import (
@@ -587,3 +587,33 @@ def extract_from_agent_name(parent_span):
     if parent_span is not None:
         return parent_span.attributes.get(LAST_AGENT_NAME)
     return None
+# Store original to_json method for monkey-patching
+_original_to_json = None
+
+def _remove_0x_prefix(obj):
+    """Recursively remove 0x prefix from hex strings in a JSON object."""
+    if isinstance(obj, dict):
+        return {k: _remove_0x_prefix(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [_remove_0x_prefix(item) for item in obj]
+    elif isinstance(obj, str) and obj.startswith("0x"):
+        return obj[2:]
+    return obj
+
+def _patched_to_json(self, indent=None):
+    """Patched to_json that removes 0x prefix from trace_id/span_id/parent_id."""
+    global _original_to_json
+    original_json = _original_to_json(self, indent=indent)
+    obj = json.loads(original_json)
+    obj = _remove_0x_prefix(obj)
+    if indent is None:
+        return json.dumps(obj, separators=(',', ':'))
+    else:
+        return json.dumps(obj, indent=indent)
+
+def setup_readablespan_patch():
+    """Apply monkey-patch to ReadableSpan.to_json to remove 0x prefix from trace/span IDs."""
+    global _original_to_json
+    if _original_to_json is None:
+        _original_to_json = ReadableSpan.to_json
+        ReadableSpan.to_json = _patched_to_json

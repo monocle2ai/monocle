@@ -13,7 +13,7 @@ from monocle_apptrace.instrumentation.metamodel.llamaindex.methods import (LLAMA
 from monocle_apptrace.instrumentation.metamodel.llamaindex.llamaindex_processor import LlamaIndexToolHandler, LlamaIndexAgentHandler, LlamaIndexSingleAgenttToolHandlerWrapper
 from monocle_apptrace.instrumentation.metamodel.haystack.methods import (HAYSTACK_METHODS, )
 from monocle_apptrace.instrumentation.metamodel.openai.methods import (OPENAI_METHODS,)
-from monocle_apptrace.instrumentation.metamodel.openai._helper import OpenAISpanHandler
+from monocle_apptrace.instrumentation.metamodel.openai.openai_processor import ( OpenAISpanHandler, OpenAIAgentsSpanHandler)
 from monocle_apptrace.instrumentation.metamodel.langgraph.methods import LANGGRAPH_METHODS
 from monocle_apptrace.instrumentation.metamodel.langgraph.langgraph_processor import LanggraphAgentHandler, LanggraphToolHandler
 from monocle_apptrace.instrumentation.metamodel.agents.methods import AGENTS_METHODS
@@ -41,6 +41,7 @@ from monocle_apptrace.instrumentation.metamodel.litellm.methods import LITELLM_M
 from monocle_apptrace.instrumentation.metamodel.adk.methods import ADK_METHODS
 from monocle_apptrace.instrumentation.metamodel.mistral.methods import MISTRAL_METHODS
 from monocle_apptrace.instrumentation.metamodel.strands.methods import STRAND_METHODS
+from monocle_apptrace.instrumentation.metamodel.strands.strands_processor import StrandsSpanHandler
 from monocle_apptrace.instrumentation.metamodel.adk._helper import AdkSpanHandler
 
 class WrapperMethod:
@@ -128,6 +129,7 @@ MONOCLE_SPAN_HANDLERS: Dict[str, SpanHandler] = {
     "request_handler": RequestSpanHandler(),
     "non_framework_handler": NonFrameworkSpanHandler(),
     "openai_handler": OpenAISpanHandler(),
+    "openai_agents_handler": OpenAIAgentsSpanHandler(),
     "azure_func_handler": azureSpanHandler(),
     "mcp_agent_handler": MCPAgentHandler(),
     "fastapi_handler": FastAPISpanHandler(),
@@ -139,5 +141,6 @@ MONOCLE_SPAN_HANDLERS: Dict[str, SpanHandler] = {
     "llamaindex_agent_handler": LlamaIndexAgentHandler(),
     "llamaindex_single_agent_tool_handler": LlamaIndexSingleAgenttToolHandlerWrapper(),
     "lambda_func_handler": lambdaSpanHandler(),
-    "adk_handler": AdkSpanHandler()
+    "adk_handler": AdkSpanHandler(),
+    "strands_handler": StrandsSpanHandler()
 }

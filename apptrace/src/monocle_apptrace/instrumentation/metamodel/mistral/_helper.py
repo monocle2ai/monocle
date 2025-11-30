@@ -16,7 +16,8 @@ from monocle_apptrace.instrumentation.common.utils import (
     get_exception_message,
 )
 from monocle_apptrace.instrumentation.metamodel.finish_types import map_mistral_finish_reason_to_finish_type
-from monocle_apptrace.instrumentation.common.constants import AGENT_PREFIX_KEY, INFERENCE_AGENT_DELEGATION, INFERENCE_TURN_END, INFERENCE_TOOL_CALL
+from monocle_apptrace.instrumentation.common.constants import AGENT_PREFIX_KEY, INFERENCE_AGENT_DELEGATION, INFERENCE_TURN_END, INFERENCE_TOOL_CALL, TOOL_TYPE
+from contextlib import suppress
 
 logger = logging.getLogger(__name__)
 
@@ -140,18 +141,23 @@ def extract_assistant_message(arguments):
     return meta_dict'''
 
 def update_span_from_llm_response(result, include_token_counts=False):
-    tokens = {
-        "completion_tokens": getattr(result, "completion_tokens", 0),
-        "prompt_tokens": getattr(result, "prompt_tokens", 0),
-        "total_tokens": getattr(result, "total_tokens", 0),
-    } if include_token_counts else {}
-    # Add other metadata fields like finish_reason, etc.
-    return {**tokens}
+    tokens = {}
+    if include_token_counts and result is not None:
+        # Try to extract token usage from the response
+        if hasattr(result, "usage"):
+            usage = result.usage
+            tokens = {
+                "completion_tokens": getattr(usage, "completion_tokens", 0),
+                "prompt_tokens": getattr(usage, "prompt_tokens", 0),
+                "total_tokens": getattr(usage, "total_tokens", 0),
+            }
+
+    return tokens
 
 
 def extract_finish_reason(arguments):
     """
-    Extract stop_reason from a Mistral response or stream chunks.
+    Extract finish_reason from a Mistral response or stream chunks.
     Works for both streaming (list of chunks) and full responses.
     """
     try:
@@ -159,9 +165,11 @@ def extract_finish_reason(arguments):
         if response is None:
             return None
 
-        # Handle full response: single object with stop_reason
-        if hasattr(response, "stop_reason") and response.stop_reason:
-            return response.stop_reason
+        # Handle full response: check choices for finish_reason
+        if hasattr(response, "choices") and response.choices:
+            finish_reason = getattr(response.choices[0], "finish_reason", None)
+            if finish_reason:
+                return finish_reason
 
         # Handle streaming: list of chunks, last chunk may have finish_reason
         if isinstance(response, list):
@@ -192,15 +200,26 @@ def agent_inference_type(arguments):
             if response is None:
                 return INFERENCE_TURN_END
 
-            # Check if stop_reason indicates tool use
-            stop_reason = getattr(response, "stop_reason", None)
-            if stop_reason == "tool_use" and hasattr(response, "content") and response.content:
-                agent_prefix = get_value(AGENT_PREFIX_KEY)
-                for content_block in response.content:
-                    if getattr(content_block, "type", None) == "tool_use" and hasattr(content_block, "name"):
-                        if agent_prefix and content_block.name.startswith(agent_prefix):
-                            return INFERENCE_AGENT_DELEGATION
-                return INFERENCE_TOOL_CALL
+            # Check if finish_reason indicates tool use (Mistral uses "tool_calls")
+            if hasattr(response, "choices") and response.choices:
+                finish_reason = getattr(response.choices[0], "finish_reason", None)
+
+                if finish_reason == "tool_calls":
+                    # Check if we have tool calls in the message
+                    if (hasattr(response.choices[0], "message") and
+                        hasattr(response.choices[0].message, "tool_calls") and
+                        response.choices[0].message.tool_calls):
+
+                        tool_calls = response.choices[0].message.tool_calls
+
+                        agent_prefix = get_value(AGENT_PREFIX_KEY)
+                        for tool_call in tool_calls:
+                            if hasattr(tool_call, "function") and hasattr(tool_call.function, "name"):
+                                tool_name = tool_call.function.name
+                                if agent_prefix and tool_name.startswith(agent_prefix):
+                                    return INFERENCE_AGENT_DELEGATION
+
+                        return INFERENCE_TOOL_CALL
 
             # Fallback: check the extracted message for tool content
             assistant_message = extract_assistant_message(arguments)
@@ -221,3 +240,54 @@ def agent_inference_type(arguments):
     except Exception as e:
         logger.warning("Warning: Error occurred in agent_inference_type: %s", str(e))
         return INFERENCE_TURN_END
+
+def _get_first_tool_call(response):
+
+    with suppress(AttributeError, IndexError, TypeError):
+        if response is not None and hasattr(response, "choices") and len(response.choices) > 0:
+            if hasattr(response.choices[0], "message") and hasattr(response.choices[0].message, "tool_calls"):
+                tool_calls = response.choices[0].message.tool_calls
+                if tool_calls and len(tool_calls) > 0:
+                    return tool_calls[0]
+
+    return None
+
+def extract_tool_name(arguments):
+    """Extract tool name from Mistral response when finish_type is tool_call"""
+    try:
+        finish_type = map_finish_reason_to_finish_type(extract_finish_reason(arguments))
+        if finish_type != "tool_call":
+            return None
+
+        tool_call = _get_first_tool_call(arguments["result"])
+        if not tool_call:
+            return None
+
+        for getter in [
+            lambda tc: tc.function.name,
+        ]:
+            try:
+                return getter(tool_call)
+            except (KeyError, AttributeError, TypeError):
+                continue
+
+    except Exception as e:
+        logger.warning("Warning: Error occurred in extract_tool_name: %s", str(e))
+    
+    return None
+
+def extract_tool_type(arguments):
+    """Extract tool type from Mistral response when finish_type is tool_call"""
+    try:
+        finish_type = map_finish_reason_to_finish_type(extract_finish_reason(arguments))
+        if finish_type != "tool_call":
+            return None
+
+        tool_name = extract_tool_name(arguments)
+        if tool_name:
+            return TOOL_TYPE
+            
+    except Exception as e:
+        logger.warning("Warning: Error occurred in extract_tool_type: %s", str(e))
+    
+    return None

@@ -117,12 +117,14 @@ class MonocleValidator:
             return wrapper
         return decorator
 
-    async def test_workflow_async(self, workflow_func, test_case:TestCase):
+    async def test_workflow_async(self, workflow_func, test_case:Union[TestCase, dict]):
         """Run the workflow function with the test case input and validate the output.
         Args:
             workflow_func (callable): The workflow function to test.
             test_case (TestCase): The test case containing input and expected output.
         """
+        if isinstance(test_case, dict):
+            test_case = TestCase.model_validate(test_case)
         result = None
         try:
             result = await workflow_func(*test_case.test_input)
@@ -132,12 +134,14 @@ class MonocleValidator:
         self.validate_result(test_case, result)
         return result
 
-    def test_workflow(self, workflow_func, test_case:TestCase):
+    def test_workflow(self, workflow_func, test_case:Union[TestCase, dict]):
         """Run the workflow function with the test case input and validate the output.
         Args:
             workflow_func (callable): The workflow function to test.
             test_case (TestCase): The test case containing input and expected output.
         """
+        if isinstance(test_case, dict):
+            test_case = TestCase.model_validate(test_case)
         result = None
         try:
             result = workflow_func(*test_case.test_input)
@@ -147,7 +151,9 @@ class MonocleValidator:
         self.validate_result(test_case, result)
         return result
 
-    async def test_agent_async(self, agent, agent_type:str, test_case:TestCase):
+    async def test_agent_async(self, agent, agent_type:str, test_case:Union[TestCase, dict]):
+        if isinstance(test_case, dict):
+            test_case = TestCase.model_validate(test_case)
         agent_runner = get_agent_runner(agent_type)
         if agent_runner is None:
             raise ValueError(f"Unsupported agent type: {agent_type}")
@@ -160,7 +166,9 @@ class MonocleValidator:
         self.validate_result(test_case, result)
         return result
 
-    def test_agent(self, agent, agent_type:str, test_case:TestCase):
+    def test_agent(self, agent, agent_type:str, test_case:Union[TestCase, dict]):
+        if isinstance(test_case, dict):
+            test_case = TestCase.model_validate(test_case)
         agent_runner = get_agent_runner(agent_type)
         if agent_runner is None:
             raise ValueError(f"Unsupported agent type: {agent_type}")

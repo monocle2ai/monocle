@@ -1,5 +1,6 @@
 import logging
 
+from monocle_apptrace.instrumentation.common.constants import TOOL_TYPE
 from monocle_apptrace.instrumentation.common.utils import (
     Option,
     get_json_dumps,
@@ -10,6 +11,8 @@ from monocle_apptrace.instrumentation.common.utils import (
     get_status_code,
 )
 from monocle_apptrace.instrumentation.metamodel.finish_types import map_haystack_finish_reason_to_finish_type
+import json
+from contextlib import suppress
 
 logger = logging.getLogger(__name__)
 
@@ -217,3 +220,63 @@ def extract_finish_reason(arguments):
 def map_finish_reason_to_finish_type(finish_reason):
     """Map Haystack finish_reason to finish_type using Haystack mapping."""
     return map_haystack_finish_reason_to_finish_type(finish_reason)
+
+def _get_first_tool_call(response, instance):
+    """Helper function to extract the first tool call from various LangChain response formats"""
+
+    with suppress(AttributeError, IndexError, TypeError):
+        if isinstance(response, dict) and 'replies' in response and response['replies']:
+            for reply in response['replies']:
+                if hasattr(reply, 'content') and reply.content:
+                    content_data = json.loads(reply.content)
+                    if isinstance(content_data, dict) and 'type' in content_data:
+                        if content_data.get('type') == 'tool_use':
+                            return content_data
+
+        if hasattr(instance, 'generation_kwargs') and instance.generation_kwargs:
+            tools = instance.generation_kwargs.get('tools', [])
+            if tools and len(tools) > 0:
+                return tools[0]
+
+    return None
+
+def extract_tool_name(arguments):
+    """Extract tool name from Haystack response when finish_type is tool_call"""
+    try:
+        finish_type = map_finish_reason_to_finish_type(extract_finish_reason(arguments))
+        if finish_type != "tool_call":
+            return None
+
+        tool_call = _get_first_tool_call(arguments["result"],arguments["instance"])
+        if not tool_call:
+            return None
+
+        for getter in [
+            lambda tc: tc["name"],
+            lambda tc: tc["function"]["name"]
+        ]:
+            try:
+                return getter(tool_call)
+            except (KeyError, AttributeError, TypeError):
+                continue
+
+    except Exception as e:
+        logger.warning("Warning: Error occurred in extract_tool_name: %s", str(e))
+    
+    return None
+
+def extract_tool_type(arguments):
+    """Extract tool type from Haystack response when finish_type is tool_call"""
+    try:
+        finish_type = map_finish_reason_to_finish_type(extract_finish_reason(arguments))
+        if finish_type != "tool_call":
+            return None
+
+        tool_name = extract_tool_name(arguments)
+        if tool_name:
+            return TOOL_TYPE
+            
+    except Exception as e:
+        logger.warning("Warning: Error occurred in extract_tool_type: %s", str(e))
+    
+    return None

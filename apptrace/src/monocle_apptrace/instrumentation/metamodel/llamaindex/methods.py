@@ -91,6 +91,7 @@ LLAMAINDEX_METHODS = [
         "object": "ReActAgent",
         "method": "run",
         "wrapper_method": task_wrapper,
+        "span_handler": "llamaindex_agent_handler",
         "output_processor": AGENT
     },
     {

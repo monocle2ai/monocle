@@ -20,6 +20,7 @@ class TestGeminiFinishReasonHelpers(unittest.TestCase):
         """Test that all expected Gemini finish reasons are mapped."""
         expected_reasons = {
             "STOP": "success",
+            "FUNCTION_CALL":"tool_call",
             "MAX_TOKENS": "truncated",
             "SAFETY": "content_filter",
             "RECITATION": "content_filter",

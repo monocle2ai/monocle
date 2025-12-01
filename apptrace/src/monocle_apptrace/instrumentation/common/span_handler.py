@@ -4,14 +4,16 @@ from contextlib import contextmanager
 from typing import Union
 from opentelemetry.context import get_value, set_value, attach, detach
 from opentelemetry.sdk.trace import Span
+from opentelemetry.trace.span import INVALID_SPAN
 from opentelemetry.trace.status import Status, StatusCode
 from monocle_apptrace.instrumentation.common.constants import (
     QUERY,
     service_name_map,
     service_type_map,
-    MONOCLE_SDK_VERSION, MONOCLE_SDK_LANGUAGE, MONOCLE_DETECTED_SPAN_ERROR
+    MONOCLE_SDK_VERSION, MONOCLE_SDK_LANGUAGE, MONOCLE_DETECTED_SPAN_ERROR,
+    SPAN_TYPES, LAST_INFERENCE
 )
-from monocle_apptrace.instrumentation.common.utils import set_attribute, get_scopes, MonocleSpanException, get_monocle_version, replace_placeholders
+from monocle_apptrace.instrumentation.common.utils import set_attribute, get_scopes, MonocleSpanException, get_monocle_version, replace_placeholders, propogate_inference_info_to_parent_span
 from monocle_apptrace.instrumentation.common.constants import WORKFLOW_TYPE_KEY, WORKFLOW_TYPE_GENERIC, CHILD_ERROR_CODE, MONOCLE_SKIP_EXECUTIONS, SKIPPED_EXECUTION
 
 logger = logging.getLogger(__name__)
@@ -53,7 +55,8 @@ class SpanHandler:
         return None, None
 
     def post_tracing(self, to_wrap, wrapped, instance, args, kwargs, return_value, token=None):
-        pass
+        if token:
+            detach(token)
 
     def skip_span(self, to_wrap, wrapped, instance, args, kwargs) -> bool:
         return False
@@ -100,7 +103,7 @@ class SpanHandler:
         span.set_attribute("span.type", "generic")
 
     def post_task_processing(self, to_wrap, wrapped, instance, args, kwargs, result, ex, span:Span, parent_span:Span):
-        pass
+        propogate_inference_info_to_parent_span(span, parent_span)
 
     def should_skip(self, processor, instance, span, parent_span, args, kwargs) -> bool:
         should_skip = False
@@ -382,3 +385,5 @@ class NonFrameworkSpanHandler(SpanHandler):
             span.set_attribute("span.type", span_type)
         return span_type
 
+class AgenticSpanHandler(SpanHandler):
+    pass

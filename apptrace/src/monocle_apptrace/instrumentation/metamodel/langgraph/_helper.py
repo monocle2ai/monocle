@@ -1,5 +1,6 @@
 from opentelemetry.context import get_value
 from monocle_apptrace.instrumentation.common.utils import resolve_from_alias
+from monocle_apptrace.instrumentation.common.constants import AGENT_NAME_KEY, LAST_AGENT_INVOCATION_ID, LAST_AGENT_NAME
 import logging
 logger = logging.getLogger(__name__)
 
@@ -22,7 +23,12 @@ def agent_instructions(arguments):
     else:
         return arguments['kwargs']['agent'].instructions
 
-def extract_request_agent_input(arguments):
+def is_single_agent_instance(instance) -> bool:
+    if hasattr(instance, 'builder') and hasattr(instance.builder, 'nodes'):
+        return 'agent' in instance.builder.nodes
+    return False
+
+def extract_agent_input(arguments):
     if arguments['kwargs'] is not None and 'input' in arguments['kwargs']:
         history = arguments['kwargs']['input']['messages']
         messages = []
@@ -54,9 +60,6 @@ def extract_request_agent_input(arguments):
                 if content is not None:
                     messages.append(content)
         return messages
-    return []
-
-def extract_agent_input(arguments):
     if arguments['args'] is not None and len(arguments['args']) > 0 and 'messages' in arguments['args'][0]:
         history = arguments['args'][0]['messages']
         messages = []
@@ -65,6 +68,13 @@ def extract_agent_input(arguments):
                 messages.append(message.content)
         return messages
     return []
+
+def extract_parent_command_message(ex):
+    try:
+        return ex.args[0].update
+    except Exception as e:
+        logger.debug("Warning: Error occurred in extract_parent_command_message: %s", str(e))
+    return ""
 
 def get_inference_endpoint(arguments):
     inference_endpoint = resolve_from_alias(arguments['instance'].client.__dict__, ['azure_endpoint', 'api_base', '_base_url'])
@@ -146,7 +156,7 @@ def is_root_agent_name(instance) -> bool:
 
 def get_source_agent() -> str:
     """Get the name of the agent that initiated the request."""
-    from_agent = get_value(LANGGRAPTH_AGENT_NAME_KEY)
+    from_agent = get_value(AGENT_NAME_KEY)
     return from_agent if from_agent is not None else ""
 
 def get_description(instance) -> str:
@@ -159,3 +169,9 @@ def get_agent_description(instance) -> str:
 def get_tool_description(instance) -> str:
     """Get the description of the tool."""
     return get_description(instance)
+
+def extract_thread_id(kwargs) -> str:
+    thread_id = None
+    if 'config' in kwargs and 'configurable' in kwargs['config']:
+        thread_id = kwargs['config']['configurable'].get('thread_id')
+    return thread_id

@@ -39,10 +39,10 @@ from monocle_apptrace.instrumentation.metamodel.mcp.mcp_processor import MCPAgen
 from monocle_apptrace.instrumentation.metamodel.a2a.methods import A2A_CLIENT_METHODS
 from monocle_apptrace.instrumentation.metamodel.litellm.methods import LITELLM_METHODS
 from monocle_apptrace.instrumentation.metamodel.adk.methods import ADK_METHODS
+from monocle_apptrace.instrumentation.metamodel.adk.adk_handler import AdkSpanHandler
 from monocle_apptrace.instrumentation.metamodel.mistral.methods import MISTRAL_METHODS
 from monocle_apptrace.instrumentation.metamodel.strands.methods import STRAND_METHODS
 from monocle_apptrace.instrumentation.metamodel.strands.strands_processor import StrandsSpanHandler
-from monocle_apptrace.instrumentation.metamodel.adk._helper import AdkSpanHandler
 
 class WrapperMethod:
     def __init__(

@@ -91,6 +91,11 @@ HTTP_SUCCESS_CODES = ("200", "201", "202", "204", "205", "206")
 CHILD_ERROR_CODE = "child.error.code"
 
 AGENT_PREFIX_KEY = "monocle.agent.prefix"
+AGENT_NAME_KEY = "monocle.agent.name"
+FROM_AGENT_INVOCATION_ID = "monocle.from.agent.id"
+FROM_AGENT_NAME = "monocle.from.agent.name"
+LAST_AGENT_NAME = "monocle.last.agent.name"
+LAST_AGENT_INVOCATION_ID = "monocle.last.agent.invocation.id"
 
 MONOCLE_SKIP_EXECUTIONS = "monocle.skip_executions"
 SKIPPED_EXECUTION = "monocle.skipped_execution"
@@ -104,11 +109,13 @@ INFERENCE_TURN_END = "turn_end"
 
 SCOPE_NAME = "scope_name"
 AGENT_INVOCATION_SPAN_NAME = "agentic.invocation"
-AGENT_REQUEST_SPAN_NAME = "agentic.request"
+AGENT_REQUEST_SPAN_NAME = "agentic.turn"
 AGENT_SESSION = "agentic.session"
+LAST_INFERENCE = "last.inference"
+INFERENCE_DECISION = "inference.decision.span.id"
 
 AGENTIC_SPANS = [AGENT_INVOCATION_SPAN_NAME, AGENT_REQUEST_SPAN_NAME]
-
+ANY_AGENT = "*"
 # Span sub types
 
 ## OPTIONAL right next to span.type,  span.subtype:
@@ -137,31 +144,62 @@ SPAN_SUBTYPE_DOMAIN_SPECIFIC = "domain_specific"
 # 8 generic (we may skip this property)
 SPAN_SUBTYPE_GENERIC = "generic"
 
-class SPAN_TYPES:
-    GENERIC = "generic"
-    AGENTIC_DELEGATION = "agentic.delegation"
-    AGENTIC_TOOL_INVOCATION = "agentic.tool.invocation"
-    AGENTIC_INVOCATION = "agentic.invocation"
-    AGENTIC_MCP_INVOCATION = "agentic.mcp.invocation"
-    AGENTIC_REQUEST = "agentic.request"
+SPAN_SUBTYPE_TURN = "turn"
 
-    # http.process
+class SPAN_TYPES:
+    # Generic/uncategorized span type
+    GENERIC = "generic"
+
+    # Agent to agent transitions - Deprecated
+    AGENTIC_DELEGATION = "agentic.delegation"
+
+    # A tool is invoked by an agent
+    AGENTIC_TOOL_INVOCATION = "agentic.tool.invocation"
+
+    # An agent is invoked
+    AGENTIC_INVOCATION = "agentic.invocation"
+
+    # An agent executes a tool over MCP
+    AGENTIC_MCP_INVOCATION = "agentic.mcp.invocation"
+
+    # An agent request / turn ie the initial request sent to an agent from an external source
+    AGENTIC_REQUEST = "agentic.turn"
+
+    # HTTP route processing
     HTTP_PROCESS = "http.process"
+
+    # Client sending HTTP request
     HTTP_SEND = "http.send"
 
+    # Vector retrieval operation
     RETRIEVAL = "retrieval"
+
+    # LLM Inference operation, directly from a framework/workflow to the LLM provider
     INFERENCE = "inference"
+
+    # LLM inference operation invoked by an LLM orchestration framework (eg LangChain, LlamaIndex, etc)
     INFERENCE_FRAMEWORK = "inference.framework"
 
-
 class SPAN_SUBTYPES:
+    # Agentic planing
     PLANNING = SPAN_SUBTYPE_PLANNING
+
+    # Agentic turn
+    TURN = SPAN_SUBTYPE_TURN
+
+    # Agentic routing decision
     ROUTING = SPAN_SUBTYPE_ROUTING
+
+    # Handling content/request
     CONTENT_PROCESSING = SPAN_SUBTYPE_CONTENT_PROCESSING
+
+    # Generating content (eg tool invocation)
     CONTENT_GENERATION = SPAN_SUBTYPE_CONTENT_GENERATION
+
+    # Returning info/metdata to caller
     COMMUNICATION = SPAN_SUBTYPE_COMMUNICATION
-    TRANSFORMATIONS = SPAN_SUBTYPE_TRANSFORMATIONS
-    DOMAIN_SPECIFIC = SPAN_SUBTYPE_DOMAIN_SPECIFIC
+
+    # uncategorized / generic
     GENERIC = SPAN_SUBTYPE_GENERIC
 
 
@@ -173,8 +211,8 @@ MAP_ATTRIBUTES_TO_SPAN_SUBTYPE = {
 
     # agentic span.types
     SPAN_TYPES.AGENTIC_DELEGATION: SPAN_SUBTYPES.ROUTING,
-    SPAN_TYPES.AGENTIC_TOOL_INVOCATION: SPAN_SUBTYPES.ROUTING,
-    SPAN_TYPES.AGENTIC_INVOCATION: SPAN_SUBTYPES.ROUTING,
+    SPAN_TYPES.AGENTIC_TOOL_INVOCATION: SPAN_SUBTYPES.CONTENT_GENERATION,
+    SPAN_TYPES.AGENTIC_INVOCATION: SPAN_SUBTYPES.CONTENT_PROCESSING,
     SPAN_TYPES.AGENTIC_MCP_INVOCATION: SPAN_SUBTYPES.ROUTING,
     
     # MAYBE?

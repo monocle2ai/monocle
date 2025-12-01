@@ -8,6 +8,7 @@ import logging
 from urllib.parse import urlparse
 from opentelemetry.sdk.trace import Span
 from opentelemetry.context import get_value
+from monocle_apptrace.instrumentation.common.constants import TOOL_TYPE
 from monocle_apptrace.instrumentation.common.utils import (
     Option,
     get_json_dumps,
@@ -18,6 +19,7 @@ from monocle_apptrace.instrumentation.common.utils import (
     get_status_code,
 )
 from monocle_apptrace.instrumentation.metamodel.finish_types import map_llamaindex_finish_reason_to_finish_type
+from contextlib import suppress
 
 LLAMAINDEX_AGENT_NAME_KEY = "_active_agent_name"
 
@@ -26,6 +28,16 @@ import threading
 _thread_local = threading.local()
 
 logger = logging.getLogger(__name__)
+
+
+def extract_session_id(kwargs):
+    # LlamaIndex passes memory via 'memory' kwarg
+    memory = kwargs.get('memory')
+    if memory is not None:
+        # Memory objects have a session_id attribute
+        if hasattr(memory, 'session_id'):
+            return memory.session_id
+    return None
 
 def get_status(result):
     if result is not None and hasattr(result, 'status'):
@@ -413,3 +425,64 @@ def extract_agent_request_output(arguments):
     elif hasattr(arguments['result'], 'raw_output'):
         return arguments['result'].raw_output
     return ""
+
+def _get_first_tool_call(response):
+    """Helper function to extract the first tool call from various LangChain response formats"""
+
+    with suppress(AttributeError, IndexError, TypeError):
+        if hasattr(response, "raw") and response.raw:
+            raw_response = response.raw
+
+            if hasattr(raw_response, "choices") and raw_response.choices:
+                choice = raw_response.choices[0]
+                if hasattr(choice, "message") and hasattr(choice.message, "tool_calls"):
+                    tool_calls = choice.message.tool_calls
+                    if tool_calls and len(tool_calls) > 0:
+                        return tool_calls[0]
+
+    return None
+
+def extract_tool_name(arguments):
+    """Extract tool name from LlamaIndex response when finish_type is tool_call"""
+    try:
+        finish_reason = extract_finish_reason(arguments)
+        finish_type = map_finish_reason_to_finish_type(finish_reason)
+        
+        if finish_type != "tool_call":
+            return None
+
+        tool_call = _get_first_tool_call(arguments["result"])
+        if not tool_call:
+            return None
+
+        for getter in [
+            lambda tc: tc['function']['name'],
+            lambda tc: tc.function.name
+        ]:
+            try:
+                return getter(tool_call)
+            except (KeyError, AttributeError, TypeError):
+                continue
+
+    except Exception as e:
+        logger.warning("Warning: Error occurred in extract_tool_name: %s", str(e))
+    
+    return None
+
+def extract_tool_type(arguments):
+    """Extract tool type from LlamaIndex response when finish_type is tool_call"""
+    try:
+        finish_reason = extract_finish_reason(arguments)
+        finish_type = map_finish_reason_to_finish_type(finish_reason)
+        
+        if finish_type != "tool_call":
+            return None
+
+        tool_name = extract_tool_name(arguments)
+        if tool_name:
+            return TOOL_TYPE
+            
+    except Exception as e:
+        logger.warning("Warning: Error occurred in extract_tool_type: %s", str(e))
+    
+    return None

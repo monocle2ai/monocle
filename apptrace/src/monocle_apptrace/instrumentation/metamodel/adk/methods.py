@@ -12,8 +12,9 @@ ADK_METHODS = [
       "object": "BaseAgent",
       "method": "run_async",
       "wrapper_method": atask_iter_wrapper,
-      "output_processor_list": [DELEGATION, AGENT]
-    },
+      "output_processor": AGENT,
+      "span_handler": "adk_handler",
+  },
     {
       "package": "google.adk.tools.function_tool",
       "object": "FunctionTool",

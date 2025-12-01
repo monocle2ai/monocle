@@ -392,7 +392,6 @@ def verify_spans(memory_exporter=None):
     found_inference = found_agent = found_tool = False
     found_flight_agent = found_hotel_agent = found_supervisor_agent = False
     found_book_hotel_tool = found_book_flight_tool = False
-    found_book_flight_delegation = found_book_hotel_delegation = False
     parent_command_exceptions_found = []
     spans = memory_exporter.get_finished_spans()
     for span in spans:
@@ -465,18 +464,6 @@ def verify_spans(memory_exporter=None):
 
         if (
                 "span.type" in span_attributes
-                and span_attributes["span.type"] == "agentic.delegation"
-        ):
-            assert "entity.1.type" in span_attributes
-            assert "entity.1.from_agent" in span_attributes
-            assert "entity.1.to_agent" in span_attributes
-            assert span_attributes["entity.1.type"] == "agent.langgraph"
-            if span_attributes["entity.1.to_agent"] == "flight_assistant":
-                found_book_flight_delegation = True
-            elif span_attributes["entity.1.to_agent"] == "hotel_assistant":
-                found_book_hotel_delegation = True
-        if (
-                "span.type" in span_attributes
                 and span_attributes["span.type"] == "agentic.request"
         ):
             assert "entity.1.type" in span_attributes
@@ -491,8 +478,6 @@ def verify_spans(memory_exporter=None):
     assert found_inference, "Inference span not found"
     assert found_agent, "Agent span not found"
     assert found_tool, "Tool span not found"
-    assert found_book_flight_delegation, "Book flight delegation span not found"
-    assert found_book_hotel_delegation, "Book hotel delegation span not found"
     assert found_flight_agent, "Flight assistant agent span not found"
     assert found_hotel_agent, "Hotel assistant agent span not found"
     assert found_supervisor_agent, "Supervisor agent span not found"

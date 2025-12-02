@@ -210,7 +210,8 @@ def _get_first_tool_call(response):
             message = response["output"]["message"]
             if "content" in message and isinstance(message["content"], list):
                 for content_block in reversed(message["content"]):
-                    return content_block
+                    if "toolUse" in content_block:
+                        return content_block
 
     return None
 

@@ -5,7 +5,7 @@ and assistant messages from various input formats.
 
 import logging
 from opentelemetry.context import get_value
-from monocle_apptrace.instrumentation.common.constants import AGENT_PREFIX_KEY, INFERENCE_AGENT_DELEGATION, INFERENCE_TURN_END, INFERENCE_TOOL_CALL
+from monocle_apptrace.instrumentation.common.constants import AGENT_PREFIX_KEY, INFERENCE_AGENT_DELEGATION, INFERENCE_TURN_END, INFERENCE_TOOL_CALL, TOOL_TYPE
 from monocle_apptrace.instrumentation.common.utils import (
     Option,
     get_json_dumps,
@@ -310,7 +310,7 @@ def extract_tool_type(arguments):
 
         tool_name = extract_tool_name(arguments)
         if tool_name:
-            return "tool.function"
+            return TOOL_TYPE
             
     except Exception as e:
         logger.warning("Warning: Error occurred in extract_tool_type: %s", str(e))

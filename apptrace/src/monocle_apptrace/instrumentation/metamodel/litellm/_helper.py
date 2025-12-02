@@ -4,6 +4,7 @@ and assistant messages from various input formats.
 """
 import json
 import logging
+from monocle_apptrace.instrumentation.common.constants import INFERENCE_TOOL_CALL, INFERENCE_TURN_END, TOOL_TYPE
 from monocle_apptrace.instrumentation.common.utils import (
     Option,
     get_json_dumps,
@@ -11,6 +12,8 @@ from monocle_apptrace.instrumentation.common.utils import (
     get_exception_message,
     get_status_code,
 )
+from monocle_apptrace.instrumentation.metamodel.finish_types import map_litellm_finish_reason_to_finish_type
+from contextlib import suppress
 
 logger = logging.getLogger(__name__)
 
@@ -87,3 +90,87 @@ def update_span_from_llm_response(response):
             meta_dict.update({"prompt_tokens": getattr(token_usage, "prompt_tokens", None) or getattr(token_usage, "input_tokens", None)})
             meta_dict.update({"total_tokens": getattr(token_usage, "total_tokens")})
     return meta_dict
+
+def agent_inference_type(arguments):
+    """Extract agent inference type from LiteLLM response, following OpenAI pattern"""
+
+    finish_type = map_finish_reason_to_finish_type(extract_finish_reason(arguments))
+    if finish_type == "tool_call":
+        return INFERENCE_TOOL_CALL
+
+    return INFERENCE_TURN_END
+
+def extract_finish_reason(arguments):
+    """Extract finish_reason from LiteLLM response"""
+    try:
+        if arguments.get("exception") is not None:
+            return "error"
+            
+        response = arguments.get("result")
+        
+        # Handle LiteLLM response structure (similar to OpenAI)
+        if response is not None and hasattr(response, "choices") and len(response.choices) > 0:
+            if hasattr(response.choices[0], "finish_reason"):
+                return response.choices[0].finish_reason
+                
+    except (IndexError, AttributeError) as e:
+        logger.warning("Warning: Error occurred in extract_finish_reason: %s", str(e))
+        return None
+    return None
+
+def map_finish_reason_to_finish_type(finish_reason):
+    """Map LiteLLM finish_reason to finish_type using dedicated LiteLLM mapping"""
+    return map_litellm_finish_reason_to_finish_type(finish_reason)
+
+def _get_first_tool_call(response):
+
+    with suppress(AttributeError, IndexError, TypeError):
+        if response is not None and hasattr(response, "choices") and len(response.choices) > 0:
+            if hasattr(response.choices[0], "message") and hasattr(response.choices[0].message, "tool_calls"):
+                tool_calls = response.choices[0].message.tool_calls
+                if tool_calls and len(tool_calls) > 0:
+                    return tool_calls[0]
+
+    return None
+
+def extract_tool_name(arguments):
+    """Extract tool name from LiteLLM response when finish_type is tool_call"""
+    try:
+        finish_type = map_finish_reason_to_finish_type(extract_finish_reason(arguments))
+        if finish_type != "tool_call":
+            return None
+
+        tool_call = _get_first_tool_call(arguments["result"])
+        if not tool_call:
+            return None
+
+        # Try different name extraction approaches
+        for getter in [
+            lambda tc: tc.function.name,  # dict with name key
+        ]:
+            try:
+                return getter(tool_call)
+            except (KeyError, AttributeError, TypeError):
+                continue
+
+                    
+    except Exception as e:
+        logger.warning("Warning: Error occurred in extract_tool_name: %s (type: %s)", str(e), type(e).__name__)
+    
+    return None
+
+def extract_tool_type(arguments):
+    """Extract tool type from LiteLLM response when finish_type is tool_call"""
+    try:
+        finish_type = map_finish_reason_to_finish_type(extract_finish_reason(arguments))
+        if finish_type != "tool_call":
+            return None
+
+        tool_name = extract_tool_name(arguments)
+        if tool_name:
+            return TOOL_TYPE
+
+    except Exception as e:
+        logger.warning("Warning: Error occurred in extract_tool_type: %s", str(e))
+    
+    return None

@@ -11,11 +11,12 @@ from opentelemetry.context import set_value, attach, detach, get_value
 import pytest
 #from sqlalchemy import func
 from monocle_apptrace.exporters.file_exporter import FileSpanExporter, DEFAULT_TRACE_FOLDER
+from monocle_apptrace import start_scope, stop_scope
 from contextlib import contextmanager, asynccontextmanager
 import logging
 from monocle_apptrace.instrumentation.common.instrumentor import MonocleInstrumentor, setup_monocle_telemetry
 from pydantic import BaseModel, ValidationError
-from monocle_test_tools.schema import SpanType, TestSpan, TestCase, Evaluation, EvalInputs, MockTool, ToolType
+from monocle_test_tools.schema import SpanType, TestSpan, TestCase, Evaluation, EvalInputs, MockTool, TEST_SCOPE_NAME
 from monocle_test_tools.comparer.base_comparer import BaseComparer
 from monocle_test_tools.runner.runner import get_agent_runner
 from monocle_test_tools import trace_utils
@@ -41,14 +42,24 @@ class MonocleValidator:
             cls._instance = super().__new__(cls)
         return cls._instance
 
-    def __init__(self):
+    def __init__(self, exporter_list:Optional[str] = None):
         if MonocleValidator._initialized:
+            if exporter_list is not None:
+                raise ValueError("Exporter list can only be set during the first initialization of MonocleValidator.")
             return
         test_trace_path:str = os.path.join(".", DEFAULT_TRACE_FOLDER, "test_traces")
-        self.memory_exporter = InMemorySpanExporter()
-        self.file_exporter = FileSpanExporter(out_path=test_trace_path)
-        span_processors = [SimpleSpanProcessor(self.file_exporter), SimpleSpanProcessor(self.memory_exporter)]
-        self.instrumentor = setup_monocle_telemetry(workflow_name="monocle_validator", span_processors=span_processors)
+        os.environ["MONOCLE_TRACE_OUTPUT_PATH"] = test_trace_path
+        if exporter_list is None:
+            exporter_list = os.getenv("MONOCLE_EXPORTER", "memory, file")
+        if "memory" not in exporter_list:
+            exporter_list = exporter_list + ",memory"
+        self.instrumentor = setup_monocle_telemetry(workflow_name="monocle_validator",
+                                              monocle_exporters_list=exporter_list)
+        for exporter in self.instrumentor.exporters:
+            if isinstance(exporter, FileSpanExporter):
+                self.file_exporter = exporter
+            elif isinstance(exporter, InMemorySpanExporter):
+                self.memory_exporter = exporter        
         MonocleValidator._initialized = True
 
     @property
@@ -60,8 +71,11 @@ class MonocleValidator:
     @contextmanager
     def monocle_exporter_wrapper(self, test_case: TestCase, request):
         test_case_name = request.node.name if request is not None else (test_case.test_case_name if test_case is not None else "monocle_test")
-        self.file_exporter.set_service_name(test_case_name)
-        token = self._set_wrapper_methods(test_case.mock_tools)
+        if self.file_exporter is not None:
+            self.file_exporter.set_service_name(test_case_name)
+
+        context = self._set_wrapper_methods(test_case.mock_tools)
+        token = start_scope(scope_name=TEST_SCOPE_NAME, scope_value=test_case_name, context=context)
         try:
             yield
         finally:
@@ -69,11 +83,12 @@ class MonocleValidator:
                 self.validate(test_case)
             finally:
                 self.memory_exporter.clear()
-                self.file_exporter.force_flush()
-                self.file_exporter.shutdown()
+                if self.file_exporter is not None:
+                    self.file_exporter.force_flush()
+                    self.file_exporter.shutdown()
                 self._spans = []
                 if token is not None:
-                    detach(token)
+                    stop_scope(token)
 
     @staticmethod
     def test_id_generator(val):
@@ -102,12 +117,14 @@ class MonocleValidator:
             return wrapper
         return decorator
 
-    async def test_workflow_async(self, workflow_func, test_case:TestCase):
+    async def test_workflow_async(self, workflow_func, test_case:Union[TestCase, dict]):
         """Run the workflow function with the test case input and validate the output.
         Args:
             workflow_func (callable): The workflow function to test.
             test_case (TestCase): The test case containing input and expected output.
         """
+        if isinstance(test_case, dict):
+            test_case = TestCase.model_validate(test_case)
         result = None
         try:
             result = await workflow_func(*test_case.test_input)
@@ -117,12 +134,14 @@ class MonocleValidator:
         self.validate_result(test_case, result)
         return result
 
-    def test_workflow(self, workflow_func, test_case:TestCase):
+    def test_workflow(self, workflow_func, test_case:Union[TestCase, dict]):
         """Run the workflow function with the test case input and validate the output.
         Args:
             workflow_func (callable): The workflow function to test.
             test_case (TestCase): The test case containing input and expected output.
         """
+        if isinstance(test_case, dict):
+            test_case = TestCase.model_validate(test_case)
         result = None
         try:
             result = workflow_func(*test_case.test_input)
@@ -132,7 +151,9 @@ class MonocleValidator:
         self.validate_result(test_case, result)
         return result
 
-    async def test_agent_async(self, agent, agent_type:str, test_case:TestCase):
+    async def test_agent_async(self, agent, agent_type:str, test_case:Union[TestCase, dict]):
+        if isinstance(test_case, dict):
+            test_case = TestCase.model_validate(test_case)
         agent_runner = get_agent_runner(agent_type)
         if agent_runner is None:
             raise ValueError(f"Unsupported agent type: {agent_type}")
@@ -145,7 +166,9 @@ class MonocleValidator:
         self.validate_result(test_case, result)
         return result
 
-    def test_agent(self, agent, agent_type:str, test_case:TestCase):
+    def test_agent(self, agent, agent_type:str, test_case:Union[TestCase, dict]):
+        if isinstance(test_case, dict):
+            test_case = TestCase.model_validate(test_case)
         agent_runner = get_agent_runner(agent_type)
         if agent_runner is None:
             raise ValueError(f"Unsupported agent type: {agent_type}")
@@ -160,7 +183,7 @@ class MonocleValidator:
 
     def _set_wrapper_methods(self, mock_tools: list[MockTool]) -> list[dict]:
         skip_exec: dict[str, dict] = {}
-        token = None
+        context = None
         for mock_tool in mock_tools:
             skip_exec[mock_tool.name] = {
                 "entity.type": mock_tool.type,
@@ -170,8 +193,8 @@ class MonocleValidator:
                 "error_message": mock_tool.error_message
             }
         if len(skip_exec) > 0:
-            token = attach(set_value(MONOCLE_SKIP_EXECUTIONS, skip_exec))
-        return token
+            context = set_value(MONOCLE_SKIP_EXECUTIONS, skip_exec)
+        return context
 
     def validate(self, test_case:TestCase) -> bool:
         """Validate the test case against the collected spans.

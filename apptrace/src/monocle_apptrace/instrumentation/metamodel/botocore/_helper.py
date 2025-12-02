@@ -9,6 +9,7 @@ from io import BytesIO
 from functools import wraps
 
 from rfc3986 import urlparse
+from monocle_apptrace.instrumentation.common.constants import TOOL_TYPE
 from monocle_apptrace.instrumentation.common.span_handler import SpanHandler
 from monocle_apptrace.instrumentation.common.utils import ( get_exception_message, get_json_dumps, get_status_code,)
 from monocle_apptrace.instrumentation.metamodel.finish_types import map_bedrock_finish_reason_to_finish_type
@@ -203,13 +204,14 @@ def extract_provider_name(instance):
     return urlparse(instance.meta.endpoint_url).hostname
 
 def _get_first_tool_call(response):
-    """Helper function to extract the first tool call from various LangChain response formats"""
+    """Helper function to extract the first tool call from various Boto response formats"""
     with suppress(AttributeError, IndexError, TypeError):
         if "output" in response and "message" in response["output"]:
             message = response["output"]["message"]
             if "content" in message and isinstance(message["content"], list):
-                for content_block in message["content"]:
-                    return content_block
+                for content_block in reversed(message["content"]):
+                    if "toolUse" in content_block:
+                        return content_block
 
     return None
 
@@ -246,7 +248,7 @@ def extract_tool_type(arguments):
 
         tool_name = extract_tool_name(arguments)
         if tool_name:
-            return "tool.function"
+            return TOOL_TYPE
 
     except Exception as e:
         logger.warning("Warning: Error occurred in extract_tool_type: %s", str(e))

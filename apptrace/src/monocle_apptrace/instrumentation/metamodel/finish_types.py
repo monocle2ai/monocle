@@ -298,6 +298,14 @@ HUGGING_FACE_FINISH_REASON_MAPPING = {
 
 ADK_FINISH_REASON_MAPPING = GEMINI_FINISH_REASON_MAPPING
 
+LITELLM_FINISH_REASON_MAPPING = {
+    "stop": FinishType.SUCCESS.value,
+    "tool_calls": FinishType.TOOL_CALL.value,
+    "function_call": FinishType.TOOL_CALL.value,
+    "length": FinishType.TRUNCATED.value,
+    "content_filter": FinishType.CONTENT_FILTER.value
+}
+
 def map_openai_finish_reason_to_finish_type(finish_reason):
     """Map OpenAI finish_reason to standardized finish_type."""
     if not finish_reason:
@@ -497,3 +505,9 @@ def map_hf_finish_reason_to_finish_type(finish_reason):
     if not finish_reason:
         return None
     return HUGGING_FACE_FINISH_REASON_MAPPING.get(finish_reason, None)
+
+def map_litellm_finish_reason_to_finish_type(finish_reason):
+    """Map LiteLLM finish_reason to standardized finish_type."""
+    if not finish_reason:
+        return None
+    return LITELLM_FINISH_REASON_MAPPING.get(finish_reason, None)

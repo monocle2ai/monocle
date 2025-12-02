@@ -2,124 +2,139 @@ import logging
 import random
 import time
 from types import SimpleNamespace
-from monocle_apptrace.instrumentation.common.constants import SPAN_TYPES
-from monocle_apptrace.instrumentation.metamodel.openai import (
-    _helper,
+from typing import Any, Callable, Dict, Optional
+
+from monocle_apptrace.instrumentation.common.constants import (
+    PROVIDER_BASE_URLS,
+    SPAN_TYPES,
 )
+from monocle_apptrace.instrumentation.common.stream_processor import BaseStreamProcessor
 from monocle_apptrace.instrumentation.common.utils import (
     get_error_message,
     patch_instance_method,
     resolve_from_alias,
 )
-from monocle_apptrace.instrumentation.common.constants import PROVIDER_BASE_URLS
+from monocle_apptrace.instrumentation.metamodel.openai import (
+    _helper,
+)
 
 logger = logging.getLogger(__name__)
 
+# Streaming Event Type Constants
+class StreamEventTypes:
+    """Constants for streaming event types."""
+    # Event-based streaming events
+    RESPONSE_OUTPUT_TEXT_DELTA = "response.output_text.delta"
+    RESPONSE_TEXT_DELTA = "response.text.delta"
+    RESPONSE_COMPLETED = "response.completed"
+    RESPONSE_TEXT_DONE = "response.text.done"
+    RESPONSE_AUDIO_DELTA = "response.audio.delta"
+    RESPONSE_FUNCTION_CALL_DELTA = "response.function_call.delta"
+    
+    # Object types
+    CHAT_COMPLETION_CHUNK = "chat.completion.chunk"
+    
+    # Response prefixes
+    RESPONSE_PREFIX = "response."
+    
+    @classmethod
+    def is_response_event(cls, event_type: str) -> bool:
+        """Check if an event type is a response event."""
+        return isinstance(event_type, str) and event_type.startswith(cls.RESPONSE_PREFIX)
 
-def _process_stream_item(item, state):
-    """Process a single stream item and update state."""
-    try:
-        if (
-            hasattr(item, "type")
-            and isinstance(item.type, str)
-            and item.type.startswith("response.")
-        ):
-            if state["waiting_for_first_token"]:
-                state["waiting_for_first_token"] = False
-                state["first_token_time"] = time.time_ns()
-            if item.type == "response.output_text.delta":
-                state["accumulated_response"] += item.delta
-            if item.type == "response.completed":
-                state["stream_closed_time"] = time.time_ns()
-                if hasattr(item, "response") and hasattr(item.response, "usage"):
-                    state["token_usage"] = item.response.usage
-        elif (
-            hasattr(item, "choices")
-            and item.choices
-            and item.choices[0].delta
-            and item.choices[0].delta.content
-        ):
-            if hasattr(item.choices[0].delta, "role") and item.choices[0].delta.role:
-                state["role"] = item.choices[0].delta.role
-            if state["waiting_for_first_token"]:
-                state["waiting_for_first_token"] = False
-                state["first_token_time"] = time.time_ns()
 
-            state["accumulated_response"] += item.choices[0].delta.content
-        elif (
-            hasattr(item, "object")
-            and item.object == "chat.completion.chunk"
-            and item.usage
-        ):
-            # Handle the case where the response is a chunk
-            state["token_usage"] = item.usage
+class OpenAIStreamProcessor(BaseStreamProcessor):
+    """OpenAI-specific stream processor."""
+    
+    def handle_event_based_streaming(self, item: Any, state: Dict[str, Any]) -> bool:
+        """Handle Server-Sent Events with response.* event types."""
+        if not (hasattr(item, "type") and StreamEventTypes.is_response_event(item.type)):
+            return False
+        
+        self.update_first_token_time(state)
+        
+        if item.type == StreamEventTypes.RESPONSE_OUTPUT_TEXT_DELTA:
+            state["accumulated_response"] += item.delta
+        elif item.type == StreamEventTypes.RESPONSE_TEXT_DELTA:
+            state["accumulated_response"] += item.delta
+        elif item.type == StreamEventTypes.RESPONSE_COMPLETED:
             state["stream_closed_time"] = time.time_ns()
-            # Capture finish_reason from the chunk
-            if (
-                hasattr(item, "choices")
-                and item.choices
-                and len(item.choices) > 0
-                and hasattr(item.choices[0], "finish_reason")
-                and item.choices[0].finish_reason
-            ):
-                finish_reason = item.choices[0].finish_reason
-                state["finish_reason"] = finish_reason
-
-    except Exception as e:
-        logger.warning(
-            "Warning: Error occurred while processing stream item: %s",
-            str(e),
-        )
-    finally:
-        state["accumulated_temp_list"].append(item)
-
-
-def _create_span_result(state, stream_start_time):
-    # extract tool calls from the accumulated_temp_list
-    # this can only be done when all the streaming is complete.
-    for item in state["accumulated_temp_list"]:
-        try:
-            if (
-                item.choices
-                and isinstance(item.choices, list)
-                and hasattr(item.choices[0], "delta")
-                and hasattr(item.choices[0].delta, "tool_calls")
-                and item.choices[0].delta.tool_calls
-                and item.choices[0].delta.tool_calls[0].id
-                and item.choices[0].delta.tool_calls[0].function
-            ):
-                state["tools"] = state.get("tools", [])
-                state["tools"].append(
-                    {
-                        "id": item.choices[0].delta.tool_calls[0].id,
-                        "name": item.choices[0].delta.tool_calls[0].function.name,
-                        "arguments": item.choices[0]
-                        .delta.tool_calls[0]
-                        .function.arguments,
-                    }
+            if hasattr(item, "response") and hasattr(item.response, "usage"):
+                state["token_usage"] = item.response.usage
+        
+        return True
+    
+    def handle_chunked_streaming(self, item: Any, state: Dict[str, Any]) -> bool:
+        """Handle chunked streaming with delta objects (choices[0].delta format)."""
+        if not (hasattr(item, "choices") and item.choices and 
+                hasattr(item.choices[0], "delta") and item.choices[0].delta):
+            return False
+        
+        choice = item.choices[0]
+        delta = choice.delta
+        
+        # Handle role
+        if hasattr(delta, "role") and delta.role:
+            state["role"] = delta.role
+        
+        # Handle content
+        if hasattr(delta, "content") and delta.content:
+            self.update_first_token_time(state)
+            state["accumulated_response"] += delta.content
+        
+        # Handle refusal (new field)
+        if hasattr(delta, "refusal") and delta.refusal:
+            state["refusal"] = delta.refusal
+        
+        return True
+    
+    def handle_completion_metadata(self, item: Any, state: Dict[str, Any]) -> bool:
+        """Handle final chunk with usage info and completion metadata."""
+        if not (hasattr(item, "object") and item.object == StreamEventTypes.CHAT_COMPLETION_CHUNK and 
+                hasattr(item, "usage") and item.usage):
+            return False
+        
+        state["token_usage"] = item.usage
+        state["stream_closed_time"] = time.time_ns()
+        
+        # Capture finish_reason from the chunk
+        if (hasattr(item, "choices") and item.choices and len(item.choices) > 0 and
+            hasattr(item.choices[0], "finish_reason") and item.choices[0].finish_reason):
+            state["finish_reason"] = item.choices[0].finish_reason
+        
+        return True
+    
+    def assemble_fragmented_data(self, state: Dict[str, Any]) -> None:
+        """Assemble tool calls and completion data from fragmented streaming chunks."""
+        for item in state["accumulated_temp_list"]:
+            try:
+                if (hasattr(item, 'choices') and item.choices and 
+                    isinstance(item.choices, list) and len(item.choices) > 0):
+                    
+                    choice = item.choices[0]
+                    
+                    # Extract tool calls
+                    if (hasattr(choice, "delta") and hasattr(choice.delta, "tool_calls") and 
+                        choice.delta.tool_calls):
+                        
+                        for tool_call in choice.delta.tool_calls:
+                            if (hasattr(tool_call, "id") and tool_call.id and
+                                hasattr(tool_call, "function") and tool_call.function):
+                                
+                                state["tools"].append({
+                                    "id": tool_call.id,
+                                    "name": tool_call.function.name,
+                                    "arguments": getattr(tool_call.function, "arguments", ""),
+                                })
+                    
+                    # Extract finish_reason
+                    if hasattr(choice, "finish_reason") and choice.finish_reason:
+                        state["finish_reason"] = choice.finish_reason
+                        
+            except Exception as e:
+                self.logger.warning(
+                    "Warning: Error occurred while processing tool calls: %s", str(e)
                 )
-            if (item.choices and item.choices[0].finish_reason):
-                state["finish_reason"] = item.choices[0].finish_reason
-        except Exception as e:
-            logger.warning(
-                "Warning: Error occurred while processing tool calls: %s",
-                str(e),
-            )
-
-    """Create the span result object."""
-    return SimpleNamespace(
-        type="stream",
-        timestamps={
-            "role": state["role"],
-            "data.input": int(stream_start_time),
-            "data.output": int(state["first_token_time"]),
-            "metadata": int(state["stream_closed_time"] or time.time_ns()),
-        },
-        output_text=state["accumulated_response"],
-        tools=state["tools"] if "tools" in state else None,
-        usage=state["token_usage"],
-        finish_reason=state["finish_reason"],
-    )
 
 # Registry mapping client detection functions → entity_type
 CLIENT_ENTITY_MAP = {
@@ -140,48 +155,12 @@ def get_entity_type(response, helper=None):
     # default fallback
     return "inference.openai"
 
+# Global processor instance for OpenAI
+_openai_processor = OpenAIStreamProcessor()
+
 def process_stream(to_wrap, response, span_processor):
-    stream_start_time = time.time_ns()
-
-    # Shared state for both sync and async processing
-    state = {
-        "waiting_for_first_token": True,
-        "first_token_time": stream_start_time,
-        "stream_closed_time": None,
-        "accumulated_response": "",
-        "token_usage": None,
-        "accumulated_temp_list": [],
-        "finish_reason": None,
-        "role": "assistant",
-    }
-
-    if to_wrap and hasattr(response, "__iter__"):
-        original_iter = response.__iter__
-
-        def new_iter(self):
-            for item in original_iter():
-                _process_stream_item(item, state)
-                yield item
-
-            if span_processor:
-                ret_val = _create_span_result(state, stream_start_time)
-                span_processor(ret_val)
-
-        patch_instance_method(response, "__iter__", new_iter)
-
-    if to_wrap and hasattr(response, "__aiter__"):
-        original_iter = response.__aiter__
-
-        async def new_aiter(self):
-            async for item in original_iter():
-                _process_stream_item(item, state)
-                yield item
-
-            if span_processor:
-                ret_val = _create_span_result(state, stream_start_time)
-                span_processor(ret_val)
-
-        patch_instance_method(response, "__aiter__", new_aiter)
+    """Process OpenAI streaming responses using the generic processor."""
+    _openai_processor.process_stream(to_wrap, response, span_processor)
 
 
 INFERENCE = {

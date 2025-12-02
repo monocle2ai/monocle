@@ -46,7 +46,7 @@ class StreamEventTypes:
 class OpenAIStreamProcessor(BaseStreamProcessor):
     """OpenAI-specific stream processor."""
     
-    def handle_event_based_streaming(self, item: Any, state: Dict[str, Any]) -> bool:
+    def handle_event_fragment(self, item: Any, state: Dict[str, Any]) -> bool:
         """Handle Server-Sent Events with response.* event types."""
         if not (hasattr(item, "type") and StreamEventTypes.is_response_event(item.type)):
             return False
@@ -64,7 +64,7 @@ class OpenAIStreamProcessor(BaseStreamProcessor):
         
         return True
     
-    def handle_chunked_streaming(self, item: Any, state: Dict[str, Any]) -> bool:
+    def handle_chunked_fragment(self, item: Any, state: Dict[str, Any]) -> bool:
         """Handle chunked streaming with delta objects (choices[0].delta format)."""
         if not (hasattr(item, "choices") and item.choices and 
                 hasattr(item.choices[0], "delta") and item.choices[0].delta):

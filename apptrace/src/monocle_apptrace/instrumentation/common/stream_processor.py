@@ -102,11 +102,11 @@ class BaseStreamProcessor(ABC):
             True if item was recognized and processed, False otherwise
         """
         # Try event-based streaming first
-        if self.handle_event_based_streaming(item, state):
+        if self.handle_event_fragment(item, state):
             return True
         
         # Try chunked streaming format
-        if self.handle_chunked_streaming(item, state):
+        if self.handle_chunked_fragment(item, state):
             return True
         
         # Try completion metadata
@@ -116,8 +116,8 @@ class BaseStreamProcessor(ABC):
         return False
     
     @abstractmethod
-    def handle_event_based_streaming(self, item: Any, state: Dict[str, Any]) -> bool:
-        """Handle event-based streaming format (e.g., response.* events).
+    def handle_event_fragment(self, item: Any, state: Dict[str, Any]) -> bool:
+        """Handle event-based fragment format (e.g., response.* events).
         
         Returns:
             True if item was recognized and processed, False otherwise
@@ -125,8 +125,8 @@ class BaseStreamProcessor(ABC):
         pass
     
     @abstractmethod
-    def handle_chunked_streaming(self, item: Any, state: Dict[str, Any]) -> bool:
-        """Handle chunked streaming format with delta objects.
+    def handle_chunked_fragment(self, item: Any, state: Dict[str, Any]) -> bool:
+        """Handle chunked fragment format with delta objects.
         
         Returns:
             True if item was recognized and processed, False otherwise
@@ -164,7 +164,7 @@ class BaseStreamProcessor(ABC):
     def store_item(self, item: Any, state: Dict[str, Any]) -> None:
         """Store item for post-processing. Can be overridden."""
         state["accumulated_temp_list"].append(item)
-        
+
     
     def create_span_result(self, state: Dict[str, Any], stream_start_time: int) -> SimpleNamespace:
         """Template method for creating span result."""

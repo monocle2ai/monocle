@@ -355,7 +355,8 @@ class MonocleValidator:
             assert False, f"Tool '{tool_name}' was invoked by agent '{agent_name}', but was not expected to be."
 
         self._check_error_warnings(tool_invocation_spans, tool_name, agent_name, expect_error, expect_warnings)
-        self._check_input_output(tool_invocation_spans, tool_name, agent_name, tool_input, tool_output, comparer, eval, positive_test)
+        self._check_input_output(tool_invocation_spans, tool_input, tool_output, comparer, eval, positive_test,
+                                    tool_name=tool_name, agent_name=agent_name)
 
         return True
 
@@ -381,7 +382,7 @@ class MonocleValidator:
         if not positive_test:
             assert False, f"Agent '{agent_name}' was invoked, but was not expected to be."
         self._check_error_warnings(agent_invocation_spans, None,agent_name, expect_error, expect_warnings)
-        self._check_input_output(agent_invocation_spans, None, agent_name, agent_input, agent_output, comparer, eval, positive_test)
+        self._check_input_output(agent_invocation_spans, agent_input, agent_output, comparer, eval, positive_test, agent_name=agent_name)
         return True
 
     def verify_agent_delegated(self, from_agent:str, to_agent:str, positive_test:bool, expect_error:bool ,
@@ -493,8 +494,10 @@ class MonocleValidator:
             elif not expect_warnings and found_warning:
                 assert False, f"Agent '{agent_name}' was invoked but warning found."
 
-    def _check_input_output(self, spans:list[Span], tool_name:str, agent_name:str, expected_input:Optional[str],
-                expected_output:Optional[str], comparer:BaseComparer, eval:Evaluation, positive_test:bool) -> None:
+    def _check_input_output(self, spans:list[Span], expected_input:Optional[str], expected_output:Optional[str],
+                        comparer:BaseComparer, eval:Evaluation, positive_test:Optional[bool]=True,
+                        tool_name:Optional[str]=None, agent_name:Optional[str]=None,) -> None:
+        candidate_spans = []
         found_input = found_output = False
         if expected_input is not None or expected_output is not None:
             candidate_span = None
@@ -524,10 +527,12 @@ class MonocleValidator:
                     break
             if eval is not None and candidate_span is not None:
                 self._evaluate_span(candidate_span, eval, positive_test)
+                candidate_spans.append(candidate_span)
             if tool_name is not None:
                 self._verify_tool_input_output(tool_name, agent_name, expected_input, found_input, expected_output, found_output, positive_test)
-            else:
+            elif agent_name is not None:
                 self._verify_agent_input_output(agent_name, expected_input, found_input, expected_output, found_output, positive_test)
+        return candidate_spans
 
     def _get_inference_spans(self) -> list[Span]:
         inferences: list[Span] = []

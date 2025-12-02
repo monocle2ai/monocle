@@ -1,17 +1,15 @@
 import logging
-import random
-import time
-from types import SimpleNamespace
-from typing import Any, Callable, Dict, Optional
+from typing import Any
 
 from monocle_apptrace.instrumentation.common.constants import (
-    PROVIDER_BASE_URLS,
     SPAN_TYPES,
 )
-from monocle_apptrace.instrumentation.common.stream_processor import BaseStreamProcessor
+from monocle_apptrace.instrumentation.common.stream_processor import (
+    BaseStreamProcessor,
+    StreamState,
+)
 from monocle_apptrace.instrumentation.common.utils import (
     get_error_message,
-    patch_instance_method,
     resolve_from_alias,
 )
 from monocle_apptrace.instrumentation.metamodel.openai import (
@@ -46,25 +44,25 @@ class StreamEventTypes:
 class OpenAIStreamProcessor(BaseStreamProcessor):
     """OpenAI-specific stream processor."""
     
-    def handle_event_fragment(self, item: Any, state: Dict[str, Any]) -> bool:
+    def handle_event(self, item: Any, state: StreamState) -> bool:
         """Handle Server-Sent Events with response.* event types."""
         if not (hasattr(item, "type") and StreamEventTypes.is_response_event(item.type)):
             return False
         
-        self.update_first_token_time(state)
+        state.update_first_token_time()
         
         if item.type == StreamEventTypes.RESPONSE_OUTPUT_TEXT_DELTA:
-            state["accumulated_response"] += item.delta
+            state.accumulated_response += item.delta
         elif item.type == StreamEventTypes.RESPONSE_TEXT_DELTA:
-            state["accumulated_response"] += item.delta
+            state.accumulated_response += item.delta
         elif item.type == StreamEventTypes.RESPONSE_COMPLETED:
-            state["stream_closed_time"] = time.time_ns()
+            state.close_stream()
             if hasattr(item, "response") and hasattr(item.response, "usage"):
-                state["token_usage"] = item.response.usage
+                state.token_usage = item.response.usage
         
         return True
     
-    def handle_chunked_fragment(self, item: Any, state: Dict[str, Any]) -> bool:
+    def handle_chunk(self, item: Any, state: StreamState) -> bool:
         """Handle chunked streaming with delta objects (choices[0].delta format)."""
         if not (hasattr(item, "choices") and item.choices and 
                 hasattr(item.choices[0], "delta") and item.choices[0].delta):
@@ -75,38 +73,37 @@ class OpenAIStreamProcessor(BaseStreamProcessor):
         
         # Handle role
         if hasattr(delta, "role") and delta.role:
-            state["role"] = delta.role
+            state.role = delta.role
         
         # Handle content
         if hasattr(delta, "content") and delta.content:
-            self.update_first_token_time(state)
-            state["accumulated_response"] += delta.content
+            state.add_content(delta.content)
         
         # Handle refusal (new field)
         if hasattr(delta, "refusal") and delta.refusal:
-            state["refusal"] = delta.refusal
+            state.refusal = delta.refusal
         
         return True
     
-    def handle_completion_metadata(self, item: Any, state: Dict[str, Any]) -> bool:
+    def handle_completion(self, item: Any, state: StreamState) -> bool:
         """Handle final chunk with usage info and completion metadata."""
         if not (hasattr(item, "object") and item.object == StreamEventTypes.CHAT_COMPLETION_CHUNK and 
                 hasattr(item, "usage") and item.usage):
             return False
         
-        state["token_usage"] = item.usage
-        state["stream_closed_time"] = time.time_ns()
+        state.token_usage = item.usage
+        state.close_stream()
         
         # Capture finish_reason from the chunk
         if (hasattr(item, "choices") and item.choices and len(item.choices) > 0 and
             hasattr(item.choices[0], "finish_reason") and item.choices[0].finish_reason):
-            state["finish_reason"] = item.choices[0].finish_reason
+            state.finish_reason = item.choices[0].finish_reason
         
         return True
     
-    def assemble_fragmented_data(self, state: Dict[str, Any]) -> None:
+    def assemble_data(self, state: StreamState) -> None:
         """Assemble tool calls and completion data from fragmented streaming chunks."""
-        for item in state["accumulated_temp_list"]:
+        for item in state.raw_items:
             try:
                 if (hasattr(item, 'choices') and item.choices and 
                     isinstance(item.choices, list) and len(item.choices) > 0):
@@ -121,7 +118,7 @@ class OpenAIStreamProcessor(BaseStreamProcessor):
                             if (hasattr(tool_call, "id") and tool_call.id and
                                 hasattr(tool_call, "function") and tool_call.function):
                                 
-                                state["tools"].append({
+                                state.tools.append({
                                     "id": tool_call.id,
                                     "name": tool_call.function.name,
                                     "arguments": getattr(tool_call.function, "arguments", ""),
@@ -129,38 +126,18 @@ class OpenAIStreamProcessor(BaseStreamProcessor):
                     
                     # Extract finish_reason
                     if hasattr(choice, "finish_reason") and choice.finish_reason:
-                        state["finish_reason"] = choice.finish_reason
+                        state.finish_reason = choice.finish_reason
                         
             except Exception as e:
                 self.logger.warning(
                     "Warning: Error occurred while processing tool calls: %s", str(e)
                 )
 
-# Registry mapping client detection functions → entity_type
-CLIENT_ENTITY_MAP = {
-    "deepseek": "inference.deepseek",
-    # add more clients in future
-}
-
-def get_entity_type(response, helper=None):
-    for client_name, entity in CLIENT_ENTITY_MAP.items():
-        check_fn = globals().get(f"is_{client_name}_client")
-        if check_fn and check_fn(response):
-            return entity
-
-    # fallback to helper if available
-    if helper and hasattr(helper, "get_inference_type"):
-        return "inference." + helper.get_inference_type(response)
-
-    # default fallback
-    return "inference.openai"
-
-# Global processor instance for OpenAI
-_openai_processor = OpenAIStreamProcessor()
 
 def process_stream(to_wrap, response, span_processor):
     """Process OpenAI streaming responses using the generic processor."""
-    _openai_processor.process_stream(to_wrap, response, span_processor)
+    processor = OpenAIStreamProcessor()
+    processor.process_stream(to_wrap, response, span_processor)
 
 
 INFERENCE = {

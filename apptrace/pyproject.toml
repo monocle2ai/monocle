@@ -131,7 +131,8 @@ dev = [
   'mistralai==1.9.9',
   'huggingface_hub==0.35.3',
   'litellm==1.77.5',
-  'google-ai-haystack'
+  'google-ai-haystack',
+  'crewai==0.95.0'
 ]
 
 dev_tranformers = [

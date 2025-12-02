@@ -4,14 +4,16 @@ from contextlib import contextmanager
 from typing import Union
 from opentelemetry.context import get_value, set_value, attach, detach
 from opentelemetry.sdk.trace import Span
+from opentelemetry.trace.span import INVALID_SPAN
 from opentelemetry.trace.status import Status, StatusCode
 from monocle_apptrace.instrumentation.common.constants import (
     QUERY,
     service_name_map,
     service_type_map,
-    MONOCLE_SDK_VERSION, MONOCLE_SDK_LANGUAGE, MONOCLE_DETECTED_SPAN_ERROR
+    MONOCLE_SDK_VERSION, MONOCLE_SDK_LANGUAGE, MONOCLE_DETECTED_SPAN_ERROR,
+    SPAN_TYPES, LAST_INFERENCE
 )
-from monocle_apptrace.instrumentation.common.utils import set_attribute, get_scopes, MonocleSpanException, get_monocle_version, replace_placeholders
+from monocle_apptrace.instrumentation.common.utils import set_attribute, get_scopes, MonocleSpanException, get_monocle_version, replace_placeholders, propogate_inference_info_to_parent_span
 from monocle_apptrace.instrumentation.common.constants import WORKFLOW_TYPE_KEY, WORKFLOW_TYPE_GENERIC, CHILD_ERROR_CODE, MONOCLE_SKIP_EXECUTIONS, SKIPPED_EXECUTION
 
 logger = logging.getLogger(__name__)
@@ -53,7 +55,8 @@ class SpanHandler:
         return None, None
 
     def post_tracing(self, to_wrap, wrapped, instance, args, kwargs, return_value, token=None):
-        pass
+        if token:
+            detach(token)
 
     def skip_span(self, to_wrap, wrapped, instance, args, kwargs) -> bool:
         return False
@@ -100,7 +103,7 @@ class SpanHandler:
         span.set_attribute("span.type", "generic")
 
     def post_task_processing(self, to_wrap, wrapped, instance, args, kwargs, result, ex, span:Span, parent_span:Span):
-        pass
+        propogate_inference_info_to_parent_span(span, parent_span)
 
     def should_skip(self, processor, instance, span, parent_span, args, kwargs) -> bool:
         should_skip = False
@@ -138,7 +141,22 @@ class SpanHandler:
             skip_processors:list[str] = self.skip_processor(to_wrap, wrapped, instance, span, args, kwargs) or []
             if 'attributes' in output_processor and 'attributes' not in skip_processors:
                 arguments = {"instance":instance, "args":args, "kwargs":kwargs, "result":result, "parent_span":parent_span, "span":span}
+                
+                # During post_execution, we need to find the next available entity index
+                if is_post_exec:
+                    # Find the highest entity index that has any attributes
+                    max_entity_index = 0
+                    for attr_name in span.attributes:
+                        if attr_name.startswith("entity."):
+                            # Extract entity number from attribute like "entity.2.type"
+                            parts = attr_name.split(".")
+                            if len(parts) >= 2 and parts[1].isdigit():
+                                entity_num = int(parts[1])
+                                max_entity_index = max(max_entity_index, entity_num)
+                    span_index = max(span_index, max_entity_index)
+                
                 for processors in output_processor["attributes"]:
+                    entity_has_attributes = False
                     for processor in processors:
                         attribute = processor.get('attribute')
                         accessor = processor.get('accessor')
@@ -150,6 +168,7 @@ class SpanHandler:
                                     processor_result = accessor(arguments)
                                     if processor_result and isinstance(processor_result, (str, list)):
                                         span.set_attribute(attribute_name, processor_result)
+                                        entity_has_attributes = True
                             except MonocleSpanException as e:
                                 span.set_status(StatusCode.ERROR, e.message)
                                 detected_error = True
@@ -157,13 +176,16 @@ class SpanHandler:
                                 logger.debug(f"Error processing accessor: {e}")
                         else:
                             logger.debug(f"{' and '.join([key for key in ['attribute', 'accessor'] if not processor.get(key)])} not found or incorrect in entity JSON")
-                    span_index += 1
+                    
+                    # Only increment span_index if this entity actually has attributes set
+                    if entity_has_attributes:
+                        span_index += 1
 
         # set scopes as attributes by calling get_scopes()
         # scopes is a Mapping[str:object], iterate directly with .items()
         for scope_key, scope_value in get_scopes().items():
             span.set_attribute(f"scope.{scope_key}", scope_value)
-        
+
         if span_index > 0:
             span.set_attribute("entity.count", span_index)
         return detected_error
@@ -363,3 +385,5 @@ class NonFrameworkSpanHandler(SpanHandler):
             span.set_attribute("span.type", span_type)
         return span_type
 
+class AgenticSpanHandler(SpanHandler):
+    pass

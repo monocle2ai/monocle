@@ -63,8 +63,8 @@ LLAMAINDEX_FINISH_REASON_MAPPING = {
     "truncated": FinishType.TRUNCATED.value,
     
     # Tool/function calling
-    "tool_calls": FinishType.SUCCESS.value,
-    "function_call": FinishType.SUCCESS.value,
+    "tool_calls": FinishType.TOOL_CALL.value,
+    "function_call": FinishType.TOOL_CALL.value,
     "agent_finish": FinishType.SUCCESS.value,
     
     # Content filtering and safety
@@ -249,8 +249,9 @@ HAYSTACK_FINISH_REASON_MAPPING = {
     "token_limit": FinishType.TRUNCATED.value,
 
     # Tool/function calling
-    "tool_calls": FinishType.SUCCESS.value,
-    "function_call": FinishType.SUCCESS.value,
+    "tool_calls": FinishType.TOOL_CALL.value,
+    "function_call": FinishType.TOOL_CALL.value,
+    "tool_use": FinishType.TOOL_CALL.value,  # Anthropic tool use finish reason
 
     # Content filtering and safety
     "content_filter": FinishType.CONTENT_FILTER.value,
@@ -296,6 +297,14 @@ HUGGING_FACE_FINISH_REASON_MAPPING = {
 }
 
 ADK_FINISH_REASON_MAPPING = GEMINI_FINISH_REASON_MAPPING
+
+LITELLM_FINISH_REASON_MAPPING = {
+    "stop": FinishType.SUCCESS.value,
+    "tool_calls": FinishType.TOOL_CALL.value,
+    "function_call": FinishType.TOOL_CALL.value,
+    "length": FinishType.TRUNCATED.value,
+    "content_filter": FinishType.CONTENT_FILTER.value
+}
 
 def map_openai_finish_reason_to_finish_type(finish_reason):
     """Map OpenAI finish_reason to standardized finish_type."""
@@ -496,3 +505,9 @@ def map_hf_finish_reason_to_finish_type(finish_reason):
     if not finish_reason:
         return None
     return HUGGING_FACE_FINISH_REASON_MAPPING.get(finish_reason, None)
+
+def map_litellm_finish_reason_to_finish_type(finish_reason):
+    """Map LiteLLM finish_reason to standardized finish_type."""
+    if not finish_reason:
+        return None
+    return LITELLM_FINISH_REASON_MAPPING.get(finish_reason, None)

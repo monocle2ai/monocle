@@ -48,6 +48,17 @@ def find_inference_span_and_event_attributes(spans, event_name="metadata"):
                     return event.attributes
     return None
 
+def find_inference_span_with_tool_call(spans):
+    """Find inference span that contains tool calling information."""
+    for span in reversed(spans):
+        span_type = span.attributes.get("span.type")
+        if span_type in ("inference.framework", "inference"):
+            # Check if this span has entity.3 attributes (tool info)
+            for event in span.events:
+                if event.name == "metadata" and event.attributes.get("finish_type") == "tool_call":
+                    return span
+    return None
+
 
 @pytest.mark.skipif(
     not OPENAI_API_KEY,
@@ -255,6 +266,13 @@ def test_haystack_finish_reason_mapping_edge_cases():
     assert map_haystack_finish_reason_to_finish_type("STOP") == FinishType.SUCCESS.value
     assert map_haystack_finish_reason_to_finish_type("Stop") == FinishType.SUCCESS.value
     assert map_haystack_finish_reason_to_finish_type("MAX_TOKENS") == FinishType.TRUNCATED.value
+
+    # Tool calling mappings
+    assert map_haystack_finish_reason_to_finish_type("tool_calls") == FinishType.TOOL_CALL.value
+    assert map_haystack_finish_reason_to_finish_type("function_call") == FinishType.TOOL_CALL.value
+    assert map_haystack_finish_reason_to_finish_type("TOOL_CALLS") == FinishType.TOOL_CALL.value
+    assert map_haystack_finish_reason_to_finish_type("Function_Call") == FinishType.TOOL_CALL.value
+
     # Pattern matching
     assert map_haystack_finish_reason_to_finish_type("completion_stopped") == FinishType.SUCCESS.value
     assert map_haystack_finish_reason_to_finish_type("token_limit_reached") == FinishType.TRUNCATED.value
@@ -264,6 +282,72 @@ def test_haystack_finish_reason_mapping_edge_cases():
     assert map_haystack_finish_reason_to_finish_type("unknown_reason") is None
     assert map_haystack_finish_reason_to_finish_type(None) is None
     assert map_haystack_finish_reason_to_finish_type("") is None
+
+@pytest.mark.skipif(
+    not OPENAI_API_KEY,
+    reason="OPENAI_API_KEY not set or haystack not available"
+)
+def test_haystack_openai_finish_reason_tool_use_with_entity_3_validation(setup):
+    """Test finish_reason == 'tool_calls' and validate entity.3.name and entity.3.type for Haystack OpenAI."""
+    from haystack.components.generators import OpenAIGenerator
+    from haystack.utils import Secret
+
+    # Define a simple weather tool
+    tool_definition = {
+        "type": "function",
+        "function": {
+            "name": "get_weather",
+            "description": "Get the current weather for a city",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "city": {
+                        "type": "string",
+                        "description": "The city name"
+                    }
+                },
+                "required": ["city"]
+            }
+        }
+    }
+
+    # Create generator with tool calling configuration
+    generation_kwargs = {
+        'max_tokens': 100,
+        'temperature': 0.0,
+        'tools': [tool_definition],
+        'tool_choice': 'auto'
+    }
+
+    generator = OpenAIGenerator(
+        api_key=Secret.from_token(OPENAI_API_KEY),
+        model="gpt-3.5-turbo",
+        generation_kwargs=generation_kwargs
+    )
+
+    # Make a request that should trigger tool use
+    result = generator.run("What's the weather like in New York?")
+    logger.info(f"Haystack OpenAI tool use response: {result}")
+
+    spans = setup.get_captured_spans()
+    assert spans, "No spans were exported"
+
+    found_entity3 = False
+    inference_span = find_inference_span_with_tool_call(spans)
+    if inference_span:
+        # Validate entity.3 attributes (tool information)
+        entity_3_name = inference_span.attributes.get("entity.3.name")
+        entity_3_type = inference_span.attributes.get("entity.3.type")
+
+        logger.info(f"entity.3.name: {entity_3_name}")
+        logger.info(f"entity.3.type: {entity_3_type}")
+
+        # Validate entity.3 attributes are present and correct
+        assert entity_3_name == "get_weather", f"Expected entity.3.name='get_weather', got '{entity_3_name}'"
+        assert entity_3_type == "tool.function", f"Expected entity.3.type='tool.function', got '{entity_3_type}'"
+        found_entity3 = True
+
+    assert found_entity3, "Entity 3 not found"
 
 @pytest.mark.skipif(
     not OPENAI_API_KEY,
@@ -322,6 +406,70 @@ def test_haystack_anthropic_finish_reason_content_filter(setup):
             assert finish_type in ["content_filter", "refusal"]
         elif finish_reason in ["end_turn", "stop"]:
             assert finish_type == "success"
+
+@pytest.mark.skipif(
+    not ANTHROPIC_API_KEY,
+    reason="ANTHROPIC_API_KEY not set or haystack-anthropic not available"
+)
+def test_haystack_anthropic_finish_reason_tool_use_with_entity_3_validation(setup):
+    """Test finish_reason == 'tool_use' and validate entity.3.name and entity.3.type for Haystack Anthropic."""
+    from haystack_integrations.components.generators.anthropic import AnthropicChatGenerator
+    from haystack.dataclasses import ChatMessage
+
+    # Define a simple weather tool
+    tool_definition = {
+        "name": "get_weather",
+        "description": "Get the current weather for a city",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "city": {
+                    "type": "string",
+                    "description": "The city name"
+                }
+            },
+            "required": ["city"]
+        }
+    }
+
+    # Create generator with tool calling configuration
+    generator = AnthropicChatGenerator(
+        model=ANTHROPIC_MODEL,
+        generation_kwargs={
+            "max_tokens": 100,
+            "temperature": 0.0,
+            "tools": [tool_definition]
+        }
+    )
+
+    messages = [
+        ChatMessage.from_system("You are a helpful assistant with access to weather information."),
+        ChatMessage.from_user("What's the weather like in New York?")
+    ]
+
+    response = generator.run(messages=messages)
+    logger.info(f"Haystack Anthropic tool use response: {response}")
+
+    spans = setup.get_captured_spans()
+    assert spans, "No spans were exported"
+
+    found_entity3 = False
+    inference_span = find_inference_span_with_tool_call(spans)
+    if inference_span:
+
+        entity_3_name = inference_span.attributes.get("entity.3.name")
+        entity_3_type = inference_span.attributes.get("entity.3.type")
+
+        logger.info(f"entity.3.name: {entity_3_name}")
+        logger.info(f"entity.3.type: {entity_3_type}")
+
+        # Validate entity.3 attributes are present and correct
+        assert entity_3_name == "get_weather", f"Expected entity.3.name='get_weather', got '{entity_3_name}'"
+        assert entity_3_type == "tool.function", f"Expected entity.3.type='tool.function', got '{entity_3_type}'"
+        found_entity3 = True
+
+    assert found_entity3, "Entity 3 not found"
+
 
 if __name__ == "__main__":
     pytest.main([__file__, "-s", "--tb=short"])

@@ -91,12 +91,14 @@ LANGCHAIN_METHODS = [
     {
         "package": "langchain.schema.runnable",
         "object": "RunnableSequence",
+        "span_name": "Orchestrator",
         "method": "invoke",
         "wrapper_method": task_wrapper
     },
     {
         "package": "langchain.schema.runnable",
         "object": "RunnableSequence",
+        "span_name": "Orchestrator",
         "method": "ainvoke",
         "wrapper_method": atask_wrapper
     }

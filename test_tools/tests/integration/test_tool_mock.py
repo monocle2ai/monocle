@@ -1,9 +1,9 @@
 import pytest 
 
-from monocle_test_tools import TestCase, MonocleValidator
+from monocle_test_tools import MonocleValidator
 from test_common.adk_travel_agent import root_agent
 
-agent_test_cases:list[TestCase] = [
+agent_test_cases:list[dict] = [
     {
         "test_input": ["Book a flight from San Francisco to Mumbai for 26th Nov 2025."],
         "mock_tools": [
@@ -31,7 +31,7 @@ agent_test_cases:list[TestCase] = [
   ]
 
 @MonocleValidator().monocle_testcase(agent_test_cases)
-async def test_run_agents(my_test_case: TestCase):
+async def test_run_agents(my_test_case: dict):
    await MonocleValidator().test_agent_async(root_agent, "google_adk", my_test_case)
 
 if __name__ == "__main__":

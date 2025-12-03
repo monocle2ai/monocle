@@ -21,9 +21,9 @@ __all__ = [
 def extract_session_id(instance):
     # AWS Strands manages sessions through a session_manager object
     # The session_id is typically accessible via instance.session_manager.session_id
-    if hasattr(instance, 'session_manager') and instance.session_manager is not None:
-        if hasattr(instance.session_manager, 'session_id'):
-            return instance.session_manager.session_id
+    if hasattr(instance, '_session_manager') and instance._session_manager is not None:
+        if hasattr(instance._session_manager, 'session_id'):
+            return instance._session_manager.session_id
     return None
 
 

@@ -1,5 +1,4 @@
 from typing import Optional, Union
-
 from .comparer.comparer_manager import get_comparer
 from .comparer.base_comparer import BaseComparer
 from .comparer.default_comparer import DefaultComparer

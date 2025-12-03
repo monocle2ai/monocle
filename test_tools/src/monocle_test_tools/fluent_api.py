@@ -1,5 +1,4 @@
 from typing import Optional, Union
-
 from .comparer.comparer_manager import get_comparer
 from .comparer.base_comparer import BaseComparer
 from .comparer.default_comparer import DefaultComparer
@@ -11,6 +10,14 @@ from .validator import MonocleValidator
 from opentelemetry.sdk.trace import Span
 
 class TraceAssertion(MonocleValidator):
+
+    @staticmethod
+    def get_trace_asserter():
+        traceAssertion = TraceAssertion()
+        traceAssertion.memory_exporter.clear()
+        traceAssertion._filtered_spans = []
+        return traceAssertion
+
     """Fluent API for asserting properties on Monocle traces."""
     _filtered_spans:Span = []
     _eval:Optional[Union[str, BaseEval]]  = None
@@ -32,7 +39,7 @@ class TraceAssertion(MonocleValidator):
         self.expect_warnings = expect_warnings
         return self
 
-    def called_tool(self, tool_name:str, agent_name:Optional[str]) -> 'TraceAssertion':
+    def called_tool(self, tool_name:str, agent_name:Optional[str] = None) -> 'TraceAssertion':
         self._filtered_spans = self._get_tool_invocation_spans(tool_name, agent_name)
         if agent_name:
             self._assert_on_spans(f"Tool '{tool_name}' was not called by agent '{agent_name}'")

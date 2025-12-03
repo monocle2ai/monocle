@@ -14,7 +14,7 @@ agent_test_cases:list[dict] = [
         "test_input": ["Book a flight from San Francisco to Mumbai for 26th Nov 2025. Book a two queen room at Marriot Intercontinental at Juhu, Mumbai for 27th Nov 2025 for 4 nights."],
         "test_spans": [
             {
-            "span_type": "agentic.request",
+            "span_type": "agentic.turn",
             "output": "A flight from San Francisco to Mumbai on November 26, 2025, and a four-night stay at the Marriot Intercontinental in Juhu, Mumbai starting November 27, 2025, have been booked.",
             "comparer": "similarity"
             },
@@ -31,7 +31,7 @@ agent_test_cases:list[dict] = [
         "test_input": ["Book a flight from San Francisco to Mumbai for 26th Nov 2025. Book a two queen room at Marriot Intercontinental at Juhu, Mumbai for 27th Nov 2025 for 4 nights."],
         "test_spans": [
             {
-            "span_type": "agentic.request",
+            "span_type": "agentic.turn",
             "eval":
                 {
                 "eval": "bert_score",

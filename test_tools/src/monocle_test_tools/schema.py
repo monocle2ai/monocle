@@ -14,7 +14,7 @@ TEST_SCOPE_NAME = "monocle_test_run_id"
 class SpanType(str, Enum):
     TOOL_INVOCATION = "agentic.tool.invocation"
     AGENTIC_INVOCATION = "agentic.invocation"
-    AGENTIC_REQUEST = "agentic.request"
+    AGENTIC_REQUEST = "agentic.turn"
     AGENTIC_DELEGATION = "agentic.delegation"
     INFERENCE = "inference"
 

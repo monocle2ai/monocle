@@ -15,7 +15,6 @@ class TraceAssertion(MonocleValidator):
     def get_trace_asserter():
         traceAssertion = TraceAssertion()
         traceAssertion.memory_exporter.clear()
-        traceAssertion._filtered_spans = []
         return traceAssertion
 
     """Fluent API for asserting properties on Monocle traces."""

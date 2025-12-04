@@ -1,6 +1,6 @@
 # Capture git metadata of the test environment
+from datetime import datetime, timezone
 import os
-from typing import Optional
 from git import Repo
 from .constants import GIT_COMMIT_HASH_ATTRIBUTE, GIT_RUN_ID_ATTRIBUTE, GIT_WORKFLOW_NAME_ATTRIBUTE
 
@@ -12,8 +12,8 @@ def get_commit_hash() -> str:
     return repo.head.object.hexsha
 
 def get_git_run_id() -> str:
-    """Get the current git run ID (GitHub Actions run ID)."""
-    return os.getenv("GITHUB_RUN_ID", "local")
+    """Get the current git run ID (GitHub Actions run ID) or current timestamp for local runs."""
+    return os.getenv("GITHUB_RUN_ID", datetime.now().isoformat())
 
 def get_git_workflow_name() -> str:
     """Get the current git workflow name (GitHub Actions workflow)."""

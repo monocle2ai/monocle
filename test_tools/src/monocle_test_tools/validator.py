@@ -8,7 +8,7 @@ from opentelemetry.sdk.trace import Span, StatusCode
 from opentelemetry.sdk.trace.export import SpanProcessor, SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from opentelemetry.sdk.trace.export import SpanExporter
-from opentelemetry.context import set_value, attach, detach, get_value
+from opentelemetry.context import set_value, Context
 import pytest
 #from sqlalchemy import func
 from monocle_apptrace.exporters.file_exporter import FileSpanExporter, DEFAULT_TRACE_FOLDER
@@ -41,13 +41,14 @@ class MonocleValidator:
     _instance = None
     _initialized = False
     exporters:list[SpanExporter] = []
+    export_failed_tests_only: bool = False
 
     def __new__(cls, *args, **kwargs):
         if cls._instance is None:
             cls._instance = super().__new__(cls)
         return cls._instance
 
-    def __init__(self, exporter_list:Optional[str] = None):
+    def __init__(self, exporter_list:Optional[str] = None, export_failed_tests_only:Optional[bool] = None):
         if MonocleValidator._initialized:
             if exporter_list is not None:
                 raise ValueError("Exporter list can only be set during the first initialization of MonocleValidator.")
@@ -58,6 +59,9 @@ class MonocleValidator:
             exporter_list = os.getenv("MONOCLE_EXPORTER", "file")
         self.exporters = get_monocle_exporter(exporter_list)
         self.memory_exporter = InMemorySpanExporter()
+        if export_failed_tests_only is None:
+            export_failed_tests_only = os.getenv("MONOCLE_EXPORT_FAILED_TESTS_ONLY", "false").lower() == "true"
+        self.export_failed_tests_only = export_failed_tests_only
         self.instrumentor = setup_monocle_telemetry(workflow_name="monocle_validator",
                                         span_processors=[SimpleSpanProcessor(self.memory_exporter)])
         MonocleValidator._initialized = True
@@ -79,6 +83,8 @@ class MonocleValidator:
 
     def flush_to_exporters(self, test_name:str, test_failed:bool):
         """Flush the current spans and prepare for validation."""
+        if self.export_failed_tests_only and not test_failed:
+            return
         span:Span = None
         for exporter in self.exporters:
             for span in self.memory_exporter.get_finished_spans():
@@ -89,30 +95,42 @@ class MonocleValidator:
                 exporter.export([span])
             if hasattr(exporter, "force_flush"):
                 exporter.force_flush()
+            if hasattr(exporter, "shutdown"):
+                exporter.shutdown()
 
-    @contextmanager
-    def monocle_exporter_wrapper(self, test_case: TestCase, request):
-        test_case_name = request.node.name if request is not None else (test_case.test_case_name if test_case is not None else "monocle_test")
-        if self.file_exporter is not None:
-            self.file_exporter.set_service_name(test_case_name)
-
-        context = self._set_wrapper_methods(test_case.mock_tools)
+    def pre_test_run_setup(self, test_case_name:str, request, mock_tools: Optional[list[MockTool]] = None) -> None:
+        """
+        Prepares the validator for a new test run by clearing existing spans.
+        """
+        context:Context = None
+        if mock_tools is not None:
+            context = self._set_wrapper_methods(mock_tools)
         test_scope = {TEST_SCOPE_NAME: test_case_name}
         git_scopes = get_git_context()
         all_scopes = {**test_scope, **git_scopes}
         token = start_scopes(all_scopes, context)
         prior_test_failed_count = request.session.testsfailed
+        return token, prior_test_failed_count
+
+    def post_test_cleanup(self, token:object, request:pytest.FixtureRequest, prior_test_failed_count):
+        try:
+            self.flush_to_exporters(request.node.name, request.session.testsfailed > prior_test_failed_count)
+        finally:
+            self.cleanup()
+            if token is not None:
+                stop_scope(token)
+
+    @contextmanager
+    def monocle_exporter_wrapper(self, test_case: TestCase, request:pytest.FixtureRequest):
+        test_case_name = request.node.name if request is not None else (test_case.test_case_name if test_case is not None else "monocle_test")
+        token, prior_test_failed_count = self.pre_test_run_setup(test_case_name, request, test_case.mock_tools)
         try:
             yield
         finally:
             try:
                 self.validate(test_case)
             finally:
-                self.flush_to_exporters(request, request.session.testsfailed > prior_test_failed_count)
-                self.memory_exporter.clear()
-                if self.file_exporter is not None:
-                    self.file_exporter.force_flush()
-                    self.file_exporter.shutdown()
+                self.post_test_cleanup(token, request, prior_test_failed_count)
                 self._spans = []
                 if token is not None:
                     stop_scope(token)
@@ -132,12 +150,12 @@ class MonocleValidator:
         def decorator(func):
             if inspect.iscoroutinefunction(func):
                 @pytest.mark.asyncio
-                @pytest.mark.parametrize("test_case", test_cases, ids = MonocleValidator.test_id_generator)
+                @pytest.mark.parametrize("test_case", test_cases)
                 async def wrapper(test_case, request, *args, **kwargs):
                     with self.monocle_exporter_wrapper(test_case, request):
                         return await func(test_case, *args, **kwargs)
             else:
-                @pytest.mark.parametrize("test_case", test_cases, ids = MonocleValidator.test_id_generator)
+                @pytest.mark.parametrize("test_case", test_cases)
                 def wrapper(test_case, request, *args, **kwargs):
                     with self.monocle_exporter_wrapper(test_case, request):
                         return func(test_case, *args, **kwargs)

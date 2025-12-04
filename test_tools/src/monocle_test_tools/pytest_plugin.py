@@ -7,7 +7,7 @@ from .gitutils import get_git_context
 @pytest.fixture
 def monocle_trace_asserter(request):
     """
-    Provides a fresh TraceAssertion instance for each test.
+    Provides a fresh TraceAssertion instance for each teqst.
     
     This fixture automatically handles cleanup and ensures test isolation.
     Each test gets its own clean asserter with cleared memory and empty spans.
@@ -27,8 +27,10 @@ def monocle_trace_asserter(request):
     git_scopes = get_git_context()
     all_scopes = {**test_scope, **git_scopes}
     token = start_scopes(all_scopes)
+    prior_test_failed_count = request.session.testsfailed
     try:
         yield traceAssertion
     finally:
-        traceAssertion.cleanup()
         stop_scope(token)
+        traceAssertion.flush_to_exporters(request, request.session.testsfailed > prior_test_failed_count)
+        traceAssertion.cleanup()

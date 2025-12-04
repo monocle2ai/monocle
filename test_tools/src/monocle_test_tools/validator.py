@@ -11,12 +11,14 @@ from opentelemetry.context import set_value, attach, detach, get_value
 import pytest
 #from sqlalchemy import func
 from monocle_apptrace.exporters.file_exporter import FileSpanExporter, DEFAULT_TRACE_FOLDER
-from monocle_apptrace import start_scope, stop_scope
+from monocle_apptrace import start_scopes, stop_scope
 from contextlib import contextmanager, asynccontextmanager
 import logging
 from monocle_apptrace.instrumentation.common.instrumentor import MonocleInstrumentor, setup_monocle_telemetry
 from pydantic import BaseModel, ValidationError
-from monocle_test_tools.schema import SpanType, TestSpan, TestCase, Evaluation, EvalInputs, MockTool, TEST_SCOPE_NAME
+from monocle_test_tools.gitutils import get_git_context
+from monocle_test_tools.schema import SpanType, TestSpan, TestCase, Evaluation, EvalInputs, MockTool
+from monocle_test_tools.constants import TEST_SCOPE_NAME
 from monocle_test_tools.comparer.base_comparer import BaseComparer
 from monocle_test_tools.runner.runner import get_agent_runner
 from monocle_test_tools import trace_utils
@@ -75,7 +77,10 @@ class MonocleValidator:
             self.file_exporter.set_service_name(test_case_name)
 
         context = self._set_wrapper_methods(test_case.mock_tools)
-        token = start_scope(scope_name=TEST_SCOPE_NAME, scope_value=test_case_name, context=context)
+        test_scope = {TEST_SCOPE_NAME: test_case_name}
+        git_scopes = get_git_context()
+        all_scopes = {**test_scope, **git_scopes}
+        token = start_scopes(all_scopes, context)
         try:
             yield
         finally:
@@ -151,14 +156,16 @@ class MonocleValidator:
         self.validate_result(test_case, result)
         return result
 
-    def run_agent(self, agent, agent_type:str, *args, **kwargs):
+    @staticmethod
+    def run_agent(agent, agent_type:str, *args, **kwargs):
         agent_runner = get_agent_runner(agent_type)
         if agent_runner is None:
             raise ValueError(f"Unsupported agent type: {agent_type}")
         result = agent_runner.run_agent(agent, *args, **kwargs)
         return result
 
-    async def run_agent_async(self, agent, agent_type:str, *args, **kwargs):
+    @staticmethod
+    async def run_agent_async(agent, agent_type:str, *args, **kwargs):
         agent_runner = get_agent_runner(agent_type)
         if agent_runner is None:
             raise ValueError(f"Unsupported agent type: {agent_type}")
@@ -170,7 +177,7 @@ class MonocleValidator:
             test_case = TestCase.model_validate(test_case)
         result = None
         try:
-            result = await self.run_agent_async(agent, agent_type, *test_case.test_input)
+            result = await MonocleValidator.run_agent_async(agent, agent_type, *test_case.test_input)
         except Exception as e:
             if not test_case.expect_errors:
                 raise
@@ -182,7 +189,7 @@ class MonocleValidator:
             test_case = TestCase.model_validate(test_case)
         result = None
         try:
-            result = self.run_agent(agent, agent_type, *test_case.test_input)
+            result = MonocleValidator.run_agent(agent, agent_type, *test_case.test_input)
         except Exception as e:
             if not test_case.expect_errors:
                 raise

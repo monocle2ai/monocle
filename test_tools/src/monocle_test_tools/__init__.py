@@ -26,6 +26,7 @@ from . import trace_utils
 from .runner import AgentRunner, get_agent_runner
 from .fluent_api import TraceAssertion
 from . import pytest_plugin
+from . import gitutils
 
 __all__ = [
     "MonocleValidator",
@@ -45,5 +46,6 @@ __all__ = [
     "MockTool",
     "ToolType",
     "TraceAssertion",
-    "pytest_plugin"
+    "pytest_plugin",
+    "gitutils"
 ]

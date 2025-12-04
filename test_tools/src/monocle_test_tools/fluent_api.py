@@ -1,26 +1,26 @@
 from typing import Optional, Union
+
 from .comparer.comparer_manager import get_comparer
 from .comparer.base_comparer import BaseComparer
 from .comparer.default_comparer import DefaultComparer
 from .comparer.token_match_comparer import TokenMatchComparer
 from .evals.eval_manager import get_evaluator
 from .evals.base_eval import BaseEval
-from .schema import SpanType
 from .validator import MonocleValidator
 from opentelemetry.sdk.trace import Span
 
 class TraceAssertion(MonocleValidator):
-
-    @staticmethod
-    def get_trace_asserter():
-        traceAssertion = TraceAssertion()
-        traceAssertion.memory_exporter.clear()
-        return traceAssertion
-
+    
     """Fluent API for asserting properties on Monocle traces."""
     _filtered_spans:Span = []
     _eval:Optional[Union[str, BaseEval]]  = None
     _comparer: Union[str, BaseComparer] = DefaultComparer()
+
+    @staticmethod
+    def get_trace_asserter():
+        traceAssertion = TraceAssertion()
+        traceAssertion.cleanup()
+        return traceAssertion
 
     def with_evaluation(self, eval:Union[str, BaseEval]) -> 'TraceAssertion':
         self._eval = get_evaluator(eval)
@@ -91,6 +91,10 @@ class TraceAssertion(MonocleValidator):
         self._filtered_spans = self._check_input_output(self._filtered_spans, expected_input=None, expected_output=unexpected_output,
                                  comparer=self._comparer, eval=self._eval, positive_test=False)
         return self
+
+    def cleanup(self) -> None:
+        self.memory_exporter.clear()
+        self._filtered_spans = []
 
     def _assert_on_spans(self, assertion_message:str) -> None:
         if not self._filtered_spans or len(self._filtered_spans) == 0:

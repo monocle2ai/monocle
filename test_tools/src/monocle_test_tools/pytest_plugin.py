@@ -1,8 +1,11 @@
 import pytest
 from .fluent_api import TraceAssertion
+from monocle_apptrace.instrumentation.common.scope_wrapper import start_scopes, stop_scope
+from .constants import TEST_SCOPE_NAME
+from .gitutils import get_git_context
 
-@pytest.fixture()
-def monocle_trace_asserter():
+@pytest.fixture
+def monocle_trace_asserter(request):
     """
     Provides a fresh TraceAssertion instance for each test.
     
@@ -19,4 +22,13 @@ def monocle_trace_asserter():
                 .has_input("expected input") \\
                 .contains_output("expected output")
     """
-    return TraceAssertion.get_trace_asserter()
+    traceAssertion = TraceAssertion.get_trace_asserter()
+    test_scope = {TEST_SCOPE_NAME: request.function.__name__}
+    git_scopes = get_git_context()
+    all_scopes = {**test_scope, **git_scopes}
+    token = start_scopes(all_scopes)
+    try:
+        yield traceAssertion
+    finally:
+        traceAssertion.cleanup()
+        stop_scope(token)

@@ -22,6 +22,10 @@ class TraceAssertion(MonocleValidator):
         traceAssertion.cleanup()
         return traceAssertion
 
+    def cleanup(self) -> None:
+        super().cleanup()
+        self._filtered_spans = []
+
     def with_evaluation(self, eval:Union[str, BaseEval]) -> 'TraceAssertion':
         self._eval = get_evaluator(eval)
         return self

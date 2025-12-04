@@ -41,7 +41,10 @@ dependencies = [
     # Evaluation dependencies
     "bert-score>=0.3.0",
     "transformers>=4.0.0",
-    "sentence-transformers==3.3.0"
+    "sentence-transformers==3.3.0",
+
+    # git
+    "GitPython==3.1.45"
 ]
 
 [project.optional-dependencies]
@@ -106,8 +109,7 @@ log_cli = true
 log_cli_level = "INFO"
 log_cli_format = "%(asctime)s [%(levelname)8s] %(name)s: %(message)s"
 log_cli_date_format = "%Y-%m-%d %H:%M:%S"
-pythonpath = ["src", "tests", "../apptrace/src"]
-
+pythonpath = ["src", "tests", "../apptrace/src", "test_tools", "."]
 markers = [
     "unit: marks tests as unit tests",
     "integration: marks tests as integration tests", 
@@ -116,6 +118,9 @@ markers = [
     "tool: marks tests as tool-related tests",
     "inference: marks tests as inference-related tests",
 ]
+
+[project.entry-points.pytest11]
+monocle_test_tools = "monocle_test_tools.pytest_plugin"
 
 [tool.black]
 line-length = 120

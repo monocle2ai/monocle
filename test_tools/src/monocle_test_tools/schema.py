@@ -10,11 +10,10 @@ from monocle_test_tools.comparer.metric_comparer import MetricComparer
 from monocle_test_tools.evals.eval_manager import get_evaluator
 from monocle_test_tools.comparer.comparer_manager import get_comparer
 
-TEST_SCOPE_NAME = "monocle_test_run_id"
 class SpanType(str, Enum):
     TOOL_INVOCATION = "agentic.tool.invocation"
     AGENTIC_INVOCATION = "agentic.invocation"
-    AGENTIC_REQUEST = "agentic.request"
+    AGENTIC_REQUEST = "agentic.turn"
     AGENTIC_DELEGATION = "agentic.delegation"
     INFERENCE = "inference"
 

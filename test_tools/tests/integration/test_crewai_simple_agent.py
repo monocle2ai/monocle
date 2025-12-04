@@ -19,7 +19,7 @@ agent_test_cases: list[TestCase] = [
         "test_input": ["Book a hotel room at Marriott in New York for 2 nights starting Dec 1st 2025."],
         "test_spans": [
             {
-                "span_type": "agentic.request",
+                "span_type": "agentic.turn",
                 "entities": [
                     {"type": "agent", "name": "CrewAI Travel Agent"}
                 ]

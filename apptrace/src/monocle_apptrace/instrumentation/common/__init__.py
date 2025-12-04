@@ -11,7 +11,8 @@ from .instrumentor import (
 )
 from .scope_wrapper import (
     start_scope, 
-    stop_scope, 
+    stop_scope,
+    start_scopes,
     monocle_trace_scope, 
     amonocle_trace_scope,
     monocle_trace_scope_method

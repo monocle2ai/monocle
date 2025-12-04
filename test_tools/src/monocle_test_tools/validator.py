@@ -11,12 +11,14 @@ from opentelemetry.context import set_value, attach, detach, get_value
 import pytest
 #from sqlalchemy import func
 from monocle_apptrace.exporters.file_exporter import FileSpanExporter, DEFAULT_TRACE_FOLDER
-from monocle_apptrace import start_scope, stop_scope
+from monocle_apptrace import start_scopes, stop_scope
 from contextlib import contextmanager, asynccontextmanager
 import logging
 from monocle_apptrace.instrumentation.common.instrumentor import MonocleInstrumentor, setup_monocle_telemetry
 from pydantic import BaseModel, ValidationError
-from monocle_test_tools.schema import SpanType, TestSpan, TestCase, Evaluation, EvalInputs, MockTool, TEST_SCOPE_NAME
+from monocle_test_tools.gitutils import get_git_context
+from monocle_test_tools.schema import SpanType, TestSpan, TestCase, Evaluation, EvalInputs, MockTool
+from monocle_test_tools.constants import TEST_SCOPE_NAME
 from monocle_test_tools.comparer.base_comparer import BaseComparer
 from monocle_test_tools.runner.runner import get_agent_runner
 from monocle_test_tools import trace_utils
@@ -75,7 +77,10 @@ class MonocleValidator:
             self.file_exporter.set_service_name(test_case_name)
 
         context = self._set_wrapper_methods(test_case.mock_tools)
-        token = start_scope(scope_name=TEST_SCOPE_NAME, scope_value=test_case_name, context=context)
+        test_scope = {TEST_SCOPE_NAME: test_case_name}
+        git_scopes = get_git_context()
+        all_scopes = {**test_scope, **git_scopes}
+        token = start_scopes(all_scopes, context)
         try:
             yield
         finally:
@@ -151,15 +156,28 @@ class MonocleValidator:
         self.validate_result(test_case, result)
         return result
 
-    async def test_agent_async(self, agent, agent_type:str, test_case:Union[TestCase, dict]):
-        if isinstance(test_case, dict):
-            test_case = TestCase.model_validate(test_case)
+    @staticmethod
+    def run_agent(agent, agent_type:str, *args, **kwargs):
         agent_runner = get_agent_runner(agent_type)
         if agent_runner is None:
             raise ValueError(f"Unsupported agent type: {agent_type}")
+        result = agent_runner.run_agent(agent, *args, **kwargs)
+        return result
+
+    @staticmethod
+    async def run_agent_async(agent, agent_type:str, *args, **kwargs):
+        agent_runner = get_agent_runner(agent_type)
+        if agent_runner is None:
+            raise ValueError(f"Unsupported agent type: {agent_type}")
+        result = await agent_runner.run_agent_async(agent, *args, **kwargs)
+        return result
+
+    async def test_agent_async(self, agent, agent_type:str, test_case:Union[TestCase, dict]):
+        if isinstance(test_case, dict):
+            test_case = TestCase.model_validate(test_case)
         result = None
         try:
-            result = await agent_runner.run_agent_async(agent, *test_case.test_input)
+            result = await MonocleValidator.run_agent_async(agent, agent_type, *test_case.test_input)
         except Exception as e:
             if not test_case.expect_errors:
                 raise
@@ -169,12 +187,9 @@ class MonocleValidator:
     def test_agent(self, agent, agent_type:str, test_case:Union[TestCase, dict]):
         if isinstance(test_case, dict):
             test_case = TestCase.model_validate(test_case)
-        agent_runner = get_agent_runner(agent_type)
-        if agent_runner is None:
-            raise ValueError(f"Unsupported agent type: {agent_type}")
         result = None
         try:
-            result = agent_runner.run_agent(agent, *test_case.test_input)
+            result = MonocleValidator.run_agent(agent, agent_type, *test_case.test_input)
         except Exception as e:
             if not test_case.expect_errors:
                 raise
@@ -496,7 +511,7 @@ class MonocleValidator:
 
     def _check_input_output(self, spans:list[Span], expected_input:Optional[str], expected_output:Optional[str],
                         comparer:BaseComparer, eval:Evaluation, positive_test:Optional[bool]=True,
-                        tool_name:Optional[str]=None, agent_name:Optional[str]=None,) -> None:
+                        tool_name:Optional[str]=None, agent_name:Optional[str]=None) -> None:
         candidate_spans = []
         found_input = found_output = False
         if expected_input is not None or expected_output is not None:
@@ -507,11 +522,11 @@ class MonocleValidator:
                 for event in span.events:
                     if event.name == "data.input":
                         if expected_input is not None:
-                            if comparer.compare(event.attributes.get("input"), expected_input):
+                            if comparer.compare(expected_input, event.attributes.get("input")):
                                 found_input_in_span = True
                     elif event.name == "data.output":
                         if expected_output is not None:
-                            if comparer.compare(event.attributes.get("response"), expected_output):
+                            if comparer.compare(expected_output, event.attributes.get("response")):
                                 found_output_in_span = True
                 if found_input_in_span and found_output_in_span:
                     found_input = found_output = True
@@ -562,7 +577,7 @@ class MonocleValidator:
             span_attributes = span.attributes
             if (
                 "span.type" in span_attributes
-                and span_attributes["span.type"] == "agentic.request"
+                and span_attributes["span.type"] == "agentic.turn"
             ):
                 found_error = self._span_has_error(span)
                 if expect_error and not found_error:

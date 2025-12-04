@@ -14,7 +14,7 @@ async def test_tool_invocation(monocle_trace_asserter):
 async def test_agent_invocation(monocle_trace_asserter):
     await monocle_trace_asserter.run_agent_async(root_agent, "google_adk",
                         "Book a flight from San Jose to Seattle for 27th Nov 2025.")
-    monocle_trace_asserter.called_agent("foobar").contains_input("Book a flight from San Jose to Seattle")
+    monocle_trace_asserter.called_agent("adk_flight_booking_agent_5").contains_input("Book a flight from San Jose to Seattle")
 
 if __name__ == "__main__":
     pytest.main([__file__]) 

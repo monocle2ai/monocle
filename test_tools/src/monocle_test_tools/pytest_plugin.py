@@ -4,8 +4,8 @@ from monocle_apptrace.instrumentation.common.scope_wrapper import start_scopes, 
 from .constants import TEST_SCOPE_NAME
 from .gitutils import get_git_context
 
-@pytest.fixture
-def monocle_trace_asserter(request):
+@pytest.fixture()
+def monocle_trace_asserter(request:pytest.FixtureRequest):
     """
     Provides a fresh TraceAssertion instance for each test.
     
@@ -23,12 +23,9 @@ def monocle_trace_asserter(request):
                 .contains_output("expected output")
     """
     traceAssertion = TraceAssertion.get_trace_asserter()
-    test_scope = {TEST_SCOPE_NAME: request.function.__name__}
-    git_scopes = get_git_context()
-    all_scopes = {**test_scope, **git_scopes}
-    token = start_scopes(all_scopes)
+    token, prior_test_failed_count = traceAssertion.pre_test_run_setup(request.node.name, request)
     try:
-        yield traceAssertion
+        result = yield traceAssertion
+        pass
     finally:
-        traceAssertion.cleanup()
-        stop_scope(token)
+        traceAssertion.post_test_cleanup(token, request, prior_test_failed_count)

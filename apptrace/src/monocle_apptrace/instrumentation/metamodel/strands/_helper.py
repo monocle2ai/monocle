@@ -34,7 +34,8 @@ def get_agent_description(instance):
     return instance.description
 
 def extract_agent_input(arguments):
-    return arguments['kwargs']['prompt']
+    if len(arguments['args'])>0:
+        return arguments['args'][0]
 
 def extract_agent_response(result):
     return result.message['content'][0]['text']

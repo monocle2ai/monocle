@@ -91,6 +91,12 @@ def verify_spans():
             assert "total_tokens" in span_metadata.attributes
             found_inference = True
 
+            # Validate input data and output data
+            input_length = len(span_input.attributes["input"])
+            assert input_length > 0
+            output_length = len(span_output.attributes["response"])
+            assert output_length > 0
+
         if (
                 "span.type" in span_attributes
                 and span_attributes["span.type"] == "agentic.invocation"
@@ -102,6 +108,10 @@ def verify_spans():
             if span_attributes["entity.1.name"] == "travel_booking_agent":
                 found_travel_agent = True
             found_agent = True
+            # Validate input data and output data
+            span_input, span_output = span.events
+            assert len(span_input.attributes["input"]) > 0
+            assert len(span_output.attributes["response"]) > 0
 
         if (
                 "span.type" in span_attributes
@@ -114,6 +124,10 @@ def verify_spans():
                 found_book_flight_tool = True
 
             found_tool = True
+            # Validate input data and output data
+            span_input, span_output = span.events
+            assert len(span_input.attributes["input"]) > 0
+            assert len(span_output.attributes["response"]) > 0
 
 
     assert found_inference, "Inference span not found"

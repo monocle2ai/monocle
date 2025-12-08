@@ -7,7 +7,7 @@ from .gitutils import get_git_context
 @pytest.fixture()
 def monocle_trace_asserter(request:pytest.FixtureRequest):
     """
-    Provides a fresh TraceAssertion instance for each teqst.
+    Provides a fresh TraceAssertion instance for each test.
     
     This fixture automatically handles cleanup and ensures test isolation.
     Each test gets its own clean asserter with cleared memory and empty spans.

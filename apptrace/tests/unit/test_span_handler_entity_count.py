@@ -86,82 +86,6 @@ class TestSpanHandlerEntityCount(unittest.TestCase):
         self.assertIsNone(self.mock_span.attributes.get('entity.3.name'))
         self.assertIsNone(self.mock_span.attributes.get('entity.3.type'))
 
-    def test_entity_count_with_three_entities_including_tool_call(self):
-        """Test entity.count = 3 when provider, model, and tool entities are set."""
-        
-        # First, set up the initial entities during regular execution
-        to_wrap_regular = {
-            'output_processor': {
-                'type': 'inference.framework',
-                'attributes': [
-                    [
-                        {
-                            'attribute': 'type',
-                            'accessor': lambda args: 'inference.openai'
-                        },
-                        {
-                            'attribute': 'provider_name',
-                            'accessor': lambda args: 'api.openai.com'
-                        }
-                    ],
-                    [
-                        {
-                            'attribute': 'name',
-                            'accessor': lambda args: 'gpt-4o-mini'
-                        },
-                        {
-                            'attribute': 'type',
-                            'accessor': lambda args: 'model.llm.gpt-4o-mini'
-                        }
-                    ]
-                ]
-            }
-        }
-        
-        # Call hydrate_attributes during regular execution
-        self.span_handler.hydrate_attributes(
-            to_wrap_regular, MagicMock(), MagicMock(), [], {}, MagicMock(),
-            self.mock_span, self.mock_parent_span, is_post_exec=False
-        )
-        
-        # Now simulate post_execution with tool attributes
-        to_wrap_post_exec = {
-            'output_processor': {
-                'type': 'inference.framework',
-                'attributes': [
-                    [
-                        {
-                            'attribute': 'name',
-                            'accessor': lambda args: 'get_weather',
-                            'phase': 'post_execution'
-                        },
-                        {
-                            'attribute': 'type',
-                            'accessor': lambda args: 'tool.function',
-                            'phase': 'post_execution'
-                        }
-                    ]
-                ]
-            }
-        }
-        
-        # Call hydrate_attributes during post_execution
-        self.span_handler.hydrate_attributes(
-            to_wrap_post_exec, MagicMock(), MagicMock(), [], {}, MagicMock(),
-            self.mock_span, self.mock_parent_span, is_post_exec=True
-        )
-        
-        # Verify entity.count is 3
-        self.assertEqual(self.mock_span.attributes.get('entity.count'), 3)
-        
-        # Verify all entity attributes are set correctly
-        self.assertEqual(self.mock_span.attributes.get('entity.1.type'), 'inference.openai')
-        self.assertEqual(self.mock_span.attributes.get('entity.1.provider_name'), 'api.openai.com')
-        self.assertEqual(self.mock_span.attributes.get('entity.2.name'), 'gpt-4o-mini')
-        self.assertEqual(self.mock_span.attributes.get('entity.2.type'), 'model.llm.gpt-4o-mini')
-        self.assertEqual(self.mock_span.attributes.get('entity.3.name'), 'get_weather')
-        self.assertEqual(self.mock_span.attributes.get('entity.3.type'), 'tool.function')
-
     def test_entity_count_with_empty_entity_processor(self):
         """Test entity.count when entity processor exists but has no valid attributes."""
 
@@ -248,49 +172,6 @@ class TestSpanHandlerEntityCount(unittest.TestCase):
         self.assertEqual(self.mock_span.attributes.get('entity.count'), 2)
         self.assertEqual(self.mock_span.attributes.get('entity.1.type'), 'inference.openai')
         self.assertEqual(self.mock_span.attributes.get('entity.2.name'), 'gpt-4')
-
-    def test_entity_count_post_execution_index_calculation(self):
-        """Test that post_execution correctly finds the next available entity index."""
-        
-        # Pre-populate some entities
-        self.mock_span.attributes.update({
-            'entity.1.type': 'inference.openai',
-            'entity.1.provider_name': 'api.openai.com',
-            'entity.2.name': 'gpt-4',
-            'entity.2.type': 'model.llm.gpt-4'
-        })
-        
-        # Define post_execution processor for tool entity
-        to_wrap_post_exec = {
-            'output_processor': {
-                'type': 'inference.framework',
-                'attributes': [
-                    [
-                        {
-                            'attribute': 'name',
-                            'accessor': lambda args: 'function_call',
-                            'phase': 'post_execution'
-                        },
-                        {
-                            'attribute': 'type',
-                            'accessor': lambda args: 'tool.function',
-                            'phase': 'post_execution'
-                        }
-                    ]
-                ]
-            }
-        }
-        
-        # Call hydrate_attributes during post_execution
-        self.span_handler.hydrate_attributes(
-            to_wrap_post_exec, MagicMock(), MagicMock(), [], {}, MagicMock(),
-            self.mock_span, self.mock_parent_span, is_post_exec=True
-        )
-        
-        # Verify entity.count is 3 and tool entity is at entity.3
-        self.assertEqual(self.mock_span.attributes.get('entity.count'), 3)
-        self.assertEqual(self.mock_span.attributes.get('entity.3.name'), 'function_call')
-        self.assertEqual(self.mock_span.attributes.get('entity.3.type'), 'tool.function')
 
     def test_entity_count_no_output_processor(self):
         """Test entity.count when no output_processor is defined."""

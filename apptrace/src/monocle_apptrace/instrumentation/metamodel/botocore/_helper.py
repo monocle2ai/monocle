@@ -66,6 +66,10 @@ def extract_assistant_message(arguments):
                 if isinstance(content, list) and len(content) > 0 and "text" in content[0]:
                     reply = content[0]["text"]
                     messages.append({role: reply})
+                else:
+                    tool_call = _get_first_tool_call(arguments['result'])
+                    if tool_call is not None:
+                        messages.append({role: str(tool_call['toolUse'])})
         else:
             if arguments["exception"] is not None:
                 return get_exception_message(arguments)
@@ -77,15 +81,15 @@ def extract_assistant_message(arguments):
         return []
 
 
-def extract_query_from_content(content):
+def extract_query_from_content(content:str) -> str:
     try:
         query_prefix = "Query:"
         answer_prefix = "Answer:"
         query_start = content.find(query_prefix)
-        if query_start == -1:
-            return None
-
-        query_start += len(query_prefix)
+        if query_start != -1:
+            query_start += len(query_prefix)
+        else:
+            query_start = None
         answer_start = content.find(answer_prefix, query_start)
         if answer_start == -1:
             query = content[query_start:].strip()

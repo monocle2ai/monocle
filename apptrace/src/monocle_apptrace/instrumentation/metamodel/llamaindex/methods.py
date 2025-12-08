@@ -99,6 +99,7 @@ LLAMAINDEX_METHODS = [
         "object": "FunctionAgent",
         "method": "finalize",
         "wrapper_method": atask_wrapper,
+        "span_handler": "llamaindex_agent_handler",
         "output_processor": AGENT
     },
     {

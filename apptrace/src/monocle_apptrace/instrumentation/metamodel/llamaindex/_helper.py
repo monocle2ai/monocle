@@ -5,6 +5,8 @@ and assistant messages from various input formats.
 
 from ast import arguments
 import logging
+import time
+import threading
 from urllib.parse import urlparse
 from opentelemetry.sdk.trace import Span
 from opentelemetry.context import get_value
@@ -116,13 +118,78 @@ def get_agent_description(instance) -> str:
 def get_name(instance):
     return instance.name if hasattr(instance, 'name') else ""
 
-def set_current_agent(agent_name: str):
-    """Set the current agent name in thread-local storage."""
+def set_current_agent(agent_name: str, agent_span_id: str = None):
+    """Store current agent name and span_id in thread-local storage."""
     _thread_local.current_agent = agent_name
+    if agent_span_id:
+        _thread_local.current_agent_span_id = agent_span_id
 
 def get_current_agent() -> str:
     """Get the current agent name from thread-local storage."""
     return getattr(_thread_local, 'current_agent', '')
+
+def get_current_agent_span_id() -> str:
+    """Get current agent span_id from thread-local storage."""
+    return getattr(_thread_local, 'current_agent_span_id', '')
+
+def set_from_agent_info(from_agent: str, from_agent_span_id: str):
+    """Store from_agent information in thread-local storage for the current agent span."""
+    _thread_local.from_agent = from_agent
+    _thread_local.from_agent_span_id = from_agent_span_id
+
+def get_from_agent_name() -> str:
+    """Get the from_agent name from thread-local storage."""
+    return getattr(_thread_local, 'from_agent', None)
+
+def get_from_agent_span_id() -> str:
+    """Get the from_agent_span_id from thread-local storage."""
+    return getattr(_thread_local, 'from_agent_span_id', None)
+
+# def clear_from_agent_info():
+#     """Clear from_agent information from thread-local storage."""
+#     if hasattr(_thread_local, 'from_agent'):
+#         delattr(_thread_local, 'from_agent')
+#     if hasattr(_thread_local, 'from_agent_span_id'):
+#         delattr(_thread_local, 'from_agent_span_id')
+
+# Thread-safe store for tracking delegation in concurrent workflows
+_delegation_store = {}
+_delegation_store_lock = threading.Lock()
+
+def set_delegation_info(target_agent: str, from_agent: str, from_agent_span_id: str):
+    """Store delegation information for concurrent workflows."""
+    with _delegation_store_lock:
+        _delegation_store[target_agent] = {
+            'from_agent': from_agent,
+            'from_agent_span_id': from_agent_span_id,
+            'timestamp': time.time()
+        }
+    logger.debug(f"set_delegation_info: target={target_agent}, from_agent={from_agent}, span_id={from_agent_span_id}")
+
+def update_delegations_with_span_id(from_agent: str, span_id: str):
+    """Update all delegations FROM this agent with the confirmed span_id."""
+    with _delegation_store_lock:
+        for target_agent, info in _delegation_store.items():
+            # Find delegations from this agent that don't have a span_id yet
+            if info['from_agent'] == from_agent and (not info['from_agent_span_id'] or info['from_agent_span_id'] == 'N/A'):
+                # Check if still recent
+                if time.time() - info['timestamp'] < 5.0:
+                    info['from_agent_span_id'] = span_id
+                    
+def get_delegation_info(agent_name: str) -> dict:
+    """Retrieve and clear delegation information for an agent."""
+    with _delegation_store_lock:
+        info = _delegation_store.pop(agent_name, None)
+        if info:
+            # Check if the delegation info is still recent (within 5 seconds)
+            if time.time() - info['timestamp'] < 5.0:
+                logger.debug(f"get_delegation_info: agent={agent_name}, found info={info}")
+                return info
+            else:
+                logger.debug(f"get_delegation_info: agent={agent_name}, info expired")
+        else:
+            logger.debug(f"get_delegation_info: agent={agent_name}, no info found")
+        return None
 
 def get_source_agent() -> str:
     """Get the name of the agent that initiated the request."""

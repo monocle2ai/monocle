@@ -339,6 +339,16 @@ def verify_spans(memory_exporter=None):
             assert "entity.1.type" in span_attributes
             assert "entity.1.name" in span_attributes
             assert span_attributes["entity.1.type"] == "agent.llamaindex"
+            
+            # Check for delegation via from_agent attribute
+            if "entity.1.from_agent" in span_attributes:
+                from_agent = span_attributes["entity.1.from_agent"]
+                agent_name = span_attributes["entity.1.name"]
+                if agent_name == "flight_assistant" and from_agent == "supervisor":
+                    found_book_flight_delegation = True
+                elif agent_name == "hotel_assistant" and from_agent == "supervisor":
+                    found_book_hotel_delegation = True
+            
             if span_attributes["entity.1.name"] == "flight_assistant":
                 found_flight_agent = True
             elif span_attributes["entity.1.name"] == "hotel_assistant":
@@ -368,25 +378,11 @@ def verify_spans(memory_exporter=None):
                 found_book_hotel_tool = True
             found_tool = True
 
-        if (
-            "span.type" in span_attributes
-            and span_attributes["span.type"] == "agentic.delegation"
-        ):
-            assert "entity.1.type" in span_attributes
-            assert "entity.1.from_agent" in span_attributes
-            assert "entity.1.to_agent" in span_attributes
-
-            assert span_attributes["entity.1.type"] == "agent.llamaindex"
-            if span_attributes["entity.1.to_agent"] == "flight_assistant":
-                found_book_flight_delegation = True
-            elif span_attributes["entity.1.to_agent"] == "hotel_assistant":
-                found_book_hotel_delegation = True
-
     assert found_inference, "Inference span not found"
     assert found_agent, "Agent span not found"
     assert found_tool, "Tool span not found"
-    assert found_book_flight_delegation, "Book flight delegation span not found"
-    assert found_book_hotel_delegation, "Book hotel delegation span not found"
+    assert found_book_flight_delegation, "Book flight delegation span not found (check from_agent attribute)"
+    assert found_book_hotel_delegation, "Book hotel delegation span not found (check from_agent attribute)"
     assert found_flight_agent, "Flight assistant agent span not found"
     assert found_hotel_agent, "Hotel assistant agent span not found"
     assert found_supervisor_agent, "Supervisor agent span not found"

@@ -8,8 +8,11 @@ def get_commit_hash() -> str:
     """Get the current git commit hash."""
     if os.getenv("GITHUB_SHA"):
         return os.getenv("GITHUB_SHA")
-    repo = Repo(os.getcwd())
-    return repo.head.object.hexsha
+    try:
+        repo = Repo(os.getcwd(), search_parent_directories=True)
+        return repo.head.object.hexsha
+    except Exception:
+        return "unknown"
 
 def get_git_run_id() -> str:
     """Get the current git run ID (GitHub Actions run ID) or current timestamp for local runs."""

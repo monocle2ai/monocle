@@ -68,7 +68,6 @@ class MonocleValidator:
 
     def __del__(self):
         for exporter in self.exporters:
-            print(f"Shutting down exporter: {exporter}")
             if hasattr(exporter, "shutdown"):
                 exporter.shutdown()
 

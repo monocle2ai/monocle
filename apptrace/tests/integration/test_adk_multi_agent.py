@@ -12,6 +12,7 @@ from google.adk.runners import Runner
 from google.adk.sessions import InMemorySessionService
 from google.genai import types
 from monocle_apptrace import setup_monocle_telemetry
+from monocle_apptrace.exporters.file_exporter import FileSpanExporter
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 
@@ -24,10 +25,11 @@ def setup():
         os.environ["GOOGLE_GENAI_USE_VERTEXAI"] = "FALSE"
         memory_exporter = InMemorySpanExporter()
         custom_exporter = CustomConsoleSpanExporter()
-        span_processors = [SimpleSpanProcessor(memory_exporter), SimpleSpanProcessor(custom_exporter)]
+        span_processors = [SimpleSpanProcessor(memory_exporter), SimpleSpanProcessor(custom_exporter), BatchSpanProcessor(FileSpanExporter()),]
         instrumentor = setup_monocle_telemetry(
-            workflow_name="langchain_agent_1",
-            span_processors=span_processors
+            workflow_name="langchain_agent_1", 
+            span_processors=span_processors,
+            # monocle_exporters_list='file'
         )
         yield memory_exporter
     finally:
@@ -72,7 +74,7 @@ flight_booking_agent = LlmAgent(
         "Agent to book flights based on user queries."
     ),
     instruction=(
-        "You are a helpful agent who can assist users in booking flights."
+        "You are a helpful agent who can assist users in booking flights. You only handle flight booking. Just handle that part from what the user says, ignore other parts of the requests."
     ),
     tools=[book_flight]  # Define flight booking tools here
 )
@@ -84,17 +86,26 @@ hotel_booking_agent = LlmAgent(
         "Agent to book hotels based on user queries."
     ),
     instruction=(
-        "You are a helpful agent who can assist users in booking hotels."
+        "You are a helpful agent who can assist users in booking hotels. When you receive a request containing both hotel and non-hotel bookings, focus on processing the hotel booking portion while gracefully ignoring non-hotel parts. Always try to identify and process any hotel booking requests present in the user's message."
     ),
     tools=[book_hotel]  # Define hotel booking tools here
 )
+
+trip_summary_agent = LlmAgent(
+    name="adk_trip_summary_agent",
+    model="gemini-2.0-flash",
+    description= "Summarize the travel details from hotel bookings and flight bookings agents.",
+    instruction= "Summarize the travel details from hotel bookings and flight bookings agents. Be concise in response and provide a single sentence summary.",
+    output_key="booking_summary"
+)
+
 
 root_agent = SequentialAgent(
     name="supervisor",
     description=(
         "Supervisor agent that coordinates the flight booking and hotel booking. Provide a consolidated response."
     ),
-    sub_agents=[flight_booking_agent, hotel_booking_agent],
+    sub_agents=[flight_booking_agent, hotel_booking_agent, trip_summary_agent],
 )
 
 session_service = InMemorySessionService()
@@ -127,7 +138,7 @@ async def run_agent(test_message: str):
 
 @pytest.mark.asyncio
 async def test_multi_agent(setup):
-    test_message = "Book a flight from San Francisco to Mumbai, book Taj Mahal hotel in Mumbai."
+    test_message = "Book a flight from San Francisco to Mumbai next week Monday, book Taj Mahal hotel in Mumbai."
     await run_agent(test_message)
     verify_spans(setup)
 
@@ -137,6 +148,8 @@ def verify_spans(memory_exporter):
     found_flight_agent = found_hotel_agent = found_supervisor_agent = False
     found_book_hotel_tool = found_book_flight_tool = False
     found_book_flight_delegation = found_book_hotel_delegation = False
+    found_agentic_turn = False
+
     spans = memory_exporter.get_finished_spans()
     for span in spans:
         span_attributes = span.attributes
@@ -152,7 +165,7 @@ def verify_spans(memory_exporter):
             assert span_attributes["entity.2.name"] == "gemini-2.0-flash"
             assert span_attributes["entity.2.type"] == "model.llm.gemini-2.0-flash"
 
-            # Assertions for metadata
+            # Assertions for metadata, input and output events for inference spans
             span_input, span_output, span_metadata = span.events
             assert "input" in span_input.attributes
             assert span_input.attributes["input"] is not None and span_input.attributes["input"] != ""
@@ -177,13 +190,29 @@ def verify_spans(memory_exporter):
                 found_flight_agent = True
                 if span_attributes["entity.1.from_agent"] == "supervisor":
                     found_book_flight_delegation = True
+                
+                # Assertions of input and output events for agentic.invocation spans
+                span_input, span_output = span.events
+                assert "input" in span_input.attributes
+                assert span_input.attributes["input"] is not None and span_input.attributes["input"] != ""
+                assert "response" in span_output.attributes
+                assert span_output.attributes["response"] is not None and span_output.attributes["response"] != ""
+
             elif span_attributes["entity.1.name"] == "hotel_assistant":
                 found_hotel_agent = True
                 if span_attributes["entity.1.from_agent"] == "supervisor":
                     found_book_hotel_delegation = True
+
+                # Assertions of input and output events for agentic.invocation spans
+                span_input, span_output = span.events
+                assert "input" in span_input.attributes
+                assert span_input.attributes["input"] is not None and span_input.attributes["input"] != ""
+                assert "response" in span_output.attributes
+                assert span_output.attributes["response"] is not None and span_output.attributes["response"] != ""
+
             elif span_attributes["entity.1.name"] == "supervisor":
                 found_supervisor_agent = True
-        found_agent = True
+            found_agent = True
 
         if (
                 "span.type" in span_attributes
@@ -194,12 +223,38 @@ def verify_spans(memory_exporter):
             assert span_attributes["entity.1.type"] == "tool.adk"
             if span_attributes["entity.1.name"] == "book_flight":
                 found_book_flight_tool = True
+                assert span_attributes["entity.2.type"] == "agent.adk"
+                assert span_attributes["entity.2.name"] == "flight_assistant"
+                
+
             elif span_attributes["entity.1.name"] == "book_hotel":
                 found_book_hotel_tool = True
+                assert span_attributes["entity.2.type"] == "agent.adk"
+                assert span_attributes["entity.2.name"] == "hotel_assistant"
+            
             found_tool = True
+            
+            # Assertions of input and output events for agentic.invocation spans
             span_input, span_output = span.events
             assert "input" in span_input.attributes
+            assert span_input.attributes["input"] is not None and span_input.attributes["input"] != ""
             assert "response" in span_output.attributes
+            assert span_output.attributes["response"] is not None and span_output.attributes["response"] != ""
+
+        if (
+            "span.type" in span_attributes
+            and span_attributes["span.type"] == "agentic.turn"
+        ):
+            assert "entity.1.type" in span_attributes
+            assert span_attributes["entity.1.type"] == "agent.adk"
+            found_agentic_turn = True
+                
+            # Assertions of input and output events for agentic.invocation spans
+            span_input, span_output = span.events
+            assert "input" in span_input.attributes
+            assert span_input.attributes["input"] is not None and span_input.attributes["input"] != ""
+            assert "response" in span_output.attributes
+            assert span_output.attributes["response"] is not None and span_output.attributes["response"] != ""
 
     assert found_inference, "Inference span not found"
     assert found_agent, "Agent span not found"
@@ -211,6 +266,7 @@ def verify_spans(memory_exporter):
     assert found_book_hotel_delegation, "Book hotel delegation span not found"
     assert found_book_flight_tool, "Book flight tool span not found"
     assert found_book_hotel_tool, "Book hotel tool span not found"
-
+    assert found_agentic_turn, "Agentic turn span not found"
+    
 if __name__ == "__main__":
     pytest.main([__file__, "-s", "--tb=short"])

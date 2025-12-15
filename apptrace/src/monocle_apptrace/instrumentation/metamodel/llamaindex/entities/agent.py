@@ -5,7 +5,7 @@ from monocle_apptrace.instrumentation.metamodel.llamaindex import (
 
 AGENT = {
     "type": SPAN_TYPES.AGENTIC_INVOCATION,
-    "subtype": SPAN_SUBTYPES.ROUTING,
+    "subtype": SPAN_SUBTYPES.CONTENT_PROCESSING,
     "attributes": [
         [
             {
@@ -22,6 +22,16 @@ AGENT = {
                 "_comment": "agent description",
                 "attribute": "description",
                 "accessor": lambda arguments: _helper.get_agent_description(arguments['instance'])
+            },
+            {
+                "_comment": "delegating agent name",
+                "attribute": "from_agent",
+                "accessor": lambda arguments: _helper.get_from_agent_name()
+            },
+            {
+                "_comment": "from_agent invocation id",
+                "attribute": "from_agent_span_id",
+                "accessor": lambda arguments: _helper.get_from_agent_span_id()
             }
         ]
 
@@ -51,8 +61,8 @@ AGENT = {
 } 
 
 AGENT_REQUEST = {
-    "type": AGENT_REQUEST_SPAN_NAME,
-    "subtype": SPAN_SUBTYPES.PLANNING,
+    "type": SPAN_TYPES.AGENTIC_REQUEST,
+    "subtype": SPAN_SUBTYPES.TURN,
     "attributes": [
         [
               {
@@ -88,7 +98,7 @@ AGENT_REQUEST = {
 
 TOOLS = {
       "type": SPAN_TYPES.AGENTIC_TOOL_INVOCATION,
-      "subtype": SPAN_SUBTYPES.ROUTING,
+      "subtype": SPAN_SUBTYPES.CONTENT_GENERATION,
       "attributes": [
         [
               {

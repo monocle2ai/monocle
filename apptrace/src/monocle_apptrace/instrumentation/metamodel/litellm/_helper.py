@@ -125,6 +125,10 @@ def extract_finish_reason(arguments):
                         match = re.search(action_pattern, content)
                         if match:
                             action = match.group(1).strip()
+                            # Filter out ReAct agent termination phrases to distinguish from actual tool calls:
+                            # - 'final answer': Used by ReAct agents to signal completion (e.g., "Action: Final Answer: <result>")
+                            # - 'i now know': Indicates the agent has gathered sufficient information to conclude
+                            # These patterns appear in frameworks like CrewAI that use text-based ReAct reasoning, where "Action:" is followed by either a tool name OR a termination signal.
                             if action and not any(keyword in action.lower() for keyword in ['final answer', 'i now know']):
                                 return "tool_calls"
             

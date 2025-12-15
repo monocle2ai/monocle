@@ -66,6 +66,11 @@ class MonocleValidator:
                                         span_processors=[SimpleSpanProcessor(self.memory_exporter)])
         MonocleValidator._initialized = True
 
+    def __del__(self):
+        for exporter in self.exporters:
+            if hasattr(exporter, "shutdown"):
+                exporter.shutdown()
+
     def cleanup(self):
         """Cleanup the validator state for a fresh test run."""
         self._spans = []
@@ -95,8 +100,6 @@ class MonocleValidator:
                 exporter.export([span])
             if hasattr(exporter, "force_flush"):
                 exporter.force_flush()
-            if hasattr(exporter, "shutdown"):
-                exporter.shutdown()
 
     def pre_test_run_setup(self, test_case_name:str, request, mock_tools: Optional[list[MockTool]] = None) -> None:
         """

@@ -40,26 +40,20 @@ def _patch_llamaindex_context(monkeypatch):
 
     scope_calls = []
 
-    def fake_set_scope(key, value):
+    def fake_set_scope(key, value, ctx):
         scope_calls.append((key, value))
         return "scope-token"
 
-    remove_calls = []
-
-    def fake_remove_scope(token):
-        remove_calls.append(token)
-
     monkeypatch.setattr(processor, "set_scope", fake_set_scope)
-    monkeypatch.setattr(processor, "remove_scope", fake_remove_scope)
 
-    return scope_calls, remove_calls, detach_tokens
+    return scope_calls, detach_tokens
 
 
 def test_llamaindex_agent_handler_sets_session_scope(monkeypatch):
-    scope_calls, remove_calls, detach_calls = _patch_llamaindex_context(monkeypatch)
+    scope_calls, detach_calls = _patch_llamaindex_context(monkeypatch)
     handler = processor.LlamaIndexAgentHandler()
 
-    token_pair, _ = handler.pre_tracing(
+    session_token, _ = handler.pre_tracing(
         {},
         None,
         DummyAgent(),
@@ -67,21 +61,15 @@ def test_llamaindex_agent_handler_sets_session_scope(monkeypatch):
         {"memory": DummyMemory(session_id="session-123")},
     )
 
-    context_token, session_token = token_pair
     assert session_token == "scope-token"
     assert scope_calls == [(AGENT_SESSION, "session-123")]
 
-    handler.post_tracing({}, None, DummyAgent(), (), {}, None, token=token_pair)
-
-    assert remove_calls == ["scope-token"]
-    assert detach_calls == ["context-token"]
-
 
 def test_llamaindex_agent_handler_skips_scope_when_session_missing(monkeypatch):
-    scope_calls, remove_calls, detach_calls = _patch_llamaindex_context(monkeypatch)
+    scope_calls, detach_calls = _patch_llamaindex_context(monkeypatch)
     handler = processor.LlamaIndexAgentHandler()
 
-    token_pair, _ = handler.pre_tracing(
+    session_token, _ = handler.pre_tracing(
         {},
         None,
         DummyAgent(),
@@ -89,12 +77,7 @@ def test_llamaindex_agent_handler_skips_scope_when_session_missing(monkeypatch):
         {"memory": DummyMemory(session_id=None)},
     )
 
-    context_token, session_token = token_pair
-    assert session_token is None
-    assert scope_calls == []
-
-    handler.post_tracing({}, None, DummyAgent(), (), {}, None, token=token_pair)
-
-    assert remove_calls == []
-    assert detach_calls == ["context-token"]
+    # When no session_id, it returns a context token from attach(), not None
+    assert session_token == "context-token"
+    assert scope_calls == []  # set_scope should not be called
 

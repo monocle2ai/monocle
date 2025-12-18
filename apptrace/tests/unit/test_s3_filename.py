@@ -6,6 +6,7 @@ import unittest
 from unittest.mock import MagicMock, patch
 
 from monocle_apptrace.exporters.aws.s3_exporter import S3SpanExporter
+from monocle_apptrace.exporters.base_exporter import format_trace_id_without_0x
 
 logger = logging.getLogger(__name__)
 
@@ -27,10 +28,11 @@ class TestS3SpanExporter(unittest.TestCase):
 
             # Call the private method to upload data (we are testing the file naming logic)
             test_span_data = "{\"trace_id\": \"123\"}"
-            exporter._S3SpanExporter__upload_to_s3(test_span_data)
+            test_trace_id = 0x123456789abcdef0123456789abcdef0
+            exporter._S3SpanExporter__upload_to_s3_with_trace_id(test_span_data, test_trace_id)
 
             # Generate expected file name
-            expected_file_name = f"{file_prefix}{mock_current_time.strftime(exporter.time_format)}.ndjson"
+            expected_file_name = f"{file_prefix}{mock_current_time.strftime(exporter.time_format)}_{format_trace_id_without_0x(test_trace_id)}.ndjson"
 
             # Verify the S3 client was called with the correct file name
             mock_s3_client.put_object.assert_called_once_with(
@@ -57,10 +59,11 @@ class TestS3SpanExporter(unittest.TestCase):
 
             # Call the private method to upload data (we are testing the file naming logic)
             test_span_data = "{\"trace_id\": \"123\"}"
-            exporter._S3SpanExporter__upload_to_s3(test_span_data)
+            test_trace_id = 0x123456789abcdef0123456789abcdef0
+            exporter._S3SpanExporter__upload_to_s3_with_trace_id(test_span_data, test_trace_id)
 
             # Generate expected file name
-            expected_file_name = f"{file_prefix}{mock_current_time.strftime(exporter.time_format)}.ndjson"
+            expected_file_name = f"{file_prefix}{mock_current_time.strftime(exporter.time_format)}_{format_trace_id_without_0x(test_trace_id)}.ndjson"
 
             # Verify the S3 client was called with the correct file name
             mock_s3_client.put_object.assert_called_once_with(

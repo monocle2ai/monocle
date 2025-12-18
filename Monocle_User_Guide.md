@@ -121,15 +121,7 @@ export MONOCLE_EXPORTER=otlp,file
 ```
 
 ### Using OTLP Exporter for OpenTelemetry-Compatible Backends
-The OTLP (OpenTelemetry Protocol) exporter allows you to send traces to any OTLP-compatible observability backend, including:
-- OpenTelemetry Collector
-- Jaeger (v1.35+)
-- Grafana Tempo
-- Elastic APM
-- New Relic
-- Honeycomb
-- Lightstep
-- And many others
+The OTLP (OpenTelemetry Protocol) exporter allows you to send traces to any OTLP-compatible collectors.
 
 #### Configuration
 Set the `MONOCLE_EXPORTER` environment variable to `otlp` and configure the endpoint:

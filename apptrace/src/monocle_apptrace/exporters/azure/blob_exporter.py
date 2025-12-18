@@ -157,7 +157,11 @@ class AzureBlobSpanExporter(SpanExporterBase):
                         spans_to_upload, _, _ = self.trace_spans[trace_id]
                         serialized_data = self.__serialize_spans(spans_to_upload)
                         if serialized_data:
-                            self.task_processor.queue_task(self.__upload_to_blob_with_trace_id, serialized_data, trace_id)
+                            self.task_processor.queue_task(
+                                self.__upload_to_blob_with_trace_id,
+                                kwargs={'span_data_batch': serialized_data, 'trace_id': trace_id},
+                                is_root_span=True
+                            )
                         del self.trace_spans[trace_id]
                 else:
                     self._upload_trace(trace_id)

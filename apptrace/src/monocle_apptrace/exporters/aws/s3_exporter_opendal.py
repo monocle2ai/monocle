@@ -96,7 +96,11 @@ class OpenDALS3Exporter(SpanExporterBase):
         is_root_span = any(not span.parent for span in batch_to_export)
         
         if self.task_processor is not None and callable(getattr(self.task_processor, 'queue_task', None)):
-            self.task_processor.queue_task(self.__upload_to_s3, serialized_data, is_root_span)
+            self.task_processor.queue_task(
+                self.__upload_to_s3,
+                kwargs={'span_data_batch': serialized_data, 'is_root_span': is_root_span},
+                is_root_span=is_root_span
+            )
         else:
             try:
                 self.__upload_to_s3(serialized_data, is_root_span)

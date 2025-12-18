@@ -50,7 +50,11 @@ class FileSpanExporter(SpanExporterBase):
         is_root_span = any(not span.parent for span in spans)
         if self.task_processor is not None and callable(getattr(self.task_processor, 'queue_task', None)):
             # Check if any span is a root span (no parent)
-            self.task_processor.queue_task(self._process_spans, spans, is_root_span)
+            self.task_processor.queue_task(
+                self._process_spans,
+                kwargs={'spans': spans, 'is_root_span': is_root_span},
+                is_root_span=is_root_span
+            )
             return SpanExportResult.SUCCESS
         else:
             return self._process_spans(spans, is_root_span=is_root_span)

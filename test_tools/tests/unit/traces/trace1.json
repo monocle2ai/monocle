@@ -97,7 +97,7 @@
             "name": "data.input",
             "timestamp": "2025-09-09T18:52:37.176227Z",
             "attributes": {
-                "query": "Book a flight from San Francisco to Mumbai for 26th Nov 2025. Book a two queen room at Marriot Intercontinental at Juhu, Mumbai for 27th Nov 2025 for 4 nights."
+                "input": "Book a flight from San Francisco to Mumbai for 26th Nov 2025. Book a two queen room at Marriot Intercontinental at Juhu, Mumbai for 27th Nov 2025 for 4 nights."
             }
         },
         {
@@ -371,7 +371,7 @@
             "name": "data.input",
             "timestamp": "2025-09-09T18:52:38.708070Z",
             "attributes": {
-                "query": "Book a flight from San Francisco to Mumbai for 26th Nov 2025. Book a two queen room at Marriot Intercontinental at Juhu, Mumbai for 27th Nov 2025 for 4 nights."
+                "input": "Book a flight from San Francisco to Mumbai for 26th Nov 2025. Book a two queen room at Marriot Intercontinental at Juhu, Mumbai for 27th Nov 2025 for 4 nights."
             }
         },
         {
@@ -528,7 +528,7 @@
             "name": "data.input",
             "timestamp": "2025-09-09T18:52:39.839235Z",
             "attributes": {
-                "query": "Book a flight from San Francisco to Mumbai for 26th Nov 2025. Book a two queen room at Marriot Intercontinental at Juhu, Mumbai for 27th Nov 2025 for 4 nights."
+                "input": "Book a flight from San Francisco to Mumbai for 26th Nov 2025. Book a two queen room at Marriot Intercontinental at Juhu, Mumbai for 27th Nov 2025 for 4 nights."
             }
         },
         {
@@ -614,7 +614,7 @@
             "name": "data.input",
             "timestamp": "2025-09-09T18:52:39.839453Z",
             "attributes": {
-                "query": "Book a flight from San Francisco to Mumbai for 26th Nov 2025. Book a two queen room at Marriot Intercontinental at Juhu, Mumbai for 27th Nov 2025 for 4 nights."
+                "input": "Book a flight from San Francisco to Mumbai for 26th Nov 2025. Book a two queen room at Marriot Intercontinental at Juhu, Mumbai for 27th Nov 2025 for 4 nights."
             }
         },
         {

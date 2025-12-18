@@ -1,0 +1,360 @@
+[{
+    "name": "botocore.client.ClientCreator.create_client",
+    "context": {
+        "trace_id": "cc777ffa12c2506f3e07fa56d160bfe9",
+        "span_id": "76fb624f9a779057",
+        "trace_state": "[]"
+    },
+    "kind": "SpanKind.INTERNAL",
+    "parent_id": "5dca2ba215c1b8be",
+    "start_time": "2025-12-18T00:06:19.658928Z",
+    "end_time": "2025-12-18T00:06:22.437539Z",
+    "status": {
+        "status_code": "OK"
+    },
+    "attributes": {
+        "monocle_apptrace.version": "0.6.6",
+        "monocle_apptrace.language": "python",
+        "span_source": "",
+        "workflow.name": "monocle_validator",
+        "entity.1.type": "inference.aws_bedrock",
+        "entity.1.inference_endpoint": "https://bedrock-runtime.us-east-1.amazonaws.com",
+        "entity.1.provider_name": "bedrock-runtime.us-east-1.amazonaws.com",
+        "entity.2.name": "us.anthropic.claude-sonnet-4-20250514-v1:0",
+        "entity.2.type": "model.llm.us.anthropic.claude-sonnet-4-20250514-v1:0",
+        "span.type": "inference",
+        "entity.3.name": "get_nba_past_scores",
+        "entity.3.type": "tool.function",
+        "scope.test_name": "test_tool_invocation",
+        "scope.git.commit.hash": "34fa9153154cab8ad0794901a91d0e0fb5eb1fea",
+        "scope.git.run.id": "2025-12-17T16:06:19.616845",
+        "scope.git.workflow.name": "local",
+        "scope.agentic.session": "00000000-0000-0000-1882-268a60efac30",
+        "scope.agentic.turn": "b210386891520a8742def7078c20ca97",
+        "scope.agentic.invocation": "aefac5306d5f1fbc5bdae24d480ca36b",
+        "entity.count": 3,
+        "test.status": "failed"
+    },
+    "events": [
+        {
+            "name": "data.input",
+            "timestamp": "2025-12-18T00:06:19.659060Z",
+            "attributes": {
+                "input": [
+                    "{\"user\": \"What happened in Clippers game on 22 Nov 2025\"}"
+                ]
+            }
+        },
+        {
+            "name": "data.output",
+            "timestamp": "2025-12-18T00:06:22.437489Z",
+            "attributes": {
+                "response": "{\"assistant\": \"{'toolUseId': 'tooluse_IBLkrx30S_mfHRnObt4eNg', 'name': 'get_nba_past_scores', 'input': {'team_name': 'Clippers', 'game_date': '11/22/2025'}, 'type': 'tool_use'}\"}"
+            }
+        },
+        {
+            "name": "metadata",
+            "timestamp": "2025-12-18T00:06:22.437514Z",
+            "attributes": {
+                "completion_tokens": 86,
+                "prompt_tokens": 829,
+                "total_tokens": 915,
+                "finish_reason": "tool_use",
+                "finish_type": "tool_call"
+            }
+        }
+    ],
+    "links": [],
+    "resource": {
+        "attributes": {
+            "service.name": "aws_strands_nba_agent"
+        },
+        "schema_url": ""
+    }
+}
+,{
+    "name": "strands.tools.executors.concurrent.ConcurrentToolExecutor._execute",
+    "context": {
+        "trace_id": "cc777ffa12c2506f3e07fa56d160bfe9",
+        "span_id": "5c092883babb27c3",
+        "trace_state": "[]"
+    },
+    "kind": "SpanKind.INTERNAL",
+    "parent_id": "5dca2ba215c1b8be",
+    "start_time": "2025-12-18T00:06:22.441998Z",
+    "end_time": "2025-12-18T00:06:23.927044Z",
+    "status": {
+        "status_code": "OK"
+    },
+    "attributes": {
+        "monocle_apptrace.version": "0.6.6",
+        "monocle_apptrace.language": "python",
+        "span_source": "/Users/prasad/repos/okahu-demos/aws_strands_nba_agent/.venv/lib/python3.13/site-packages/strands/event_loop/event_loop.py:467",
+        "workflow.name": "monocle_validator",
+        "entity.1.type": "tool.strands",
+        "entity.1.name": "get_nba_past_scores",
+        "entity.2.name": "Nba Score Agent",
+        "entity.2.type": "agent.stands",
+        "span.type": "agentic.tool.invocation",
+        "scope.test_name": "test_tool_invocation",
+        "scope.git.commit.hash": "34fa9153154cab8ad0794901a91d0e0fb5eb1fea",
+        "scope.git.run.id": "2025-12-17T16:06:19.616845",
+        "scope.git.workflow.name": "local",
+        "scope.agentic.session": "00000000-0000-0000-1882-268a60efac30",
+        "scope.agentic.turn": "b210386891520a8742def7078c20ca97",
+        "scope.agentic.invocation": "aefac5306d5f1fbc5bdae24d480ca36b",
+        "entity.count": 2,
+        "span.subtype": "content_generation",
+        "test.status": "failed"
+    },
+    "events": [
+        {
+            "name": "data.input",
+            "timestamp": "2025-12-18T00:06:22.442078Z",
+            "attributes": {
+                "input": "{'team_name': 'Clippers', 'game_date': '11/22/2025'}"
+            }
+        },
+        {
+            "name": "data.output",
+            "timestamp": "2025-12-18T00:06:23.927032Z",
+            "attributes": {
+                "response": "[{'home_team': 'Hornets', 'home_score': 116, 'away_team': 'Clippers', 'away_score': 131}]"
+            }
+        }
+    ],
+    "links": [],
+    "resource": {
+        "attributes": {
+            "service.name": "aws_strands_nba_agent"
+        },
+        "schema_url": ""
+    }
+}
+,{
+    "name": "botocore.client.ClientCreator.create_client",
+    "context": {
+        "trace_id": "cc777ffa12c2506f3e07fa56d160bfe9",
+        "span_id": "e5d850d8593a2a35",
+        "trace_state": "[]"
+    },
+    "kind": "SpanKind.INTERNAL",
+    "parent_id": "5dca2ba215c1b8be",
+    "start_time": "2025-12-18T00:06:23.928287Z",
+    "end_time": "2025-12-18T00:06:25.271209Z",
+    "status": {
+        "status_code": "OK"
+    },
+    "attributes": {
+        "monocle_apptrace.version": "0.6.6",
+        "monocle_apptrace.language": "python",
+        "span_source": "",
+        "workflow.name": "monocle_validator",
+        "entity.1.type": "inference.aws_bedrock",
+        "entity.1.inference_endpoint": "https://bedrock-runtime.us-east-1.amazonaws.com",
+        "entity.1.provider_name": "bedrock-runtime.us-east-1.amazonaws.com",
+        "entity.2.name": "us.anthropic.claude-sonnet-4-20250514-v1:0",
+        "entity.2.type": "model.llm.us.anthropic.claude-sonnet-4-20250514-v1:0",
+        "span.type": "inference",
+        "scope.test_name": "test_tool_invocation",
+        "scope.git.commit.hash": "34fa9153154cab8ad0794901a91d0e0fb5eb1fea",
+        "scope.git.run.id": "2025-12-17T16:06:19.616845",
+        "scope.git.workflow.name": "local",
+        "scope.agentic.session": "00000000-0000-0000-1882-268a60efac30",
+        "scope.agentic.turn": "b210386891520a8742def7078c20ca97",
+        "scope.agentic.invocation": "aefac5306d5f1fbc5bdae24d480ca36b",
+        "entity.count": 2,
+        "test.status": "failed"
+    },
+    "events": [
+        {
+            "name": "data.input",
+            "timestamp": "2025-12-18T00:06:23.928384Z",
+            "attributes": {
+                "input": [
+                    "{\"user\": \"What happened in Clippers game on 22 Nov 2025\"}"
+                ]
+            }
+        },
+        {
+            "name": "data.output",
+            "timestamp": "2025-12-18T00:06:25.271122Z",
+            "attributes": {
+                "response": "{\"assistant\": \"Clippers won against Hornets with score 131-116.\"}"
+            }
+        },
+        {
+            "name": "metadata",
+            "timestamp": "2025-12-18T00:06:25.271170Z",
+            "attributes": {
+                "completion_tokens": 18,
+                "prompt_tokens": 970,
+                "total_tokens": 988,
+                "finish_reason": "end_turn",
+                "finish_type": "success"
+            }
+        }
+    ],
+    "links": [],
+    "resource": {
+        "attributes": {
+            "service.name": "aws_strands_nba_agent"
+        },
+        "schema_url": ""
+    }
+}
+,{
+    "name": "strands.agent.agent.Agent.__call__",
+    "context": {
+        "trace_id": "cc777ffa12c2506f3e07fa56d160bfe9",
+        "span_id": "5dca2ba215c1b8be",
+        "trace_state": "[]"
+    },
+    "kind": "SpanKind.INTERNAL",
+    "parent_id": "2c25ee8e16154fb8",
+    "start_time": "2025-12-18T00:06:19.657730Z",
+    "end_time": "2025-12-18T00:06:25.278083Z",
+    "status": {
+        "status_code": "OK"
+    },
+    "attributes": {
+        "monocle_apptrace.version": "0.6.6",
+        "monocle_apptrace.language": "python",
+        "span_source": "/Users/prasad/repos/okahu-demos/aws_strands_nba_agent/nba_agent.py:132",
+        "workflow.name": "monocle_validator",
+        "entity.1.type": "agent.strands",
+        "entity.1.name": "Nba Score Agent",
+        "entity.1.description": "NBA scores agent",
+        "span.type": "agentic.invocation",
+        "scope.test_name": "test_tool_invocation",
+        "scope.git.commit.hash": "34fa9153154cab8ad0794901a91d0e0fb5eb1fea",
+        "scope.git.run.id": "2025-12-17T16:06:19.616845",
+        "scope.git.workflow.name": "local",
+        "scope.agentic.session": "00000000-0000-0000-1882-268a60efac30",
+        "scope.agentic.turn": "b210386891520a8742def7078c20ca97",
+        "scope.agentic.invocation": "aefac5306d5f1fbc5bdae24d480ca36b",
+        "entity.count": 1,
+        "span.subtype": "content_processing",
+        "test.status": "failed"
+    },
+    "events": [
+        {
+            "name": "data.input",
+            "timestamp": "2025-12-18T00:06:19.657768Z",
+            "attributes": {
+                "input": "What happened in Clippers game on 22 Nov 2025"
+            }
+        },
+        {
+            "name": "data.output",
+            "timestamp": "2025-12-18T00:06:25.278055Z",
+            "attributes": {
+                "response": "Clippers won against Hornets with score 131-116."
+            }
+        }
+    ],
+    "links": [],
+    "resource": {
+        "attributes": {
+            "service.name": "aws_strands_nba_agent"
+        },
+        "schema_url": ""
+    }
+}
+,{
+    "name": "strands.agent.agent.Agent.__call__",
+    "context": {
+        "trace_id": "cc777ffa12c2506f3e07fa56d160bfe9",
+        "span_id": "2c25ee8e16154fb8",
+        "trace_state": "[]"
+    },
+    "kind": "SpanKind.INTERNAL",
+    "parent_id": "d80988020d2417d1",
+    "start_time": "2025-12-18T00:06:19.657659Z",
+    "end_time": "2025-12-18T00:06:25.278176Z",
+    "status": {
+        "status_code": "OK"
+    },
+    "attributes": {
+        "monocle_apptrace.version": "0.6.6",
+        "monocle_apptrace.language": "python",
+        "span_source": "/Users/prasad/repos/okahu-demos/aws_strands_nba_agent/nba_agent.py:132",
+        "workflow.name": "monocle_validator",
+        "entity.1.type": "agent.strands",
+        "span.type": "agentic.turn",
+        "scope.test_name": "test_tool_invocation",
+        "scope.git.commit.hash": "34fa9153154cab8ad0794901a91d0e0fb5eb1fea",
+        "scope.git.run.id": "2025-12-17T16:06:19.616845",
+        "scope.git.workflow.name": "local",
+        "scope.agentic.session": "00000000-0000-0000-1882-268a60efac30",
+        "scope.agentic.turn": "b210386891520a8742def7078c20ca97",
+        "entity.count": 1,
+        "span.subtype": "turn",
+        "test.status": "failed"
+    },
+    "events": [
+        {
+            "name": "data.input",
+            "timestamp": "2025-12-18T00:06:19.657711Z",
+            "attributes": {
+                "input": "What happened in Clippers game on 22 Nov 2025"
+            }
+        },
+        {
+            "name": "data.output",
+            "timestamp": "2025-12-18T00:06:25.278161Z",
+            "attributes": {
+                "response": "Clippers won against Hornets with score 131-116."
+            }
+        }
+    ],
+    "links": [],
+    "resource": {
+        "attributes": {
+            "service.name": "aws_strands_nba_agent"
+        },
+        "schema_url": ""
+    }
+}
+,{
+    "name": "workflow",
+    "context": {
+        "trace_id": "cc777ffa12c2506f3e07fa56d160bfe9",
+        "span_id": "d80988020d2417d1",
+        "trace_state": "[]"
+    },
+    "kind": "SpanKind.INTERNAL",
+    "parent_id": null,
+    "start_time": "2025-12-18T00:06:19.657588Z",
+    "end_time": "2025-12-18T00:06:25.278197Z",
+    "status": {
+        "status_code": "OK"
+    },
+    "attributes": {
+        "monocle_apptrace.version": "0.6.6",
+        "monocle_apptrace.language": "python",
+        "span_source": "/Users/prasad/repos/okahu-demos/aws_strands_nba_agent/nba_agent.py:132",
+        "scope.test_name": "test_tool_invocation",
+        "scope.git.commit.hash": "34fa9153154cab8ad0794901a91d0e0fb5eb1fea",
+        "scope.git.run.id": "2025-12-17T16:06:19.616845",
+        "scope.git.workflow.name": "local",
+        "scope.agentic.session": "00000000-0000-0000-1882-268a60efac30",
+        "scope.agentic.turn": "b210386891520a8742def7078c20ca97",
+        "workflow.name": "monocle_validator",
+        "span.type": "workflow",
+        "entity.1.name": "monocle_validator",
+        "entity.1.type": "workflow.generic",
+        "entity.2.type": "app_hosting.generic",
+        "entity.2.name": "generic",
+        "test.status": "failed"
+    },
+    "events": [],
+    "links": [],
+    "resource": {
+        "attributes": {
+            "service.name": "aws_strands_nba_agent"
+        },
+        "schema_url": ""
+    }
+}
+]

@@ -186,7 +186,9 @@ def setup_monocle_telemetry(
         If False, only use the provided wrapper_methods.
     monocle_exporters_list : str, optional
         Comma-separated list of exporters to use. This will override the env setting MONOCLE_EXPORTERS.
-        Supported exporters are: s3, blob, okahu, file, memory, console. This can't be combined with `span_processors`.
+        Supported exporters are: s3, blob, okahu, file, memory, console, otlp. 
+        For OTLP exporter, configure the endpoint via OTEL_EXPORTER_OTLP_ENDPOINT environment variable.
+        This can't be combined with `span_processors`.
     """
     resource = Resource(attributes={
         SERVICE_NAME: workflow_name

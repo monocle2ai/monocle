@@ -69,7 +69,7 @@ def extract_assistant_message(arguments):
                 else:
                     tool_call = _get_first_tool_call(arguments['result'])
                     if tool_call is not None:
-                        messages.append({role: str(tool_call['toolUse'])})
+                        messages.append({role: str(tool_call['toolUse']['input'])})
         else:
             if arguments["exception"] is not None:
                 return get_exception_message(arguments)

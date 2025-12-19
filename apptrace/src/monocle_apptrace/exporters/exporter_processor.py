@@ -22,7 +22,7 @@ class ExportTaskProcessor(ABC):
         return
 
     @abstractmethod
-    def queue_task(self, async_task: Callable[[Callable, any], any] = None, args: any = None, is_root_span: bool = False):
+    def queue_task(self, async_task: Callable = None, args: any = None, kwargs: dict = None, is_root_span: bool = False):
         return
 
 class LambdaExportTaskProcessor(ExportTaskProcessor):
@@ -46,8 +46,8 @@ class LambdaExportTaskProcessor(ExportTaskProcessor):
     def stop(self):
         return
 
-    def queue_task(self, async_task=None, args=None, is_root_span=False):
-        self.async_tasks_queue.put((async_task, args, is_root_span))
+    def queue_task(self, async_task=None, args=None, kwargs=None, is_root_span=False):
+        self.async_tasks_queue.put((async_task, args, kwargs, is_root_span))
     
     def set_sagemaker_model(self, endpoint_name: str, span: dict[str, dict[str, str]]):
         try:
@@ -119,9 +119,9 @@ class LambdaExportTaskProcessor(ExportTaskProcessor):
                     logger.info(f"[{LAMBDA_EXTENSION_NAME}] Async thread running, waiting for task from handler")
                     while self.async_tasks_queue.empty() is False :
                         logger.info(f"[{LAMBDA_EXTENSION_NAME}] Processing task from handler")
-                        async_task, arg, is_root_span = self.async_tasks_queue.get()
+                        async_task, args, kwargs, is_root_span = self.async_tasks_queue.get()
                         root_span_found = is_root_span
-                        # self.update_spans(export_args=arg)
+                        # self.update_spans(export_args=args)
 
                         if async_task is None:
                             # No task to run this invocation
@@ -129,7 +129,15 @@ class LambdaExportTaskProcessor(ExportTaskProcessor):
                         else:
                             # Invoke task
                             logger.debug(f"[{LAMBDA_EXTENSION_NAME}] Received async task from handler. Starting task.")
-                            async_task(arg)
+                            if kwargs:
+                                logger.info(f"Running async task: {async_task} with kwargs: {kwargs}")
+                                async_task(**kwargs)
+                            elif args:
+                                logger.info(f"Running async task: {async_task} with args: {args}")
+                                async_task(args)
+                            else:
+                                logger.info(f"Running async task: {async_task}")
+                                async_task()
                     total_time_elapsed+=self.span_check_interval
                     logger.info(f"[{LAMBDA_EXTENSION_NAME}] Waiting for root span. total_time_elapsed: {total_time_elapsed}, root_span_found: {root_span_found}.")
                     time.sleep(self.span_check_interval)

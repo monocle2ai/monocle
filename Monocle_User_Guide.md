@@ -89,6 +89,123 @@ For Azure:
 
 For AWS:
     Install the AWS support as shown in the setup section, then use  ```S3SpanExporter()``` to upload the traces to an S3 bucket.
+
+### Using Environment Variables to Configure Exporters
+Monocle supports configuring exporters through the `MONOCLE_EXPORTER` environment variable. This allows you to specify one or more exporters without modifying your code. You can specify multiple exporters by separating them with commas.
+
+Supported exporters:
+- `file` - Write traces to local JSON files (default)
+- `console` - Print traces to console output
+- `memory` - Store traces in memory (useful for testing)
+- `s3` - Upload traces to AWS S3 bucket
+- `blob` - Upload traces to Azure Blob Storage
+- `okahu` - Send traces to Okahu observability platform
+- `otlp` - Send traces to any OTLP-compatible backend (e.g., Jaeger, Zipkin, Grafana Tempo, OpenTelemetry Collector)
+
+Examples:
+```bash
+# Use default file exporter
+export MONOCLE_EXPORTER=file
+
+# Use console exporter
+export MONOCLE_EXPORTER=console
+
+# Use OTLP exporter
+export MONOCLE_EXPORTER=otlp
+
+# Use multiple exporters (file and console)
+export MONOCLE_EXPORTER=file,console
+
+# Use OTLP and file exporters
+export MONOCLE_EXPORTER=otlp,file
+```
+
+### Using OTLP Exporter for OpenTelemetry-Compatible Backends
+The OTLP (OpenTelemetry Protocol) exporter allows you to send traces to any OTLP-compatible collectors.
+
+#### Configuration
+Set the `MONOCLE_EXPORTER` environment variable to `otlp` and configure the endpoint:
+
+```bash
+# Set the exporter to OTLP
+export MONOCLE_EXPORTER=otlp
+
+# Configure the OTLP endpoint (default: http://localhost:4318)
+export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318
+
+# Optional: Set specific traces endpoint
+export OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=http://localhost:4318/v1/traces
+
+# Optional: Configure authentication headers
+export OTEL_EXPORTER_OTLP_HEADERS="api-key=your-api-key"
+
+# Optional: Configure timeout (in milliseconds, default: 10000)
+export OTEL_EXPORTER_OTLP_TIMEOUT=15000
+```
+
+#### Example with OpenTelemetry Collector
+```bash
+# Run OpenTelemetry Collector locally
+docker run -p 4318:4318 \
+  -v $(pwd)/otel-collector-config.yaml:/etc/otel-collector-config.yaml \
+  otel/opentelemetry-collector:latest \
+  --config=/etc/otel-collector-config.yaml
+
+# Configure Monocle to use OTLP exporter
+export MONOCLE_EXPORTER=otlp
+export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318
+
+# Run your application
+python your_app.py
+```
+
+#### Example with Jaeger
+```bash
+# Run Jaeger all-in-one with OTLP support
+docker run -d --name jaeger \
+  -e COLLECTOR_OTLP_ENABLED=true \
+  -p 16686:16686 \
+  -p 4318:4318 \
+  jaegertracing/all-in-one:latest
+
+# Configure Monocle
+export MONOCLE_EXPORTER=otlp
+export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318
+
+# Run your application
+python your_app.py
+
+# View traces at http://localhost:16686
+```
+
+#### Example with Grafana Tempo
+```bash
+# Configure Monocle to send traces to Grafana Tempo
+export MONOCLE_EXPORTER=otlp
+export OTEL_EXPORTER_OTLP_ENDPOINT=http://tempo:4318
+export OTEL_EXPORTER_OTLP_HEADERS="Authorization=Basic your-base64-credentials"
+```
+
+#### Programmatic Configuration
+You can also configure the OTLP exporter programmatically:
+
+```python
+from monocle_apptrace.instrumentor import setup_monocle_telemetry
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+
+# Configure OTLP exporter with custom settings
+otlp_exporter = OTLPSpanExporter(
+    endpoint="http://localhost:4318/v1/traces",
+    headers={"api-key": "your-api-key"},
+    timeout=15  # timeout in seconds
+)
+
+setup_monocle_telemetry(
+    workflow_name="my_genai_app",
+    span_processors=[BatchSpanProcessor(otlp_exporter)]
+)
+```
  
 ### Leveraging Monocle's extensibility to handle customization 
 When the out of box features from app frameworks are not sufficent, the app developers have to add custom code. For example, if you are extending a LLM class in LlamaIndex to use a model hosted in NVIDIA Triton. This new class is not know to Monocle. You can specify this new class method part of Monocle enabling API and it will be able to trace it.

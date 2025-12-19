@@ -84,6 +84,11 @@ def verify_spans():
             assert span_attributes["entity.2.name"] == bedrock_model
             assert span_attributes["entity.2.type"] == f"model.llm.{bedrock_model}"
 
+            # Assertions for span.subtype
+            assert "span.subtype" in span_attributes, "Expected span.subtype attribute to be present"
+            assert span_attributes.get("span.subtype") in ["turn_end", "tool_call", "delegation"], \
+                f"Unexpected span.subtype value: {span_attributes.get('span.subtype')}"
+
             # Assertions for metadata
             span_input, span_output, span_metadata = span.events
             assert "completion_tokens" in span_metadata.attributes

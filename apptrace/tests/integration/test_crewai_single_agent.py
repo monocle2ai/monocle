@@ -1,5 +1,6 @@
 import logging
 import pytest
+import time
 from common.custom_exporter import CustomConsoleSpanExporter
 from monocle_apptrace.exporters.file_exporter import FileSpanExporter
 from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
@@ -49,7 +50,7 @@ def setup():
             workflow_name="crewai_simple_test",
             span_processors=span_processors,
         )
-        yield file_exporter
+        yield custom_exporter
     finally:
         if instrumentor and instrumentor.is_instrumented_by_opentelemetry:
             instrumentor.uninstrument()
@@ -103,8 +104,61 @@ def test_crewai_simple(setup):
     
     # Basic verification
     assert result is not None, "Should get a result"
-    
-    logger.info("✓ Simple CrewAI test completed")
+    verify_spans(setup)
+
+
+def verify_spans(custom_exporter):
+    time.sleep(2)
+    found_inference = found_agent = found_tool = found_tool_call = False
+    spans = custom_exporter.get_captured_spans()
+    for span in spans:
+        span_attributes = span.attributes
+
+        if "span.type" in span_attributes and (
+                span_attributes["span.type"] == "inference"
+                or span_attributes["span.type"] == "inference.framework"
+        ):
+            # Assertions for all inference attributes
+            assert span_attributes["entity.1.type"] == "inference.openai"
+            assert "entity.1.provider_name" in span_attributes
+            assert "entity.1.inference_endpoint" in span_attributes
+            assert span_attributes["entity.2.name"] == "gpt-4.1"
+            assert span_attributes["entity.2.type"] == "model.llm.gpt-4.1"
+
+            # Assertions for metadata
+            span_input, span_output, span_metadata = span.events
+            assert "completion_tokens" in span_metadata.attributes
+            assert "prompt_tokens" in span_metadata.attributes
+            assert "total_tokens" in span_metadata.attributes
+            assert "finish_reason" in span_metadata.attributes
+            if span_metadata.attributes["finish_reason"] == "tool_calls":
+                found_tool_call =True
+            found_inference = True
+
+        if (
+                "span.type" in span_attributes
+                and span_attributes["span.type"] == "agentic.invocation"
+                and "entity.1.name" in span_attributes
+        ):
+            assert "entity.1.type" in span_attributes
+            assert "entity.1.name" in span_attributes
+            assert span_attributes["entity.1.type"] == "agent.crewai"
+            if span_attributes["entity.1.name"] == "Hotel Booking Agent":
+                found_agent = True
+        if (
+                "span.type" in span_attributes
+                and span_attributes["span.type"] == "agentic.tool.invocation"
+        ):
+            assert "entity.1.type" in span_attributes
+            assert "entity.1.name" in span_attributes
+            assert span_attributes["entity.1.type"] == "tool.crewai"
+            if span_attributes["entity.1.name"] == "book_hotel":
+                found_tool = True
+
+    assert found_inference, "Inference span not found"
+    assert found_agent, "Agent span not found"
+    assert found_tool, "Tool span not found"
+    assert found_tool_call, "Tool call finish reason not found"
 
 
 if __name__ == "__main__":

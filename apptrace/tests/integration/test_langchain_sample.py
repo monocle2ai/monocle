@@ -23,7 +23,6 @@ from langchain_openai import (
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
-from monocle_apptrace.exporters.file_exporter import FileSpanExporter
 
 logger = logging.getLogger(__name__)
 custom_exporter = CustomConsoleSpanExporter()
@@ -37,7 +36,7 @@ def setup():
             span_processors=[
                 BatchSpanProcessor(
                     custom_exporter, max_queue_size=1, max_export_batch_size=1
-                ), BatchSpanProcessor(FileSpanExporter()),
+                )
             ],
             wrapper_methods=[],
         )

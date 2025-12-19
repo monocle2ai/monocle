@@ -15,8 +15,6 @@ from monocle_apptrace.instrumentation.metamodel.haystack._helper import (
     extract_finish_reason,
 )
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
-from opentelemetry.sdk.trace.export import BatchSpanProcessor, SimpleSpanProcessor
-from monocle_apptrace.exporters.file_exporter import FileSpanExporter
 
 logger = logging.getLogger(__name__)
 # Setup telemetry
@@ -28,7 +26,7 @@ def setup():
         custom_exporter = CustomConsoleSpanExporter()
         instrumentor = setup_monocle_telemetry(
             workflow_name="haystack_integration_tests",
-            span_processors=[SimpleSpanProcessor(custom_exporter), BatchSpanProcessor(FileSpanExporter())],
+            span_processors=[SimpleSpanProcessor(custom_exporter)],
         )
         yield custom_exporter
     finally:

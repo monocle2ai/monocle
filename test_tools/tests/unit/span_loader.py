@@ -1,4 +1,5 @@
 import datetime
+import os
 import json
 from typing import Any, Dict
 from opentelemetry.sdk.trace import Span, ReadableSpan, Status, StatusCode, Event, Resource
@@ -6,6 +7,12 @@ from opentelemetry import trace as trace_api
 
 class JSONSpanLoader:
     """Utility class to load spans from JSON files and convert them to ReadableSpan instances."""
+
+    @staticmethod
+    def load_spans(trace_file_path: str) -> list["ReadableSpan"]:
+        current_script_path = os.path.abspath(__file__)
+        spans = JSONSpanLoader.from_json(os.path.join(os.path.dirname(current_script_path), trace_file_path))
+        return spans
 
     @staticmethod
     def from_json(json_file_path: str) -> list["ReadableSpan"]:

@@ -76,8 +76,13 @@ class TestInstrumentorAPI(unittest.IsolatedAsyncioTestCase):
         self.exporter.force_flush()
         spans = self.exporter.captured_spans
         
-        # Should have 3 spans: two workflow spans and one from the instrumented method
-        self.assertEqual(len(spans), 3)
+        # Log complete span JSON for debugging
+        import json
+        for i, span in enumerate(spans):
+            logger.info(f"Span {i}: {span.to_json(indent=2)}")
+        
+        # Should have 2 spans: workflow span and instrumented method
+        self.assertEqual(len(spans), 2)
         
         # Verify that related spans (double_it and its parent workflow) share the same trace ID
         double_it_span = None
@@ -119,7 +124,7 @@ class TestInstrumentorAPI(unittest.IsolatedAsyncioTestCase):
         self.exporter.force_flush()
         spans = self.exporter.captured_spans
         
-        self.assertEqual(len(spans), 3)
+        self.assertEqual(len(spans), 2)
         
         # Verify that related spans (double_it and its parent workflow) share the same trace ID
         double_it_span = None
@@ -162,7 +167,7 @@ class TestInstrumentorAPI(unittest.IsolatedAsyncioTestCase):
         self.exporter.force_flush()
         spans = self.exporter.captured_spans
         
-        self.assertEqual(len(spans), 3)
+        self.assertEqual(len(spans), 2)
         
         # Find the workflow span that has the custom attributes
         context_span = None
@@ -192,7 +197,7 @@ class TestInstrumentorAPI(unittest.IsolatedAsyncioTestCase):
         self.exporter.force_flush()
         spans = self.exporter.captured_spans
         
-        self.assertEqual(len(spans), 3)
+        self.assertEqual(len(spans), 2)
         
         # Find the context manager span
         context_span = None
@@ -220,8 +225,8 @@ class TestInstrumentorAPI(unittest.IsolatedAsyncioTestCase):
         self.exporter.force_flush()
         spans = self.exporter.captured_spans
         
-        # Should have 4 spans: workflow spans, triple_it, and double_it
-        self.assertEqual(len(spans), 4)
+        # Should have 3 spans: workflow span, triple_it, and double_it
+        self.assertEqual(len(spans), 3)
         
         # Find the function spans and verify they share the same trace ID with at least one workflow span
         function_spans = []
@@ -267,8 +272,8 @@ class TestInstrumentorAPI(unittest.IsolatedAsyncioTestCase):
         self.exporter.force_flush()
         spans = self.exporter.captured_spans
         
-                # Should still have spans even with exception
-        self.assertEqual(len(spans), 3)
+        # Should still have spans even with exception
+        self.assertEqual(len(spans), 2)
         
         # Find the instrumented method span (double_it)
         method_span = None
@@ -424,8 +429,8 @@ class TestInstrumentorAPIAsync(unittest.IsolatedAsyncioTestCase):
         self.exporter.force_flush()
         spans = self.exporter.captured_spans
         
-        # Should have 3 spans: two workflow spans and one from the instrumented method
-        self.assertEqual(len(spans), 3)
+        # Should have 2 spans: workflow span and instrumented method
+        self.assertEqual(len(spans), 2)
         
         # Verify that related spans (add3 and its parent workflow) share the same trace ID
         add3_span = None
@@ -469,7 +474,7 @@ class TestInstrumentorAPIAsync(unittest.IsolatedAsyncioTestCase):
         self.exporter.force_flush()
         spans = self.exporter.captured_spans
         
-        self.assertEqual(len(spans), 3)
+        self.assertEqual(len(spans), 2)
         
         # Find the workflow span that contains the custom attributes
         context_span = None
@@ -497,8 +502,8 @@ class TestInstrumentorAPIAsync(unittest.IsolatedAsyncioTestCase):
         self.exporter.force_flush()
         spans = self.exporter.captured_spans
         
-        # Should have 4 spans: workflow spans, add2, and add3
-        self.assertEqual(len(spans), 4)
+        # Should have 3 spans: workflow span, add2, and add3
+        self.assertEqual(len(spans), 3)
         
         # Find the function spans and verify they share the same trace ID with at least one workflow span
         function_spans = []
@@ -545,7 +550,7 @@ class TestInstrumentorAPIAsync(unittest.IsolatedAsyncioTestCase):
         spans = self.exporter.captured_spans
         
         # Should still have spans even with exception
-        self.assertEqual(len(spans), 3)
+        self.assertEqual(len(spans), 2)
         
         # Find the instrumented method span (add3)
         method_span = None

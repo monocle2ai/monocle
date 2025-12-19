@@ -4,6 +4,7 @@ and assistant messages from various input formats.
 """
 import json
 import logging
+import re
 from monocle_apptrace.instrumentation.common.constants import INFERENCE_TOOL_CALL, INFERENCE_TURN_END, TOOL_TYPE
 from monocle_apptrace.instrumentation.common.utils import (
     Option,
@@ -110,8 +111,28 @@ def extract_finish_reason(arguments):
         
         # Handle LiteLLM response structure (similar to OpenAI)
         if response is not None and hasattr(response, "choices") and len(response.choices) > 0:
+            finish_reason = None
             if hasattr(response.choices[0], "finish_reason"):
-                return response.choices[0].finish_reason
+                finish_reason = response.choices[0].finish_reason
+            
+            # Check if response contains ReAct-style tool calls (Action: tool_name pattern),frameworks like CrewAI that use text-based tool calling
+            if finish_reason == "stop" and hasattr(response.choices[0], "message"):
+                message = response.choices[0].message
+                if hasattr(message, "content") and message.content:
+                    content = str(message.content)
+                    if "\nAction:" in content or "\naction:" in content:
+                        action_pattern = r'\n[Aa]ction:\s*([^\n]+)'
+                        match = re.search(action_pattern, content)
+                        if match:
+                            action = match.group(1).strip()
+                            # Filter out ReAct agent termination phrases to distinguish from actual tool calls:
+                            # - 'final answer': Used by ReAct agents to signal completion (e.g., "Action: Final Answer: <result>")
+                            # - 'i now know': Indicates the agent has gathered sufficient information to conclude
+                            # These patterns appear in frameworks like CrewAI that use text-based ReAct reasoning, where "Action:" is followed by either a tool name OR a termination signal.
+                            if action and not any(keyword in action.lower() for keyword in ['final answer', 'i now know']):
+                                return "tool_calls"
+            
+            return finish_reason
                 
     except (IndexError, AttributeError) as e:
         logger.warning("Warning: Error occurred in extract_finish_reason: %s", str(e))

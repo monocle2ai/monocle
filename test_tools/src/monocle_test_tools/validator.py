@@ -16,7 +16,7 @@ from monocle_apptrace import start_scopes, stop_scope
 from contextlib import contextmanager, asynccontextmanager
 import logging
 from monocle_apptrace.exporters.monocle_exporters import get_monocle_exporter
-from monocle_apptrace.instrumentation.common.instrumentor import MonocleInstrumentor, setup_monocle_telemetry
+from monocle_apptrace.instrumentation.common.instrumentor import MonocleInstrumentor, setup_monocle_telemetry, reset_span_processors, get_monocle_instrumentor
 from pydantic import BaseModel, ValidationError
 from monocle_test_tools.gitutils import get_git_context
 from monocle_test_tools.schema import SpanType, TestSpan, TestCase, Evaluation, EvalInputs, MockTool
@@ -62,8 +62,12 @@ class MonocleValidator:
         if export_failed_tests_only is None:
             export_failed_tests_only = os.getenv("MONOCLE_EXPORT_FAILED_TESTS_ONLY", "false").lower() == "true"
         self.export_failed_tests_only = export_failed_tests_only
-        self.instrumentor = setup_monocle_telemetry(workflow_name="monocle_validator",
+        if get_monocle_instrumentor() is None:
+            self.instrumentor = setup_monocle_telemetry(workflow_name="monocle_validator",
                                         span_processors=[SimpleSpanProcessor(self.memory_exporter)])
+        else:
+            self.instrumentor = get_monocle_instrumentor()
+            reset_span_processors([SimpleSpanProcessor(self.memory_exporter)])
         MonocleValidator._initialized = True
 
     def __del__(self):

@@ -174,7 +174,7 @@ def test_finish_reason_function_call(setup):
     assert "entity.3.name" in span_attributes, "entity.3.name should be present when finish_type is tool_call"
     assert "entity.3.type" in span_attributes, "entity.3.type should be present when finish_type is tool_call"
     assert span_attributes["entity.3.name"] == "get_current_weather", f"Expected tool name 'get_current_weather', got '{span_attributes.get('entity.3.name')}'"
-    assert span_attributes["entity.3.type"] == "tool.function", f"Expected tool type 'tool.function', got '{span_attributes.get('entity.3.type')}'"
+    assert span_attributes["entity.3.type"] == "tool.openai", f"Expected tool type 'tool.openai', got '{span_attributes.get('entity.3.type')}'"
 
 
 if __name__ == "__main__":

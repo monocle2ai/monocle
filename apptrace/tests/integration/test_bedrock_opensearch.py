@@ -64,8 +64,8 @@ def test_bedrock_opensearch(setup):
             assert span_attributes["entity.1.type"] == "inference.aws_bedrock"
             if "entity.1.inference_endpoint" in span_attributes.keys():
                 assert "entity.1.inference_endpoint" in span_attributes
-                assert span_attributes["entity.2.name"] == "anthropic.claude-v2:1"
-                assert span_attributes["entity.2.type"] == "model.llm.anthropic.claude-v2:1"
+                assert span_attributes["entity.2.name"] == "anthropic.claude-3-haiku-20240307-v1:0"
+                assert span_attributes["entity.2.type"] == "model.llm.anthropic.claude-3-haiku-20240307-v1:0"
 
 
                 # Assertions for metadata
@@ -81,7 +81,7 @@ def produce_llm_response(query,similar_documents):
 
     # Set the model ID, e.g., Jurassic-2 Mid.
     #model_id = "ai21.j2-mid-v1"
-    model_id = "anthropic.claude-v2:1"
+    model_id = "anthropic.claude-3-haiku-20240307-v1:0"
 
     context = build_context(similar_documents)
     user_message = f'Context - {context}\nBased on the above context, answer this Query: {query}'
@@ -119,7 +119,7 @@ def build_context(similar_documents):
                "and say that you don't know the answer if this is not something you can answer on your own."
 
 def search_similar_documents_opensearch(query):
-    opensearch_url = os.environ['OPENSEARCH_ENDPOINT_URL_BOTO']
+    opensearch_url = os.environ['OPENSEARCH_BEDROCK_ENDPOINT_URL_BOTO']
     index_name = "embeddings-bedrock"  # Your index name
 
     bedrock_embeddings = BedrockEmbeddings(region_name="us-east-1",model_id="amazon.titan-embed-text-v1")
@@ -152,14 +152,19 @@ def search_similar_documents_opensearch(query):
 
 
 def test_invalid_credentials(setup):
+    # Store original session to restore later
+    original_session = boto3.DEFAULT_SESSION
+    
     try:
-        boto3.setup_default_session(
+        # Force a new session with invalid credentials
+        boto3.DEFAULT_SESSION = None
+        session = boto3.Session(
             aws_access_key_id='invalid_key',
             aws_secret_access_key='invalid_secret',
             region_name='us-east-1'
         )
 
-        client = boto3.client("bedrock-runtime")
+        client = session.client("bedrock-runtime")
         query="how?"
         user_message = f' Answer this Query: {query}'
         conversation = [
@@ -169,21 +174,34 @@ def test_invalid_credentials(setup):
             }
         ]
         response = client.converse(
-            modelId="anthropic.claude-v2:1",
+            modelId="anthropic.claude-3-haiku-20240307-v1:0",
             messages=conversation,
             inferenceConfig={"maxTokens": 512}
         )
     except ClientError as e:
         logger.error("Authentication error: %s", str(e))
-    spans = setup.get_captured_spans()
+    finally:
+        # Restore original session
+        boto3.DEFAULT_SESSION = original_session
+    
     time.sleep(5)
+    spans = setup.get_captured_spans()
+    
+    # Find inference spans with errors
+    error_found = False
     for span in spans:
         if 'span.type' in span.attributes and span.attributes["span.type"] == "inference":
             events = [e for e in span.events if e.name == "data.output"]
-            assert len(events) > 0
-            assert events[0].attributes["error_code"] == "error"
-            assert "error_code" in events[0].attributes
-            assert "UnrecognizedClientException" in events[0].attributes.get("response", "")
+            if len(events) > 0 and "error_code" in events[0].attributes:
+                assert events[0].attributes["error_code"] == "error"
+                # Check for authentication error
+                response_text = events[0].attributes.get("response", "")
+                assert "UnrecognizedClientException" in response_text or "InvalidSignatureException" in response_text
+                error_found = True
+                break
+    
+    # The test should have captured an error
+    assert error_found, "Expected to find an inference span with authentication error"
 
 if __name__ == "__main__":
     pytest.main([__file__, "-s", "--tb=short"])

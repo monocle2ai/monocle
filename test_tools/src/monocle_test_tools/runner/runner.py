@@ -5,6 +5,7 @@ class AgentTypes(str, Enum):
     GOOGLE_ADK = "google_adk"
     OPENAI = "openai"
     LANGGRAPH = "langgraph"
+    CREWAI = "crewai"
     
 def get_agent_runner(runner_type: str) -> AgentRunner:
     if runner_type == AgentTypes.GOOGLE_ADK:
@@ -16,5 +17,8 @@ def get_agent_runner(runner_type: str) -> AgentRunner:
     elif runner_type == AgentTypes.LANGGRAPH:
         from .lg_runner import LGRunner
         return LGRunner()
+    elif runner_type == AgentTypes.CREWAI:
+        from .crewai_runner import CrewAIRunner
+        return CrewAIRunner()
     else:
         raise ValueError(f"Unknown runner type: {runner_type}")

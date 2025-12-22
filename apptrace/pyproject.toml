@@ -30,6 +30,7 @@ dependencies = [
    'opentelemetry-api>=1.21.0',
    'opentelemetry-sdk>=1.21.0',
    'opentelemetry-instrumentation',
+   'opentelemetry-exporter-otlp-proto-http>=1.21.0',
 ]
 
 [tool.pytest.ini_options]

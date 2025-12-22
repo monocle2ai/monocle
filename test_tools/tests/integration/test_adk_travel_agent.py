@@ -45,10 +45,11 @@ agent_test_cases:list[dict] = [
         ]
     },
 ]
-
-@MonocleValidator().monocle_testcase(agent_test_cases)
-async def test_run_agents(my_test_case: dict):
-   await MonocleValidator().test_agent_async(root_agent, "google_adk", my_test_case)
+@pytest.mark.asyncio
+@pytest.mark.parametrize("test_case", agent_test_cases)
+#@MonocleValidator().monocle_testcase(agent_test_cases)
+async def test_run_agents(monocle_test_case):
+   await MonocleValidator().test_agent_async(root_agent, "google_adk", monocle_test_case)
    await sleep(2)  # To avoid rate limiting
 
 if __name__ == "__main__":

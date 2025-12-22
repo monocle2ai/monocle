@@ -32,3 +32,13 @@ def get_git_context() -> dict[str, str]:
         GIT_RUN_ID_ATTRIBUTE: run_id,
         GIT_WORKFLOW_NAME_ATTRIBUTE: workflow_name
     }
+
+def get_repo_name() -> str:
+    """Get the name of the git repository."""
+    try:
+        repo = Repo(os.getcwd(), search_parent_directories=True)
+        remote_url = repo.remotes.origin.url
+        repo_name = os.path.splitext(os.path.basename(remote_url))[0]
+        return repo_name
+    except Exception:
+        return None

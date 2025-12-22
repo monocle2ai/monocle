@@ -18,9 +18,9 @@ import logging
 from monocle_apptrace.exporters.monocle_exporters import get_monocle_exporter
 from monocle_apptrace.instrumentation.common.instrumentor import MonocleInstrumentor, setup_monocle_telemetry, reset_span_processors, get_monocle_instrumentor
 from pydantic import BaseModel, ValidationError
-from monocle_test_tools.gitutils import get_git_context
+from monocle_test_tools.gitutils import get_git_context, get_repo_name
 from monocle_test_tools.schema import SpanType, TestSpan, TestCase, Evaluation, EvalInputs, MockTool
-from monocle_test_tools.constants import TEST_SCOPE_NAME
+from monocle_test_tools.constants import TEST_SCOPE_NAME, DEFAULT_WORKFLOW_NAME
 from monocle_test_tools.comparer.base_comparer import BaseComparer
 from monocle_test_tools.runner.runner import get_agent_runner
 from monocle_test_tools import trace_utils
@@ -48,7 +48,8 @@ class MonocleValidator:
             cls._instance = super().__new__(cls)
         return cls._instance
 
-    def __init__(self, exporter_list:Optional[str] = None, export_failed_tests_only:Optional[bool] = None):
+    def __init__(self, exporter_list:Optional[str] = None, export_failed_tests_only:Optional[bool] = None,
+                    workflow_name:str=None):
         if MonocleValidator._initialized:
             if exporter_list is not None:
                 raise ValueError("Exporter list can only be set during the first initialization of MonocleValidator.")
@@ -61,9 +62,13 @@ class MonocleValidator:
         self.memory_exporter = InMemorySpanExporter()
         if export_failed_tests_only is None:
             export_failed_tests_only = os.getenv("MONOCLE_EXPORT_FAILED_TESTS_ONLY", "false").lower() == "true"
+        if workflow_name is None:
+            workflow_name = os.getenv("MONOCLE_TEST_WORKFLOW_NAME")
+            if workflow_name is None:
+                workflow_name = get_repo_name() or DEFAULT_WORKFLOW_NAME
         self.export_failed_tests_only = export_failed_tests_only
         if get_monocle_instrumentor() is None:
-            self.instrumentor = setup_monocle_telemetry(workflow_name="monocle_validator",
+            self.instrumentor = setup_monocle_telemetry(workflow_name=workflow_name,
                                         span_processors=[SimpleSpanProcessor(self.memory_exporter)])
         else:
             self.instrumentor = get_monocle_instrumentor()

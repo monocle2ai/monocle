@@ -1,5 +1,5 @@
 from monocle_apptrace.instrumentation.common.wrapper import task_wrapper, atask_wrapper
-from monocle_apptrace.instrumentation.metamodel.mistral.entities.inference import MISTRAL_INFERENCE
+from monocle_apptrace.instrumentation.metamodel.mistral.entities.inference import MISTRAL_INFERENCE, MISTRAL_INFERENCE_STREAM
 from monocle_apptrace.instrumentation.metamodel.mistral.entities.retrieval import MISTRAL_RETRIEVAL
 
 MISTRAL_METHODS = [
@@ -25,7 +25,7 @@ MISTRAL_METHODS = [
         "method": "stream",              # sync streaming
         "span_handler": "non_framework_handler",
         "wrapper_method": task_wrapper,
-        "output_processor": MISTRAL_INFERENCE,
+        "output_processor": MISTRAL_INFERENCE_STREAM,
     },
     {
         "package": "mistralai.chat",
@@ -33,7 +33,7 @@ MISTRAL_METHODS = [
         "method": "stream_async",        # async streaming
         "span_handler": "non_framework_handler",
         "wrapper_method": atask_wrapper,
-        "output_processor": MISTRAL_INFERENCE,
+        "output_processor": MISTRAL_INFERENCE_STREAM,
     },
     {
         "package": "mistralai.embeddings",    # where Embeddings is defined

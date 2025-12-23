@@ -30,9 +30,32 @@ from monocle_apptrace.instrumentation.common.utils import (
     get_current_monocle_span,
     set_monocle_span_in_context,
 )
+from opentelemetry.context import contextvars_context
 
 logger = logging.getLogger(__name__)
 ISOLATE_MONOCLE_SPANS = os.getenv("MONOCLE_ISOLATE_SPANS", "true").lower() == "true"
+
+def safe_detach():
+
+    if hasattr(contextvars_context.ContextVarsRuntimeContext, '_original_detach'):
+        return
+
+    # Store the original detach method
+    original_detach = contextvars_context.ContextVarsRuntimeContext.detach
+    
+    def _safe_detach_method(self, token):
+        """Wrapper that catches exceptions during token detachment."""
+        try:
+            return original_detach(self, token)
+        except ValueError:
+            return None
+        except Exception:
+            logger.exception("Failed to detach context")
+            return None
+
+    contextvars_context.ContextVarsRuntimeContext._original_detach = original_detach
+    contextvars_context.ContextVarsRuntimeContext.detach = _safe_detach_method
+
 
 def get_auto_close_span(to_wrap, kwargs):
     try:

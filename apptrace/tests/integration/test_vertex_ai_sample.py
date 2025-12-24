@@ -2,7 +2,7 @@
 import logging
 import os
 import time
-
+import json
 import pytest
 from common.custom_exporter import CustomConsoleSpanExporter
 from common.helpers import (
@@ -13,6 +13,7 @@ from common.helpers import (
 )
 from google import genai
 from google.genai import types
+from google.oauth2 import service_account
 from monocle_apptrace.instrumentation.common.instrumentor import (
     setup_monocle_telemetry,
 )
@@ -37,7 +38,30 @@ def setup():
 
 
 def test_gemini_model_sample(setup):
-    client = genai.Client(vertexai=True, project=os.environ.get("GCP_PROJECT"), location=os.environ.get("GCP_REGION"))
+    # Parse JSON credentials from environment variable
+    creds_json = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
+    if not creds_json:
+        raise ValueError("GOOGLE_APPLICATION_CREDENTIALS environment variable not set")
+    
+    # Handle the escaped newlines in the JSON string
+    # The string has literal \\n which need to become actual newlines
+    creds_json = creds_json.replace('\\\\n', '\n')
+    creds_dict = json.loads(creds_json)
+    
+    # Create credentials with required scopes for Vertex AI
+    credentials = service_account.Credentials.from_service_account_info(
+        creds_dict
+    ).with_scopes([
+        'https://www.googleapis.com/auth/cloud-platform',
+        'https://www.googleapis.com/auth/generative-language'
+    ])
+    
+    client = genai.Client(
+        vertexai=True,
+        project=os.environ.get("GCP_PROJECT"),
+        location=os.environ.get("GCP_REGION"),
+        credentials=credentials
+    )
 
     response = client.models.generate_content(
         model="gemini-2.5-flash",

@@ -199,3 +199,4 @@ disable = [
 
 [project.scripts]
 monocle_apptrace = "monocle_apptrace.mcp_server:main"
+monocle-okahu = "monocle_apptrace.exporters.okahu.cli:main"

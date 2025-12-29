@@ -206,6 +206,64 @@ setup_monocle_telemetry(
     span_processors=[BatchSpanProcessor(otlp_exporter)]
 )
 ```
+
+### Using Okahu Exporter and CLI
+
+The Okahu exporter allows you to send traces to the Okahu observability platform for AI application monitoring.
+
+#### Configuration
+
+To use the Okahu exporter, set your API key as an environment variable:
+
+```bash
+# Set your Okahu API key
+export OKAHU_API_KEY=your_api_key_here
+
+# Configure Monocle to use Okahu exporter
+export MONOCLE_EXPORTER=okahu
+```
+
+You can also configure a custom Okahu ingestion endpoint if needed:
+
+```bash
+export OKAHU_INGESTION_ENDPOINT=https://your-custom-endpoint.okahu.co/api/v1/trace/ingest
+```
+
+#### Listing Applications
+
+Monocle provides a CLI tool to list and query applications registered on the Okahu platform:
+
+```bash
+# List all applications in table format (default)
+monocle-okahu list-apps
+
+# List all applications in JSON format
+monocle-okahu list-apps --format json
+
+# Get details for a specific application
+monocle-okahu get-app <app-id-or-workflow-name>
+```
+
+The CLI tool requires the `OKAHU_API_KEY` environment variable to be set.
+
+#### Programmatic Access
+
+You can also use the Okahu client programmatically in your Python code:
+
+```python
+from monocle_apptrace.exporters.okahu import OkahuClient
+
+# Initialize the client (uses OKAHU_API_KEY from environment)
+with OkahuClient() as client:
+    # List all applications
+    apps = client.list_apps()
+    for app in apps:
+        print(f"App: {app['name']} (ID: {app['id']})")
+    
+    # Get details for a specific app
+    app_details = client.get_app("my-app-id")
+    print(app_details)
+```
  
 ### Leveraging Monocle's extensibility to handle customization 
 When the out of box features from app frameworks are not sufficent, the app developers have to add custom code. For example, if you are extending a LLM class in LlamaIndex to use a model hosted in NVIDIA Triton. This new class is not know to Monocle. You can specify this new class method part of Monocle enabling API and it will be able to trace it.

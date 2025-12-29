@@ -61,6 +61,17 @@ Test your application and agent behavior by using Monocle's genAI test tool. Jus
 ### Monocle MCP server
 The MCP server provided by Monocle integrates with your dev enviorment like Visual Studio and Github copilot. It provides curated prompts and tools to analyze the trace to find issues.
 
+### Okahu CLI
+Monocle provides a command-line interface for interacting with the Okahu observability platform. List and query your GenAI applications, view trace data, and manage your monitoring workflows.
+
+```bash
+# List all applications
+monocle-okahu list-apps
+
+# Get details for a specific app
+monocle-okahu get-app <app-id>
+```
+
 ## Roadmap 
 
 Goal of Monocle is to support tracing for apps written in *any language* with *any LLM orchestration or agentic framework* and built using models, vectors, agents or other components served up by *any cloud or model inference provider*. 

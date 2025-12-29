@@ -9,7 +9,7 @@ import requests
 
 logger = logging.getLogger(__name__)
 
-OKAHU_API_BASE_URL = "https://api.okahu.co"
+OKAHU_PROD_API_BASE_URL = "https://api.okahu.co"
 
 
 class OkahuClient:
@@ -34,9 +34,9 @@ class OkahuClient:
         """
         self.api_key = api_key or os.environ.get("OKAHU_API_KEY")
         if not self.api_key:
-            raise ValueError("OKAHU_API_KEY not set. Please provide an API key or set the OKAHU_API_KEY environment variable.")
+            raise ValueError("OKAHU_API_KEY not set.")
         
-        self.base_url = base_url or os.environ.get("OKAHU_API_BASE_URL", OKAHU_API_BASE_URL)
+        self.base_url = base_url or os.environ.get("OKAHU_API_BASE_URL", OKAHU_PROD_API_BASE_URL)
         self.timeout = timeout
         
         self.session = requests.Session()

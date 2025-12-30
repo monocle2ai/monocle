@@ -91,7 +91,7 @@ class TraceAssertion():
         """Run the given agent with provided args and kwargs."""
         return self.validator.run_agent(agent, agent_type, *args, **kwargs)
 
-    async def run_async_agent(self, agent, agent_type:str, *args, **kwargs) -> any:
+    async def run_agent_async(self, agent, agent_type:str, *args, **kwargs) -> any:
         """Run the given async agent with provided args and kwargs."""
         return await self.validator.run_agent_async(agent, agent_type, *args, **kwargs)
 

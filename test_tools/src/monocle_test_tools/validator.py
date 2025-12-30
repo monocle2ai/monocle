@@ -8,7 +8,7 @@ from opentelemetry.sdk.trace import Span, StatusCode
 from opentelemetry.sdk.trace.export import SpanProcessor, SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from opentelemetry.sdk.trace.export import SpanExporter
-from opentelemetry.context import set_value, Context
+from opentelemetry.context import set_value, Context, detach, attach
 import pytest
 #from sqlalchemy import func
 from monocle_apptrace.exporters.file_exporter import FileSpanExporter, DEFAULT_TRACE_FOLDER
@@ -28,7 +28,7 @@ from monocle_apptrace.instrumentation.metamodel.adk.methods import ADK_METHODS
 from monocle_apptrace.instrumentation.metamodel.adk.entities.tool import TOOL as ADK_TOOL
 from monocle_apptrace.instrumentation.metamodel.langgraph.methods import LANGGRAPH_METHODS
 from monocle_apptrace.instrumentation.metamodel.langgraph.entities.inference import TOOLS as LANGGRAPH_TOOL
-from monocle_apptrace.instrumentation.common.constants import MONOCLE_SKIP_EXECUTIONS
+from monocle_apptrace.instrumentation.common.constants import MONOCLE_SKIP_EXECUTIONS, MONOCLE_WORKFLOW_NAME_KEY
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +42,7 @@ class MonocleValidator:
     _initialized = False
     exporters:list[SpanExporter] = []
     export_failed_tests_only: bool = False
+    workflow_token: object = None
 
     def __new__(cls, *args, **kwargs):
         if cls._instance is None:
@@ -73,12 +74,15 @@ class MonocleValidator:
         else:
             self.instrumentor = get_monocle_instrumentor()
             reset_span_processors([SimpleSpanProcessor(self.memory_exporter)])
+            self.workflow_token = attach(set_value(MONOCLE_WORKFLOW_NAME_KEY, workflow_name))
         MonocleValidator._initialized = True
 
     def __del__(self):
         for exporter in self.exporters:
             if hasattr(exporter, "shutdown"):
                 exporter.shutdown()
+        if self.workflow_token is not None:
+            detach(self.workflow_token)
 
     def cleanup(self):
         """Cleanup the validator state for a fresh test run."""

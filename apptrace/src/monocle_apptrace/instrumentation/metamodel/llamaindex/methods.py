@@ -83,7 +83,7 @@ LLAMAINDEX_METHODS = [
         "object": "AgentWorkflow",
         "method": "run",
         "span_handler": "llamaindex_agent_handler",
-        "wrapper_method": task_wrapper,
+        "wrapper_method": atask_wrapper,
         "output_processor": AGENT_REQUEST
     },
     {

@@ -66,12 +66,14 @@ The MCP server provided by Monocle integrates with your dev enviorment like Visu
 Goal of Monocle is to support tracing for apps written in *any language* with *any LLM orchestration or agentic framework* and built using models, vectors, agents or other components served up by *any cloud or model inference provider*. 
 
 Current version supports: 
-- Language: (🟢) Python , (🔜) [Typescript](https://github.com/monocle2ai/monocle-typescript) 
-- LLM-frameworks: (🟢) Langchain, (🟢) Llamaindex, (🟢) Haystack, (🔜) Flask
-- LLM inference providers: (🟢) OpenAI, (🟢) Azure OpenAI, (🟢) Nvidia Triton, (🔜) AWS Bedrock, (🔜) Google Vertex, (🔜) Azure ML, (🔜) Hugging Face
+- Language: (🟢) Python , (🟢) [Typescript](https://github.com/monocle2ai/monocle-typescript)
+- Agentic frameworks: (🟢) Langgraph, (🟢) LlamaIndex, (🟢) Google ADK, (🟢)  OpenAI Agent SDK, (🟢) AWS Strands, (🟢) CrewAI, (🔜) Microsoft AI Agent framework
+- MCP/A2A frameworks: (🟢) FastMCP, (🟢) MCP client, (🟢) A2A client
+- Web/App frameworks: (🟢) Flask, (🟢) AIO Http, (🟢)FastAPI, (🟢) Azure Function, (🟢) AWS Lambda, (🟢) Vercel (typescript), (🟢) Microsoft Teams AI SDK, (🟢) Web/REST client, (🔜) Google Function, 
+- LLM-frameworks: (🟢) Langchain, (🟢) Llamaindex, (🟢) Haystack
+- LLM inference providers: (🟢) OpenAI, (🟢) Azure OpenAI, (🟢) Azure AI, (🟢) Nvidia Triton, (🟢) AWS Bedrock, (🟢) AWS Sagemaker, (🟢) Google Vertex, (🟢) Google Gemini, (🟢) Hugging Face, (🟢) Deepseek, (🟢) Anthropic, (🟢) Mistral, (🟢) LiteLLM ,(🔜) Azure ML
 - Vector stores: (🟢) FAISS, (🔜) OpenSearch, (🔜) Milvus
-- Exporter: (🟢) stdout, (🟢) file, (🔜) Azure Blob Storage, (🔜) AWS S3, (🔜) Google Cloud Storage
-
+- Exporter: (🟢) stdout, (🟢) file, (🟢) Memory, (🟢) Azure Blob Storage, (🟢) AWS S3, (🟢) Okahu cloud, (🟢) OTEL compatible collectors, (🔜) Google Cloud Storage
 
 ## Get involved
 ### Provide feedback

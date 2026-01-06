@@ -4,13 +4,12 @@ build-backend = "hatchling.build"
 
 [[tool.hatch.build.hooks.build-scripts.scripts]]
 commands = [
-    "echo 'Running a pre-build step..copying license'",
-    "if [ -f \"LICENSE\" ]; then echo \"✅ LICENSE already exists\"; elif [ -f \"../LICENSE\" ]; then cp \"../LICENSE\" \"LICENSE\" && echo \"✅ LICENSE copied from parent\"; else echo \"❌ ERROR: LICENSE not found\" && exit 1; fi"
+    "python -c \"import os, shutil, sys; print('Running a pre-build step..copying license'); sys.exit(0) if os.path.isfile('LICENSE') and print('[OK] LICENSE already exists') else (shutil.copy2('../LICENSE', 'LICENSE'), print('[OK] LICENSE copied from parent')) if os.path.isfile('../LICENSE') else (print('[ERROR] LICENSE not found'), sys.exit(1))\""
 ]
 
 [project]
 name = "monocle_apptrace"
-version = "0.6.6"
+version = "0.7.0"
 authors = [
   { name="Okahu Inc.", email="okahu-pypi@okahu.ai" },
 ]
@@ -27,10 +26,9 @@ dependencies = [
    'requests',
    'wrapt>=1.14.0',
    'rfc3986>=2.0.0',
-   'opentelemetry-api>=1.21.0',
-   'opentelemetry-sdk>=1.21.0',
-   'opentelemetry-instrumentation',
-   'opentelemetry-exporter-otlp-proto-http>=1.21.0',
+   'opentelemetry-api',
+   'opentelemetry-sdk',
+   'opentelemetry-instrumentation'
 ]
 
 [tool.pytest.ini_options]
@@ -59,7 +57,7 @@ pythonpath = [
 #ignore = [
 #  "tests/integration/test_langchain_bedrock_sample.py",
 #  "tests/integration/test_anthropic_*.py",
-#  "tests/integration/test_azure_*.py", 
+#  "tests/integration/test_azure_*.py",
 #  "tests/integration/test_openai_*.py",
 #  "tests/unit/*_processor_test.py",
 #]
@@ -76,7 +74,7 @@ ai_test = [
 ]
 
 dev = [
-  'langchain-openai==0.3.18',
+  'langchain-openai',
   'langchain-chroma==0.2.4',
   'langchain-community==0.3.24',
   'langchain==0.3.25',
@@ -117,7 +115,7 @@ dev = [
   'llama-index-llms-anthropic==0.8.1',
   'langchain-anthropic==0.3.13',
   'langchain-mcp-adapters==0.1.8',
-  'mcp==1.12.1',
+  'mcp==1.24.0',
   'a2a-sdk==0.3.6',
   'httpx==0.28.1',
   'fastapi>=0.115.0',
@@ -125,19 +123,20 @@ dev = [
   'uvicorn==0.35.0',
   'click==8.2.1',
   'python-dotenv>=1.1.0',
-  'langchain-google-genai==2.0.10',
-  'google-adk==1.10.0',
-  'google-generativeai==0.8.5',
-  'openai-agents==0.2.6',
+  'langchain-google-genai',
+  'google-adk',
+  'google-generativeai',
+  'openai-agents',
   'mistralai==1.9.9',
   'huggingface_hub==0.35.3',
   'litellm==1.77.5',
   'google-ai-haystack',
-  'crewai==0.95.0'
+  'crewai==0.95.0',
+  'fastmcp==2.14.1'
 ]
 
 dev_tranformers = [
-    'sentence-transformers==3.3.0'
+  'sentence-transformers==5.2.0'
 ]
 
 dev_gemini = [
@@ -157,6 +156,11 @@ azure = [
 aws = [
     'boto3==1.37.24',
 ]
+
+opentelemetry-exporter = [
+  'opentelemetry-exporter-otlp-proto-http'
+]
+
 
 [project.urls]
 Homepage = "https://github.com/monocle2ai/monocle"

@@ -218,9 +218,6 @@ def setup_monocle_telemetry(
         This can't be combined with `span_processors`.
     """
 
-    if get_monocle_instrumentor() is not None:
-        logger.warning("Monocle Instrumentor is already set up. Using existing instrumentor.")
-        return get_monocle_instrumentor()
 
     resource = Resource(attributes={
         SERVICE_NAME: workflow_name
@@ -251,7 +248,7 @@ def setup_monocle_telemetry(
                                        handlers=span_handlers, union_with_default_methods = union_with_default_methods)
     # instrumentor.app_name = workflow_name
     if not instrumentor.is_instrumented_by_opentelemetry:
-        instrumentor.instrument(tracer_provider=get_tracer_provider())
+        instrumentor.instrument(trace_provider=get_tracer_provider())
         set_monocle_instrumentor(instrumentor)
 
     return get_monocle_instrumentor()

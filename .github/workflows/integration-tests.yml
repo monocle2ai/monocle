@@ -9,6 +9,11 @@ on:
       - "main"
   workflow_dispatch:
 
+# Define concurrency group based on workflow name
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false # Set to true if you want to cancel running workflows instead of queuing
+
 jobs:
   Unit-Integration-Test:
     runs-on: ubuntu-latest
@@ -45,6 +50,7 @@ jobs:
       MONOCLE_TRACE_PROPAGATATION_URLS: ${{ secrets.MONOCLE_TRACE_PROPAGATATION_URLS }}
       OPENSEARCH_ENDPOINT_URL: ${{ secrets.OPENSEARCH_ENDPOINT_URL }}
       OPENSEARCH_ENDPOINT_URL_BOTO: ${{ secrets.OPENSEARCH_ENDPOINT_URL_BOTO }}
+      OPENSEARCH_BEDROCK_ENDPOINT_URL_BOTO: ${{ secrets.OPENSEARCH_BEDROCK_ENDPOINT_URL_BOTO }}
       OPEN_SEARCH_AUTH_PASSWORD: ${{ secrets.OPEN_SEARCH_AUTH_PASSWORD }}
       OPEN_SEARCH_AUTH_USER: ${{ secrets.OPEN_SEARCH_AUTH_USER }}
       OPEN_SEARCH_DOCSTORE_ENDPOINT: ${{ secrets.OPEN_SEARCH_DOCSTORE_ENDPOINT }}
@@ -59,6 +65,8 @@ jobs:
       GCP_PROJECT: ${{ secrets.GCP_PROJECT }}
       GCP_REGION: ${{ secrets.GCP_REGION }}
       VERTEX_AI_API_KEY: ${{ secrets.VERTEX_AI_API_KEY }}
+      GITHUB_TOKEN: ${{ secrets.EXPORTER_GITHUB_TOKEN }}
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
@@ -166,7 +174,7 @@ jobs:
           cd apptrace
           export PYTHONPATH=./src:./tests
           set -e
-          pytest -rfs tests/integration/test*.py --tb=short | tee integration_test_result.log
+          pytest -rfs tests/integration/ --ignore-glob='**/*otlp*.py' --tb=short | tee integration_test_result.log
           EXIT_CODE=${PIPESTATUS[0]}
           grep -E 'FAILED.*::' integration_test_result.log | cut -d ':' -f 1 | sort | uniq >> integrationtest_failed_files.txt
           echo "Failed Integration test files:"

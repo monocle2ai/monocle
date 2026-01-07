@@ -1,12 +1,82 @@
 """Inference entity definitions for Microsoft Agent Framework."""
 
+import time
+import logging
+from types import SimpleNamespace
 from monocle_apptrace.instrumentation.common.constants import (
-    AGENT_REQUEST_SPAN_NAME,
     SPAN_SUBTYPES,
     SPAN_TYPES,
 )
 from monocle_apptrace.instrumentation.metamodel.msagent import _helper
-from monocle_apptrace.instrumentation.common.utils import get_error_message
+from monocle_apptrace.instrumentation.common.utils import get_error_message, patch_instance_method
+
+logger = logging.getLogger(__name__)
+
+
+def process_msagent_stream(to_wrap, response, span_processor):
+    """
+    Process Microsoft Agent Framework streaming responses.
+    Patches __anext__ to accumulate streaming chunks and capture final response.
+    Similar to Azure AI Inference's process_stream but adapted for Microsoft Agent Framework.
+    """
+    waiting_for_first_token = True
+    stream_start_time = time.time_ns()
+    first_token_time = stream_start_time
+    stream_closed_time = None
+    accumulated_response = ""
+    tools = None
+    role = "assistant"
+    
+    # Microsoft Agent Framework uses async iterators - patch __anext__
+    if to_wrap and hasattr(response, "__anext__"):
+        original_anext = response.__anext__
+        
+        async def new_anext(self):
+            nonlocal waiting_for_first_token, first_token_time, stream_closed_time, accumulated_response, tools, role
+            
+            try:
+                item = await original_anext()
+                
+                # Handle Microsoft Agent Framework streaming chunks (AgentRunResponseUpdate or ChatResponseUpdate)
+                # Check for first token
+                if waiting_for_first_token:
+                    waiting_for_first_token = False
+                    first_token_time = time.time_ns()
+                
+                # Accumulate content from the stream item - both have 'text' attribute
+                if hasattr(item, "text"):
+                    text = item.text
+                    if text:
+                        accumulated_response += str(text)
+                
+                return item
+                
+            except StopAsyncIteration:
+                # Stream is complete, process final span
+                stream_closed_time = time.time_ns()
+                
+                if span_processor:
+                    ret_val = SimpleNamespace(
+                        type="stream",
+                        timestamps={
+                            "data.input": int(stream_start_time),
+                            "data.output": int(first_token_time),
+                            "metadata": int(stream_closed_time or time.time_ns()),
+                        },
+                        output_text=accumulated_response,
+                        tools=tools,
+                        role=role,
+                    )
+                    span_processor(ret_val)
+                raise
+            except Exception as e:
+                logger.warning(
+                    "Warning: Error occurred while processing MS Agent stream item: %s",
+                    str(e),
+                )
+                raise
+        
+        patch_instance_method(response, "__anext__", new_anext)
 
 # Turn-level request span (agentic.request with turn subtype)
 # For Microsoft Agent Framework, turn doesn't include agent name (follows ADK pattern)
@@ -39,9 +109,7 @@ AGENT_REQUEST = {
                 {
                     "_comment": "this is response from Agent",
                     "attribute": "response",
-                    "accessor": lambda arguments: _helper.extract_agent_response(
-                        arguments["result"], arguments.get("span"), arguments.get("instance"), arguments.get("kwargs")
-                    )
+                    "accessor": lambda arguments: _helper.extract_agent_response(arguments["result"])
                 }
             ]
         }

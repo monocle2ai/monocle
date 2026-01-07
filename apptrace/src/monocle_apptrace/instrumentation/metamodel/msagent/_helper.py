@@ -172,50 +172,39 @@ def extract_request_agent_input(arguments: Dict[str, Any]) -> str:
         return ""
 
 
-def extract_agent_response(result: Any) -> str:
+def extract_agent_response(result: Any, span: Any = None, instance: Any = None, kwargs: Dict[str, Any] = None) -> str:
     """Extract response from agent execution result."""
     try:
-        # For streaming responses, result might be:
-        # 1. The last chunk from run_stream (AgentRunResponseUpdate)
-        # 2. An AgentRunResponse object from run()
-        # 3. An empty string or None
+        # Handle streaming result (SimpleNamespace from process_msagent_stream)
+        if hasattr(result, "type") and hasattr(result, "output_text"):
+            if getattr(result, "type", None) == "stream":
+                return str(result.output_text) if result.output_text else ""
         
         if result is None:
             return ""
-            
-        # Check for AgentRunResponse (from run() method)
-        if hasattr(result, "messages") and result.messages:
-            # Extract text from messages
-            messages = result.messages
-            if isinstance(messages, list) and len(messages) > 0:
-                last_message = messages[-1]
-                if hasattr(last_message, "content"):
-                    content = last_message.content
-                    # Content might be a list or string
-                    if isinstance(content, list):
-                        # Join text content from list
-                        return " ".join(str(c.get("text", c)) if isinstance(c, dict) else str(c) for c in content)
-                    return str(content)
-                return str(last_message)
         
-        # Check for streaming update objects (AgentRunResponseUpdate)
-        if hasattr(result, "text") and result.text:
-            return str(result.text)
-        elif hasattr(result, "content") and result.content:
-            return str(result.content)
+        # Check for accumulated_text attribute (set by wrapper for streaming)
+        if hasattr(result, "accumulated_text"):
+            return str(result.accumulated_text) if result.accumulated_text else ""
+        
+        # Check for AgentRunResponse (non-streaming) - has 'content' attribute
+        if hasattr(result, "content"):
+            content = result.content
+            if isinstance(content, str):
+                return content
+            elif hasattr(content, "text"):
+                return str(content.text)
+            else:
+                return str(content)
+        
+        # Check for AgentRunResponseUpdate (streaming) - has 'text' attribute
+        if hasattr(result, "text"):
+            text = result.text
+            return str(text) if text else ""
         
         # Check if it's a simple string
-        if isinstance(result, str) and result:
+        if isinstance(result, str):
             return result
-            
-        # If we have any object, try to extract something useful
-        if hasattr(result, "__dict__"):
-            # Try to find any text-like attribute
-            for attr in ["text", "content", "output", "response", "result"]:
-                if hasattr(result, attr):
-                    val = getattr(result, attr)
-                    if val:
-                        return str(val)
         
         # Last resort - convert to string if not empty
         result_str = str(result)
@@ -284,141 +273,6 @@ def extract_tool_response(result: Any, span: Any = None) -> str:
     except Exception as e:
         logger.warning(f"Error extracting tool response: {e}")
         return ""
-
-
-def extract_agent_info(instance: Any, args: tuple, kwargs: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Extract agent information from Microsoft Agent Framework agent instance.
-    
-    Args:
-        instance: The ChatAgent instance
-        args: Positional arguments passed to the agent
-        kwargs: Keyword arguments passed to the agent
-        
-    Returns:
-        Dictionary containing agent information
-    """
-    context = {}
-    
-    try:
-        # Extract agent name
-        if hasattr(instance, "name"):
-            context["agent_name"] = instance.name
-        
-        # Extract agent instructions/system prompt
-        if hasattr(instance, "instructions"):
-            context["instructions"] = instance.instructions
-        
-        # Extract input/task from args or kwargs
-        if args and len(args) > 0:
-            context["input"] = str(args[0])
-        elif "message" in kwargs:
-            context["input"] = str(kwargs["message"])
-        elif "input" in kwargs:
-            context["input"] = str(kwargs["input"])
-        
-        # Extract tools if available
-        if hasattr(instance, "tools"):
-            tools = instance.tools
-            if tools:
-                context["tool_names"] = [
-                    getattr(tool, "__name__", str(tool)) for tool in tools
-                ]
-        
-        logger.debug(f"Extracted agent context: {context}")
-        
-    except Exception as e:
-        logger.warning(f"Error extracting agent info: {e}")
-    
-    return context
-
-
-def extract_tool_info(instance: Any, args: tuple, kwargs: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Extract tool information from Microsoft Agent Framework tool instance.
-    
-    Args:
-        instance: The Tool instance
-        args: Positional arguments passed to the tool
-        kwargs: Keyword arguments passed to the tool
-        
-    Returns:
-        Dictionary containing tool information
-    """
-    context = {}
-    
-    try:
-        # Extract tool name
-        if hasattr(instance, "__name__"):
-            context["tool_name"] = instance.__name__
-        elif hasattr(instance, "name"):
-            context["tool_name"] = instance.name
-        else:
-            context["tool_name"] = str(instance)
-        
-        # Extract tool description
-        if hasattr(instance, "__doc__") and instance.__doc__:
-            context["description"] = instance.__doc__.strip()
-        elif hasattr(instance, "description"):
-            context["description"] = instance.description
-        
-        # Extract tool inputs
-        if kwargs:
-            context["input"] = kwargs
-        elif args:
-            context["input"] = args
-        
-        logger.debug(f"Extracted tool context: {context}")
-        
-    except Exception as e:
-        logger.warning(f"Error extracting tool info: {e}")
-    
-    return context
-
-
-def format_tool_result(result: Any) -> str:
-    """
-    Format tool execution result for logging/tracing.
-    
-    Args:
-        result: The tool execution result
-        
-    Returns:
-        Formatted string representation of the result
-    """
-    if isinstance(result, str):
-        return result
-    elif isinstance(result, dict):
-        return str(result)
-    elif isinstance(result, (list, tuple)):
-        return str(result)
-    else:
-        return str(result)
-
-
-def format_agent_result(result: Any) -> str:
-    """
-    Format agent execution result for logging/tracing.
-    
-    Args:
-        result: The agent execution result
-        
-    Returns:
-        Formatted string representation of the result
-    """
-    try:
-        # Handle streaming responses
-        if hasattr(result, "text"):
-            return result.text
-        elif hasattr(result, "content"):
-            return result.content
-        elif isinstance(result, str):
-            return result
-        else:
-            return str(result)
-    except Exception as e:
-        logger.warning(f"Error formatting agent result: {e}")
-        return str(result)
 
 
 # Chat Client specific helpers (for OpenAIBaseChatClient.get_response/get_streaming_response)
@@ -522,56 +376,28 @@ def extract_chat_client_input(arguments: Dict[str, Any]) -> str:
 
 
 def extract_chat_client_response(result: Any, span: Any = None) -> str:
-    """Extract response from chat client result (ChatResponse or ChatResponseUpdate)."""
+    """Extract response from chat client result (ChatResponseUpdate)."""
     try:
         if result is None:
             return ""
-            
-        # Handle ChatResponse
-        if hasattr(result, "messages") and result.messages:
-            # Extract text from messages
-            messages = result.messages
-            if isinstance(messages, list) and len(messages) > 0:
-                last_msg = messages[-1]
-                if hasattr(last_msg, "content"):
-                    content = last_msg.content
-                    # Handle different content formats
-                    if isinstance(content, str):
-                        return content
-                    elif isinstance(content, list):
-                        # Extract text from content parts
-                        text_parts = []
-                        for part in content:
-                            if isinstance(part, dict) and "text" in part:
-                                text_parts.append(part["text"])
-                            elif hasattr(part, "text"):
-                                text_parts.append(str(part.text))
-                            elif isinstance(part, str):
-                                text_parts.append(part)
-                        return " ".join(text_parts) if text_parts else str(content)
-                    else:
-                        return str(content)
-                
-                # Try text attribute
-                if hasattr(last_msg, "text"):
-                    return str(last_msg.text)
-                
-                # Avoid object repr
-                msg_str = str(last_msg)
-                if not msg_str.startswith("<") and "object at 0x" not in msg_str:
-                    return msg_str
-            
-            return str(messages) if not str(messages).startswith("<") else ""
-            
-        # Handle streaming update
-        elif hasattr(result, "text") and result.text:
-            return str(result.text)
-        elif hasattr(result, "content") and result.content:
-            content = result.content
-            if isinstance(content, str):
-                return content
-            else:
-                return str(content) if not str(content).startswith("<") else ""
+        
+        # Handle streaming result (SimpleNamespace from process_msagent_stream)
+        if hasattr(result, "type") and hasattr(result, "output_text"):
+            if getattr(result, "type", None) == "stream":
+                return str(result.output_text) if result.output_text else ""
+        
+        # Check for accumulated_text attribute (set by wrapper for streaming)
+        if hasattr(result, "accumulated_text"):
+            return str(result.accumulated_text) if result.accumulated_text else ""
+        
+        # Handle ChatResponseUpdate (streaming) - has 'text' attribute
+        if hasattr(result, "text"):
+            text = result.text
+            return str(text) if text else ""
+        
+        # Check if it's a simple string
+        if isinstance(result, str):
+            return result
         
         # Fallback - but avoid object representations
         result_str = str(result)

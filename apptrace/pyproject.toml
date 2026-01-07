@@ -4,7 +4,8 @@ build-backend = "hatchling.build"
 
 [[tool.hatch.build.hooks.build-scripts.scripts]]
 commands = [
-    "python -c \"import os, shutil, sys; print('Running a pre-build step..copying license'); sys.exit(0) if os.path.isfile('LICENSE') and print('[OK] LICENSE already exists') else (shutil.copy2('../LICENSE', 'LICENSE'), print('[OK] LICENSE copied from parent')) if os.path.isfile('../LICENSE') else (print('[ERROR] LICENSE not found'), sys.exit(1))\""
+    "echo 'Running a pre-build step..copying license'",
+    "if [ -f \"LICENSE\" ]; then echo \"✅ LICENSE already exists\"; elif [ -f \"../LICENSE\" ]; then cp \"../LICENSE\" \"LICENSE\" && echo \"✅ LICENSE copied from parent\"; else echo \"❌ ERROR: LICENSE not found\" && exit 1; fi"
 ]
 
 [project]

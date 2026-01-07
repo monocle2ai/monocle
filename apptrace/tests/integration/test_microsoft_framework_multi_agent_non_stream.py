@@ -116,7 +116,7 @@ def setup():
     ]
     try:
         instrumentor = setup_monocle_telemetry(
-            workflow_name="microsoft_agent_multi_agent_test",
+            workflow_name="microsoft_agent_multi_agent_non_stream_test",
             span_processors=span_processors,
         )
         yield custom_exporter
@@ -126,8 +126,8 @@ def setup():
 
 @pytest.mark.skipif(not MICROSOFT_AGENT_AVAILABLE, reason="Microsoft Agent Framework not installed")
 @pytest.mark.asyncio
-async def test_microsoft_supervisor_delegation(setup):
-    """Test supervisor agent delegating to flight and hotel booking tools directly."""
+async def test_microsoft_supervisor_delegation_non_stream(setup):
+    """Test supervisor agent delegating to flight and hotel booking tools directly using non-streaming run."""
     if flight_agent is None or hotel_agent is None or supervisor_agent is None:
         pytest.skip("Azure OpenAI credentials not configured")
     
@@ -152,11 +152,8 @@ async def test_microsoft_supervisor_delegation(setup):
     
     logger.info(f"Task: {task_description}")
     
-    # Execute supervisor agent which should use both tools directly
-    supervisor_response = ""
-    async for chunk in supervisor_with_tools.run_stream(task_description):
-        if chunk.text:
-            supervisor_response += chunk.text
+    # Execute supervisor agent using non-streaming run method
+    supervisor_response = await supervisor_with_tools.run(task_description)
     
     logger.info(f"Supervisor Response: {supervisor_response}")
     
@@ -164,9 +161,9 @@ async def test_microsoft_supervisor_delegation(setup):
     assert supervisor_response, "Should get supervisor response"
     
     # Verify both bookings are mentioned in the response
-    response_lower = supervisor_response.lower()
-    assert "flight" in response_lower or "bom" in response_lower or "jfk" in response_lower, "Should contain flight booking"
-    assert "hotel" in response_lower or "marriott" in response_lower, "Should contain hotel booking"
+    response_str = str(supervisor_response).lower()
+    assert "flight" in response_str or "bom" in response_str or "jfk" in response_str, "Should contain flight booking"
+    assert "hotel" in response_str or "marriott" in response_str, "Should contain hotel booking"
     
     verify_spans_with_delegation(setup)
 
@@ -208,7 +205,7 @@ def verify_spans_with_delegation(custom_exporter):
                 found_tool_call = True
             
             for event in span.events:
-                if event.name == "gen_ai.metadata":
+                if event.name == "metadata":
                     if "finish_reason" in event.attributes:
                         if event.attributes["finish_reason"] == "tool_calls":
                             found_tool_call = True

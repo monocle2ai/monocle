@@ -1,6 +1,8 @@
 pytest
 pytest-asyncio
-mistralai
 opentelemetry-sdk
+agent-framework
 monocle_apptrace
+agent-framework-azure-ai
 llama-index
+azure-identity

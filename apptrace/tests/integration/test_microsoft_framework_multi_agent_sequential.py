@@ -5,7 +5,7 @@ from common.custom_exporter import CustomConsoleSpanExporter
 from monocle_apptrace.exporters.file_exporter import FileSpanExporter
 from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, SimpleSpanProcessor
-from agent_framework import HandoffBuilder
+from agent_framework import SequentialBuilder
 # Import Microsoft Agent Framework components
 try:
     from agent_framework.azure import AzureOpenAIChatClient
@@ -68,8 +68,7 @@ if MICROSOFT_AGENT_AVAILABLE and endpoint and deployment:
         instructions=(
             "You are a Flight Booking Assistant. "
             "Your goal is to help users book flights between any two cities or airports. "
-            "After successfully booking a flight, hand back control to the MS_Travel_Supervisor. "
-            "Focus only on flight bookings and ignore other parts of the request."
+            "Book the requested flight and provide confirmation details."
         ),
         tools=[book_flight],
     )
@@ -80,53 +79,48 @@ if MICROSOFT_AGENT_AVAILABLE and endpoint and deployment:
         instructions=(
             "You are a Hotel Booking Assistant. "
             "Your goal is to help users book hotel accommodations. "
-            "After successfully booking a hotel, hand back control to the MS_Travel_Supervisor. "
-            "Focus only on hotel bookings and ignore other parts of the request."
+            "Book the requested hotel and provide confirmation details."
         ),
         tools=[book_hotel],
     )
     
-    # Create supervisor agent (coordinates other agents)
-    supervisor_agent = client.create_agent(
-        name="MS_Travel_Supervisor",
+    # Create summarizer agent that reviews both bookings
+    summarizer_agent = client.create_agent(
+        name="MS_Travel_Summarizer",
         instructions=(
-            "You are a Travel Supervisor that coordinates complete travel bookings. "
-            "When a user requests travel arrangements: "
-            "1. Delegate flight bookings to the MS_Flight_Booking_Agent "
-            "2. Delegate hotel bookings to the MS_Hotel_Booking_Agent "
-            "3. After receiving confirmations from all specialist agents, provide a consolidated summary "
-            "of all bookings with confirmation numbers and total costs. "
-            "Always review the conversation history and provide a final summary to the user."
+            "You are a Travel Booking Summarizer. "
+            "Review all the booking confirmations provided and create a consolidated summary "
+            "with all confirmation numbers and total costs. "
+            "Provide a friendly final message to the user with all booking details."
         ),
-        tools=[],  # Supervisor doesn't have direct tools, it delegates to other agents
+        tools=[],
     )
 
+    # Create sequential workflow: flight -> hotel -> summarizer
+    # SequentialBuilder expects callable factories, so wrap agents in lambdas
     workflow = (
-    HandoffBuilder(
-        name="travel_handoff_workflow",
-        participants=[supervisor_agent, flight_agent, hotel_agent]
+        SequentialBuilder()
+        .register_participants([
+            lambda: flight_agent, 
+            lambda: hotel_agent, 
+            lambda: summarizer_agent
+        ])
+        .build()
     )
-    .set_coordinator(supervisor_agent)
-    # Enable the supervisor to hand off to both specialists
-    .add_handoff(supervisor_agent, [flight_agent, hotel_agent])
-    # Optionally allow specialists to hand back to supervisor when done
-    .add_handoff(flight_agent, supervisor_agent)
-    .add_handoff(hotel_agent, supervisor_agent)
-    .build()
-)
     
     print(f"🔍 Flight Agent: {type(flight_agent).__name__}")
     print(f"🔍 Hotel Agent: {type(hotel_agent).__name__}")
-    print(f"🔍 Supervisor Agent: {type(supervisor_agent).__name__}")
+    print(f"🔍 Summarizer Agent: {type(summarizer_agent).__name__}")
 else:
     flight_agent = None
     hotel_agent = None
-    supervisor_agent = None
+    summarizer_agent = None
+    workflow = None
 
 
 @pytest.fixture(scope="module")
 def setup():
-    """Setup telemetry instrumentation for Microsoft Agent Framework multi-agent tests."""
+    """Setup telemetry instrumentation for Microsoft Agent Framework sequential workflow tests."""
     custom_exporter = CustomConsoleSpanExporter()
     file_exporter = FileSpanExporter()
     span_processors = [
@@ -135,9 +129,8 @@ def setup():
     ]
     try:
         instrumentor = setup_monocle_telemetry(
-            workflow_name="microsoft_agent_multi_agent_non_stream_test",
+            workflow_name="microsoft_agent_sequential_test",
             span_processors=span_processors,
-            sensitive_data_removal=False,
         )
         yield custom_exporter
     finally:
@@ -146,9 +139,9 @@ def setup():
 
 @pytest.mark.skipif(not MICROSOFT_AGENT_AVAILABLE, reason="Microsoft Agent Framework not installed")
 @pytest.mark.asyncio
-async def test_microsoft_supervisor_delegation_non_stream(setup):
-    """Test supervisor agent delegating to flight and hotel booking agents via workflow."""
-    if flight_agent is None or hotel_agent is None or supervisor_agent is None:
+async def test_microsoft_sequential_workflow(setup):
+    """Test sequential workflow where agents execute one after another."""
+    if flight_agent is None or hotel_agent is None or summarizer_agent is None or workflow is None:
         pytest.skip("Azure OpenAI credentials not configured")
     
     # Test message requesting both flight and hotel bookings
@@ -156,27 +149,27 @@ async def test_microsoft_supervisor_delegation_non_stream(setup):
     
     logger.info(f"Task: {task_description}")
     
-    # Execute workflow using non-streaming run method
-    supervisor_response = await workflow.run(task_description)
+    # Execute sequential workflow
+    workflow_response = await workflow.run(task_description)
     
-    logger.info(f"Supervisor Response: {supervisor_response}")
+    logger.info(f"Workflow Response: {workflow_response}")
     
     # Basic verification
-    assert supervisor_response, "Should get supervisor response"
+    assert workflow_response, "Should get workflow response"
     
     # Verify both bookings are mentioned in the response
-    response_str = str(supervisor_response).lower()
+    response_str = str(workflow_response).lower()
     assert "flight" in response_str or "bom" in response_str or "jfk" in response_str, "Should contain flight booking"
     assert "hotel" in response_str or "marriott" in response_str, "Should contain hotel booking"
     
-    verify_spans_with_delegation(setup)
+    verify_spans_sequential(setup)
 
 
-def verify_spans_with_delegation(custom_exporter):
-    """Verify spans for supervisor delegation test - should have single agentic.turn."""
+def verify_spans_sequential(custom_exporter):
+    """Verify spans for sequential workflow test."""
     time.sleep(2)
     found_inference = found_tool = False
-    found_supervisor_agent = False
+    found_flight_agent = found_hotel_agent = found_summarizer_agent = False
     found_book_hotel_tool = found_book_flight_tool = False
     found_tool_call = False
     agentic_turn_count = 0
@@ -196,14 +189,6 @@ def verify_spans_with_delegation(custom_exporter):
                 or span_attributes["span.type"] == "inference.framework"
                 or span_attributes["span.type"] == "inference.modelapi"
         ):
-            # Assertions for inference attributes
-            if "entity.1.type" in span_attributes:
-                assert "entity.1.type" in span_attributes
-            if "entity.1.provider_name" in span_attributes:
-                assert "entity.1.provider_name" in span_attributes
-            if "entity.1.inference_endpoint" in span_attributes:
-                assert "entity.1.inference_endpoint" in span_attributes
-            
             # Check for tool calls
             if span_attributes.get("span.subtype") == "tool_call":
                 found_tool_call = True
@@ -227,9 +212,12 @@ def verify_spans_with_delegation(custom_exporter):
             assert span_attributes["entity.1.type"] == "agent.microsoft"
             
             agent_name = span_attributes["entity.1.name"]
-            # Accept any of the three agents in the workflow
-            if agent_name in ["MS_Travel_Supervisor", "MS_Flight_Booking_Agent", "MS_Hotel_Booking_Agent"]:
-                found_supervisor_agent = True
+            if agent_name == "MS_Flight_Booking_Agent":
+                found_flight_agent = True
+            elif agent_name == "MS_Hotel_Booking_Agent":
+                found_hotel_agent = True
+            elif agent_name == "MS_Travel_Summarizer":
+                found_summarizer_agent = True
 
         # Check for tool invocation spans
         if (
@@ -254,13 +242,15 @@ def verify_spans_with_delegation(custom_exporter):
             found_tool = True
 
     assert found_inference, "Inference span not found"
-    assert found_supervisor_agent, "Agent spans not found"
+    assert found_flight_agent, "Flight agent span not found"
+    assert found_hotel_agent, "Hotel agent span not found"
+    assert found_summarizer_agent, "Summarizer agent span not found"
     assert found_tool_call, "Tool call finish reason not found"
     assert found_tool, "Tool invocation span not found"
     assert found_book_flight_tool, "Book flight tool span not found"
     assert found_book_hotel_tool, "Book hotel tool span not found"
     
-    # Key assertion: Should only have ONE agentic.turn span (at the beginning)
+    # Should only have ONE agentic.turn span (at the workflow level)
     assert agentic_turn_count == 1, f"Expected 1 agentic.turn span, found {agentic_turn_count}"
 
 if __name__ == "__main__":

@@ -21,7 +21,6 @@ def get_agent_from_context() -> Dict[str, Any]:
     try:
         agent_info = get_value(MSAGENT_CONTEXT_KEY)
         if agent_info:
-            logger.debug(f"Retrieved agent info from context: {agent_info}")
             return agent_info
         return {}
     except Exception as e:
@@ -183,6 +182,44 @@ def extract_agent_response(result: Any, span: Any = None, instance: Any = None, 
         if result is None:
             return ""
         
+        # Check if this is a Workflow.run() result (list of events)
+        if isinstance(result, list) and result:
+            # Look for ExecutorCompletedEvent with AgentExecutorResponse containing the final response
+            for event in reversed(result):
+                event_type = type(event).__name__
+                if event_type == "ExecutorCompletedEvent" and hasattr(event, "data"):
+                    data = event.data
+                    # Check if data is a list of AgentExecutorResponse objects
+                    if isinstance(data, list) and len(data) > 0:
+                        for response_obj in data:
+                            response_obj_type = type(response_obj).__name__
+                            if response_obj_type == "AgentExecutorResponse" and hasattr(response_obj, "agent_run_response"):
+                                agent_run_response = response_obj.agent_run_response
+                                # Extract content from AgentRunResponse
+                                if hasattr(agent_run_response, "content"):
+                                    content = agent_run_response.content
+                                    if isinstance(content, str) and content.strip():
+                                        return content
+                                    elif hasattr(content, "text") and content.text:
+                                        return str(content.text)
+            
+            # Find the last AgentRunEvent with actual content
+            for event in reversed(result):
+                event_type = type(event).__name__
+                if event_type == "AgentRunEvent" and hasattr(event, "data"):
+                    data = event.data
+                    if data and isinstance(data, str) and data.strip():
+                        return data
+            
+            # Check for HandoffEvent (handoff to another agent)
+            for event in reversed(result):
+                event_type = type(event).__name__
+                if event_type == "HandoffEvent" and hasattr(event, "target_agent_name"):
+                    return f"Handoff to agent: {event.target_agent_name}"
+            
+            # If no response found, return empty string (don't show internal events)
+            return ""
+        
         # Check for accumulated_text attribute (set by wrapper for streaming)
         if hasattr(result, "accumulated_text"):
             return str(result.accumulated_text) if result.accumulated_text else ""
@@ -194,6 +231,27 @@ def extract_agent_response(result: Any, span: Any = None, instance: Any = None, 
                 return content
             elif hasattr(content, "text"):
                 return str(content.text)
+            # If content is None but we have conversation, get last assistant message
+            elif content is None and hasattr(result, "messages") and result.messages:
+                # Get the last message from the conversation
+                for msg in reversed(result.messages):
+                    if hasattr(msg, "role") and msg.role == "assistant":
+                        if hasattr(msg, "content") and msg.content:
+                            # Extract text from content
+                            if isinstance(msg.content, str):
+                                return msg.content
+                            elif isinstance(msg.content, list):
+                                # Content can be a list of content parts
+                                texts = []
+                                for part in msg.content:
+                                    if hasattr(part, "text"):
+                                        texts.append(str(part.text))
+                                    elif isinstance(part, dict) and "text" in part:
+                                        texts.append(str(part["text"]))
+                                if texts:
+                                    return " ".join(texts)
+                        break
+                return ""
             else:
                 return str(content)
         
@@ -206,16 +264,12 @@ def extract_agent_response(result: Any, span: Any = None, instance: Any = None, 
         if isinstance(result, str):
             return result
         
-        # Last resort - convert to string if not empty
-        result_str = str(result)
-        if result_str and result_str not in ["", "None", "{}", "[]"]:
-            return result_str
-            
+        # For unhandled types, return empty string to avoid showing internal details
         return ""
         
     except Exception as e:
         logger.warning(f"Error extracting agent response: {e}")
-        return str(result) if result else ""
+        return ""
 
 
 def extract_tool_input(arguments: Dict[str, Any]) -> str:
@@ -287,7 +341,6 @@ def get_chat_client_name(instance: Any) -> str:
         # First check if agent name is available in context
         agent_info = get_agent_from_context()
         if agent_info and "name" in agent_info:
-            logger.debug(f"Using agent name from context: {agent_info['name']}")
             return agent_info["name"]
         
         # Fallback to chat client identifier

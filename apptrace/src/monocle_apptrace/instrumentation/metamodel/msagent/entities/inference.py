@@ -199,6 +199,69 @@ AGENT_ORCHESTRATOR = {
     "events": []
 }
 
+# Workflow turn span (agentic.turn with turn subtype) - no input/output events
+WORKFLOW_TURN = {
+    "type": SPAN_TYPES.AGENTIC_REQUEST,
+    "subtype": SPAN_SUBTYPES.TURN,
+    "attributes": [
+        [
+            {
+                "_comment": "agent type",
+                "attribute": "type",
+                "accessor": lambda arguments: "agent.microsoft"
+            },
+        ],
+    ],
+    "events": []
+}
+
+# ChatAgent invocation span (agentic.invocation with content_processing subtype)
+CHAT_AGENT_INVOCATION = {
+    "type": SPAN_TYPES.AGENTIC_INVOCATION,
+    "subtype": SPAN_SUBTYPES.CONTENT_PROCESSING,
+    "attributes": [
+        [
+            {
+                "_comment": "agent type",
+                "attribute": "type",
+                "accessor": lambda arguments: "agent.microsoft",
+            },
+            {
+                "_comment": "name of the agent",
+                "attribute": "name",
+                "accessor": lambda arguments: _helper.get_agent_name(arguments["instance"]),
+            },
+            {
+                "_comment": "model/description",
+                "attribute": "description",
+                "accessor": lambda arguments: _helper.get_agent_model(arguments["instance"]),
+            },
+        ]
+    ],
+    "events": [
+        {
+            "name": "data.input",
+            "attributes": [
+                {
+                    "_comment": "this is Agent input",
+                    "attribute": "input",
+                    "accessor": lambda arguments: _helper.extract_request_agent_input(arguments)
+                }
+            ]
+        },
+        {
+            "name": "data.output",
+            "attributes": [
+                {
+                    "_comment": "this is response from Agent",
+                    "attribute": "response",
+                    "accessor": lambda arguments: _helper.extract_agent_response(arguments["result"])
+                }
+            ]
+        }
+    ]
+}
+
 TOOL = {
     "type": SPAN_TYPES.AGENTIC_TOOL_INVOCATION,
     "subtype": SPAN_SUBTYPES.CONTENT_GENERATION,

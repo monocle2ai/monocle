@@ -5,7 +5,7 @@ from common.custom_exporter import CustomConsoleSpanExporter
 from monocle_apptrace.exporters.file_exporter import FileSpanExporter
 from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, SimpleSpanProcessor
-
+from agent_framework import HandoffBuilder
 # Import Microsoft Agent Framework components
 try:
     from agent_framework.azure import AzureOpenAIChatClient
@@ -95,6 +95,20 @@ if MICROSOFT_AGENT_AVAILABLE and endpoint and deployment:
         ),
         tools=[],  # Supervisor doesn't have direct tools, it delegates to other agents
     )
+
+    workflow = (
+    HandoffBuilder(
+        name="travel_handoff_workflow",
+        participants=[supervisor_agent, flight_agent, hotel_agent]
+    )
+    .set_coordinator(supervisor_agent)
+    # Enable the supervisor to hand off to both specialists
+    .add_handoff(supervisor_agent, [flight_agent, hotel_agent])
+    # Optionally allow specialists to hand back to supervisor when done
+    .add_handoff(flight_agent, supervisor_agent)
+    .add_handoff(hotel_agent, supervisor_agent)
+    .build()
+)
     
     print(f"🔍 Flight Agent: {type(flight_agent).__name__}")
     print(f"🔍 Hotel Agent: {type(hotel_agent).__name__}")
@@ -127,33 +141,17 @@ def setup():
 @pytest.mark.skipif(not MICROSOFT_AGENT_AVAILABLE, reason="Microsoft Agent Framework not installed")
 @pytest.mark.asyncio
 async def test_microsoft_supervisor_delegation_non_stream(setup):
-    """Test supervisor agent delegating to flight and hotel booking tools directly using non-streaming run."""
+    """Test supervisor agent delegating to flight and hotel booking agents via workflow."""
     if flight_agent is None or hotel_agent is None or supervisor_agent is None:
         pytest.skip("Azure OpenAI credentials not configured")
-    
-    # Create supervisor with direct access to both booking tools
-    # This mimics the LangGraph pattern where supervisor has tools and delegates work
-    supervisor_with_tools = client.create_agent(
-        name="MS_Delegating_Supervisor",
-        instructions=(
-            "You are a Travel Supervisor that coordinates complete travel bookings. "
-            "You have access to flight and hotel booking tools. "
-            "When a user requests travel arrangements: "
-            "1. Use book_flight tool for flight bookings "
-            "2. Use book_hotel tool for hotel bookings "
-            "3. Provide a consolidated summary of all bookings. "
-            "Process flight bookings first, then hotel bookings."
-        ),
-        tools=[book_flight, book_hotel],
-    )
     
     # Test message requesting both flight and hotel bookings
     task_description = "Book a flight from BOM to JFK for December 15th and also book a stay at the Marriott for 3 days."
     
     logger.info(f"Task: {task_description}")
     
-    # Execute supervisor agent using non-streaming run method
-    supervisor_response = await supervisor_with_tools.run(task_description)
+    # Execute workflow using non-streaming run method
+    supervisor_response = await workflow.run(task_description)
     
     logger.info(f"Supervisor Response: {supervisor_response}")
     

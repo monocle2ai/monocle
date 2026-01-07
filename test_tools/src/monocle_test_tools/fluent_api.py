@@ -85,7 +85,7 @@ class TraceAssertion():
     def cleanup(self) -> None:
         self.validator.cleanup()
         self._filtered_spans = []
-        self._assertion_errors = []
+        TraceAssertion._assertion_errors = []
 
     def run_agent(self, agent, agent_type:str, *args, **kwargs) -> any:
         """Run the given agent with provided args and kwargs."""

@@ -1,5 +1,17 @@
 # Monocle for tracing GenAI app code
 
+<h4 align="center">
+    <a href="https://pypi.org/project/monocle-apptrace/" target="_blank">
+        <img src="https://img.shields.io/pypi/v/monocle-apptrace.svg" alt="PyPI Version">
+    </a>
+    <a href="https://discord.gg/9CzVpGBM">
+        <img src="https://img.shields.io/static/v1?label=Chat%20on&message=Discord&color=blue&logo=Discord&style=flat-square" alt="Discord">
+    </a>
+    <a href="https://join.slack.com/t/monocle2ai/shared_invite/zt-37pgez3jr-BNjNynF6VV8iHvRlaLM7QA">
+        <img src="https://img.shields.io/static/v1?label=Chat%20on&message=Slack&color=black&logo=Slack&style=flat-square" alt="Slack">
+    </a>
+</h4>
+
 **Monocle** helps developers and platform engineers building or managing GenAI apps monitor these in prod by making it easy to instrument their code to capture traces that are compliant with open-source cloud-native observability ecosystem. 
 
 **Monocle** is a community-driven OSS framework for tracing GenAI app code governed as a [Linux Foundation AI & Data project](https://lfaidata.foundation/projects/monocle/). 

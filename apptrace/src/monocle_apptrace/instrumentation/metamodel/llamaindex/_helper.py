@@ -98,6 +98,10 @@ def extract_tool_args(arguments):
 
 def extract_tool_response(response):
     if hasattr(response, 'raw_output'):
+        if hasattr(response.raw_output, 'structuredContent'):
+            structured = response.raw_output.structuredContent
+            if isinstance(structured, dict) and 'result' in structured:
+                return str(structured['result'])
         return response.raw_output
     return ""
 

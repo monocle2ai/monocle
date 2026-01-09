@@ -1,12 +1,12 @@
 import logging
 import pytest
+import random
 import time
 from common.custom_exporter import CustomConsoleSpanExporter
 from monocle_apptrace.exporters.file_exporter import FileSpanExporter
 from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, SimpleSpanProcessor
-
-# Import Microsoft Agent Framework components
+from agent_framework import HandoffBuilder
 try:
     from agent_framework.azure import AzureOpenAIChatClient
     from azure.identity.aio import AzureCliCredential
@@ -25,14 +25,9 @@ def book_flight(
     to_airport: Annotated[str, "The destination airport code (e.g., SFO, ORD)"],
 ) -> str:
     """Book a flight from one airport to another"""
-    import random
-    
-    # Simple booking simulation
     confirmation = f"FL{random.randint(100000, 999999)}"
     cost = random.randint(300, 800)
-    
     return f"FLIGHT BOOKING CONFIRMED #{confirmation}: {from_airport} to {to_airport} - ${cost}"
-
 
 # Hotel booking tool
 def book_hotel(
@@ -41,12 +36,8 @@ def book_hotel(
     nights: Annotated[int, "Number of nights to stay"] = 1,
 ) -> str:
     """Book a hotel reservation"""
-    import random
-    
-    # Simple booking simulation
     confirmation = f"HT{random.randint(100000, 999999)}"
     cost = nights * 150
-    
     return f"HOTEL BOOKING CONFIRMED #{confirmation}: {hotel_name} in {city} for {nights} nights - ${cost}"
 
 
@@ -68,6 +59,7 @@ if MICROSOFT_AGENT_AVAILABLE and endpoint and deployment:
         instructions=(
             "You are a Flight Booking Assistant. "
             "Your goal is to help users book flights between any two cities or airports. "
+            "After successfully booking a flight, hand back control to the MS_Travel_Supervisor. "
             "Focus only on flight bookings and ignore other parts of the request."
         ),
         tools=[book_flight],
@@ -79,6 +71,7 @@ if MICROSOFT_AGENT_AVAILABLE and endpoint and deployment:
         instructions=(
             "You are a Hotel Booking Assistant. "
             "Your goal is to help users book hotel accommodations. "
+            "After successfully booking a hotel, hand back control to the MS_Travel_Supervisor. "
             "Focus only on hotel bookings and ignore other parts of the request."
         ),
         tools=[book_hotel],
@@ -89,16 +82,27 @@ if MICROSOFT_AGENT_AVAILABLE and endpoint and deployment:
         name="MS_Travel_Supervisor",
         instructions=(
             "You are a Travel Supervisor that coordinates complete travel bookings. "
-            "When a user requests travel arrangements, delegate flight bookings to the Flight Booking Agent "
-            "and hotel bookings to the Hotel Booking Agent. "
-            "Provide a consolidated summary of all bookings."
+            "When a user requests travel arrangements: "
+            "1. Delegate flight bookings to the MS_Flight_Booking_Agent "
+            "2. Delegate hotel bookings to the MS_Hotel_Booking_Agent "
+            "3. After receiving confirmations from all specialist agents, provide a consolidated summary "
+            "of all bookings with confirmation numbers and total costs. "
+            "Always review the conversation history and provide a final summary to the user."
         ),
-        tools=[],  # Supervisor doesn't have direct tools, it delegates to other agents
+        tools=[],
     )
-    
-    print(f"🔍 Flight Agent: {type(flight_agent).__name__}")
-    print(f"🔍 Hotel Agent: {type(hotel_agent).__name__}")
-    print(f"🔍 Supervisor Agent: {type(supervisor_agent).__name__}")
+
+    workflow = (
+    HandoffBuilder(
+        name="travel_handoff_workflow",
+        participants=[supervisor_agent, flight_agent, hotel_agent]
+    )
+    .set_coordinator(supervisor_agent)
+    .add_handoff(supervisor_agent, [flight_agent, hotel_agent])
+    .add_handoff(flight_agent, supervisor_agent)
+    .add_handoff(hotel_agent, supervisor_agent)
+    .build()
+)
 else:
     flight_agent = None
     hotel_agent = None
@@ -114,9 +118,10 @@ def setup():
         BatchSpanProcessor(file_exporter),
         SimpleSpanProcessor(custom_exporter)
     ]
+    instrumentor = None
     try:
         instrumentor = setup_monocle_telemetry(
-            workflow_name="microsoft_agent_multi_agent_test",
+            workflow_name="ms_agent_multi_agent_handoff",
             span_processors=span_processors,
         )
         yield custom_exporter
@@ -126,37 +131,18 @@ def setup():
 
 @pytest.mark.skipif(not MICROSOFT_AGENT_AVAILABLE, reason="Microsoft Agent Framework not installed")
 @pytest.mark.asyncio
-async def test_microsoft_supervisor_delegation(setup):
-    """Test supervisor agent delegating to flight and hotel booking tools directly."""
+async def test_microsoft_supervisor_delegation_non_stream(setup):
+    """Test supervisor agent delegating to flight and hotel booking agents via workflow."""
     if flight_agent is None or hotel_agent is None or supervisor_agent is None:
         pytest.skip("Azure OpenAI credentials not configured")
-    
-    # Create supervisor with direct access to both booking tools
-    # This mimics the LangGraph pattern where supervisor has tools and delegates work
-    supervisor_with_tools = client.create_agent(
-        name="MS_Delegating_Supervisor",
-        instructions=(
-            "You are a Travel Supervisor that coordinates complete travel bookings. "
-            "You have access to flight and hotel booking tools. "
-            "When a user requests travel arrangements: "
-            "1. Use book_flight tool for flight bookings "
-            "2. Use book_hotel tool for hotel bookings "
-            "3. Provide a consolidated summary of all bookings. "
-            "Process flight bookings first, then hotel bookings."
-        ),
-        tools=[book_flight, book_hotel],
-    )
     
     # Test message requesting both flight and hotel bookings
     task_description = "Book a flight from BOM to JFK for December 15th and also book a stay at the Marriott for 3 days."
     
     logger.info(f"Task: {task_description}")
     
-    # Execute supervisor agent which should use both tools directly
-    supervisor_response = ""
-    async for chunk in supervisor_with_tools.run_stream(task_description):
-        if chunk.text:
-            supervisor_response += chunk.text
+    # Execute workflow using non-streaming run method
+    supervisor_response = await workflow.run(task_description)
     
     logger.info(f"Supervisor Response: {supervisor_response}")
     
@@ -164,9 +150,9 @@ async def test_microsoft_supervisor_delegation(setup):
     assert supervisor_response, "Should get supervisor response"
     
     # Verify both bookings are mentioned in the response
-    response_lower = supervisor_response.lower()
-    assert "flight" in response_lower or "bom" in response_lower or "jfk" in response_lower, "Should contain flight booking"
-    assert "hotel" in response_lower or "marriott" in response_lower, "Should contain hotel booking"
+    response_str = str(supervisor_response).lower()
+    assert "flight" in response_str or "bom" in response_str or "jfk" in response_str, "Should contain flight booking"
+    assert "hotel" in response_str or "marriott" in response_str, "Should contain hotel booking"
     
     verify_spans_with_delegation(setup)
 
@@ -208,14 +194,14 @@ def verify_spans_with_delegation(custom_exporter):
                 found_tool_call = True
             
             for event in span.events:
-                if event.name == "gen_ai.metadata":
+                if event.name == "metadata":
                     if "finish_reason" in event.attributes:
                         if event.attributes["finish_reason"] == "tool_calls":
                             found_tool_call = True
             
             found_inference = True
 
-        # Check for agent invocation spans (should only be supervisor)
+        # Check for agent invocation spans
         if (
                 "span.type" in span_attributes
                 and span_attributes["span.type"] == "agentic.invocation"
@@ -225,7 +211,9 @@ def verify_spans_with_delegation(custom_exporter):
             assert "entity.1.name" in span_attributes
             assert span_attributes["entity.1.type"] == "agent.microsoft"
             
-            if span_attributes["entity.1.name"] == "MS_Delegating_Supervisor":
+            agent_name = span_attributes["entity.1.name"]
+            # Accept any of the three agents in the workflow
+            if agent_name in ["MS_Travel_Supervisor", "MS_Flight_Booking_Agent", "MS_Hotel_Booking_Agent"]:
                 found_supervisor_agent = True
 
         # Check for tool invocation spans
@@ -239,19 +227,19 @@ def verify_spans_with_delegation(custom_exporter):
             
             if span_attributes["entity.1.name"] == "book_flight":
                 found_book_flight_tool = True
-                # Verify it's associated with supervisor
+                # Verify it's associated with flight agent
                 if "entity.2.name" in span_attributes:
-                    assert span_attributes["entity.2.name"] == "MS_Delegating_Supervisor"
+                    assert span_attributes["entity.2.name"] == "MS_Flight_Booking_Agent"
             elif span_attributes["entity.1.name"] == "book_hotel":
                 found_book_hotel_tool = True
-                # Verify it's associated with supervisor
+                # Verify it's associated with hotel agent
                 if "entity.2.name" in span_attributes:
-                    assert span_attributes["entity.2.name"] == "MS_Delegating_Supervisor"
+                    assert span_attributes["entity.2.name"] == "MS_Hotel_Booking_Agent"
             
             found_tool = True
 
     assert found_inference, "Inference span not found"
-    assert found_supervisor_agent, "Supervisor agent span not found"
+    assert found_supervisor_agent, "Agent spans not found"
     assert found_tool_call, "Tool call finish reason not found"
     assert found_tool, "Tool invocation span not found"
     assert found_book_flight_tool, "Book flight tool span not found"

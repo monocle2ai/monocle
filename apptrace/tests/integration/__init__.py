@@ -1,9 +1,9 @@
 import os
 
-os.environ.setdefault("AZURE_OPENAI_API_DEPLOYMENT", "kshitiz-gpt")
-os.environ.setdefault("AZURE_OPENAI_API_KEY", "64739ec94cc048f0bccf993425b42b42")
-os.environ.setdefault("AZURE_OPENAI_API_VERSION", "2024-02-01")
-os.environ.setdefault("AZURE_OPENAI_ENDPOINT", "https://okahu-openai-dev.openai.azure.com/")
+os.environ.setdefault("AZURE_OPENAI_API_DEPLOYMENT", "")
+os.environ.setdefault("AZURE_OPENAI_API_KEY", "")
+os.environ.setdefault("AZURE_OPENAI_API_VERSION", "")
+os.environ.setdefault("AZURE_OPENAI_ENDPOINT", "")
 os.environ.setdefault("OPENAI_API_KEY", "")
 os.environ.setdefault("MONOCLE_BLOB_CONNECTION_STRING", "")
 os.environ.setdefault("MONOCLE_BLOB_CONTAINER_NAME", "")

@@ -1,12 +1,12 @@
 import logging
 import pytest
+import random
 import time
 from common.custom_exporter import CustomConsoleSpanExporter
 from monocle_apptrace.exporters.file_exporter import FileSpanExporter
 from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, SimpleSpanProcessor
 from agent_framework import SequentialBuilder
-# Import Microsoft Agent Framework components
 try:
     from agent_framework.azure import AzureOpenAIChatClient
     from azure.identity.aio import AzureCliCredential
@@ -25,12 +25,8 @@ def book_flight(
     to_airport: Annotated[str, "The destination airport code (e.g., SFO, ORD)"],
 ) -> str:
     """Book a flight from one airport to another"""
-    import random
-    
-    # Simple booking simulation
     confirmation = f"FL{random.randint(100000, 999999)}"
     cost = random.randint(300, 800)
-    
     return f"FLIGHT BOOKING CONFIRMED #{confirmation}: {from_airport} to {to_airport} - ${cost}"
 
 
@@ -41,14 +37,9 @@ def book_hotel(
     nights: Annotated[int, "Number of nights to stay"] = 1,
 ) -> str:
     """Book a hotel reservation"""
-    import random
-    
-    # Simple booking simulation
     confirmation = f"HT{random.randint(100000, 999999)}"
     cost = nights * 150
-    
     return f"HOTEL BOOKING CONFIRMED #{confirmation}: {hotel_name} in {city} for {nights} nights - ${cost}"
-
 
 # Check for required environment variables
 endpoint = os.getenv("AZURE_OPENAI_ENDPOINT") if MICROSOFT_AGENT_AVAILABLE else None
@@ -97,7 +88,6 @@ if MICROSOFT_AGENT_AVAILABLE and endpoint and deployment:
     )
 
     # Create sequential workflow: flight -> hotel -> summarizer
-    # SequentialBuilder expects callable factories, so wrap agents in lambdas
     workflow = (
         SequentialBuilder()
         .register_participants([
@@ -108,9 +98,6 @@ if MICROSOFT_AGENT_AVAILABLE and endpoint and deployment:
         .build()
     )
     
-    print(f"🔍 Flight Agent: {type(flight_agent).__name__}")
-    print(f"🔍 Hotel Agent: {type(hotel_agent).__name__}")
-    print(f"🔍 Summarizer Agent: {type(summarizer_agent).__name__}")
 else:
     flight_agent = None
     hotel_agent = None
@@ -163,7 +150,6 @@ async def test_microsoft_sequential_workflow(setup):
     assert "hotel" in response_str or "marriott" in response_str, "Should contain hotel booking"
     
     verify_spans_sequential(setup)
-
 
 def verify_spans_sequential(custom_exporter):
     """Verify spans for sequential workflow test."""

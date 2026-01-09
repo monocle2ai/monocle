@@ -138,6 +138,16 @@ AGENT = {
                 "attribute": "description",
                 "accessor": lambda arguments: _helper.get_chat_client_model(arguments["instance"]),
             },
+            {
+                "_comment": "delegating agent name",
+                "attribute": "from_agent",
+                "accessor": lambda arguments: _helper.get_from_agent_name(arguments)
+            },
+            {
+                "_comment": "from_agent invocation id",
+                "attribute": "from_agent_span_id",
+                "accessor": lambda arguments: _helper.get_from_agent_span_id(arguments)
+            }  
         ]
     ],
     "events": [
@@ -170,34 +180,6 @@ AGENT = {
     ],
 }
 
-# Agent orchestrator span (agentic.invocation with routing subtype)
-# Used when agent makes routing decisions (tool calls, etc.)
-AGENT_ORCHESTRATOR = {
-    "type": SPAN_TYPES.AGENTIC_INVOCATION,
-    "subtype": SPAN_SUBTYPES.ROUTING,
-    "attributes": [
-        [
-            {
-                "_comment": "agent type",
-                "attribute": "type",
-                "accessor": lambda arguments: "agent.microsoft",
-            },
-            {
-                "_comment": "name of the agent",
-                "attribute": "name",
-                "accessor": lambda arguments: _helper.get_agent_name(arguments["instance"]),
-            },
-            {
-                "_comment": "agent instructions/system prompt",
-                "attribute": "description",
-                "accessor": lambda arguments: _helper.get_agent_instructions(
-                    arguments["instance"]
-                ),
-            },
-        ]
-    ],
-    "events": []
-}
 
 # Workflow turn span (agentic.turn with turn subtype) - no input/output events
 WORKFLOW_TURN = {
@@ -234,8 +216,18 @@ CHAT_AGENT_INVOCATION = {
             {
                 "_comment": "model/description",
                 "attribute": "description",
-                "accessor": lambda arguments: _helper.get_agent_model(arguments["instance"]),
+                "accessor": lambda arguments: _helper.get_chat_client_model(arguments["instance"]),
             },
+            {
+                "_comment": "delegating agent name",
+                "attribute": "from_agent",
+                "accessor": lambda arguments: _helper.get_from_agent_name(arguments)
+            },
+            {
+                "_comment": "from_agent invocation id",
+                "attribute": "from_agent_span_id",
+                "accessor": lambda arguments: _helper.get_from_agent_span_id(arguments)
+            }  
         ]
     ],
     "events": [

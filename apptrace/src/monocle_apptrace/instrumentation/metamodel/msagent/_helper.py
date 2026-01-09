@@ -4,6 +4,8 @@ import logging
 from typing import Any, Dict
 from opentelemetry.context import get_value
 
+from monocle_apptrace.instrumentation.common.constants import LAST_AGENT_INVOCATION_ID, LAST_AGENT_NAME
+
 logger = logging.getLogger(__name__)
 
 # Context key for accessing agent information (must match processor)
@@ -182,28 +184,10 @@ def extract_agent_response(result: Any, span: Any = None, instance: Any = None, 
         if result is None:
             return ""
         
-        # Check if this is a Workflow.run() result (list of events)
+        # Check if this is a WorkflowRunResult (list of events)
+        # This handles the case when Workflow.run() is instrumented
         if isinstance(result, list) and result:
-            # Look for ExecutorCompletedEvent with AgentExecutorResponse containing the final response
-            for event in reversed(result):
-                event_type = type(event).__name__
-                if event_type == "ExecutorCompletedEvent" and hasattr(event, "data"):
-                    data = event.data
-                    # Check if data is a list of AgentExecutorResponse objects
-                    if isinstance(data, list) and len(data) > 0:
-                        for response_obj in data:
-                            response_obj_type = type(response_obj).__name__
-                            if response_obj_type == "AgentExecutorResponse" and hasattr(response_obj, "agent_run_response"):
-                                agent_run_response = response_obj.agent_run_response
-                                # Extract content from AgentRunResponse
-                                if hasattr(agent_run_response, "content"):
-                                    content = agent_run_response.content
-                                    if isinstance(content, str) and content.strip():
-                                        return content
-                                    elif hasattr(content, "text") and content.text:
-                                        return str(content.text)
-            
-            # Find the last AgentRunEvent with actual content
+            # Find the most recent AgentRunEvent with actual content (the final agent response)
             for event in reversed(result):
                 event_type = type(event).__name__
                 if event_type == "AgentRunEvent" and hasattr(event, "data"):
@@ -211,37 +195,81 @@ def extract_agent_response(result: Any, span: Any = None, instance: Any = None, 
                     if data and isinstance(data, str) and data.strip():
                         return data
             
-            # Check for HandoffEvent (handoff to another agent)
-            for event in reversed(result):
-                event_type = type(event).__name__
-                if event_type == "HandoffEvent" and hasattr(event, "target_agent_name"):
-                    return f"Handoff to agent: {event.target_agent_name}"
+            # If no AgentRunEvent found, return empty (workflow likely not complete yet)
+            return ""
+        
+        # Handle individual AgentExecutorResponse (from agent invocations)
+        # This is what gets passed when individual agents are instrumented
+        if hasattr(result, "agent_run_response"):
+            agent_run_response = result.agent_run_response
             
-            # If no response found, return empty string (don't show internal events)
+            # First, try to extract from agent_run_response.content
+            if hasattr(agent_run_response, "content"):
+                content = agent_run_response.content
+                if isinstance(content, str) and content.strip():
+                    return content
+                elif hasattr(content, "text") and content.text:
+                    return str(content.text)
+            
+            # If content is None or empty, check messages in agent_run_response
+            if hasattr(agent_run_response, "messages") and agent_run_response.messages:
+                for msg in reversed(agent_run_response.messages):
+                    if hasattr(msg, "role") and msg.role == "assistant":
+                        if hasattr(msg, "content") and msg.content:
+                            if isinstance(msg.content, str):
+                                return msg.content
+                            elif isinstance(msg.content, list):
+                                texts = []
+                                for part in msg.content:
+                                    if hasattr(part, "text"):
+                                        texts.append(str(part.text))
+                                    elif isinstance(part, dict) and "text" in part:
+                                        texts.append(str(part["text"]))
+                                if texts:
+                                    return " ".join(texts)
+                        break
+            
+            # If still nothing, check full_conversation on AgentExecutorResponse
+            # This contains all messages including those before the current response
+            if hasattr(result, "full_conversation") and result.full_conversation:
+                # Look for the last assistant message with actual text content
+                for msg in reversed(result.full_conversation):
+                    if hasattr(msg, "role") and msg.role == "assistant":
+                        # Check if message has content
+                        if hasattr(msg, "content") and msg.content:
+                            if isinstance(msg.content, str) and msg.content.strip():
+                                return msg.content
+                            elif isinstance(msg.content, list):
+                                texts = []
+                                for part in msg.content:
+                                    if hasattr(part, "text") and part.text:
+                                        texts.append(str(part.text))
+                                    elif isinstance(part, dict) and "text" in part and part["text"]:
+                                        texts.append(str(part["text"]))
+                                if texts:
+                                    return " ".join(texts)
+            
             return ""
         
         # Check for accumulated_text attribute (set by wrapper for streaming)
         if hasattr(result, "accumulated_text"):
             return str(result.accumulated_text) if result.accumulated_text else ""
         
-        # Check for AgentRunResponse (non-streaming) - has 'content' attribute
+        # Check for direct AgentRunResponse (non-streaming) - has 'content' attribute
         if hasattr(result, "content"):
             content = result.content
-            if isinstance(content, str):
+            if isinstance(content, str) and content.strip():
                 return content
             elif hasattr(content, "text"):
                 return str(content.text)
-            # If content is None but we have conversation, get last assistant message
+            # If content is None but we have messages, get last assistant message
             elif content is None and hasattr(result, "messages") and result.messages:
-                # Get the last message from the conversation
                 for msg in reversed(result.messages):
                     if hasattr(msg, "role") and msg.role == "assistant":
                         if hasattr(msg, "content") and msg.content:
-                            # Extract text from content
                             if isinstance(msg.content, str):
                                 return msg.content
                             elif isinstance(msg.content, list):
-                                # Content can be a list of content parts
                                 texts = []
                                 for part in msg.content:
                                     if hasattr(part, "text"):
@@ -253,7 +281,7 @@ def extract_agent_response(result: Any, span: Any = None, instance: Any = None, 
                         break
                 return ""
             else:
-                return str(content)
+                return str(content) if content else ""
         
         # Check for AgentRunResponseUpdate (streaming) - has 'text' attribute
         if hasattr(result, "text"):
@@ -271,6 +299,16 @@ def extract_agent_response(result: Any, span: Any = None, instance: Any = None, 
         logger.warning(f"Error extracting agent response: {e}")
         return ""
 
+
+def extract_from_agent_invocation_id(parent_span):
+    if parent_span is not None:
+        return parent_span.attributes.get(LAST_AGENT_INVOCATION_ID)
+    return None
+
+def extract_from_agent_name(parent_span):
+    if parent_span is not None:
+        return parent_span.attributes.get(LAST_AGENT_NAME)
+    return None
 
 def extract_tool_input(arguments: Dict[str, Any]) -> str:
     """Extract input from tool invocation arguments."""
@@ -370,8 +408,28 @@ def get_chat_client_model(instance: Any) -> str:
     except Exception as e:
         logger.warning(f"Error getting chat client model: {e}")
         return "unknown_model"
-
-
+def get_from_agent_name(arguments: Dict[str, Any]) -> str:
+    """Extract delegating agent name from parent span attributes."""
+    try:
+        parent_span = arguments.get('parent_span')
+        if parent_span:
+            return parent_span.attributes.get('monocle.last.agent.name', '')
+        return ''
+    except Exception as e:
+        logger.warning(f"Error extracting from_agent name: {e}")
+        return ''
+    
+def get_from_agent_span_id(arguments: Dict[str, Any]) -> str:
+    """Extract delegating agent invocation ID from parent span attributes."""
+    try:
+        parent_span = arguments.get('parent_span')
+        if parent_span:
+            return parent_span.attributes.get('monocle.last.agent.invocation.id', '')
+        return ''
+    except Exception as e:
+        logger.warning(f"Error extracting from_agent invocation id: {e}")
+        return ''
+    
 def extract_chat_client_input(arguments: Dict[str, Any]) -> str:
     """Extract input from chat client get_response/get_streaming_response arguments."""
     try:

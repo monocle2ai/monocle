@@ -8,8 +8,11 @@ def get_commit_hash() -> str:
     """Get the current git commit hash."""
     if os.getenv("GITHUB_SHA"):
         return os.getenv("GITHUB_SHA")
-    repo = Repo(os.getcwd())
-    return repo.head.object.hexsha
+    try:
+        repo = Repo(os.getcwd(), search_parent_directories=True)
+        return repo.head.object.hexsha
+    except Exception:
+        return "unknown"
 
 def get_git_run_id() -> str:
     """Get the current git run ID (GitHub Actions run ID) or current timestamp for local runs."""
@@ -29,3 +32,22 @@ def get_git_context() -> dict[str, str]:
         GIT_RUN_ID_ATTRIBUTE: run_id,
         GIT_WORKFLOW_NAME_ATTRIBUTE: workflow_name
     }
+
+def get_repo_name() -> str:
+    """Get the name of the git org + repository"""
+    try:
+        repo = Repo(os.getcwd(), search_parent_directories=True)
+        remote_url = repo.remotes.origin.url
+
+        if remote_url.startswith('git@'):
+            # SSH: git@github.com:org/repo.git
+            path = remote_url.split(':')[1].replace('/', '-')
+        else:
+            # HTTPS: https://github.com/org/repo.git
+            path = '-'.join(remote_url.split('/')[-2:])
+
+        # Remove .git extension if present
+        repo_name = os.path.splitext(path)[0]
+        return repo_name  # Returns "org-repo"
+    except Exception:
+        return None

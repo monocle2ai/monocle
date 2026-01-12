@@ -9,7 +9,7 @@ class Agent:
     """Minimal stand-in for strands.Agent that exposes a session_manager."""
 
     def __init__(self, session_manager=None):
-        self.session_manager = session_manager
+        self._session_manager = session_manager
         self.name = "travel_agent"
         self.description = "Travel booking agent"
 
@@ -26,13 +26,15 @@ def test_strands_handler_sets_session_scope():
 
     token, _ = handler.pre_tracing({}, None, agent, (), {})
 
-    try:
-        assert token is not None, "Expected set_scope token when session_id is present"
-        assert (
-            get_scopes().get(AGENT_SESSION) == "session-xyz"
-        ), "agentic.session scope should match the session manager id"
-    finally:
-        handler.post_tracing({}, None, agent, (), {}, None, token)
+    assert token is not None, "Expected set_scope token when session_id is present"
+    assert (
+        get_scopes().get(AGENT_SESSION) == "session-xyz"
+    ), "agentic.session scope should match the session manager id"
+    
+    # Manually cleanup since there's no post_tracing
+    from monocle_apptrace.instrumentation.common.utils import remove_scope
+    if token:
+        remove_scope(token)
 
     assert (
         get_scopes().get(AGENT_SESSION) == previous_scope
@@ -45,7 +47,6 @@ def test_strands_handler_ignores_missing_session():
     previous_scope = get_scopes().get(AGENT_SESSION)
 
     token, _ = handler.pre_tracing({}, None, agent, (), {})
-    handler.post_tracing({}, None, agent, (), {}, None, token)
 
     assert token is None, "Token should stay None when no session_id is available"
     assert (

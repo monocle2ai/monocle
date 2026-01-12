@@ -90,7 +90,11 @@ class OkahuSpanExporter(SpanExporterBase):
 
         # if async task function is present, then push the request to asnc task
         if self.task_processor is not None and callable(self.task_processor.queue_task):
-            self.task_processor.queue_task(send_spans_to_okahu, span_list, is_root_span)
+            self.task_processor.queue_task(
+                send_spans_to_okahu,
+                kwargs={'span_list_local': span_list, 'is_root': is_root_span},
+                is_root_span=is_root_span
+            )
             return SpanExportResult.SUCCESS
         return send_spans_to_okahu(span_list, is_root_span)
 

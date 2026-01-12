@@ -50,6 +50,13 @@ class TestHandler(unittest.TestCase):
         assert exporter_class_names == expected_exporters, f"Expected {expected_exporters}, but got {exporter_class_names}"
         os.environ.clear()
 
+    def test_otlp_exporter(self):
+        os.environ['MONOCLE_EXPORTER'] = "otlp"
+        os.environ['OTEL_EXPORTER_OTLP_ENDPOINT'] = "http://localhost:4318"
+        default_exporter = get_monocle_exporter()
+        assert default_exporter[0].__class__.__name__ == "OTLPSpanExporter"
+        os.environ.clear()
+
 
 if __name__ == "__main__":
     handler = TestHandler()
@@ -58,3 +65,4 @@ if __name__ == "__main__":
     handler.test_set_exporter()
     handler.test_memory_exporter()
     handler.test_console_exporter()
+    handler.test_otlp_exporter()

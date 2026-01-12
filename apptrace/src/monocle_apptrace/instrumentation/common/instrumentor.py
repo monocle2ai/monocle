@@ -9,7 +9,7 @@ from opentelemetry.instrumentation.instrumentor import BaseInstrumentor
 from opentelemetry.instrumentation.utils import unwrap
 from opentelemetry.sdk.trace import TracerProvider, Span
 from opentelemetry.sdk.resources import SERVICE_NAME, Resource
-from opentelemetry.sdk.trace import Span, TracerProvider
+from opentelemetry.sdk.trace import Span, TracerProvider, SynchronousMultiSpanProcessor
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, SpanProcessor
 from opentelemetry.sdk.trace.export import SpanExporter
 from opentelemetry.trace import get_tracer
@@ -26,7 +26,7 @@ from monocle_apptrace.instrumentation.common.utils import (
     load_scopes,
     setup_readablespan_patch
 )
-from monocle_apptrace.instrumentation.common.constants import MONOCLE_INSTRUMENTOR
+from monocle_apptrace.instrumentation.common.constants import MONOCLE_INSTRUMENTOR, MONOCLE_WORKFLOW_NAME_KEY
 from functools import wraps
 
 logger = logging.getLogger(__name__)
@@ -36,6 +36,17 @@ SESSION_PROPERTIES_KEY = "session"
 _instruments = ()
 
 monocle_tracer_provider: TracerProvider = None
+monocle_instrumentor: 'MonocleInstrumentor' = None
+monocle_span_processor:'MonocleSynchronousMultiSpanProcessor' = None
+
+class MonocleSynchronousMultiSpanProcessor(SynchronousMultiSpanProcessor):
+    def clear_span_processors(self) -> None:
+        """Adds a SpanProcessor to the list handled by this instance."""
+        with self._lock:
+            for span_processor in self._span_processors:
+                span_processor.force_flush()
+                span_processor.shutdown()
+                self._span_processors = ()
 
 class MonocleInstrumentor(BaseInstrumentor):
     workflow_name: str = ""
@@ -160,6 +171,22 @@ def get_tracer_provider() -> TracerProvider:
     global monocle_tracer_provider
     return monocle_tracer_provider
 
+def set_monocle_instrumentor(instrumentor: MonocleInstrumentor):
+    global monocle_instrumentor
+    monocle_instrumentor = instrumentor
+
+def get_monocle_instrumentor() -> MonocleInstrumentor:
+    global monocle_instrumentor
+    return monocle_instrumentor
+
+def set_monocle_span_processor(span_processor: MonocleSynchronousMultiSpanProcessor):
+    global monocle_span_processor
+    monocle_span_processor = span_processor
+
+def get_monocle_span_processor() -> MonocleSynchronousMultiSpanProcessor:
+    global monocle_span_processor
+    return monocle_span_processor
+
 def setup_monocle_telemetry(
         workflow_name: str,
         span_processors: List[SpanProcessor] = None,
@@ -186,8 +213,12 @@ def setup_monocle_telemetry(
         If False, only use the provided wrapper_methods.
     monocle_exporters_list : str, optional
         Comma-separated list of exporters to use. This will override the env setting MONOCLE_EXPORTERS.
-        Supported exporters are: s3, blob, okahu, file, memory, console. This can't be combined with `span_processors`.
+        Supported exporters are: s3, blob, okahu, file, memory, console, otlp. 
+        For OTLP exporter, configure the endpoint via OTEL_EXPORTER_OTLP_ENDPOINT environment variable.
+        This can't be combined with `span_processors`.
     """
+
+
     resource = Resource(attributes={
         SERVICE_NAME: workflow_name
     })
@@ -195,12 +226,13 @@ def setup_monocle_telemetry(
         raise ValueError("span_processors and monocle_exporters_list can't be used together")
     exporters:List[SpanExporter] = get_monocle_exporter(monocle_exporters_list)
     span_processors = span_processors or [BatchSpanProcessor(exporter) for exporter in exporters]
-    set_tracer_provider(TracerProvider(resource=resource))
+    set_monocle_span_processor(MonocleSynchronousMultiSpanProcessor())
+    set_tracer_provider(TracerProvider(resource=resource, active_span_processor=get_monocle_span_processor()))
     
     # Monkey-patch ReadableSpan.to_json to remove 0x prefix from trace_id/span_id
     setup_readablespan_patch()
     
-    attach(set_value("workflow_name", workflow_name))
+    attach(set_value(MONOCLE_WORKFLOW_NAME_KEY, workflow_name))
     tracer_provider_default = trace.get_tracer_provider()
     provider_type = type(tracer_provider_default).__name__
     is_proxy_provider = "Proxy" in provider_type
@@ -217,8 +249,16 @@ def setup_monocle_telemetry(
     # instrumentor.app_name = workflow_name
     if not instrumentor.is_instrumented_by_opentelemetry:
         instrumentor.instrument(trace_provider=get_tracer_provider())
+        set_monocle_instrumentor(instrumentor)
 
-    return instrumentor
+    return get_monocle_instrumentor()
+
+def reset_span_processors(span_processors:list[SpanProcessor]):
+    monocle_span_processor = get_monocle_span_processor()
+    if monocle_span_processor:
+        monocle_span_processor.clear_span_processors()
+        for span_processor in span_processors:
+            monocle_span_processor.add_span_processor(span_processor)
 
 def on_processor_start(span: Span, parent_context):
     context_properties = get_value(SESSION_PROPERTIES_KEY)

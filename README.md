@@ -1,5 +1,17 @@
 # Monocle for tracing GenAI app code
 
+<h4 align="center">
+    <a href="https://pypi.org/project/monocle-apptrace/" target="_blank">
+        <img src="https://img.shields.io/pypi/v/monocle-apptrace.svg" alt="PyPI Version">
+    </a>
+    <a href="https://discord.gg/9CzVpGBM">
+        <img src="https://img.shields.io/static/v1?label=Chat%20on&message=Discord&color=blue&logo=Discord&style=flat-square" alt="Discord">
+    </a>
+    <a href="https://join.slack.com/t/monocle2ai/shared_invite/zt-37pgez3jr-BNjNynF6VV8iHvRlaLM7QA">
+        <img src="https://img.shields.io/static/v1?label=Chat%20on&message=Slack&color=black&logo=Slack&style=flat-square" alt="Slack">
+    </a>
+</h4>
+
 **Monocle** helps developers and platform engineers building or managing GenAI apps monitor these in prod by making it easy to instrument their code to capture traces that are compliant with open-source cloud-native observability ecosystem. 
 
 **Monocle** is a community-driven OSS framework for tracing GenAI app code governed as a [Linux Foundation AI & Data project](https://lfaidata.foundation/projects/monocle/). 
@@ -66,12 +78,14 @@ The MCP server provided by Monocle integrates with your dev enviorment like Visu
 Goal of Monocle is to support tracing for apps written in *any language* with *any LLM orchestration or agentic framework* and built using models, vectors, agents or other components served up by *any cloud or model inference provider*. 
 
 Current version supports: 
-- Language: (🟢) Python , (🔜) [Typescript](https://github.com/monocle2ai/monocle-typescript) 
-- LLM-frameworks: (🟢) Langchain, (🟢) Llamaindex, (🟢) Haystack, (🔜) Flask
-- LLM inference providers: (🟢) OpenAI, (🟢) Azure OpenAI, (🟢) Nvidia Triton, (🔜) AWS Bedrock, (🔜) Google Vertex, (🔜) Azure ML, (🔜) Hugging Face
+- Language: (🟢) Python , (🟢) [Typescript](https://github.com/monocle2ai/monocle-typescript)
+- Agentic frameworks: (🟢) Langgraph, (🟢) LlamaIndex, (🟢) Google ADK, (🟢)  OpenAI Agent SDK, (🟢) AWS Strands, (🟢) CrewAI, (🔜) Microsoft AI Agent framework
+- MCP/A2A frameworks: (🟢) FastMCP, (🟢) MCP client, (🟢) A2A client
+- Web/App frameworks: (🟢) Flask, (🟢) AIO Http, (🟢)FastAPI, (🟢) Azure Function, (🟢) AWS Lambda, (🟢) Vercel (typescript), (🟢) Microsoft Teams AI SDK, (🟢) Web/REST client, (🔜) Google Function, 
+- LLM-frameworks: (🟢) Langchain, (🟢) Llamaindex, (🟢) Haystack
+- LLM inference providers: (🟢) OpenAI, (🟢) Azure OpenAI, (🟢) Azure AI, (🟢) Nvidia Triton, (🟢) AWS Bedrock, (🟢) AWS Sagemaker, (🟢) Google Vertex, (🟢) Google Gemini, (🟢) Hugging Face, (🟢) Deepseek, (🟢) Anthropic, (🟢) Mistral, (🟢) LiteLLM ,(🔜) Azure ML
 - Vector stores: (🟢) FAISS, (🔜) OpenSearch, (🔜) Milvus
-- Exporter: (🟢) stdout, (🟢) file, (🔜) Azure Blob Storage, (🔜) AWS S3, (🔜) Google Cloud Storage
-
+- Exporter: (🟢) stdout, (🟢) file, (🟢) Memory, (🟢) Azure Blob Storage, (🟢) AWS S3, (🟢) Okahu cloud, (🟢) OTEL compatible collectors, (🔜) Google Cloud Storage
 
 ## Get involved
 ### Provide feedback

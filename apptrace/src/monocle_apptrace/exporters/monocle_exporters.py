@@ -14,7 +14,8 @@ monocle_exporters: Dict[str, Any] = {
     "okahu": {"module": "monocle_apptrace.exporters.okahu.okahu_exporter", "class": "OkahuSpanExporter"},
     "file": {"module": "monocle_apptrace.exporters.file_exporter", "class": "FileSpanExporter"},
     "memory": {"module": "opentelemetry.sdk.trace.export.in_memory_span_exporter", "class": "InMemorySpanExporter"},
-    "console": {"module": "opentelemetry.sdk.trace.export", "class": "ConsoleSpanExporter"}
+    "console": {"module": "opentelemetry.sdk.trace.export", "class": "ConsoleSpanExporter"},
+    "otlp": {"module": "opentelemetry.exporter.otlp.proto.http.trace_exporter", "class": "OTLPSpanExporter"}
 }
 
 

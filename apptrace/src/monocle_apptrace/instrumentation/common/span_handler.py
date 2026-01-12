@@ -4,7 +4,7 @@ from contextlib import contextmanager
 from typing import Union
 from opentelemetry.context import get_value, set_value, attach, detach
 from opentelemetry.sdk.trace import Span
-from opentelemetry.trace.span import INVALID_SPAN
+from opentelemetry.sdk.resources import SERVICE_NAME
 from opentelemetry.trace.status import Status, StatusCode
 from monocle_apptrace.instrumentation.common.constants import (
     QUERY,
@@ -14,7 +14,8 @@ from monocle_apptrace.instrumentation.common.constants import (
     SPAN_TYPES, LAST_INFERENCE
 )
 from monocle_apptrace.instrumentation.common.utils import set_attribute, get_scopes, MonocleSpanException, get_monocle_version, replace_placeholders, propogate_inference_info_to_parent_span
-from monocle_apptrace.instrumentation.common.constants import WORKFLOW_TYPE_KEY, WORKFLOW_TYPE_GENERIC, CHILD_ERROR_CODE, MONOCLE_SKIP_EXECUTIONS, SKIPPED_EXECUTION
+from monocle_apptrace.instrumentation.common.constants import \
+    (WORKFLOW_TYPE_KEY, WORKFLOW_TYPE_GENERIC, CHILD_ERROR_CODE, MONOCLE_SKIP_EXECUTIONS, SKIPPED_EXECUTION, MONOCLE_WORKFLOW_NAME_KEY)
 
 logger = logging.getLogger(__name__)
 
@@ -299,7 +300,7 @@ class SpanHandler:
     @staticmethod
     def get_workflow_name(span: Span) -> str:
         try:
-            return get_value("workflow_name") or span.resource.attributes.get("service.name")
+            return get_value(MONOCLE_WORKFLOW_NAME_KEY) or span.resource.attributes.get(SERVICE_NAME)
         except Exception as e:
             logger.exception(f"Error getting workflow name: {e}")
             return None

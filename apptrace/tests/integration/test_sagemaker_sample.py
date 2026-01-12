@@ -147,7 +147,15 @@ class ContentHandler(EmbeddingsContentHandler):
         return input_str.encode("utf-8")
 
     def transform_output(self, output: bytes) -> List[List[float]]:
-        response_json = json.loads(output.read().decode("utf-8"))
+        try:
+            data = output.read()
+        except Exception:
+            if hasattr(output, '_raw_stream') and hasattr(output._raw_stream, 'data'):
+                data = output._raw_stream.data
+            else:
+                raise
+        
+        response_json = json.loads(data.decode("utf-8"))
         return response_json["embedding"]
 
 # {

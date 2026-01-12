@@ -9,7 +9,8 @@ from io import BytesIO
 from functools import wraps
 
 from rfc3986 import urlparse
-from monocle_apptrace.instrumentation.common.constants import TOOL_TYPE
+from opentelemetry.context import get_value
+from monocle_apptrace.instrumentation.common.constants import AGENT_PREFIX_KEY, INFERENCE_AGENT_DELEGATION, INFERENCE_TOOL_CALL, INFERENCE_TURN_END, TOOL_TYPE
 from monocle_apptrace.instrumentation.common.span_handler import SpanHandler
 from monocle_apptrace.instrumentation.common.utils import ( get_exception_message, get_json_dumps, get_status_code,)
 from monocle_apptrace.instrumentation.metamodel.finish_types import map_bedrock_finish_reason_to_finish_type
@@ -69,7 +70,7 @@ def extract_assistant_message(arguments):
                 else:
                     tool_call = _get_first_tool_call(arguments['result'])
                     if tool_call is not None:
-                        messages.append({role: str(tool_call['toolUse'])})
+                        messages.append({role: str(tool_call['toolUse']['input'])})
         else:
             if arguments["exception"] is not None:
                 return get_exception_message(arguments)
@@ -258,3 +259,23 @@ def extract_tool_type(arguments):
         logger.warning("Warning: Error occurred in extract_tool_type: %s", str(e))
 
     return None
+
+def agent_inference_type(arguments):
+    """Extract agent inference type from Bedrock response"""
+    try:
+        # Check finish_type to determine the inference type
+        finish_type = map_finish_reason_to_finish_type(extract_finish_reason(arguments))
+        
+        if finish_type == "tool_call":
+            tool_call = _get_first_tool_call(arguments["result"])
+            if tool_call:
+                tool_name = tool_call.get("toolUse", {}).get("name", "")
+                agent_prefix = get_value(AGENT_PREFIX_KEY)
+                if agent_prefix and tool_name.startswith(agent_prefix):
+                    return INFERENCE_AGENT_DELEGATION
+            return INFERENCE_TOOL_CALL
+        
+        return INFERENCE_TURN_END
+    except Exception as e:
+        logger.warning("Warning: Error occurred in agent_inference_type: %s", str(e))
+        return INFERENCE_TURN_END

@@ -138,7 +138,14 @@ class S3SpanExporter(SpanExporterBase):
         try:
             # Run the asynchronous export logic in an event loop
             logger.info(f"Exporting {len(spans)} spans to S3.")
-            asyncio.run(self.__export_async(spans))
+            try:
+                # Try to get the running event loop
+                loop = asyncio.get_running_loop()
+                # If we're already in an event loop, create a task
+                asyncio.create_task(self.__export_async(spans))
+            except RuntimeError:
+                # No event loop is running, so we can use asyncio.run()
+                asyncio.run(self.__export_async(spans))
             return SpanExportResult.SUCCESS
         except Exception as e:
             logger.error(f"Error exporting spans: {e}")

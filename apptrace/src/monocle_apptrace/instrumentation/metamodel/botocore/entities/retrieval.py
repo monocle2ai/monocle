@@ -11,7 +11,7 @@ RETRIEVAL = {
             {
                 "_comment": "provider type, inference_endpoint",
                 "attribute": "type",
-                "accessor": lambda arguments: 'retrieval.'+(get_llm_type(arguments['instance']) or 'aws_bedrock')
+                "accessor": lambda arguments: 'retrieval.aws_bedrock'
             },
             {
                 "attribute": "endpoint",

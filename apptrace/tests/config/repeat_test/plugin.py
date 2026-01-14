@@ -70,8 +70,30 @@ class TestStats:
 
 
 class PassRateTracker:
+    """
+    Pytest plugin that tracks pass rates across repeated test runs.
+
+    This plugin repeats each test multiple times and tracks the pass/fail ratio.
+    If the pass rate for any test falls below the configured threshold, the test
+    suite is marked as failed.
+
+    Attributes:
+        repeat_count: Number of times to repeat each test
+        min_pass_rate: Minimum required pass rate (0.0-1.0) for tests to succeed
+        config: Pytest configuration object
+        results: Dictionary mapping test node IDs to their statistics
+        failed_tests: List of tests that failed to meet the minimum pass rate
+    """
 
     def __init__(self, repeat_count: int, min_pass_rate: float, config: Config) -> None:
+        """
+        initialize the PassRateTracker.
+
+        Args:
+            repeat_count: Number of times to repeat each test
+            min_pass_rate: Minimum pass rate (0.0-1.0) required for tests
+            config: Pytest configuration object
+        """
         self.repeat_count = repeat_count
         self.min_pass_rate = min_pass_rate
         self.config = config
@@ -79,6 +101,18 @@ class PassRateTracker:
         self.failed_tests: List[tuple[str, TestStats, float]] = []
 
     def pytest_runtestloop(self, session) -> bool:
+        """
+        Override the default test execution loop to repeat tests.
+
+        This hook replaces pytest's standard test loop with one that runs
+        each test item multiple times according to repeat_count.
+
+        Args:
+            session: The pytest session object containing collected test items
+
+        Returns:
+            True to indicate the test loop has been handled
+        """
         items = session.items
         count = len(items)
 
@@ -93,6 +127,15 @@ class PassRateTracker:
         return True
 
     def pytest_runtest_logreport(self, report: TestReport) -> None:
+        """
+        Process test reports and collect pass/fail statistics.
+
+        This hook is called for each test phase (setup, call, teardown).
+        Only the "call" phase is tracked for pass rate calculations.
+
+        Args:
+            report: Test report containing outcome and error information
+        """
         if report.when != "call":
             return
 
@@ -119,6 +162,17 @@ class PassRateTracker:
         stats.runs.append(run)
 
     def pytest_sessionfinish(self, session, exitstatus) -> None:
+        """
+        Finalize pass rate calculations and set exit status.
+
+        Called after all tests have completed. Checks each test's pass rate
+        against the minimum threshold and sets the session exit status to
+        TESTS_FAILED if any test is below the threshold.
+
+        Args:
+            session: The pytest session object
+            exitstatus: The current exit status code
+        """
         for nodeid, stats in self.results.items():
             ratio = stats.pass_ratio
             if ratio < self.min_pass_rate:
@@ -128,6 +182,18 @@ class PassRateTracker:
             session.exitstatus = pytest.ExitCode.TESTS_FAILED
 
     def pytest_terminal_summary(self, terminalreporter) -> None:
+        """
+        Display test pass rate summary in the terminal.
+
+        Shows a summary of test results with pass rates. The level of detail
+        depends on verbosity:
+        - verbosity 0: No summary
+        - verbosity 1 (-v): Pass rates for each test
+        - verbosity 2 (-vv): Pass rates + individual run details + error previews
+
+        Args:
+            terminalreporter: Pytest terminal reporter for output
+        """
         if not self.results:
             return
 

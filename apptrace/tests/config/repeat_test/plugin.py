@@ -12,15 +12,19 @@ def pytest_addoption(parser: pytest.Parser) -> None:
     group = parser.getgroup("monocle pass rate")
     group.addoption(
         "--repeat-count",
+        dest="repeat_count",
         action="store",
         type=int,
         default=1,
+        help="Number of times to repeat each test (default: 1)",
     )
     group.addoption(
         "--min-pass-rate",
+        dest="min_pass_rate",
         action="store",
         type=float,
         default=1.0,
+        help="Minimum pass rate (0.0-1.0) required for tests (default: 1.0)",
     )
 
 
@@ -120,8 +124,8 @@ class PassRateTracker:
             if ratio < self.min_pass_rate:
                 self.failed_tests.append((nodeid, stats, ratio))
 
-        if self.failed_tests and exitstatus == 0:
-            session.exitstatus = 1
+        if self.failed_tests and exitstatus == pytest.ExitCode.OK:
+            session.exitstatus = pytest.ExitCode.TESTS_FAILED
 
     def pytest_terminal_summary(self, terminalreporter) -> None:
         if not self.results:
@@ -167,7 +171,7 @@ class PassRateTracker:
                         **{outcome_color: True},
                     )
 
-                    if run.outcome == "failed" and run.error and verbosity >= 3:
+                    if run.outcome == "failed" and run.error and verbosity >= 2:
                         for line in run.error.splitlines()[:3]:
                             terminalreporter.write_line(
                                 f"      {line}",
@@ -182,3 +186,4 @@ class PassRateTracker:
                     f"({ratio:.1%}) < {self.min_pass_rate:.1%}",
                     red=True,
                 )
+

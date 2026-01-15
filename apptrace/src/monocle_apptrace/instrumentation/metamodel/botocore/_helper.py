@@ -24,11 +24,18 @@ def extract_messages(args):
     try:
         messages = []
         if args and isinstance(args, dict) and len(args) > 0:
-            if 'Body' in args and isinstance(args['Body'], str):
+            # Check if this is invoke_data_automation_async
+            if 'inputConfiguration' in args:
+                return extract_data_automation_input(args)
+            # Check if this is invoke_model
+            elif 'body' in args:
+                return extract_invoke_model_messages(args)
+            # Original converse API handling
+            elif 'Body' in args and isinstance(args['Body'], str):
                 data = json.loads(args['Body'])
                 question = data.get("question")
                 messages.append(question)
-            if 'messages' in args and isinstance(args['messages'], list):
+            elif 'messages' in args and isinstance(args['messages'], list):
                 role = args['messages'][0]['role']
                 user_message = extract_query_from_content(args['messages'][0]['content'][0]['text'])
                 messages.append({role: user_message})
@@ -71,6 +78,19 @@ def extract_assistant_message(arguments):
                     tool_call = _get_first_tool_call(arguments['result'])
                     if tool_call is not None:
                         messages.append({role: str(tool_call['toolUse']['input'])})
+
+            if 'invocationArn' in arguments['result']:
+                result= arguments['result']
+                response_info = {
+                    'invocation_arn': result.get('invocationArn', ''),
+                }
+                messages.append({'data_automation_response': response_info})
+            # Check if this is invoke_model by looking at result structure
+            if 'body' in arguments['result']:
+                result_body = arguments['result'].get('body')
+                if hasattr(result_body, 'read'):
+                    output = extract_invoke_model_response(arguments['result'])
+                    messages.append(output)
         else:
             if arguments["exception"] is not None:
                 return get_exception_message(arguments)
@@ -112,15 +132,17 @@ def resolve_from_alias(my_map, alias):
 
 def update_span_from_llm_response(response, instance):
     meta_dict = {}
+    token_usage =None
     if response is not None and isinstance(response, dict) and "usage" in response:
         token_usage = response["usage"]
-
-        if token_usage is not None:
-            temperature = instance.__dict__.get("temperature", None)
-            meta_dict.update({"temperature": temperature})
-            meta_dict.update({"completion_tokens": resolve_from_alias(token_usage,["completion_tokens","output_tokens","outputTokens"])})
-            meta_dict.update({"prompt_tokens": resolve_from_alias(token_usage,["prompt_tokens","input_tokens","inputTokens"])})
-            meta_dict.update({"total_tokens": resolve_from_alias(token_usage,["total_tokens","totalTokens"])})
+    if response is not None and isinstance(response, dict) and 'body' in response:
+        token_usage = update_span_from_invoke_model_response(response, instance)
+    if token_usage is not None:
+        temperature = instance.__dict__.get("temperature", None)
+        meta_dict.update({"temperature": temperature})
+        meta_dict.update({"completion_tokens": resolve_from_alias(token_usage,["completion_tokens","output_tokens","outputTokens"])})
+        meta_dict.update({"prompt_tokens": resolve_from_alias(token_usage,["prompt_tokens","input_tokens","inputTokens"])})
+        meta_dict.update({"total_tokens": resolve_from_alias(token_usage,["total_tokens","totalTokens"])})
     return meta_dict
 
 
@@ -279,3 +301,148 @@ def agent_inference_type(arguments):
     except Exception as e:
         logger.warning("Warning: Error occurred in agent_inference_type: %s", str(e))
         return INFERENCE_TURN_END
+
+def extract_retrieval_source(kwargs):
+    """Extract the type of retrieval source (KnowledgeBase, etc.)"""
+    try:
+        if 'retrieveAndGenerateConfiguration' in kwargs:
+            config = kwargs['retrieveAndGenerateConfiguration']
+            if 'knowledgeBaseConfiguration' in config:
+                return 'knowledgebase'
+            elif 'externalSourcesConfiguration' in config:
+                return 'externalsource'
+        # For retrieve API, it's always a KnowledgeBase
+        elif 'knowledgeBaseId' in kwargs:
+            return 'knowledgebase'
+        return 'Generic'
+    except Exception as e:
+        logger.warning("Warning: Error occurred in extract_retrieval_source_type: %s", str(e))
+        return 'Generic'
+
+
+def extract_retrieval_query(kwargs):
+    """Extract the query from retrieve_and_generate or retrieve input"""
+    try:
+        messages = []
+        # Check for retrieve_and_generate format
+        if 'input' in kwargs:
+            input_data = kwargs['input']
+            if 'text' in input_data:
+                messages.append(input_data['text'])
+
+        return [get_json_dumps(message) for message in messages] if messages else []
+    except Exception as e:
+        logger.warning("Warning: Error occurred in extract_retrieval_query: %s", str(e))
+        return []
+
+
+def extract_retrieval_response(arguments):
+    """Extract response from retrieve_and_generate or retrieve result"""
+    try:
+        status = get_status_code(arguments)
+        messages = []
+        
+        if status == 'success' and 'result' in arguments:
+            result = arguments['result']
+            # Handle retrieve_and_generate response
+            if 'output' in result:
+                output = result['output']
+                if 'text' in output:
+                    messages.append({'assistant': output['text']})
+
+            # Include citations if available (for retrieve_and_generate)
+            if 'citations' in result:
+                citations = result['citations']
+                if citations:
+                    messages.append({'citations': str(citations)})
+        else:
+            if arguments.get("exception") is not None:
+                return get_exception_message(arguments)
+            elif hasattr(arguments.get("result", {}), "error"):
+                return arguments["result"].error
+        
+        return get_json_dumps(messages[0]) if messages else ""
+    except Exception as e:
+        logger.warning("Warning: Error occurred in extract_retrieval_response: %s", str(e))
+        return ""
+
+# Helper functions for invoke_data_automation_async API
+def extract_data_automation_input(kwargs):
+    """Extract input information from invoke_data_automation_async parameters"""
+    try:
+        messages = []
+        input_config = kwargs.get('inputConfiguration', {})
+        output_config = kwargs.get('outputConfiguration', {})
+        data_config = kwargs.get('dataAutomationConfiguration', {})
+        
+        input_info = {
+            's3_input': input_config.get('s3Uri', ''),
+            's3_output': output_config.get('s3Uri', ''),
+            'project_arn': data_config.get('dataAutomationProjectArn', ''),
+            'stage': data_config.get('stage', '')
+        }
+        messages.append({'data_automation_input': input_info})
+        
+        return [get_json_dumps(message) for message in messages] if messages else []
+    except Exception as e:
+        logger.warning("Warning: Error occurred in extract_data_automation_input: %s", str(e))
+        return []
+
+def extract_invoke_model_messages(kwargs):
+    """Extract messages from invoke_model input"""
+    try:
+        messages = []
+        body_str = kwargs['body']
+        if isinstance(body_str, (str, bytes)):
+            try:
+                if isinstance(body_str, bytes):
+                    body_str = body_str.decode('utf-8')
+                body_data = json.loads(body_str)
+
+                # Handle different model input formats
+                if 'prompt' in body_data:
+                    messages.append({'user': body_data['prompt']})
+                elif 'messages' in body_data:
+                    for msg in body_data['messages']:
+                        role = msg.get('role', 'user')
+                        content = msg.get('content', '')
+                        messages.append({role: content})
+                elif 'inputText' in body_data:
+                    messages.append({'user': body_data['inputText']})
+            except json.JSONDecodeError:
+                pass
+
+        return [get_json_dumps(message) for message in messages] if messages else []
+    except Exception as e:
+        logger.warning("Warning: Error occurred in extract_invoke_model_messages: %s", str(e))
+        return []
+
+
+def extract_invoke_model_response(result):
+    """Extract response from invoke_model result"""
+    output= {}
+    body = result['body']
+    if hasattr(body, 'read'):
+        body_bytes = body.read()
+        result['body'] = BytesIO(body_bytes)
+        body_str = body_bytes.decode('utf-8')
+        body_data = json.loads(body_str)
+        if 'choices' in body_data and len(body_data['choices']) > 0:
+            choice = body_data['choices'][0]
+            if 'message' in choice and 'content' in choice['message']:
+                output = {'assistant': choice['message']['content']}
+
+        return output
+
+def update_span_from_invoke_model_response(response, instance):
+    """Extract metadata from invoke_model response"""
+    body = response['body']
+    if hasattr(body, 'read'):
+        body_bytes = body.read()
+        response['body'] = BytesIO(body_bytes)
+        body_str = body_bytes.decode('utf-8')
+        body_data = json.loads(body_str)
+        # Extract token usage if available
+        if 'usage' in body_data:
+            usage = body_data['usage']
+            return usage

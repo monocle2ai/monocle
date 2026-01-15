@@ -67,6 +67,7 @@ llm_type_map = {
     "chatgooglegenerativeai": "gemini",
     "azurechatcompletion": "azure_openai",
     "openaichatcompletion": "openai",
+    "runtimeforbedrockdataautomation": "aws_bedrock"
 }
 
 MONOCLE_INSTRUMENTOR = "monocle_apptrace"

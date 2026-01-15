@@ -42,20 +42,6 @@ class MSAgentRequestHandler(SpanHandler):
         
         return None, None
 
-    def post_tracing(self, to_wrap, wrapped, instance, args, kwargs, result, token):
-        """Called after turn execution to clean up context."""
-        if token is not None:
-            detach(token)
-
-    def post_task_processing(self, to_wrap, wrapped, instance, args, kwargs, result, ex, span, parent_span):
-        """Propagate agent name and invocation ID to parent span."""
-        propogate_agent_name_to_parent_span(span, parent_span)
-        return super().post_task_processing(to_wrap, wrapped, instance, args, kwargs, result, ex, span, parent_span)
-
-    def hydrate_span(self, to_wrap, wrapped, instance, args, kwargs, result, span, parent_span=None, ex: Exception = None, is_post_exec: bool = False) -> bool:
-        """Hydrate span with request-specific attributes."""
-        return super().hydrate_span(to_wrap, wrapped, instance, args, kwargs, result, span, parent_span, ex, is_post_exec)
-
 class MSAgentAgentHandler(SpanHandler):
     """Handler for Microsoft Agent Framework agent invocations."""
 

@@ -34,12 +34,15 @@ class BotoCoreSpanHandler(SpanHandler):
             for method_name in method_names:
                 original_method = getattr(return_value, method_name, None)
                 if original_method:
-                    span_name = "botocore-" + service_name + "-" + method_name
+                    # e.g., "bedrock-runtime" -> "BedrockRuntime"
+                    client_class_name = ''.join(word.capitalize() for word in service_name.split('-'))
+                    span_name = f"botocore.client.{client_class_name}"
                     instrumentor = self.instrumentor
                     if instrumentor:
                         # Create a copy of to_wrap with the appropriate output_processor
                         to_wrap_copy = to_wrap.copy()
                         to_wrap_copy['output_processor'] = self._get_output_processor_for_method(method_name)
+                        to_wrap_copy['span_name'] = span_name
                         instrumented_method = instrumentor(to_wrap_copy, wrapped, span_name, return_value, original_method)
                         setattr(return_value, method_name, instrumented_method)
 

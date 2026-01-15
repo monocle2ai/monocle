@@ -1,6 +1,6 @@
 [
   {
-      "name": "botocore.client.ClientCreator.create_client",
+      "name": "botocore.client.BedrockAgentRuntime",
       "context": {
           "trace_id": "0xbee7cfdecd668ca47434139cf2c70970",
           "span_id": "0x14edc25dcfedeb3f",
@@ -86,7 +86,7 @@
       }
   },
   {
-      "name": "botocore.client.ClientCreator.create_client",
+      "name": "botocore.client.BedrockRuntime",
       "context": {
           "trace_id": "0x750e3af3d73345b035e6e2a3d10b6d95",
           "span_id": "0xc33819ae95508342",
@@ -186,7 +186,7 @@
       }
   },
   {
-      "name": "botocore.client.ClientCreator.create_client",
+      "name": "botocore.client.BedrockDataAutomationRuntime",
       "context": {
           "trace_id": "0xaa54eb68ba3d88c0c4da161679542416",
           "span_id": "0x8fcb442172b0235a",

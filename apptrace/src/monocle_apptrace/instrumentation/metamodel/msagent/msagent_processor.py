@@ -64,26 +64,6 @@ class MSAgentRequestHandler(SpanHandler):
         
         return context_token, None
 
-    def post_tracing(self, to_wrap, wrapped, instance, args, kwargs, result, token):
-        """Called after turn execution to clean up context and session scope."""
-        # Clean up context token
-        if token is not None:
-            detach(token)
-        # Clean up session token if we set it
-        if hasattr(self, '_session_token') and self._session_token is not None:
-            from monocle_apptrace.instrumentation.common.utils import remove_scope
-            remove_scope(self._session_token)
-            self._session_token = None
-
-    def post_task_processing(self, to_wrap, wrapped, instance, args, kwargs, result, ex, span, parent_span):
-        """Propagate agent name and invocation ID to parent span."""
-        propogate_agent_name_to_parent_span(span, parent_span)
-        return super().post_task_processing(to_wrap, wrapped, instance, args, kwargs, result, ex, span, parent_span)
-
-    def hydrate_span(self, to_wrap, wrapped, instance, args, kwargs, result, span, parent_span=None, ex: Exception = None, is_post_exec: bool = False) -> bool:
-        """Hydrate span with request-specific attributes."""
-        return super().hydrate_span(to_wrap, wrapped, instance, args, kwargs, result, span, parent_span, ex, is_post_exec)
-
 class MSAgentAgentHandler(SpanHandler):
     """Handler for Microsoft Agent Framework agent invocations."""
 

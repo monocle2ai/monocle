@@ -47,6 +47,7 @@ from monocle_apptrace.instrumentation.metamodel.adk.adk_handler import AdkSpanHa
 from monocle_apptrace.instrumentation.metamodel.mistral.methods import MISTRAL_METHODS
 from monocle_apptrace.instrumentation.metamodel.strands.methods import STRAND_METHODS
 from monocle_apptrace.instrumentation.metamodel.strands.strands_processor import StrandsSpanHandler
+from monocle_apptrace.instrumentation.metamodel.agentcore.methods import AGENTCORE_METHODS
 
 class WrapperMethod:
     def __init__(
@@ -123,7 +124,8 @@ DEFAULT_METHODS_LIST = (
     ADK_METHODS +
     MISTRAL_METHODS +
     HUGGING_FACE_METHODS +
-    STRAND_METHODS
+    STRAND_METHODS +
+    AGENTCORE_METHODS
 )
 
 MONOCLE_SPAN_HANDLERS: Dict[str, SpanHandler] = {

@@ -577,4 +577,3 @@ def is_inside_workflow() -> bool:
     except Exception as e:
         logger.debug(f"Error detecting workflow context: {e}")
         return False
-

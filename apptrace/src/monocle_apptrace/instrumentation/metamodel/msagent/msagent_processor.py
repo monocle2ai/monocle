@@ -4,7 +4,7 @@ import logging
 from opentelemetry.context import attach, set_value, detach, get_value
 from monocle_apptrace.instrumentation.common.span_handler import SpanHandler
 from monocle_apptrace.instrumentation.common.constants import AGENT_INVOCATION_SPAN_NAME, AGENT_NAME_KEY, AGENT_SESSION, INFERENCE_AGENT_DELEGATION, INFERENCE_TURN_END, LAST_AGENT_INVOCATION_ID, LAST_AGENT_NAME, SPAN_TYPES, INFERENCE_TOOL_CALL
-
+from monocle_apptrace.instrumentation.common.utils import set_scope
 from opentelemetry.trace import Span
 
 logger = logging.getLogger(__name__)

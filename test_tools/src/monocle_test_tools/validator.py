@@ -20,7 +20,7 @@ from monocle_apptrace.instrumentation.common.instrumentor import MonocleInstrume
 from pydantic import BaseModel, ValidationError
 from monocle_test_tools.gitutils import get_git_context, get_repo_name
 from monocle_test_tools.schema import SpanType, TestSpan, TestCase, Evaluation, EvalInputs, MockTool
-from monocle_test_tools.constants import TEST_SCOPE_NAME, DEFAULT_WORKFLOW_NAME
+from monocle_test_tools.constants import TEST_SCOPE_NAME, DEFAULT_WORKFLOW_NAME, TEST_STATUS_ATTRIBUTE, TEST_ASSERTION_ATTRIBUTE
 from monocle_test_tools.comparer.base_comparer import BaseComparer
 from monocle_test_tools.runner.runner import get_agent_runner
 from monocle_test_tools import trace_utils
@@ -99,7 +99,7 @@ class MonocleValidator:
             self._spans = self.memory_exporter.get_finished_spans()
         return self._spans
 
-    def flush_to_exporters(self, test_name:str, test_failed:bool):
+    def flush_to_exporters(self, test_name:str, test_failed:bool, test_assertion_message:str = None):
         """Flush the current spans and prepare for validation."""
         if self.export_failed_tests_only and not test_failed:
             return
@@ -107,9 +107,11 @@ class MonocleValidator:
         for exporter in self.exporters:
             for span in self.memory_exporter.get_finished_spans():
                 if test_failed:
-                    span._attributes["test.status"] = "failed"
+                    span._attributes[TEST_STATUS_ATTRIBUTE] = "failed"
+                    if test_assertion_message is not None:
+                        span._attributes[TEST_ASSERTION_ATTRIBUTE] = test_assertion_message
                 else:
-                    span._attributes["test.status"] = "passed"
+                    span._attributes[TEST_STATUS_ATTRIBUTE] = "passed"
                 exporter.export([span])
             if hasattr(exporter, "force_flush"):
                 exporter.force_flush()
@@ -127,9 +129,10 @@ class MonocleValidator:
         token = start_scopes(all_scopes, context)
         return token
 
-    def post_test_cleanup(self, token:object, test_name:str, test_failed:bool):
+    def post_test_cleanup(self, token:object, test_name:str, test_failed:bool,
+                        test_assertion_message:str = None) -> None:
         try:
-            self.flush_to_exporters(test_name, test_failed)
+            self.flush_to_exporters(test_name, test_failed, test_assertion_message)
         finally:
             self.cleanup()
             if token is not None:

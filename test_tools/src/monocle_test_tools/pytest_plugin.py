@@ -23,7 +23,13 @@ def monocle_trace_asserter(request:pytest.FixtureRequest):
     try:
         result = yield traceAssertion
     finally:
-        traceAssertion.validator.post_test_cleanup(token, request.node.name, _is_test_failed(request))
+        is_test_failed = _is_test_failed(request)
+        if is_test_failed:
+            assertion_messages = traceAssertion.get_assertion_messages()
+        else:
+            assertion_messages = None
+        traceAssertion.validator.post_test_cleanup(token, request.node.name, is_test_failed,
+                                    assertion_messages)
 
 @pytest.hookimpl(tryfirst=True, hookwrapper=True)
 def pytest_runtest_makereport(item, call):

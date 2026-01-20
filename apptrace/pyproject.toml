@@ -10,7 +10,7 @@ commands = [
 
 [project]
 name = "monocle_apptrace"
-version = "0.7.0"
+version = "0.7.2"
 authors = [
   { name="Okahu Inc.", email="okahu-pypi@okahu.ai" },
 ]

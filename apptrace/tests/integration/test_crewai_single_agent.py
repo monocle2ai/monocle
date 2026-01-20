@@ -109,7 +109,7 @@ def test_crewai_simple(setup):
 
 def verify_spans(custom_exporter):
     time.sleep(2)
-    found_inference = found_agent = found_tool = found_tool_call = False
+    found_inference = found_agent = found_tool = False
     spans = custom_exporter.get_captured_spans()
     for span in spans:
         span_attributes = span.attributes
@@ -131,8 +131,8 @@ def verify_spans(custom_exporter):
             assert "prompt_tokens" in span_metadata.attributes
             assert "total_tokens" in span_metadata.attributes
             assert "finish_reason" in span_metadata.attributes
-            if span_metadata.attributes["finish_reason"] == "tool_calls":
-                found_tool_call =True
+            # Note: CrewAI 1.8.1 uses ReAct-style tool calling with finish_reason="stop"
+            # rather than native function calling with finish_reason="tool_calls"
             found_inference = True
 
         if (
@@ -158,7 +158,6 @@ def verify_spans(custom_exporter):
     assert found_inference, "Inference span not found"
     assert found_agent, "Agent span not found"
     assert found_tool, "Tool span not found"
-    assert found_tool_call, "Tool call finish reason not found"
 
 
 if __name__ == "__main__":

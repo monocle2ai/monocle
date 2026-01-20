@@ -1,0 +1,283 @@
+[
+  {
+      "name": "botocore.client.BedrockAgentRuntime",
+      "context": {
+          "trace_id": "0xbee7cfdecd668ca47434139cf2c70970",
+          "span_id": "0x14edc25dcfedeb3f",
+          "trace_state": "[]"
+      },
+      "kind": "SpanKind.INTERNAL",
+      "parent_id": "0xa12d5796e6d500a6",
+      "start_time": "2026-01-15T04:16:55.195539Z",
+      "end_time": "2026-01-15T04:17:01.428651Z",
+      "status": {
+          "status_code": "OK"
+      },
+      "attributes": {
+          "monocle_apptrace.version": "0.7.1",
+          "monocle_apptrace.language": "python",
+          "span_source": "",
+          "workflow.name": "boto_coverage_api",
+          "entity.1.type": "retrieval.aws_bedrock",
+          "entity.1.endpoint": "https://bedrock-agent-runtime.us-east-1.amazonaws.com",
+          "entity.2.name": "knowledgebase",
+          "entity.2.type": "vectorstore.knowledgebase",
+          "span.type": "retrieval",
+          "entity.count": 2
+      },
+      "events": [
+          {
+              "name": "data.input",
+              "timestamp": "2026-01-15T04:16:55.195539Z",
+              "attributes": {
+                  "input": [
+                      "\"What is Summary of Chapter1\""
+                  ]
+              }
+          },
+          {
+              "name": "data.output",
+              "timestamp": "2026-01-15T04:17:01.428651Z",
+              "attributes": {
+                  "response": "{\"assistant\": \"Chapter 1, titled \\\"The Discovery,\\\" follows Liam Carter and Elena Rodriguez as they explore an ancient ruin in the mountains of Peru. After following cryptic clues that led them to this remote location, they enter the ruins which contain walls decorated with intricate carvings depicting gods, battles, and celestial events. In the heart of the ruins, they discover a large chamber containing an ancient pedestal with a mysterious ornate box covered in unrecognizable symbols. When Liam touches the box, he notices it feels warm, almost alive. Elena observes that the symbols on the box don't match any known language.\"}"
+              }
+          }
+      ],
+      "links": [],
+      "resource": {
+          "attributes": {
+              "service.name": "boto_coverage_api"
+          },
+          "schema_url": ""
+      }
+  },
+  {
+      "name": "workflow",
+      "context": {
+          "trace_id": "0xbee7cfdecd668ca47434139cf2c70970",
+          "span_id": "0xa12d5796e6d500a6",
+          "trace_state": "[]"
+      },
+      "kind": "SpanKind.INTERNAL",
+      "parent_id": null,
+      "start_time": "2026-01-15T04:16:55.195539Z",
+      "end_time": "2026-01-15T04:17:01.429660Z",
+      "status": {
+          "status_code": "OK"
+      },
+      "attributes": {
+          "monocle_apptrace.version": "0.7.1",
+          "monocle_apptrace.language": "python",
+          "span_source": "",
+          "workflow.name": "boto_coverage_api",
+          "span.type": "workflow",
+          "entity.1.name": "boto_coverage_api",
+          "entity.1.type": "workflow.generic",
+          "entity.2.type": "app_hosting.generic",
+          "entity.2.name": "generic"
+      },
+      "events": [],
+      "links": [],
+      "resource": {
+          "attributes": {
+              "service.name": "boto_coverage_api"
+          },
+          "schema_url": ""
+      }
+  },
+  {
+      "name": "botocore.client.BedrockRuntime",
+      "context": {
+          "trace_id": "0x750e3af3d73345b035e6e2a3d10b6d95",
+          "span_id": "0xc33819ae95508342",
+          "trace_state": "[]"
+      },
+      "kind": "SpanKind.INTERNAL",
+      "parent_id": "0x38f50fc628989c60",
+      "start_time": "2026-01-15T04:17:01.513737Z",
+      "end_time": "2026-01-15T04:17:03.321159Z",
+      "status": {
+          "status_code": "OK"
+      },
+      "attributes": {
+          "monocle_apptrace.version": "0.7.1",
+          "monocle_apptrace.language": "python",
+          "span_source": "",
+          "workflow.name": "boto_coverage_api",
+          "entity.1.type": "inference.aws_bedrock",
+          "entity.1.inference_endpoint": "https://bedrock-runtime.eu-north-1.amazonaws.com",
+          "entity.1.provider_name": "bedrock-runtime.eu-north-1.amazonaws.com",
+          "entity.2.name": "eu.mistral.pixtral-large-2502-v1:0",
+          "entity.2.type": "model.llm.eu.mistral.pixtral-large-2502-v1:0",
+          "span.type": "inference",
+          "entity.count": 2,
+          "span.subtype": "turn_end"
+      },
+      "events": [
+          {
+              "name": "data.input",
+              "timestamp": "2026-01-15T04:17:01.514747Z",
+              "attributes": {
+                  "input": [
+                      "{\"user\": [{\"type\": \"text\", \"text\": \"What is the capital city of Italy?\"}]}"
+                  ]
+              }
+          },
+          {
+              "name": "data.output",
+              "timestamp": "2026-01-15T04:17:03.321159Z",
+              "attributes": {
+                  "response": "{\"assistant\": \"The capital city of Italy is Rome (in Italian, \\\"Roma\\\"). Rome is also the country's most populated city and is known for its rich history, including the ancient Roman Empire, the Vatican City, and numerous iconic landmarks like the Colosseum and the Roman Forum.\"}"
+              }
+          },
+          {
+              "name": "metadata",
+              "timestamp": "2026-01-15T04:17:03.321159Z",
+              "attributes": {
+                  "completion_tokens": 64,
+                  "prompt_tokens": 11,
+                  "total_tokens": 75,
+                  "finish_reason": "end_turn",
+                  "finish_type": "success"
+              }
+          }
+      ],
+      "links": [],
+      "resource": {
+          "attributes": {
+              "service.name": "boto_coverage_api"
+          },
+          "schema_url": ""
+      }
+  },
+  {
+      "name": "workflow",
+      "context": {
+          "trace_id": "0x750e3af3d73345b035e6e2a3d10b6d95",
+          "span_id": "0x38f50fc628989c60",
+          "trace_state": "[]"
+      },
+      "kind": "SpanKind.INTERNAL",
+      "parent_id": null,
+      "start_time": "2026-01-15T04:17:01.513737Z",
+      "end_time": "2026-01-15T04:17:03.321159Z",
+      "status": {
+          "status_code": "OK"
+      },
+      "attributes": {
+          "monocle_apptrace.version": "0.7.1",
+          "monocle_apptrace.language": "python",
+          "span_source": "",
+          "workflow.name": "boto_coverage_api",
+          "span.type": "workflow",
+          "entity.1.name": "boto_coverage_api",
+          "entity.1.type": "workflow.generic",
+          "entity.2.type": "app_hosting.generic",
+          "entity.2.name": "generic",
+          "last.inference": "0xc33819ae95508342:*"
+      },
+      "events": [],
+      "links": [],
+      "resource": {
+          "attributes": {
+              "service.name": "boto_coverage_api"
+          },
+          "schema_url": ""
+      }
+  },
+  {
+      "name": "botocore.client.BedrockDataAutomationRuntime",
+      "context": {
+          "trace_id": "0xaa54eb68ba3d88c0c4da161679542416",
+          "span_id": "0x8fcb442172b0235a",
+          "trace_state": "[]"
+      },
+      "kind": "SpanKind.INTERNAL",
+      "parent_id": "0xde843148d5b50458",
+      "start_time": "2026-01-15T04:17:03.386879Z",
+      "end_time": "2026-01-15T04:17:05.096354Z",
+      "status": {
+          "status_code": "OK"
+      },
+      "attributes": {
+          "monocle_apptrace.version": "0.7.1",
+          "monocle_apptrace.language": "python",
+          "span_source": "",
+          "workflow.name": "boto_coverage_api",
+          "entity.1.type": "inference.aws_bedrock",
+          "entity.1.inference_endpoint": "https://bedrock-data-automation-runtime.us-east-1.amazonaws.com",
+          "entity.1.provider_name": "bedrock-data-automation-runtime.us-east-1.amazonaws.com",
+          "span.type": "inference",
+          "entity.count": 1,
+          "span.subtype": "turn_end"
+      },
+      "events": [
+          {
+              "name": "data.input",
+              "timestamp": "2026-01-15T04:17:03.386879Z",
+              "attributes": {
+                  "input": [
+                      "{\"data_automation_input\": {\"s3_input\": \"s3://sachin-data-automation-input/chapter-1.docx\", \"s3_output\": \"s3://test-sachin1/output/\", \"project_arn\": \"arn:aws:bedrock:us-east-1:390041016107:data-automation-project/a224fa4c6f26\", \"stage\": \"LIVE\"}}"
+                  ]
+              }
+          },
+          {
+              "name": "data.output",
+              "timestamp": "2026-01-15T04:17:05.095850Z",
+              "attributes": {
+                  "response": "{\"data_automation_response\": {\"invocation_arn\": \"arn:aws:bedrock:us-east-1:390041016107:data-automation-invocation/5696b28f-8fd0-424e-8f97-963217ea541c\"}}"
+              }
+          },
+          {
+              "name": "metadata",
+              "timestamp": "2026-01-15T04:17:05.096354Z",
+              "attributes": {
+                  "finish_reason": "end_turn",
+                  "finish_type": "success"
+              }
+          }
+      ],
+      "links": [],
+      "resource": {
+          "attributes": {
+              "service.name": "boto_coverage_api"
+          },
+          "schema_url": ""
+      }
+  },
+  {
+      "name": "workflow",
+      "context": {
+          "trace_id": "0xaa54eb68ba3d88c0c4da161679542416",
+          "span_id": "0xde843148d5b50458",
+          "trace_state": "[]"
+      },
+      "kind": "SpanKind.INTERNAL",
+      "parent_id": null,
+      "start_time": "2026-01-15T04:17:03.386879Z",
+      "end_time": "2026-01-15T04:17:05.096354Z",
+      "status": {
+          "status_code": "OK"
+      },
+      "attributes": {
+          "monocle_apptrace.version": "0.7.1",
+          "monocle_apptrace.language": "python",
+          "span_source": "",
+          "workflow.name": "boto_coverage_api",
+          "span.type": "workflow",
+          "entity.1.name": "boto_coverage_api",
+          "entity.1.type": "workflow.generic",
+          "entity.2.type": "app_hosting.generic",
+          "entity.2.name": "generic",
+          "last.inference": "0x8fcb442172b0235a:*"
+      },
+      "events": [],
+      "links": [],
+      "resource": {
+          "attributes": {
+              "service.name": "boto_coverage_api"
+          },
+          "schema_url": ""
+      }
+  }
+]

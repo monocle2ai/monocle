@@ -286,11 +286,21 @@ class TraceAssertion():
                                                             comparer, eval, positive_test, tool_name, agent_name)
         if positive_test == True:
             self._filtered_spans = filtered_spans
-        TraceAssertion._assert_on_spans(filtered_spans, "No matching operation found with given input/output criteria.", positive_test)
+
+        TraceAssertion._assert_on_spans(filtered_spans, "No matching operation found", positive_test, expected_inputs, expected_outputs)
 
     @staticmethod
-    def _assert_on_spans(spans:list[Span], assertion_message:str, positive_test:bool = True) -> None:
+    def _assert_on_spans(spans:list[Span], assertion_message:str, positive_test:bool = True,
+                    expected_inputs:Optional[list[str]] = None, expected_outputs:Optional[list[str]] = None) -> None:
         if positive_test == True and (not spans or len(spans) == 0):
+            if expected_inputs:
+                assertion_message += f" with expected inputs: {expected_inputs}."
+            if expected_outputs:
+                assertion_message += f" with expected outputs: {expected_outputs}."
             raise AssertionError(assertion_message)
         if positive_test == False and spans and len(spans) > 0:
+            if expected_inputs:
+                assertion_message += f" with unexpected inputs: {expected_inputs}."
+            if expected_outputs:
+                assertion_message += f" with unexpected outputs: {expected_outputs}."
             raise AssertionError(assertion_message)

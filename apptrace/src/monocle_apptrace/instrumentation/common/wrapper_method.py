@@ -18,6 +18,8 @@ from monocle_apptrace.instrumentation.metamodel.langgraph.methods import LANGGRA
 from monocle_apptrace.instrumentation.metamodel.langgraph.langgraph_processor import LanggraphAgentHandler, LanggraphToolHandler
 from monocle_apptrace.instrumentation.metamodel.crew_ai.methods import CREW_AI_METHODS
 from monocle_apptrace.instrumentation.metamodel.crew_ai.crew_ai_processor import CrewAIAgentHandler, CrewAITaskHandler, CrewAIToolHandler
+from monocle_apptrace.instrumentation.metamodel.msagent.methods import MSAGENT_METHODS
+from monocle_apptrace.instrumentation.metamodel.msagent.msagent_processor import MSAgentRequestHandler, MSAgentAgentHandler, MSAgentToolHandler
 from monocle_apptrace.instrumentation.metamodel.agents.methods import AGENTS_METHODS
 from monocle_apptrace.instrumentation.metamodel.agents.agents_processor import AgentsSpanHandler
 from monocle_apptrace.instrumentation.metamodel.flask.methods import (FLASK_METHODS, )
@@ -45,6 +47,7 @@ from monocle_apptrace.instrumentation.metamodel.adk.adk_handler import AdkSpanHa
 from monocle_apptrace.instrumentation.metamodel.mistral.methods import MISTRAL_METHODS
 from monocle_apptrace.instrumentation.metamodel.strands.methods import STRAND_METHODS
 from monocle_apptrace.instrumentation.metamodel.strands.strands_processor import StrandsSpanHandler
+from monocle_apptrace.instrumentation.metamodel.agentcore.methods import AGENTCORE_METHODS
 
 class WrapperMethod:
     def __init__(
@@ -103,6 +106,7 @@ DEFAULT_METHODS_LIST = (
     REQUESTS_METHODS + 
     LANGGRAPH_METHODS + 
     CREW_AI_METHODS +
+    MSAGENT_METHODS +
     AGENTS_METHODS +
     OPENAI_METHODS + 
     TEAMAI_METHODS +
@@ -120,7 +124,8 @@ DEFAULT_METHODS_LIST = (
     ADK_METHODS +
     MISTRAL_METHODS +
     HUGGING_FACE_METHODS +
-    STRAND_METHODS
+    STRAND_METHODS +
+    AGENTCORE_METHODS
 )
 
 MONOCLE_SPAN_HANDLERS: Dict[str, SpanHandler] = {
@@ -142,6 +147,9 @@ MONOCLE_SPAN_HANDLERS: Dict[str, SpanHandler] = {
     "crew_ai_agent_handler": CrewAIAgentHandler(),
     "crew_ai_task_handler": CrewAITaskHandler(),
     "crew_ai_tool_handler": CrewAIToolHandler(),
+    "msagent_request_handler": MSAgentRequestHandler(),
+    "msagent_agent_handler": MSAgentAgentHandler(),
+    "msagent_tool_handler": MSAgentToolHandler(),
     "agents_agent_handler": AgentsSpanHandler(),
     "llamaindex_tool_handler": LlamaIndexToolHandler(),
     "llamaindex_agent_handler": LlamaIndexAgentHandler(),

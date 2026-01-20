@@ -10,7 +10,7 @@ AWS_LAMBDA_FUNCTION_IDENTIFIER_ENV_NAME = "AWS_LAMBDA_FUNCTION_NAME"
 AZURE_FUNCTION_IDENTIFIER_ENV_NAME = "WEBSITE_SITE_NAME"
 AZURE_APP_SERVICE_IDENTIFIER_ENV_NAME = "WEBSITE_DEPLOYMENT_ID"
 GITHUB_CODESPACE_IDENTIFIER_ENV_NAME = "GITHUB_REPOSITORY"
-
+AGENTCORE_ENV_NAME = "AGENTCORE_RUNTIME_URL"
 
 # Azure naming reference can be found here
 # https://learn.microsoft.com/en-us/azure/cloud-adoption-framework/ready/azure-best-practices/resource-abbreviations
@@ -20,6 +20,7 @@ AZURE_APP_SERVICE_NAME = "azure_webapp"
 AZURE_ML_SERVICE_NAME = "azure_ml"
 AWS_LAMBDA_SERVICE_NAME = "aws_lambda"
 GITHUB_CODESPACE_SERVICE_NAME = "github_codespace"
+AWS_AGENTCORE_SERVICE_NAME = "aws_agentcore"
 
 # Env variables to identify infra service type
 service_type_map = {
@@ -28,6 +29,7 @@ service_type_map = {
     AZURE_FUNCTION_WORKER_ENV_NAME: AZURE_FUNCTION_NAME,
     AWS_LAMBDA_ENV_NAME: AWS_LAMBDA_SERVICE_NAME,
     GITHUB_CODESPACE_ENV_NAME: GITHUB_CODESPACE_SERVICE_NAME,
+    AGENTCORE_ENV_NAME: AWS_AGENTCORE_SERVICE_NAME
 }
 
 # Env variables to identify infra service name
@@ -37,6 +39,7 @@ service_name_map = {
     AZURE_ML_SERVICE_NAME: AZURE_ML_ENDPOINT_ENV_NAME,
     AWS_LAMBDA_SERVICE_NAME: AWS_LAMBDA_FUNCTION_IDENTIFIER_ENV_NAME,
     GITHUB_CODESPACE_SERVICE_NAME: GITHUB_CODESPACE_IDENTIFIER_ENV_NAME,
+    AWS_AGENTCORE_SERVICE_NAME: AGENTCORE_ENV_NAME
 }
 
 
@@ -64,6 +67,7 @@ llm_type_map = {
     "chatgooglegenerativeai": "gemini",
     "azurechatcompletion": "azure_openai",
     "openaichatcompletion": "openai",
+    "runtimeforbedrockdataautomation": "aws_bedrock"
 }
 
 MONOCLE_INSTRUMENTOR = "monocle_apptrace"
@@ -202,6 +206,8 @@ class SPAN_SUBTYPES:
 
     # uncategorized / generic
     GENERIC = SPAN_SUBTYPE_GENERIC
+
+    ASGI = "asgi"
 
 
 MAP_ATTRIBUTES_TO_SPAN_SUBTYPE = {

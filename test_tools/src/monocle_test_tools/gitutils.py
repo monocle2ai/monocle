@@ -16,7 +16,18 @@ def get_commit_hash() -> str:
 
 def get_git_run_id() -> str:
     """Get the current git run ID (GitHub Actions run ID) or current timestamp for local runs."""
-    return os.getenv("GITHUB_RUN_ID", datetime.now().isoformat())
+    github_run_id = os.getenv("GITHUB_RUN_ID")
+    if github_run_id:
+        return github_run_id
+    
+    local_run_id = os.getenv("LOCAL_RUN_ID")
+    if local_run_id:
+        return local_run_id
+    
+    # Fallback: set LOCAL_RUN_ID for subsequent calls in the same process
+    run_id = datetime.now(timezone.utc).isoformat()
+    os.environ["LOCAL_RUN_ID"] = run_id
+    return run_id
 
 def get_git_workflow_name() -> str:
     """Get the current git workflow name (GitHub Actions workflow)."""

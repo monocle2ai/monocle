@@ -202,34 +202,3 @@ class MSAgentToolHandler(SpanHandler):
         """Hydrate span with tool-specific attributes."""
         return super().hydrate_span(to_wrap, wrapped, instance, args, kwargs, result, span, parent_span, ex, is_post_exec)
 
-class MSAgentInferenceHandler(SpanHandler):
-    """Handler for OpenAI inference spans in Microsoft Agent Framework context.
-    
-    This handler modifies inference span subtypes for MS Agent Framework:
-    - Handoffs (delegations like 'handoff_to_*') should show as 'turn_end' 
-      because no actual tool is invoked - the agent just transfers control.
-    - Actual tool calls (book_flight, book_hotel, etc.) should stay as 'tool_call'
-      because they invoke real tools with agentic.tool.invocation spans.
-    """
-
-    def hydrate_span(self, to_wrap, wrapped, instance, args, kwargs, result, span, parent_span=None, ex: Exception = None, is_post_exec: bool = False) -> bool:
-        """Override inference span subtype for handoff scenarios."""
-        # Only process in post-execution phase when span is complete
-        if not is_post_exec or span is None:
-            return super().hydrate_span(to_wrap, wrapped, instance, args, kwargs, result, span, parent_span, ex, is_post_exec)
-        
-        # Check if this is an inference span with agent delegation subtype
-        span_type = span.attributes.get("span.type")
-        span_subtype = span.attributes.get("span.subtype")
-        tool_name = span.attributes.get("entity.3.name", "")
-        
-        if span_type == SPAN_TYPES.INFERENCE and span_subtype == INFERENCE_AGENT_DELEGATION:
-            # Check if this is a handoff (starts with 'handoff_to') or an actual tool call
-            if tool_name and tool_name.startswith("handoff_to"):
-                # This is a handoff - no actual tool invocation, just control transfer
-                span.set_attribute("span.subtype", INFERENCE_TURN_END)
-            else:
-                # This is an actual tool call - should stay as tool_call, not agent_delegation
-                span.set_attribute("span.subtype", INFERENCE_TOOL_CALL)
-        
-        return super().hydrate_span(to_wrap, wrapped, instance, args, kwargs, result, span, parent_span, ex, is_post_exec)

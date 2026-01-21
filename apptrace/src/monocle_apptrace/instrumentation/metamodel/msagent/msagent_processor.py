@@ -28,8 +28,25 @@ def propogate_agent_name_to_parent_span(span: Span, parent_span: Span):
 
 class MSAgentRequestHandler(SpanHandler):
     """Handler for Microsoft Agent Framework turn-level requests (agentic.request)."""
+    
+    def skip_span(self, to_wrap, wrapped, instance, args, kwargs):
+        """Skip ChatAgent.run span when it's the 2nd+ turn span (inside workflow/multi-agent)."""
+        from monocle_apptrace.instrumentation.common.utils import is_scope_set
+        
+        # Skip if turn scope is already set - means we're the 2nd+ span
+        # The first span (workflow or first agent) already created the turn
+        if is_scope_set("agentic.turn"):
+            logger.debug(f"Skipping ChatAgent.run span - turn scope already set (inside workflow/multi-agent)")
+            return True
+        return False
+    
     def pre_tracing(self, to_wrap, wrapped, instance, args, kwargs):
         """Called before turn execution to extract and store agent information in context."""
+        from monocle_apptrace.instrumentation.metamodel.msagent._helper import uses_chat_client, is_inside_workflow
+        from monocle_apptrace.instrumentation.metamodel.msagent.entities.inference import AGENT, AGENT_REQUEST
+        from monocle_apptrace.instrumentation.common.utils import is_scope_set
+        from monocle_apptrace.instrumentation.common.scope_wrapper import start_scope
+        
         # Store agent information in context for child spans to access
         agent_info = {}
         if hasattr(instance, "name"):
@@ -62,14 +79,53 @@ class MSAgentRequestHandler(SpanHandler):
         self._session_token = session_id_token
         self._context_token = context_token
         
-        return context_token, None
+        # Determine processor based on client type and context
+        scope_name = AGENT_REQUEST.get("type")
+        alternate_to_wrap = None
+        
+        if uses_chat_client(instance):
+            # ChatClient: use recursive processor list to create turn + invocation
+            logger.debug(f"ChatClient: setting output_processor_list=[AGENT_REQUEST, AGENT]")
+            alternate_to_wrap = to_wrap.copy()
+            alternate_to_wrap["output_processor_list"] = [AGENT_REQUEST, AGENT]
+            # Clear output_processor if it exists to avoid confusion
+            if "output_processor" in alternate_to_wrap:
+                del alternate_to_wrap["output_processor"]
+        else:
+            # AssistantsClient: ChatAgent.run creates turn only, AssistantsClient methods create invocation
+            if not is_scope_set(scope_name):
+                # Create turn scope, AssistantsClient will create invocation later
+                logger.debug(f"AssistantsClient: setting output_processor=AGENT_REQUEST")
+                alternate_to_wrap = to_wrap.copy()
+                alternate_to_wrap["output_processor"] = AGENT_REQUEST
+        
+        return context_token, alternate_to_wrap
 
 class MSAgentAgentHandler(SpanHandler):
     """Handler for Microsoft Agent Framework agent invocations."""
-
+    
+    def skip_span(self, to_wrap, wrapped, instance, args, kwargs):
+        """Skip get_response/get_streaming_response for ChatClient only in standalone mode."""
+        from monocle_apptrace.instrumentation.common.utils import is_scope_set
+        
+        client_class = instance.__class__.__name__
+        # For ChatClient: skip only in standalone mode (when no turn scope exists yet)
+        # In workflow/multi-agent: turn scope exists, so get_response creates invocation
+        if client_class == "AzureOpenAIChatClient":
+            if is_scope_set("agentic.turn"):
+                # Turn scope exists - we're in workflow/multi-agent, don't skip
+                logger.debug(f"Not skipping get_response - turn scope exists (workflow), create invocation span")
+                return False
+            else:
+                # No turn scope - standalone mode where ChatAgent.run creates both via processor_list
+                logger.debug(f"Skipping get_response - standalone mode, ChatAgent.run creates via processor_list")
+                return True
+        # Don't skip for AssistantsClient - this is where invocation span is created
+        return False
+    
     def pre_tracing(self, to_wrap, wrapped, instance, args, kwargs):
-        """Called before agent execution to set agent name in context."""
-        # Set agent name in context for propagation to parent span
+        """Set agent name in context."""
+        # Set agent name in context for propagation
         agent_name = None
         if hasattr(instance, "name"):
             agent_name = instance.name
@@ -80,6 +136,36 @@ class MSAgentAgentHandler(SpanHandler):
             token = attach(context)
             return token, None
         return None, None
+
+    def pre_tracing(self, to_wrap, wrapped, instance, args, kwargs):
+        """Set agent name and skip if appropriate."""
+        from monocle_apptrace.instrumentation.common.utils import is_scope_set
+        
+        # For ChatClient: only create span if we're in recursive output_processor_list flow
+        # This happens when ChatAgent.run uses output_processor_list=[AGENT_REQUEST, AGENT]
+        # The second recursive call needs get_response to create the invocation span
+        client_class = instance.__class__.__name__
+        if client_class == "AzureOpenAIChatClient":
+            # Skip only if invocation scope already exists (would be duplicate)
+            if is_scope_set("agentic.invocation"):
+                return None, None  # Skip span creation
+        
+        # Set agent name in context for propagation
+        agent_name = None
+        if hasattr(instance, "name"):
+            agent_name = instance.name
+        elif hasattr(instance, "_name"):
+            agent_name = instance._name
+        if agent_name:
+            context = set_value(AGENT_NAME_KEY, agent_name)
+            token = attach(context)
+            return token, None
+        return None, None
+
+    def skip_span(self, to_wrap, wrapped, instance, args, kwargs):
+        """Check if span should be skipped based on pre_tracing result."""
+        # If pre_tracing returned (None, None), skip the span
+        return False  # Let pre_tracing handle the skip logic
 
     def post_tracing(self, to_wrap, wrapped, instance, args, kwargs, result, token):
         """Called after agent execution to clean up context."""

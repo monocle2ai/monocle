@@ -546,3 +546,35 @@ def extract_chat_client_response(result: Any, span: Any = None) -> str:
     except Exception as e:
         logger.warning(f"Error extracting chat client response: {e}")
         return ""
+
+
+def uses_chat_client(instance: Any) -> bool:
+    """Check if ChatAgent instance uses AzureOpenAIChatClient.
+    
+    Returns True if the agent uses AzureOpenAIChatClient,
+    False if it uses AzureOpenAIAssistantsClient or unknown.
+    """
+    try:
+        if hasattr(instance, "_client"):
+            client_class = instance._client.__class__.__name__
+            return client_class == "AzureOpenAIChatClient"
+        return False
+    except Exception as e:
+        logger.debug(f"Error detecting client type: {e}")
+        return False
+
+
+def is_inside_workflow() -> bool:
+    """Check if current execution is inside a Workflow context.
+    
+    Returns True if running within a Workflow.run, False otherwise.
+    This is detected by checking if the agentic.turn scope is already set.
+    """
+    try:
+        from monocle_apptrace.instrumentation.common.utils import is_scope_set
+        # Workflow.run sets agentic.turn scope, so check for that
+        return is_scope_set("agentic.turn")
+    except Exception as e:
+        logger.debug(f"Error detecting workflow context: {e}")
+        return False
+

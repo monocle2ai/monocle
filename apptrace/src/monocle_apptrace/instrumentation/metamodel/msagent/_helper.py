@@ -70,6 +70,33 @@ def get_agent_instructions(instance: Any) -> str:
         return ""
 
 
+def extract_thread_id(kwargs: Dict[str, Any]) -> str:
+    """
+    Extract thread/session ID from kwargs.
+    Microsoft Agent Framework passes thread object in kwargs['thread'].
+    
+    Returns:
+        Thread ID string or None if not found
+    """
+    try:
+        thread = kwargs.get("thread")
+        if thread is None:
+            return None
+        
+        # Try various attributes for thread ID
+        if hasattr(thread, "service_thread_id"):
+            return str(thread.service_thread_id) if thread.service_thread_id else None
+        elif hasattr(thread, "id"):
+            return str(thread.id)
+        elif hasattr(thread, "thread_id"):
+            return str(thread.thread_id)
+        
+        return None
+    except Exception as e:
+        logger.warning(f"Error extracting thread ID: {e}")
+        return None
+
+
 def get_tool_name(instance: Any) -> str:
     """Get the name of the tool."""
     try:

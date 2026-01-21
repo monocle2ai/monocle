@@ -97,7 +97,7 @@ dev = [
   'mistral-haystack==0.0.2',
   'langchain-aws==0.2.23',
   'azure-storage-blob==12.22.0', # this is for blob exporter
-  'boto3==1.39.0', # this is for aws exporter
+  'boto3==1.40.52', # this is for aws exporter
   'llama-index-vector-stores-opensearch==0.6.0',
   'haystack-ai==2.21.0',
   'llama-index-llms-azure-openai==0.4.0',
@@ -133,7 +133,8 @@ dev = [
   'litellm==1.77.5',
   'google-ai-haystack',
   'crewai==0.95.0',
-  'fastmcp==2.14.1'
+  'fastmcp==2.14.1',
+  'bedrock-agentcore==1.2.0'
 ]
 
 dev_tranformers = [

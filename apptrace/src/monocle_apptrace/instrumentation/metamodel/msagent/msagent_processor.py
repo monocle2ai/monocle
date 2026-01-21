@@ -3,7 +3,8 @@
 import logging
 from opentelemetry.context import attach, set_value, detach, get_value
 from monocle_apptrace.instrumentation.common.span_handler import SpanHandler
-from monocle_apptrace.instrumentation.common.constants import AGENT_INVOCATION_SPAN_NAME, AGENT_NAME_KEY, INFERENCE_AGENT_DELEGATION, INFERENCE_TURN_END, LAST_AGENT_INVOCATION_ID, LAST_AGENT_NAME, SPAN_TYPES, INFERENCE_TOOL_CALL
+from monocle_apptrace.instrumentation.common.constants import AGENT_INVOCATION_SPAN_NAME, AGENT_NAME_KEY, AGENT_SESSION, INFERENCE_AGENT_DELEGATION, INFERENCE_TURN_END, LAST_AGENT_INVOCATION_ID, LAST_AGENT_NAME, SPAN_TYPES, INFERENCE_TOOL_CALL
+from monocle_apptrace.instrumentation.common.utils import set_scope
 from opentelemetry.trace import Span
 
 logger = logging.getLogger(__name__)
@@ -35,12 +36,33 @@ class MSAgentRequestHandler(SpanHandler):
             agent_info["name"] = instance.name
         if hasattr(instance, "instructions"):
             agent_info["instructions"] = instance.instructions
-        if agent_info:
-            # Attach the context so it's available to child spans
-            token = attach(set_value(MSAGENT_CONTEXT_KEY, agent_info))
-            return token, None
         
-        return None, None
+        # Extract thread/session ID and set scope
+        session_id_token = None
+        thread = kwargs.get("thread")
+        if thread is not None:
+            # Extract thread ID from thread object
+            thread_id = None
+            if hasattr(thread, "service_thread_id"):
+                thread_id = thread.service_thread_id
+            elif hasattr(thread, "id"):
+                thread_id = thread.id
+            elif hasattr(thread, "thread_id"):
+                thread_id = thread.thread_id
+            
+            if thread_id:
+                session_id_token = set_scope(AGENT_SESSION, thread_id)
+        
+        # Attach agent info context
+        context_token = None
+        if agent_info:
+            context_token = attach(set_value(MSAGENT_CONTEXT_KEY, agent_info))
+        
+        # Store both tokens for cleanup
+        self._session_token = session_id_token
+        self._context_token = context_token
+        
+        return context_token, None
 
 class MSAgentAgentHandler(SpanHandler):
     """Handler for Microsoft Agent Framework agent invocations."""

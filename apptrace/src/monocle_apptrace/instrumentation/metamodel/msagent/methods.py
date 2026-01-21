@@ -66,6 +66,22 @@ MSAGENT_METHODS = [
         # "should_skip": should_skip_chat_client_method,
     },
     {
+        "package": "agent_framework.azure._assistants_client",
+        "object": "AzureOpenAIAssistantsClient",
+        "method": "get_streaming_response",
+        "span_handler": "msagent_agent_handler",
+        "wrapper_method": atask_iter_wrapper,
+        "output_processor": AGENT,
+    },
+    {
+        "package": "agent_framework.azure._assistants_client",
+        "object": "AzureOpenAIAssistantsClient",
+        "method": "get_response",
+        "span_handler": "msagent_agent_handler",
+        "wrapper_method": atask_wrapper,
+        "output_processor": AGENT,
+    },
+    {
         "package": "agent_framework._tools",
         "object": "AIFunction",
         "method": "invoke",

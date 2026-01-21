@@ -15,7 +15,7 @@ from monocle_apptrace.instrumentation.common.constants import (
 )
 from monocle_apptrace.instrumentation.common.utils import set_attribute, get_scopes, MonocleSpanException, get_monocle_version, replace_placeholders, propogate_inference_info_to_parent_span
 from monocle_apptrace.instrumentation.common.constants import \
-    (WORKFLOW_TYPE_KEY, WORKFLOW_TYPE_GENERIC, CHILD_ERROR_CODE, MONOCLE_SKIP_EXECUTIONS, SKIPPED_EXECUTION, MONOCLE_WORKFLOW_NAME_KEY)
+    (WORKFLOW_TYPE_KEY, WORKFLOW_TYPE_GENERIC, CHILD_ERROR_CODE, MONOCLE_SKIP_EXECUTIONS, SKIPPED_EXECUTION, MONOCLE_WORKFLOW_NAME_KEY, MONOCLE_WORKFLOW_NAME_RESOURCE_KEY)
 
 logger = logging.getLogger(__name__)
 
@@ -300,7 +300,18 @@ class SpanHandler:
     @staticmethod
     def get_workflow_name(span: Span) -> str:
         try:
-            return get_value(MONOCLE_WORKFLOW_NAME_KEY) or span.resource.attributes.get(SERVICE_NAME)
+            # Try context first (for backward compatibility)
+            context_value = get_value(MONOCLE_WORKFLOW_NAME_KEY)
+            if context_value:
+                return context_value
+            
+            # Fallback to dedicated resource attribute (works across threads)
+            resource_value = span.resource.attributes.get(MONOCLE_WORKFLOW_NAME_RESOURCE_KEY)
+            if resource_value:
+                return resource_value
+            
+            # Final fallback to service.name (may be overridden by Azure/AWS)
+            return span.resource.attributes.get(SERVICE_NAME)
         except Exception as e:
             logger.exception(f"Error getting workflow name: {e}")
             return None

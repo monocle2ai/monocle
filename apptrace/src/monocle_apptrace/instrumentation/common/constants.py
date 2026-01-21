@@ -1,4 +1,5 @@
 MONOCLE_WORKFLOW_NAME_KEY = "_monocle.workflow_name"
+MONOCLE_WORKFLOW_NAME_RESOURCE_KEY = "monocle.workflow.name"  # Resource attribute for workflow name
 # Azure environment constants
 AZURE_ML_ENDPOINT_ENV_NAME = "AZUREML_ENTRY_SCRIPT"
 AZURE_FUNCTION_WORKER_ENV_NAME = "FUNCTIONS_WORKER_RUNTIME"

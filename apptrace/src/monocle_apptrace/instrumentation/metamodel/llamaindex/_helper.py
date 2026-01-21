@@ -66,7 +66,7 @@ def get_tool_type(span):
     if (span.attributes.get("is_mcp", False)):
         return "tool.mcp"
     else:
-        return "tool.langgraph"
+        return "tool.llamaindex"
     
 def get_tool_name(args, instance):
     if len(args) > 1:

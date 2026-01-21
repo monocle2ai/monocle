@@ -62,6 +62,12 @@ def extract_tools(instance):
                 tools.append(tool_name)
     return tools
 
+def get_tool_type(span):
+    if (span.attributes.get("is_mcp", False)):
+        return "tool.mcp"
+    else:
+        return "tool.llamaindex"
+    
 def get_tool_name(args, instance):
     if len(args) > 1:
         if hasattr(args[1], 'metadata') and hasattr(args[1].metadata, 'name'):

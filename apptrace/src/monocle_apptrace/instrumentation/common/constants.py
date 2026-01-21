@@ -1,5 +1,17 @@
 MONOCLE_WORKFLOW_NAME_KEY = "_monocle.workflow_name"
-MONOCLE_WORKFLOW_NAME_RESOURCE_KEY = "monocle.workflow.name"  # Resource attribute for workflow name
+
+# Global variable to store workflow name (works across threads, set in each process)
+_GLOBAL_WORKFLOW_NAME = None
+
+def set_workflow_name(name: str) -> None:
+    """Set the global workflow name."""
+    global _GLOBAL_WORKFLOW_NAME
+    _GLOBAL_WORKFLOW_NAME = name
+
+def get_global_workflow_name() -> str:
+    """Get the global workflow name."""
+    return _GLOBAL_WORKFLOW_NAME
+
 # Azure environment constants
 AZURE_ML_ENDPOINT_ENV_NAME = "AZUREML_ENTRY_SCRIPT"
 AZURE_FUNCTION_WORKER_ENV_NAME = "FUNCTIONS_WORKER_RUNTIME"

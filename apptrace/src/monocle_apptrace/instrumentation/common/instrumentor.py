@@ -26,7 +26,7 @@ from monocle_apptrace.instrumentation.common.utils import (
     load_scopes,
     setup_readablespan_patch
 )
-from monocle_apptrace.instrumentation.common.constants import MONOCLE_INSTRUMENTOR, MONOCLE_WORKFLOW_NAME_KEY, MONOCLE_WORKFLOW_NAME_RESOURCE_KEY
+from monocle_apptrace.instrumentation.common.constants import MONOCLE_INSTRUMENTOR, MONOCLE_WORKFLOW_NAME_KEY, set_workflow_name
 from functools import wraps
 
 logger = logging.getLogger(__name__)
@@ -220,9 +220,10 @@ def setup_monocle_telemetry(
 
 
     resource = Resource(attributes={
-        SERVICE_NAME: workflow_name,
-        MONOCLE_WORKFLOW_NAME_RESOURCE_KEY: workflow_name  # Store in dedicated attribute that won't be overridden
+        SERVICE_NAME: workflow_name
     })
+    set_workflow_name(workflow_name)
+
     if span_processors and monocle_exporters_list:
         raise ValueError("span_processors and monocle_exporters_list can't be used together")
     exporters:List[SpanExporter] = get_monocle_exporter(monocle_exporters_list)

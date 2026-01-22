@@ -866,7 +866,7 @@ def extract_finish_reason(arguments):
     """Extract finish_reason from response.
     
     Azure OpenAI Assistants API often doesn't populate finish_reason in streaming responses.
-    When finish_reason is not available but the response completed successfully, we return 'stop'.
+    We detect tool calls from the response content and return 'tool_calls' accordingly.
     """
     try:
         if "exception" in arguments and arguments["exception"] is not None:
@@ -876,6 +876,17 @@ def extract_finish_reason(arguments):
         response = arguments.get("result")
         if not response:
             return None
+        
+        # First, check if the response contains tool calls
+        # by examining the message contents
+        if hasattr(response, "messages") and response.messages:
+            messages = response.messages if isinstance(response.messages, list) else [response.messages]
+            for msg in messages:
+                if hasattr(msg, "contents") and msg.contents:
+                    for content in msg.contents:
+                        # FunctionCallContent indicates a tool call
+                        if type(content).__name__ == "FunctionCallContent":
+                            return "tool_calls"
         
         # Handle direct finish_reason attribute (ChatResponse)
         if hasattr(response, "finish_reason"):
@@ -952,7 +963,6 @@ def update_span_from_llm_response(response):
             usage_details_val = response.usage_details
             
             if usage_details_val is not None:
-                
                 # MS Agent Framework uses different attribute names
                 # Try output_token_count, then completion_tokens, then output_tokens
                 completion = getattr(usage_details_val, "output_token_count", None) or getattr(usage_details_val, "completion_tokens", None) or getattr(usage_details_val, "output_tokens", None)

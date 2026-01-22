@@ -1,5 +1,6 @@
 import logging
 from threading import local
+import json
 from monocle_apptrace.instrumentation.common.utils import extract_http_headers, clear_http_scopes, get_exception_status_code, try_option, Option, MonocleSpanException
 from monocle_apptrace.instrumentation.common.span_handler import SpanHandler
 from monocle_apptrace.instrumentation.common.constants import HTTP_SUCCESS_CODES
@@ -18,6 +19,13 @@ def get_method(args) -> str:
     return http_method.unwrap_or("")
 
 def get_params(args) -> dict:
+    if len(args) > 0 and hasattr(args[0], "content") and hasattr(args[0].content, "_buffer"):
+        data = args[0].content._buffer
+        if len(data) > 0:
+            message = json.loads(data[0].decode('utf-8'))
+            # Return the input query/text for params
+            query = message.get('text', '')
+            return query
     params: Option[str] = try_option(getattr, args[0], 'query_string')
     return unquote(params.unwrap_or(""))
 

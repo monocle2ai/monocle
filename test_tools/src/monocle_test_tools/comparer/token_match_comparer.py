@@ -7,4 +7,7 @@ class TokenMatchComparer(BaseComparer):
         if expected is None or actual is None:
             return False
         # Case-insensitive substring match
-        return expected.lower() in actual.lower()
+        # Convert to string if other types
+        expected_str = str(expected) if not isinstance(expected, str) else expected
+        actual_str = str(actual) if not isinstance(actual, str) else actual
+        return expected_str.lower() in actual_str.lower()

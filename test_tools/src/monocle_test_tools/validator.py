@@ -143,13 +143,26 @@ class MonocleValidator:
         test_case_name = request.node.name if request is not None else (test_case.test_case_name if test_case is not None else "monocle_test")
         token = self.pre_test_run_setup(test_case_name, test_case.mock_tools)
         prior_test_failed_count = request.session.testsfailed
+        validation_failed = False
+        validation_error_message = None
         try:
             yield
+        except Exception as e:
+            # Catch any exception from the test function itself (AssertionError, ClientError, etc.)
+            validation_failed = True
+            validation_error_message = str(e)
+            raise
         finally:
             try:
                 self.validate(test_case)
+            except AssertionError as e:
+                # Catch assertion errors from validate()
+                validation_failed = True
+                validation_error_message = str(e)
+                raise
             finally:
-                self.post_test_cleanup(token, request.node.name, request.session.testsfailed > prior_test_failed_count)
+                test_failed = validation_failed or (request.session.testsfailed > prior_test_failed_count)
+                self.post_test_cleanup(token, request.node.name, test_failed, validation_error_message)
                 self._spans = []
                 if token is not None:
                     stop_scope(token)

@@ -6,4 +6,5 @@ class TokenMatchComparer(BaseComparer):
             return True
         if expected is None or actual is None:
             return False
-        return expected in actual
+        # Case-insensitive substring match
+        return expected.lower() in actual.lower()

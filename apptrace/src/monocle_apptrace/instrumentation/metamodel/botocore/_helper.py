@@ -302,23 +302,53 @@ def agent_inference_type(arguments):
         logger.warning("Warning: Error occurred in agent_inference_type: %s", str(e))
         return INFERENCE_TURN_END
 
-def extract_retrieval_source(kwargs):
-    """Extract the type of retrieval source (KnowledgeBase, etc.)"""
+def extract_kb_id(kwargs):
+    """Extract knowledge base ID from request"""
     try:
         if 'retrieveAndGenerateConfiguration' in kwargs:
             config = kwargs['retrieveAndGenerateConfiguration']
             if 'knowledgeBaseConfiguration' in config:
-                return 'knowledgebase'
-            elif 'externalSourcesConfiguration' in config:
-                return 'externalsource'
-        # For retrieve API, it's always a KnowledgeBase
+                kb_config = config['knowledgeBaseConfiguration']
+                return kb_config.get('knowledgeBaseId', '')
         elif 'knowledgeBaseId' in kwargs:
-            return 'knowledgebase'
-        return 'Generic'
+            return kwargs['knowledgeBaseId']
+        return ''
     except Exception as e:
-        logger.warning("Warning: Error occurred in extract_retrieval_source_type: %s", str(e))
-        return 'Generic'
+        logger.warning("Warning: Error occurred in extract_kb_id: %s", str(e))
+        return ''
 
+def extract_kb_info(arguments):
+    try:
+        import boto3
+        kb_id = extract_kb_id(arguments.get('kwargs', {}))
+        instance = arguments.get('instance')
+        if kb_id and instance:
+            region = instance.meta.region_name
+            bedrock_agent = boto3.client('bedrock-agent', region_name=region)
+            kb_info = bedrock_agent.get_knowledge_base(knowledgeBaseId=kb_id)
+            return kb_info
+    except Exception as e:
+        logger.warning("Warning: Error occurred in extract_kb_info: %s", str(e))
+
+def extract_vector_name(arguments):
+    kb_info=extract_kb_info(arguments)
+    try:
+        if 'knowledgeBase' in kb_info and 'storageConfiguration' in kb_info['knowledgeBase']:
+            return kb_info['knowledgeBase']['storageConfiguration']['type'].lower()
+    except Exception as e:
+        logger.warning("Warning: Error occurred in extract_vector_name: %s", str(e))
+        return ''
+
+def extract_embedding_model(arguments):
+    kb_info = extract_kb_info(arguments)
+    try:
+        if 'knowledgeBase' in kb_info and 'knowledgeBaseConfiguration' in kb_info['knowledgeBase']:
+            embedding_model_arn = kb_info['knowledgeBase']['knowledgeBaseConfiguration']['vectorKnowledgeBaseConfiguration']['embeddingModelArn']
+            embedding = embedding_model_arn.split('/')[1]
+            return embedding
+    except Exception as e:
+        logger.warning("Warning: Error occurred in extract_embedding_model: %s", str(e))
+        return ''
 
 def extract_retrieval_query(kwargs):
     """Extract the query from retrieve_and_generate or retrieve input"""

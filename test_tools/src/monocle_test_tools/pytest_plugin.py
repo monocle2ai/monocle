@@ -33,12 +33,47 @@ def monocle_trace_asserter(request:pytest.FixtureRequest):
     """
     traceAssertion = TraceAssertion.get_trace_asserter()
     token = traceAssertion.validator.pre_test_run_setup(request.node.name)
+    exception_message = None
     try:
         result = yield traceAssertion
+    except Exception as e:
+        # Capture the actual exception message when test fails
+        exception_message = str(e)
+        raise
     finally:
         is_test_failed = _is_test_failed(request)
         if is_test_failed:
-            assertion_messages = traceAssertion.get_assertion_messages()
+            # Priority: 1) Captured exception 2) pytest report exception 3) trace assertions
+            if exception_message:
+                assertion_messages = exception_message
+            elif hasattr(request.node, 'rep_call') and hasattr(request.node.rep_call, 'longrepr'):
+                # Try to get the actual exception from pytest's representation
+                longrepr = request.node.rep_call.longrepr
+                
+                # If longrepr has reprcrash, use it (it has the exception message)
+                if hasattr(longrepr, 'reprcrash') and longrepr.reprcrash:
+                    assertion_messages = longrepr.reprcrash.message
+                # If longrepr has reprtraceback with an exception entry, use that
+                elif hasattr(longrepr, 'reprtraceback'):
+                    # Get the exception info from the traceback
+                    longrepr_str = str(longrepr)
+                    # The exception message is usually after the last "E   " line
+                    lines = longrepr_str.split('\n')
+                    exc_lines = [line[4:] for line in lines if line.startswith('E   ')]
+                    if exc_lines:
+                        assertion_messages = ' '.join(exc_lines)
+                    else:
+                        # Fallback: look for ValueError, TypeError, etc.
+                        for line in reversed(lines):
+                            if 'Error:' in line or 'Exception:' in line:
+                                assertion_messages = line.strip()
+                                break
+                        else:
+                            assertion_messages = str(longrepr)
+                else:
+                    assertion_messages = str(longrepr)
+            else:
+                assertion_messages = traceAssertion.get_assertion_messages()
         else:
             assertion_messages = None
         traceAssertion.validator.post_test_cleanup(token, request.node.name, is_test_failed,

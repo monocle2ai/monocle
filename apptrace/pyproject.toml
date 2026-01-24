@@ -134,7 +134,9 @@ dev = [
   'google-ai-haystack',
   'crewai==0.95.0',
   'fastmcp==2.14.1',
-  'bedrock-agentcore==1.2.0'
+  'bedrock-agentcore==1.2.0',
+  'azure-identity',
+  'agent-framework-azure-ai',
 ]
 
 dev_tranformers = [

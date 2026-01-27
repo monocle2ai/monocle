@@ -44,7 +44,7 @@ class MSAgentRequestHandler(SpanHandler):
         """Called before turn execution to extract and store agent information in context."""
         from monocle_apptrace.instrumentation.metamodel.msagent._helper import uses_chat_client, is_inside_workflow
         from monocle_apptrace.instrumentation.metamodel.msagent.entities.inference import AGENT, AGENT_REQUEST
-        from monocle_apptrace.instrumentation.common.utils import is_scope_set
+        from monocle_apptrace.instrumentation.common.utils import is_scope_set, set_scopes
         from monocle_apptrace.instrumentation.common.scope_wrapper import start_scope
         
         # Store agent information in context for child spans to access
@@ -75,9 +75,25 @@ class MSAgentRequestHandler(SpanHandler):
         if agent_info:
             context_token = attach(set_value(MSAGENT_CONTEXT_KEY, agent_info))
         
-        # Store both tokens for cleanup
+        # Extract MS Teams context and set scopes
+        msteams_token = None
+        scope_values = self._extract_msteams_context(args, kwargs)
+        if scope_values:
+            msteams_token = set_scopes(scope_values)
+            
+            # Filter out context parameters from kwargs to prevent passing them to underlying methods
+            filtered_kwargs = {k: v for k, v in kwargs.items() 
+                               if k not in ["context", "turn_context", "turnContext"]}
+            
+            # Update kwargs in place to filter out context parameters
+            kwargs.clear()
+            kwargs.update(filtered_kwargs)
+        
+        # Store session token for cleanup (can't return it with context_token)
         self._session_token = session_id_token
-        self._context_token = context_token
+        
+        # Store MS Teams token for cleanup
+        self._msteams_token = msteams_token
         
         # Determine processor based on client type and context
         scope_name = AGENT_REQUEST.get("type")
@@ -112,32 +128,10 @@ class MSAgentRequestHandler(SpanHandler):
             remove_scope(self._session_token)
             self._session_token = None
         
-        # Clean up context token if it exists
-        if hasattr(self, '_context_token') and self._context_token is not None:
-            detach(self._context_token)
-            self._context_token = None
-    
-    def pre_task_processing(self, to_wrap, wrapped, instance, args, kwargs, span):
-        """Extract MS Teams context from TurnContext if present."""
-        from monocle_apptrace.instrumentation.common.utils import set_scopes
-        
-        # Extract MS Teams context from TurnContext
-        scope_values = self._extract_msteams_context(args, kwargs)
-        msteams_token = None
-        
-        if scope_values:
-            msteams_token = set_scopes(scope_values)
-            self._msteams_token = msteams_token
-            
-            # Filter out context parameters from kwargs to prevent passing them to underlying methods
-            filtered_kwargs = {k: v for k, v in kwargs.items() 
-                               if k not in ["context", "turn_context", "turnContext"]}
-            
-            # Update kwargs in place to filter out context parameters
-            kwargs.clear()
-            kwargs.update(filtered_kwargs)
-        
-        return super().pre_task_processing(to_wrap, wrapped, instance, args, kwargs, span)
+        # Clean up MS Teams token if it exists
+        if hasattr(self, '_msteams_token') and self._msteams_token is not None:
+            remove_scope(self._msteams_token)
+            self._msteams_token = None
     
     def _extract_msteams_context(self, args, kwargs):
         """Extract MS Teams context from Bot Framework TurnContext."""
@@ -223,15 +217,6 @@ class MSAgentRequestHandler(SpanHandler):
                                 scopes["msteams.channel_data.channel.name"] = channel_data["channel"]["name"] or ""
         
         return scopes
-    
-    def post_task_processing(self, to_wrap, wrapped, instance, args, kwargs, result, ex, span, parent_span):
-        """Clean up MS Teams scope token if set."""
-        # Clean up MS Teams token if it exists
-        if hasattr(self, '_msteams_token') and self._msteams_token is not None:
-            remove_scope(self._msteams_token)
-            self._msteams_token = None
-        
-        return super().post_task_processing(to_wrap, wrapped, instance, args, kwargs, result, ex, span, parent_span)
 
 class MSAgentAgentHandler(SpanHandler):
     """Handler for Microsoft Agent Framework agent invocations."""

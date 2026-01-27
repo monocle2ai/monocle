@@ -4,7 +4,7 @@
     <a href="https://pypi.org/project/monocle-apptrace/" target="_blank">
         <img src="https://img.shields.io/pypi/v/monocle-apptrace.svg" alt="PyPI Version">
     </a>
-    <a href="https://discord.gg/9CzVpGBM">
+    <a href="https://discord.gg/D8vDbSUhJX">
         <img src="https://img.shields.io/static/v1?label=Chat%20on&message=Discord&color=blue&logo=Discord&style=flat-square" alt="Discord">
     </a>
     <a href="https://join.slack.com/t/monocle2ai/shared_invite/zt-37pgez3jr-BNjNynF6VV8iHvRlaLM7QA">
@@ -79,7 +79,7 @@ Goal of Monocle is to support tracing for apps written in *any language* with *a
 
 Current version supports: 
 - Language: (🟢) Python , (🟢) [Typescript](https://github.com/monocle2ai/monocle-typescript)
-- Agentic frameworks: (🟢) Langgraph, (🟢) LlamaIndex, (🟢) Google ADK, (🟢)  OpenAI Agent SDK, (🟢) AWS Strands, (🟢) CrewAI, (🔜) Microsoft AI Agent framework
+- Agentic frameworks: (🟢) Langgraph, (🟢) LlamaIndex, (🟢) Google ADK, (🟢)  OpenAI Agent SDK, (🟢) AWS Strands, (🟢) CrewAI, (🔜) Microsoft Agent Framework
 - MCP/A2A frameworks: (🟢) FastMCP, (🟢) MCP client, (🟢) A2A client
 - Web/App frameworks: (🟢) Flask, (🟢) AIO Http, (🟢)FastAPI, (🟢) Azure Function, (🟢) AWS Lambda, (🟢) Vercel (typescript), (🟢) Microsoft Teams AI SDK, (🟢) Web/REST client, (🔜) Google Function, 
 - LLM-frameworks: (🟢) Langchain, (🟢) Llamaindex, (🟢) Haystack

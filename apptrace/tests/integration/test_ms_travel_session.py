@@ -79,7 +79,7 @@ async def test_assistants_multi_turn_session(setup):
         )
     
     # Create flight booking agent
-    flight_agent = client.create_agent(
+    flight_agent = client.as_agent(
         name="MS_Flight_Booking_Agent",
         instructions=(
             "You are a Flight Booking Assistant. "

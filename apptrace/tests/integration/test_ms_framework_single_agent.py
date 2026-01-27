@@ -46,7 +46,7 @@ if MICROSOFT_AGENT_AVAILABLE and endpoint and deployment:
     )
     
     # Create agent with tool
-    agent = client.create_agent(
+    agent = client.as_agent(
         name="MS_Flight_Booking_Agent",
         instructions=(
             "You are a Flight Booking Assistant. "

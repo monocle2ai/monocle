@@ -8,77 +8,10 @@ from monocle_apptrace.instrumentation.common.constants import (
     SPAN_TYPES,
 )
 from monocle_apptrace.instrumentation.metamodel.msagent import _helper
-from monocle_apptrace.instrumentation.common.utils import get_error_message, patch_instance_method
+from monocle_apptrace.instrumentation.common.utils import get_error_message, patch_instance_method, resolve_from_alias
 
 logger = logging.getLogger(__name__)
 
-
-def process_msagent_stream(to_wrap, response, span_processor):
-    """
-    Process Microsoft Agent Framework streaming responses.
-    Patches __anext__ to accumulate streaming chunks and capture final response.
-    Similar to Azure AI Inference's process_stream but adapted for Microsoft Agent Framework.
-    """
-    waiting_for_first_token = True
-    stream_start_time = time.time_ns()
-    first_token_time = stream_start_time
-    stream_closed_time = None
-    accumulated_response = ""
-    tools = None
-    role = "assistant"
-    
-    # Microsoft Agent Framework uses async iterators - patch __anext__
-    if to_wrap and hasattr(response, "__anext__"):
-        original_anext = response.__anext__
-        
-        async def new_anext(self):
-            nonlocal waiting_for_first_token, first_token_time, stream_closed_time, accumulated_response, tools, role
-            
-            try:
-                item = await original_anext()
-                
-                # Handle Microsoft Agent Framework streaming chunks (AgentRunResponseUpdate or ChatResponseUpdate)
-                # Check for first token
-                if waiting_for_first_token:
-                    waiting_for_first_token = False
-                    first_token_time = time.time_ns()
-                
-                # Accumulate content from the stream item - both have 'text' attribute
-                if hasattr(item, "text"):
-                    text = item.text
-                    if text:
-                        accumulated_response += str(text)
-                
-                return item
-                
-            except StopAsyncIteration:
-                # Stream is complete, process final span
-                stream_closed_time = time.time_ns()
-                
-                if span_processor:
-                    ret_val = SimpleNamespace(
-                        type="stream",
-                        timestamps={
-                            "data.input": int(stream_start_time),
-                            "data.output": int(first_token_time),
-                            "metadata": int(stream_closed_time or time.time_ns()),
-                        },
-                        output_text=accumulated_response,
-                        tools=tools,
-                        role=role,
-                    )
-                    span_processor(ret_val)
-                raise
-            except Exception as e:
-                logger.warning(
-                    "Warning: Error occurred while processing MS Agent stream item: %s",
-                    str(e),
-                )
-                raise
-        
-        patch_instance_method(response, "__anext__", new_anext)
-
-# Turn-level request span (agentic.request with turn subtype)
 # For Microsoft Agent Framework, turn doesn't include agent name (follows ADK pattern)
 AGENT_REQUEST = {
     "type": SPAN_TYPES.AGENTIC_REQUEST,
@@ -319,3 +252,132 @@ TOOL = {
         },
     ],
 }
+
+
+INFERENCE = {
+    "type": SPAN_TYPES.INFERENCE,
+    "subtype": lambda arguments: _helper.agent_inference_type(arguments),
+    "attributes": [
+        [
+            {
+                "_comment": "provider type ,name , deployment , inference_endpoint",
+                "attribute": "type",
+                "accessor": lambda arguments: "inference."
+                + (_helper.get_inference_type(arguments["instance"]))
+                or "openai",
+            },
+            {
+                "attribute": "provider_name",
+                "accessor": lambda arguments: _helper.extract_provider_name(
+                    arguments["instance"]
+                ),
+            },
+            {
+                "attribute": "deployment",
+                "accessor": lambda arguments: resolve_from_alias(
+                    arguments["instance"].__dict__,
+                    [
+                        "engine",
+                        "azure_deployment",
+                        "deployment_name",
+                        "deployment_id",
+                        "deployment",
+                    ],
+                ),
+            },
+            {
+                "attribute": "inference_endpoint",
+                "accessor": lambda arguments: resolve_from_alias(
+                    arguments["instance"].__dict__,
+                    ["azure_endpoint", "api_base", "endpoint"],
+                )
+                or _helper.extract_inference_endpoint(arguments["instance"]),
+            },
+        ],
+        [
+            {
+                "_comment": "LLM Model",
+                "attribute": "name",
+                "accessor": lambda arguments: _helper.extract_model_name(
+                    arguments["instance"], arguments["kwargs"]
+                ),
+            },
+            {
+                "attribute": "type",
+                "accessor": lambda arguments: _helper.extract_model_type(
+                    arguments["instance"], arguments["kwargs"]
+                ),
+            },
+        ],
+        [
+            {
+                "_comment": "Tool name when finish_type is tool_call",
+                "attribute": "name",
+                "phase": "post_execution",
+                "accessor": lambda arguments: _helper.extract_tool_name(arguments),
+            },
+            {
+                "_comment": "Tool type when finish_type is tool_call", 
+                "attribute": "type",
+                "phase": "post_execution",
+                "accessor": lambda arguments: _helper.extract_tool_type(arguments),
+            },
+        ],
+    ],
+    "events": [
+        {
+            "name": "data.input",
+            "attributes": [
+                {
+                    "_comment": "this is instruction and user query to LLM",
+                    "attribute": "input",
+                    "accessor": lambda arguments: _helper.extract_messages(
+                        arguments["kwargs"]
+                    ),
+                }
+            ],
+        },
+        {
+            "name": "data.output",
+            "attributes": [
+                {
+                    "attribute": "error_code",
+                    "accessor": lambda arguments: get_error_message(arguments),
+                },
+                {
+                    "_comment": "this is result from LLM",
+                    "attribute": "response",
+                    "accessor": lambda arguments: _helper.extract_assistant_message(
+                        arguments,
+                    ),
+                },
+            ],
+        },
+        {
+            "name": "metadata",
+            "attributes": [
+                {
+                    "_comment": "this is metadata usage from LLM",
+                    "accessor": lambda arguments: _helper.update_span_from_llm_response(
+                        arguments["result"]
+                    ),
+                },
+                {
+                    "_comment": "finish reason from OpenAI response",
+                    "attribute": "finish_reason",
+                    "accessor": lambda arguments: _helper.extract_finish_reason(
+                        arguments
+                    ),
+                },
+                {
+                    "_comment": "finish type mapped from finish reason",
+                    "attribute": "finish_type",
+                    "accessor": lambda arguments: _helper.map_finish_reason_to_finish_type(
+                        _helper.extract_finish_reason(arguments)
+                    ),
+                }
+            ],
+        },
+    ],
+}
+

@@ -1,10 +1,27 @@
 """Helper functions for extracting information from Microsoft Agent Framework objects."""
 
+import json
 import logging
 from typing import Any, Dict
+from urllib.parse import urlparse
 from opentelemetry.context import get_value
 
-from monocle_apptrace.instrumentation.common.constants import LAST_AGENT_INVOCATION_ID, LAST_AGENT_NAME
+from monocle_apptrace.instrumentation.common.constants import (
+    AGENT_PREFIX_KEY,
+    INFERENCE_AGENT_DELEGATION,
+    INFERENCE_TOOL_CALL,
+    INFERENCE_TURN_END,
+    LAST_AGENT_INVOCATION_ID,
+    LAST_AGENT_NAME
+)
+from monocle_apptrace.instrumentation.common.utils import (
+    get_exception_message,
+    get_json_dumps,
+    get_status_code
+)
+from monocle_apptrace.instrumentation.metamodel.finish_types import (
+    map_msagent_finish_reason_to_finish_type
+)
 
 logger = logging.getLogger(__name__)
 
@@ -578,3 +595,455 @@ def is_inside_workflow() -> bool:
         logger.debug(f"Error detecting workflow context: {e}")
         return False
 
+
+# Inference extraction functions for AzureOpenAIAssistantsClient._inner_get_response
+
+def extract_assistant_message(arguments):
+    """Extract assistant message from response for MS Agent."""
+    try:
+        messages = []
+        status = get_status_code(arguments)
+        
+        if status == 'success' or status == 'completed':
+            response = arguments["result"]
+            
+            # Check for tools
+            if hasattr(response, "tools") and isinstance(response.tools, list) and len(response.tools) > 0:
+                if isinstance(response.tools[0], dict):
+                    tools = []
+                    for tool in response.tools:
+                        tools.append({
+                            "tool_id": tool.get("id", ""),
+                            "tool_name": tool.get("name", ""),
+                            "tool_arguments": tool.get("arguments", "")
+                        })
+                    messages.append({"tools": tools})
+            
+            # Check for text attribute (ChatResponse from Assistants API)
+            if hasattr(response, "text") and response.text:
+                messages.append({"assistant": response.text})
+            
+            # Check for messages attribute
+            if hasattr(response, "messages") and response.messages:
+                response_messages_list = response.messages if isinstance(response.messages, list) else [response.messages]
+                for msg in response_messages_list:
+                    # Check contents first (ChatMessage from Assistants API)
+                    if hasattr(msg, "contents") and msg.contents:
+                        tools = []
+                        text_parts = []
+                        for content in msg.contents:
+                            content_type = type(content).__name__
+                            
+                            # Handle FunctionCallContent (tool calls)
+                            if content_type == "FunctionCallContent" or (hasattr(content, "call_id") and hasattr(content, "name")):
+                                tools.append({
+                                    "tool_id": getattr(content, "call_id", ""),
+                                    "tool_name": getattr(content, "name", ""),
+                                    "tool_arguments": getattr(content, "arguments", "")
+                                })
+                            # Handle TextContent or content with text
+                            elif hasattr(content, "text") and content.text:
+                                text_parts.append(content.text)
+                            elif hasattr(content, "value") and content.value:
+                                text_parts.append(content.value)
+                        
+                        # Append tools if found
+                        if tools:
+                            messages.append({"tools": tools})
+                        # Append text if found
+                        if text_parts:
+                            combined_text = " ".join(text_parts)
+                            messages.append({"assistant": combined_text})
+                    elif hasattr(msg, "text") and msg.text:
+                        messages.append({"assistant": msg.text})
+                    elif hasattr(msg, "content") and msg.content:
+                        messages.append({"assistant": msg.content})
+            
+            if hasattr(response, "output") and isinstance(response.output, list) and len(response.output) > 0:
+                response_messages = []
+                role = "assistant"
+                for response_message in response.output:
+                    if(response_message.type == "function_call"):
+                        role = "tools"
+                        response_messages.append({
+                            "tool_id": response_message.call_id,
+                            "tool_name": response_message.name,
+                            "tool_arguments": response_message.arguments
+                        })
+                if len(response_messages) > 0:
+                    messages.append({role: response_messages})
+                    
+            if hasattr(response, "output_text") and len(response.output_text):
+                role = response.role if hasattr(response, "role") else "assistant"
+                messages.append({role: response.output_text})
+            if (
+                response is not None
+                and hasattr(response, "choices")
+                and len(response.choices) > 0
+            ):
+                if hasattr(response.choices[0], "message"):
+                    role = (
+                        response.choices[0].message.role
+                        if hasattr(response.choices[0].message, "role")
+                        else "assistant"
+                    )
+                    messages.append({role: response.choices[0].message.content})
+            
+            return get_json_dumps(messages[0]) if messages else ""
+        else:
+            if arguments["exception"] is not None:
+                return get_exception_message(arguments)
+            elif hasattr(arguments["result"], "error"):
+                return arguments["result"].error
+
+    except (IndexError, AttributeError) as e:
+        logger.warning(
+            "Warning: Error occurred in extract_assistant_message: %s", str(e)
+        )
+        return None
+
+
+def agent_inference_type(arguments):
+    """Extract agent inference type from MS Agent response."""
+    try:
+        message_str = extract_assistant_message(arguments)
+        if not message_str:
+            return INFERENCE_TURN_END
+        
+        message = json.loads(message_str)
+        # Check if we have tools in the message
+        if message and message.get("tools") and isinstance(message["tools"], list) and len(message["tools"]) > 0:
+            agent_prefix = get_value(AGENT_PREFIX_KEY)
+            tool_name = message["tools"][0].get("tool_name", "")
+            if tool_name and agent_prefix and tool_name.startswith(agent_prefix):
+                return INFERENCE_AGENT_DELEGATION
+            return INFERENCE_TOOL_CALL
+        return INFERENCE_TURN_END
+    except Exception as e:
+        logger.warning("Warning: Error occurred in agent_inference_type: %s", str(e))
+        return INFERENCE_TURN_END
+
+
+# Additional helper functions for INFERENCE entity
+
+def get_inference_type(instance):
+    """Get inference type (azure_openai, openai, etc.) from instance."""
+    try:
+        # For MS Agent, check if it's Azure OpenAI
+        if hasattr(instance, '_client') and hasattr(instance._client, '_api_version'):
+            return 'azure_openai'
+        # Check OTEL_PROVIDER_NAME attribute
+        if hasattr(instance, 'OTEL_PROVIDER_NAME'):
+            provider = instance.OTEL_PROVIDER_NAME
+            if provider == 'openai':
+                return 'azure_openai'  # MS Agent typically uses Azure OpenAI
+            return provider
+        # Default to azure_openai for MS Agent since it primarily uses Azure
+        return 'azure_openai'
+    except Exception as e:
+        logger.warning(f"Error getting inference type: {e}")
+        return 'azure_openai'
+
+
+def extract_provider_name(instance):
+    """Extract provider name from instance."""
+    try:
+        # First try client._base_url.host (for AzureOpenAIAssistantsClient)
+        if hasattr(instance, 'client') and hasattr(instance.client, '_base_url'):
+            base_url = instance.client._base_url
+            if hasattr(base_url, 'host'):
+                return base_url.host
+        
+        # Try OTEL_PROVIDER_NAME attribute as fallback
+        if hasattr(instance, 'OTEL_PROVIDER_NAME'):
+            return instance.OTEL_PROVIDER_NAME
+        
+        # Try client.base_url (for AzureOpenAIAssistantsClient)
+        if hasattr(instance, 'client') and hasattr(instance.client, 'base_url'):
+            base_url = instance.client.base_url
+            if hasattr(base_url, 'host'):
+                return base_url.host
+            elif isinstance(base_url, str):
+                parsed = urlparse(base_url)
+                if parsed.hostname:
+                    return parsed.hostname
+        
+        # Try base_url attribute directly
+        if hasattr(instance, 'base_url'):
+            base_url = instance.base_url
+            if base_url and base_url != 'None':
+                if hasattr(base_url, 'host'):
+                    return base_url.host
+                elif isinstance(base_url, str):
+                    parsed = urlparse(base_url)
+                    if parsed.hostname:
+                        return parsed.hostname
+        
+        # Try _client.base_url
+        if hasattr(instance, '_client') and hasattr(instance._client, 'base_url'):
+            base_url = instance._client.base_url
+            if hasattr(base_url, 'host'):
+                return base_url.host
+            elif isinstance(base_url, str):
+                parsed = urlparse(base_url)
+                if parsed.hostname:
+                    return parsed.hostname
+        return None
+    except Exception as e:
+        logger.warning(f"Error extracting provider name: {e}")
+        return None
+
+
+def extract_inference_endpoint(instance):
+    """Extract inference endpoint from instance."""
+    try:
+        # Try client.base_url (for AzureOpenAIAssistantsClient)
+        if hasattr(instance, 'client') and hasattr(instance.client, 'base_url'):
+            base_url = instance.client.base_url
+            if base_url:
+                return str(base_url)
+        
+        # Try base_url attribute directly
+        if hasattr(instance, 'base_url'):
+            base_url = instance.base_url
+            if base_url and base_url != 'None':
+                return str(base_url)
+        
+        # Try _client.base_url
+        if hasattr(instance, '_client') and hasattr(instance._client, 'base_url'):
+            base_url = str(instance._client.base_url)
+            return base_url
+        
+        return extract_provider_name(instance)
+    except Exception as e:
+        logger.warning(f"Error extracting inference endpoint: {e}")
+        return None
+
+
+def extract_messages(kwargs):
+    """Extract messages from kwargs for input."""
+    try:
+        messages = []
+        
+        # Check for options dictionary with instructions
+        if 'options' in kwargs:
+            options = kwargs['options']
+            if isinstance(options, dict) and 'instructions' in options:
+                messages.append({'system': options['instructions']})
+        elif 'instructions' in kwargs:
+            messages.append({'system': kwargs.get('instructions', {})})
+        
+        # Check for messages list
+        if 'messages' in kwargs:
+            msgs = kwargs['messages']
+            if isinstance(msgs, list):
+                for msg in msgs:
+                    # Handle message objects with text attribute
+                    if hasattr(msg, 'text'):
+                        role = getattr(msg, 'role', 'user')
+                        messages.append({role: msg.text})
+                    elif isinstance(msg, dict):
+                        messages.append(msg)
+                    else:
+                        messages.append({'user': str(msg)})
+            else:
+                return get_json_dumps(msgs)
+        
+        # Fallback to input
+        if not messages and 'input' in kwargs:
+            if isinstance(kwargs['input'], str):
+                messages.append({'user': kwargs.get('input', "")})
+            elif isinstance(kwargs['input'], list):
+                messages.extend(kwargs['input'])
+        
+        return get_json_dumps(messages) if messages else ""
+    except Exception as e:
+        logger.warning(f"Error extracting messages: {e}")
+        return ""
+
+
+def extract_finish_reason(arguments):
+    """Extract finish_reason from response.
+    
+    Azure OpenAI Assistants API often doesn't populate finish_reason in streaming responses.
+    We detect tool calls from the response content and return 'tool_calls' accordingly.
+    """
+    try:
+        if "exception" in arguments and arguments["exception"] is not None:
+            if hasattr(arguments["exception"], "code"):
+                return arguments["exception"].code
+        
+        response = arguments.get("result")
+        if not response:
+            return None
+        
+        # First, check if the response contains tool calls
+        # by examining the message contents
+        if hasattr(response, "messages") and response.messages:
+            messages = response.messages if isinstance(response.messages, list) else [response.messages]
+            for msg in messages:
+                if hasattr(msg, "contents") and msg.contents:
+                    for content in msg.contents:
+                        # FunctionCallContent indicates a tool call
+                        if type(content).__name__ == "FunctionCallContent":
+                            return "tool_calls"
+        
+        # Handle direct finish_reason attribute (ChatResponse)
+        if hasattr(response, "finish_reason"):
+            finish_reason = response.finish_reason
+            if finish_reason:
+                # If it's an enum, get its value
+                if hasattr(finish_reason, 'value'):
+                    return finish_reason.value
+                return str(finish_reason)
+        
+        # Handle non-streaming responses with choices
+        if hasattr(response, "choices") and response.choices and len(response.choices) > 0:
+            if hasattr(response.choices[0], "finish_reason"):
+                finish_reason = response.choices[0].finish_reason
+                if finish_reason:
+                    if hasattr(finish_reason, 'value'):
+                        return finish_reason.value
+                    return str(finish_reason)
+        
+        # Azure Assistants API doesn't populate finish_reason in streaming,
+        # but if we have a response, it means it completed successfully
+        # Default to 'stop' (success) for completed responses
+        if hasattr(response, "text") or hasattr(response, "messages"):
+            return "stop"
+            
+    except Exception as e:
+        logger.warning(f"Error extracting finish_reason: {e}")
+    return None
+
+
+def map_finish_reason_to_finish_type(finish_reason):
+    """Map finish_reason to finish_type using MS Agent Framework mapping."""
+    return map_msagent_finish_reason_to_finish_type(finish_reason)
+
+
+def extract_tool_name(arguments):
+    """Extract tool name from response when finish_type is tool_call."""
+    try:
+        message_str = extract_assistant_message(arguments)
+        if not message_str:
+            return None
+        
+        message = json.loads(message_str)
+        if message and message.get("tools") and isinstance(message["tools"], list) and len(message["tools"]) > 0:
+            return message["tools"][0].get("tool_name", None)
+    except Exception as e:
+        logger.warning(f"Error extracting tool name: {e}")
+    return None
+
+
+def extract_tool_type(arguments):
+    """Extract tool type from response when finish_type is tool_call."""
+    try:
+        tool_name = extract_tool_name(arguments)
+        if tool_name:
+            agent_prefix = get_value(AGENT_PREFIX_KEY)
+            if agent_prefix and tool_name.startswith(agent_prefix):
+                return "agent.microsoft"
+            return "tool.microsoft"
+    except Exception as e:
+        logger.warning(f"Error extracting tool type: {e}")
+    return None
+
+
+def update_span_from_llm_response(response):
+    """Extract metadata from LLM response."""
+    meta_dict = {}
+    try:
+        if response is None:
+            return meta_dict
+        
+        # Check for usage_details attribute (ChatResponse from Assistants API)
+        if hasattr(response, "usage_details"):
+            usage_details_val = response.usage_details
+            
+            if usage_details_val is not None:
+                # MS Agent Framework uses different attribute names
+                # Try output_token_count, then completion_tokens, then output_tokens
+                completion = getattr(usage_details_val, "output_token_count", None) or getattr(usage_details_val, "completion_tokens", None) or getattr(usage_details_val, "output_tokens", None)
+                # Try input_token_count, then prompt_tokens, then input_tokens
+                prompt = getattr(usage_details_val, "input_token_count", None) or getattr(usage_details_val, "prompt_tokens", None) or getattr(usage_details_val, "input_tokens", None)
+                # Try total_token_count, then total_tokens
+                total = getattr(usage_details_val, "total_token_count", None) or getattr(usage_details_val, "total_tokens", None)
+                
+                if completion is not None:
+                    meta_dict["completion_tokens"] = completion
+                if prompt is not None:
+                    meta_dict["prompt_tokens"] = prompt
+                if total is not None:
+                    meta_dict["total_tokens"] = total
+                    
+                if meta_dict:
+                    return meta_dict
+        
+        # Check for usage attribute (standard chat completions)
+        if hasattr(response, "usage") and response.usage is not None:
+            token_usage = response.usage
+            meta_dict.update({"completion_tokens": getattr(token_usage, "completion_tokens", None) or getattr(token_usage, "output_tokens", None)})
+            meta_dict.update({"prompt_tokens": getattr(token_usage, "prompt_tokens", None) or getattr(token_usage, "input_tokens", None)})
+            meta_dict.update({"total_tokens": getattr(token_usage, "total_tokens", None)})
+            return meta_dict
+        
+        # For Assistants API - check for Run object with usage
+        if hasattr(response, "required_action") or hasattr(response, "status"):
+            # This might be a Run object from Assistants API
+            if hasattr(response, "usage") and response.usage is not None:
+                token_usage = response.usage
+                meta_dict.update({"completion_tokens": getattr(token_usage, "completion_tokens", None)})
+                meta_dict.update({"prompt_tokens": getattr(token_usage, "prompt_tokens", None)})
+                meta_dict.update({"total_tokens": getattr(token_usage, "total_tokens", None)})
+                return meta_dict
+        
+        # Check in choices[0] if present
+        if hasattr(response, "choices") and len(response.choices) > 0:
+            choice = response.choices[0]
+            if hasattr(choice, "usage") and choice.usage is not None:
+                token_usage = choice.usage
+                meta_dict.update({"completion_tokens": getattr(token_usage, "completion_tokens", None)})
+                meta_dict.update({"prompt_tokens": getattr(token_usage, "prompt_tokens", None)})
+                meta_dict.update({"total_tokens": getattr(token_usage, "total_tokens", None)})
+                return meta_dict
+            
+    except Exception as e:
+        logger.warning(f"Error updating span from LLM response: {e}")
+    return meta_dict
+
+
+def extract_model_name(instance, kwargs):
+    """Extract model name from instance or kwargs."""
+    try:
+        # First try model_id attribute from instance
+        if hasattr(instance, 'model_id'):
+            return instance.model_id
+        
+        # Try kwargs
+        if kwargs:
+            from monocle_apptrace.instrumentation.common.utils import resolve_from_alias
+            model_name = resolve_from_alias(
+                kwargs,
+                ["model", "model_name", "model_id", "endpoint_name", "deployment_name"],
+            )
+            if model_name:
+                return model_name
+        
+        return None
+    except Exception as e:
+        logger.warning(f"Error extracting model name: {e}")
+        return None
+
+
+def extract_model_type(instance, kwargs):
+    """Extract model type from instance or kwargs."""
+    try:
+        model_name = extract_model_name(instance, kwargs)
+        if model_name:
+            return f"model.llm.{model_name}"
+        return None
+    except Exception as e:
+        logger.warning(f"Error extracting model type: {e}")
+        return None

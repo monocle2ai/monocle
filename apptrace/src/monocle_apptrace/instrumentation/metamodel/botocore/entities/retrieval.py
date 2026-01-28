@@ -9,26 +9,15 @@ RETRIEVAL = {
     "attributes": [
         [
             {
-                "_comment": "provider type, inference_endpoint",
-                "attribute": "type",
-                "accessor": lambda arguments: 'retrieval.aws_bedrock'
-            },
-            {
-                "attribute": "endpoint",
-                "accessor": lambda arguments: arguments['instance'].meta.endpoint_url
-            }
-        ],
-        [
-            {
-                "_comment": "Knowledge base or retrieval source",
+                "_comment": "vector store name and type",
                 "attribute": "name",
-                "accessor": lambda arguments: _helper.extract_retrieval_source(arguments['kwargs'])
+                "accessor": lambda arguments: _helper.get_vector_db(arguments['kwargs'])
             },
             {
                 "attribute": "type",
-                "accessor": lambda arguments: 'vectorstore.' + _helper.extract_retrieval_source(arguments['kwargs'])
-            }
-        ]
+                "accessor": lambda arguments: 'vectorstore.' + _helper.get_vector_db(arguments['kwargs'])
+            },
+        ],
     ],
     "events": [
         {"name": "data.input",

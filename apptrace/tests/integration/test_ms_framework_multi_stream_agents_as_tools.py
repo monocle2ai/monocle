@@ -55,7 +55,7 @@ if MICROSOFT_AGENT_AVAILABLE and endpoint and deployment:
     )
     
     # Create flight booking agent
-    flight_agent = client.create_agent(
+    flight_agent = client.as_agent(
         name="MS_Flight_Booking_Agent",
         instructions=(
             "You are a Flight Booking Assistant. "
@@ -66,7 +66,7 @@ if MICROSOFT_AGENT_AVAILABLE and endpoint and deployment:
     )
     
     # Create hotel booking agent
-    hotel_agent = client.create_agent(
+    hotel_agent = client.as_agent(
         name="MS_Hotel_Booking_Agent",
         instructions=(
             "You are a Hotel Booking Assistant. "
@@ -77,7 +77,7 @@ if MICROSOFT_AGENT_AVAILABLE and endpoint and deployment:
     )
     
     # Create supervisor agent (coordinates other agents)
-    supervisor_agent = client.create_agent(
+    supervisor_agent = client.as_agent(
         name="MS_Travel_Supervisor",
         instructions=(
             "You are a Travel Supervisor that coordinates complete travel bookings. "
@@ -121,7 +121,7 @@ async def test_microsoft_supervisor_delegation(setup):
     
     # Create supervisor with direct access to both booking tools
     # This mimics the LangGraph pattern where supervisor has tools and delegates work
-    supervisor_with_tools = client.create_agent(
+    supervisor_with_tools = client.as_agent(
         name="MS_Delegating_Supervisor",
         instructions=(
             "You are a Travel Supervisor that coordinates complete travel bookings. "

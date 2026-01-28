@@ -54,7 +54,7 @@ if MICROSOFT_AGENT_AVAILABLE and endpoint and deployment:
     )
     
     # Create flight booking agent
-    flight_agent = client.create_agent(
+    flight_agent = client.as_agent(
         name="MS_Flight_Booking_Agent",
         instructions=(
             "You are a Flight Booking Assistant. "
@@ -66,7 +66,7 @@ if MICROSOFT_AGENT_AVAILABLE and endpoint and deployment:
     )
     
     # Create hotel booking agent
-    hotel_agent = client.create_agent(
+    hotel_agent = client.as_agent(
         name="MS_Hotel_Booking_Agent",
         instructions=(
             "You are a Hotel Booking Assistant. "
@@ -78,7 +78,7 @@ if MICROSOFT_AGENT_AVAILABLE and endpoint and deployment:
     )
     
     # Create supervisor agent (coordinates other agents)
-    supervisor_agent = client.create_agent(
+    supervisor_agent = client.as_agent(
         name="MS_Travel_Supervisor",
         instructions=(
             "You are a Travel Supervisor that coordinates complete travel bookings. "
@@ -97,10 +97,10 @@ if MICROSOFT_AGENT_AVAILABLE and endpoint and deployment:
         name="travel_handoff_workflow",
         participants=[supervisor_agent, flight_agent, hotel_agent]
     )
-    .set_coordinator(supervisor_agent)
+    .with_start_agent(supervisor_agent)
     .add_handoff(supervisor_agent, [flight_agent, hotel_agent])
-    .add_handoff(flight_agent, supervisor_agent)
-    .add_handoff(hotel_agent, supervisor_agent)
+    .add_handoff(flight_agent, [supervisor_agent])
+    .add_handoff(hotel_agent, [supervisor_agent])
     .build()
 )
 else:

@@ -39,6 +39,8 @@ def extract_messages(args):
                 role = args['messages'][0]['role']
                 user_message = extract_query_from_content(args['messages'][0]['content'][0]['text'])
                 messages.append({role: user_message})
+            elif 'input' in args and 'text' in args['input']:
+                messages.append(args['input']['text'])
         return [get_json_dumps(message) for message in messages]
     except Exception as e:
         logger.warning("Warning: Error occurred in extract_messages: %s", str(e))
@@ -71,6 +73,8 @@ def extract_assistant_message(arguments):
                 output = arguments['result'].get("output", {})
                 message = output.get("message", {})
                 content = message.get("content", [])
+                if 'text' in output:
+                    messages.append(output['text'])
                 if isinstance(content, list) and len(content) > 0 and "text" in content[0]:
                     reply = content[0]["text"]
                     messages.append({role: reply})
@@ -121,6 +125,17 @@ def extract_query_from_content(content:str) -> str:
         logger.warning("Warning: Error occurred in extract_query_from_content: %s", str(e))
         return ""
 
+def get_model(kwargs):
+    if 'retrieveAndGenerateConfiguration' in kwargs and 'knowledgeBaseConfiguration' in kwargs['retrieveAndGenerateConfiguration']:
+        kb = kwargs['retrieveAndGenerateConfiguration']['knowledgeBaseConfiguration']
+        if 'modelArn' in kb:
+            return kb['modelArn'].split('/')[1]
+    return ''
+
+def get_vector_db(kwargs):
+    if 'retrieveAndGenerateConfiguration' in kwargs and 'type' in kwargs['retrieveAndGenerateConfiguration']:
+        return kwargs['retrieveAndGenerateConfiguration']['type'].lower()
+    return ''
 
 def resolve_from_alias(my_map, alias):
     """Find a alias that is not none from list of aliases"""
@@ -302,24 +317,6 @@ def agent_inference_type(arguments):
         logger.warning("Warning: Error occurred in agent_inference_type: %s", str(e))
         return INFERENCE_TURN_END
 
-def extract_retrieval_source(kwargs):
-    """Extract the type of retrieval source (KnowledgeBase, etc.)"""
-    try:
-        if 'retrieveAndGenerateConfiguration' in kwargs:
-            config = kwargs['retrieveAndGenerateConfiguration']
-            if 'knowledgeBaseConfiguration' in config:
-                return 'knowledgebase'
-            elif 'externalSourcesConfiguration' in config:
-                return 'externalsource'
-        # For retrieve API, it's always a KnowledgeBase
-        elif 'knowledgeBaseId' in kwargs:
-            return 'knowledgebase'
-        return 'Generic'
-    except Exception as e:
-        logger.warning("Warning: Error occurred in extract_retrieval_source_type: %s", str(e))
-        return 'Generic'
-
-
 def extract_retrieval_query(kwargs):
     """Extract the query from retrieve_and_generate or retrieve input"""
     try:
@@ -344,17 +341,37 @@ def extract_retrieval_response(arguments):
         
         if status == 'success' and 'result' in arguments:
             result = arguments['result']
-            # Handle retrieve_and_generate response
-            if 'output' in result:
-                output = result['output']
-                if 'text' in output:
-                    messages.append({'assistant': output['text']})
+            response_data = {}
+            # Extract retrieved references from citations
+            if 'citations' in result and result['citations']:
+                retrieved_refs = []
+                for citation in result['citations']:
+                    if 'retrievedReferences' in citation:
+                        for ref in citation['retrievedReferences']:
+                            ref_data = {}
+                            # Extract content
+                            if 'content' in ref and 'text' in ref['content']:
+                                ref_data['content'] = ref['content']['text']
+                            # Extract location (S3 URI)
+                            if 'location' in ref:
+                                if 's3Location' in ref['location']:
+                                    ref_data['source'] = ref['location']['s3Location'].get('uri', '')
+                                elif 'type' in ref['location']:
+                                    ref_data['location_type'] = ref['location']['type']
+                            # Extract metadata
+                            if 'metadata' in ref:
+                                ref_data['metadata'] = ref['metadata']
 
-            # Include citations if available (for retrieve_and_generate)
-            if 'citations' in result:
-                citations = result['citations']
-                if citations:
-                    messages.append({'citations': str(citations)})
+                            retrieved_refs.append(ref_data)
+
+                if retrieved_refs:
+                    response_data['retrieved_references'] = retrieved_refs
+
+            # Include session ID if available
+            if 'sessionId' in result:
+                response_data['session_id'] = result['sessionId']
+
+            return get_json_dumps(response_data) if response_data else ""
         else:
             if arguments.get("exception") is not None:
                 return get_exception_message(arguments)

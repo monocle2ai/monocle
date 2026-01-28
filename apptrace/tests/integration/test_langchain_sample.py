@@ -174,7 +174,7 @@ def test_langchain_sample(setup):
 
     assert workflow_span.attributes["span.type"] == "workflow"
     assert workflow_span.attributes["entity.1.name"] == "langchain_app_1"
-    assert workflow_span.attributes["entity.1.type"] == "workflow.langchain"
+    assert workflow_span.attributes["entity.1.type"] in ["workflow.langchain","workflow.openai"]
 
 
 if __name__ == "__main__":

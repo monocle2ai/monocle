@@ -11,23 +11,12 @@ RETRIEVAL = {
             {
                 "_comment": "vector store name and type",
                 "attribute": "name",
-                "accessor": lambda arguments: _helper.extract_vector_name(arguments)
+                "accessor": lambda arguments: _helper.get_vector_db(arguments['kwargs'])
             },
             {
                 "attribute": "type",
-                "accessor": lambda arguments: 'vectorstore.' + _helper.extract_vector_name(arguments)
+                "accessor": lambda arguments: 'vectorstore.' + _helper.get_vector_db(arguments['kwargs'])
             },
-        ],
-        [
-            {
-                "_comment": "embedding model name and type",
-                "attribute": "name",
-                "accessor": lambda arguments: _helper.extract_embedding_model(arguments)
-            },
-            {
-                "attribute": "type",
-                "accessor": lambda arguments: 'model.embedding.' + _helper.extract_embedding_model(arguments)
-            }
         ],
     ],
     "events": [

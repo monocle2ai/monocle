@@ -27,12 +27,12 @@ INFERENCE = {
                 "_comment": "LLM Model",
                 "attribute": "name",
                 "accessor": lambda arguments: _helper.resolve_from_alias(arguments['kwargs'],
-                                                                         ['EndpointName', 'modelId'])
+                                                                         ['EndpointName', 'modelId']) or _helper.get_model(arguments['kwargs'])
             },
             {
                 "attribute": "type",
-                "accessor": lambda arguments: 'model.llm.' + _helper.resolve_from_alias(arguments['kwargs'],
-                                                                                        ['EndpointName', 'modelId'])
+                "accessor": lambda arguments: 'model.llm.' + (_helper.resolve_from_alias(arguments['kwargs'],
+                                                                                        ['EndpointName', 'modelId']) or _helper.get_model(arguments['kwargs']))
             }
         ],
         [

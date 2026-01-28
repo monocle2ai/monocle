@@ -113,17 +113,20 @@ def extract_assistant_message(arguments):
             msg_obj = result.choices[0].message
             return get_json_dumps({msg_obj.role: msg_obj.content})
 
-        # Handle streaming: result might be a list of CompletionEvent chunks
-        if isinstance(result, list):
-            content = []
-            for chunk in result:
-                if hasattr(chunk, "data") and hasattr(chunk.data, "choices") and chunk.data.choices:
-                    choice = chunk.data.choices[0]
-                    if hasattr(choice, "delta") and hasattr(choice.delta, "content"):
-                        content.append(choice.delta.content or "")
-            return get_json_dumps({"assistant": "".join(content)})
+        if hasattr(result, "output_text") and result.output_text:
+            return get_json_dumps({"assistant": result.output_text})
 
-        return ""
+        # Handle streaming: result might be a list of CompletionEvent chunks
+        # if isinstance(result, list):
+        #     content = []
+        #     for chunk in result:
+        #         if hasattr(chunk, "data") and hasattr(chunk.data, "choices") and chunk.data.choices:
+        #             choice = chunk.data.choices[0]
+        #             if hasattr(choice, "delta") and hasattr(choice.delta, "content"):
+        #                 content.append(choice.delta.content or "")
+        #     return get_json_dumps({"assistant": "".join(content)})
+
+        # return ""
 
     except Exception as e:
         logger.warning("Warning in extract_assistant_message: %s", str(e))
@@ -172,12 +175,12 @@ def extract_finish_reason(arguments):
                 return finish_reason
 
         # Handle streaming: list of chunks, last chunk may have finish_reason
-        if isinstance(response, list):
-            for chunk in reversed(response):
-                if hasattr(chunk, "data") and hasattr(chunk.data, "choices") and chunk.data.choices:
-                    fr = getattr(chunk.data.choices[0], "finish_reason", None)
-                    if fr is not None:
-                        return fr
+        # if isinstance(response, list):
+        #     for chunk in reversed(response):
+        #         if hasattr(chunk, "data") and hasattr(chunk.data, "choices") and chunk.data.choices:
+        #             fr = getattr(chunk.data.choices[0], "finish_reason", None)
+        #             if fr is not None:
+        #                 return fr
 
     except Exception as e:
         logger.warning("Warning: Error occurred in extract_finish_reason: %s", str(e))

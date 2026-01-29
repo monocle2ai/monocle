@@ -1,3 +1,17 @@
+## Version 0.7.3 (2026-01-29)
+
+- Scope attributes MS Agent ([#428](https://github.com/monocle2ai/monocle/pull/428))
+- Add input and output for aiohttp MSAgent SDK ([#425](https://github.com/monocle2ai/monocle/pull/425))
+- Update boto3 version to 1.40.52 and adjust OpenSearch endpoint variable for SageMaker integration ([#431](https://github.com/monocle2ai/monocle/pull/431))
+- Add attribute in retrieval span for KnowledgeBase ([#427](https://github.com/monocle2ai/monocle/pull/427))
+- Fix test.status for MonocleValidator; test.assertion.message for fluent tests; case sensitive validation ([#426](https://github.com/monocle2ai/monocle/pull/426))
+- MS Assistant API Inference span ([#423](https://github.com/monocle2ai/monocle/pull/423))
+- Turn span issue solved ([#414](https://github.com/monocle2ai/monocle/pull/414))
+- Added tool type mcp based on span attributes ([#422](https://github.com/monocle2ai/monocle/pull/422))
+- Refactor git run ID retrieval for local test run ([#421](https://github.com/monocle2ai/monocle/pull/421))
+- MS agent with session ([#409](https://github.com/monocle2ai/monocle/pull/409))
+- Added integration test for Bedrock AgentCore ([#413](https://github.com/monocle2ai/monocle/pull/413))
+
 ## Version 0.7.2 (2026-01-20)
 
 - AWS Agentcore support (#412)

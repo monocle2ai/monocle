@@ -8,7 +8,7 @@ import logging
 from opentelemetry.trace import Tracer
 from opentelemetry.trace.propagation import set_span_in_context, get_current_span
 from opentelemetry.context import set_value, attach, detach, get_value
-from opentelemetry.trace.span import INVALID_SPAN, Span
+from opentelemetry.trace.span import INVALID_SPAN, Span, SpanContext, TraceFlags, TraceState
 from opentelemetry.trace.status import StatusCode
 
 from monocle_apptrace.instrumentation.common.constants import (
@@ -70,6 +70,27 @@ def post_process_span(handler, to_wrap, wrapped, instance, args, kwargs, return_
             handler.post_task_processing(to_wrap, wrapped, instance, args, kwargs, return_value, ex, span, parent_span)
         except Exception as e:
             logger.info(f"Warning: Error occurred in post_task_processing: {e}")
+
+        # If the handler decides to not sample the span ie not export it, update the span context to be sampled
+        if not handler.should_sample(to_wrap, wrapped, instance, args, kwargs, return_value, ex, span, parent_span):
+            current_context = span.get_span_context()
+            sampled_context:SpanContext = SpanContext(trace_id= current_context.trace_id,
+                                                    span_id=current_context.span_id,
+                                                    is_remote=current_context.is_remote,
+                                                    trace_flags=TraceFlags(TraceFlags.DEFAULT),
+                                                    trace_state=current_context.trace_state)
+            span._context = sampled_context
+            # If this span is initial span (ie with workflow as parent), then update the parent span context as well
+            if parent_span and SpanHandler.is_workflow_span(parent_span):
+                parent_context = parent_span.get_span_context()
+                if parent_context and parent_context.is_valid:
+                    sampled_context = SpanContext(trace_id= parent_context.trace_id,
+                                                span_id=parent_context.span_id,
+                                                is_remote=parent_context.is_remote,
+                                                trace_flags=TraceFlags(TraceFlags.DEFAULT),
+                                                trace_state=parent_context.trace_state)
+                    parent_span._context = sampled_context
+
         return return_value
 
 def get_span_name(to_wrap, instance):

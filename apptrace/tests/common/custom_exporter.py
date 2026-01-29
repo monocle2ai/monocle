@@ -22,4 +22,4 @@ class CustomConsoleSpanExporter(ConsoleSpanExporter):
         return self.captured_spans
     
     def reset(self):
-        self.captured_spans = []
+        self.captured_spans.clear()

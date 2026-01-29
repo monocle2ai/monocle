@@ -79,10 +79,11 @@ Goal of Monocle is to support tracing for apps written in *any language* with *a
 
 Current version supports: 
 - Language: (🟢) Python , (🟢) [Typescript](https://github.com/monocle2ai/monocle-typescript)
-- Agentic frameworks: (🟢) Langgraph, (🟢) LlamaIndex, (🟢) Google ADK, (🟢)  OpenAI Agent SDK, (🟢) AWS Strands, (🟢) CrewAI, (🔜) Microsoft Agent Framework
+- Agentic frameworks: (🟢) Langgraph, (🟢) LlamaIndex, (🟢) Google ADK, (🟢)  OpenAI Agent SDK, (🟢) AWS Strands, (🟢) CrewAI, (🟢) Microsoft Agent Framework
 - MCP/A2A frameworks: (🟢) FastMCP, (🟢) MCP client, (🟢) A2A client
 - Web/App frameworks: (🟢) Flask, (🟢) AIO Http, (🟢)FastAPI, (🟢) Azure Function, (🟢) AWS Lambda, (🟢) Vercel (typescript), (🟢) Microsoft Teams AI SDK, (🟢) Web/REST client, (🔜) Google Function, 
 - LLM-frameworks: (🟢) Langchain, (🟢) Llamaindex, (🟢) Haystack
+- Agent Runtime: (🟢) AWS Bedrock Agentcore
 - LLM inference providers: (🟢) OpenAI, (🟢) Azure OpenAI, (🟢) Azure AI, (🟢) Nvidia Triton, (🟢) AWS Bedrock, (🟢) AWS Sagemaker, (🟢) Google Vertex, (🟢) Google Gemini, (🟢) Hugging Face, (🟢) Deepseek, (🟢) Anthropic, (🟢) Mistral, (🟢) LiteLLM ,(🔜) Azure ML
 - Vector stores: (🟢) FAISS, (🔜) OpenSearch, (🔜) Milvus
 - Exporter: (🟢) stdout, (🟢) file, (🟢) Memory, (🟢) Azure Blob Storage, (🟢) AWS S3, (🟢) Okahu cloud, (🟢) OTEL compatible collectors, (🔜) Google Cloud Storage

@@ -93,11 +93,9 @@ async def test_microsoft_agent_simple(setup):
     
     logger.info(f"Task: {task_description}")
     
-    # Run the agent and collect response
-    response_text = ""
-    async for chunk in agent.run_stream(task_description):
-        if chunk.text:
-            response_text += chunk.text
+    # Run the agent and get response
+    response = await agent.run(task_description)
+    response_text = str(response)
     
     logger.info(f"Result: {response_text}")
     
@@ -134,7 +132,7 @@ def verify_spans(custom_exporter):
                 found_tool_call = True
             
             for event in span.events:
-                if event.name == "gen_ai.metadata":
+                if event.name in ["gen_ai.metadata", "metadata"]:
                     if "finish_reason" in event.attributes:
                         if event.attributes["finish_reason"] == "tool_calls":
                             found_tool_call = True

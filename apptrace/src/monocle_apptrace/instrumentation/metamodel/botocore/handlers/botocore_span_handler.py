@@ -8,11 +8,14 @@ class BotoCoreSpanHandler(SpanHandler):
     def _get_output_processor_for_method(self, method_name):
         """Determine which output processor to use based on the method name"""
         # Methods that generate retrieval spans
-        retrieval_methods = ["retrieve_and_generate"]
-        
+        retrieval_methods = []
+
         # Methods that generate inference spans (default for most)
         inference_methods = ["converse", "invoke_model", "invoke_data_automation_async", "invoke_endpoint"]
-        
+
+        if method_name == "retrieve_and_generate":
+            return [RETRIEVAL, INFERENCE]
+
         if method_name in retrieval_methods:
             return RETRIEVAL
         elif method_name in inference_methods:
@@ -41,7 +44,12 @@ class BotoCoreSpanHandler(SpanHandler):
                     if instrumentor:
                         # Create a copy of to_wrap with the appropriate output_processor
                         to_wrap_copy = to_wrap.copy()
-                        to_wrap_copy['output_processor'] = self._get_output_processor_for_method(method_name)
+                        output_processor = self._get_output_processor_for_method(method_name)
+                        # Check if we have multiple processors (list) or single processor (dict)
+                        if isinstance(output_processor, list) and len(output_processor) > 0:
+                            to_wrap_copy['output_processor_list'] = output_processor
+                        else:
+                            to_wrap_copy['output_processor'] = output_processor
                         to_wrap_copy['span_name'] = span_name
                         instrumented_method = instrumentor(to_wrap_copy, wrapped, span_name, return_value, original_method)
                         setattr(return_value, method_name, instrumented_method)

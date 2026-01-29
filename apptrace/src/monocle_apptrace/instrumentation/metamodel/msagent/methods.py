@@ -1,7 +1,9 @@
 """Microsoft Agent Framework method definitions for instrumentation."""
 
-# import inspect
-from monocle_apptrace.instrumentation.common.wrapper import atask_wrapper, atask_iter_wrapper
+from monocle_apptrace.instrumentation.common.wrapper import (
+    atask_wrapper, 
+    atask_iter_wrapper,
+)
 from monocle_apptrace.instrumentation.metamodel.msagent.entities.inference import (
     AGENT, 
     AGENT_REQUEST,

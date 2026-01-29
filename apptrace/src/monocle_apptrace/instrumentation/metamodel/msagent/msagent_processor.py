@@ -4,7 +4,7 @@ import logging
 from opentelemetry.context import attach, set_value, detach, get_value
 from monocle_apptrace.instrumentation.common.span_handler import SpanHandler
 from monocle_apptrace.instrumentation.common.constants import AGENT_INVOCATION_SPAN_NAME, AGENT_NAME_KEY, AGENT_SESSION, INFERENCE_AGENT_DELEGATION, INFERENCE_TURN_END, LAST_AGENT_INVOCATION_ID, LAST_AGENT_NAME, SPAN_TYPES, INFERENCE_TOOL_CALL
-from monocle_apptrace.instrumentation.common.utils import set_scope
+from monocle_apptrace.instrumentation.common.utils import set_scope, remove_scope
 from opentelemetry.trace import Span
 
 logger = logging.getLogger(__name__)
@@ -44,7 +44,7 @@ class MSAgentRequestHandler(SpanHandler):
         """Called before turn execution to extract and store agent information in context."""
         from monocle_apptrace.instrumentation.metamodel.msagent._helper import uses_chat_client, is_inside_workflow
         from monocle_apptrace.instrumentation.metamodel.msagent.entities.inference import AGENT, AGENT_REQUEST
-        from monocle_apptrace.instrumentation.common.utils import is_scope_set
+        from monocle_apptrace.instrumentation.common.utils import is_scope_set, set_scopes
         from monocle_apptrace.instrumentation.common.scope_wrapper import start_scope
         
         # Store agent information in context for child spans to access
@@ -75,9 +75,25 @@ class MSAgentRequestHandler(SpanHandler):
         if agent_info:
             context_token = attach(set_value(MSAGENT_CONTEXT_KEY, agent_info))
         
-        # Store both tokens for cleanup
+        # Extract MS Teams context and set scopes
+        msteams_token = None
+        scope_values = self._extract_msteams_context(args, kwargs)
+        if scope_values:
+            msteams_token = set_scopes(scope_values)
+            
+            # Filter out context parameters from kwargs to prevent passing them to underlying methods
+            filtered_kwargs = {k: v for k, v in kwargs.items() 
+                               if k not in ["context", "turn_context", "turnContext"]}
+            
+            # Update kwargs in place to filter out context parameters
+            kwargs.clear()
+            kwargs.update(filtered_kwargs)
+        
+        # Store session token for cleanup (can't return it with context_token)
         self._session_token = session_id_token
-        self._context_token = context_token
+        
+        # Store MS Teams token for cleanup
+        self._msteams_token = msteams_token
         
         # Determine processor based on client type and context
         scope_name = AGENT_REQUEST.get("type")
@@ -100,6 +116,107 @@ class MSAgentRequestHandler(SpanHandler):
                 alternate_to_wrap["output_processor"] = AGENT_REQUEST
         
         return context_token, alternate_to_wrap
+    
+    def post_tracing(self, to_wrap, wrapped, instance, args, kwargs, result, token):
+        """Clean up tokens set in pre_tracing."""
+        # Detach context token passed as parameter
+        if token is not None:
+            detach(token)
+        
+        # Clean up session token if it exists
+        if hasattr(self, '_session_token') and self._session_token is not None:
+            remove_scope(self._session_token)
+            self._session_token = None
+        
+        # Clean up MS Teams token if it exists
+        if hasattr(self, '_msteams_token') and self._msteams_token is not None:
+            remove_scope(self._msteams_token)
+            self._msteams_token = None
+    
+    def _extract_msteams_context(self, args, kwargs):
+        """Extract MS Teams context from Bot Framework TurnContext."""
+        scopes = {}
+        
+        # Try to find TurnContext in various possible locations
+        context = None
+        
+        # Check kwargs for common parameter names
+        for param_name in ["context", "turn_context", "turnContext"]:
+            if param_name in kwargs:
+                context = kwargs[param_name]
+                break
+        
+        # Check args if not found in kwargs
+        if not context and len(args) > 0:
+            for arg in args:
+                # Check if this looks like a TurnContext object
+                if hasattr(arg, 'activity') and hasattr(arg.activity, 'channel_id'):
+                    context = arg
+                    break
+        
+        if not context or not hasattr(context, 'activity'):
+            return scopes
+        
+        activity = context.activity
+        
+        # Extract channel information
+        if hasattr(activity, 'channel_id') and activity.channel_id:
+            channel_id = activity.channel_id
+            scopes["teams.channel.channel_id"] = channel_id
+            
+            # If it's MS Teams, extract Teams-specific attributes
+            if channel_id == "msteams":
+                # Activity type
+                if hasattr(activity, 'type') and activity.type:
+                    scopes["msteams.activity.type"] = activity.type
+                
+                # Conversation information
+                if hasattr(activity, "conversation") and activity.conversation:
+                    if hasattr(activity.conversation, 'id'):
+                        scopes["msteams.conversation.id"] = activity.conversation.id or ""
+                    if hasattr(activity.conversation, 'conversation_type'):
+                        scopes["msteams.conversation.type"] = activity.conversation.conversation_type or ""
+                    if hasattr(activity.conversation, 'name'):
+                        scopes["msteams.conversation.name"] = activity.conversation.name or ""
+                
+                # User information (from_property)
+                if hasattr(activity, "from_property") and activity.from_property:
+                    if hasattr(activity.from_property, 'id'):
+                        scopes["msteams.user.from_property.id"] = activity.from_property.id or ""
+                    if hasattr(activity.from_property, 'name'):
+                        scopes["msteams.user.from_property.name"] = activity.from_property.name or ""
+                    if hasattr(activity.from_property, 'role'):
+                        scopes["msteams.user.from_property.role"] = activity.from_property.role or ""
+                
+                # Recipient information
+                if hasattr(activity, "recipient") and activity.recipient:
+                    if hasattr(activity.recipient, 'id'):
+                        scopes["msteams.recipient.id"] = activity.recipient.id or ""
+                
+                # Channel data (tenant, team, channel details)
+                if hasattr(activity, "channel_data") and activity.channel_data:
+                    channel_data = activity.channel_data
+                    
+                    # Tenant information
+                    if isinstance(channel_data, dict):
+                        if "tenant" in channel_data and "id" in channel_data["tenant"]:
+                            scopes["msteams.channel_data.tenant.id"] = channel_data["tenant"]["id"] or ""
+                        
+                        # Team information
+                        if "team" in channel_data:
+                            if "id" in channel_data["team"]:
+                                scopes["msteams.channel_data.team.id"] = channel_data["team"]["id"] or ""
+                            if "name" in channel_data["team"]:
+                                scopes["msteams.channel_data.team.name"] = channel_data["team"]["name"] or ""
+                        
+                        # Channel information
+                        if "channel" in channel_data:
+                            if "id" in channel_data["channel"]:
+                                scopes["msteams.channel_data.channel.id"] = channel_data["channel"]["id"] or ""
+                            if "name" in channel_data["channel"]:
+                                scopes["msteams.channel_data.channel.name"] = channel_data["channel"]["name"] or ""
+        
+        return scopes
 
     def post_task_processing(self, to_wrap, wrapped, instance, args, kwargs, result, ex, span: Span, parent_span: Span):
         self.hydrate_events(to_wrap, wrapped, instance, args, kwargs,

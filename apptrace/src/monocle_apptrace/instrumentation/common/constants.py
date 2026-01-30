@@ -96,7 +96,7 @@ MONOCLE_DETECTED_SPAN_ERROR = "monocle_apptrace.detected_span_error"
 HTTP_SUCCESS_CODES = ("200", "201", "202", "204", "205", "206")
 CHILD_ERROR_CODE = "child.error.code"
 HEALTH_RESET_COUNTER = 100
-HTTP_HEALTH_CHECK_METHODS = ["GET", "HEAD"]
+HTTP_HEALTH_CHECK_METHODS = ["get", "head"]
 
 AGENT_PREFIX_KEY = "monocle.agent.prefix"
 AGENT_NAME_KEY = "monocle.agent.name"

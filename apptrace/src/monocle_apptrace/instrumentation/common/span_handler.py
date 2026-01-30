@@ -399,8 +399,8 @@ class HttpSpanHandler(SpanHandler):
 
         # Check attributes for methods
         attributes = span.attributes
-        method = attributes.get("entity.1.method")
-        if method is not None and method.lower() not in HTTP_HEALTH_CHECK_METHODS:
+        method = attributes.get("entity.1.method","")
+        if not method.lower() in HTTP_HEALTH_CHECK_METHODS:
             return True
 
         # Check events for input/output data

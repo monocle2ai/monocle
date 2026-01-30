@@ -1,6 +1,6 @@
 import os
 import bs4
-from langchain import hub
+from langsmith import Client
 from langchain_chroma import Chroma
 from langchain_community.document_loaders import WebBaseLoader
 from langchain_core.output_parsers import StrOutputParser
@@ -14,7 +14,7 @@ from langchain_openai import (
     OpenAIEmbeddings,
 )
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain.prompts import ChatPromptTemplate
+from langchain_core.prompts import ChatPromptTemplate
 
 
 class TestScopes:
@@ -58,7 +58,8 @@ def setup_chain():
 
     # Retrieve and generate using the relevant snippets of the blog.
     retriever = vectorstore.as_retriever()
-    prompt = hub.pull("rlm/rag-prompt")
+    client = Client()
+    prompt = client.pull_prompt("rlm/rag-prompt")
 
     def format_docs(docs):
         return "\n\n".join(doc.page_content for doc in docs)

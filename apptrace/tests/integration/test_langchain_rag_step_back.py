@@ -5,7 +5,7 @@ from operator import itemgetter
 import bs4
 import pytest
 from common.custom_exporter import CustomConsoleSpanExporter
-from langchain.prompts import ChatPromptTemplate
+from langchain_core.prompts import ChatPromptTemplate
 from langchain_chroma import Chroma
 from langchain_community.document_loaders import WebBaseLoader
 from langchain_core.output_parsers import StrOutputParser

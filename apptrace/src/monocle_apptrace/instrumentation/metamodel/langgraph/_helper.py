@@ -25,7 +25,8 @@ def agent_instructions(arguments):
 
 def is_single_agent_instance(instance) -> bool:
     if hasattr(instance, 'builder') and hasattr(instance.builder, 'nodes'):
-        return 'agent' in instance.builder.nodes
+        # Check for both old pattern ('agent' node) and new pattern ('model' node)
+        return 'agent' in instance.builder.nodes or 'model' in instance.builder.nodes
     return False
 
 def extract_agent_input(arguments):

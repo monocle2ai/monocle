@@ -65,7 +65,7 @@ def test_langchain_gemini_sample(setup):
             assert span_attributes["entity.1.type"] == "inference.gemini"
             assert "entity.1.provider_name" in span_attributes
             assert "entity.1.inference_endpoint" in span_attributes
-            assert span_attributes["entity.2.name"] == "models/gemini-2.5-pro"
+            assert span_attributes["entity.2.name"] == "gemini-2.5-pro"
             assert span_attributes["entity.2.type"] == "model.llm.models/gemini-2.5-pro"
 
             span_input, span_output, span_metadata = span.events

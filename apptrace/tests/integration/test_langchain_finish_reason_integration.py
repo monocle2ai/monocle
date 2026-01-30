@@ -13,7 +13,7 @@ import os
 
 import pytest
 from common.custom_exporter import CustomConsoleSpanExporter
-from langchain.schema import HumanMessage, SystemMessage
+from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_anthropic import ChatAnthropic
 from langchain_openai import ChatOpenAI as LangChainOpenAI
 from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry

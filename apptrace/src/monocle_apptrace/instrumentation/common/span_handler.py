@@ -397,11 +397,13 @@ class HttpSpanHandler(SpanHandler):
         if ex is not None or not HttpSpanHandler.sample_health_checks:
             return True
 
-            attributes = span.attributes
-            method = attributes.get("entity.1.method")
-            if method is not None and method.lower() not in HTTP_HEALTH_CHECK_METHODS:
-                return True
+        # Check attributes for methods
+        attributes = span.attributes
+        method = attributes.get("entity.1.method")
+        if method is not None and method.lower() not in HTTP_HEALTH_CHECK_METHODS:
+            return True
 
+        # Check events for input/output data
         events = span.events
         if events:
             for event in events:

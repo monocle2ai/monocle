@@ -21,6 +21,11 @@ TOOLS = {
                 "attribute": "url",
                 "accessor": lambda arguments: _helper.get_url(arguments),
             },
+            {
+                "_comment": "server name",
+                "attribute": "server_name",
+                "accessor": lambda arguments: _helper.get_server_name(arguments),
+            },
         ]
     ],
     "events": [
@@ -69,6 +74,11 @@ LIST_TOOLS = {
                 "_comment": "server url",
                 "attribute": "url",
                 "accessor": lambda arguments: _helper.get_url(arguments),
+            },
+            {
+                "_comment": "server name",
+                "attribute": "server_name",
+                "accessor": lambda arguments: _helper.get_server_name(arguments),
             },
         ]
     ],

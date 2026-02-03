@@ -13,6 +13,12 @@ MCP_METHODS = [
         "output_processor": TOOLS,
     },
     {
+        "package": "mcp.client.session",
+        "object": "ClientSession",
+        "method": "initialize",
+        "wrapper_method": _helper.mcp_initialize_wrapper,
+    },
+    {
         "package": "langchain_mcp_adapters.tools",
         "object": "",
         "method": "convert_mcp_tool_to_langchain_tool",

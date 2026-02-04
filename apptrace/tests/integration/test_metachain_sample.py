@@ -4,9 +4,9 @@ import bs4
 import pytest
 from common.langhchain_patch import create_history_aware_retriever
 from dotenv import load_dotenv
-from langchain import hub
-from langchain.chains import create_retrieval_chain
-from langchain.chains.combine_documents import create_stuff_documents_chain
+from langsmith import Client
+from langchain_classic.chains.retrieval import create_retrieval_chain
+from langchain_classic.chains.combine_documents import create_stuff_documents_chain
 from langchain_chroma import Chroma
 from langchain_community.document_loaders import WebBaseLoader
 from langchain_core.messages import HumanMessage
@@ -59,7 +59,8 @@ def test_metachain_sample(setup):
 
     # Retrieve and generate using the relevant snippets of the blog.
     retriever = vectorstore.as_retriever()
-    prompt = hub.pull("rlm/rag-prompt")
+    client = Client()
+    prompt = client.pull_prompt("rlm/rag-prompt")
 
     def format_docs(docs):
         return "\n\n".join(doc.page_content for doc in docs)

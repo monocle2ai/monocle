@@ -72,7 +72,7 @@ MSAGENT_METHODS = [
     },
     {
         "package": "agent_framework._tools",
-        "object": "AIFunction",
+        "object": "FunctionTool",
         "method": "invoke",
         "wrapper_method": atask_wrapper,
         "output_processor": TOOL,
@@ -81,7 +81,6 @@ MSAGENT_METHODS = [
         "package": "agent_framework.azure._assistants_client",
         "object": "AzureOpenAIAssistantsClient",
         "method": "_inner_get_response",
-        "span_handler": "msagent_inference_handler",
         "wrapper_method": atask_wrapper,
         "output_processor": INFERENCE,
     },

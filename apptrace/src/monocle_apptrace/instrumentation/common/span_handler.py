@@ -13,7 +13,7 @@ from monocle_apptrace.instrumentation.common.constants import (
     MONOCLE_SDK_VERSION, MONOCLE_SDK_LANGUAGE, MONOCLE_DETECTED_SPAN_ERROR,
     SPAN_TYPES, LAST_INFERENCE
 )
-from monocle_apptrace.instrumentation.common.utils import set_attribute, get_scopes, MonocleSpanException, get_monocle_version, replace_placeholders, propogate_inference_info_to_parent_span
+from monocle_apptrace.instrumentation.common.utils import set_attribute, get_scopes, MonocleSpanException, get_monocle_version, replace_placeholders, propogate_inference_info_to_parent_span, get_workflow_name
 from monocle_apptrace.instrumentation.common.constants import \
     (WORKFLOW_TYPE_KEY, WORKFLOW_TYPE_GENERIC, CHILD_ERROR_CODE, MONOCLE_SKIP_EXECUTIONS, SKIPPED_EXECUTION, MONOCLE_WORKFLOW_NAME_KEY)
 
@@ -300,6 +300,9 @@ class SpanHandler:
     @staticmethod
     def get_workflow_name(span: Span) -> str:
         try:
+            monocle_workflow_name = get_workflow_name()
+            if monocle_workflow_name:
+                return monocle_workflow_name
             return get_value(MONOCLE_WORKFLOW_NAME_KEY) or span.resource.attributes.get(SERVICE_NAME)
         except Exception as e:
             logger.exception(f"Error getting workflow name: {e}")

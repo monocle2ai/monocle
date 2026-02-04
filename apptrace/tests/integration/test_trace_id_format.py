@@ -10,8 +10,8 @@ import shutil
 import time
 from pathlib import Path
 from langchain_openai import ChatOpenAI
-from langchain.prompts import PromptTemplate
-from langchain.chains import LLMChain
+from langchain_core.prompts import PromptTemplate
+from langchain_classic.chains.llm import LLMChain
 from monocle_apptrace import setup_monocle_telemetry
 from common.custom_exporter import CustomConsoleSpanExporter
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor

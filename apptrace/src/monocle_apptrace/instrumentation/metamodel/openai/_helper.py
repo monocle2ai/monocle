@@ -249,7 +249,7 @@ def update_span_from_llm_response(response):
         if token_usage is not None:
             meta_dict.update({"completion_tokens": getattr(token_usage,"completion_tokens",None) or getattr(token_usage,"output_tokens",None)})
             meta_dict.update({"prompt_tokens": getattr(token_usage, "prompt_tokens", None) or getattr(token_usage, "input_tokens", None)})
-            meta_dict.update({"total_tokens": getattr(token_usage,"total_tokens")})
+            meta_dict.update({"total_tokens": getattr(token_usage,"total_tokens", None)})
     return meta_dict
 
 def extract_vector_input(vector_input: dict):

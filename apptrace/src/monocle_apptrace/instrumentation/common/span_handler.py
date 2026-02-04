@@ -1,23 +1,31 @@
 import logging
 import os
 from contextlib import contextmanager
+from threading import Lock
 from typing import Union
 from opentelemetry.context import get_value, set_value, attach, detach
 from opentelemetry.sdk.trace import Span
 from opentelemetry.sdk.resources import SERVICE_NAME
 from opentelemetry.trace.status import Status, StatusCode
 from monocle_apptrace.instrumentation.common.constants import (
+    HTTP_HEALTH_CHECK_METHODS,
     QUERY,
     service_name_map,
     service_type_map,
     MONOCLE_SDK_VERSION, MONOCLE_SDK_LANGUAGE, MONOCLE_DETECTED_SPAN_ERROR,
-    SPAN_TYPES, LAST_INFERENCE
+    HTTP_SUCCESS_CODES, HEALTH_RESET_COUNTER
 )
+<<<<<<< span_filter.prasad
+
+from monocle_apptrace.instrumentation.common.utils import CyclicCounter, set_attribute, get_scopes, MonocleSpanException, get_monocle_version, replace_placeholders, propogate_inference_info_to_parent_span
+=======
 from monocle_apptrace.instrumentation.common.utils import set_attribute, get_scopes, MonocleSpanException, get_monocle_version, replace_placeholders, propogate_inference_info_to_parent_span, get_workflow_name
+>>>>>>> main
 from monocle_apptrace.instrumentation.common.constants import \
     (WORKFLOW_TYPE_KEY, WORKFLOW_TYPE_GENERIC, CHILD_ERROR_CODE, MONOCLE_SKIP_EXECUTIONS, SKIPPED_EXECUTION, MONOCLE_WORKFLOW_NAME_KEY)
 
 logger = logging.getLogger(__name__)
+http_span_counter = CyclicCounter(HEALTH_RESET_COUNTER)
 
 WORKFLOW_TYPE_MAP = {
     "llama_index.core.agent.workflow": WORKFLOW_TYPE_GENERIC,
@@ -119,6 +127,9 @@ class SpanHandler:
             except Exception as e:
                 logger.warning("Warning: Error occurred in 'should_skip' accessor: %s", str(e))
         return should_skip
+
+    def should_sample(self, to_wrap, wrapped, instance, args, kwargs, result, ex, span:Span, parent_span:Span) -> bool:
+        return True
 
     def hydrate_span(self, to_wrap, wrapped, instance, args, kwargs, result, span, parent_span = None,
                     ex:Exception = None, is_post_exec:bool= False) -> bool:
@@ -264,6 +275,10 @@ class SpanHandler:
         workflow_type = SpanHandler.get_workflow_type(to_wrap)
         span.set_attribute(f"entity.{span_index}.type", workflow_type)
 
+    @staticmethod
+    def is_workflow_span(span: Span) -> bool:
+        return span.attributes.get("span.type") == "workflow"
+
     def get_workflow_name_in_progress(self) -> str:
         return get_value(WORKFLOW_TYPE_KEY)
 
@@ -379,6 +394,39 @@ class NonFrameworkSpanHandler(SpanHandler):
             span_type = span_type+".modelapi"
             span.set_attribute("span.type", span_type)
         return span_type
+
+class HttpSpanHandler(SpanHandler):
+    sample_health_checks:bool = os.environ.get("MONOCLE_SAMPLE_HEALTH_CHECKS", "true").lower() == "true"
+
+    def should_sample(self, to_wrap, wrapped, instance, args, kwargs, result, ex, span:Span, parent_span:Span) -> bool:
+        # exclude http health checks spans ie spans with input/output are empty and there's no error or exception
+        # Return False to skip exporting the span
+        if ex is not None or not HttpSpanHandler.sample_health_checks:
+            return True
+
+        # Check attributes for methods
+        attributes = span.attributes
+        method = attributes.get("entity.1.method","")
+        if not method.lower() in HTTP_HEALTH_CHECK_METHODS:
+            return True
+
+        # Check events for input/output data
+        events = span.events
+        if events:
+            for event in events:
+                if event.name == "data.input":
+                    if event.attributes:
+                        return True
+                elif event.name == "data.output":
+                    if event.attributes:
+                        response = event.attributes.get("response")
+                        error_code = event.attributes.get("error_code")
+                        if (response is not None) or (error_code is not None and error_code not in HTTP_SUCCESS_CODES):
+                            return True
+            # if the span has no input/output data and no exception, then just export one out of every HEALTH_RESET_COUNTER
+            if http_span_counter.increment() > 0:
+                return False
+        return True
 
 class AgenticSpanHandler(SpanHandler):
     pass

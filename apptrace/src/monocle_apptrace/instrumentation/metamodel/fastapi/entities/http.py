@@ -22,6 +22,7 @@ FASTAPI_HTTP_PROCESSOR = {
 }
 
 FASTAPI_RESPONSE_PROCESSOR = {
+    "type": SPAN_TYPES.GENERIC,
     "events": [
         {
             "name": "data.input",

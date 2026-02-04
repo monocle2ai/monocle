@@ -1,6 +1,7 @@
 import ast
 import logging, json
 import os
+import threading
 import traceback
 from typing import Callable, Generic, Optional, TypeVar, Mapping, Union
 
@@ -618,6 +619,21 @@ def setup_readablespan_patch():
     if _original_to_json is None:
         _original_to_json = ReadableSpan.to_json
         ReadableSpan.to_json = _patched_to_json
+
+class CyclicCounter:
+    def __init__(self, max_value: int):
+        self.max_value = max_value
+        self._counter = max_value -1
+        self._lock = threading.Lock()
+    
+    def increment(self):
+        with self._lock:
+            self._counter = (self._counter + 1) % self.max_value
+            return self._counter
+    
+    def reset(self):
+        with self._lock:
+            self._counter = self.max_value -1
                 
 def set_workflow_name(workflow_name: str) -> None:
     """Set the global workflow name."""

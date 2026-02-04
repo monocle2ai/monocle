@@ -40,7 +40,7 @@ def mcp_server(setup_instrumentation):
     # This ensures the instrumentation wraps the methods correctly
     from fastmcp import FastMCP
     
-    mcp = FastMCP("Test Server")
+    mcp = FastMCP("Test Server", host="127.0.0.1", port=8082)
     
     @mcp.tool
     def add(a: int, b: int) -> int:
@@ -116,6 +116,13 @@ async def test_all_fastmcp_operations(mcp_server, in_memory_exporter):
     assert len(resource_spans) >= 1, "Should have at least 1 resource span"
     assert len(prompt_spans) >= 1, "Should have at least 1 prompt span"
     
+    # Assert server name and server url in tool, resource, and prompt spans
+    for span in spans:
+        if any(key in span.name.lower() for key in ("tool", "resource", "prompt")):
+            server_name = span.attributes.get("entity.1.server_name")
+            server_url = span.attributes.get("entity.1.url")
+            assert server_name == "Test Server", f"Incorrect server name in span: {span.name}"
+            assert server_url == "http://127.0.0.1:8082", f"Incorrect server url in span: {span.name}"    
 
 @pytest.mark.asyncio
 async def test_all_list_operations_together(mcp_server, in_memory_exporter):
@@ -158,7 +165,13 @@ async def test_all_list_operations_together(mcp_server, in_memory_exporter):
     assert len(prompts_list_spans) >= 1, "Should have at least 1 prompts list span"
     
     print(f"\n All list operations successfully instrumented!")
-
+    
+    for span in spans:
+        if any(key in span.name.lower() for key in ("tool", "resource", "prompt")):
+            server_name = span.attributes.get("entity.1.server_name")
+            server_url = span.attributes.get("entity.1.url")
+            assert server_name == "Test Server", f"Incorrect server name in span: {span.name}"
+            assert server_url == "http://127.0.0.1:8082", f"Incorrect server url in span: {span.name}"
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v", "-s"])

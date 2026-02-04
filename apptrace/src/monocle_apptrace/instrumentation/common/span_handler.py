@@ -15,12 +15,8 @@ from monocle_apptrace.instrumentation.common.constants import (
     MONOCLE_SDK_VERSION, MONOCLE_SDK_LANGUAGE, MONOCLE_DETECTED_SPAN_ERROR,
     HTTP_SUCCESS_CODES, HEALTH_RESET_COUNTER
 )
-<<<<<<< span_filter.prasad
 
-from monocle_apptrace.instrumentation.common.utils import CyclicCounter, set_attribute, get_scopes, MonocleSpanException, get_monocle_version, replace_placeholders, propogate_inference_info_to_parent_span
-=======
-from monocle_apptrace.instrumentation.common.utils import set_attribute, get_scopes, MonocleSpanException, get_monocle_version, replace_placeholders, propogate_inference_info_to_parent_span, get_workflow_name
->>>>>>> main
+from monocle_apptrace.instrumentation.common.utils import CyclicCounter, set_attribute, get_scopes, MonocleSpanException, get_monocle_version, replace_placeholders, propogate_inference_info_to_parent_span, get_workflow_name
 from monocle_apptrace.instrumentation.common.constants import \
     (WORKFLOW_TYPE_KEY, WORKFLOW_TYPE_GENERIC, CHILD_ERROR_CODE, MONOCLE_SKIP_EXECUTIONS, SKIPPED_EXECUTION, MONOCLE_WORKFLOW_NAME_KEY)
 

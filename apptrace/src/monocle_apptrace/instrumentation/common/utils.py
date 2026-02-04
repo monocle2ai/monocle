@@ -27,6 +27,7 @@ logger = logging.getLogger(__name__)
 embedding_model_context = {}
 scope_id_generator = id_generator.RandomIdGenerator()
 http_scopes:dict[str:str] = {}
+monocle_workflow_name: str = None
 
 try:
     monocle_sdk_version = version("monocle_apptrace")
@@ -633,3 +634,12 @@ class CyclicCounter:
     def reset(self):
         with self._lock:
             self._counter = self.max_value -1
+                
+def set_workflow_name(workflow_name: str) -> None:
+    """Set the global workflow name."""
+    global monocle_workflow_name
+    monocle_workflow_name = workflow_name
+
+def get_workflow_name() -> str:
+    """Get the global workflow name."""
+    return monocle_workflow_name

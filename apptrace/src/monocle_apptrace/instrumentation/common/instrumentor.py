@@ -24,7 +24,8 @@ from monocle_apptrace.instrumentation.common.wrapper_method import (
 from monocle_apptrace.instrumentation.common.wrapper import scope_wrapper, ascope_wrapper, monocle_wrapper, amonocle_wrapper
 from monocle_apptrace.instrumentation.common.utils import (
     load_scopes,
-    setup_readablespan_patch
+    setup_readablespan_patch,
+    set_workflow_name
 )
 from monocle_apptrace.instrumentation.common.constants import MONOCLE_INSTRUMENTOR, MONOCLE_WORKFLOW_NAME_KEY
 from functools import wraps
@@ -228,6 +229,7 @@ def setup_monocle_telemetry(
     span_processors = span_processors or [BatchSpanProcessor(exporter) for exporter in exporters]
     set_monocle_span_processor(MonocleSynchronousMultiSpanProcessor())
     set_tracer_provider(TracerProvider(resource=resource, active_span_processor=get_monocle_span_processor()))
+    set_workflow_name(workflow_name)
     
     # Monkey-patch ReadableSpan.to_json to remove 0x prefix from trace_id/span_id
     setup_readablespan_patch()

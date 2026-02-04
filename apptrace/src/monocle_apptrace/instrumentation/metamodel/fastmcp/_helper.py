@@ -31,6 +31,26 @@ def get_url(arguments):
     
     return None
 
+def get_server_name(arguments):
+    """Get the server name from the instance."""
+    try:
+        instance = arguments.get("instance")
+        if not instance:
+            return None
+            
+        if not hasattr(instance, 'name'):
+            logger.debug("Instance does not have name attribute")
+            return None
+            
+        return instance.name
+        
+    except AttributeError as e:
+        logger.debug(f"Attribute error extracting server name: {e}")
+    except Exception as e:
+        logger.warning(f"Unexpected error extracting server name from FastMCP instance: {e}")
+    
+    return None
+
 
 def get_list_input(arguments):
     """Get input for list operations (usually empty or pagination cursor)."""

@@ -36,9 +36,10 @@ def extract_session_id(kwargs):
     # LlamaIndex passes memory via 'memory' kwarg
     memory = kwargs.get('memory')
     if memory is not None:
-        # Memory objects have a session_id attribute
-        if hasattr(memory, 'session_id'):
+        if hasattr(memory, 'session_id') and memory.session_id:
             return memory.session_id
+        if hasattr(memory, 'chat_store_key') and memory.chat_store_key:
+            return memory.chat_store_key
     return None
 
 def get_status(result):

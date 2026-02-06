@@ -133,7 +133,7 @@ def search_similar_documents_opensearch(query):
         connection_class=RequestsHttpConnection
     )
     retriever = doc_search.as_retriever()
-    docs = retriever.get_relevant_documents(query)
+    docs = retriever.invoke(query)
     logger.info(f"Retrieved docs: {docs}")
     return [doc.page_content for doc in docs]
 

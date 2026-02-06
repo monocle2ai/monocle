@@ -4,6 +4,7 @@ and assistant messages from various input formats.
 """
 
 import logging
+from urllib.parse import urlparse
 from opentelemetry.context import get_value
 from monocle_apptrace.instrumentation.common.constants import AGENT_PREFIX_KEY, INFERENCE_AGENT_DELEGATION, INFERENCE_TURN_END, INFERENCE_TOOL_CALL, TOOL_TYPE
 from monocle_apptrace.instrumentation.common.utils import (
@@ -88,6 +89,13 @@ def extract_assistant_message(arguments):
 
 def extract_provider_name(instance):
     provider_url: Option[str] = Option(None)
+    if hasattr(instance, 'client') and hasattr(instance.client, '_api_client') and hasattr(instance.client._api_client, '_http_options'):
+        provider_url: Option[str] = try_option(getattr, instance.client._api_client._http_options, 'base_url')
+        if provider_url.is_some():
+            url_value = provider_url.unwrap_or(None)
+            if isinstance(url_value, str) and ('://' in url_value or url_value.startswith('http')):
+                parsed = urlparse(url_value)
+                return parsed.hostname
     if hasattr(instance, 'client'):
         provider_url: Option[str] = try_option(getattr, instance.client, 'universe_domain')
     if hasattr(instance,'client') and hasattr(instance.client, '_client') and hasattr(instance.client._client, 'base_url'):
@@ -101,6 +109,9 @@ def extract_provider_name(instance):
 def extract_inference_endpoint(instance):
     inference_endpoint: Option[str] = None
     # instance.client.meta.endpoint_url
+    if hasattr(instance, 'client') and hasattr(instance.client, '_api_client') and hasattr(instance.client._api_client, '_http_options'):
+        inference_endpoint: Option[str] = try_option(getattr, instance.client._api_client._http_options, 'base_url').map(str)
+    
     if hasattr(instance, 'client') and hasattr(instance.client, 'transport'):
         inference_endpoint: Option[str] = try_option(getattr, instance.client.transport, 'host')
 
@@ -123,6 +134,24 @@ def extract_vectorstore_deployment(my_map):
             host, port = get_keys_as_tuple(client, 'host', 'port')
             if host:
                 return f"{host}:{port}" if port else host
+        
+        if '_client' in my_map and my_map['_client'] is not None:
+            try:
+                client_obj = my_map['_client']
+                if hasattr(client_obj, '_server') and hasattr(client_obj._server, 'get_settings'):
+                    settings = client_obj._server.get_settings()
+                    host = getattr(settings, 'chroma_logservice_host', None)
+                    port = getattr(settings, 'chroma_logservice_port', None)
+                    if not host:
+                        host = getattr(settings, 'chroma_coordinator_host', None)
+                    if not host:
+                        host = getattr(settings, 'chroma_server_host', None)
+                        port = getattr(settings, 'chroma_server_http_port', None)
+                    if host:
+                        return f"{host}:{port}" if port else host
+            except (AttributeError, TypeError):
+                pass
+        
         keys_to_check = ['client', '_client']
         host = __get_host_from_map(my_map, keys_to_check)
         if host:

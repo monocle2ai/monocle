@@ -15,7 +15,7 @@ from opentelemetry.sdk.trace.export import BatchSpanProcessor
 
 logger = logging.getLogger(__name__)
 COLLECTION_NAME = "coffee"
-EMBEDDING_MODEL_ID = "models/embedding-001"
+EMBEDDING_MODEL_ID = "gemini-embedding-001"
 INFERENCE_MODEL_ID = "gemini-2.5-flash"
 
 @pytest.fixture(scope="module")

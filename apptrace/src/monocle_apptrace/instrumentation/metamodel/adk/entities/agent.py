@@ -1,5 +1,5 @@
 from monocle_apptrace.instrumentation.common.constants import SPAN_SUBTYPES, SPAN_TYPES
-from monocle_apptrace.instrumentation.common.utils import get_error_message
+from monocle_apptrace.instrumentation.common.utils import get_error_message, get_span_id
 from monocle_apptrace.instrumentation.metamodel.adk import _helper
 from monocle_apptrace.instrumentation.common.utils import get_error_message
 AGENT = {
@@ -30,7 +30,7 @@ AGENT = {
               {
                 "_comment": "last agent invocation id",
                 "attribute": "from_agent_span_id",
-                "accessor": lambda arguments: _helper.extract_from_agent_invocation_id(arguments['parent_span'])
+                "accessor": lambda arguments: get_span_id(arguments['parent_span'])
               }
         ]
       ],

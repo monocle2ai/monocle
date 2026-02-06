@@ -147,6 +147,8 @@ def verify_spans(memory_exporter):
     found_book_hotel_tool = found_book_flight_tool = False
     found_book_flight_delegation = found_book_hotel_delegation = False
     found_agentic_turn = False
+    hotel_from_agent_span_id = None
+    supervisor_span_id = None
 
     spans = memory_exporter.get_finished_spans()
     for span in spans:
@@ -200,6 +202,7 @@ def verify_spans(memory_exporter):
                 found_hotel_agent = True
                 if span_attributes["entity.1.from_agent"] == "supervisor":
                     found_book_hotel_delegation = True
+                    hotel_from_agent_span_id = span_attributes["entity.1.from_agent_span_id"]
 
                 # Assertions of input and output events for agentic.invocation spans
                 span_input, span_output = span.events
@@ -210,6 +213,7 @@ def verify_spans(memory_exporter):
 
             elif span_attributes["entity.1.name"] == "supervisor":
                 found_supervisor_agent = True
+                supervisor_span_id = hex(span.context.span_id)
             found_agent = True
 
         if (
@@ -265,6 +269,7 @@ def verify_spans(memory_exporter):
     assert found_book_flight_tool, "Book flight tool span not found"
     assert found_book_hotel_tool, "Book hotel tool span not found"
     assert found_agentic_turn, "Agentic turn span not found"
+    assert hotel_from_agent_span_id == supervisor_span_id, "Hotel assistant agent span does not have correct from_agent_span_id"
     
 if __name__ == "__main__":
     pytest.main([__file__, "-s", "--tb=short"])

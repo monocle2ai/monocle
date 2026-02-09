@@ -1,5 +1,6 @@
 import os
 import uuid
+import logging
 
 import pytest
 import requests
@@ -13,13 +14,16 @@ from monocle_apptrace.instrumentation.common.constants import (
 )
 from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+from monocle_apptrace.instrumentation.common.span_handler import http_span_counter
 
 CHAT_SCOPE_NAME = "chat"
 CONVERSATION_SCOPE_NAME = "discussion"
 CONVERSATION_SCOPE_VALUE = "conv1234"
 custom_exporter = CustomConsoleSpanExporter()
 
-@pytest.fixture(scope="function", autouse=True)
+logger = logging.getLogger(__name__)
+
+@pytest.fixture(scope="module", autouse=True)
 def setup():
     try:
         print ("Setting up Flask")
@@ -27,16 +31,18 @@ def setup():
         os.environ[SCOPE_CONFIG_PATH] = os.path.join(os.path.dirname(os.path.abspath(__file__)), SCOPE_METHOD_FILE)
         flask_helper.start_flask()
         instrumentor = setup_monocle_telemetry(workflow_name = "flask_test", span_processors=[SimpleSpanProcessor(custom_exporter)])
-        yield
+        yield custom_exporter
     finally:
         # Clean up instrumentor to avoid global state leakage
         if instrumentor and instrumentor.is_instrumented_by_opentelemetry:
             instrumentor.uninstrument()
 
-@pytest.fixture(autouse=True)
-def pre_test():
+@pytest.fixture(scope="function",autouse=True)
+def pre_test(setup):
     # clear old spans
-   custom_exporter.reset()
+    setup.reset()
+    http_span_counter.reset()
+    yield
 
 def test_http_flask_scope(setup):
     custom_exporter.reset()
@@ -48,6 +54,17 @@ def test_http_flask_scope(setup):
     response = requests.get(f"{url}/chat?question={prompt}", headers=headers, data={"test": "123"})
     stop_scope(token)
     verify_scopes()
+
+def test_verify_skip_health_check(setup):
+    url = flask_helper.get_url()
+    # Send three health check requests and verify that only first span is captured
+    for _ in range(3):
+        resp = requests.get(f"{url}")
+        assert resp.status_code == 200
+    spans = custom_exporter.get_captured_spans()
+    assert len(spans) > 0, f"No health check spans were captured"
+    health_check_spans = [span for span in spans if span.attributes.get("span.type") == "http.process"]
+    assert len(health_check_spans) == 1, f"Expected only 1 health check span, but found {len(health_check_spans)}"
 
 def verify_scopes():
     scope_name = "conversation"

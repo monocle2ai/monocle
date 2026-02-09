@@ -646,4 +646,4 @@ def get_workflow_name() -> str:
 
 def get_span_id(span: Span) -> str:
     """Get the span ID as a hex string without 0x prefix."""
-    return format(span.context.span_id, '018x')
+    return format(span.context.span_id, '016x')

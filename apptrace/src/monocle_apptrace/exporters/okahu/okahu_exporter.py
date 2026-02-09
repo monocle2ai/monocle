@@ -9,7 +9,7 @@ from requests.exceptions import ReadTimeout
 from monocle_apptrace.exporters.base_exporter import SpanExporterBase
 from monocle_apptrace.exporters.exporter_processor import ExportTaskProcessor
 
-REQUESTS_SUCCESS_STATUS_CODES = (200, 202)
+REQUESTS_SUCCESS_STATUS_CODES = (200, 202, 204) 
 OKAHU_PROD_INGEST_ENDPOINT = "https://ingest.okahu.co/api/v1/trace/ingest"
 
 logger = logging.getLogger(__name__)

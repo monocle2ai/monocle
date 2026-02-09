@@ -535,7 +535,7 @@ def propogate_agent_name_to_parent_span(span: Span, parent_span: Span):
     if span.attributes.get("span.type") != AGENT_INVOCATION_SPAN_NAME:
         return
     if parent_span is not None:
-        parent_span.set_attribute(LAST_AGENT_INVOCATION_ID, hex(span.context.span_id))
+        parent_span.set_attribute(LAST_AGENT_INVOCATION_ID, format(span.context.span_id, '#018x'))
         agent_name = get_value(AGENT_NAME_KEY)
         if agent_name is not None:
             parent_span.set_attribute(LAST_AGENT_NAME, agent_name)
@@ -549,9 +549,9 @@ def propogate_inference_info_to_parent_span(span: Span, parent_span: Span):
         ## save last inference id in parent span
         if span.attributes.get("span.type") in [SPAN_TYPES.INFERENCE, SPAN_TYPES.INFERENCE_FRAMEWORK]:
             if span.attributes.get("span.subtype") in [INFERENCE_AGENT_DELEGATION, INFERENCE_TOOL_CALL]:
-                parent_span.set_attribute(LAST_INFERENCE, f"{hex(span.context.span_id)}:{span.attributes.get('entity.3.name', '')}")
+                parent_span.set_attribute(LAST_INFERENCE, f"{format(span.context.span_id, '#018x')}:{span.attributes.get('entity.3.name', '')}")
             elif span.attributes.get("span.subtype") == INFERENCE_TURN_END:
-                parent_span.set_attribute(LAST_INFERENCE, f"{hex(span.context.span_id)}:{ANY_AGENT}")
+                parent_span.set_attribute(LAST_INFERENCE, f"{format(span.context.span_id, '#018x')}:{ANY_AGENT}")
         # copy last infernce span id from parent span to tool span
         elif span.attributes.get("span.type") in [SPAN_TYPES.AGENTIC_TOOL_INVOCATION, SPAN_TYPES.AGENTIC_INVOCATION]:
             if LAST_INFERENCE in parent_span.attributes and verify_tool_names_in_spans(span, parent_span):
@@ -643,3 +643,7 @@ def set_workflow_name(workflow_name: str) -> None:
 def get_workflow_name() -> str:
     """Get the global workflow name."""
     return monocle_workflow_name
+
+def get_span_id(span: Span) -> str:
+    """Get the span ID as a hex string without 0x prefix."""
+    return format(span.context.span_id, '018x')

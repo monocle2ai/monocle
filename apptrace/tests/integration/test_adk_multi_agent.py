@@ -6,13 +6,14 @@ import time
 from zoneinfo import ZoneInfo
 
 import pytest
+from monocle_apptrace.exporters.file_exporter import FileSpanExporter
 from common.custom_exporter import CustomConsoleSpanExporter
 from google.adk.agents import LlmAgent, SequentialAgent
 from google.adk.runners import Runner
 from google.adk.sessions import InMemorySessionService
 from google.genai import types
 from monocle_apptrace import setup_monocle_telemetry
-from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor, BatchSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 
 logger = logging.getLogger(__name__)
@@ -24,7 +25,8 @@ def setup():
         os.environ["GOOGLE_GENAI_USE_VERTEXAI"] = "FALSE"
         memory_exporter = InMemorySpanExporter()
         custom_exporter = CustomConsoleSpanExporter()
-        span_processors = [SimpleSpanProcessor(memory_exporter), SimpleSpanProcessor(custom_exporter)]
+        file_exporter = FileSpanExporter()
+        span_processors = [SimpleSpanProcessor(memory_exporter), SimpleSpanProcessor(custom_exporter), BatchSpanProcessor(file_exporter)]
         instrumentor = setup_monocle_telemetry(
             workflow_name="langchain_agent_1", 
             span_processors=span_processors
@@ -213,7 +215,7 @@ def verify_spans(memory_exporter):
 
             elif span_attributes["entity.1.name"] == "supervisor":
                 found_supervisor_agent = True
-                supervisor_span_id = hex(span.context.span_id)
+                supervisor_span_id = format(span.context.span_id, '016x')
             found_agent = True
 
         if (

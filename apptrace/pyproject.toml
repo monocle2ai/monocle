@@ -137,7 +137,6 @@ dev = [
   'azure-identity',
   'agent-framework-azure-ai',
   'bedrock-agentcore==1.2.0',
-    'google-cloud-storage==3.8.0'
 ]
 
 dev_tranformers = [
@@ -167,7 +166,7 @@ opentelemetry-exporter = [
 ]
 
 gcp = [
-    'google-cloud-storage==3.8.0',
+    'google-cloud-storage==2.18.0',
 ]
 
 

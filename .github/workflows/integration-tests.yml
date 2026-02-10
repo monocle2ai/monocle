@@ -69,6 +69,10 @@ jobs:
       GITHUB_TOKEN: ${{ secrets.EXPORTER_GITHUB_TOKEN }}
       KNOWLEDGE_BASE_ID: ${{ vars.KNOWLEDGE_BASE_ID }}
       PROFILE_ARN: ${{ vars.PROFILE_ARN }}
+      MONOCLE_GCS_BUCKET_NAME: ${{ vars.MONOCLE_GCS_BUCKET_NAME }}
+      MONOCLE_GCS_LOCATION: ${{ vars.MONOCLE_GCS_LOCATION }}
+      MONOCLE_GCS_PROJECT_ID: ${{ vars.MONOCLE_GCS_PROJECT_ID }}
+      GOOGLE_CLOUD_PROJECT: ${{ vars.GOOGLE_CLOUD_PROJECT }}
 
     steps:
       - name: Checkout repository
@@ -110,7 +114,7 @@ jobs:
           pip install -e '.[dev]'
           pip install -e '.[azure]'
           pip install -e '.[aws]'
-
+          pip install -e '.[gcp]'
       - name: Run Unit tests
         id: run-unit-tests
         run: |

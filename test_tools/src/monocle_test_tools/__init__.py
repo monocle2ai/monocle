@@ -20,9 +20,8 @@ from .schema import (
     ToolType,
 )
 
-from .evals import ( BaseEval, BertScorerEval)
+from .evals import ( BaseEval, BertScorerEval, OkahuEval)
 from .comparer import ( BaseComparer, BertScoreComparer, DefaultComparer)
-from . import trace_utils
 from .runner import AgentRunner, get_agent_runner
 from .fluent_api import TraceAssertion
 from . import pytest_plugin
@@ -38,6 +37,7 @@ __all__ = [
     "BaseEval",
     "Evaluation",
     "BertScorerEval",
+    "OkahuEval",
     "BaseComparer",
     "BertScoreComparer",
     "DefaultComparer",

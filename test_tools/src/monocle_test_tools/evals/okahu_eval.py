@@ -93,9 +93,10 @@ class OkahuEval(BaseEval):
         
         # clear table after evaluation
         ingest = os.getenv("OKAHU_INGESTION_ENDPOINT", OKAHU_PROD_INGEST_ENDPOINT).rstrip("/")
-        delete_url = ingest.replace("/trace/ingest", "/eval/delete")     
+        delete_url = ingest.replace("/trace/ingest", "/eval/delete")
+        params = {"trace_id": trace}     
         try:
-            response = requests.delete(delete_url, headers=headers)
+            response = requests.delete(delete_url, headers=headers, params=params)
             response.raise_for_status() 
             logging.info(f"Success: {response.text}")
         except requests.exceptions.RequestException as e:

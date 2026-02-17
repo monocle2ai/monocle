@@ -22,6 +22,7 @@ from .schema import (
 
 from .evals import ( BaseEval, BertScorerEval, OkahuEval)
 from .comparer import ( BaseComparer, BertScoreComparer, DefaultComparer)
+from . import trace_utils
 from .runner import AgentRunner, get_agent_runner
 from .fluent_api import TraceAssertion
 from . import pytest_plugin

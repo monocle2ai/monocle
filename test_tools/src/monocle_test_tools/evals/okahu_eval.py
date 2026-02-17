@@ -34,18 +34,19 @@ class OkahuEval(BaseEval):
         exporter.shutdown()
 
         #setting parameters, headers, payload for eval job submission
-        base = os.getenv("MONOCLE_EVAL_SERVICE_URL").rstrip("/")
+        base = os.getenv("OKAHU_EVALUATION_ENDPOINT", "https://eval.okahu.co/api/v1/eval/jobs").rstrip("/")
         if not base:
-            raise AssertionError("Evaluation service URLs are not configured. Please set MONOCLE_EVAL_SERVICE_URL environment variable for evaluation features to work.")
+            raise AssertionError("Evaluation service URLs are not configured. Please set OKAHU_EVALUATION_ENDPOINT environment variable for evaluation features to work.")
         submit_url = f"{base}/v1/eval/jobs"
 
         span = filtered_spans[0]
-        workflow_name = span.attributes.get("workflow.name") # support workflow name in eval api, make sure both app and workflow name aren't passed
+        workflow_name = span.attributes.get("workflow.name")
+        trace = format(span.get_span_context().trace_id, '032x')
         start_span_ns = span.start_time - 24 * 60 * 60 * 1e9  # 24 hours before the first span's start time, in nanoseconds
         end_span_ns = span.end_time + 24 * 60 * 60 * 1e9  # 24 hours after the first span's end time, in nanoseconds
         start = datetime.fromtimestamp(start_span_ns / 1e9, timezone.utc).strftime('%Y-%m-%dT%H:%M:%S.%fZ')
         end = datetime.fromtimestamp(end_span_ns / 1e9, timezone.utc).strftime('%Y-%m-%dT%H:%M:%S.%fZ')
-        trace = format(span.get_span_context().trace_id, '032x')
+
         headers = {"x-api-key": api_key}
         payload = {"template_name": eval_name}
         params = {
@@ -54,10 +55,11 @@ class OkahuEval(BaseEval):
             "end_time": end,
             "breakdown_filter": "traces",
             "trace_id": trace, 
-            "fact_name": fact_name,
+            "fact_name": "traces",
             "shadow_eval": True
         }
         
+        # submit evaluation job to okahu and handle response/errors
         try:
             response = requests.post(
                 url=submit_url,
@@ -88,4 +90,18 @@ class OkahuEval(BaseEval):
             eval_result = data.get("result")
         except Exception as exc:
             raise AssertionError(f"Unexpected response format from evaluation service. Expected 'result' key in response. Received: {data}") from exc
+        
+        # clear table after evaluation
+        ingest = os.getenv("OKAHU_INGESTION_ENDPOINT", "https://ingest.okahu.co/api/v1/trace/ingest").rstrip("/")
+        delete_url = ingest.replace("/trace/ingest", "/eval/delete")     
+        try:
+            response = requests.delete(delete_url, headers=headers)
+            response.raise_for_status() 
+            logging.info(f"Success: {response.text}")
+        except requests.exceptions.RequestException as e:
+            logging.error(f"✗ Error: {e}")
+            if hasattr(e, 'response') and e.response is not None:
+                logging.error(f"Status Code: {e.response.status_code}")
+                logging.error(f"Response: {e.response.text}")
+
         return eval_result  

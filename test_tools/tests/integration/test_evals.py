@@ -1,40 +1,43 @@
 import pytest
+from monocle_test_tools.pytest_plugin import monocle_trace_asserter
 from test_common.adk_travel_agent import root_agent
 
-# This test is to check that the agent calls are being captured correctly and the evaluation is working as expected.
 @pytest.mark.asyncio
-async def test_agent_invocation(monocle_trace_asserter):
+async def test_trace_level_sentiment_bias_evaluation(monocle_trace_asserter):
+    """v0: Basic sentiment, bias evaluation on trace - only specify eval name and expected value."""
     await monocle_trace_asserter.run_agent_async(root_agent, "google_adk",
                         "Book a flight from San Jose to Seattle for 27th Nov 2025.")
-    monocle_trace_asserter.called_agent("adk_flight_booking_agent_5").contains_input("Book a flight from San Jose to Seattle")
+    # Fact is implicit (trace), only specify eval template name and expected value
     monocle_trace_asserter.with_evaluation("okahu").check_eval("sentiment", "positive")
+    monocle_trace_asserter.with_evaluation("okahu").check_eval("bias", "unbiased")
 
-# This test is to check that the tool calls are being captured correctly and the evaluation is working as expected.
 @pytest.mark.asyncio
-async def test_tool_invocation(monocle_trace_asserter):
-    await monocle_trace_asserter.run_agent_async(root_agent, "google_adk", 
-                        "Book a flight from San Francisco to Mumbai for 26th Nov 2025")
-    monocle_trace_asserter.called_tool("adk_book_flight_5","adk_flight_booking_agent_5").contains_input("Mumbai")
-    monocle_trace_asserter.with_evaluation("okahu").check_eval("sentiment", "positive")
+async def test_trace_level_quality_metrics_evaluation(monocle_trace_asserter):
+    """v0: Multiple evaluations on trace - frustration, hallucination, contextual_precision."""
+    await monocle_trace_asserter.run_agent_async(root_agent, "google_adk",
+                        "Please Book a flight from New York to Hamburg for 1st Dec 2025. Book a flight from Hamburg to Paris on January 1st. " \
+                        "Then book a hotel room in Paris for 5th Jan 2026.")
+    monocle_trace_asserter.with_evaluation("okahu").check_eval("frustration", "ok")
+    monocle_trace_asserter.with_evaluation("okahu").check_eval("hallucination", "no_hallucination")
+    monocle_trace_asserter.with_evaluation("okahu").check_eval("contextual_precision", "high_precision")
 
-# This test is similar to the above test but with more complex input and multiple tool calls. 
-# This is to test that the asserter can correctly identify and assert on multiple tool calls in a single trace.
 @pytest.mark.asyncio
-async def test_tool_invocation1(monocle_trace_asserter):
+async def test_filtered_agent_tool_evaluation(monocle_trace_asserter):
+    await monocle_trace_asserter.run_agent_async(root_agent, "google_adk",
+                        "Book a flight from San Jose to Seattle for 27th Nov 2025.")
+    
+    monocle_trace_asserter.called_agent("adk_flight_booking_agent_5")
+    monocle_trace_asserter.with_evaluation("okahu").check_eval("conversation_completeness", "complete")
+
+    monocle_trace_asserter.called_tool("adk_book_flight_5","adk_flight_booking_agent_5")
+    monocle_trace_asserter.with_evaluation("okahu").check_eval("toxicity", "non_toxic")\
+        .check_eval("contextual_relevancy", "highly_relevant")
+@pytest.mark.asyncio
+async def test_complex_workflow_summarization_evaluation(monocle_trace_asserter):
     await monocle_trace_asserter.run_agent_async(root_agent, "google_adk", 
                         "Book a flight from San Francisco to Mumbai for 26th April 2026. Book a two queen room at Marriott Intercontinental at Central Mumbai for 27th April 2026 for 4 nights.")
-    
-    monocle_trace_asserter.called_tool("adk_book_flight","adk_flight_booking_agent") \
-        .contains_input("Mumbai").contains_input("San Francisco").contains_input("26th April 2026") \
-        .contains_output("San Francisco to Mumbai").contains_output("success")
-    
-    monocle_trace_asserter.called_tool("adk_book_hotel","adk_hotel_booking_agent") \
-        .contains_input("Central Mumbai").contains_input("27th April 2026").contains_input("Marriott Intercontinental") \
-        .contains_output("booked") \
-        .contains_output("Successfully booked a stay at Marriott Intercontinental in Central Mumbai") \
-        .contains_output("success")
 		
-    monocle_trace_asserter.with_evaluation("okahu").check_eval("sentiment", "positive")
+    monocle_trace_asserter.with_evaluation("okahu").check_eval("summarization", "excellent")
 
 if __name__ == "__main__":
     pytest.main([__file__]) 

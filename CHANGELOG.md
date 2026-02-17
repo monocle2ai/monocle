@@ -1,3 +1,15 @@
+## Version 0.7.4 (2026-02-11)
+
+- Refactor span export logic in okahu_exporter.py ([#449](https://github.com/monocle2ai/monocle/pull/449))
+- gcs exporter ([#429](https://github.com/monocle2ai/monocle/pull/429))
+- Fixed session_id/chat_store_key extraction in lmx and updated test ([#440](https://github.com/monocle2ai/monocle/pull/440))
+- Changed tool method ([#442](https://github.com/monocle2ai/monocle/pull/442))
+- Fix merge resolution issues in the previous commit ([#439](https://github.com/monocle2ai/monocle/pull/439))
+- Skip empty heathcheck http spans ([#437](https://github.com/monocle2ai/monocle/pull/437))
+- Added server name in mcp spans and integration tests ([#438](https://github.com/monocle2ai/monocle/pull/438))
+- Fix workflow name management to telemetry setup ([#436](https://github.com/monocle2ai/monocle/pull/436))
+- Support for new langgraph and langchain ([#435](https://github.com/monocle2ai/monocle/pull/435))
+
 ## Version 0.7.3 (2026-01-29)
 
 - Scope attributes MS Agent ([#428](https://github.com/monocle2ai/monocle/pull/428))

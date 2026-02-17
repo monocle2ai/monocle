@@ -51,6 +51,7 @@ class OkahuSpanExporter(SpanExporterBase):
             logger.warning("Exporter already shutdown, ignoring batch")
             return SpanExportResult.FAILURE
 
+
         span_list = {
             "batch": []
         }

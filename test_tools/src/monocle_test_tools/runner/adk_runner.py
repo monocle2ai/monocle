@@ -11,7 +11,13 @@ USER_ID = "monocle_test_user"
 SESSION_ID = "monocle_test_session"
 
 class ADKRunner(AgentRunner):
-    async def run_agent_async(self, root_agent, test_message: Union[types.Content, str]):
+    async def run_agent_async(self, root_agent, *args, session_id: str = None):
+        # Extract request from args - it should be the first positional argument
+        test_message = args[0] if args else None
+
+        if session_id is None:
+            session_id = SESSION_ID
+            
         session_service = InMemorySessionService()
         runner = Runner(
             agent=root_agent,
@@ -21,7 +27,7 @@ class ADKRunner(AgentRunner):
         await session_service.create_session(
             app_name=APP_NAME, 
             user_id=USER_ID,
-            session_id=SESSION_ID
+            session_id=session_id
         )
         if isinstance(test_message, str):
             content = types.Content(role='user', parts=[types.Part(text=test_message)])
@@ -30,7 +36,7 @@ class ADKRunner(AgentRunner):
         # Process events as they arrive using async for
         async for event in runner.run_async(
             user_id=USER_ID,
-            session_id=SESSION_ID,
+            session_id=session_id,
             new_message=content
         ):
             # For final response

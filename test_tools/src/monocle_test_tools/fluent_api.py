@@ -91,9 +91,9 @@ class TraceAssertion():
         """Run the given agent with provided args and kwargs."""
         return self.validator.run_agent(agent, agent_type, *args, **kwargs)
 
-    async def run_agent_async(self, agent, agent_type:str, *args, **kwargs) -> any:
+    async def run_agent_async(self, agent, agent_type:str, *args, session_id:str=None, **kwargs) -> any:
         """Run the given async agent with provided args and kwargs."""
-        return await self.validator.run_agent_async(agent, agent_type, *args, **kwargs)
+        return await self.validator.run_agent_async(agent, agent_type, *args, session_id=session_id, **kwargs)
 
     def with_evaluation(self, eval:Union[str, BaseEval]) -> 'TraceAssertion':
         """Set the evaluation method for input/output comparisons."""

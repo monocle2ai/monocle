@@ -237,19 +237,19 @@ class MonocleValidator:
         return result
 
     @staticmethod
-    async def run_agent_async(agent, agent_type:str, *args, **kwargs):
+    async def run_agent_async(agent, agent_type:str, *args, session_id:str=None, **kwargs):
         agent_runner = get_agent_runner(agent_type)
         if agent_runner is None:
             raise ValueError(f"Unsupported agent type: {agent_type}")
-        result = await agent_runner.run_agent_async(agent, *args, **kwargs)
+        result = await agent_runner.run_agent_async(agent, *args, session_id=session_id, **kwargs)
         return result
 
-    async def test_agent_async(self, agent, agent_type:str, test_case:Union[TestCase, dict]):
+    async def test_agent_async(self, agent, agent_type:str, test_case:Union[TestCase, dict], session_id:str=None):
         if isinstance(test_case, dict):
             test_case = TestCase.model_validate(test_case)
         result = None
         try:
-            result = await MonocleValidator.run_agent_async(agent, agent_type, *test_case.test_input)
+            result = await MonocleValidator.run_agent_async(agent, agent_type, *test_case.test_input, session_id=session_id)
         except Exception as e:
             if not test_case.expect_errors:
                 raise

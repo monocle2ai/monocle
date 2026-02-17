@@ -8,6 +8,8 @@ from monocle_test_tools.evals.base_eval import BaseEval
 from typing import Optional, Union
 
 logger = logging.getLogger(__name__)
+OKAHU_PROD_INGEST_ENDPOINT = "https://ingest.okahu.co/api/v1/trace/ingest"
+OKAHU_PROD_EVALUATION_ENDPOINT = "https://eval.okahu.co/api/v1/eval/jobs"
 
 class OkahuEval(BaseEval):
     def __init__(self, **data):
@@ -34,9 +36,7 @@ class OkahuEval(BaseEval):
         exporter.shutdown()
 
         #setting parameters, headers, payload for eval job submission
-        base = os.getenv("OKAHU_EVALUATION_ENDPOINT", "https://eval.okahu.co/api/v1/eval/jobs").rstrip("/")
-        if not base:
-            raise AssertionError("Evaluation service URLs are not configured. Please set OKAHU_EVALUATION_ENDPOINT environment variable for evaluation features to work.")
+        base = os.getenv("OKAHU_EVALUATION_ENDPOINT", OKAHU_PROD_EVALUATION_ENDPOINT).rstrip("/")
         submit_url = f"{base}/v1/eval/jobs"
 
         span = filtered_spans[0]
@@ -92,7 +92,7 @@ class OkahuEval(BaseEval):
             raise AssertionError(f"Unexpected response format from evaluation service. Expected 'result' key in response. Received: {data}") from exc
         
         # clear table after evaluation
-        ingest = os.getenv("OKAHU_INGESTION_ENDPOINT", "https://ingest.okahu.co/api/v1/trace/ingest").rstrip("/")
+        ingest = os.getenv("OKAHU_INGESTION_ENDPOINT", OKAHU_PROD_INGEST_ENDPOINT).rstrip("/")
         delete_url = ingest.replace("/trace/ingest", "/eval/delete")     
         try:
             response = requests.delete(delete_url, headers=headers)

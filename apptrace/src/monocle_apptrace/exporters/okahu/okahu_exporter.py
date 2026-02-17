@@ -9,7 +9,7 @@ from requests.exceptions import ReadTimeout
 from monocle_apptrace.exporters.base_exporter import SpanExporterBase
 from monocle_apptrace.exporters.exporter_processor import ExportTaskProcessor
 
-REQUESTS_SUCCESS_STATUS_CODES = (200, 202)
+REQUESTS_SUCCESS_STATUS_CODES = (200, 202, 204)
 OKAHU_PROD_INGEST_ENDPOINT = "https://ingest.okahu.co/api/v1/trace/ingest"
 
 logger = logging.getLogger(__name__)
@@ -71,6 +71,10 @@ class OkahuSpanExporter(SpanExporterBase):
         if len(span_list["batch"]) == 0:
             return
 
+        # if there are no spans to export after filtering, then return
+        if len(span_list["batch"]) == 0:
+            return
+        
         # Calculate is_root_span by checking if any span has no parent
         is_root_span = any(not span.parent for span in spans)
 

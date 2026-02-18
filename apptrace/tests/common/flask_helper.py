@@ -25,6 +25,10 @@ def route_executer(request):
 def message_chat():
     return route_executer(request)
 
+@web_app.route("/", methods=["GET"])
+def health_check():
+    return jsonify({})
+
 @web_app.route("/hello", methods=["GET"])
 def hello():
     return jsonify({"Status":"Success"})

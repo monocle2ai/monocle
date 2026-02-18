@@ -19,11 +19,15 @@ async def chat_handler(request):
         response = "Failure {e}"
     return web.Response(text=response)
 
+def health_check(request):
+    return web.Response(text="")
+
 def hello(request):
     return web.Response(text="Status:Success")
 
 def create_app():
     app = web.Application()
+    app.router.add_get('/', health_check)
     app.router.add_get('/chat', chat_handler)
     app.router.add_get('/hello', hello)
     return app

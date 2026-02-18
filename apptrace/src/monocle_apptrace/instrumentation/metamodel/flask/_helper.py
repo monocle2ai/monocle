@@ -1,7 +1,7 @@
 import logging
 from threading import local
 from monocle_apptrace.instrumentation.common.utils import extract_http_headers, clear_http_scopes, get_exception_status_code
-from monocle_apptrace.instrumentation.common.span_handler import SpanHandler
+from monocle_apptrace.instrumentation.common.span_handler import SpanHandler, HttpSpanHandler
 from monocle_apptrace.instrumentation.common.constants import HTTP_SUCCESS_CODES
 from monocle_apptrace.instrumentation.common.utils import MonocleSpanException
 from urllib.parse import unquote
@@ -64,7 +64,7 @@ def flask_pre_tracing(args):
 def flask_post_tracing(token):
     clear_http_scopes(token)
 
-class FlaskSpanHandler(SpanHandler):
+class FlaskSpanHandler(HttpSpanHandler):
 
     def pre_tracing(self, to_wrap, wrapped, instance, args, kwargs):
         return flask_pre_tracing(args), None
@@ -73,13 +73,18 @@ class FlaskSpanHandler(SpanHandler):
         flask_post_tracing(token)
 
 class FlaskResponseSpanHandler(SpanHandler):
-    def post_tracing(self, to_wrap, wrapped, instance, args, kwargs, return_value, token):
+    # This span is only used to collect the data.input and data.output events and merge with parent span.
+    # It's never exported by itself.
+    def should_sample(self, to_wrap, wrapped, instance, args, kwargs, result, ex, span:Span, parent_span:Span) -> bool:
+        return False
+
+    def post_task_processing(self, to_wrap, wrapped, instance, args, kwargs, result, ex, span:Span, parent_span:Span):
         try:
-            _parent_span_context = get_current()
-            if _parent_span_context is not None:
-                parent_span: Span = _parent_span_context.get(_SPAN_KEY, None)
-                if parent_span is not None:
-                    self.hydrate_events(to_wrap, wrapped, instance, args, kwargs, return_value, parent_span=parent_span)
+            if parent_span is not None:
+                self.hydrate_events(to_wrap, wrapped, instance, args, kwargs,
+                                    result, span=parent_span, is_post_exec=False)
+                self.hydrate_events(to_wrap, wrapped, instance, args, kwargs,
+                                    result, span=parent_span, is_post_exec=True)
         except Exception as e:
-            logger.info(f"Failed to propogate flask response: {e}")
-        super().post_tracing(to_wrap, wrapped, instance, args, kwargs, return_value, token)
+            logger.info(f"Failed to propagate flask response: {e}")
+        super().post_task_processing(to_wrap, wrapped, instance, args, kwargs, result, ex, span, parent_span)

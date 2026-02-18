@@ -47,13 +47,16 @@ class OkahuSpanExporter(SpanExporterBase):
     def export(self, spans: Sequence[ReadableSpan]) -> SpanExportResult:
         # After the call to Shutdown subsequent calls to Export are
         # not allowed and should return a Failure result
-        if not hasattr(self, 'session'):
-            return self.exporter.export(spans)
-
         if self._closed:
             logger.warning("Exporter already shutdown, ignoring batch")
             return SpanExportResult.FAILURE
-
+        
+        if not hasattr(self, 'session') or self.session is None:
+            logger.error("Session not available, cannot export spans")
+            return self.exporter.export(spans)
+            
+        if len(spans) == 0:
+            return
 
         span_list = {
             "batch": []
@@ -67,10 +70,6 @@ class OkahuSpanExporter(SpanExporterBase):
             obj = json.loads(span.to_json())
             span_list["batch"].append(obj)
 
-        # if there are no spans to export after filtering, then return
-        if len(span_list["batch"]) == 0:
-            return
-        
         # Calculate is_root_span by checking if any span has no parent
         is_root_span = any(not span.parent for span in spans)
 

@@ -70,10 +70,6 @@ class OkahuSpanExporter(SpanExporterBase):
             obj = json.loads(span.to_json())
             span_list["batch"].append(obj)
 
-        # if there are no spans to export after filtering, then return
-        if len(span_list["batch"]) == 0:
-            return
-        
         # Calculate is_root_span by checking if any span has no parent
         is_root_span = any(not span.parent for span in spans)
 

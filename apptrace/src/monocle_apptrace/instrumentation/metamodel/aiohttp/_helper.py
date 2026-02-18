@@ -2,7 +2,7 @@ import logging
 from threading import local
 import json
 from monocle_apptrace.instrumentation.common.utils import extract_http_headers, clear_http_scopes, get_exception_status_code, try_option, Option, MonocleSpanException
-from monocle_apptrace.instrumentation.common.span_handler import SpanHandler
+from monocle_apptrace.instrumentation.common.span_handler import SpanHandler, HttpSpanHandler
 from monocle_apptrace.instrumentation.common.constants import HTTP_SUCCESS_CODES
 from urllib.parse import unquote
 
@@ -72,7 +72,7 @@ def get_route(args) -> str:
 def get_function_name(args) -> str:
     return args[0].match_info.handler.__name__
 
-class aiohttpSpanHandler(SpanHandler):
+class aiohttpSpanHandler(HttpSpanHandler):
 
     def pre_tracing(self, to_wrap, wrapped, instance, args, kwargs):
         return aiohttp_pre_tracing(args), None

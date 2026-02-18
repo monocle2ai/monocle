@@ -44,13 +44,16 @@ class OkahuSpanExporter(SpanExporterBase):
     def export(self, spans: Sequence[ReadableSpan]) -> SpanExportResult:
         # After the call to Shutdown subsequent calls to Export are
         # not allowed and should return a Failure result
-        if not hasattr(self, 'session'):
-            return self.exporter.export(spans)
-
         if self._closed:
             logger.warning("Exporter already shutdown, ignoring batch")
             return SpanExportResult.FAILURE
-
+        
+        if not hasattr(self, 'session') or self.session is None:
+            logger.error("Session not available, cannot export spans")
+            return self.exporter.export(spans)
+            
+        if len(spans) == 0:
+            return
 
         span_list = {
             "batch": []

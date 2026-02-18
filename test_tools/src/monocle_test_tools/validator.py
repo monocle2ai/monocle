@@ -29,7 +29,7 @@ from monocle_apptrace.instrumentation.metamodel.adk.entities.tool import TOOL as
 from monocle_apptrace.instrumentation.metamodel.langgraph.methods import LANGGRAPH_METHODS
 from monocle_apptrace.instrumentation.metamodel.langgraph.entities.inference import TOOLS as LANGGRAPH_TOOL
 from monocle_apptrace.instrumentation.common.constants import MONOCLE_SKIP_EXECUTIONS, MONOCLE_WORKFLOW_NAME_KEY
-
+from monocle_apptrace.instrumentation.common.utils import set_workflow_name
 logger = logging.getLogger(__name__)
 
 class MonocleValidator:
@@ -74,7 +74,7 @@ class MonocleValidator:
         else:
             self.instrumentor = get_monocle_instrumentor()
             reset_span_processors([SimpleSpanProcessor(self.memory_exporter)])
-            self.workflow_token = attach(set_value(MONOCLE_WORKFLOW_NAME_KEY, workflow_name))
+            set_workflow_name(workflow_name)
         MonocleValidator._initialized = True
 
     def __del__(self):

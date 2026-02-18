@@ -63,8 +63,6 @@ class MonocleValidator:
         self.memory_exporter = InMemorySpanExporter()
         if export_failed_tests_only is None:
             export_failed_tests_only = os.getenv("MONOCLE_EXPORT_FAILED_TESTS_ONLY", "false").lower() == "true"
-        if os.getenv("MONOCLE_TEST_WORKFLOW_NAME"):
-            set_workflow_name(os.getenv("MONOCLE_TEST_WORKFLOW_NAME"))
         if workflow_name is None:
             workflow_name = os.getenv("MONOCLE_TEST_WORKFLOW_NAME")
             if workflow_name is None:
@@ -76,7 +74,7 @@ class MonocleValidator:
         else:
             self.instrumentor = get_monocle_instrumentor()
             reset_span_processors([SimpleSpanProcessor(self.memory_exporter)])
-            self.workflow_token = attach(set_value(MONOCLE_WORKFLOW_NAME_KEY, workflow_name))
+            set_workflow_name(workflow_name)
         MonocleValidator._initialized = True
 
     def __del__(self):

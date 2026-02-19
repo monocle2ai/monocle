@@ -17,6 +17,5 @@ FLASK_METHODS = [
         "wrapper_method": task_wrapper,
         "span_handler": "flask_response_handler",
         "output_processor": FLASK_RESPONSE_PROCESSOR,
-        "skip_span": True
     }
 ]

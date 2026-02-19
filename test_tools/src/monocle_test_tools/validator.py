@@ -500,30 +500,38 @@ class MonocleValidator:
             assert False, f"Agent '{to_agent}' was not delegated by '{from_agent}'."
         return True
 
-    def check_completion_token_limits(self, max_output_tokens:int, positive_test:bool = True) -> bool:
+    def check_completion_token_limits(self, max_output_tokens:int, positive_test:bool = True,
+                                filtered_spans:Optional[list[Span]] = None) -> bool:
         """Verify that the output token limits are respected in the spans.
          Args:
             max_tokens (int): The maximum number of tokens allowed in the output.
          """
         if max_output_tokens is None:
             return True
-        return self._check_token_limits(max_output_tokens, "completion_tokens", positive_test)
+        return self._check_token_limits(max_output_tokens, "completion_tokens", positive_test, filtered_spans)
 
-    def check_total_token_limits(self, max_total_tokens:int, positive_test:bool = True) -> bool:
+    def check_total_token_limits(self, max_total_tokens:int, positive_test:bool = True,
+                                filtered_spans:Optional[list[Span]] = None) -> bool:
         """Verify that the output token limits are respected in the spans.
          Args:
             max_tokens (int): The maximum number of tokens allowed in the output.
          """
         if max_total_tokens is None:
             return True
-        return self._check_token_limits(max_total_tokens, "total_tokens", positive_test)
+        return self._check_token_limits(max_total_tokens, "total_tokens", positive_test, filtered_spans)
 
-    def _check_token_limits(self, max_tokens:int, token_name:str, positive_test:bool) -> bool:
+    def _check_token_limits(self, max_tokens:int, token_name:str, positive_test:bool,
+                            filtered_spans:Optional[list[Span]] = None) -> bool:
         """Verify that the output token limits are respected in the spans.
          Args:
             max_tokens (int): The maximum number of tokens allowed in the output.
          """
-        for span in self.spans:
+        if filtered_spans is None:
+            spans_to_check = self.spans
+        else:
+            spans_to_check = filtered_spans
+        tokens = 0
+        for span in spans_to_check:
             span_attributes = span.attributes
             if (
                 "span.type" in span_attributes
@@ -680,9 +688,11 @@ class MonocleValidator:
                 return span
         return None
 
-    def _get_tool_invocation_spans(self, tool_name:str, agent_name:str = None) -> list:
+    def _get_tool_invocation_spans(self, tool_name:str, agent_name:str = None,
+                                filtered_spans:Optional[list[Span]] = None) -> list:
         tool_invocation_spans = []
-        for span in self.spans:
+        spans_to_check = filtered_spans if filtered_spans is not None else self.spans
+        for span in spans_to_check:
             span_attributes = span.attributes
             if (
                 "span.type" in span_attributes
@@ -693,9 +703,10 @@ class MonocleValidator:
                     tool_invocation_spans.append(span)
         return tool_invocation_spans
     
-    def _get_agent_invocation_spans(self, agent_name:str) -> list:
+    def _get_agent_invocation_spans(self, agent_name:str, filtered_spans:Optional[list[Span]] = None) -> list:
         agent_invocation_spans = []
-        for span in self.spans:
+        spans_to_check = filtered_spans if filtered_spans is not None else self.spans
+        for span in spans_to_check:
             span_attributes = span.attributes
             if (
                 "span.type" in span_attributes

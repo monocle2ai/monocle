@@ -135,6 +135,7 @@ dev = [
   'google-adk',
   'openai-agents',
   'azure-identity',
+  'agent-framework-core==1.0.0b260130',
   'agent-framework-azure-ai',
   'bedrock-agentcore==1.2.0',
 ]

@@ -156,6 +156,22 @@ def get_from_agent_span_id() -> str:
     """Get the from_agent_span_id from thread-local storage."""
     return getattr(_thread_local, 'from_agent_span_id', None)
 
+def set_current_invocation_scope(invocation_scope: str):
+    """Store current invocation scope in thread-local storage for tool propagation."""
+    _thread_local.current_invocation_scope = invocation_scope
+
+def get_current_invocation_scope() -> str:
+    """Get the current invocation scope from thread-local storage."""
+    return getattr(_thread_local, 'current_invocation_scope', None)
+
+def set_current_invocation_span_id(span_id: str):
+    """Store current agent invocation span_id in thread-local storage for tool reparenting."""
+    _thread_local.current_invocation_span_id = span_id
+
+def get_current_invocation_span_id() -> str:
+    """Get the current agent invocation span_id from thread-local storage."""
+    return getattr(_thread_local, 'current_invocation_span_id', None)
+
 # def clear_from_agent_info():
 #     """Clear from_agent information from thread-local storage."""
 #     if hasattr(_thread_local, 'from_agent'):
@@ -247,7 +263,24 @@ def extract_messages(args):
         return []
 
 def extract_agent_input(args):
-    if isinstance(args, (list, tuple)):
+    # Handle FunctionAgent.take_step(ctx, llm_input, tools, memory)
+    # where llm_input is the second positional argument
+    if isinstance(args, (list, tuple)) and len(args) > 1:
+        # Check if second arg is llm_input (list of ChatMessages)
+        llm_input = args[1] if len(args) > 1 else None
+        if llm_input and isinstance(llm_input, list):
+            messages = []
+            for msg in llm_input:
+                if hasattr(msg, 'content'):
+                    messages.append(msg.content)
+                elif isinstance(msg, dict) and 'content' in msg:
+                    messages.append(msg['content'])
+                elif isinstance(msg, (str, dict)):
+                    messages.append(msg)
+            if messages:
+                return messages
+        
+        # Fallback to original logic
         input_args = []
         for arg in args:
             if isinstance(arg, (str, dict)):
@@ -262,16 +295,46 @@ def extract_agent_input(args):
 def extract_agent_response(arguments):
     status = get_status_code(arguments)
     if status == 'success':
-        if hasattr(arguments['result'], 'response'):
-            if hasattr(arguments['result'].response, 'content'):
-                return arguments['result'].response.content
-            return arguments['result'].response
+        result = arguments.get('result')
+        if not result:
+            return ""
+        
+        # Handle FunctionAgent.take_step/finalize result (AgentOutput)
+        # AgentOutput has: response (ChatMessage), current_agent_name, tool_calls, etc.
+        if hasattr(result, 'response'):
+            response = result.response
+            # ChatMessage has content attribute
+            if hasattr(response, 'content'):
+                content = response.content
+                if content:
+                    return content
+            elif isinstance(response, str):
+                return response
+        
+        # If no content but has tool_calls, show tool call information
+        if hasattr(result, 'tool_calls') and result.tool_calls:
+            tool_info = []
+            for tool_call in result.tool_calls:
+                if hasattr(tool_call, 'tool_name'):
+                    tool_info.append(f"Tool: {tool_call.tool_name}")
+            if tool_info:
+                return f"[Tool Calls: {', '.join(tool_info)}]"
+        
+        # Try to extract from structured_response
+        if hasattr(result, 'structured_response') and result.structured_response:
+            return get_json_dumps(result.structured_response)
+        
+        # Handle string result directly
+        if isinstance(result, str):
+            return result
+            
         return ""
     else:
-        if arguments["exception"] is not None:
+        if arguments.get("exception") is not None:
             return get_exception_message(arguments)
-        elif hasattr(arguments['result'], "error"):
+        elif hasattr(arguments.get('result', {}), "error"):
             return arguments['result'].error
+    return ""
 
 def extract_assistant_message(arguments):
     status = get_status_code(arguments)

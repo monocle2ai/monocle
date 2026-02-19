@@ -501,7 +501,7 @@ class MonocleValidator:
         return True
 
     def check_completion_token_limits(self, max_output_tokens:int, positive_test:bool = True,
-                                filtered_spans:Optional[Span] = None) -> bool:
+                                filtered_spans:Optional[list[Span]] = None) -> bool:
         """Verify that the output token limits are respected in the spans.
          Args:
             max_tokens (int): The maximum number of tokens allowed in the output.
@@ -511,7 +511,7 @@ class MonocleValidator:
         return self._check_token_limits(max_output_tokens, "completion_tokens", positive_test, filtered_spans)
 
     def check_total_token_limits(self, max_total_tokens:int, positive_test:bool = True,
-                                filtered_spans:Optional[Span] = None) -> bool:
+                                filtered_spans:Optional[list[Span]] = None) -> bool:
         """Verify that the output token limits are respected in the spans.
          Args:
             max_tokens (int): The maximum number of tokens allowed in the output.
@@ -521,7 +521,7 @@ class MonocleValidator:
         return self._check_token_limits(max_total_tokens, "total_tokens", positive_test, filtered_spans)
 
     def _check_token_limits(self, max_tokens:int, token_name:str, positive_test:bool,
-                            filtered_spans:Optional[Span] = None) -> bool:
+                            filtered_spans:Optional[list[Span]] = None) -> bool:
         """Verify that the output token limits are respected in the spans.
          Args:
             max_tokens (int): The maximum number of tokens allowed in the output.

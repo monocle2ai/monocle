@@ -52,7 +52,7 @@ class TraceAssertion():
         traceAssertion.cleanup()
         return traceAssertion
 
-    def __init__(self, filtered_spans:Optional[Span] = None, fluent_chain:list[str] = []
+    def __init__(self, filtered_spans:Optional[list[Span]] = None, fluent_chain:list[str] = []
                 ,is_assertion_failed:bool = False):
         self.validator = MonocleValidator()
         if filtered_spans is None:

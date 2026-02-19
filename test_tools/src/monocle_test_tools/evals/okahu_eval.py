@@ -1,9 +1,11 @@
+import json
 import logging
 import os
 from datetime import datetime, timezone
 from opentelemetry.sdk.trace import Span
 import requests
 from monocle_apptrace.exporters.okahu import okahu_exporter
+from monocle_apptrace.exporters.okahu.okahu_eval_result_exporter import OkahuEvalResultExporter
 from monocle_test_tools.evals.base_eval import BaseEval
 from typing import Optional, Union
 
@@ -87,22 +89,23 @@ class OkahuEval(BaseEval):
         except ValueError as exc:
             raise AssertionError(f"Evaluation service returned invalid JSON: {response.text}") from exc
         try: 
+            job_id = data.get("job_id")
             eval_result = data.get("result")
+            label = json.loads(eval_result[0].get('result')).get('label')
         except Exception as exc:
             raise AssertionError(f"Unexpected response format from evaluation service. Expected 'result' key in response. Received: {data}") from exc
         
-        # clear table after evaluation
-        ingest = os.getenv("OKAHU_INGESTION_ENDPOINT", OKAHU_PROD_INGEST_ENDPOINT).rstrip("/")
-        delete_url = ingest.replace("/trace/ingest", "/eval/delete")
-        params = {"trace_id": trace}     
-        try:
-            response = requests.delete(delete_url, headers=headers, params=params)
-            response.raise_for_status() 
-            logging.info(f"Success: {response.text}")
-        except requests.exceptions.RequestException as e:
-            logging.error(f"✗ Error: {e}")
-            if hasattr(e, 'response') and e.response is not None:
-                logging.error(f"Status Code: {e.response.status_code}")
-                logging.error(f"Response: {e.response.text}")
+        #modify eval_name to be evaluation_fact_name_eval_name
+        template = f"evaluation_{fact_name}_{eval_name}"
+        with OkahuEvalResultExporter(api_key=api_key, base_url=base) as result_exporter:
+            # Export evaluation results
+            result_exporter.export_results(
+                job_id=job_id,
+                eval_result=eval_result,
+                template_name=template
+            )
+            
+            # Clean up trace from evaluation storage
+            result_exporter.delete_trace(trace_id=trace)
 
-        return eval_result  
+        return label

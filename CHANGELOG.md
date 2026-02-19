@@ -1,3 +1,10 @@
+## Version 0.7.5 (2026-02-19)
+
+- Add dependency for agent-framework-core ([#455](https://github.com/monocle2ai/monocle/pull/455))
+- Ensure that the fluent trace asserter has full set of spans at start of every chain ([#453](https://github.com/monocle2ai/monocle/pull/453))
+- Add custom workflow name for test tool ([#454](https://github.com/monocle2ai/monocle/pull/454))
+- Add for flask and aiohttp skip empty heathcheck http spans ([#448](https://github.com/monocle2ai/monocle/pull/448))
+
 ## Version 0.7.4 (2026-02-11)
 
 - Refactor span export logic in okahu_exporter.py ([#449](https://github.com/monocle2ai/monocle/pull/449))

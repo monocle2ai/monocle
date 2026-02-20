@@ -86,7 +86,7 @@ Current version supports:
 - Agent Runtime: (🟢) AWS Bedrock Agentcore
 - LLM inference providers: (🟢) OpenAI, (🟢) Azure OpenAI, (🟢) Azure AI, (🟢) Nvidia Triton, (🟢) AWS Bedrock, (🟢) AWS Sagemaker, (🟢) Google Vertex, (🟢) Google Gemini, (🟢) Hugging Face, (🟢) Deepseek, (🟢) Anthropic, (🟢) Mistral, (🟢) LiteLLM ,(🔜) Azure ML
 - Vector stores: (🟢) FAISS, (🔜) OpenSearch, (🔜) Milvus
-- Exporter: (🟢) stdout, (🟢) file, (🟢) Memory, (🟢) Azure Blob Storage, (🟢) AWS S3, (🟢) Okahu cloud, (🟢) OTEL compatible collectors, (🔜) Google Cloud Storage
+- Exporter: (🟢) stdout, (🟢) file, (🟢) Memory, (🟢) Azure Blob Storage, (🟢) AWS S3, (🟢) Okahu cloud, (🟢) OTEL compatible collectors, (🟢) Google Cloud Storage
 
 ## Get involved
 ### Provide feedback

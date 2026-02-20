@@ -6,13 +6,14 @@ import time
 from zoneinfo import ZoneInfo
 
 import pytest
+from monocle_apptrace.exporters.file_exporter import FileSpanExporter
 from common.custom_exporter import CustomConsoleSpanExporter
 from google.adk.agents import LlmAgent, SequentialAgent
 from google.adk.runners import Runner
 from google.adk.sessions import InMemorySessionService
 from google.genai import types
 from monocle_apptrace import setup_monocle_telemetry
-from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor, BatchSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 
 logger = logging.getLogger(__name__)
@@ -24,7 +25,8 @@ def setup():
         os.environ["GOOGLE_GENAI_USE_VERTEXAI"] = "FALSE"
         memory_exporter = InMemorySpanExporter()
         custom_exporter = CustomConsoleSpanExporter()
-        span_processors = [SimpleSpanProcessor(memory_exporter), SimpleSpanProcessor(custom_exporter)]
+        file_exporter = FileSpanExporter()
+        span_processors = [SimpleSpanProcessor(memory_exporter), SimpleSpanProcessor(custom_exporter), BatchSpanProcessor(file_exporter)]
         instrumentor = setup_monocle_telemetry(
             workflow_name="langchain_agent_1", 
             span_processors=span_processors
@@ -147,6 +149,8 @@ def verify_spans(memory_exporter):
     found_book_hotel_tool = found_book_flight_tool = False
     found_book_flight_delegation = found_book_hotel_delegation = False
     found_agentic_turn = False
+    hotel_from_agent_span_id = None
+    supervisor_span_id = None
 
     spans = memory_exporter.get_finished_spans()
     for span in spans:
@@ -200,6 +204,7 @@ def verify_spans(memory_exporter):
                 found_hotel_agent = True
                 if span_attributes["entity.1.from_agent"] == "supervisor":
                     found_book_hotel_delegation = True
+                    hotel_from_agent_span_id = span_attributes["entity.1.from_agent_span_id"]
 
                 # Assertions of input and output events for agentic.invocation spans
                 span_input, span_output = span.events
@@ -210,6 +215,7 @@ def verify_spans(memory_exporter):
 
             elif span_attributes["entity.1.name"] == "supervisor":
                 found_supervisor_agent = True
+                supervisor_span_id = format(span.context.span_id, '016x')
             found_agent = True
 
         if (
@@ -265,6 +271,7 @@ def verify_spans(memory_exporter):
     assert found_book_flight_tool, "Book flight tool span not found"
     assert found_book_hotel_tool, "Book hotel tool span not found"
     assert found_agentic_turn, "Agentic turn span not found"
+    assert hotel_from_agent_span_id == supervisor_span_id, "Hotel assistant agent span does not have correct from_agent_span_id"
     
 if __name__ == "__main__":
     pytest.main([__file__, "-s", "--tb=short"])

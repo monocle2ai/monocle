@@ -67,12 +67,10 @@ def test_retrieve_and_generate(setup):
         # Verify retrieval span attributes
         span_attrs = retrieval_span.attributes
         assert span_attrs["span.type"] == "retrieval"
+        assert "entity.1.name" in span_attrs
         assert "entity.1.type" in span_attrs
-        assert "retrieval.aws_bedrock" in span_attrs["entity.1.type"]
-        assert "entity.2.name" in span_attrs
-        assert "entity.2.type" in span_attrs
-        assert span_attrs["entity.2.name"] == "knowledgebase"
-        assert  span_attrs["entity.2.type"]=="vectorstore.knowledgebase"
+        assert span_attrs["entity.1.name"] == "knowledge_base"
+        assert  span_attrs["entity.1.type"]=="vectorstore.knowledge_base"
         # Verify input/output events
         input_event = next((e for e in retrieval_span.events if e.name == "data.input"), None)
         output_event = next((e for e in retrieval_span.events if e.name == "data.output"), None)

@@ -8,6 +8,7 @@ import time
 import pytest
 import uvicorn
 from llama_index.core.agent.workflow import AgentWorkflow, FunctionAgent
+from llama_index.core.memory import ChatMemoryBuffer
 from llama_index.core.tools import FunctionTool
 from llama_index.llms.openai import OpenAI
 from llama_index.tools.mcp import aget_tools_from_mcp_url
@@ -290,8 +291,14 @@ async def setup_agents():
 async def run_async_agent():
     """Test async multi-agent interaction with more complex requirements."""
     agent_workflow = await setup_agents()
+    # Use chat_store_key as unique session identifier
+    memory = ChatMemoryBuffer.from_defaults(
+        token_limit=3000,
+        chat_store_key="session_123"
+    )
     resp = await agent_workflow.run(
-        user_msg="Book a flight from BOS to JFK, and a hotel stay at McKittrick Hotel. Give me the cost in INR."
+        user_msg="Book a flight from BOS to JFK, and a hotel stay at McKittrick Hotel. Give me the cost in INR.",
+        memory=memory
     )
     logger.info(resp)
 
@@ -309,6 +316,7 @@ def verify_spans(memory_exporter=None):
     found_flight_agent = found_hotel_agent = found_supervisor_agent = False
     found_book_hotel_tool = found_book_flight_tool = False
     found_book_flight_delegation = found_book_hotel_delegation = False
+    found_session_id = False
     spans = memory_exporter.get_finished_spans()
     for span in spans:
         span_attributes = span.attributes
@@ -339,6 +347,11 @@ def verify_spans(memory_exporter=None):
             assert "entity.1.type" in span_attributes
             assert "entity.1.name" in span_attributes
             assert span_attributes["entity.1.type"] == "agent.llamaindex"
+            
+            # Check for session_id in scope.agentic.session
+            if "scope.agentic.session" in span_attributes:
+                assert span_attributes["scope.agentic.session"] == "session_123"
+                found_session_id = True
             
             # Check for delegation via from_agent attribute
             if "entity.1.from_agent" in span_attributes:
@@ -381,6 +394,7 @@ def verify_spans(memory_exporter=None):
     assert found_inference, "Inference span not found"
     assert found_agent, "Agent span not found"
     assert found_tool, "Tool span not found"
+    assert found_session_id, "Session ID not found in agent spans"
     assert found_book_flight_delegation, "Book flight delegation span not found (check from_agent attribute)"
     assert found_book_hotel_delegation, "Book hotel delegation span not found (check from_agent attribute)"
     assert found_flight_agent, "Flight assistant agent span not found"

@@ -52,9 +52,12 @@ class TraceAssertion():
         traceAssertion.cleanup()
         return traceAssertion
 
-    def __init__(self, filtered_spans:Optional[Span] = [], fluent_chain:list[str] = []
+    def __init__(self, filtered_spans:Optional[list[Span]] = None, fluent_chain:list[str] = []
                 ,is_assertion_failed:bool = False):
         self.validator = MonocleValidator()
+        if filtered_spans is None:
+            if self.validator.spans is not None and len(self.validator.spans) > 0:
+                filtered_spans = self.validator.spans
         self._filtered_spans = filtered_spans
         self.fluent_chain = fluent_chain
         self.is_assertion_failed = is_assertion_failed
@@ -84,7 +87,7 @@ class TraceAssertion():
 
     def cleanup(self) -> None:
         self.validator.cleanup()
-        self._filtered_spans = []
+        self._filtered_spans = None
         TraceAssertion._assertion_errors = []
 
     def run_agent(self, agent, agent_type:str, *args, **kwargs) -> any:
@@ -108,7 +111,7 @@ class TraceAssertion():
     @collect_assertions
     def called_tool(self, tool_name:str, agent_name:Optional[str] = None) -> 'TraceAssertion':
         """Assert that the given tool was called, optionally by a specific agent."""
-        self._filtered_spans = self.validator._get_tool_invocation_spans(tool_name, agent_name)
+        self._filtered_spans = self.validator._get_tool_invocation_spans(tool_name, agent_name, filtered_spans=self._filtered_spans)
         if agent_name:
             TraceAssertion._assert_on_spans(self._filtered_spans, f"Tool '{tool_name}' was not called by agent '{agent_name}'")
         else:
@@ -118,7 +121,7 @@ class TraceAssertion():
     @collect_assertions
     def does_not_call_tool(self, tool_names:str, agent_name:Optional[str] = None) -> 'TraceAssertion':
         """Assert that the given tool was not called, optionally by a specific agent."""
-        _filtered_spans = self.validator._get_tool_invocation_spans(tool_names, agent_name)
+        _filtered_spans = self.validator._get_tool_invocation_spans(tool_names, agent_name, filtered_spans=self._filtered_spans)
         if agent_name:
             TraceAssertion._assert_on_spans(_filtered_spans, f"Tool '{tool_names}' was called by agent '{agent_name}'", positive_test=False)
         else:
@@ -128,14 +131,14 @@ class TraceAssertion():
     @collect_assertions
     def called_agent(self, agent_name:str) -> 'TraceAssertion':
         """Assert that the given agent was called."""
-        self._filtered_spans = self.validator._get_agent_invocation_spans(agent_name)
+        self._filtered_spans = self.validator._get_agent_invocation_spans(agent_name, filtered_spans=self._filtered_spans)
         TraceAssertion._assert_on_spans(self._filtered_spans, f"Agent '{agent_name}' was not called")
         return self
 
     @collect_assertions
     def does_not_call_agent(self, agent_name:str) -> 'TraceAssertion':
         """Assert that the given agent was not called."""
-        _filtered_spans = self.validator._get_agent_invocation_spans(agent_name)
+        _filtered_spans = self.validator._get_agent_invocation_spans(agent_name, filtered_spans=self._filtered_spans)
         TraceAssertion._assert_on_spans(_filtered_spans, f"Agent '{agent_name}' was called", positive_test=False)
         return self
 
@@ -272,7 +275,7 @@ class TraceAssertion():
     @collect_assertions
     def under_token_limit(self, token_limit:int) -> 'TraceAssertion':
         """Assert that all spans have total tokens under the given limit."""
-        self.validator._check_token_limit(self._filtered_spans, token_limit)
+        self.validator.check_total_token_limits(token_limit, filtered_spans=self._filtered_spans)
         return self
 
     def load_spans(self, spans:list[Span]) -> None:

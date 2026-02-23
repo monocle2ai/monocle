@@ -15,6 +15,14 @@ CREW_AI_METHODS = [
         "output_processor": AGENT,
     },
     {
+        "package": "crewai.crew",
+        "object": "Crew",
+        "method": "kickoff_async",
+        "wrapper_method": atask_wrapper,
+        "span_handler": "crew_ai_agent_handler",
+        "output_processor": AGENT,
+    },
+    {
         "package": "crewai.agent",
         "object": "Agent",
         "method": "execute_task",

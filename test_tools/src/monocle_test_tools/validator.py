@@ -244,24 +244,24 @@ class MonocleValidator:
         result = await agent_runner.run_agent_async(agent, *args, **kwargs)
         return result
 
-    async def test_agent_async(self, agent, agent_type:str, test_case:Union[TestCase, dict]):
+    async def test_agent_async(self, agent, agent_type:str, test_case:Union[TestCase, dict], session_id:str=None):
         if isinstance(test_case, dict):
             test_case = TestCase.model_validate(test_case)
         result = None
         try:
-            result = await MonocleValidator.run_agent_async(agent, agent_type, *test_case.test_input)
+            result = await MonocleValidator.run_agent_async(agent, agent_type, *test_case.test_input, session_id=session_id)
         except Exception as e:
             if not test_case.expect_errors:
                 raise
         self.validate_result(test_case, result)
         return result
 
-    def test_agent(self, agent, agent_type:str, test_case:Union[TestCase, dict]):
+    def test_agent(self, agent, agent_type:str, test_case:Union[TestCase, dict], session_id:str=None):
         if isinstance(test_case, dict):
             test_case = TestCase.model_validate(test_case)
         result = None
         try:
-            result = MonocleValidator.run_agent(agent, agent_type, *test_case.test_input)
+            result = MonocleValidator.run_agent(agent, agent_type, *test_case.test_input, session_id=session_id)
         except Exception as e:
             if not test_case.expect_errors:
                 raise

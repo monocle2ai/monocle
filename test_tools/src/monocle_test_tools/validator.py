@@ -256,12 +256,12 @@ class MonocleValidator:
         self.validate_result(test_case, result)
         return result
 
-    def test_agent(self, agent, agent_type:str, test_case:Union[TestCase, dict], session_id:str=None):
+    def test_agent(self, agent, agent_type:str, test_case:Union[TestCase, dict]):
         if isinstance(test_case, dict):
             test_case = TestCase.model_validate(test_case)
         result = None
         try:
-            result = MonocleValidator.run_agent(agent, agent_type, *test_case.test_input, session_id=session_id)
+            result = MonocleValidator.run_agent(agent, agent_type, *test_case.test_input)
         except Exception as e:
             if not test_case.expect_errors:
                 raise

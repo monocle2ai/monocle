@@ -1,13 +1,14 @@
 import logging
 from typing import Any, Union
 from monocle_test_tools.runner.agent_runner import AgentRunner
+from monocle_apptrace.instrumentation.common.scope_wrapper import monocle_trace_scope
 
 logger = logging.getLogger(__name__)
 
 class CrewAIRunner(AgentRunner):
     """Runner for CrewAI crews and agents."""
     
-    async def run_agent_async(self, crew, request: Union[str, dict, Any]):
+    async def run_agent_async(self, crew, request: Union[str, dict, Any], session_id: str = None):
         """
         Execute a CrewAI crew asynchronously.
         
@@ -30,8 +31,12 @@ class CrewAIRunner(AgentRunner):
             # For other types, try to use it directly
             inputs = request
         
-        # Execute the crew asynchronously
-        result = await crew.kickoff_async(inputs=inputs)
+        # Execute with session tracking if session_id is provided
+        if session_id:
+            with monocle_trace_scope("agentic.session", session_id):
+                result = await crew.kickoff_async(inputs=inputs)
+        else:
+            result = await crew.kickoff_async(inputs=inputs)
         
         logger.debug(f"CrewAI result: {result}")
         

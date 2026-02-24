@@ -122,7 +122,7 @@ class OkahuEvalResultExporter:
             raise ValueError("trace_id is required.")
         
         ingest = ingest_endpoint or os.getenv("OKAHU_INGESTION_ENDPOINT", "https://ingest.okahu.co/api/v1/trace/ingest")
-        delete_url = ingest.rstrip("/").replace("/trace/ingest", "/eval/delete")
+        delete_url = ingest.rstrip("/").replace("/trace/ingest", "/trace_eval/delete")
         params = {"trace_id": trace_id}
         
         try:

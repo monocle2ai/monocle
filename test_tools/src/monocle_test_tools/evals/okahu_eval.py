@@ -10,7 +10,6 @@ from monocle_test_tools.evals.base_eval import BaseEval
 from typing import Optional, Union
 
 logger = logging.getLogger(__name__)
-OKAHU_PROD_INGEST_ENDPOINT = "https://ingest.okahu.co/api/v1/trace/ingest"
 OKAHU_PROD_EVALUATION_ENDPOINT = "https://eval.okahu.co/api/v1/eval/jobs"
 
 class OkahuEval(BaseEval):
@@ -95,8 +94,7 @@ class OkahuEval(BaseEval):
         except Exception as exc:
             raise AssertionError(f"Unexpected response format from evaluation service. Expected 'result' key in response. Received: {data}") from exc
         
-        #modify eval_name to be evaluation_fact_name_eval_name
-        template = f"evaluation_{fact_name}_{eval_name}"
+        template = eval_name
         with OkahuEvalResultExporter(api_key=api_key, base_url=base) as result_exporter:
             # Export evaluation results
             result_exporter.export_results(

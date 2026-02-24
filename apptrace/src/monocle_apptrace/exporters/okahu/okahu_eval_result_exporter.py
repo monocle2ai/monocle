@@ -31,7 +31,7 @@ class OkahuEvalResultExporter:
             raise ValueError("OKAHU_API_KEY not set. Provide api_key or set environment variable.")
         
         self.base_url = (base_url or os.getenv("OKAHU_EVALUATION_ENDPOINT", OKAHU_PROD_EVALUATION_ENDPOINT)).rstrip("/")
-        self.timeout = timeout or 15
+        self.timeout = timeout or 30
         
         self.session = requests.Session()
         self.session.headers.update({

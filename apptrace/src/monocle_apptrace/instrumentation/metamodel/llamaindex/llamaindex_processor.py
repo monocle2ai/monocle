@@ -43,7 +43,6 @@ class LlamaIndexToolHandler(DelegationHandler):
         # Propagate the current invocation scope to tool spans
         current_invocation_scope = get_current_invocation_scope()
         if current_invocation_scope:
-            from monocle_apptrace.instrumentation.common.constants import AGENT_INVOCATION_SPAN_NAME
             token = set_scope(AGENT_INVOCATION_SPAN_NAME, current_invocation_scope, cur_context)
             cur_context = get_current()
         

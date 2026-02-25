@@ -359,7 +359,7 @@ INFERENCE = {
                 {
                     "_comment": "this is metadata usage from LLM",
                     "accessor": lambda arguments: _helper.update_span_from_llm_response(
-                        arguments["result"]
+                        arguments
                     ),
                 },
                 {

@@ -1,4 +1,5 @@
 from typing import Union
+import uuid
 from google.adk.runners import Runner
 from google.adk.sessions import InMemorySessionService
 from google.genai import types
@@ -8,7 +9,7 @@ from monocle_test_tools.runner.agent_runner import AgentRunner
 
 APP_NAME = "monocle_test"
 USER_ID = "monocle_test_user"
-SESSION_ID = "monocle_test_session"
+SESSION_ID = f"monocle_test_session_{uuid.uuid4().hex}"
 
 class ADKRunner(AgentRunner):
     async def run_agent_async(self, root_agent, *args, session_id: str = None):

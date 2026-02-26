@@ -31,12 +31,8 @@ class CrewAIRunner(AgentRunner):
             # For other types, try to use it directly
             inputs = request
         
-        # Execute with session tracking if session_id is provided
-        if session_id:
-            with monocle_trace_scope("agentic.session", session_id):
-                result = await crew.kickoff_async(inputs=inputs)
-        else:
-            result = await crew.kickoff_async(inputs=inputs)
+        # Execute the crew asynchronously
+        result = await crew.kickoff_async(inputs=inputs)
         
         logger.debug(f"CrewAI result: {result}")
         

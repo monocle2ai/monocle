@@ -6,7 +6,7 @@ from requests.exceptions import RequestException, Timeout
 
 logger = logging.getLogger(__name__)
 
-OKAHU_PROD_EVALUATION_ENDPOINT = "https://eval.okahu.co/api/v1/eval/jobs"
+OKAHU_PROD_EVALUATION_ENDPOINT = "https://eval.okahu.co/api"
 
 
 class OkahuEvalResultExporter:

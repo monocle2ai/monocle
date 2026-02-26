@@ -1,0 +1,74 @@
+from asyncio import sleep
+import pytest
+from dotenv import load_dotenv
+load_dotenv()
+from monocle_test_tools import MonocleValidator, TestCase
+from test_common.strands_travel_agent import root_agent
+
+agent_test_cases: list[dict] = [
+    {
+        "test_input": ["Book a flight from San Francisco to Mumbai for 26th Nov 2025. Book a two queen room at Marriot Intercontinental at Juhu, Mumbai for 27th Nov 2025 for 4 nights."],
+        "test_output": "A flight from San Francisco to Mumbai on November 26, 2025, and a four-night stay at the Marriot Intercontinental in Juhu, Mumbai starting November 27, 2025, have been booked.",
+        "comparer": "similarity"
+    },
+    {
+        "test_input": ["Book a flight from San Francisco to Mumbai for 26th Nov 2025. Book a two queen room at Marriot Intercontinental at Juhu, Mumbai for 27th Nov 2025 for 4 nights."],
+        "test_spans": [
+            {
+                "span_type": "agentic.turn",
+                "output": "A flight from San Francisco to Mumbai on November 26, 2025, and a four-night stay at the Marriot Intercontinental in Juhu, Mumbai starting November 27, 2025, have been booked.",
+                "comparer": "similarity"
+            },
+            {
+                "span_type": "agentic.tool.invocation",
+                "entities": [
+                    {"type": "tool", "name": "strands_book_flight"},
+                    {"type": "agent", "name": "strands_travel_booking_agent"}
+                ]
+            }
+        ]
+    },
+    {
+        "test_input": ["Book a hotel room at Marriott in New York for 2 nights starting Dec 1st 2025."],
+        "test_spans": [
+            {
+                "span_type": "agentic.turn",
+                "output": "Perfect! I've successfully booked your 2-night stay at Marriott in New York starting December 1st, 2025.",
+                "comparer": "similarity"
+            },
+            {
+                "span_type": "agentic.tool.invocation",
+                "entities": [
+                    {"type": "tool", "name": "strands_book_hotel"},
+                    {"type": "agent", "name": "strands_travel_booking_agent"}
+                ]
+            }
+        ]
+    },
+    {
+        "test_input": ["Book a flight from San Francisco to Mumbai for 26th Nov 2025. Book a two queen room at Marriot Intercontinental at Juhu, Mumbai for 27th Nov 2025 for 4 nights."],
+        "test_spans": [
+            {
+                "span_type": "agentic.turn",
+                "eval": {
+                    "eval": "bert_score",
+                    "args": [
+                        "input", "output"
+                    ],
+                    "expected_result": {"Precision": 0.5, "Recall": 0.5, "F1": 0.5},
+                    "comparer": "metric"
+                }
+            }
+        ]
+    },
+]
+
+session_id="monocle_test_session"
+
+@MonocleValidator().monocle_testcase(agent_test_cases)
+async def test_run_agents(test_case: TestCase):
+    await MonocleValidator().test_agent_async(root_agent, "strands", test_case,session_id=session_id)
+    await sleep(2)  # To avoid rate limiting
+
+if __name__ == "__main__":
+    pytest.main([__file__])

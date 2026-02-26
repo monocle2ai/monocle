@@ -1,10 +1,13 @@
 from typing import Optional, Union
 from monocle_test_tools.evals.base_eval import BaseEval
 from monocle_test_tools.evals.bert_eval import BertScorerEval
+from monocle_test_tools.evals.okahu_eval import OkahuEval
 
-def get_evaluator(eval: Optional[Union[str, BaseEval]], eval_options: dict) -> BaseEval:
+def get_evaluator(eval: Optional[Union[str, BaseEval]], eval_options: Optional[dict] = None) -> BaseEval:
     if isinstance(eval, str):
-        if eval == "bert_score":
+        if eval == "okahu":
+            eval = OkahuEval(eval_options=eval_options)
+        elif eval == "bert_score":
             eval = BertScorerEval(eval_options=eval_options)
         else:
             try:

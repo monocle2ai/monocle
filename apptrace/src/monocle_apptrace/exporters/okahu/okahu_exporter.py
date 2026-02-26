@@ -21,11 +21,14 @@ class OkahuSpanExporter(SpanExporterBase):
             endpoint: Optional[str] = None,
             timeout: Optional[int] = None,
             session: Optional[requests.Session] = None,
-            task_processor: ExportTaskProcessor = None
+            task_processor: ExportTaskProcessor = None,
+            evaluate: Optional[bool] = False
     ):
         """Okahu exporter."""
         super().__init__()
         okahu_endpoint: str = os.environ.get("OKAHU_INGESTION_ENDPOINT", OKAHU_PROD_INGEST_ENDPOINT)
+        if evaluate:
+            okahu_endpoint = okahu_endpoint.replace("/trace/ingest", "/eval/ingest")
         self.endpoint = endpoint or okahu_endpoint
         api_key: str = os.environ.get("OKAHU_API_KEY")
         self._closed = False
@@ -46,11 +49,11 @@ class OkahuSpanExporter(SpanExporterBase):
         # not allowed and should return a Failure result
         if not hasattr(self, 'session'):
             return self.exporter.export(spans)
-
+        
         if self._closed:
             logger.warning("Exporter already shutdown, ignoring batch")
             return SpanExportResult.FAILURE
-
+        
         span_list = {
             "batch": []
         }
@@ -62,11 +65,11 @@ class OkahuSpanExporter(SpanExporterBase):
             # create a object from serialized span
             obj = json.loads(span.to_json())
             span_list["batch"].append(obj)
-        
+
         # if there are no spans to export after filtering, then return
         if len(span_list["batch"]) == 0:
             return
-
+        
         # Calculate is_root_span by checking if any span has no parent
         is_root_span = any(not span.parent for span in spans)
 
@@ -110,3 +113,4 @@ class OkahuSpanExporter(SpanExporterBase):
 
     def force_flush(self, timeout_millis: int = 30000) -> bool:
         return True
+    

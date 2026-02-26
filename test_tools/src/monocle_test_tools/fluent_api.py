@@ -31,7 +31,7 @@ def collect_assertions(func):
             fluent_chain.append(signature)
         fluent_chain.append(func_signature)
         asserter = TraceAssertion(filtered_spans=asserter._filtered_spans, fluent_chain=fluent_chain,
-                            is_assertion_failed=asserter.is_assertion_failed)
+                            is_assertion_failed=asserter.is_assertion_failed, _eval=asserter._eval)
         try:
             func(asserter, *args, **kwargs)
         except AssertionError as e:
@@ -53,7 +53,8 @@ class TraceAssertion():
         return traceAssertion
 
     def __init__(self, filtered_spans:Optional[list[Span]] = None, fluent_chain:list[str] = []
-                ,is_assertion_failed:bool = False):
+                ,is_assertion_failed:bool = False, _eval:Optional[Union[str, BaseEval]] = None) -> None:
+        self._eval:Union[str, BaseEval]  = _eval
         self.validator = MonocleValidator()
         if filtered_spans is None:
             if self.validator.spans is not None and len(self.validator.spans) > 0:
@@ -61,7 +62,7 @@ class TraceAssertion():
         self._filtered_spans = filtered_spans
         self.fluent_chain = fluent_chain
         self.is_assertion_failed = is_assertion_failed
-
+        
     def record_assertion(self, e:AssertionError, fluent_chain:list[str]) -> None:
         """Record an assertion error with its fluent chain context."""
         if self.is_assertion_failed == False:
@@ -98,9 +99,9 @@ class TraceAssertion():
         """Run the given async agent with provided args and kwargs."""
         return await self.validator.run_agent_async(agent, agent_type, *args, session_id=session_id, **kwargs)
 
-    def with_evaluation(self, eval:Union[str, BaseEval]) -> 'TraceAssertion':
+    def with_evaluation(self, eval:Union[str, BaseEval], eval_options:Optional[dict] = None) -> 'TraceAssertion':
         """Set the evaluation method for input/output comparisons."""
-        self._eval = get_evaluator(eval)
+        self._eval = get_evaluator(eval, eval_options)
         return self
 
     def with_comparer(self, comparer:Union[str, BaseComparer]) -> 'TraceAssertion':
@@ -270,6 +271,18 @@ class TraceAssertion():
         self._verify_input_output(self._filtered_spans, expected_inputs=[],
                                 expected_outputs=list(unexpected_output_substrings), comparer=TokenMatchComparer(), eval=self._eval,
                                 positive_test=False)
+        return self
+
+    @collect_assertions
+    def check_eval(self, eval_name:str, expected_eval:str, fact_name:Optional[str] = "traces") -> 'TraceAssertion':
+        """Validate evaluation results for the current filtered spans."""
+        if self._eval is None:
+            raise AssertionError("No evaluator configured. Call with_evaluation before check_eval.")
+        if not self._filtered_spans:
+            raise AssertionError("No spans available for evaluation. Chain a span selector before check_eval.")
+        eval_result = self._eval.evaluate(filtered_spans=self._filtered_spans, eval_name=eval_name, fact_name=fact_name)
+        if eval_result != expected_eval:
+            raise AssertionError(f"Evaluation '{eval_name}' did not match expected result. Expected {expected_eval}. Received {eval_result}.")
         return self
 
     @collect_assertions

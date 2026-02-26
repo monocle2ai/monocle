@@ -8,6 +8,7 @@ from opentelemetry.context import get_value
 
 from monocle_apptrace.instrumentation.common.constants import (
     AGENT_PREFIX_KEY,
+    AGENT_SESSION,
     INFERENCE_AGENT_DELEGATION,
     INFERENCE_TOOL_CALL,
     INFERENCE_TURN_END,
@@ -17,7 +18,8 @@ from monocle_apptrace.instrumentation.common.constants import (
 from monocle_apptrace.instrumentation.common.utils import (
     get_exception_message,
     get_json_dumps,
-    get_status_code
+    get_status_code,
+    set_scope
 )
 from monocle_apptrace.instrumentation.metamodel.finish_types import (
     map_msagent_finish_reason_to_finish_type
@@ -217,10 +219,26 @@ def extract_request_agent_input(arguments: Dict[str, Any]) -> str:
         return ""
 
 
-def extract_agent_response(result: Any, span: Any = None, instance: Any = None, kwargs: Dict[str, Any] = None) -> str:
+def extract_agent_response(arguments: Any) -> str:
     """Extract response from agent execution result."""
     try:
-        # Handle streaming result (SimpleNamespace from process_msagent_stream)
+        result = arguments["result"]
+        # Get service_thread_id when Azure API returns it
+        thread = arguments["kwargs"].get("thread")
+        if thread is not None and hasattr(thread, "service_thread_id"):
+            service_thread_id = thread.service_thread_id
+            # Set session scope with the real Azure thread ID when it becomes available
+            # This adds it to baggage for subsequent spans AND directly to current span
+            if service_thread_id:
+                # Only set scope if not already set
+                existing_scope = get_value(AGENT_SESSION)
+                if not existing_scope:
+                    set_scope(AGENT_SESSION, service_thread_id)
+                    # Also set directly on current span if available
+                    span = arguments.get("span")
+                    if span is not None:
+                        span.set_attribute(f"scope.{AGENT_SESSION}", service_thread_id)
+        
         if hasattr(result, "type") and hasattr(result, "output_text"):
             if getattr(result, "type", None) == "stream":
                 return str(result.output_text) if result.output_text else ""

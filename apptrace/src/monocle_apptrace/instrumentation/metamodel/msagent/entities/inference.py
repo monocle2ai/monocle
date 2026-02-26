@@ -42,7 +42,7 @@ AGENT_REQUEST = {
                 {
                     "_comment": "this is response from Agent",
                     "attribute": "response",
-                    "accessor": lambda arguments: _helper.extract_agent_response(arguments["result"])
+                    "accessor": lambda arguments: _helper.extract_agent_response(arguments)
                 }
             ]
         }
@@ -180,7 +180,7 @@ CHAT_AGENT_INVOCATION = {
                 {
                     "_comment": "this is response from Agent",
                     "attribute": "response",
-                    "accessor": lambda arguments: _helper.extract_agent_response(arguments["result"])
+                    "accessor": lambda arguments: _helper.extract_agent_response(arguments)
                 }
             ]
         }

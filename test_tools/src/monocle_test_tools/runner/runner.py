@@ -7,6 +7,7 @@ class AgentTypes(str, Enum):
     LANGGRAPH = "langgraph"
     CREWAI = "crewai"
     LLAMAINDEX = "llamaindex"
+    STRANDS = "strands"
     
 def get_agent_runner(runner_type: str) -> AgentRunner:
     if runner_type == AgentTypes.GOOGLE_ADK:
@@ -24,5 +25,8 @@ def get_agent_runner(runner_type: str) -> AgentRunner:
     elif runner_type == AgentTypes.LLAMAINDEX:
         from .llamaindex_runner import LlamaIndexRunner
         return LlamaIndexRunner()
+    elif runner_type == AgentTypes.STRANDS:
+        from .strands_runner import StrandsRunner
+        return StrandsRunner()
     else:
         raise ValueError(f"Unknown runner type: {runner_type}")

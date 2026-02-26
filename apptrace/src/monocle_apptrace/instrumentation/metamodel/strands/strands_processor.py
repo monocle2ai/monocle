@@ -12,7 +12,7 @@ class StrandsSpanHandler(SpanHandler):
         session_id_token = None
 
         if hasattr(instance, "__class__") and instance.__class__.__name__ == "Agent":
-            session_id = extract_session_id(instance)
+            session_id = extract_session_id(instance,kwargs)
             if session_id:
                 session_id_token = set_scope(AGENT_SESSION, session_id)
 

@@ -19,7 +19,7 @@ from monocle_apptrace.instrumentation.metamodel.langgraph.langgraph_processor im
 from monocle_apptrace.instrumentation.metamodel.crew_ai.methods import CREW_AI_METHODS
 from monocle_apptrace.instrumentation.metamodel.crew_ai.crew_ai_processor import CrewAIAgentHandler, CrewAITaskHandler, CrewAIToolHandler
 from monocle_apptrace.instrumentation.metamodel.msagent.methods import MSAGENT_METHODS
-from monocle_apptrace.instrumentation.metamodel.msagent.msagent_processor import MSAgentRequestHandler, MSAgentAgentHandler, MSAgentToolHandler
+from monocle_apptrace.instrumentation.metamodel.msagent.msagent_processor import MSAgentRequestHandler, MSAgentAgentHandler, MSAgentToolHandler, MSAgentInferenceHandler
 from monocle_apptrace.instrumentation.metamodel.agents.methods import AGENTS_METHODS
 from monocle_apptrace.instrumentation.metamodel.agents.agents_processor import AgentsSpanHandler
 from monocle_apptrace.instrumentation.metamodel.flask.methods import (FLASK_METHODS, )
@@ -149,6 +149,7 @@ MONOCLE_SPAN_HANDLERS: Dict[str, SpanHandler] = {
     "crew_ai_tool_handler": CrewAIToolHandler(),
     "msagent_request_handler": MSAgentRequestHandler(),
     "msagent_agent_handler": MSAgentAgentHandler(),
+    "msagent_inference_handler": MSAgentInferenceHandler(),
     "msagent_tool_handler": MSAgentToolHandler(),
     "agents_agent_handler": AgentsSpanHandler(),
     "llamaindex_tool_handler": LlamaIndexToolHandler(),

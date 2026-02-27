@@ -63,6 +63,8 @@ class LlamaIndexToolHandler(DelegationHandler):
                 if source_agent:
                     # Get the agent span_id from thread-local storage
                     source_agent_span_id = get_current_agent_span_id()
+                    if not source_agent_span_id:
+                        source_agent_span_id = get_current_invocation_span_id()
                     
                     # Store delegation info with the source agent's span_id
                     set_delegation_info(target_agent, source_agent, source_agent_span_id or "")
@@ -118,6 +120,7 @@ class LlamaIndexAgentHandler(SpanHandler):
             if hasattr(span, 'context') and span.context and span.context.span_id:
                 span_id = format(span.context.span_id, '016x')
                 update_delegations_with_span_id(agent_name, span_id)
+                set_current_agent(agent_name, span_id)
             
             # Store the current invocation scope and span_id for tool propagation
             invocation_scope = get_scopes(AGENT_INVOCATION_SPAN_NAME).get(AGENT_INVOCATION_SPAN_NAME)

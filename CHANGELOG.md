@@ -1,3 +1,10 @@
+## Version 0.7.6 (2026-02-26)
+
+- Updated runners to include session id details ([#461](https://github.com/monocle2ai/monocle/pull/461))
+- Added strands runner and tests in test_tools with session_id ([#459](https://github.com/monocle2ai/monocle/pull/459))
+- Feature: Pytest Evaluations ([#467](https://github.com/monocle2ai/monocle/pull/467))
+- Fix for session id in msagent ([#460](https://github.com/monocle2ai/monocle/pull/460))
+
 ## Version 0.7.5 (2026-02-19)
 
 - Add dependency for agent-framework-core ([#455](https://github.com/monocle2ai/monocle/pull/455))

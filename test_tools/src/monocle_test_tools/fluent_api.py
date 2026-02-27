@@ -87,6 +87,15 @@ class TraceAssertion():
         return self._assertion_errors
 
     def cleanup(self) -> None:
+        """Cleanup validator state and evaluation resources."""
+        # Clean up evaluation resources (e.g., delete traces from eval service)
+        if self._eval is not None and hasattr(self._eval, 'cleanup'):
+            try:
+                self._eval.cleanup()
+            except Exception:
+                pass
+        
+        # Clean up validator state
         self.validator.cleanup()
         self._filtered_spans = None
         TraceAssertion._assertion_errors = []

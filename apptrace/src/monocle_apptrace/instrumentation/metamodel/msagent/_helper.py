@@ -1,6 +1,5 @@
 """Helper functions for extracting information from Microsoft Agent Framework objects."""
 
-import json
 import logging
 from typing import Any, Dict
 from urllib.parse import urlparse
@@ -16,7 +15,6 @@ from monocle_apptrace.instrumentation.common.constants import (
     LAST_AGENT_NAME
 )
 from monocle_apptrace.instrumentation.common.utils import (
-    get_exception_message,
     get_json_dumps,
     get_status_code,
     set_scope
@@ -24,6 +22,7 @@ from monocle_apptrace.instrumentation.common.utils import (
 from monocle_apptrace.instrumentation.metamodel.finish_types import (
     map_msagent_finish_reason_to_finish_type
 )
+from monocle_apptrace.instrumentation.metamodel.msagent.msagent_processor import MSAgentInferenceHandler
 
 logger = logging.getLogger(__name__)
 
@@ -458,45 +457,43 @@ def get_chat_client_name(instance: Any) -> str:
         return "ChatClient"
 
 
+def _first_non_empty_attr(target: Any, attr_names: list[str]) -> Any:
+    """Return the first non-empty attribute value from the provided names."""
+    if target is None:
+        return None
+    for attr_name in attr_names:
+        attr_value = getattr(target, attr_name, None)
+        if attr_value:
+            return attr_value
+    return None
+
+
 def get_chat_client_model(instance: Any) -> str:
     """Get the model identifier from the chat client."""
     try:
+        candidate_attrs = ["model_id", "model", "deployment_name", "azure_deployment", "deployment"]
+
         # Try to get default model settings
         if hasattr(instance, "_default_chat_options") and instance._default_chat_options:
-            if hasattr(instance._default_chat_options, "model_id"):
-                model_id = instance._default_chat_options.model_id
-                if model_id:
-                    return str(model_id)
+            model_value = _first_non_empty_attr(instance._default_chat_options, candidate_attrs)
+            if model_value:
+                return str(model_value)
 
-        # Common direct attributes on chat/assistants clients
-        for attr in ["model_id", "model", "deployment_name", "azure_deployment", "deployment"]:
-            value = getattr(instance, attr, None)
-            if value:
-                return str(value)
+        model_value = _first_non_empty_attr(instance, candidate_attrs)
+        if model_value:
+            return str(model_value)
 
-        # Some wrappers keep values in private attributes
-        for attr in ["_model_id", "_model", "_deployment_name", "_deployment", "_azure_deployment"]:
-            value = getattr(instance, attr, None)
-            if value:
-                return str(value)
-
-        # Nested client fields (common for AzureOpenAIAssistantsClient)
         nested_client = getattr(instance, "client", None) or getattr(instance, "_client", None)
-        if nested_client is not None:
-            for attr in ["model_id", "model", "deployment_name", "azure_deployment", "deployment"]:
-                value = getattr(nested_client, attr, None)
-                if value:
-                    return str(value)
-            for attr in ["_model_id", "_model", "_deployment_name", "_deployment", "_azure_deployment"]:
-                value = getattr(nested_client, attr, None)
-                if value:
-                    return str(value)
-
+        model_value = _first_non_empty_attr(nested_client, candidate_attrs)
+        if model_value:
+            return str(model_value)
         # Fallback
         return "unknown_model"
     except Exception as e:
         logger.warning(f"Error getting chat client model: {e}")
         return "unknown_model"
+
+
 def get_from_agent_name(arguments: Dict[str, Any]) -> str:
     """Extract delegating agent name from parent span attributes."""
     try:
@@ -644,124 +641,13 @@ def is_inside_workflow() -> bool:
 # Inference extraction functions for AzureOpenAIAssistantsClient._inner_get_response
 
 def extract_assistant_message(arguments):
-    """Extract assistant message from response for MS Agent."""
-    try:
-        messages = []
-        status = get_status_code(arguments)
-        
-        if status == 'success' or status == 'completed':
-            response = arguments["result"]
-            
-            # Check for tools
-            if hasattr(response, "tools") and isinstance(response.tools, list) and len(response.tools) > 0:
-                if isinstance(response.tools[0], dict):
-                    tools = []
-                    for tool in response.tools:
-                        tools.append({
-                            "tool_id": tool.get("id", ""),
-                            "tool_name": tool.get("name", ""),
-                            "tool_arguments": tool.get("arguments", "")
-                        })
-                    messages.append({"tools": tools})
-            
-            # Check for text attribute (ChatResponse from Assistants API)
-            if hasattr(response, "text") and response.text:
-                messages.append({"assistant": response.text})
-            
-            # Check for messages attribute
-            if hasattr(response, "messages") and response.messages:
-                response_messages_list = response.messages if isinstance(response.messages, list) else [response.messages]
-                for msg in response_messages_list:
-                    # Check contents first (ChatMessage from Assistants API)
-                    if hasattr(msg, "contents") and msg.contents:
-                        tools = []
-                        text_parts = []
-                        for content in msg.contents:
-                            content_type = type(content).__name__
-                            
-                            # Handle FunctionCallContent (tool calls)
-                            if content_type == "FunctionCallContent" or (hasattr(content, "call_id") and hasattr(content, "name")):
-                                tools.append({
-                                    "tool_id": getattr(content, "call_id", ""),
-                                    "tool_name": getattr(content, "name", ""),
-                                    "tool_arguments": getattr(content, "arguments", "")
-                                })
-                            # Handle TextContent or content with text
-                            elif hasattr(content, "text") and content.text:
-                                text_parts.append(content.text)
-                            elif hasattr(content, "value") and content.value:
-                                text_parts.append(content.value)
-                        
-                        # Append tools if found
-                        if tools:
-                            messages.append({"tools": tools})
-                        # Append text if found
-                        if text_parts:
-                            combined_text = " ".join(text_parts)
-                            messages.append({"assistant": combined_text})
-                    elif hasattr(msg, "text") and msg.text:
-                        messages.append({"assistant": msg.text})
-                    elif hasattr(msg, "content") and msg.content:
-                        messages.append({"assistant": msg.content})
-            
-            if hasattr(response, "output") and isinstance(response.output, list) and len(response.output) > 0:
-                response_messages = []
-                role = "assistant"
-                for response_message in response.output:
-                    if(response_message.type == "function_call"):
-                        role = "tools"
-                        response_messages.append({
-                            "tool_id": response_message.call_id,
-                            "tool_name": response_message.name,
-                            "tool_arguments": response_message.arguments
-                        })
-                if len(response_messages) > 0:
-                    messages.append({role: response_messages})
-                    
-            if hasattr(response, "output_text") and len(response.output_text):
-                role = response.role if hasattr(response, "role") else "assistant"
-                messages.append({role: response.output_text})
-            if (
-                response is not None
-                and hasattr(response, "choices")
-                and len(response.choices) > 0
-            ):
-                if hasattr(response.choices[0], "message"):
-                    role = (
-                        response.choices[0].message.role
-                        if hasattr(response.choices[0].message, "role")
-                        else "assistant"
-                    )
-                    messages.append({role: response.choices[0].message.content})
-            
-            return get_json_dumps(messages[0]) if messages else ""
-        else:
-            if arguments["exception"] is not None:
-                return get_exception_message(arguments)
-            elif hasattr(arguments["result"], "error"):
-                return arguments["result"].error
-
-    except (IndexError, AttributeError) as e:
-        logger.warning(
-            "Warning: Error occurred in extract_assistant_message: %s", str(e)
-        )
-        return None
+    """Backward-compatible wrapper. Use inference_handler.extract_assistant_message."""
+    return MSAgentInferenceHandler.extract_assistant_message(arguments)
 
 
 def agent_inference_type(arguments):
-    """Extract agent inference type from MS Agent response."""
-    try:
-        response = arguments.get("result")
-        if _response_contains_tool_calls(response):
-            agent_prefix = get_value(AGENT_PREFIX_KEY)
-            tool_name = _extract_first_tool_name_from_response(response) or ""
-            if tool_name and agent_prefix and tool_name.startswith(agent_prefix):
-                return INFERENCE_AGENT_DELEGATION
-            return INFERENCE_TOOL_CALL
-        return INFERENCE_TURN_END
-    except Exception as e:
-        logger.warning("Warning: Error occurred in agent_inference_type: %s", str(e))
-        return INFERENCE_TURN_END
+    """Backward-compatible wrapper. Use inference_handler.agent_inference_type."""
+    return MSAgentInferenceHandler.agent_inference_type(arguments)
 
 
 # Additional helper functions for INFERENCE entity
@@ -1213,49 +1099,8 @@ def _collect_usage_candidates(response):
 
 
 def extract_finish_reason(arguments):
-    """Extract finish_reason from response.
-    
-    Azure OpenAI Assistants API often doesn't populate finish_reason in streaming responses.
-    We detect tool calls from the response content and return 'tool_calls' accordingly.
-    """
-    try:
-        if "exception" in arguments and arguments["exception"] is not None:
-            if hasattr(arguments["exception"], "code"):
-                return arguments["exception"].code
-        
-        response = arguments.get("result")
-        if not response:
-            return None
-        
-        # Tool-call responses should report tool_calls
-        if _response_contains_tool_calls(response):
-            return "tool_calls"
-        
-        # Handle direct finish_reason attribute (ChatResponse)
-        if hasattr(response, "finish_reason"):
-            finish_reason = response.finish_reason
-            if finish_reason:
-                # If it's an enum, get its value
-                if hasattr(finish_reason, 'value'):
-                    return finish_reason.value
-                return str(finish_reason)
-        
-        # Handle non-streaming responses with choices
-        if hasattr(response, "choices") and response.choices and len(response.choices) > 0:
-            if hasattr(response.choices[0], "finish_reason"):
-                finish_reason = response.choices[0].finish_reason
-                if finish_reason:
-                    if hasattr(finish_reason, 'value'):
-                        return finish_reason.value
-                    return str(finish_reason)
-        
-        # Default completed non-tool-call responses to stop
-        if response is not None:
-            return "stop"
-            
-    except Exception as e:
-        logger.warning(f"Error extracting finish_reason: {e}")
-    return None
+    """Backward-compatible wrapper. Use inference_handler.extract_finish_reason."""
+    return MSAgentInferenceHandler.extract_finish_reason(arguments)
 
 
 def map_finish_reason_to_finish_type(finish_reason):
@@ -1264,69 +1109,18 @@ def map_finish_reason_to_finish_type(finish_reason):
 
 
 def extract_tool_name(arguments):
-    """Extract tool name from response when finish_type is tool_call."""
-    try:
-        return _extract_first_tool_name_from_response(arguments.get("result"))
-    except Exception as e:
-        logger.warning(f"Error extracting tool name: {e}")
-    return None
+    """Backward-compatible wrapper. Use inference_handler.extract_tool_name."""
+    return MSAgentInferenceHandler.extract_tool_name(arguments)
 
 
 def extract_tool_type(arguments):
-    """Extract tool type from response when finish_type is tool_call."""
-    try:
-        tool_name = extract_tool_name(arguments)
-        if tool_name:
-            agent_prefix = get_value(AGENT_PREFIX_KEY)
-            if agent_prefix and tool_name.startswith(agent_prefix):
-                return "agent.microsoft"
-            return "tool.microsoft"
-    except Exception as e:
-        logger.warning(f"Error extracting tool type: {e}")
-    return None
+    """Backward-compatible wrapper. Use inference_handler.extract_tool_type."""
+    return MSAgentInferenceHandler.extract_tool_type(arguments)
 
 
 def update_span_from_llm_response(response):
-    """Extract metadata from LLM response."""
-    try:
-        if response is None:
-            return {}
-
-        # Accept full post-exec arguments envelope as input as well.
-        envelope_candidates = []
-        if isinstance(response, dict) and (
-            "result" in response or "kwargs" in response or "args" in response
-        ):
-            envelope_candidates.extend(
-                [
-                    response.get("result"),
-                    response.get("kwargs"),
-                    response.get("args"),
-                    response,
-                ]
-            )
-        else:
-            envelope_candidates.append(response)
-
-        for envelope_candidate in envelope_candidates:
-            for candidate in _collect_usage_candidates(envelope_candidate):
-                usage = _extract_token_usage(candidate)
-                if usage:
-                    return usage
-
-        # Some Assistants tool-call responses do not expose usage in the interim response.
-        # Keep metadata shape consistent by emitting explicit zero counters for tool-call turns.
-        response_for_finish = response.get("result") if isinstance(response, dict) else response
-        if _response_contains_tool_calls(response_for_finish):
-            return {
-                "completion_tokens": 0,
-                "prompt_tokens": 0,
-                "total_tokens": 0,
-            }
-
-    except Exception as e:
-        logger.warning(f"Error updating span from LLM response: {e}")
-    return {}
+    """Backward-compatible wrapper. Use inference_handler.update_span_from_llm_response."""
+    return MSAgentInferenceHandler.update_span_from_llm_response(response)
 
 
 def extract_model_name(instance, kwargs):

@@ -3,11 +3,12 @@ from typing import Any, Union
 import logging
 logger = logging.getLogger(__name__)
 from monocle_test_tools.runner.agent_runner import AgentRunner
+from llama_index.core.memory.chat_memory_buffer import ChatMemoryBuffer
 
 class LlamaIndexRunner(AgentRunner):
     """Runner for LlamaIndex agents."""
     
-    async def run_agent_async(self, root_agent, test_message: Union[str, Any]):
+    async def run_agent_async(self, root_agent, test_message: Union[str, Any],session_id: str = None):
         """
         Run a LlamaIndex agent asynchronously.
         
@@ -20,10 +21,18 @@ class LlamaIndexRunner(AgentRunner):
             The agent's response
         """
         try:
+            
+            memory = None
+            if session_id:
+                memory = ChatMemoryBuffer.from_defaults(
+                token_limit=3000,
+                chat_store_key=session_id
+            )
+            
             # Check if root_agent is a callable function (wrapper function)
             if callable(root_agent) and not hasattr(root_agent, 'achat') and not hasattr(root_agent, 'run'):
                 # It's a wrapper function, call it directly with the message
-                result = root_agent(test_message)
+                result = root_agent(test_message,memory=memory)
                 # If it returns a coroutine, await it
                 if asyncio.iscoroutine(result):
                     return await result
@@ -35,7 +44,7 @@ class LlamaIndexRunner(AgentRunner):
             # LlamaIndex agents typically have an async chat or run method
             if agent_type == 'AgentWorkflow' and hasattr(root_agent, 'run'):
                 # AgentWorkflow.run() is awaitable and uses user_msg parameter
-                response = await root_agent.run(user_msg=test_message)
+                response = await root_agent.run(user_msg=test_message,memory=memory)
                 
             elif hasattr(root_agent, 'achat'):
                 response = await root_agent.achat(test_message)
@@ -46,17 +55,17 @@ class LlamaIndexRunner(AgentRunner):
             elif hasattr(root_agent, 'run'):
                 # If no async method, run sync method in executor
                 response = await asyncio.get_event_loop().run_in_executor(
-                    None, root_agent.run, test_message
+                    None, root_agent.run, test_message, memory=memory
                 )
             elif hasattr(root_agent, 'chat'):
                 # For chat-based agents
                 response = await asyncio.get_event_loop().run_in_executor(
-                    None, root_agent.chat, test_message
+                    None, root_agent.chat, test_message, memory=memory
                 )
             elif hasattr(root_agent, 'query'):
                 # For query engines
                 response = await asyncio.get_event_loop().run_in_executor(
-                    None, root_agent.query, test_message
+                    None, root_agent.query, test_message, memory=memory
                 )
             else:
                 raise AttributeError(
@@ -95,25 +104,38 @@ class LlamaIndexRunner(AgentRunner):
             logger.error(f"Error running LlamaIndex agent: {e}")
             raise
     
-    def run_agent(self, root_agent, test_message: Union[str, Any]):
+    def run_agent(self, root_agent, test_message: Union[str, Any], session_id: str = None):
         """
         Run a LlamaIndex agent synchronously.
         
         Args:
             root_agent: The LlamaIndex agent (e.g., ReActAgent, QueryEngine, etc.)
             test_message: The input message/query for the agent
-            
+            session_id: Optional session identifier for the agent
         Returns:
             The agent's response
         """
+        request= None
+        memory = None
+        if session_id:
+            memory = ChatMemoryBuffer.from_defaults(
+            token_limit=3000,
+            chat_store_key=session_id
+            )
+        request={
+                "test_message": test_message,
+                "memory": memory
+            }
+            
+
         try:
             # LlamaIndex agents typically have chat or run methods
             if hasattr(root_agent, 'chat'):
-                response = root_agent.chat(test_message)
+                response = root_agent.chat(request)
             elif hasattr(root_agent, 'run'):
-                response = root_agent.run(test_message)
+                response = root_agent.run(request)
             elif hasattr(root_agent, 'query'):
-                response = root_agent.query(test_message)
+                response = root_agent.query(request)
             else:
                 raise AttributeError(
                     f"Agent {type(root_agent).__name__} does not have a recognized execution method "

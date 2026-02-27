@@ -1,7 +1,7 @@
 from opentelemetry.context import attach, detach, get_current, get_value, set_value
-from monocle_apptrace.instrumentation.common.constants import AGENT_PREFIX_KEY, AGENT_SESSION
+from monocle_apptrace.instrumentation.common.constants import AGENT_PREFIX_KEY, AGENT_SESSION, AGENT_INVOCATION_SPAN_NAME
 from monocle_apptrace.instrumentation.common.span_handler import SpanHandler
-from monocle_apptrace.instrumentation.common.utils import set_scope
+from monocle_apptrace.instrumentation.common.utils import set_scope, get_scopes
 from monocle_apptrace.instrumentation.metamodel.llamaindex._helper import (
     LLAMAINDEX_AGENT_NAME_KEY,
     is_delegation_tool, 
@@ -12,7 +12,11 @@ from monocle_apptrace.instrumentation.metamodel.llamaindex._helper import (
     set_from_agent_info,
     get_delegation_info,
     set_delegation_info,
-    update_delegations_with_span_id
+    update_delegations_with_span_id,
+    set_current_invocation_scope,
+    get_current_invocation_scope,
+    set_current_invocation_span_id,
+    get_current_invocation_span_id
 )
 
 TOOL_INVOCATION_STARTED:str = "llamaindex.tool_invocation_started"
@@ -36,6 +40,12 @@ class LlamaIndexToolHandler(DelegationHandler):
         if current_agent is not None:
             cur_context = set_value(LLAMAINDEX_AGENT_NAME_KEY, current_agent, cur_context)
         
+        # Propagate the current invocation scope to tool spans
+        current_invocation_scope = get_current_invocation_scope()
+        if current_invocation_scope:
+            token = set_scope(AGENT_INVOCATION_SPAN_NAME, current_invocation_scope, cur_context)
+            cur_context = get_current()
+        
         # Check if this is a handoff/delegation tool
         if is_delegation_tool(args, instance):
             
@@ -53,6 +63,8 @@ class LlamaIndexToolHandler(DelegationHandler):
                 if source_agent:
                     # Get the agent span_id from thread-local storage
                     source_agent_span_id = get_current_agent_span_id()
+                    if not source_agent_span_id:
+                        source_agent_span_id = get_current_invocation_span_id()
                     
                     # Store delegation info with the source agent's span_id
                     set_delegation_info(target_agent, source_agent, source_agent_span_id or "")
@@ -108,6 +120,14 @@ class LlamaIndexAgentHandler(SpanHandler):
             if hasattr(span, 'context') and span.context and span.context.span_id:
                 span_id = format(span.context.span_id, '016x')
                 update_delegations_with_span_id(agent_name, span_id)
+                set_current_agent(agent_name, span_id)
+            
+            # Store the current invocation scope and span_id for tool propagation
+            invocation_scope = get_scopes(AGENT_INVOCATION_SPAN_NAME).get(AGENT_INVOCATION_SPAN_NAME)
+            if invocation_scope:
+                set_current_invocation_scope(invocation_scope)
+            # Store the span_id for reparenting tool spans
+            set_current_invocation_span_id(span_id)
         
         if SpanHandler.is_root_span(parent_span):
             span.set_attribute(LLAMAINDEX_AGENT_NAME_KEY, "")

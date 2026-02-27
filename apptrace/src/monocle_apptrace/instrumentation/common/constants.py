@@ -69,6 +69,7 @@ llm_type_map = {
     "openaichatcompletion": "openai",
     "runtimeforbedrockdataautomation": "aws_bedrock",
     "agentsforbedrockruntime": "aws_bedrock",
+    "bedrockagentcoredataplanefrontinglayer": "aws_bedrock"
 }
 
 MONOCLE_INSTRUMENTOR = "monocle_apptrace"

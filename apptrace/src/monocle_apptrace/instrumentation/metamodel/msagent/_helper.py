@@ -6,11 +6,7 @@ from urllib.parse import urlparse
 from opentelemetry.context import get_value
 
 from monocle_apptrace.instrumentation.common.constants import (
-    AGENT_PREFIX_KEY,
     AGENT_SESSION,
-    INFERENCE_AGENT_DELEGATION,
-    INFERENCE_TOOL_CALL,
-    INFERENCE_TURN_END,
     LAST_AGENT_INVOCATION_ID,
     LAST_AGENT_NAME
 )

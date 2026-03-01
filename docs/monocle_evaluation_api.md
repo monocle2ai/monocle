@@ -11,12 +11,11 @@ pip install monocle_test_tools
 **Required Environment Variables:**
 - `OKAHU_API_KEY` - Must be set to run evaluations
 
-The evaluation tool will not run without these environment variables configured.
+The evaluation tool will not run without this environment variable configured.
 
 **Optional Environment Variables:**
- - `MONOCLE_EXPORTER` - set to include `okahu` if you want traces to export and evaluation results to persist
-    - Defaults to `file`(local trace and evals only)
-    - You can also set it to `file,okahu`
+ - `MONOCLE_EXPORTER` - set to `okahu` or `file,okahu` if you want traces to export and evaluation results to persist
+    - Defaults to `file` which maintains local trace and evals only
 
  These are recommended, but not required environment variables
 
@@ -29,7 +28,7 @@ import pytest
 from monocle_test_tools.pytest_plugin import monocle_trace_asserter
 
 @pytest.mark.asyncio
-async def test_sentiment_evaluation(monocle_trace_asserter):
+async def test_sentiment_bias_evaluation(monocle_trace_asserter):
     await monocle_trace_asserter.run_agent_async(
         root_agent, "google_adk",
         "Book a flight from San Jose to Seattle for 27th Nov 2025."
@@ -67,25 +66,27 @@ async def test_tool_evaluation(monocle_trace_asserter):
 
 All metrics provided by the "okahu" evaluator:
 
-- `ai_tone` - not_useful / slightly_useful / very_useful
-- `answer_relevancy` - yes / no / idk
-- `argument_correctness` - correct / incorrect / partially_correct
-- `bias` - unbiased / biased / potentially_biased
-- `contextual_precision` - high_precision / medium_precision / low_precision
-- `contextual_recall` - high_recall / medium_recall / low_recall
-- `contextual_relevancy` - highly_relevant / moderately_relevant / slightly_relevant / irrelevant
-- `conversation_completeness` - complete / mostly_complete / partially_complete / incomplete
-- `frustration` - frustrated / ok
-- `hallucination` - no_hallucination / minor_hallucination / major_hallucination
-- `knowledge_retention` - excellent_retention / good_retention / poor_retention / no_retention
-- `mcp_task_completion` - completed / partially_completed / failed / not_attempted
-- `misuse` - no_misuse / potential_misuse / clear_misuse
-- `offtopic` - on_topic / off_topic
-- `pii_leakage` - no_pii / potential_pii / pii_leakage
-- `role_adherence` - excellent_adherence / good_adherence / poor_adherence / no_adherence
-- `sentiment` - negative / positive / neutral
-- `summarization` - excellent / good / fair / poor
-- `toxicity` - non_toxic / mildly_toxic / moderately_toxic / highly_toxic
+| Metric | Possible Values |
+|--------|-----------------|
+| `ai_tone` | not_useful / slightly_useful / very_useful |
+| `answer_relevancy` | yes / no / idk |
+| `argument_correctness` | correct / incorrect / partially_correct |
+| `bias` | unbiased / biased / potentially_biased |
+| `contextual_precision` | high_precision / medium_precision / low_precision |
+| `contextual_recall` | high_recall / medium_recall / low_recall |
+| `contextual_relevancy` | highly_relevant / moderately_relevant / slightly_relevant / irrelevant |
+| `conversation_completeness` | complete / mostly_complete / partially_complete / incomplete |
+| `frustration` | frustrated / ok |
+| `hallucination` | no_hallucination / minor_hallucination / major_hallucination |
+| `knowledge_retention` | excellent_retention / good_retention / poor_retention / no_retention |
+| `mcp_task_completion` | completed / partially_completed / failed / not_attempted |
+| `misuse` | no_misuse / potential_misuse / clear_misuse |
+| `offtopic` | on_topic / off_topic |
+| `pii_leakage` | no_pii / potential_pii / pii_leakage |
+| `role_adherence` | excellent_adherence / good_adherence / poor_adherence / no_adherence |
+| `sentiment` | negative / positive / neutral |
+| `summarization` | excellent / good / fair / poor |
+| `toxicity` | non_toxic / mildly_toxic / moderately_toxic / highly_toxic |
 
 
 ## 3. Running Tests
@@ -94,7 +95,7 @@ All metrics provided by the "okahu" evaluator:
 1. Open Testing view (beaker icon or `Ctrl+Shift+T`)
 2. VS Code auto-discovers pytest tests
 3. Click ▶️ to run tests
-4. Passing tests show green checkmarks
+4. Passing tests show green checkmarks while failing tests show red X's
 
 **Via Command Line:**
 ```bash
@@ -122,4 +123,4 @@ Expected positive. Received negative.
 - Use `run_agent_async()` or `run_agent()` to execute your agent and generate spans before evaluation.
 - Multiple evaluations can be chained: `.check_eval("sentiment", "positive").check_eval("bias", "unbiased")`
 - Test files and functions must start with `test_` for pytest discovery.
-- Evaluation results are sent to the Monocle UI portal when properly configured.
+- Evaluation results are sent to the Okahu UI portal when `MONOCLE_EXPORTER` is properly configured.

@@ -19,8 +19,6 @@ class OkahuEval(BaseEval):
         # Instance-level state tracking for hybrid approach
         self._trace_exported = False
         self._current_trace_id = None
-        self._api_key = None
-        self._base_url = None
     
     def export_trace(self, filtered_spans: list[Span]) -> str:
         """Export trace to Okahu evaluation service once per test."""
@@ -38,11 +36,9 @@ class OkahuEval(BaseEval):
         self._current_trace_id = trace_id
         
         # Get API credentials
-        self._api_key = (os.getenv("OKAHU_API_KEY") or "").strip()
-        if not self._api_key:
+        api_key = (os.getenv("OKAHU_API_KEY")).strip()
+        if not api_key:
             raise AssertionError("OKAHU_API_KEY is not configured.")
-        
-        self._base_url = os.getenv("OKAHU_EVALUATION_ENDPOINT", OKAHU_PROD_EVALUATION_ENDPOINT).rstrip("/")
         
         # Export spans to Okahu
         exporter = okahu_exporter.OkahuSpanExporter(evaluate=True)
@@ -58,23 +54,28 @@ class OkahuEval(BaseEval):
         
         if not filtered_spans:
             raise ValueError("No spans provided for evaluation.")
-                
+
+        # Get API credentials
+        api_key = (os.getenv("OKAHU_API_KEY")).strip()
+        if not api_key:
+            raise AssertionError("OKAHU_API_KEY is not configured.")
+
         # LAZY EXPORT: Export on first eval call only
         if not self._trace_exported:
             self.export_trace(filtered_spans)
         
+        #setting parameters, headers, payload for eval job submission
         trace_id = self._current_trace_id
         span = filtered_spans[0]
         workflow_name = span.attributes.get("workflow.name")
-        
-        #setting parameters, headers, payload for eval job submission
-        submit_url = f"{self._base_url}/v1/eval/jobs"
+        base = os.getenv("OKAHU_EVALUATION_ENDPOINT", OKAHU_PROD_EVALUATION_ENDPOINT).rstrip("/")
+        submit_url = f"{base}/v1/eval/jobs"
         start_span_ns = span.start_time - 24 * 60 * 60 * 1e9  # 24 hours before the first span's start time, in nanoseconds
         end_span_ns = span.end_time + 24 * 60 * 60 * 1e9  # 24 hours after the first span's end time, in nanoseconds
         start = datetime.fromtimestamp(start_span_ns / 1e9, timezone.utc).strftime('%Y-%m-%dT%H:%M:%S.%fZ')
         end = datetime.fromtimestamp(end_span_ns / 1e9, timezone.utc).strftime('%Y-%m-%dT%H:%M:%S.%fZ')
 
-        headers = {"x-api-key": self._api_key}
+        headers = {"x-api-key": api_key}
         payload = {"template_name": eval_name}
         params = {
             "workflow_name": workflow_name,
@@ -127,7 +128,7 @@ class OkahuEval(BaseEval):
         
         # Export eval results if okahu exporter is configured
         if "okahu" in (os.getenv("MONOCLE_EXPORTER", "")):
-            with OkahuEvalResultExporter(api_key=self._api_key, base_url=self._base_url) as result_exporter:
+            with OkahuEvalResultExporter(api_key=api_key, endpoint=base) as result_exporter:
                 result_exporter.export_results(
                     job_id=job_id,
                     eval_result=eval_result,
@@ -141,10 +142,16 @@ class OkahuEval(BaseEval):
         if not self._trace_exported or not self._current_trace_id:
             return  # Nothing to clean up
         
-        trace_id = self._current_trace_id
+        # Get API credentials
+        api_key = (os.getenv("OKAHU_API_KEY")).strip()
+        if not api_key:
+            raise AssertionError("OKAHU_API_KEY is not configured.")
         
+        trace_id = self._current_trace_id
+        base = os.getenv("OKAHU_EVALUATION_ENDPOINT", OKAHU_PROD_EVALUATION_ENDPOINT).rstrip("/")
+
         try:
-            with OkahuEvalResultExporter(api_key=self._api_key, base_url=self._base_url) as result_exporter:
+            with OkahuEvalResultExporter(api_key=api_key, endpoint=base) as result_exporter:
                 result_exporter.delete_trace(trace_id=trace_id)
         except Exception:
             pass

@@ -15,7 +15,7 @@ class OkahuEvalResultExporter:
     def __init__(
         self,
         api_key: Optional[str] = None,
-        base_url: Optional[str] = None,
+        endpoint: Optional[str] = None,
         timeout: Optional[int] = None
     ):
         """
@@ -23,14 +23,14 @@ class OkahuEvalResultExporter:
         
         Args:
             api_key: Okahu API key. If not provided, reads from OKAHU_API_KEY environment variable.
-            base_url: Base URL for evaluation endpoint. If not provided, uses default or OKAHU_EVALUATION_ENDPOINT env var.
+            endpoint: Base URL for evaluation endpoint. If not provided, uses default or OKAHU_EVALUATION_ENDPOINT env var.
             timeout: Request timeout in seconds. Defaults to 15.
         """
         self.api_key = api_key or os.getenv("OKAHU_API_KEY")
         if not self.api_key:
             raise ValueError("OKAHU_API_KEY not set. Provide api_key or set environment variable.")
         
-        self.base_url = (base_url or os.getenv("OKAHU_EVALUATION_ENDPOINT", OKAHU_PROD_EVALUATION_ENDPOINT)).rstrip("/")
+        self.endpoint = (endpoint or os.getenv("OKAHU_EVALUATION_ENDPOINT", OKAHU_PROD_EVALUATION_ENDPOINT)).rstrip("/")
         self.timeout = timeout or 30
         
         self.session = requests.Session()
@@ -70,7 +70,7 @@ class OkahuEvalResultExporter:
         if not template_name:
             raise ValueError("template_name is required.")
         
-        url = f"{self.base_url}/v1/eval/jobs/{job_id}/results"
+        url = f"{self.endpoint}/v1/eval/jobs/{job_id}/results"
         payload = {
             "evaluation_results": eval_result,
             "template_name": template_name

@@ -78,6 +78,9 @@ def monocle_trace_asserter(request:pytest.FixtureRequest):
             assertion_messages = None
         traceAssertion.validator.post_test_cleanup(token, request.node.name, is_test_failed,
                                     assertion_messages)
+        
+        # Cleanup trace asserter (triggers eval cleanup including trace deletion)
+        traceAssertion.cleanup()
 
 @pytest.hookimpl(tryfirst=True, hookwrapper=True)
 def pytest_runtest_makereport(item, call):

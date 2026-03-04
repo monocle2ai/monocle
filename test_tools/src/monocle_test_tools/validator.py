@@ -8,6 +8,7 @@ from opentelemetry.sdk.trace import Span, StatusCode
 from opentelemetry.sdk.trace.export import SpanProcessor, SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from opentelemetry.sdk.trace.export import SpanExporter
+from opentelemetry.sdk.trace.export import SpanExportResult
 from opentelemetry.context import set_value, Context, detach, attach
 import pytest
 #from sqlalchemy import func
@@ -28,9 +29,19 @@ from monocle_apptrace.instrumentation.metamodel.adk.methods import ADK_METHODS
 from monocle_apptrace.instrumentation.metamodel.adk.entities.tool import TOOL as ADK_TOOL
 from monocle_apptrace.instrumentation.metamodel.langgraph.methods import LANGGRAPH_METHODS
 from monocle_apptrace.instrumentation.metamodel.langgraph.entities.inference import TOOLS as LANGGRAPH_TOOL
-from monocle_apptrace.instrumentation.common.constants import MONOCLE_SKIP_EXECUTIONS, MONOCLE_WORKFLOW_NAME_KEY
+from monocle_apptrace.instrumentation.common.constants import MONOCLE_SKIP_EXECUTIONS, MONOCLE_WORKFLOW_NAME_KEY, MONOCLE_SDK_VERSION
 from monocle_apptrace.instrumentation.common.utils import set_workflow_name
 logger = logging.getLogger(__name__)
+
+
+class MonocleInMemorySpanExporter(InMemorySpanExporter):
+    """In-memory span exporter that keeps only Monocle-instrumented spans."""
+
+    def export(self, spans):
+        filtered_spans = [span for span in spans if span.attributes.get(MONOCLE_SDK_VERSION)]
+        if not filtered_spans:
+            return SpanExportResult.SUCCESS
+        return super().export(filtered_spans)
 
 class MonocleValidator:
     _spans:Span = []
@@ -60,7 +71,7 @@ class MonocleValidator:
         if exporter_list is None:
             exporter_list = os.getenv("MONOCLE_EXPORTER", "file")
         self.exporters = get_monocle_exporter(exporter_list)
-        self.memory_exporter = InMemorySpanExporter()
+        self.memory_exporter = MonocleInMemorySpanExporter()
         if export_failed_tests_only is None:
             export_failed_tests_only = os.getenv("MONOCLE_EXPORT_FAILED_TESTS_ONLY", "false").lower() == "true"
         if workflow_name is None:

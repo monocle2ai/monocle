@@ -87,6 +87,15 @@ class TraceAssertion():
         return self._assertion_errors
 
     def cleanup(self) -> None:
+        """Cleanup validator state and evaluation resources."""
+        # Clean up evaluation resources (e.g., delete traces from eval service)
+        if self._eval is not None and hasattr(self._eval, 'cleanup'):
+            try:
+                self._eval.cleanup()
+            except Exception:
+                pass
+        
+        # Clean up validator state
         self.validator.cleanup()
         self._filtered_spans = None
         TraceAssertion._assertion_errors = []
@@ -289,6 +298,12 @@ class TraceAssertion():
     def under_token_limit(self, token_limit:int) -> 'TraceAssertion':
         """Assert that all spans have total tokens under the given limit."""
         self.validator.check_total_token_limits(token_limit, filtered_spans=self._filtered_spans)
+        return self
+
+    @collect_assertions
+    def under_duration(self, duration_limit: float) -> 'TraceAssertion':
+        """Assert that the workflow span's duration is under the given limit (in seconds)."""
+        self.validator.check_total_duration_limits(duration_limit, filtered_spans=self._filtered_spans)
         return self
 
     def load_spans(self, spans:list[Span]) -> None:

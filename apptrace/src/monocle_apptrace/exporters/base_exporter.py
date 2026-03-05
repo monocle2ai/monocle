@@ -4,6 +4,7 @@ import logging
 from abc import ABC, abstractmethod
 from opentelemetry.sdk.trace import ReadableSpan
 from opentelemetry.sdk.trace.export import SpanExportResult
+from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from monocle_apptrace.instrumentation.common.constants import MONOCLE_SDK_VERSION
 from typing import Sequence
 
@@ -52,6 +53,16 @@ class SpanExporterBase(ABC):
             return wrapper
 
         return decorator
+
+
+class MonocleInMemorySpanExporter(InMemorySpanExporter):
+    """In-memory span exporter that keeps only Monocle-instrumented spans."""
+
+    def export(self, spans):
+        filtered_spans = [span for span in spans if span.attributes.get(MONOCLE_SDK_VERSION)]
+        if not filtered_spans:
+            return SpanExportResult.SUCCESS
+        return super().export(filtered_spans)
     
 
 def format_trace_id_without_0x(trace_id: int) -> str:

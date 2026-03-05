@@ -1,136 +1,57 @@
 import logging
-import time
-from types import SimpleNamespace
+from typing import Any
+
 from monocle_apptrace.instrumentation.common.constants import SPAN_TYPES
+from monocle_apptrace.instrumentation.common.stream_processor import (
+    BaseStreamProcessor,
+    StreamState,
+)
 from monocle_apptrace.instrumentation.metamodel.azureaiinference import _helper
 from monocle_apptrace.instrumentation.common.utils import (
     get_error_message,
-    resolve_from_alias, 
-    patch_instance_method,
+    resolve_from_alias,
     get_status,
-    get_exception_status_code
+    get_exception_status_code,
 )
 
 logger = logging.getLogger(__name__)
 
 
+class AzureAIInferenceStreamProcessor(BaseStreamProcessor):
+    """Azure AI Inference-specific stream processor."""
+
+    def handle_event(self, item: Any, state: StreamState) -> bool:
+        return False
+
+    def handle_chunk(self, item: Any, state: StreamState) -> bool:
+        if not (hasattr(item, "choices") and item.choices and 
+                hasattr(item.choices[0], "delta") and item.choices[0].delta):
+            return False
+
+        choice = item.choices[0]
+        delta = choice.delta
+
+        if hasattr(delta, "role") and delta.role:
+            state.role = delta.role
+
+        if hasattr(delta, "content") and delta.content:
+            state.add_content(delta.content)
+
+        return True
+
+    def handle_completion(self, item: Any, state: StreamState) -> bool:
+        if not (hasattr(item, "usage") and item.usage):
+            return False
+
+        state.token_usage = item.usage
+        state.close_stream()
+        return True
+
+
 def process_stream(to_wrap, response, span_processor):
     """Process streaming responses from Azure AI Inference."""
-    waiting_for_first_token = True
-    stream_start_time = time.time_ns()
-    first_token_time = stream_start_time
-    stream_closed_time = None
-    accumulated_response = ""
-    token_usage = None
-    role = "assistant"
-
-    # For sync iteration - patch __next__ instead of __iter__
-    if to_wrap and hasattr(response, "__next__"):
-        original_next = response.__next__
-
-        def new_next(self):
-            nonlocal waiting_for_first_token, first_token_time, stream_closed_time, accumulated_response, token_usage, role
-
-            try:
-                item = original_next()
-                
-                # Handle Azure AI Inference streaming chunks
-                if hasattr(item, 'choices') and item.choices:
-                    choice = item.choices[0]
-                    if hasattr(choice, 'delta') and hasattr(choice.delta, 'role') and choice.delta.role:
-                        role = choice.delta.role
-                    if hasattr(choice, 'delta') and hasattr(choice.delta, 'content') and choice.delta.content:
-                        if waiting_for_first_token:
-                            waiting_for_first_token = False
-                            first_token_time = time.time_ns()
-
-                        accumulated_response += choice.delta.content
-                
-                # Check for usage information at the end of stream
-                if hasattr(item, 'usage') and item.usage:
-                    token_usage = item.usage
-                    stream_closed_time = time.time_ns()
-
-                return item
-
-            except StopIteration:
-                # Stream is complete, process final span
-                if span_processor:
-                    ret_val = SimpleNamespace(
-                        type="stream",
-                        role=role,
-                        timestamps={
-                            "data.input": int(stream_start_time),
-                            "data.output": int(first_token_time),
-                            "metadata": int(stream_closed_time or time.time_ns()),
-                        },
-                        output_text=accumulated_response,
-                        usage=token_usage,
-                    )
-                    span_processor(ret_val)
-                raise
-            except Exception as e:
-                logger.warning(
-                    "Warning: Error occurred while processing item in new_next: %s",
-                    str(e),
-                )
-                raise
-
-        patch_instance_method(response, "__next__", new_next)
-        
-    # For async iteration - patch __anext__ instead of __aiter__
-    if to_wrap and hasattr(response, "__anext__"):
-        original_anext = response.__anext__
-
-        async def new_anext(self):
-            nonlocal waiting_for_first_token, first_token_time, stream_closed_time, accumulated_response, token_usage, role
-
-            try:
-                item = await original_anext()
-                
-                # Handle Azure AI Inference streaming chunks
-                if hasattr(item, 'choices') and item.choices:
-                    choice = item.choices[0]
-                    if hasattr(choice, 'delta') and hasattr(choice.delta, 'role') and choice.delta.role:
-                        role = choice.delta.role
-                    if hasattr(choice, 'delta') and hasattr(choice.delta, 'content') and choice.delta.content:
-                        if waiting_for_first_token:
-                            waiting_for_first_token = False
-                            first_token_time = time.time_ns()
-
-                        accumulated_response += choice.delta.content
-                
-                # Check for usage information at the end of stream
-                if hasattr(item, 'usage') and item.usage:
-                    token_usage = item.usage
-                    stream_closed_time = time.time_ns()
-
-                return item
-
-            except StopAsyncIteration:
-                # Stream is complete, process final span
-                if span_processor:
-                    ret_val = SimpleNamespace(
-                        type="stream",
-                        role=role,
-                        timestamps={
-                            "data.input": int(stream_start_time),
-                            "data.output": int(first_token_time),
-                            "metadata": int(stream_closed_time or time.time_ns()),
-                        },
-                        output_text=accumulated_response,
-                        usage=token_usage,
-                    )
-                    span_processor(ret_val)
-                raise
-            except Exception as e:
-                logger.warning(
-                    "Warning: Error occurred while processing item in new_anext: %s",
-                    str(e),
-                )
-                raise
-
-        patch_instance_method(response, "__anext__", new_anext)
+    processor = AzureAIInferenceStreamProcessor()
+    processor.process_stream(to_wrap, response, span_processor)
 
 
 INFERENCE = {

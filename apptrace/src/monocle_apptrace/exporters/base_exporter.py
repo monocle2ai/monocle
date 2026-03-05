@@ -55,11 +55,15 @@ class SpanExporterBase(ABC):
         return decorator
 
 
-class MonocleInMemorySpanExporter(InMemorySpanExporter):
+class MonocleInMemorySpanExporter(InMemorySpanExporter, SpanExporterBase):
     """In-memory span exporter that keeps only Monocle-instrumented spans."""
 
+    def __init__(self, export_monocle_only: bool = True):
+        InMemorySpanExporter.__init__(self)
+        SpanExporterBase.__init__(self, export_monocle_only=export_monocle_only)
+
     def export(self, spans):
-        filtered_spans = [span for span in spans if span.attributes.get(MONOCLE_SDK_VERSION)]
+        filtered_spans = [span for span in spans if not self.skip_export(span)]
         if not filtered_spans:
             return SpanExportResult.SUCCESS
         return super().export(filtered_spans)

@@ -122,6 +122,8 @@ async def test_token_usage(monocle_trace_asserter):
 
 **`under_duration(duration_limit: float)`** - Asserts that the workflow execution duration is under the specified time limit in seconds. The duration is measured from the workflow span (root span with name "workflow"). Supports decimal values for precise timing requirements.
 
+**Note:** Duration assertions must be called on the full trace and cannot be used after filtering operations like `called_tool()` or `called_agent()`, as these filters exclude the spans needed for duration measurement.
+
 **Examples:**
 ```python
 @pytest.mark.asyncio
@@ -141,11 +143,13 @@ async def test_execution_duration(monocle_trace_asserter):
 async def test_cost_and_performance(monocle_trace_asserter):
     await monocle_trace_asserter.run_agent_async(root_agent, "google_adk", "query")
     
-    # Chain multiple performance assertions
+    # Chain token and duration assertions (both work on full trace)
     monocle_trace_asserter\
         .under_token_limit(1500)\
         .under_duration(10)
 ```
+
+**Note:** Duration assertions cannot be chained after `called_tool()` or `called_agent()` filters, but can be combined with token limit assertions.
 
 **Understanding Performance Failures:**
 

@@ -2,6 +2,8 @@
 
 This document provides a comprehensive reference for all assertions supported by the Monocle fluent API.
 
+> **Note:** All assertion methods support an optional custom error message parameter. You can provide your own error message to make test failures more descriptive and easier to debug.
+
 ## Agent & Tool Calls
 
 | Method | Parameters | Description |

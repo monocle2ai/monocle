@@ -300,6 +300,12 @@ class TraceAssertion():
         self.validator.check_total_token_limits(token_limit, filtered_spans=self._filtered_spans)
         return self
 
+    @collect_assertions
+    def under_duration(self, duration_limit: float) -> 'TraceAssertion':
+        """Assert that the workflow span's duration is under the given limit (in seconds)."""
+        self.validator.check_total_duration_limits(duration_limit, filtered_spans=self._filtered_spans)
+        return self
+
     def load_spans(self, spans:list[Span]) -> None:
         """Load spans into the validator's memory exporter for assertions."""
         self.validator.memory_exporter.export(spans)

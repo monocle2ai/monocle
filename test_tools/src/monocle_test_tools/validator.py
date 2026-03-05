@@ -547,6 +547,48 @@ class MonocleValidator:
             assert tokens > max_tokens, f" {token_name} limit was not exceeded as expected: {tokens} <= {max_tokens}"
         return True
 
+    def check_total_duration_limits(self, max_duration_seconds:float, positive_test:bool = True,
+                                filtered_spans:Optional[list[Span]] = None) -> bool:
+        """Verify that the workflow duration is under the specified limit.
+         Args:
+            max_duration_seconds (float): The maximum duration allowed in seconds.
+            positive_test (bool): If True, asserts duration is under limit. If False, asserts duration exceeds limit.
+            filtered_spans (Optional[list[Span]]): Spans to check. If None, uses all spans.
+         """
+        if max_duration_seconds is None:
+            return True
+        
+        if filtered_spans is None:
+            spans_to_check = self.spans
+        else:
+            spans_to_check = filtered_spans
+        
+        if not spans_to_check or len(spans_to_check) == 0:
+            assert False, "No spans available to check workflow duration."
+        
+        # Find the workflow span by literal span name 'workflow'
+        workflow_span = None
+        for span in spans_to_check:
+            if span.name == 'workflow':
+                workflow_span = span
+                break
+        
+        if workflow_span is None:
+            assert False, "No workflow span found (span with name 'workflow')."
+        
+        # Convert duration from nanoseconds to seconds
+        start_time = workflow_span.start_time
+        end_time = workflow_span.end_time        
+        duration_ns = end_time - start_time
+        duration_seconds = duration_ns / 1e9
+
+        if positive_test:
+            assert duration_seconds <= max_duration_seconds, f"Workflow duration {duration_seconds:.2f}s exceeds limit {max_duration_seconds}s."
+        else:
+            assert duration_seconds > max_duration_seconds, f"Workflow duration {duration_seconds:.2f}s was expected to exceed limit {max_duration_seconds}s but did not."
+        
+        return True
+
     def _verify_tool_errors(self, tool_name:str, agent_name:str, expect_error:bool, found_error: bool, expect_warnings:bool, found_warning: bool) -> None:
             if expect_error and not found_error:
                 assert False, f"Tool '{tool_name}' was invoked by agent '{agent_name}' error was expected but no error found."

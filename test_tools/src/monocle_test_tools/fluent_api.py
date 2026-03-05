@@ -283,15 +283,29 @@ class TraceAssertion():
         return self
 
     @collect_assertions
-    def check_eval(self, eval_name:str, expected_eval:str, fact_name:Optional[str] = "traces", message:Optional[str] = None) -> 'TraceAssertion':
+    def check_eval(self, eval_name:str, expected_eval:Union[str, list[str]], fact_name:Optional[str] = "traces", message:Optional[str] = None) -> 'TraceAssertion':
         """Validate evaluation results for the current filtered spans."""
         if self._eval is None:
             raise AssertionError(message if message else "No evaluator configured. Call with_evaluation before check_eval.")
         if not self._filtered_spans:
             raise AssertionError(message if message else "No spans available for evaluation. Chain a span selector before check_eval.")
         eval_result = self._eval.evaluate(filtered_spans=self._filtered_spans, eval_name=eval_name, fact_name=fact_name)
-        if eval_result != expected_eval:
-            raise AssertionError(message if message else f"Evaluation '{eval_name}' did not match expected result. Expected {expected_eval}. Received {eval_result}.")
+        
+        # Convert string to list for uniform processing
+        expected_list = [expected_eval] if isinstance(expected_eval, str) else expected_eval
+        
+        # Separate positive and negative expectations
+        positive = [e for e in expected_list if not e.startswith("not ")]
+        negative = [e[4:] for e in expected_list if e.startswith("not ")]
+        
+        # Check positive expectations (must match one of these)
+        if positive and eval_result not in positive:
+            raise AssertionError(message if message else f"Evaluation '{eval_name}' did not match expected result. Expected one of {positive}. Received '{eval_result}'.")
+        
+        # Check negative expectations (must not match any of these)
+        if negative and eval_result in negative:
+            raise AssertionError(message if message else f"Evaluation '{eval_name}' matched an unexpected result. Should not be any of {negative}. Received '{eval_result}'.")
+        
         return self
 
     @collect_assertions

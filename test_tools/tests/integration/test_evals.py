@@ -39,7 +39,7 @@ async def test_complex_workflow_summarization_evaluation(monocle_trace_asserter)
     await monocle_trace_asserter.run_agent_async(root_agent, "google_adk", 
                         "Book a flight from San Francisco to Mumbai for 26th April 2026. Book a two queen room at Marriott Intercontinental at Central Mumbai for 27th April 2026 for 4 nights.")
 		
-    monocle_trace_asserter.with_evaluation("okahu").check_eval("summarization", "excellent")
+    monocle_trace_asserter.with_evaluation("okahu").check_eval("summarization", "excellent", message="Summarization should capture all key details of the multi-step workflow accurately and concisely.")
 
 
 @pytest.mark.asyncio

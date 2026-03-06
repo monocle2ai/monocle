@@ -8,6 +8,7 @@ from monocle_apptrace.instrumentation.common.constants import (
     SPAN_TYPES,
 )
 from monocle_apptrace.instrumentation.metamodel.msagent import _helper
+from monocle_apptrace.instrumentation.metamodel.msagent.msagent_processor import MSAgentInferenceHandler
 from monocle_apptrace.instrumentation.common.utils import get_error_message, patch_instance_method, resolve_from_alias
 
 logger = logging.getLogger(__name__)
@@ -314,13 +315,13 @@ INFERENCE = {
                 "_comment": "Tool name when finish_type is tool_call",
                 "attribute": "name",
                 "phase": "post_execution",
-                "accessor": lambda arguments: _helper.extract_tool_name(arguments),
+                    "accessor": lambda arguments: _helper.extract_tool_name(arguments),
             },
             {
                 "_comment": "Tool type when finish_type is tool_call", 
                 "attribute": "type",
                 "phase": "post_execution",
-                "accessor": lambda arguments: _helper.extract_tool_type(arguments),
+                    "accessor": lambda arguments: _helper.extract_tool_type(arguments),
             },
         ],
     ],
@@ -359,7 +360,7 @@ INFERENCE = {
                 {
                     "_comment": "this is metadata usage from LLM",
                     "accessor": lambda arguments: _helper.update_span_from_llm_response(
-                        arguments["result"]
+                        arguments
                     ),
                 },
                 {

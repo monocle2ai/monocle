@@ -511,17 +511,17 @@ class MonocleValidator:
         return self._check_token_limits(max_output_tokens, "completion_tokens", positive_test, filtered_spans)
 
     def check_total_token_limits(self, max_total_tokens:int, positive_test:bool = True,
-                                filtered_spans:Optional[list[Span]] = None) -> bool:
+                                filtered_spans:Optional[list[Span]] = None, custom_message:Optional[str] = None) -> bool:
         """Verify that the output token limits are respected in the spans.
          Args:
             max_tokens (int): The maximum number of tokens allowed in the output.
          """
         if max_total_tokens is None:
             return True
-        return self._check_token_limits(max_total_tokens, "total_tokens", positive_test, filtered_spans)
+        return self._check_token_limits(max_total_tokens, "total_tokens", positive_test, filtered_spans, custom_message)
 
     def _check_token_limits(self, max_tokens:int, token_name:str, positive_test:bool,
-                            filtered_spans:Optional[list[Span]] = None) -> bool:
+                            filtered_spans:Optional[list[Span]] = None, custom_message:Optional[str] = None) -> bool:
         """Verify that the output token limits are respected in the spans.
          Args:
             max_tokens (int): The maximum number of tokens allowed in the output.
@@ -542,13 +542,13 @@ class MonocleValidator:
                         tokens += event.attributes.get(token_name, 0)
 
         if positive_test:
-            assert tokens <= max_tokens, f" {token_name} limit exceeded: {tokens} > {max_tokens}"
+            assert tokens <= max_tokens, custom_message if custom_message else f" {token_name} limit exceeded: {tokens} > {max_tokens}"
         else:
-            assert tokens > max_tokens, f" {token_name} limit was not exceeded as expected: {tokens} <= {max_tokens}"
+            assert tokens > max_tokens, custom_message if custom_message else f" {token_name} limit was not exceeded as expected: {tokens} <= {max_tokens}"
         return True
 
     def check_total_duration_limits(self, max_duration_seconds:float, positive_test:bool = True,
-                                filtered_spans:Optional[list[Span]] = None) -> bool:
+                                filtered_spans:Optional[list[Span]] = None, custom_message:Optional[str] = None) -> bool:
         """Verify that the workflow duration is under the specified limit.
          Args:
             max_duration_seconds (float): The maximum duration allowed in seconds.
@@ -564,7 +564,7 @@ class MonocleValidator:
             spans_to_check = filtered_spans
         
         if not spans_to_check or len(spans_to_check) == 0:
-            assert False, "No spans available to check workflow duration."
+            assert False, custom_message if custom_message else "No spans available to check workflow duration."
         
         # Find the workflow span by literal span name 'workflow'
         workflow_span = None
@@ -574,7 +574,7 @@ class MonocleValidator:
                 break
         
         if workflow_span is None:
-            assert False, "No workflow span found (span with name 'workflow')."
+            assert False, custom_message if custom_message else "No workflow span found (span with name 'workflow')."
         
         # Convert duration from nanoseconds to seconds
         start_time = workflow_span.start_time
@@ -583,9 +583,9 @@ class MonocleValidator:
         duration_seconds = duration_ns / 1e9
 
         if positive_test:
-            assert duration_seconds <= max_duration_seconds, f"Workflow duration {duration_seconds:.2f}s exceeds limit {max_duration_seconds}s."
+            assert duration_seconds <= max_duration_seconds, custom_message if custom_message else f"Workflow duration {duration_seconds:.2f}s exceeds limit {max_duration_seconds}s."
         else:
-            assert duration_seconds > max_duration_seconds, f"Workflow duration {duration_seconds:.2f}s was expected to exceed limit {max_duration_seconds}s but did not."
+            assert duration_seconds > max_duration_seconds, custom_message if custom_message else f"Workflow duration {duration_seconds:.2f}s was expected to exceed limit {max_duration_seconds}s but did not."
         
         return True
 

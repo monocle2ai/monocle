@@ -13,7 +13,7 @@ monocle_exporters: Dict[str, Any] = {
     "blob": {"module": "monocle_apptrace.exporters.azure.blob_exporter", "class": "AzureBlobSpanExporter"},
     "okahu": {"module": "monocle_apptrace.exporters.okahu.okahu_exporter", "class": "OkahuSpanExporter"},
     "file": {"module": "monocle_apptrace.exporters.file_exporter", "class": "FileSpanExporter"},
-    "memory": {"module": "opentelemetry.sdk.trace.export.in_memory_span_exporter", "class": "InMemorySpanExporter"},
+    "memory": {"module": "monocle_apptrace.exporters.base_exporter", "class": "MonocleInMemorySpanExporter"},
     "console": {"module": "opentelemetry.sdk.trace.export", "class": "ConsoleSpanExporter"},
     "otlp": {"module": "opentelemetry.exporter.otlp.proto.http.trace_exporter", "class": "OTLPSpanExporter"},
     "gcs" : {"module": "monocle_apptrace.exporters.gcp.gcs_exporter", "class": "GCSSpanExporter"}

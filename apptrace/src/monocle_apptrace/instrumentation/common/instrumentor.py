@@ -21,7 +21,7 @@ from monocle_apptrace.instrumentation.common.wrapper_method import (
     WrapperMethod,
     MONOCLE_SPAN_HANDLERS
 )
-from monocle_apptrace.instrumentation.common.wrapper import scope_wrapper, ascope_wrapper, monocle_wrapper, amonocle_wrapper
+from monocle_apptrace.instrumentation.common.wrapper import scope_wrapper, ascope_wrapper, monocle_wrapper, amonocle_wrapper, safe_detach
 from monocle_apptrace.instrumentation.common.utils import (
     load_scopes,
     setup_readablespan_patch,
@@ -230,6 +230,9 @@ def setup_monocle_telemetry(
     set_monocle_span_processor(MonocleSynchronousMultiSpanProcessor())
     set_tracer_provider(TracerProvider(resource=resource, active_span_processor=get_monocle_span_processor()))
     set_workflow_name(workflow_name)
+    
+    # Apply monkey-patch for safe detach in async contexts
+    safe_detach()
     
     # Monkey-patch ReadableSpan.to_json to remove 0x prefix from trace_id/span_id
     setup_readablespan_patch()

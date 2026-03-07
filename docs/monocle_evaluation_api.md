@@ -35,8 +35,8 @@ async def test_sentiment_bias_evaluation(monocle_trace_asserter):
     )
     
     monocle_trace_asserter.with_evaluation("okahu")\
-        .check_eval("sentiment", "positive")\
-        .check_eval("bias", "unbiased")
+        .check_eval("sentiment", expected_eval="positive")\
+        .check_eval("bias", expected_eval="unbiased")
 ```
 
 **Example (Filtered agent evaluation):**
@@ -47,7 +47,7 @@ async def test_agent_evaluation(monocle_trace_asserter):
     
     monocle_trace_asserter.called_agent("flight_booking_agent")
     monocle_trace_asserter.with_evaluation("okahu")\
-        .check_eval("conversation_completeness", "complete")
+        .check_eval("conversation_completeness", expected_eval="complete")
 ```
 
 **Example (Filtered tool evaluation):**
@@ -58,8 +58,8 @@ async def test_tool_evaluation(monocle_trace_asserter):
     
     monocle_trace_asserter.called_tool("book_flight", "flight_booking_agent")
     monocle_trace_asserter.with_evaluation("okahu")\
-        .check_eval("toxicity", "non_toxic")\
-        .check_eval("contextual_relevancy", "highly_relevant")
+        .check_eval("toxicity", expected_eval="non_toxic")\
+        .check_eval("contextual_relevancy", expected_eval="highly_relevant")
 ```
 
 ## 2. Available Evaluation Metrics
@@ -90,71 +90,85 @@ All metrics provided by the "okahu" evaluator:
 
 ## 3. Using Positive and Negative Expectations
 
-The `check_eval()` method supports both **positive expectations** (values that should match) and **negative expectations** (values prefixed with `"not "` that should NOT match).
+The `check_eval()` method supports both **positive expectations** (values that should match) and **negative expectations** (values that should NOT match) through separate parameters:
 
-The `expected_eval` parameter accepts either:
-- **String**: For a single expected value (positive or negative)
-- **List of strings**: For multiple expected values (mix of positive and negative)
+- `expected_eval`: Values the evaluation result should match
+- `unexpected_eval`: Values the evaluation result should NOT match
+
+Both parameters are optional, but **at least one must be provided**. Each accepts either:
+- **String**: For a single value
+- **List of strings**: For multiple values
+
+The method validates that there's no overlap between `expected_eval` and `unexpected_eval`.
 
 ### Syntax
 
-**Single value (string):**
+**Single positive value:**
 ```python
-# Positive expectation: must be "positive"
-.check_eval("sentiment", "positive")
-
-# Negative expectation: must NOT be "negative"
-.check_eval("sentiment", "not negative")
+# Must be "positive"
+.check_eval("sentiment", expected_eval="positive")
 ```
 
-**Multiple values (list):**
+**Single negative value:**
 ```python
-# Multiple positive: must be "positive" OR "neutral"
-.check_eval("sentiment", ["positive", "neutral"])
+# Must NOT be "negative"
+.check_eval("sentiment", unexpected_eval="negative")
+```
 
-# Multiple negative: must NOT be "highly_toxic" AND NOT "moderately_toxic"
-.check_eval("toxicity", ["not highly_toxic", "not moderately_toxic"])
+**Multiple positive values:**
+```python
+# Must be "positive" OR "neutral"
+.check_eval("sentiment", expected_eval=["positive", "neutral"])
+```
 
-# Mixed: must be "positive" AND must NOT be "negative"
-.check_eval("sentiment", ["positive", "not negative"])
+**Multiple negative values:**
+```python
+# Must NOT be "highly_toxic" AND NOT "moderately_toxic"
+.check_eval("toxicity", unexpected_eval=["highly_toxic", "moderately_toxic"])
+```
+
+**Combined positive and negative expectations:**
+```python
+# Must be "positive" or "neutral" AND must NOT be "negative"
+.check_eval("sentiment", expected_eval=["positive", "neutral"], unexpected_eval="negative")
 ```
 
 ### Examples
 
-**Example 1: Single positive value (string)**
+**Example 1: Single positive value**
 ```python
 @pytest.mark.asyncio
 async def test_positive_sentiment(monocle_trace_asserter):
     await monocle_trace_asserter.run_agent_async(root_agent, "google_adk", "query")
     
-    # Single string value - must be "positive"
+    # Result must be "positive"
     monocle_trace_asserter.with_evaluation("okahu")\
-        .check_eval("sentiment", "positive")
+        .check_eval("sentiment", expected_eval="positive")
 ```
 
-**Example 2: Single negative value (string)**
+**Example 2: Single negative value**
 ```python
 @pytest.mark.asyncio
 async def test_not_negative_sentiment(monocle_trace_asserter):
     await monocle_trace_asserter.run_agent_async(root_agent, "google_adk", "query")
     
-    # Result can be "positive" or "neutral", but not "negative"
+    # Result can be anything except "negative"
     monocle_trace_asserter.with_evaluation("okahu")\
-        .check_eval("sentiment", "not negative")
+        .check_eval("sentiment", unexpected_eval="negative")
 ```
 
-**Example 3: Multiple negative values (list)**
+**Example 3: Multiple negative values**
 ```python
 @pytest.mark.asyncio
 async def test_no_toxicity(monocle_trace_asserter):
     await monocle_trace_asserter.run_agent_async(root_agent, "google_adk", "query")
     
-    # Ensure no toxicity at all (list of negative expectations)
+    # Ensure no toxicity at all
     monocle_trace_asserter.with_evaluation("okahu")\
-        .check_eval("toxicity", ["not mildly_toxic", "not moderately_toxic", "not highly_toxic"])
+        .check_eval("toxicity", unexpected_eval=["mildly_toxic", "moderately_toxic", "highly_toxic"])
 ```
 
-**Example 4: Mixed positive and negative expectations (list)**
+**Example 4: Combined positive and negative expectations**
 ```python
 @pytest.mark.asyncio
 async def test_task_completion(monocle_trace_asserter):
@@ -162,7 +176,9 @@ async def test_task_completion(monocle_trace_asserter):
     
     # Task must be completed or partially_completed, AND must not have failed
     monocle_trace_asserter.with_evaluation("okahu")\
-        .check_eval("mcp_task_completion", ["completed", "partially_completed", "not failed"])
+        .check_eval("mcp_task_completion", 
+                   expected_eval=["completed", "partially_completed"], 
+                   unexpected_eval="failed")
 ```
 
 ## 4. Running Tests
@@ -260,9 +276,11 @@ AssertionError: Workflow duration 13.45s exceeds limit 12.5s.
 - Call `with_evaluation("okahu")` once per test before calling `check_eval()` to configure the evaluator.
  - You don't have to declare evaluator each time
 - Use `run_agent_async()` or `run_agent()` to execute your agent and generate spans before evaluation.
-- The `expected_eval` parameter accepts either a **string** (single value) or a **list of strings** (multiple values).
-- Use `"not <value>"` syntax to specify values that should NOT be returned.
-- Multiple evaluations can be chained: `.check_eval("sentiment", "positive").check_eval("bias", "unbiased")`
-- Mix positive and negative expectations in lists: `.check_eval("toxicity", ["non_toxic", "not highly_toxic"])`
+- The `check_eval()` method requires at least one of `expected_eval` or `unexpected_eval` parameters:
+  - `expected_eval`: Accepts a **string** or **list of strings** for values that should match
+  - `unexpected_eval`: Accepts a **string** or **list of strings** for values that should NOT match
+  - Both parameters can be used together for comprehensive validation
+  - The method validates that there's no overlap between the two parameters
+- Multiple evaluations can be chained: `.check_eval("sentiment", expected_eval="positive").check_eval("bias", expected_eval="unbiased")`
 - Test files and functions must start with `test_` for pytest discovery.
 - Evaluation results are sent to the Okahu UI portal when `MONOCLE_EXPORTER` is properly configured.

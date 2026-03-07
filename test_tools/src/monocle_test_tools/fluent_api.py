@@ -289,6 +289,14 @@ class TraceAssertion():
         if expected_eval is None and unexpected_eval is None:
             raise ValueError("At least one of 'expected_eval' or 'unexpected_eval' must be provided.")
                 
+        # Check for overlapping instances in expected_eval and unexpected_eval
+        if expected_eval is not None and unexpected_eval is not None:
+            expected_list = [expected_eval] if isinstance(expected_eval, str) else expected_eval
+            unexpected_list = [unexpected_eval] if isinstance(unexpected_eval, str) else unexpected_eval
+            overlap = set(expected_list) & set(unexpected_list)
+            if overlap:
+                raise ValueError(f"Overlapping evaluation results found in 'expected_eval' and 'unexpected_eval': {overlap}. Please ensure they are mutually exclusive.")
+
         if self._eval is None:
             raise AssertionError(message if message else "No evaluator configured. Call with_evaluation before check_eval.")
         if not self._filtered_spans:

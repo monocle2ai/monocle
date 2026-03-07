@@ -99,7 +99,15 @@ Both parameters are optional, but **at least one must be provided**. Each accept
 - **String**: For a single value
 - **List of strings**: For multiple values
 
-The method validates that there's no overlap between `expected_eval` and `unexpected_eval`.
+**Important:** The method validates that there's no overlap between `expected_eval` and `unexpected_eval`. If the same value appears in both parameters, a `ValueError` will be raised. This ensures the expectations are mutually exclusive and logically consistent.
+
+**Invalid example (will raise ValueError):**
+```python
+# ERROR: "positive" appears in both expected and unexpected
+.check_eval("sentiment", 
+           expected_eval=["positive", "neutral"], 
+           unexpected_eval="positive")  # ValueError!
+```
 
 ### Syntax
 

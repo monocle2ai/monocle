@@ -3,6 +3,7 @@ import os
 from contextlib import contextmanager
 from threading import Lock
 from typing import Union
+from urllib.parse import urlparse
 from opentelemetry.context import get_value, set_value, attach, detach
 from opentelemetry.sdk.trace import Span
 from opentelemetry.sdk.resources import SERVICE_NAME
@@ -298,6 +299,21 @@ class SpanHandler:
         return workflow_type
 
     def set_app_hosting_identifier_attribute(span):
+        def _extract_foundry_resource_name(endpoint: str) -> str:
+            if not endpoint:
+                return ""
+            endpoint = str(endpoint).strip().strip('"').strip("'").rstrip("/")
+            if not endpoint:
+                return ""
+            try:
+                parsed = urlparse(endpoint)
+                host = parsed.hostname or ""
+            except Exception:
+                host = ""
+            if not host:
+                return ""
+            return host.split(".")[0] if "." in host else host
+
         span_index = 2
         # Search env to indentify the infra service type, if found check env for service name if possible
         span.set_attribute(f"entity.{span_index}.type", f"app_hosting.generic")
@@ -306,7 +322,15 @@ class SpanHandler:
             if type_env in os.environ:
                 span.set_attribute(f"entity.{span_index}.type", f"app_hosting.{type_name}")
                 entity_name_env = service_name_map.get(type_name, "unknown")
-                span.set_attribute(f"entity.{span_index}.name", os.environ.get(entity_name_env, "generic"))
+                entity_name = os.environ.get(entity_name_env, "generic")
+                if type_name == "azure_ai_foundry":
+                    # Foundry envs usually expose a project endpoint URL; normalize to resource name.
+                    alt_endpoint = os.environ.get("AZURE_AI_PROJECT_ENDPOINT", "")
+                    endpoint_value = entity_name if entity_name != "generic" else alt_endpoint
+                    parsed_name = _extract_foundry_resource_name(endpoint_value)
+                    entity_name = parsed_name or entity_name
+                span.set_attribute(f"entity.{span_index}.name", entity_name)
+                break
 
     @staticmethod
     def get_workflow_name(span: Span) -> str:

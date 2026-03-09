@@ -6,23 +6,15 @@ from urllib.parse import urlparse
 from opentelemetry.context import get_value
 
 from monocle_apptrace.instrumentation.common.constants import (
-    AGENT_PREFIX_KEY,
     AGENT_SESSION,
-    INFERENCE_AGENT_DELEGATION,
-    INFERENCE_TOOL_CALL,
-    INFERENCE_TURN_END,
-    LAST_AGENT_INVOCATION_ID,
-    LAST_AGENT_NAME
 )
 from monocle_apptrace.instrumentation.common.utils import (
     get_json_dumps,
-    get_status_code,
     set_scope
 )
 from monocle_apptrace.instrumentation.metamodel.finish_types import (
     map_msagent_finish_reason_to_finish_type
 )
-from monocle_apptrace.instrumentation.metamodel.msagent.msagent_processor import MSAgentInferenceHandler
 
 logger = logging.getLogger(__name__)
 
@@ -77,44 +69,6 @@ def get_agent_name_from_context() -> str:
         return ""
 
 
-def get_agent_instructions(instance: Any) -> str:
-    """Get the agent's instructions/system prompt."""
-    try:
-        if hasattr(instance, "instructions"):
-            return str(instance.instructions)
-        return ""
-    except Exception as e:
-        logger.warning(f"Error getting agent instructions: {e}")
-        return ""
-
-
-def extract_thread_id(kwargs: Dict[str, Any]) -> str:
-    """
-    Extract thread/session ID from kwargs.
-    Microsoft Agent Framework passes thread object in kwargs['thread'].
-    
-    Returns:
-        Thread ID string or None if not found
-    """
-    try:
-        thread = kwargs.get("thread")
-        if thread is None:
-            return None
-        
-        # Try various attributes for thread ID
-        if hasattr(thread, "service_thread_id"):
-            return str(thread.service_thread_id) if thread.service_thread_id else None
-        elif hasattr(thread, "id"):
-            return str(thread.id)
-        elif hasattr(thread, "thread_id"):
-            return str(thread.thread_id)
-        
-        return None
-    except Exception as e:
-        logger.warning(f"Error extracting thread ID: {e}")
-        return None
-
-
 def get_tool_name(instance: Any) -> str:
     """Get the name of the tool."""
     try:
@@ -143,33 +97,6 @@ def get_tool_description(instance: Any) -> str:
         return ""
     except Exception as e:
         logger.warning(f"Error getting tool description: {e}")
-        return ""
-
-
-def extract_agent_input(arguments: Dict[str, Any]) -> str:
-    """Extract input from agent invocation arguments."""
-    try:
-        args = arguments.get("args", ())
-        kwargs = arguments.get("kwargs", {})
-        
-        # Extract input/task from args or kwargs
-        if args and len(args) > 0:
-            return str(args[0])
-        elif "message" in kwargs:
-            return str(kwargs["message"])
-        elif "input" in kwargs:
-            return str(kwargs["input"])
-        elif "messages" in kwargs:
-            # Handle list of messages
-            messages = kwargs["messages"]
-            if isinstance(messages, list) and len(messages) > 0:
-                # Get the last user message
-                return str(messages[-1]) if messages else ""
-            return str(messages)
-        
-        return ""
-    except Exception as e:
-        logger.warning(f"Error extracting agent input: {e}")
         return ""
 
 
@@ -360,16 +287,6 @@ def extract_agent_response(arguments: Any) -> str:
         logger.warning(f"Error extracting agent response: {e}")
         return ""
 
-
-def extract_from_agent_invocation_id(parent_span):
-    if parent_span is not None:
-        return parent_span.attributes.get(LAST_AGENT_INVOCATION_ID)
-    return None
-
-def extract_from_agent_name(parent_span):
-    if parent_span is not None:
-        return parent_span.attributes.get(LAST_AGENT_NAME)
-    return None
 
 def extract_tool_input(arguments: Dict[str, Any]) -> str:
     """Extract input from tool invocation arguments."""
@@ -638,18 +555,6 @@ def is_inside_workflow() -> bool:
         return False
 
 
-# Inference extraction functions for AzureOpenAIAssistantsClient._inner_get_response
-
-def extract_assistant_message(arguments):
-    """Backward-compatible wrapper. Use inference_handler.extract_assistant_message."""
-    return MSAgentInferenceHandler.extract_assistant_message(arguments)
-
-
-def agent_inference_type(arguments):
-    """Backward-compatible wrapper. Use inference_handler.agent_inference_type."""
-    return MSAgentInferenceHandler.agent_inference_type(arguments)
-
-
 # Additional helper functions for INFERENCE entity
 
 def get_inference_type(instance):
@@ -788,339 +693,9 @@ def extract_messages(kwargs):
         return ""
 
 
-def _get_field(value, key, default=None):
-    """Safely read a key/attribute from dict-like or object values."""
-    if value is None:
-        return default
-    if isinstance(value, dict):
-        return value.get(key, default)
-    return getattr(value, key, default)
-
-
-def _as_list(value):
-    """Normalize a possibly singular value into a list."""
-    if value is None:
-        return []
-    if isinstance(value, list):
-        return value
-    if isinstance(value, tuple):
-        return list(value)
-    return [value]
-
-
-def _response_contains_tool_calls(response):
-    """Detect whether a response contains tool/function call intent."""
-    try:
-        if response is None:
-            return False
-
-        tools = _get_field(response, "tools")
-        if isinstance(tools, (list, tuple)) and len(tools) > 0:
-            return True
-
-        output_items = _as_list(_get_field(response, "output"))
-        for item in output_items:
-            item_type = _get_field(item, "type")
-            if item_type in ("function_call", "tool_call", "tool_calls"):
-                return True
-            tool_calls = _get_field(item, "tool_calls")
-            if isinstance(tool_calls, (list, tuple)) and len(tool_calls) > 0:
-                return True
-            if _get_field(item, "call_id") and _get_field(item, "name"):
-                return True
-
-        required_action = _get_field(response, "required_action")
-        submit_tool_outputs = _get_field(required_action, "submit_tool_outputs")
-        required_action_tool_calls = _get_field(submit_tool_outputs, "tool_calls")
-        if isinstance(required_action_tool_calls, (list, tuple)) and len(required_action_tool_calls) > 0:
-            return True
-
-        messages = _as_list(_get_field(response, "messages"))
-        for message in messages:
-            message_tool_calls = _get_field(message, "tool_calls")
-            if isinstance(message_tool_calls, (list, tuple)) and len(message_tool_calls) > 0:
-                return True
-
-            contents = _as_list(_get_field(message, "contents"))
-            for content in contents:
-                content_type = _get_field(content, "type") or type(content).__name__
-                if content_type in ("FunctionCallContent", "function_call", "tool_call", "tool_calls"):
-                    return True
-                if _get_field(content, "call_id") and _get_field(content, "name"):
-                    return True
-
-            message_content = _as_list(_get_field(message, "content"))
-            for part in message_content:
-                if isinstance(part, dict):
-                    part_type = part.get("type")
-                    if part_type in ("function_call", "tool_call", "tool_calls"):
-                        return True
-                    part_tool_calls = part.get("tool_calls")
-                    if isinstance(part_tool_calls, (list, tuple)) and len(part_tool_calls) > 0:
-                        return True
-
-        choices = _as_list(_get_field(response, "choices"))
-        for choice in choices:
-            finish_reason = _get_field(choice, "finish_reason")
-            if finish_reason in ("tool_calls", "function_call"):
-                return True
-
-            choice_message = _get_field(choice, "message")
-            message_tool_calls = _get_field(choice_message, "tool_calls")
-            if isinstance(message_tool_calls, (list, tuple)) and len(message_tool_calls) > 0:
-                return True
-
-            delta = _get_field(choice, "delta")
-            delta_tool_calls = _get_field(delta, "tool_calls")
-            if isinstance(delta_tool_calls, (list, tuple)) and len(delta_tool_calls) > 0:
-                return True
-
-    except Exception as e:
-        logger.debug(f"Error detecting tool calls in response: {e}")
-
-    return False
-
-
-def _extract_first_tool_name_from_response(response):
-    """Extract first tool/function name from common response shapes."""
-    try:
-        if response is None:
-            return None
-
-        for tool in _as_list(_get_field(response, "tools")):
-            tool_name = _get_field(tool, "name")
-            if tool_name:
-                return tool_name
-
-        for item in _as_list(_get_field(response, "output")):
-            tool_name = _get_field(item, "name")
-            if tool_name:
-                return tool_name
-
-        required_action = _get_field(response, "required_action")
-        submit_tool_outputs = _get_field(required_action, "submit_tool_outputs")
-        for tool_call in _as_list(_get_field(submit_tool_outputs, "tool_calls")):
-            function_obj = _get_field(tool_call, "function")
-            tool_name = _get_field(function_obj, "name") or _get_field(tool_call, "name")
-            if tool_name:
-                return tool_name
-
-        for message in _as_list(_get_field(response, "messages")):
-            for content in _as_list(_get_field(message, "contents")):
-                tool_name = _get_field(content, "name")
-                if tool_name:
-                    return tool_name
-
-            for tool_call in _as_list(_get_field(message, "tool_calls")):
-                function_obj = _get_field(tool_call, "function")
-                tool_name = _get_field(function_obj, "name") or _get_field(tool_call, "name")
-                if tool_name:
-                    return tool_name
-
-        for choice in _as_list(_get_field(response, "choices")):
-            message = _get_field(choice, "message")
-            for tool_call in _as_list(_get_field(message, "tool_calls")):
-                function_obj = _get_field(tool_call, "function")
-                tool_name = _get_field(function_obj, "name") or _get_field(tool_call, "name")
-                if tool_name:
-                    return tool_name
-
-            delta = _get_field(choice, "delta")
-            for tool_call in _as_list(_get_field(delta, "tool_calls")):
-                function_obj = _get_field(tool_call, "function")
-                tool_name = _get_field(function_obj, "name") or _get_field(tool_call, "name")
-                if tool_name:
-                    return tool_name
-    except Exception as e:
-        logger.debug(f"Error extracting tool name from response: {e}")
-
-    return None
-
-
-def _extract_token_usage(candidate):
-    """Extract token usage fields from a usage-like object or dict."""
-    if candidate is None:
-        return {}
-
-    nested_usage_candidates = [
-        _get_field(candidate, "usage"),
-        _get_field(candidate, "usage_details"),
-        _get_field(candidate, "token_usage"),
-        _get_field(candidate, "response_metadata"),
-    ]
-    for nested_candidate in nested_usage_candidates:
-        if nested_candidate is None or nested_candidate is candidate:
-            continue
-        nested_usage = _extract_token_usage(nested_candidate)
-        if nested_usage:
-            return nested_usage
-
-    completion = _get_field(candidate, "completion_tokens")
-    if completion is None:
-        completion = _get_field(candidate, "output_tokens")
-    if completion is None:
-        completion = _get_field(candidate, "output_token_count")
-    if completion is None:
-        completion = _get_field(candidate, "completionTokenCount")
-    if completion is None:
-        completion = _get_field(candidate, "outputTokenCount")
-
-    prompt = _get_field(candidate, "prompt_tokens")
-    if prompt is None:
-        prompt = _get_field(candidate, "input_tokens")
-    if prompt is None:
-        prompt = _get_field(candidate, "input_token_count")
-    if prompt is None:
-        prompt = _get_field(candidate, "promptTokenCount")
-    if prompt is None:
-        prompt = _get_field(candidate, "inputTokenCount")
-
-    total = _get_field(candidate, "total_tokens")
-    if total is None:
-        total = _get_field(candidate, "total_token_count")
-    if total is None:
-        total = _get_field(candidate, "totalTokenCount")
-
-    if isinstance(candidate, dict):
-        if completion is None:
-            completion = candidate.get("completion") or candidate.get("output")
-        if prompt is None:
-            prompt = candidate.get("prompt") or candidate.get("input")
-        if total is None:
-            total = candidate.get("total")
-
-    usage = {}
-    if completion is not None:
-        usage["completion_tokens"] = completion
-    if prompt is not None:
-        usage["prompt_tokens"] = prompt
-    if total is not None:
-        usage["total_tokens"] = total
-
-    if "total_tokens" not in usage and "completion_tokens" in usage and "prompt_tokens" in usage:
-        try:
-            usage["total_tokens"] = int(usage["completion_tokens"]) + int(usage["prompt_tokens"])
-        except Exception:
-            pass
-
-    return usage
-
-
-def _collect_usage_candidates(response):
-    """Collect likely usage containers from common MS Agent response shapes."""
-    candidates = [response]
-
-    for field in [
-        "usage_details",
-        "usage",
-        "response_metadata",
-        "metadata",
-        "run",
-        "response",
-        "agent_run_response",
-        "chat_response",
-        "raw_response",
-        "llm_response",
-        "model_extra",
-        "additional_kwargs",
-    ]:
-        value = _get_field(response, field)
-        if value is not None:
-            candidates.append(value)
-
-    response_metadata = _get_field(response, "response_metadata")
-    token_usage = _get_field(response_metadata, "token_usage")
-    if token_usage is not None:
-        candidates.append(token_usage)
-
-    for message in _as_list(_get_field(response, "messages")):
-        candidates.append(message)
-        message_usage = _get_field(message, "usage")
-        if message_usage is not None:
-            candidates.append(message_usage)
-        message_usage_details = _get_field(message, "usage_details")
-        if message_usage_details is not None:
-            candidates.append(message_usage_details)
-        message_response_metadata = _get_field(message, "response_metadata")
-        if message_response_metadata is not None:
-            candidates.append(message_response_metadata)
-            message_token_usage = _get_field(message_response_metadata, "token_usage")
-            if message_token_usage is not None:
-                candidates.append(message_token_usage)
-
-        for content in _as_list(_get_field(message, "content")):
-            candidates.append(content)
-            content_usage = _get_field(content, "usage")
-            if content_usage is not None:
-                candidates.append(content_usage)
-            content_usage_details = _get_field(content, "usage_details")
-            if content_usage_details is not None:
-                candidates.append(content_usage_details)
-
-    for output_item in _as_list(_get_field(response, "output")):
-        candidates.append(output_item)
-        output_usage = _get_field(output_item, "usage")
-        if output_usage is not None:
-            candidates.append(output_usage)
-        output_usage_details = _get_field(output_item, "usage_details")
-        if output_usage_details is not None:
-            candidates.append(output_usage_details)
-        output_response_metadata = _get_field(output_item, "response_metadata")
-        if output_response_metadata is not None:
-            candidates.append(output_response_metadata)
-            output_token_usage = _get_field(output_response_metadata, "token_usage")
-            if output_token_usage is not None:
-                candidates.append(output_token_usage)
-
-    for choice in _as_list(_get_field(response, "choices")):
-        candidates.append(choice)
-        choice_usage = _get_field(choice, "usage")
-        if choice_usage is not None:
-            candidates.append(choice_usage)
-
-    # Assistants-style responses can keep token usage in nested run objects
-    run_obj = _get_field(response, "run")
-    if run_obj is not None:
-        for run_field in ["usage", "usage_details", "response_metadata", "metadata"]:
-            run_value = _get_field(run_obj, run_field)
-            if run_value is not None:
-                candidates.append(run_value)
-        run_response_metadata = _get_field(run_obj, "response_metadata")
-        run_token_usage = _get_field(run_response_metadata, "token_usage")
-        if run_token_usage is not None:
-            candidates.append(run_token_usage)
-
-    # If result wraps the assistant response, include wrapper-level pieces too.
-    wrapped_response = _get_field(response, "agent_run_response")
-    if wrapped_response is not None and wrapped_response is not response:
-        candidates.extend(_collect_usage_candidates(wrapped_response))
-
-    return candidates
-
-
-def extract_finish_reason(arguments):
-    """Backward-compatible wrapper. Use inference_handler.extract_finish_reason."""
-    return MSAgentInferenceHandler.extract_finish_reason(arguments)
-
-
 def map_finish_reason_to_finish_type(finish_reason):
     """Map finish_reason to finish_type using MS Agent Framework mapping."""
     return map_msagent_finish_reason_to_finish_type(finish_reason)
-
-
-def extract_tool_name(arguments):
-    """Backward-compatible wrapper. Use inference_handler.extract_tool_name."""
-    return MSAgentInferenceHandler.extract_tool_name(arguments)
-
-
-def extract_tool_type(arguments):
-    """Backward-compatible wrapper. Use inference_handler.extract_tool_type."""
-    return MSAgentInferenceHandler.extract_tool_type(arguments)
-
-
-def update_span_from_llm_response(response):
-    """Backward-compatible wrapper. Use inference_handler.update_span_from_llm_response."""
-    return MSAgentInferenceHandler.update_span_from_llm_response(response)
 
 
 def extract_model_name(instance, kwargs):

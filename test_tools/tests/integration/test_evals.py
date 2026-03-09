@@ -151,6 +151,33 @@ async def test_v1_agent_sessions_safety_evaluation(monocle_trace_asserter):
     # Should not be toxic
     monocle_trace_asserter.check_eval(fact_name="agent_sessions", eval_name="toxicity", expected_eval="non_toxic")
 
+@pytest.mark.asyncio
+@pytest.mark.xfail(reason="This test is expected to fail as the specified template does not exist in Okahu.")
+async def test_v1_invalid_template_nonexistent(monocle_trace_asserter):
+    """v1: Test that a completely non-existent template raises an error."""
+    await monocle_trace_asserter.run_agent_async(root_agent, "google_adk",
+                        "Book a flight from Boston to Miami for 15th Feb 2026.")
+    # This template doesn't exist at all
+    monocle_trace_asserter.with_evaluation("okahu").check_eval(fact_name="traces", eval_name="code_quality", expected_eval="excellent")
+
+@pytest.mark.asyncio
+@pytest.mark.xfail(reason="This test is expected to fail as the hallucination template does not support conversations fact in Okahu.")
+async def test_v1_invalid_template_wrong_fact_name(monocle_trace_asserter):
+    """v1: Test that hallucination template with conversations fact raises an error (hallucination only works with agent_sessions and traces)."""
+    await monocle_trace_asserter.run_agent_async(root_agent, "google_adk",
+                        "Book a flight from Seattle to Portland for 10th April 2026.")
+    # hallucination exists for agent_sessions and traces, but NOT for conversations
+    monocle_trace_asserter.with_evaluation("okahu").check_eval(fact_name="conversations", eval_name="hallucination", expected_eval="no_hallucination")
+
+@pytest.mark.asyncio
+@pytest.mark.xfail(reason="This test is expected to fail as the frustration template does not support inferences fact in Okahu.")
+async def test_v1_invalid_template_wrong_fact_name_frustration(monocle_trace_asserter):
+    """v1: Test that frustration template with inferences fact raises an error (frustration only works with conversations and traces)."""
+    await monocle_trace_asserter.run_agent_async(root_agent, "google_adk",
+                        "Book a flight from Dallas to Houston for 1st May 2026.")
+    # frustration exists for conversations and traces, but NOT for inferences
+    monocle_trace_asserter.with_evaluation("okahu").check_eval(fact_name="inferences", eval_name="frustration", expected_eval="ok")
+
 
 
 if __name__ == "__main__":

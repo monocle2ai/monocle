@@ -72,9 +72,14 @@ class OkahuEval(BaseEval):
                     break
             
             if not matching_template:
+                # Format available templates to show only name and group_by
+                available_templates = [
+                    {"name": t.get("name"), "group_by": t.get("group_by")} 
+                    for t in templates
+                ]
                 raise AssertionError(
                     f"Evaluation template with name '{eval_name}' and group_by '{fact_name}' not found in Okahu. "
-                    f"Available templates: {templates}"
+                    f"Available templates: {available_templates}"
                 )
         except requests.RequestException as exc:
             raise AssertionError(f"Failed to verify evaluation template existence: {exc}") from exc

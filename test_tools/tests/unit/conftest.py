@@ -1,2 +1,2 @@
 # load the plugin for local test runs without installing the package
-pytest_plugins = ["monocle_test_tools.pytest_plugin"] 
+# pytest_plugins = ["monocle_test_tools.pytest_plugin"]  # Commented out - plugin auto-loads when package is installed

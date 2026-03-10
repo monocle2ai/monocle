@@ -19,6 +19,16 @@ async def chat_handler(request):
         response = "Failure {e}"
     return web.Response(text=response)
 
+async def ask_agent_handler(request):
+    try:
+        body = await request.json()
+        question = body.get("question", "")
+        response = exec_chain(question)
+        return web.json_response({"answer": response})
+    except Exception as e:
+        logger.info(e)
+        return web.json_response({"Status": "Failure --- some error occurred"}, status=500)
+
 def health_check(request):
     return web.Response(text="")
 
@@ -29,6 +39,7 @@ def create_app():
     app = web.Application()
     app.router.add_get('/', health_check)
     app.router.add_get('/chat', chat_handler)
+    app.router.add_post('/api/v1/ask_agent', ask_agent_handler)
     app.router.add_get('/hello', hello)
     return app
 

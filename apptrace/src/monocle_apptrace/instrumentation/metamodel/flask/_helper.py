@@ -5,6 +5,7 @@ from monocle_apptrace.instrumentation.common.span_handler import SpanHandler, Ht
 from monocle_apptrace.instrumentation.common.constants import HTTP_SUCCESS_CODES
 from monocle_apptrace.instrumentation.common.utils import MonocleSpanException
 from urllib.parse import unquote
+import json
 from opentelemetry.context import get_current
 from opentelemetry.trace import Span, get_current_span
 from opentelemetry.trace.propagation import _SPAN_KEY
@@ -20,7 +21,11 @@ def get_method(args) -> str:
 
 def get_params(args) -> dict:
     params = args[0]['QUERY_STRING'] if 'QUERY_STRING' in args[0] else ""
-    return unquote(params)
+    if params:
+        return unquote(params)
+    if 'werkzeug.request' in args[0] and hasattr(args[0]['werkzeug.request'],'data'):
+        return unquote(args[0]['werkzeug.request'].data)
+
 
 def get_url(args) -> str:
     url = ""
@@ -36,6 +41,15 @@ def get_body(args) -> dict:
 def extract_response(instance) -> str:
     if hasattr(instance, 'data') and hasattr(instance, 'content_length'):
         response = instance.data[0:max(instance.content_length, MAX_DATA_LENGTH)]
+        if isinstance(response, bytes):
+            response = response.decode('utf-8')
+        try:
+            parsed = json.loads(response)
+            if isinstance(parsed, (dict, list)) and not parsed:
+                return ""
+        except (json.JSONDecodeError, TypeError):
+            pass
+        return unquote(response) if response else ""
     else:
         response = ""
     return response

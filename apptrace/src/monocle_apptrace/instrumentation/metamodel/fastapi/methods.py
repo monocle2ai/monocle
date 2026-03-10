@@ -1,4 +1,5 @@
-from monocle_apptrace.instrumentation.common.wrapper import atask_wrapper,task_wrapper
+from monocle_apptrace.instrumentation.common.wrapper import task_wrapper
+from monocle_apptrace.instrumentation.metamodel.fastapi._helper import fastapi_atask_wrapper
 from monocle_apptrace.instrumentation.metamodel.fastapi.entities.http import FASTAPI_HTTP_PROCESSOR, FASTAPI_RESPONSE_PROCESSOR
 
 FASTAPI_METHODS = [
@@ -6,7 +7,7 @@ FASTAPI_METHODS = [
         "package": "fastapi.routing",
         "object": "APIRoute",
         "method": "handle",
-        "wrapper_method": atask_wrapper,
+        "wrapper_method": fastapi_atask_wrapper,
         "span_name": "fastapi.request",
         "span_handler": "fastapi_handler",
         "output_processor": FASTAPI_HTTP_PROCESSOR,

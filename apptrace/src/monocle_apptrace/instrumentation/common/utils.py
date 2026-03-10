@@ -198,6 +198,103 @@ def load_scopes() -> dict:
         logger.debug(f"Error loading scope methods from file: {e}")
     return scope_methods
 
+
+def _normalize_exporters_list(monocle_exporters_list: str | None):
+    if monocle_exporters_list is None:
+        return None
+    exporters = [item.strip().lower() for item in monocle_exporters_list.split(",") if item.strip()]
+    return tuple(sorted(exporters))
+
+
+def _normalize_bool(value) -> bool:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        normalized = value.strip().lower()
+        if normalized in {"true", "1", "yes", "y", "on"}:
+            return True
+        if normalized in {"false", "0", "no", "n", "off", ""}:
+            return False
+    if isinstance(value, (int, float)):
+        return bool(value)
+    return bool(value)
+
+
+def build_setup_signature(
+        workflow_name: str,
+        span_processors: list | None = None,
+        span_handlers: dict | None = None,
+        wrapper_methods: list | None = None,
+        union_with_default_methods: bool = True,
+        monocle_exporters_list: str = None,
+) -> dict:
+    return {
+        "workflow_name": workflow_name,
+        "span_processors": tuple(type(p).__name__ for p in (span_processors or [])),
+        "span_handlers": tuple(sorted((span_handlers or {}).keys())),
+        "wrapper_methods": tuple(
+            repr(m.to_dict() if hasattr(m, "to_dict") and callable(m.to_dict) else m)
+            for m in (wrapper_methods or [])
+        ),
+        "union_with_default_methods": _normalize_bool(union_with_default_methods),
+        "monocle_exporters_list": _normalize_exporters_list(monocle_exporters_list),
+    }
+
+def changed_setup_fields(previous: dict, current: dict) -> list[str]:
+    return [key for key, value in current.items() if previous.get(key) != value]
+
+
+def check_duplicate_setup(
+        workflow_name: str,
+        previous_signature: dict | None,
+        current_signature: dict,
+        instrumentor_exists: bool,
+) -> bool:
+    """
+    Check if setup_monocle_telemetry is being called as a duplicate.
+    
+    Logs warnings if duplicate setup is detected, with details about configuration
+    differences if parameters have changed.
+    
+    Args:
+        workflow_name: Name of the workflow being set up
+        previous_signature: Signature from the previous setup call, or None if first call
+        current_signature: Signature for the current setup call
+        instrumentor_exists: Whether an instrumentor instance already exists
+        
+    Returns:
+        True if this is a duplicate setup call, False if setup should proceed
+    """
+    if not instrumentor_exists:
+        return False
+    
+    logger.warning(
+        "Ignoring duplicate setup_monocle_telemetry() call for workflow '%s'; telemetry is already initialized. "
+        "Returning existing instrumentor without re-initializing.",
+        workflow_name,
+    )
+    
+    if previous_signature is not None:
+        changed_fields = changed_setup_fields(previous_signature, current_signature)
+        if changed_fields:
+            changed_values = {
+                field: {
+                    "previous": previous_signature.get(field),
+                    "current": current_signature.get(field),
+                }
+                for field in changed_fields
+            }
+            logger.warning(
+                "Duplicate setup call has configuration differences for workflow '%s'. "
+                "Changed keys: %s. Differences (previous vs current): %s",
+                workflow_name,
+                ", ".join(changed_fields),
+                changed_values,
+            )
+    
+    return True
+
+
 def __generate_scope_id() -> str:
     global scope_id_generator
     return f"{hex(scope_id_generator.generate_trace_id())}"

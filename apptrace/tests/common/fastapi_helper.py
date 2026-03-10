@@ -34,6 +34,20 @@ def route_executer(request: Request):
 def message_chat(request: Request):
     return route_executer(request)
 
+@app.post("/api/v1/ask_agent")
+async def ask_agent(request: Request):
+    try:
+        token = start_scope(CONVERSATION_SCOPE_NAME, CONVERSATION_SCOPE_VALUE)
+        body = await request.json()
+        question = body.get("question", "")
+        response = exec_chain(question)
+        return {"answer": response}
+    except Exception as e:
+        logger.error(f"Error in ask_agent: {e}")
+        return {"Status": "Failure --- some error occurred"}
+    finally:
+        stop_scope(token)
+
 @app.get("/")
 def health_check():
     return {}

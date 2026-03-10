@@ -63,6 +63,22 @@ def test_chat_endpoint(setup):
     assert resp.status_code == 200
     verify_scopes(setup)
 
+def test_ask_agent_post_endpoint(setup):
+    custom_exporter.reset()
+    client_session_id = f"{uuid.uuid4().hex}"
+    headers = {
+        "client-id": client_session_id,
+        "Content-Type": "application/json",
+    }
+    url = "http://127.0.0.1:8096"
+    question = "What is Task Decomposition?"
+    payload = {"question": question}
+    resp = requests.post(f"{url}/api/v1/ask_agent", headers=headers, json=payload)
+    logger.info(f"Response status: {resp.status_code}")
+    logger.info(f"Response text: {resp.text}")
+    assert resp.status_code == 200
+    verify_scopes(setup)
+
 def test_verify_skip_health_check(setup):
     url = "http://127.0.0.1:8096"
     # Send three health check requests and verify that only first spans is captured
@@ -97,14 +113,14 @@ def verify_scopes(setup):
                 span_input, span_output = span.events
                 method = span_attributes.get("entity.1.method")
                 if method is not None:
-                    assert method.lower() == "get"
+                    assert method.lower() in ["get","post"]
                 # Check status in output if it exists
                 if 'status' in span_output.attributes:
                     assert span_output.attributes['status'] == "200"
         if span_attributes.get("span.type", "") == "http.process":
             method = span_attributes.get("entity.1.method")
             if method is not None:
-                assert method.lower() == "get"
+                assert method.lower() in ["get","post"]
             found_http_span = True
             # Note: Some spans may not have entity.1.route or entity.1.url attributes
         if trace_id is None:

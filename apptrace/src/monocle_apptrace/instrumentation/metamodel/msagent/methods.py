@@ -109,7 +109,14 @@ MSAGENT_METHODS = [
         "wrapper_method": atask_wrapper,
         "output_processor": TOOL,
     },
-        {
+    {
+        "package": "agent_framework._tools",
+        "object": "AIFunction",
+        "method": "invoke",
+        "wrapper_method": atask_wrapper,
+        "output_processor": TOOL,
+    },
+    {
         "package": "agent_framework.azure._assistants_client",
         "object": "AzureOpenAIAssistantsClient",
         "method": "_inner_get_response",

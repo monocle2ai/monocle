@@ -25,7 +25,9 @@ from monocle_apptrace.instrumentation.common.wrapper import scope_wrapper, ascop
 from monocle_apptrace.instrumentation.common.utils import (
     load_scopes,
     setup_readablespan_patch,
-    set_workflow_name
+    set_workflow_name,
+    build_setup_signature,
+    check_duplicate_setup,
 )
 from monocle_apptrace.instrumentation.common.constants import MONOCLE_INSTRUMENTOR, MONOCLE_WORKFLOW_NAME_KEY
 from functools import wraps
@@ -39,6 +41,7 @@ _instruments = ()
 monocle_tracer_provider: TracerProvider = None
 monocle_instrumentor: 'MonocleInstrumentor' = None
 monocle_span_processor:'MonocleSynchronousMultiSpanProcessor' = None
+monocle_setup_signature: dict | None = None
 
 class MonocleSynchronousMultiSpanProcessor(SynchronousMultiSpanProcessor):
     def clear_span_processors(self) -> None:
@@ -163,6 +166,10 @@ class MonocleInstrumentor(BaseInstrumentor):
                              for package: {wrap_package},
                              object:{wrap_object},
                              method:{wrap_method}""")
+        
+        # Clear global state when uninstrumenting
+        set_monocle_instrumentor(None)
+        set_monocle_setup_signature(None)
 
 def set_tracer_provider(tracer_provider: TracerProvider):
     global monocle_tracer_provider
@@ -187,6 +194,14 @@ def set_monocle_span_processor(span_processor: MonocleSynchronousMultiSpanProces
 def get_monocle_span_processor() -> MonocleSynchronousMultiSpanProcessor:
     global monocle_span_processor
     return monocle_span_processor
+
+def set_monocle_setup_signature(signature: dict | None):
+    global monocle_setup_signature
+    monocle_setup_signature = signature
+
+def get_monocle_setup_signature() -> dict | None:
+    global monocle_setup_signature
+    return monocle_setup_signature
 
 def setup_monocle_telemetry(
         workflow_name: str,
@@ -218,7 +233,22 @@ def setup_monocle_telemetry(
         For OTLP exporter, configure the endpoint via OTEL_EXPORTER_OTLP_ENDPOINT environment variable.
         This can't be combined with `span_processors`.
     """
+    current_signature = build_setup_signature(
+        workflow_name=workflow_name,
+        span_processors=span_processors,
+        span_handlers=span_handlers,
+        wrapper_methods=wrapper_methods,
+        union_with_default_methods=union_with_default_methods,
+        monocle_exporters_list=monocle_exporters_list,
+    )
 
+    if check_duplicate_setup(
+        workflow_name=workflow_name,
+        previous_signature=get_monocle_setup_signature(),
+        current_signature=current_signature,
+        instrumentor_exists=get_monocle_instrumentor() is not None,
+    ):
+        return get_monocle_instrumentor()
 
     resource = Resource(attributes={
         SERVICE_NAME: workflow_name
@@ -252,6 +282,8 @@ def setup_monocle_telemetry(
     if not instrumentor.is_instrumented_by_opentelemetry:
         instrumentor.instrument(trace_provider=get_tracer_provider())
         set_monocle_instrumentor(instrumentor)
+
+    set_monocle_setup_signature(current_signature)
 
     return get_monocle_instrumentor()
 

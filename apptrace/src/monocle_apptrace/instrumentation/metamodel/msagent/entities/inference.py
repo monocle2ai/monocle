@@ -1,17 +1,10 @@
 """Inference entity definitions for Microsoft Agent Framework."""
-
-import time
-import logging
-from types import SimpleNamespace
 from monocle_apptrace.instrumentation.common.constants import (
     SPAN_SUBTYPES,
     SPAN_TYPES,
 )
 from monocle_apptrace.instrumentation.metamodel.msagent import _helper
-from monocle_apptrace.instrumentation.metamodel.msagent.msagent_processor import MSAgentInferenceHandler
-from monocle_apptrace.instrumentation.common.utils import get_error_message, patch_instance_method, resolve_from_alias
-
-logger = logging.getLogger(__name__)
+from monocle_apptrace.instrumentation.common.utils import get_error_message, resolve_from_alias
 
 # For Microsoft Agent Framework, turn doesn't include agent name (follows ADK pattern)
 AGENT_REQUEST = {
@@ -257,7 +250,7 @@ TOOL = {
 
 INFERENCE = {
     "type": SPAN_TYPES.INFERENCE,
-    "subtype": lambda arguments: MSAgentInferenceHandler.agent_inference_type(arguments),
+    "subtype": lambda arguments: _helper.agent_inference_type(arguments),
     "attributes": [
         [
             {
@@ -315,13 +308,13 @@ INFERENCE = {
                 "_comment": "Tool name when finish_type is tool_call",
                 "attribute": "name",
                 "phase": "post_execution",
-                "accessor": lambda arguments: MSAgentInferenceHandler.extract_tool_name(arguments),
+                "accessor": lambda arguments: _helper.extract_tool_name(arguments),
             },
             {
                 "_comment": "Tool type when finish_type is tool_call", 
                 "attribute": "type",
                 "phase": "post_execution",
-                "accessor": lambda arguments: MSAgentInferenceHandler.extract_tool_type(arguments),
+                "accessor": lambda arguments: _helper.extract_tool_type(arguments),
             },
         ],
     ],
@@ -348,7 +341,7 @@ INFERENCE = {
                 {
                     "_comment": "this is result from LLM",
                     "attribute": "response",
-                    "accessor": lambda arguments: MSAgentInferenceHandler.extract_assistant_message(
+                    "accessor": lambda arguments: _helper.extract_assistant_message(
                         arguments,
                     ),
                 },
@@ -359,14 +352,14 @@ INFERENCE = {
             "attributes": [
                 {
                     "_comment": "this is metadata usage from LLM",
-                    "accessor": lambda arguments: MSAgentInferenceHandler.update_span_from_llm_response(
+                    "accessor": lambda arguments: _helper.update_span_from_llm_response(
                         arguments
                     ),
                 },
                 {
                     "_comment": "finish reason from OpenAI response",
                     "attribute": "finish_reason",
-                    "accessor": lambda arguments: MSAgentInferenceHandler.extract_finish_reason(
+                    "accessor": lambda arguments: _helper.extract_finish_reason(
                         arguments
                     ),
                 },
@@ -374,7 +367,7 @@ INFERENCE = {
                     "_comment": "finish type mapped from finish reason",
                     "attribute": "finish_type",
                     "accessor": lambda arguments: _helper.map_finish_reason_to_finish_type(
-                        MSAgentInferenceHandler.extract_finish_reason(arguments)
+                        _helper.extract_finish_reason(arguments)
                     ),
                 }
             ],

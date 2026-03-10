@@ -6,11 +6,17 @@ from urllib.parse import urlparse
 from opentelemetry.context import get_value
 
 from monocle_apptrace.instrumentation.common.constants import (
+    AGENT_PREFIX_KEY,
     AGENT_SESSION,
+    INFERENCE_AGENT_DELEGATION,
+    INFERENCE_TOOL_CALL,
+    INFERENCE_TURN_END,
 )
 from monocle_apptrace.instrumentation.common.utils import (
+    get_exception_message,
     get_json_dumps,
-    set_scope
+    get_status_code,
+    set_scope,
 )
 from monocle_apptrace.instrumentation.metamodel.finish_types import (
     map_msagent_finish_reason_to_finish_type
@@ -18,7 +24,6 @@ from monocle_apptrace.instrumentation.metamodel.finish_types import (
 
 logger = logging.getLogger(__name__)
 
-# Context key for accessing agent information (must match processor)
 MSAGENT_CONTEXT_KEY = "msagent.agent_info"
 
 
@@ -198,7 +203,6 @@ def extract_agent_response(arguments: Any) -> str:
                     return content
                 elif hasattr(content, "text") and content.text:
                     return str(content.text)
-            
             # If content is None or empty, check messages in agent_run_response
             if hasattr(agent_run_response, "messages") and agent_run_response.messages:
                 for msg in reversed(agent_run_response.messages):
@@ -236,7 +240,6 @@ def extract_agent_response(arguments: Any) -> str:
                                         texts.append(str(part["text"]))
                                 if texts:
                                     return " ".join(texts)
-            
             return ""
         
         # Check for accumulated_text attribute (set by wrapper for streaming)
@@ -540,21 +543,6 @@ def uses_chat_client(instance: Any) -> bool:
         return False
 
 
-def is_inside_workflow() -> bool:
-    """Check if current execution is inside a Workflow context.
-    
-    Returns True if running within a Workflow.run, False otherwise.
-    This is detected by checking if the agentic.turn scope is already set.
-    """
-    try:
-        from monocle_apptrace.instrumentation.common.utils import is_scope_set
-        # Workflow.run sets agentic.turn scope, so check for that
-        return is_scope_set("agentic.turn")
-    except Exception as e:
-        logger.debug(f"Error detecting workflow context: {e}")
-        return False
-
-
 # Additional helper functions for INFERENCE entity
 
 def get_inference_type(instance):
@@ -731,3 +719,260 @@ def extract_model_type(instance, kwargs):
     except Exception as e:
         logger.warning(f"Error extracting model type: {e}")
         return None
+
+
+def _get_field(value, key, default=None):
+    if value is None:
+        return default
+    if isinstance(value, dict):
+        return value.get(key, default)
+    return getattr(value, key, default)
+
+
+def _as_list(value):
+    if value is None:
+        return []
+    if isinstance(value, list):
+        return value
+    if isinstance(value, tuple):
+        return list(value)
+    return [value]
+
+
+def _response_contains_tool_calls(response):
+    try:
+        if response is None:
+            return False
+
+        if _as_list(_get_field(response, "tools")):
+            return True
+
+        for output_item in _as_list(_get_field(response, "output")):
+            item_type = _get_field(output_item, "type")
+            if item_type in ("function_call", "tool_call", "tool_calls"):
+                return True
+            if _as_list(_get_field(output_item, "tool_calls")):
+                return True
+            if _get_field(output_item, "call_id") and _get_field(output_item, "name"):
+                return True
+
+        required_action = _get_field(response, "required_action")
+        submit_tool_outputs = _get_field(required_action, "submit_tool_outputs")
+        if _as_list(_get_field(submit_tool_outputs, "tool_calls")):
+            return True
+
+        for message in _as_list(_get_field(response, "messages")):
+            if _as_list(_get_field(message, "tool_calls")):
+                return True
+            for content in _as_list(_get_field(message, "contents")):
+                content_type = _get_field(content, "type") or type(content).__name__
+                if content_type in ("FunctionCallContent", "function_call", "tool_call", "tool_calls"):
+                    return True
+                if _get_field(content, "call_id") and _get_field(content, "name"):
+                    return True
+
+        for choice in _as_list(_get_field(response, "choices")):
+            finish_reason = _get_field(choice, "finish_reason")
+            if finish_reason in ("tool_calls", "function_call"):
+                return True
+            if _as_list(_get_field(_get_field(choice, "message"), "tool_calls")):
+                return True
+            if _as_list(_get_field(_get_field(choice, "delta"), "tool_calls")):
+                return True
+    except Exception as exc:
+        logger.debug(f"Error while checking tool call response: {exc}")
+    return False
+
+
+def _extract_first_tool_name(response):
+    try:
+        for tool in _as_list(_get_field(response, "tools")):
+            tool_name = _get_field(tool, "name")
+            if tool_name:
+                return str(tool_name)
+        for output_item in _as_list(_get_field(response, "output")):
+            tool_name = _get_field(output_item, "name")
+            if tool_name:
+                return str(tool_name)
+        required_action = _get_field(response, "required_action")
+        submit_tool_outputs = _get_field(required_action, "submit_tool_outputs")
+        for tool_call in _as_list(_get_field(submit_tool_outputs, "tool_calls")):
+            function_obj = _get_field(tool_call, "function")
+            tool_name = _get_field(function_obj, "name") or _get_field(tool_call, "name")
+            if tool_name:
+                return str(tool_name)
+        for message in _as_list(_get_field(response, "messages")):
+            for content in _as_list(_get_field(message, "contents")):
+                tool_name = _get_field(content, "name")
+                if tool_name:
+                    return str(tool_name)
+        for choice in _as_list(_get_field(response, "choices")):
+            for tool_call in _as_list(_get_field(_get_field(choice, "message"), "tool_calls")):
+                function_obj = _get_field(tool_call, "function")
+                tool_name = _get_field(function_obj, "name") or _get_field(tool_call, "name")
+                if tool_name:
+                    return str(tool_name)
+    except Exception as exc:
+        logger.debug(f"Error while extracting first tool name: {exc}")
+    return None
+
+
+def extract_assistant_message(arguments):
+    try:
+        messages = []
+        status = get_status_code(arguments)
+        if status not in ("success", "completed"):
+            if arguments.get("exception") is not None:
+                return get_exception_message(arguments)
+            if hasattr(arguments.get("result"), "error"):
+                return arguments["result"].error
+            return None
+        response = arguments.get("result")
+        if response is None:
+            return ""
+        if hasattr(response, "tools") and isinstance(response.tools, list) and response.tools:
+            if isinstance(response.tools[0], dict):
+                tools = [
+                    {
+                        "tool_id": tool.get("id", ""),
+                        "tool_name": tool.get("name", ""),
+                        "tool_arguments": tool.get("arguments", ""),
+                    }
+                    for tool in response.tools
+                ]
+                messages.append({"tools": tools})
+        if hasattr(response, "text") and response.text:
+            messages.append({"assistant": response.text})
+        if hasattr(response, "messages") and response.messages:
+            for msg in _as_list(response.messages):
+                if hasattr(msg, "contents") and msg.contents:
+                    tools = []
+                    text_parts = []
+                    for content in msg.contents:
+                        content_type = type(content).__name__
+                        if content_type == "FunctionCallContent" or (
+                            hasattr(content, "call_id") and hasattr(content, "name")
+                        ):
+                            tools.append(
+                                {
+                                    "tool_id": getattr(content, "call_id", ""),
+                                    "tool_name": getattr(content, "name", ""),
+                                    "tool_arguments": getattr(content, "arguments", ""),
+                                }
+                            )
+                        elif hasattr(content, "text") and content.text:
+                            text_parts.append(content.text)
+                        elif hasattr(content, "value") and content.value:
+                            text_parts.append(content.value)
+                    if tools:
+                        messages.append({"tools": tools})
+                    if text_parts:
+                        messages.append({"assistant": " ".join(text_parts)})
+                elif hasattr(msg, "text") and msg.text:
+                    messages.append({"assistant": msg.text})
+                elif hasattr(msg, "content") and msg.content:
+                    messages.append({"assistant": msg.content})
+        if hasattr(response, "output") and isinstance(response.output, list) and response.output:
+            output_tools = []
+            for output_item in response.output:
+                if getattr(output_item, "type", None) == "function_call":
+                    output_tools.append(
+                        {
+                            "tool_id": getattr(output_item, "call_id", ""),
+                            "tool_name": getattr(output_item, "name", ""),
+                            "tool_arguments": getattr(output_item, "arguments", ""),
+                        }
+                    )
+            if output_tools:
+                messages.append({"tools": output_tools})
+        if hasattr(response, "output_text") and response.output_text:
+            role = response.role if hasattr(response, "role") else "assistant"
+            messages.append({role: response.output_text})
+        if hasattr(response, "choices") and response.choices:
+            first_choice = response.choices[0]
+            if hasattr(first_choice, "message"):
+                role = getattr(first_choice.message, "role", "assistant")
+                messages.append({role: first_choice.message.content})
+        return get_json_dumps(messages[0]) if messages else ""
+    except (IndexError, AttributeError) as exc:
+        logger.warning("Warning: Error occurred in extract_assistant_message: %s", str(exc))
+        return None
+
+
+def agent_inference_type(arguments):
+    try:
+        response = arguments.get("result")
+        if not _response_contains_tool_calls(response):
+            return INFERENCE_TURN_END
+        agent_prefix = get_value(AGENT_PREFIX_KEY)
+        tool_name = _extract_first_tool_name(response) or ""
+        if tool_name and agent_prefix and tool_name.startswith(agent_prefix):
+            return INFERENCE_AGENT_DELEGATION
+        return INFERENCE_TOOL_CALL
+    except Exception as exc:
+        logger.warning("Warning: Error occurred in agent_inference_type: %s", str(exc))
+        return INFERENCE_TURN_END
+
+
+def extract_finish_reason(arguments):
+    try:
+        if arguments.get("exception") is not None and hasattr(arguments["exception"], "code"):
+            return arguments["exception"].code
+        response = arguments.get("result")
+        if not response:
+            return None
+        if _response_contains_tool_calls(response):
+            return "tool_calls"
+        direct_finish_reason = _get_field(response, "finish_reason")
+        if direct_finish_reason:
+            return direct_finish_reason.value if hasattr(direct_finish_reason, "value") else str(direct_finish_reason)
+        choices = _as_list(_get_field(response, "choices"))
+        if choices:
+            choice_finish_reason = _get_field(choices[0], "finish_reason")
+            if choice_finish_reason:
+                return (
+                    choice_finish_reason.value
+                    if hasattr(choice_finish_reason, "value")
+                    else str(choice_finish_reason)
+                )
+        if hasattr(response, "text") or hasattr(response, "messages"):
+            return "stop"
+    except Exception as exc:
+        logger.warning(f"Error extracting finish_reason: {exc}")
+    return None
+
+def extract_tool_name(arguments):
+    return _extract_first_tool_name(arguments.get("result"))
+
+def extract_tool_type(arguments):
+    try:
+        tool_name = extract_tool_name(arguments)
+        if not tool_name:
+            return None
+        agent_prefix = get_value(AGENT_PREFIX_KEY)
+        if agent_prefix and tool_name.startswith(agent_prefix):
+            return "agent.microsoft"
+        return "tool.microsoft"
+    except Exception as exc:
+        logger.warning(f"Error extracting tool type: {exc}")
+    return None
+
+
+def update_span_from_llm_response(response):
+    meta_dict = {}
+    try:
+        if response is None:
+            return meta_dict
+        result = response.get("result") if isinstance(response, dict) else response
+        if result is None:
+            return meta_dict
+        meta_dict.update({"completion_tokens": _get_field(_get_field(result, "usage_details"), "output_token_count", 0)})
+        meta_dict.update({"prompt_tokens": _get_field(_get_field(result, "usage_details"), "input_token_count", 0)})
+        meta_dict.update({"total_tokens": _get_field(_get_field(result, "usage_details"), "total_token_count", 0)}    )
+        if meta_dict:
+            return meta_dict
+        if _response_contains_tool_calls(result):
+            return {"completion_tokens": 0,"prompt_tokens": 0,"total_tokens": 0,}
+    except Exception as exc:
+        logger.warning(f"Error updating span from LLM response: {exc}")
+    return meta_dict

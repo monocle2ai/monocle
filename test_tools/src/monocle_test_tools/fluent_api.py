@@ -283,30 +283,27 @@ class TraceAssertion():
         return self
 
     @collect_assertions
-    def check_eval(self, eval_name:str, expected_eval:Optional[Union[str, list[str]]] = None, unexpected_eval:Optional[Union[str, list[str]]] = None, fact_name:Optional[str] = "traces", message:Optional[str] = None) -> 'TraceAssertion':
+    def check_eval(self, eval_name:str, expected:Optional[Union[str, list[str]]] = None, not_expected:Optional[Union[str, list[str]]] = None, fact_name:Optional[str] = "traces", message:Optional[str] = None) -> 'TraceAssertion':
         """Validate evaluation results for the current filtered spans."""
-        # Check that at least one parameter is provided
-        if expected_eval is None and unexpected_eval is None:
-            raise ValueError("At least one of 'expected_eval' or 'unexpected_eval' must be provided.")
-                
-        # Check for overlapping instances in expected_eval and unexpected_eval
-        if expected_eval is not None and unexpected_eval is not None:
-            expected_list = [expected_eval] if isinstance(expected_eval, str) else expected_eval
-            unexpected_list = [unexpected_eval] if isinstance(unexpected_eval, str) else unexpected_eval
-            overlap = set(expected_list) & set(unexpected_list)
+        #verify expected and not_expected aren't empty
+        if expected is None and not_expected is None:
+            raise ValueError("At least one of 'expected' or 'not_expected' must be provided")
+        # Convert strings to lists for uniform processing
+        positive = [expected] if isinstance(expected, str) else expected if expected is not None else []
+        negative = [not_expected] if isinstance(not_expected, str) else not_expected if not_expected is not None else []
+        
+        # Check for overlapping instances in expected and not_expected
+        if negative:
+            overlap = set(positive) & set(negative)
             if overlap:
-                raise ValueError(f"Overlapping evaluation results found in 'expected_eval' and 'unexpected_eval': {overlap}. Please ensure they are mutually exclusive.")
-
+                raise ValueError(f"Overlapping evaluation results found in 'expected' and 'not_expected': {overlap}. Please ensure they are mutually exclusive.")
+        
         if self._eval is None:
             raise AssertionError(message if message else "No evaluator configured. Call with_evaluation before check_eval.")
         if not self._filtered_spans:
             raise AssertionError(message if message else "No spans available for evaluation. Chain a span selector before check_eval.")
-        eval_result = self._eval.evaluate(filtered_spans=self._filtered_spans, eval_name=eval_name, fact_name=fact_name)
+        eval_result = self._eval.evaluate(filtered_spans=self._filtered_spans, eval_name=eval_name, fact_name=fact_name)        
         
-        # Convert strings to lists for uniform processing
-        positive = [expected_eval] if isinstance(expected_eval, str) else expected_eval if expected_eval is not None else []
-        negative = [unexpected_eval] if isinstance(unexpected_eval, str) else unexpected_eval if unexpected_eval is not None else []
-
         # Check expectations
         if (positive and eval_result not in positive) or (negative and eval_result in negative):
             if message:

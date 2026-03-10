@@ -25,6 +25,17 @@ def route_executer(request):
 def message_chat():
     return route_executer(request)
 
+@web_app.route("/api/v1/ask_agent", methods=["POST"])
+def ask_agent():
+    try:
+        body = request.get_json()
+        question = body.get("question", "")
+        response = exec_chain(question)
+        return jsonify({"answer": response})
+    except Exception as e:
+        logger.info(e)
+        return jsonify({"Status": "Failure --- some error occurred"})
+
 @web_app.route("/", methods=["GET"])
 def health_check():
     return jsonify({})

@@ -283,15 +283,36 @@ class TraceAssertion():
         return self
 
     @collect_assertions
-    def check_eval(self, eval_name:str, expected_eval:str, fact_name:Optional[str] = "traces", message:Optional[str] = None) -> 'TraceAssertion':
+    def check_eval(self, eval_name:str, expected:Optional[Union[str, list[str]]] = None, not_expected:Optional[Union[str, list[str]]] = None, fact_name:Optional[str] = "traces", message:Optional[str] = None) -> 'TraceAssertion':
         """Validate evaluation results for the current filtered spans."""
+        #verify expected and not_expected aren't empty
+        if expected is None and not_expected is None:
+            raise ValueError("At least one of 'expected' or 'not_expected' must be provided")
+        # Convert strings to lists for uniform processing
+        positive = [expected] if isinstance(expected, str) else expected if expected is not None else []
+        negative = [not_expected] if isinstance(not_expected, str) else not_expected if not_expected is not None else []
+        
+        # Check for overlapping instances in expected and not_expected
+        if negative:
+            overlap = set(positive) & set(negative)
+            if overlap:
+                raise ValueError(f"Overlapping evaluation results found in 'expected' and 'not_expected': {overlap}. Please ensure they are mutually exclusive.")
+        
         if self._eval is None:
             raise AssertionError(message if message else "No evaluator configured. Call with_evaluation before check_eval.")
         if not self._filtered_spans:
             raise AssertionError(message if message else "No spans available for evaluation. Chain a span selector before check_eval.")
-        eval_result = self._eval.evaluate(filtered_spans=self._filtered_spans, eval_name=eval_name, fact_name=fact_name)
-        if eval_result != expected_eval:
-            raise AssertionError(message if message else f"Evaluation '{eval_name}' did not match expected result. Expected {expected_eval}. Received {eval_result}.")
+        eval_result = self._eval.evaluate(filtered_spans=self._filtered_spans, eval_name=eval_name, fact_name=fact_name)        
+        
+        # Check expectations
+        if (positive and eval_result not in positive) or (negative and eval_result in negative):
+            if message:
+                raise AssertionError(message)
+            elif positive and eval_result not in positive:
+                raise AssertionError(f"Evaluation '{eval_name}' did not match expected result. Expected one of {positive}. Received '{eval_result}'.")
+            else:
+                raise AssertionError(f"Evaluation '{eval_name}' matched an unexpected result. Should not be any of {negative}. Received '{eval_result}'.")
+        
         return self
 
     @collect_assertions

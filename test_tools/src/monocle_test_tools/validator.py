@@ -557,28 +557,28 @@ class MonocleValidator:
          """
         if max_duration_seconds is None:
             return True
-        
+
         if filtered_spans is None:
             spans_to_check = self.spans
         else:
             spans_to_check = filtered_spans
-        
+
         if not spans_to_check or len(spans_to_check) == 0:
             assert False, custom_message if custom_message else "No spans available to check workflow duration."
-        
+
         # Find the workflow span by literal span name 'workflow'
         workflow_span = None
         for span in spans_to_check:
             if span.name == 'workflow':
                 workflow_span = span
                 break
-        
+
         if workflow_span is None:
             assert False, custom_message if custom_message else "No workflow span found (span with name 'workflow')."
-        
+
         # Convert duration from nanoseconds to seconds
         start_time = workflow_span.start_time
-        end_time = workflow_span.end_time        
+        end_time = workflow_span.end_time
         duration_ns = end_time - start_time
         duration_seconds = duration_ns / 1e9
 
@@ -586,7 +586,7 @@ class MonocleValidator:
             assert duration_seconds <= max_duration_seconds, custom_message if custom_message else f"Workflow duration {duration_seconds:.2f}s exceeds limit {max_duration_seconds}s."
         else:
             assert duration_seconds > max_duration_seconds, custom_message if custom_message else f"Workflow duration {duration_seconds:.2f}s was expected to exceed limit {max_duration_seconds}s but did not."
-        
+
         return True
 
     def _verify_tool_errors(self, tool_name:str, agent_name:str, expect_error:bool, found_error: bool, expect_warnings:bool, found_warning: bool) -> None:
@@ -721,7 +721,7 @@ class MonocleValidator:
                     assert False, f"Agent request span error was expected but no error found."
                 elif not expect_error and found_error:
                     assert False, f"Agent request span error found."
-                
+
                 found_warning = self._span_has_warning(span)
                 if expect_warnings and not found_warning:
                     assert False, f"Agent request span warning was expected but no warning found."
@@ -744,7 +744,7 @@ class MonocleValidator:
                     and (agent_name is None or (agent_name is not None and span_attributes.get("entity.2.name","") == agent_name)):
                     tool_invocation_spans.append(span)
         return tool_invocation_spans
-    
+
     def _get_agent_invocation_spans(self, agent_name:str, filtered_spans:Optional[list[Span]] = None) -> list:
         agent_invocation_spans = []
         spans_to_check = filtered_spans if filtered_spans is not None else self.spans
@@ -784,7 +784,7 @@ class MonocleValidator:
         if span.status.status_code == StatusCode.ERROR:
             return True
         return False
-    
+
     def _has_warnings(self, expect_warnings: bool) -> bool:
         found_warning = False
         for span in self.spans:

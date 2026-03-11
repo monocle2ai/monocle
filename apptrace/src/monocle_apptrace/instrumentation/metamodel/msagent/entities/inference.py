@@ -1,16 +1,10 @@
 """Inference entity definitions for Microsoft Agent Framework."""
-
-import time
-import logging
-from types import SimpleNamespace
 from monocle_apptrace.instrumentation.common.constants import (
     SPAN_SUBTYPES,
     SPAN_TYPES,
 )
 from monocle_apptrace.instrumentation.metamodel.msagent import _helper
-from monocle_apptrace.instrumentation.common.utils import get_error_message, patch_instance_method, resolve_from_alias
-
-logger = logging.getLogger(__name__)
+from monocle_apptrace.instrumentation.common.utils import get_error_message, resolve_from_alias
 
 # For Microsoft Agent Framework, turn doesn't include agent name (follows ADK pattern)
 AGENT_REQUEST = {
@@ -359,7 +353,7 @@ INFERENCE = {
                 {
                     "_comment": "this is metadata usage from LLM",
                     "accessor": lambda arguments: _helper.update_span_from_llm_response(
-                        arguments["result"]
+                        arguments
                     ),
                 },
                 {

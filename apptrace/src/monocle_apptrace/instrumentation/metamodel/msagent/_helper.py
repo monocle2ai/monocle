@@ -1,6 +1,5 @@
 """Helper functions for extracting information from Microsoft Agent Framework objects."""
 
-import json
 import logging
 from typing import Any, Dict
 from urllib.parse import urlparse
@@ -12,14 +11,12 @@ from monocle_apptrace.instrumentation.common.constants import (
     INFERENCE_AGENT_DELEGATION,
     INFERENCE_TOOL_CALL,
     INFERENCE_TURN_END,
-    LAST_AGENT_INVOCATION_ID,
-    LAST_AGENT_NAME
 )
 from monocle_apptrace.instrumentation.common.utils import (
     get_exception_message,
     get_json_dumps,
     get_status_code,
-    set_scope
+    set_scope,
 )
 from monocle_apptrace.instrumentation.metamodel.finish_types import (
     map_msagent_finish_reason_to_finish_type
@@ -27,7 +24,6 @@ from monocle_apptrace.instrumentation.metamodel.finish_types import (
 
 logger = logging.getLogger(__name__)
 
-# Context key for accessing agent information (must match processor)
 MSAGENT_CONTEXT_KEY = "msagent.agent_info"
 
 
@@ -78,44 +74,6 @@ def get_agent_name_from_context() -> str:
         return ""
 
 
-def get_agent_instructions(instance: Any) -> str:
-    """Get the agent's instructions/system prompt."""
-    try:
-        if hasattr(instance, "instructions"):
-            return str(instance.instructions)
-        return ""
-    except Exception as e:
-        logger.warning(f"Error getting agent instructions: {e}")
-        return ""
-
-
-def extract_thread_id(kwargs: Dict[str, Any]) -> str:
-    """
-    Extract thread/session ID from kwargs.
-    Microsoft Agent Framework passes thread object in kwargs['thread'].
-    
-    Returns:
-        Thread ID string or None if not found
-    """
-    try:
-        thread = kwargs.get("thread")
-        if thread is None:
-            return None
-        
-        # Try various attributes for thread ID
-        if hasattr(thread, "service_thread_id"):
-            return str(thread.service_thread_id) if thread.service_thread_id else None
-        elif hasattr(thread, "id"):
-            return str(thread.id)
-        elif hasattr(thread, "thread_id"):
-            return str(thread.thread_id)
-        
-        return None
-    except Exception as e:
-        logger.warning(f"Error extracting thread ID: {e}")
-        return None
-
-
 def get_tool_name(instance: Any) -> str:
     """Get the name of the tool."""
     try:
@@ -144,33 +102,6 @@ def get_tool_description(instance: Any) -> str:
         return ""
     except Exception as e:
         logger.warning(f"Error getting tool description: {e}")
-        return ""
-
-
-def extract_agent_input(arguments: Dict[str, Any]) -> str:
-    """Extract input from agent invocation arguments."""
-    try:
-        args = arguments.get("args", ())
-        kwargs = arguments.get("kwargs", {})
-        
-        # Extract input/task from args or kwargs
-        if args and len(args) > 0:
-            return str(args[0])
-        elif "message" in kwargs:
-            return str(kwargs["message"])
-        elif "input" in kwargs:
-            return str(kwargs["input"])
-        elif "messages" in kwargs:
-            # Handle list of messages
-            messages = kwargs["messages"]
-            if isinstance(messages, list) and len(messages) > 0:
-                # Get the last user message
-                return str(messages[-1]) if messages else ""
-            return str(messages)
-        
-        return ""
-    except Exception as e:
-        logger.warning(f"Error extracting agent input: {e}")
         return ""
 
 
@@ -272,7 +203,6 @@ def extract_agent_response(arguments: Any) -> str:
                     return content
                 elif hasattr(content, "text") and content.text:
                     return str(content.text)
-            
             # If content is None or empty, check messages in agent_run_response
             if hasattr(agent_run_response, "messages") and agent_run_response.messages:
                 for msg in reversed(agent_run_response.messages):
@@ -310,7 +240,6 @@ def extract_agent_response(arguments: Any) -> str:
                                         texts.append(str(part["text"]))
                                 if texts:
                                     return " ".join(texts)
-            
             return ""
         
         # Check for accumulated_text attribute (set by wrapper for streaming)
@@ -361,16 +290,6 @@ def extract_agent_response(arguments: Any) -> str:
         logger.warning(f"Error extracting agent response: {e}")
         return ""
 
-
-def extract_from_agent_invocation_id(parent_span):
-    if parent_span is not None:
-        return parent_span.attributes.get(LAST_AGENT_INVOCATION_ID)
-    return None
-
-def extract_from_agent_name(parent_span):
-    if parent_span is not None:
-        return parent_span.attributes.get(LAST_AGENT_NAME)
-    return None
 
 def extract_tool_input(arguments: Dict[str, Any]) -> str:
     """Extract input from tool invocation arguments."""
@@ -458,18 +377,43 @@ def get_chat_client_name(instance: Any) -> str:
         return "ChatClient"
 
 
+def _first_non_empty_attr(target: Any, attr_names: list[str]) -> Any:
+    """Return the first non-empty attribute value from the provided names."""
+    if target is None:
+        return None
+    for attr_name in attr_names:
+        attr_value = getattr(target, attr_name, None)
+        if attr_value:
+            return attr_value
+    return None
+
+
 def get_chat_client_model(instance: Any) -> str:
     """Get the model identifier from the chat client."""
     try:
+        candidate_attrs = ["model_id", "model", "deployment_name", "azure_deployment", "deployment"]
+
         # Try to get default model settings
         if hasattr(instance, "_default_chat_options") and instance._default_chat_options:
-            if hasattr(instance._default_chat_options, "model_id"):
-                return str(instance._default_chat_options.model_id)
+            model_value = _first_non_empty_attr(instance._default_chat_options, candidate_attrs)
+            if model_value:
+                return str(model_value)
+
+        model_value = _first_non_empty_attr(instance, candidate_attrs)
+        if model_value:
+            return str(model_value)
+
+        nested_client = getattr(instance, "client", None) or getattr(instance, "_client", None)
+        model_value = _first_non_empty_attr(nested_client, candidate_attrs)
+        if model_value:
+            return str(model_value)
         # Fallback
         return "unknown_model"
     except Exception as e:
         logger.warning(f"Error getting chat client model: {e}")
         return "unknown_model"
+
+
 def get_from_agent_name(arguments: Dict[str, Any]) -> str:
     """Extract delegating agent name from parent span attributes."""
     try:
@@ -597,149 +541,6 @@ def uses_chat_client(instance: Any) -> bool:
     except Exception as e:
         logger.debug(f"Error detecting client type: {e}")
         return False
-
-
-def is_inside_workflow() -> bool:
-    """Check if current execution is inside a Workflow context.
-    
-    Returns True if running within a Workflow.run, False otherwise.
-    This is detected by checking if the agentic.turn scope is already set.
-    """
-    try:
-        from monocle_apptrace.instrumentation.common.utils import is_scope_set
-        # Workflow.run sets agentic.turn scope, so check for that
-        return is_scope_set("agentic.turn")
-    except Exception as e:
-        logger.debug(f"Error detecting workflow context: {e}")
-        return False
-
-
-# Inference extraction functions for AzureOpenAIAssistantsClient._inner_get_response
-
-def extract_assistant_message(arguments):
-    """Extract assistant message from response for MS Agent."""
-    try:
-        messages = []
-        status = get_status_code(arguments)
-        
-        if status == 'success' or status == 'completed':
-            response = arguments["result"]
-            
-            # Check for tools
-            if hasattr(response, "tools") and isinstance(response.tools, list) and len(response.tools) > 0:
-                if isinstance(response.tools[0], dict):
-                    tools = []
-                    for tool in response.tools:
-                        tools.append({
-                            "tool_id": tool.get("id", ""),
-                            "tool_name": tool.get("name", ""),
-                            "tool_arguments": tool.get("arguments", "")
-                        })
-                    messages.append({"tools": tools})
-            
-            # Check for text attribute (ChatResponse from Assistants API)
-            if hasattr(response, "text") and response.text:
-                messages.append({"assistant": response.text})
-            
-            # Check for messages attribute
-            if hasattr(response, "messages") and response.messages:
-                response_messages_list = response.messages if isinstance(response.messages, list) else [response.messages]
-                for msg in response_messages_list:
-                    # Check contents first (ChatMessage from Assistants API)
-                    if hasattr(msg, "contents") and msg.contents:
-                        tools = []
-                        text_parts = []
-                        for content in msg.contents:
-                            content_type = type(content).__name__
-                            
-                            # Handle FunctionCallContent (tool calls)
-                            if content_type == "FunctionCallContent" or (hasattr(content, "call_id") and hasattr(content, "name")):
-                                tools.append({
-                                    "tool_id": getattr(content, "call_id", ""),
-                                    "tool_name": getattr(content, "name", ""),
-                                    "tool_arguments": getattr(content, "arguments", "")
-                                })
-                            # Handle TextContent or content with text
-                            elif hasattr(content, "text") and content.text:
-                                text_parts.append(content.text)
-                            elif hasattr(content, "value") and content.value:
-                                text_parts.append(content.value)
-                        
-                        # Append tools if found
-                        if tools:
-                            messages.append({"tools": tools})
-                        # Append text if found
-                        if text_parts:
-                            combined_text = " ".join(text_parts)
-                            messages.append({"assistant": combined_text})
-                    elif hasattr(msg, "text") and msg.text:
-                        messages.append({"assistant": msg.text})
-                    elif hasattr(msg, "content") and msg.content:
-                        messages.append({"assistant": msg.content})
-            
-            if hasattr(response, "output") and isinstance(response.output, list) and len(response.output) > 0:
-                response_messages = []
-                role = "assistant"
-                for response_message in response.output:
-                    if(response_message.type == "function_call"):
-                        role = "tools"
-                        response_messages.append({
-                            "tool_id": response_message.call_id,
-                            "tool_name": response_message.name,
-                            "tool_arguments": response_message.arguments
-                        })
-                if len(response_messages) > 0:
-                    messages.append({role: response_messages})
-                    
-            if hasattr(response, "output_text") and len(response.output_text):
-                role = response.role if hasattr(response, "role") else "assistant"
-                messages.append({role: response.output_text})
-            if (
-                response is not None
-                and hasattr(response, "choices")
-                and len(response.choices) > 0
-            ):
-                if hasattr(response.choices[0], "message"):
-                    role = (
-                        response.choices[0].message.role
-                        if hasattr(response.choices[0].message, "role")
-                        else "assistant"
-                    )
-                    messages.append({role: response.choices[0].message.content})
-            
-            return get_json_dumps(messages[0]) if messages else ""
-        else:
-            if arguments["exception"] is not None:
-                return get_exception_message(arguments)
-            elif hasattr(arguments["result"], "error"):
-                return arguments["result"].error
-
-    except (IndexError, AttributeError) as e:
-        logger.warning(
-            "Warning: Error occurred in extract_assistant_message: %s", str(e)
-        )
-        return None
-
-
-def agent_inference_type(arguments):
-    """Extract agent inference type from MS Agent response."""
-    try:
-        message_str = extract_assistant_message(arguments)
-        if not message_str:
-            return INFERENCE_TURN_END
-        
-        message = json.loads(message_str)
-        # Check if we have tools in the message
-        if message and message.get("tools") and isinstance(message["tools"], list) and len(message["tools"]) > 0:
-            agent_prefix = get_value(AGENT_PREFIX_KEY)
-            tool_name = message["tools"][0].get("tool_name", "")
-            if tool_name and agent_prefix and tool_name.startswith(agent_prefix):
-                return INFERENCE_AGENT_DELEGATION
-            return INFERENCE_TOOL_CALL
-        return INFERENCE_TURN_END
-    except Exception as e:
-        logger.warning("Warning: Error occurred in agent_inference_type: %s", str(e))
-        return INFERENCE_TURN_END
 
 
 # Additional helper functions for INFERENCE entity
@@ -880,156 +681,9 @@ def extract_messages(kwargs):
         return ""
 
 
-def extract_finish_reason(arguments):
-    """Extract finish_reason from response.
-    
-    Azure OpenAI Assistants API often doesn't populate finish_reason in streaming responses.
-    We detect tool calls from the response content and return 'tool_calls' accordingly.
-    """
-    try:
-        if "exception" in arguments and arguments["exception"] is not None:
-            if hasattr(arguments["exception"], "code"):
-                return arguments["exception"].code
-        
-        response = arguments.get("result")
-        if not response:
-            return None
-        
-        # First, check if the response contains tool calls
-        # by examining the message contents
-        if hasattr(response, "messages") and response.messages:
-            messages = response.messages if isinstance(response.messages, list) else [response.messages]
-            for msg in messages:
-                if hasattr(msg, "contents") and msg.contents:
-                    for content in msg.contents:
-                        # FunctionCallContent indicates a tool call
-                        if type(content).__name__ == "FunctionCallContent":
-                            return "tool_calls"
-        
-        # Handle direct finish_reason attribute (ChatResponse)
-        if hasattr(response, "finish_reason"):
-            finish_reason = response.finish_reason
-            if finish_reason:
-                # If it's an enum, get its value
-                if hasattr(finish_reason, 'value'):
-                    return finish_reason.value
-                return str(finish_reason)
-        
-        # Handle non-streaming responses with choices
-        if hasattr(response, "choices") and response.choices and len(response.choices) > 0:
-            if hasattr(response.choices[0], "finish_reason"):
-                finish_reason = response.choices[0].finish_reason
-                if finish_reason:
-                    if hasattr(finish_reason, 'value'):
-                        return finish_reason.value
-                    return str(finish_reason)
-        
-        # Azure Assistants API doesn't populate finish_reason in streaming,
-        # but if we have a response, it means it completed successfully
-        # Default to 'stop' (success) for completed responses
-        if hasattr(response, "text") or hasattr(response, "messages"):
-            return "stop"
-            
-    except Exception as e:
-        logger.warning(f"Error extracting finish_reason: {e}")
-    return None
-
-
 def map_finish_reason_to_finish_type(finish_reason):
     """Map finish_reason to finish_type using MS Agent Framework mapping."""
     return map_msagent_finish_reason_to_finish_type(finish_reason)
-
-
-def extract_tool_name(arguments):
-    """Extract tool name from response when finish_type is tool_call."""
-    try:
-        message_str = extract_assistant_message(arguments)
-        if not message_str:
-            return None
-        
-        message = json.loads(message_str)
-        if message and message.get("tools") and isinstance(message["tools"], list) and len(message["tools"]) > 0:
-            return message["tools"][0].get("tool_name", None)
-    except Exception as e:
-        logger.warning(f"Error extracting tool name: {e}")
-    return None
-
-
-def extract_tool_type(arguments):
-    """Extract tool type from response when finish_type is tool_call."""
-    try:
-        tool_name = extract_tool_name(arguments)
-        if tool_name:
-            agent_prefix = get_value(AGENT_PREFIX_KEY)
-            if agent_prefix and tool_name.startswith(agent_prefix):
-                return "agent.microsoft"
-            return "tool.microsoft"
-    except Exception as e:
-        logger.warning(f"Error extracting tool type: {e}")
-    return None
-
-
-def update_span_from_llm_response(response):
-    """Extract metadata from LLM response."""
-    meta_dict = {}
-    try:
-        if response is None:
-            return meta_dict
-        
-        # Check for usage_details attribute (ChatResponse from Assistants API)
-        if hasattr(response, "usage_details"):
-            usage_details_val = response.usage_details
-            
-            if usage_details_val is not None:
-                # MS Agent Framework uses different attribute names
-                # Try output_token_count, then completion_tokens, then output_tokens
-                completion = getattr(usage_details_val, "output_token_count", None) or getattr(usage_details_val, "completion_tokens", None) or getattr(usage_details_val, "output_tokens", None)
-                # Try input_token_count, then prompt_tokens, then input_tokens
-                prompt = getattr(usage_details_val, "input_token_count", None) or getattr(usage_details_val, "prompt_tokens", None) or getattr(usage_details_val, "input_tokens", None)
-                # Try total_token_count, then total_tokens
-                total = getattr(usage_details_val, "total_token_count", None) or getattr(usage_details_val, "total_tokens", None)
-                
-                if completion is not None:
-                    meta_dict["completion_tokens"] = completion
-                if prompt is not None:
-                    meta_dict["prompt_tokens"] = prompt
-                if total is not None:
-                    meta_dict["total_tokens"] = total
-                    
-                if meta_dict:
-                    return meta_dict
-        
-        # Check for usage attribute (standard chat completions)
-        if hasattr(response, "usage") and response.usage is not None:
-            token_usage = response.usage
-            meta_dict.update({"completion_tokens": getattr(token_usage, "completion_tokens", None) or getattr(token_usage, "output_tokens", None)})
-            meta_dict.update({"prompt_tokens": getattr(token_usage, "prompt_tokens", None) or getattr(token_usage, "input_tokens", None)})
-            meta_dict.update({"total_tokens": getattr(token_usage, "total_tokens", None)})
-            return meta_dict
-        
-        # For Assistants API - check for Run object with usage
-        if hasattr(response, "required_action") or hasattr(response, "status"):
-            # This might be a Run object from Assistants API
-            if hasattr(response, "usage") and response.usage is not None:
-                token_usage = response.usage
-                meta_dict.update({"completion_tokens": getattr(token_usage, "completion_tokens", None)})
-                meta_dict.update({"prompt_tokens": getattr(token_usage, "prompt_tokens", None)})
-                meta_dict.update({"total_tokens": getattr(token_usage, "total_tokens", None)})
-                return meta_dict
-        
-        # Check in choices[0] if present
-        if hasattr(response, "choices") and len(response.choices) > 0:
-            choice = response.choices[0]
-            if hasattr(choice, "usage") and choice.usage is not None:
-                token_usage = choice.usage
-                meta_dict.update({"completion_tokens": getattr(token_usage, "completion_tokens", None)})
-                meta_dict.update({"prompt_tokens": getattr(token_usage, "prompt_tokens", None)})
-                meta_dict.update({"total_tokens": getattr(token_usage, "total_tokens", None)})
-                return meta_dict
-            
-    except Exception as e:
-        logger.warning(f"Error updating span from LLM response: {e}")
-    return meta_dict
 
 
 def extract_model_name(instance, kwargs):
@@ -1065,3 +719,260 @@ def extract_model_type(instance, kwargs):
     except Exception as e:
         logger.warning(f"Error extracting model type: {e}")
         return None
+
+
+def _get_field(value, key, default=None):
+    if value is None:
+        return default
+    if isinstance(value, dict):
+        return value.get(key, default)
+    return getattr(value, key, default)
+
+
+def _as_list(value):
+    if value is None:
+        return []
+    if isinstance(value, list):
+        return value
+    if isinstance(value, tuple):
+        return list(value)
+    return [value]
+
+
+def _response_contains_tool_calls(response):
+    try:
+        if response is None:
+            return False
+
+        if _as_list(_get_field(response, "tools")):
+            return True
+
+        for output_item in _as_list(_get_field(response, "output")):
+            item_type = _get_field(output_item, "type")
+            if item_type in ("function_call", "tool_call", "tool_calls"):
+                return True
+            if _as_list(_get_field(output_item, "tool_calls")):
+                return True
+            if _get_field(output_item, "call_id") and _get_field(output_item, "name"):
+                return True
+
+        required_action = _get_field(response, "required_action")
+        submit_tool_outputs = _get_field(required_action, "submit_tool_outputs")
+        if _as_list(_get_field(submit_tool_outputs, "tool_calls")):
+            return True
+
+        for message in _as_list(_get_field(response, "messages")):
+            if _as_list(_get_field(message, "tool_calls")):
+                return True
+            for content in _as_list(_get_field(message, "contents")):
+                content_type = _get_field(content, "type") or type(content).__name__
+                if content_type in ("FunctionCallContent", "function_call", "tool_call", "tool_calls"):
+                    return True
+                if _get_field(content, "call_id") and _get_field(content, "name"):
+                    return True
+
+        for choice in _as_list(_get_field(response, "choices")):
+            finish_reason = _get_field(choice, "finish_reason")
+            if finish_reason in ("tool_calls", "function_call"):
+                return True
+            if _as_list(_get_field(_get_field(choice, "message"), "tool_calls")):
+                return True
+            if _as_list(_get_field(_get_field(choice, "delta"), "tool_calls")):
+                return True
+    except Exception as exc:
+        logger.debug(f"Error while checking tool call response: {exc}")
+    return False
+
+
+def _extract_first_tool_name(response):
+    try:
+        for tool in _as_list(_get_field(response, "tools")):
+            tool_name = _get_field(tool, "name")
+            if tool_name:
+                return str(tool_name)
+        for output_item in _as_list(_get_field(response, "output")):
+            tool_name = _get_field(output_item, "name")
+            if tool_name:
+                return str(tool_name)
+        required_action = _get_field(response, "required_action")
+        submit_tool_outputs = _get_field(required_action, "submit_tool_outputs")
+        for tool_call in _as_list(_get_field(submit_tool_outputs, "tool_calls")):
+            function_obj = _get_field(tool_call, "function")
+            tool_name = _get_field(function_obj, "name") or _get_field(tool_call, "name")
+            if tool_name:
+                return str(tool_name)
+        for message in _as_list(_get_field(response, "messages")):
+            for content in _as_list(_get_field(message, "contents")):
+                tool_name = _get_field(content, "name")
+                if tool_name:
+                    return str(tool_name)
+        for choice in _as_list(_get_field(response, "choices")):
+            for tool_call in _as_list(_get_field(_get_field(choice, "message"), "tool_calls")):
+                function_obj = _get_field(tool_call, "function")
+                tool_name = _get_field(function_obj, "name") or _get_field(tool_call, "name")
+                if tool_name:
+                    return str(tool_name)
+    except Exception as exc:
+        logger.debug(f"Error while extracting first tool name: {exc}")
+    return None
+
+
+def extract_assistant_message(arguments):
+    try:
+        messages = []
+        status = get_status_code(arguments)
+        if status not in ("success", "completed"):
+            if arguments.get("exception") is not None:
+                return get_exception_message(arguments)
+            if hasattr(arguments.get("result"), "error"):
+                return arguments["result"].error
+            return None
+        response = arguments.get("result")
+        if response is None:
+            return ""
+        if hasattr(response, "tools") and isinstance(response.tools, list) and response.tools:
+            if isinstance(response.tools[0], dict):
+                tools = [
+                    {
+                        "tool_id": tool.get("id", ""),
+                        "tool_name": tool.get("name", ""),
+                        "tool_arguments": tool.get("arguments", ""),
+                    }
+                    for tool in response.tools
+                ]
+                messages.append({"tools": tools})
+        if hasattr(response, "text") and response.text:
+            messages.append({"assistant": response.text})
+        if hasattr(response, "messages") and response.messages:
+            for msg in _as_list(response.messages):
+                if hasattr(msg, "contents") and msg.contents:
+                    tools = []
+                    text_parts = []
+                    for content in msg.contents:
+                        content_type = type(content).__name__
+                        if content_type == "FunctionCallContent" or (
+                            hasattr(content, "call_id") and hasattr(content, "name")
+                        ):
+                            tools.append(
+                                {
+                                    "tool_id": getattr(content, "call_id", ""),
+                                    "tool_name": getattr(content, "name", ""),
+                                    "tool_arguments": getattr(content, "arguments", ""),
+                                }
+                            )
+                        elif hasattr(content, "text") and content.text:
+                            text_parts.append(content.text)
+                        elif hasattr(content, "value") and content.value:
+                            text_parts.append(content.value)
+                    if tools:
+                        messages.append({"tools": tools})
+                    if text_parts:
+                        messages.append({"assistant": " ".join(text_parts)})
+                elif hasattr(msg, "text") and msg.text:
+                    messages.append({"assistant": msg.text})
+                elif hasattr(msg, "content") and msg.content:
+                    messages.append({"assistant": msg.content})
+        if hasattr(response, "output") and isinstance(response.output, list) and response.output:
+            output_tools = []
+            for output_item in response.output:
+                if getattr(output_item, "type", None) == "function_call":
+                    output_tools.append(
+                        {
+                            "tool_id": getattr(output_item, "call_id", ""),
+                            "tool_name": getattr(output_item, "name", ""),
+                            "tool_arguments": getattr(output_item, "arguments", ""),
+                        }
+                    )
+            if output_tools:
+                messages.append({"tools": output_tools})
+        if hasattr(response, "output_text") and response.output_text:
+            role = response.role if hasattr(response, "role") else "assistant"
+            messages.append({role: response.output_text})
+        if hasattr(response, "choices") and response.choices:
+            first_choice = response.choices[0]
+            if hasattr(first_choice, "message"):
+                role = getattr(first_choice.message, "role", "assistant")
+                messages.append({role: first_choice.message.content})
+        return get_json_dumps(messages[0]) if messages else ""
+    except (IndexError, AttributeError) as exc:
+        logger.warning("Warning: Error occurred in extract_assistant_message: %s", str(exc))
+        return None
+
+
+def agent_inference_type(arguments):
+    try:
+        response = arguments.get("result")
+        if not _response_contains_tool_calls(response):
+            return INFERENCE_TURN_END
+        agent_prefix = get_value(AGENT_PREFIX_KEY)
+        tool_name = _extract_first_tool_name(response) or ""
+        if tool_name and agent_prefix and tool_name.startswith(agent_prefix):
+            return INFERENCE_AGENT_DELEGATION
+        return INFERENCE_TOOL_CALL
+    except Exception as exc:
+        logger.warning("Warning: Error occurred in agent_inference_type: %s", str(exc))
+        return INFERENCE_TURN_END
+
+
+def extract_finish_reason(arguments):
+    try:
+        if arguments.get("exception") is not None and hasattr(arguments["exception"], "code"):
+            return arguments["exception"].code
+        response = arguments.get("result")
+        if not response:
+            return None
+        if _response_contains_tool_calls(response):
+            return "tool_calls"
+        direct_finish_reason = _get_field(response, "finish_reason")
+        if direct_finish_reason:
+            return direct_finish_reason.value if hasattr(direct_finish_reason, "value") else str(direct_finish_reason)
+        choices = _as_list(_get_field(response, "choices"))
+        if choices:
+            choice_finish_reason = _get_field(choices[0], "finish_reason")
+            if choice_finish_reason:
+                return (
+                    choice_finish_reason.value
+                    if hasattr(choice_finish_reason, "value")
+                    else str(choice_finish_reason)
+                )
+        if hasattr(response, "text") or hasattr(response, "messages"):
+            return "stop"
+    except Exception as exc:
+        logger.warning(f"Error extracting finish_reason: {exc}")
+    return None
+
+def extract_tool_name(arguments):
+    return _extract_first_tool_name(arguments.get("result"))
+
+def extract_tool_type(arguments):
+    try:
+        tool_name = extract_tool_name(arguments)
+        if not tool_name:
+            return None
+        agent_prefix = get_value(AGENT_PREFIX_KEY)
+        if agent_prefix and tool_name.startswith(agent_prefix):
+            return "agent.microsoft"
+        return "tool.microsoft"
+    except Exception as exc:
+        logger.warning(f"Error extracting tool type: {exc}")
+    return None
+
+
+def update_span_from_llm_response(response):
+    meta_dict = {}
+    try:
+        if response is None:
+            return meta_dict
+        result = response.get("result") if isinstance(response, dict) else response
+        if result is None:
+            return meta_dict
+        meta_dict.update({"completion_tokens": _get_field(_get_field(result, "usage_details"), "output_token_count", 0)})
+        meta_dict.update({"prompt_tokens": _get_field(_get_field(result, "usage_details"), "input_token_count", 0)})
+        meta_dict.update({"total_tokens": _get_field(_get_field(result, "usage_details"), "total_token_count", 0)}    )
+        if meta_dict:
+            return meta_dict
+        if _response_contains_tool_calls(result):
+            return {"completion_tokens": 0,"prompt_tokens": 0,"total_tokens": 0,}
+    except Exception as exc:
+        logger.warning(f"Error updating span from LLM response: {exc}")
+    return meta_dict

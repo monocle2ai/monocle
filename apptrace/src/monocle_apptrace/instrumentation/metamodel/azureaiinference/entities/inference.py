@@ -1,10 +1,8 @@
 import logging
-from typing import Any
 
 from monocle_apptrace.instrumentation.common.constants import SPAN_TYPES
-from monocle_apptrace.instrumentation.common.stream_processor import (
-    BaseStreamProcessor,
-    StreamState,
+from monocle_apptrace.instrumentation.metamodel.azureaiinference.azureai_stream_processor import (
+    AzureAIInferenceStreamProcessor,
 )
 from monocle_apptrace.instrumentation.metamodel.azureaiinference import _helper
 from monocle_apptrace.instrumentation.common.utils import (
@@ -15,37 +13,6 @@ from monocle_apptrace.instrumentation.common.utils import (
 )
 
 logger = logging.getLogger(__name__)
-
-
-class AzureAIInferenceStreamProcessor(BaseStreamProcessor):
-    """Azure AI Inference-specific stream processor."""
-
-    def handle_event(self, item: Any, state: StreamState) -> bool:
-        return False
-
-    def handle_chunk(self, item: Any, state: StreamState) -> bool:
-        if not (hasattr(item, "choices") and item.choices and 
-                hasattr(item.choices[0], "delta") and item.choices[0].delta):
-            return False
-
-        choice = item.choices[0]
-        delta = choice.delta
-
-        if hasattr(delta, "role") and delta.role:
-            state.role = delta.role
-
-        if hasattr(delta, "content") and delta.content:
-            state.add_content(delta.content)
-
-        return True
-
-    def handle_completion(self, item: Any, state: StreamState) -> bool:
-        if not (hasattr(item, "usage") and item.usage):
-            return False
-
-        state.token_usage = item.usage
-        state.close_stream()
-        return True
 
 
 def process_stream(to_wrap, response, span_processor):

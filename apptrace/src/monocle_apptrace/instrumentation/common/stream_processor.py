@@ -12,6 +12,29 @@ from typing import Any, Callable, Dict, List, Optional
 from monocle_apptrace.instrumentation.common.utils import patch_instance_method
 
 
+# Streaming Event Type Constants
+class StreamEventTypes:
+    """Constants for streaming event types."""
+    # Event-based streaming events
+    RESPONSE_OUTPUT_TEXT_DELTA = "response.output_text.delta"
+    RESPONSE_TEXT_DELTA = "response.text.delta"
+    RESPONSE_COMPLETED = "response.completed"
+    RESPONSE_TEXT_DONE = "response.text.done"
+    RESPONSE_AUDIO_DELTA = "response.audio.delta"
+    RESPONSE_FUNCTION_CALL_DELTA = "response.function_call.delta"
+    
+    # Object types
+    CHAT_COMPLETION_CHUNK = "chat.completion.chunk"
+    
+    # Response prefixes
+    RESPONSE_PREFIX = "response."
+    
+    @classmethod
+    def is_response_event(cls, event_type: str) -> bool:
+        """Check if an event type is a response event."""
+        return isinstance(event_type, str) and event_type.startswith(cls.RESPONSE_PREFIX)
+
+
 @dataclass
 class StreamState:
     """State object for tracking streaming response processing."""

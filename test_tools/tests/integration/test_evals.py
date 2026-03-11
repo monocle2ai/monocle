@@ -41,6 +41,25 @@ async def test_complex_workflow_summarization_evaluation(monocle_trace_asserter)
 		
     monocle_trace_asserter.with_evaluation("okahu").check_eval("summarization", "excellent", message="Summarization should capture all key details of the multi-step workflow accurately and concisely.")
 
+@pytest.mark.asyncio
+async def test_multiple_evaluators_evaluation(monocle_trace_asserter):
+    """Demonstrates using multiple evaluators (okahu and bert_score) within a single test."""
+    await monocle_trace_asserter.run_agent_async(root_agent, "google_adk",
+                        "Please Book a flight from New York to Hamburg for 1st Dec 2025. Book a flight from Hamburg to Paris on January 1st. " \
+                        "Then book a hotel room in Paris for 5th Jan 2026.")
+    
+    # Use okahu evaluator for quality metrics
+    # You can chain multiple check_eval calls for different eval templates
+    monocle_trace_asserter.with_evaluation("okahu").check_eval("frustration", "ok")\
+        .check_eval("hallucination", "no_hallucination")
+    
+    # Switch to bert_score evaluator by passing options as a dictionary
+    # The model_type is specified in eval_options dict
+    monocle_trace_asserter.with_evaluation("bert_score", {"model_type": "bert-base-uncased"})
+    
+    # Switch back to okahu evaluator for additional checks
+    # Once declared, the evaluator persists for subsequent assertions
+    monocle_trace_asserter.with_evaluation("okahu").check_eval("contextual_precision", "high_precision")
 
 @pytest.mark.asyncio
 async def test_v1_inferences_sentiment_evaluation(monocle_trace_asserter):

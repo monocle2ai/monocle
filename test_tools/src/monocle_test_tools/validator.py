@@ -608,8 +608,8 @@ class MonocleValidator:
 
             # specify tool or agent info in assertion message
             entity_info = ''
-            if fact_name.lower() == "tool_invocation" and "entity.2.name" in span.attributes:
-                entity_info = f" for tool '{span.attributes['entity.2.name']}'"
+            if fact_name.lower() == "tool_invocation" and "entity.1.name" in span.attributes:
+                entity_info = f" for tool '{span.attributes['entity.1.name']}'"
             elif fact_name.lower() == "agent_invocation" and "entity.1.name" in span.attributes:
                 entity_info = f" for agent '{span.attributes['entity.1.name']}'"
 

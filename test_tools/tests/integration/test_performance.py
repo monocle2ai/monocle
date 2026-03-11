@@ -28,8 +28,8 @@ async def test_filtered_span_limits(monocle_trace_asserter):
 
     # verify each individual agent invocation span is under 0.2 minutes
     monocle_trace_asserter.called_agent("adk_flight_booking_agent_5").under_duration(0.2, units="minutes", fact_name="agent_invocation")
-    # verify each tool invocation span is under 8000 milliseconds and uses under 100 tokens
-    monocle_trace_asserter.called_tool("adk_book_flight_5").under_duration(8000, units="ms", fact_name="tool_invocation").under_token_limit(100)
+    # verify each tool invocation span is under 1 millisecond and uses under 100 tokens
+    monocle_trace_asserter.called_tool("adk_book_flight_5").under_duration(1, units="ms", fact_name="tool_invocation").under_token_limit(100)
 
 
 @pytest.mark.asyncio
@@ -38,7 +38,7 @@ async def test_chained_filtered_limits(monocle_trace_asserter):
     await monocle_trace_asserter.run_agent_async(root_agent, "google_adk",
                         "Book a flight from San Jose to Seattle for 27th Nov 2025.")    
     monocle_trace_asserter.called_agent("adk_flight_booking_agent_5").under_duration(0.2, units="minutes", fact_name="agent_invocation")
-    monocle_trace_asserter.called_tool("adk_book_flight_5").under_duration(4000, units="ms", fact_name="inference").under_token_limit(1070)
+    monocle_trace_asserter.called_tool("adk_book_flight_5").under_duration(4000, units="ms", fact_name="tool_invocation").under_token_limit(1070)
 
     # verify total tokens are under 1070, each agent turn is under 0.2 minutes, and each inference is under 4000 ms
     monocle_trace_asserter.under_token_limit(1070).under_duration(0.2, units="minutes", fact_name="agent_turn").under_duration(4000, units="ms", fact_name="inference")

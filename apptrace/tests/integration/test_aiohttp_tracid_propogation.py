@@ -65,6 +65,26 @@ async def test_chat_endpoint(clear_spans, aiohttp_server):
     verify_scopes(aiohttp_server)
 
 @pytest.mark.asyncio
+async def test_ask_agent_post_endpoint(clear_spans, aiohttp_server):
+    url = aiohttp_helper.get_url()
+    timeout = aiohttp.ClientTimeout(total=60)
+    headers = {
+        "client-id": str(uuid.uuid4()),
+        "Content-Type": "application/json",
+    }
+    question = "What is Task Decomposition?"
+    payload = {"question": question}
+
+    async with aiohttp.ClientSession(timeout=timeout) as session:
+        async with session.post(f"{url}/api/v1/ask_agent", headers=headers, json=payload) as resp:
+            logger.info(f"Response status: {resp.status}")
+            text = await resp.text()
+            logger.info(f"Response text: {text}")
+            assert resp.status == 200
+
+    verify_scopes(aiohttp_server)
+
+@pytest.mark.asyncio
 async def test_verify_skip_health_check(clear_spans, aiohttp_server):
     url = aiohttp_helper.get_url()
     timeout = aiohttp.ClientTimeout(total=60)
@@ -94,12 +114,12 @@ def verify_scopes(aiohttp_server):
                 assert message_scope_id == span_attributes.get("scope."+scope_name)
         if span_attributes.get("span.type", "") == "http.send":
             span_input, span_output = span.events
-            assert span_attributes.get("entity.1.method").lower() == "get"
+            assert span_attributes.get("entity.1.method").lower() in ["get","post"]
             assert span_attributes.get("entity.1.URL") is not None
             assert span_output.attributes['error_code'] == "200"
         if span_attributes.get("span.type", "") == "http.process":
             span_input, span_output = span.events
-            assert span_attributes.get("entity.1.method").lower() == "get"
+            assert span_attributes.get("entity.1.method").lower() in ["get","post"]
             assert span_attributes.get("entity.1.route") is not None
             assert span_attributes.get("entity.1.url") is not None
             assert span_output.attributes['error_code'] == "200"

@@ -25,7 +25,9 @@ def get_params(args) -> dict:
             message = json.loads(data[0].decode('utf-8'))
             # Return the input query/text for params
             query = message.get('text', '')
-            return query
+            if query:
+                return query
+            return message.get('question','')
     params: Option[str] = try_option(getattr, args[0], 'query_string')
     return unquote(params.unwrap_or(""))
 

@@ -55,6 +55,24 @@ def test_http_flask_scope(setup):
     stop_scope(token)
     verify_scopes()
 
+def test_ask_agent_post_endpoint(setup):
+    custom_exporter.reset()
+    client_session_id = f"{uuid.uuid4().hex}"
+    headers = {
+        "client-id": client_session_id,
+        "Content-Type": "application/json",
+    }
+    url = flask_helper.get_url()
+    question = "What is Task Decomposition?"
+    payload = {"question": question}
+    token = start_scope(CONVERSATION_SCOPE_NAME, CONVERSATION_SCOPE_VALUE)
+    response = requests.post(f"{url}/api/v1/ask_agent", headers=headers, json=payload)
+    stop_scope(token)
+    logger.info(f"Response status: {response.status_code}")
+    logger.info(f"Response text: {response.text}")
+    assert response.status_code == 200
+    verify_scopes()
+
 def test_verify_skip_health_check(setup):
     url = flask_helper.get_url()
     # Send three health check requests and verify that only first span is captured
@@ -82,12 +100,12 @@ def verify_scopes():
             assert span_attributes.get("scope."+CONVERSATION_SCOPE_NAME) == CONVERSATION_SCOPE_VALUE
         if span_attributes.get("span.type", "") == "http.send":
             span_input, span_output = span.events
-            assert span_attributes.get("entity.1.method").lower() == "get"
+            assert span_attributes.get("entity.1.method").lower() in ["get","post"]
             assert span_attributes.get("entity.1.URL") is not None
             assert span_output.attributes['status'] == "200"
         if span_attributes.get("span.type", "") == "http.process":
             #span_input, span_output = span.events
-            assert span_attributes.get("entity.1.method").lower() == "get"
+            assert span_attributes.get("entity.1.method").lower() in ["get" ,"post"]
             assert span_attributes.get("entity.1.route") is not None
             assert span_attributes.get("entity.1.url") is not None
             #assert span_output.attributes['status'] == "200"

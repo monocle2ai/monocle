@@ -35,8 +35,8 @@ async def test_sentiment_bias_evaluation(monocle_trace_asserter):
     )
     
     monocle_trace_asserter.with_evaluation("okahu")\
-        .check_eval("sentiment", "positive")\
-        .check_eval("bias", "unbiased")
+        .check_eval("sentiment", expected="positive")\
+        .check_eval("bias", expected="unbiased")
 ```
 
 **Example (Filtered agent evaluation):**
@@ -47,7 +47,7 @@ async def test_agent_evaluation(monocle_trace_asserter):
     
     monocle_trace_asserter.called_agent("flight_booking_agent")
     monocle_trace_asserter.with_evaluation("okahu")\
-        .check_eval("conversation_completeness", "complete")
+        .check_eval("conversation_completeness", expected="complete")
 ```
 
 **Example (Filtered tool evaluation):**
@@ -58,8 +58,8 @@ async def test_tool_evaluation(monocle_trace_asserter):
     
     monocle_trace_asserter.called_tool("book_flight", "flight_booking_agent")
     monocle_trace_asserter.with_evaluation("okahu")\
-        .check_eval("toxicity", "non_toxic")\
-        .check_eval("contextual_relevancy", "highly_relevant")
+        .check_eval("toxicity", expected="non_toxic")\
+        .check_eval("contextual_relevancy", expected="highly_relevant")
 ```
 
 ## 2. Available Evaluation Metrics
@@ -88,8 +88,127 @@ All metrics provided by the "okahu" evaluator:
 | `summarization` | excellent / good / fair / poor |
 | `toxicity` | non_toxic / mildly_toxic / moderately_toxic / highly_toxic |
 
+## 3. Using Positive and Negative Expectations
 
-## 3. Running Tests
+The `check_eval()` method supports both **positive expectations** (values that should match) and **negative expectations** (values that should NOT match) through separate parameters:
+
+- `expected`: **(Optional)** Values the evaluation result should match
+- `not_expected`: **(Optional)** Values the evaluation result should NOT match
+
+Both parameters are optional, but **at least one must be provided** — omitting both will raise a `ValueError`.
+
+Each parameter accepts either:
+- **String**: For a single value
+- **List of strings**: For multiple values
+
+**Important:** The method validates that there's no overlap between `expected` and `not_expected`. If the same value appears in both parameters, a `ValueError` will be raised. This ensures the expectations are mutually exclusive and logically consistent.
+
+**Invalid example (will raise ValueError):**
+```python
+# ERROR: "positive" appears in both expected and not_expected
+.check_eval("sentiment", 
+           expected=["positive", "neutral"], 
+           not_expected="positive")  # ValueError!
+```
+
+### Syntax
+
+**Single expected value:**
+```python
+# Must be "positive"
+.check_eval("sentiment", expected="positive")
+```
+
+**Single not_expected value:**
+```python
+# Must NOT be "negative"
+.check_eval("sentiment", not_expected="negative")
+```
+
+**Multiple expected values:**
+```python
+# Must be "positive" OR "neutral"
+.check_eval("sentiment", expected=["positive", "neutral"])
+```
+
+**Multiple not_expected values:**
+```python
+# Must NOT be "highly_toxic" or "moderately_toxic"
+.check_eval("toxicity", not_expected=["highly_toxic", "moderately_toxic"])
+```
+
+**Expected with not_expected:**
+```python
+# Must be "positive" or "neutral" AND must NOT be "negative"
+.check_eval("sentiment", expected=["positive", "neutral"], not_expected="negative")
+```
+
+**Multiple expected and not_expected values:**
+```python
+# Must be "completed" or "partially_completed" AND must NOT be "failed"
+.check_eval("mcp_task_completion", expected=["completed", "partially_completed"], not_expected="failed")
+```
+
+### Examples
+
+**Example 1: Single expected value**
+```python
+@pytest.mark.asyncio
+async def test_positive_sentiment(monocle_trace_asserter):
+    await monocle_trace_asserter.run_agent_async(root_agent, "google_adk", "query")
+    
+    # Result must be "positive"
+    monocle_trace_asserter.with_evaluation("okahu")\
+        .check_eval("sentiment", expected="positive")
+```
+
+**Example 2: Single not_expected value**
+```python
+@pytest.mark.asyncio
+async def test_not_negative_sentiment(monocle_trace_asserter):
+    await monocle_trace_asserter.run_agent_async(root_agent, "google_adk", "query")
+    
+    # Result must NOT be "negative"
+    monocle_trace_asserter.with_evaluation("okahu")\
+        .check_eval("sentiment", not_expected="negative")
+```
+
+**Example 3: Multiple not_expected values**
+```python
+@pytest.mark.asyncio
+async def test_no_toxicity(monocle_trace_asserter):
+    await monocle_trace_asserter.run_agent_async(root_agent, "google_adk", "query")
+    
+    # Result must NOT be any form of toxic
+    monocle_trace_asserter.with_evaluation("okahu")\
+        .check_eval("toxicity", not_expected=["mildly_toxic", "moderately_toxic", "highly_toxic"])
+```
+
+**Example 4: Expected with not_expected**
+```python
+@pytest.mark.asyncio
+async def test_no_high_toxicity(monocle_trace_asserter):
+    await monocle_trace_asserter.run_agent_async(root_agent, "google_adk", "query")
+    
+    # Must be non_toxic or mildly_toxic, but NOT highly_toxic
+    monocle_trace_asserter.with_evaluation("okahu")\
+        .check_eval("toxicity", expected=["non_toxic", "mildly_toxic"], not_expected="highly_toxic")
+```
+
+**Example 4: Combined with multiple not_expected values**
+```python
+@pytest.mark.asyncio
+async def test_task_completion(monocle_trace_asserter):
+    await monocle_trace_asserter.run_agent_async(root_agent, "google_adk", "query")
+    
+    # Task must be completed or partially_completed, AND must not have failed or not_attempted
+    monocle_trace_asserter.with_evaluation("okahu")\
+        .check_eval("mcp_task_completion", 
+                   expected=["completed", "partially_completed"], 
+                   not_expected=["failed", "not_attempted"])
+```
+
+## 4. Running Tests
 
 **Via VS Code Testing UI:**
 1. Open Testing view (beaker icon or `Ctrl+Shift+T`)
@@ -107,7 +226,7 @@ pytest -k "sentiment"             # Run matching keyword
 
 Passing tests display `PASSED` in green.
 
-## 4. Understanding Failures
+## 5. Understanding Failures
 
 When an evaluation fails, the assertion error indicates the metric, expected value, and actual value:
 
@@ -116,7 +235,7 @@ AssertionError: Evaluation 'sentiment' did not match expected result.
 Expected positive. Received negative.
 ```
 
-## 5. Cost and Performance Testing
+## 6. Cost and Performance Testing
 
 The `monocle_trace_asserter` fixture provides methods for validating performance metrics such as token consumption and execution time. These assertions help ensure your AI agents stay within acceptable cost and latency boundaries.
 
@@ -136,21 +255,62 @@ async def test_token_usage(monocle_trace_asserter):
 
 ### Duration Limit Validation
 
-**`under_duration(duration_limit: float)`** - Asserts that the workflow execution duration is under the specified time limit in seconds. The duration is measured from the workflow span (root span with name "workflow"). Supports decimal values for precise timing requirements.
+**`under_duration(duration_limit: float, units: str = "seconds", span_type: str = "workflow")`** - Asserts that span durations are under the specified time limit. The method measures duration for different span types based on the `span_type` parameter.
 
-**Note:** Duration assertions must be called on the full trace and cannot be used after filtering operations like `called_tool()` or `called_agent()`, as these filters exclude the spans needed for duration measurement.
+**Parameters:**
+- `duration_limit`: Maximum duration allowed (float, supports decimal values)
+- `units`: Time unit for the limit - `"seconds"` (default), `"ms"`, or `"minutes"`
+- `span_type`: Type of spans to measure - `"workflow"` (default), `"agent_invocation"`, `"tool_invocation"`, `"agent_turn"`, or `"inference"`
+
+**Supported Span Types:**
+- `"workflow"` - Root workflow spans (overall execution time)
+- `"agent_invocation"` - Agent invocation spans (individual agent executions)
+- `"tool_invocation"` - Tool invocation spans (individual tool executions)
+- `"agent_turn"` - Agent turn spans (turn-level interactions)
+- `"inference"` - Inference spans (LLM API calls)
 
 **Examples:**
+
+**Basic workflow duration:**
 ```python
 @pytest.mark.asyncio
 async def test_execution_duration(monocle_trace_asserter):
     await monocle_trace_asserter.run_agent_async(root_agent, "google_adk", "query")
     
     # Assert workflow completes within 10 seconds
-    monocle_trace_asserter.under_duration(10)
+    monocle_trace_asserter.under_duration(10, units="seconds", span_type="workflow")
     
     # Decimal values supported for precise timing
-    monocle_trace_asserter.under_duration(12.5)
+    monocle_trace_asserter.under_duration(12.5, units="seconds", span_type="workflow")
+```
+
+**Multiple fact types with different units:**
+```python
+@pytest.mark.asyncio
+async def test_multi_level_duration(monocle_trace_asserter):
+    await monocle_trace_asserter.run_agent_async(root_agent, "google_adk", "query")
+    
+    # Workflow under 10 seconds
+    monocle_trace_asserter.under_duration(10, units="seconds", span_type="workflow")
+    # Each agent invocation under 0.2 minutes
+    monocle_trace_asserter.under_duration(0.2, units="minutes", span_type="agent_invocation")
+    # Each inference under 5000 milliseconds
+    monocle_trace_asserter.under_duration(5000, units="ms", span_type="inference")
+```
+
+**Filtered span duration with called_agent() and called_tool():**
+```python
+@pytest.mark.asyncio
+async def test_filtered_duration(monocle_trace_asserter):
+    await monocle_trace_asserter.run_agent_async(root_agent, "google_adk", "query")
+    
+    # Filter to specific agent and check its invocation duration
+    monocle_trace_asserter.called_agent("flight_booking_agent")\
+        .under_duration(0.2, units="minutes", span_type="agent_invocation")
+    
+    # Filter to specific tool and check its invocation duration
+    monocle_trace_asserter.called_tool("book_flight")\
+        .under_duration(5000, units="ms", span_type="tool_invocation")
 ```
 
 **Chaining Performance Assertions:**
@@ -159,31 +319,67 @@ async def test_execution_duration(monocle_trace_asserter):
 async def test_cost_and_performance(monocle_trace_asserter):
     await monocle_trace_asserter.run_agent_async(root_agent, "google_adk", "query")
     
-    # Chain token and duration assertions (both work on full trace)
+    # Chain token and duration assertions
     monocle_trace_asserter\
         .under_token_limit(1500)\
-        .under_duration(10)
+        .under_duration(10, units="seconds", span_type="workflow")\
+        .under_duration(0.2, units="minutes", span_type="agent_turn")\
+        .under_duration(4000, units="ms", span_type="inference")
 ```
 
-**Note:** Duration assertions cannot be chained after `called_tool()` or `called_agent()` filters, but can be combined with token limit assertions.
+**Multiple filtered assertions:**
+```python
+@pytest.mark.asyncio
+async def test_multiple_filtered_limits(monocle_trace_asserter):
+    await monocle_trace_asserter.run_agent_async(root_agent, "google_adk", "query")
+    
+    # Check flight booking agent duration
+    monocle_trace_asserter.called_agent("flight_booking_agent")\
+        .under_duration(0.15, units="minutes", span_type="agent_invocation")
+    
+    # Check hotel booking agent duration and tokens
+    monocle_trace_asserter.called_agent("hotel_booking_agent")\
+        .under_duration(0.18, units="minutes", span_type="agent_invocation")\
+        .under_token_limit(900)
+    
+    # Check tool invocation duration and tokens
+    monocle_trace_asserter.called_tool("book_flight")\
+        .under_duration(5000, units="ms", span_type="tool_invocation")\
+        .under_token_limit(80)
+```
 
 **Understanding Performance Failures:**
 
-When performance assertions fail, you'll see clear error messages:
+When performance assertions fail, you'll see clear error messages with entity-specific information:
 
 ```
 AssertionError: Token limit exceeded: 1623 > 1500
 ```
 
 ```
-AssertionError: Workflow duration 13.45s exceeds limit 12.5s.
+AssertionError: Duration limit exceeded: workflow took 13.45 seconds (limit: 12.5 seconds)
+```
+
+```
+AssertionError: Duration limit exceeded for agent 'flight_booking_agent': agent_invocation took 0.23 minutes (limit: 0.2 minutes)
+```
+
+```
+AssertionError: Duration limit exceeded for tool 'book_flight': tool_invocation took 5.5 ms (limit: 5 ms)
 ```
 
 ## Notes
 
-- Call `with_evaluation("okahu")` once per test before calling `check_eval()` to configure the evaluator.
- - You don't have to declare evaluator each time
+- Call `with_evaluation("okahu")` to configure an evaluator before calling `check_eval()`.
+  - You don't have to declare the evaluator each time — it persists for subsequent `check_eval()` calls
+  - You can switch evaluators within the same test by calling `with_evaluation()` with a different evaluator name
 - Use `run_agent_async()` or `run_agent()` to execute your agent and generate spans before evaluation.
-- Multiple evaluations can be chained: `.check_eval("sentiment", "positive").check_eval("bias", "unbiased")`
+- The `check_eval()` method requires at least one of `expected` or `not_expected`:
+  - `expected`: **(Optional)** Accepts a **string** or **list of strings** for values that should match
+  - `not_expected`: **(Optional)** Accepts a **string** or **list of strings** for values that should NOT match
+  - Both parameters can be used together for comprehensive validation
+  - A `ValueError` is raised if both are omitted
+  - The method validates that there's no overlap between the two parameters
+- Multiple evaluations can be chained: `.check_eval("sentiment", expected="positive").check_eval("bias", expected="unbiased")`
 - Test files and functions must start with `test_` for pytest discovery.
 - Evaluation results are sent to the Okahu UI portal when `MONOCLE_EXPORTER` is properly configured.

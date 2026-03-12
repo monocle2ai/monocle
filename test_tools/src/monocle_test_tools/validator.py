@@ -6,12 +6,12 @@ import jsonschema, json
 from typing import Optional, Union
 from opentelemetry.sdk.trace import Span, StatusCode
 from opentelemetry.sdk.trace.export import SpanProcessor, SimpleSpanProcessor
-from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from opentelemetry.sdk.trace.export import SpanExporter
 from opentelemetry.context import set_value, Context, detach, attach
 import pytest
 #from sqlalchemy import func
 from monocle_apptrace.exporters.file_exporter import FileSpanExporter, DEFAULT_TRACE_FOLDER
+from monocle_apptrace.exporters.base_exporter import MonocleInMemorySpanExporter
 from monocle_apptrace import start_scopes, stop_scope
 from contextlib import contextmanager, asynccontextmanager
 import logging
@@ -34,7 +34,7 @@ logger = logging.getLogger(__name__)
 
 class MonocleValidator:
     _spans:Span = []
-    memory_exporter:InMemorySpanExporter = None
+    memory_exporter:MonocleInMemorySpanExporter = None
     file_exporter:FileSpanExporter = None
     trace_id = None
     instrumentor: MonocleInstrumentor = None
@@ -60,7 +60,7 @@ class MonocleValidator:
         if exporter_list is None:
             exporter_list = os.getenv("MONOCLE_EXPORTER", "file")
         self.exporters = get_monocle_exporter(exporter_list)
-        self.memory_exporter = InMemorySpanExporter()
+        self.memory_exporter = MonocleInMemorySpanExporter()
         if export_failed_tests_only is None:
             export_failed_tests_only = os.getenv("MONOCLE_EXPORT_FAILED_TESTS_ONLY", "false").lower() == "true"
         if workflow_name is None:
@@ -511,17 +511,17 @@ class MonocleValidator:
         return self._check_token_limits(max_output_tokens, "completion_tokens", positive_test, filtered_spans)
 
     def check_total_token_limits(self, max_total_tokens:int, positive_test:bool = True,
-                                filtered_spans:Optional[list[Span]] = None) -> bool:
+                                filtered_spans:Optional[list[Span]] = None, custom_message:Optional[str] = None) -> bool:
         """Verify that the output token limits are respected in the spans.
          Args:
             max_tokens (int): The maximum number of tokens allowed in the output.
          """
         if max_total_tokens is None:
             return True
-        return self._check_token_limits(max_total_tokens, "total_tokens", positive_test, filtered_spans)
+        return self._check_token_limits(max_total_tokens, "total_tokens", positive_test, filtered_spans, custom_message)
 
     def _check_token_limits(self, max_tokens:int, token_name:str, positive_test:bool,
-                            filtered_spans:Optional[list[Span]] = None) -> bool:
+                            filtered_spans:Optional[list[Span]] = None, custom_message:Optional[str] = None) -> bool:
         """Verify that the output token limits are respected in the spans.
          Args:
             max_tokens (int): The maximum number of tokens allowed in the output.
@@ -542,50 +542,82 @@ class MonocleValidator:
                         tokens += event.attributes.get(token_name, 0)
 
         if positive_test:
-            assert tokens <= max_tokens, f" {token_name} limit exceeded: {tokens} > {max_tokens}"
+            assert tokens <= max_tokens, custom_message if custom_message else f" {token_name} limit exceeded: {tokens} > {max_tokens}"
         else:
-            assert tokens > max_tokens, f" {token_name} limit was not exceeded as expected: {tokens} <= {max_tokens}"
+            assert tokens > max_tokens, custom_message if custom_message else f" {token_name} limit was not exceeded as expected: {tokens} <= {max_tokens}"
         return True
 
-    def check_total_duration_limits(self, max_duration_seconds:float, positive_test:bool = True,
-                                filtered_spans:Optional[list[Span]] = None) -> bool:
+    def check_duration_limits(self, max_duration:float, positive_test:bool = True,
+                                filtered_spans:Optional[list[Span]] = None, units: str = "seconds", span_type: Optional[str] = "workflow", custom_message:Optional[str] = None) -> bool:
         """Verify that the workflow duration is under the specified limit.
          Args:
-            max_duration_seconds (float): The maximum duration allowed in seconds.
+            max_duration (float): The maximum duration allowed.
             positive_test (bool): If True, asserts duration is under limit. If False, asserts duration exceeds limit.
             filtered_spans (Optional[list[Span]]): Spans to check. If None, uses all spans.
+            units (str): The time units for max_duration ("ms","seconds", "minutes"). Default is "seconds".
+            span_type (Optional[str]): The span type to filter spans by. Default is "workflow".
          """
-        if max_duration_seconds is None:
+        if max_duration is None:
             return True
-        
+
         if filtered_spans is None:
             spans_to_check = self.spans
         else:
             spans_to_check = filtered_spans
-        
-        if not spans_to_check or len(spans_to_check) == 0:
-            assert False, "No spans available to check workflow duration."
-        
-        # Find the workflow span by literal span name 'workflow'
-        workflow_span = None
-        for span in spans_to_check:
-            if span.name == 'workflow':
-                workflow_span = span
-                break
-        
-        if workflow_span is None:
-            assert False, "No workflow span found (span with name 'workflow')."
-        
-        # Convert duration from nanoseconds to seconds
-        start_time = workflow_span.start_time
-        end_time = workflow_span.end_time        
-        duration_ns = end_time - start_time
-        duration_seconds = duration_ns / 1e9
 
-        if positive_test:
-            assert duration_seconds <= max_duration_seconds, f"Workflow duration {duration_seconds:.2f}s exceeds limit {max_duration_seconds}s."
+        if not spans_to_check or len(spans_to_check) == 0:
+            assert False, custom_message if custom_message else "No spans available to check duration."
+        
+        span_types = []
+        if span_type is None or span_type.lower() == "workflow":
+            span_types.append("workflow")
+        elif span_type.lower() == "agent_invocation":
+            span_types.append("agentic.invocation")
+        elif span_type.lower() == "tool_invocation":
+            span_types.append("agentic.tool.invocation")
+        elif span_type.lower() == "agent_turn":
+            span_types.append("agentic.turn")
+        elif span_type.lower() == "inference":
+            span_types.extend(["inference", "inference.framework"])
         else:
-            assert duration_seconds > max_duration_seconds, f"Workflow duration {duration_seconds:.2f}s was expected to exceed limit {max_duration_seconds}s but did not."
+            assert False, f"Unsupported span type: {span_type}"
+        
+        # set spans to iterable list of spans that match the span types for the given span type
+        spans = []
+        for span in spans_to_check:
+            if "span.type" in span.attributes and span.attributes["span.type"] in span_types:
+                # append valid span to spans list
+                spans.append(span)
+
+        if len(spans) == 0:
+            assert False, f"No spans found with span type '{span_type}' to check duration."
+        
+        # calculate duration for each span; make sure each span doesn't exceed max_duration
+        for span in spans:
+            duration_ns = span.end_time - span.start_time
+            
+            # have calculated duration in nanoseconds, now convert to specified units for comparison
+            if units == "seconds":
+                duration = duration_ns / 1e9
+            elif units == "ms":
+                duration = duration_ns / 1e6
+            elif units == "minutes":
+                duration = duration_ns / (1e9 * 60)
+            else:
+                assert False, f"Unsupported time unit: {units}"
+
+            # specify tool or agent info in assertion message
+            entity_info = ''
+            if span_type.lower() == "tool_invocation" and "entity.1.name" in span.attributes:
+                entity_info = f" for tool '{span.attributes['entity.1.name']}'"
+            elif span_type.lower() == "agent_invocation" and "entity.1.name" in span.attributes:
+                entity_info = f" for agent '{span.attributes['entity.1.name']}'"
+
+            # no span should exceed the duration specified by the user
+            if positive_test:
+                assert duration <= max_duration, custom_message if custom_message else f"Duration limit exceeded {entity_info}: {span_type} took {duration:.2f} {units} (limit: {max_duration} {units})"
+            else:
+                assert duration > max_duration, custom_message if custom_message else f"Duration limit not exceeded as expected {entity_info}: {span_type} took {duration:.2f} {units} (expected to exceed: {max_duration} {units})"
         
         return True
 
@@ -721,7 +753,7 @@ class MonocleValidator:
                     assert False, f"Agent request span error was expected but no error found."
                 elif not expect_error and found_error:
                     assert False, f"Agent request span error found."
-                
+
                 found_warning = self._span_has_warning(span)
                 if expect_warnings and not found_warning:
                     assert False, f"Agent request span warning was expected but no warning found."
@@ -744,7 +776,7 @@ class MonocleValidator:
                     and (agent_name is None or (agent_name is not None and span_attributes.get("entity.2.name","") == agent_name)):
                     tool_invocation_spans.append(span)
         return tool_invocation_spans
-    
+
     def _get_agent_invocation_spans(self, agent_name:str, filtered_spans:Optional[list[Span]] = None) -> list:
         agent_invocation_spans = []
         spans_to_check = filtered_spans if filtered_spans is not None else self.spans
@@ -784,7 +816,7 @@ class MonocleValidator:
         if span.status.status_code == StatusCode.ERROR:
             return True
         return False
-    
+
     def _has_warnings(self, expect_warnings: bool) -> bool:
         found_warning = False
         for span in self.spans:

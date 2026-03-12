@@ -547,15 +547,17 @@ class MonocleValidator:
             assert tokens > max_tokens, custom_message if custom_message else f" {token_name} limit was not exceeded as expected: {tokens} <= {max_tokens}"
         return True
 
-    def check_total_duration_limits(self, max_duration_seconds:float, positive_test:bool = True,
-                                filtered_spans:Optional[list[Span]] = None, custom_message:Optional[str] = None) -> bool:
+    def check_duration_limits(self, max_duration:float, positive_test:bool = True,
+                                filtered_spans:Optional[list[Span]] = None, units: str = "seconds", span_type: Optional[str] = "workflow", custom_message:Optional[str] = None) -> bool:
         """Verify that the workflow duration is under the specified limit.
          Args:
-            max_duration_seconds (float): The maximum duration allowed in seconds.
+            max_duration (float): The maximum duration allowed.
             positive_test (bool): If True, asserts duration is under limit. If False, asserts duration exceeds limit.
             filtered_spans (Optional[list[Span]]): Spans to check. If None, uses all spans.
+            units (str): The time units for max_duration ("ms","seconds", "minutes"). Default is "seconds".
+            span_type (Optional[str]): The span type to filter spans by. Default is "workflow".
          """
-        if max_duration_seconds is None:
+        if max_duration is None:
             return True
 
         if filtered_spans is None:
@@ -564,29 +566,59 @@ class MonocleValidator:
             spans_to_check = filtered_spans
 
         if not spans_to_check or len(spans_to_check) == 0:
-            assert False, custom_message if custom_message else "No spans available to check workflow duration."
-
-        # Find the workflow span by literal span name 'workflow'
-        workflow_span = None
-        for span in spans_to_check:
-            if span.name == 'workflow':
-                workflow_span = span
-                break
-
-        if workflow_span is None:
-            assert False, custom_message if custom_message else "No workflow span found (span with name 'workflow')."
-
-        # Convert duration from nanoseconds to seconds
-        start_time = workflow_span.start_time
-        end_time = workflow_span.end_time
-        duration_ns = end_time - start_time
-        duration_seconds = duration_ns / 1e9
-
-        if positive_test:
-            assert duration_seconds <= max_duration_seconds, custom_message if custom_message else f"Workflow duration {duration_seconds:.2f}s exceeds limit {max_duration_seconds}s."
+            assert False, custom_message if custom_message else "No spans available to check duration."
+        
+        span_types = []
+        if span_type is None or span_type.lower() == "workflow":
+            span_types.append("workflow")
+        elif span_type.lower() == "agent_invocation":
+            span_types.append("agentic.invocation")
+        elif span_type.lower() == "tool_invocation":
+            span_types.append("agentic.tool.invocation")
+        elif span_type.lower() == "agent_turn":
+            span_types.append("agentic.turn")
+        elif span_type.lower() == "inference":
+            span_types.extend(["inference", "inference.framework"])
         else:
-            assert duration_seconds > max_duration_seconds, custom_message if custom_message else f"Workflow duration {duration_seconds:.2f}s was expected to exceed limit {max_duration_seconds}s but did not."
+            assert False, f"Unsupported span type: {span_type}"
+        
+        # set spans to iterable list of spans that match the span types for the given span type
+        spans = []
+        for span in spans_to_check:
+            if "span.type" in span.attributes and span.attributes["span.type"] in span_types:
+                # append valid span to spans list
+                spans.append(span)
 
+        if len(spans) == 0:
+            assert False, f"No spans found with span type '{span_type}' to check duration."
+        
+        # calculate duration for each span; make sure each span doesn't exceed max_duration
+        for span in spans:
+            duration_ns = span.end_time - span.start_time
+            
+            # have calculated duration in nanoseconds, now convert to specified units for comparison
+            if units == "seconds":
+                duration = duration_ns / 1e9
+            elif units == "ms":
+                duration = duration_ns / 1e6
+            elif units == "minutes":
+                duration = duration_ns / (1e9 * 60)
+            else:
+                assert False, f"Unsupported time unit: {units}"
+
+            # specify tool or agent info in assertion message
+            entity_info = ''
+            if span_type.lower() == "tool_invocation" and "entity.1.name" in span.attributes:
+                entity_info = f" for tool '{span.attributes['entity.1.name']}'"
+            elif span_type.lower() == "agent_invocation" and "entity.1.name" in span.attributes:
+                entity_info = f" for agent '{span.attributes['entity.1.name']}'"
+
+            # no span should exceed the duration specified by the user
+            if positive_test:
+                assert duration <= max_duration, custom_message if custom_message else f"Duration limit exceeded {entity_info}: {span_type} took {duration:.2f} {units} (limit: {max_duration} {units})"
+            else:
+                assert duration > max_duration, custom_message if custom_message else f"Duration limit not exceeded as expected {entity_info}: {span_type} took {duration:.2f} {units} (expected to exceed: {max_duration} {units})"
+        
         return True
 
     def _verify_tool_errors(self, tool_name:str, agent_name:str, expect_error:bool, found_error: bool, expect_warnings:bool, found_warning: bool) -> None:

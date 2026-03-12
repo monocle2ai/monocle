@@ -255,21 +255,62 @@ async def test_token_usage(monocle_trace_asserter):
 
 ### Duration Limit Validation
 
-**`under_duration(duration_limit: float)`** - Asserts that the workflow execution duration is under the specified time limit in seconds. The duration is measured from the workflow span (root span with name "workflow"). Supports decimal values for precise timing requirements.
+**`under_duration(duration_limit: float, units: str = "seconds", span_type: str = "workflow")`** - Asserts that span durations are under the specified time limit. The method measures duration for different span types based on the `span_type` parameter.
 
-**Note:** Duration assertions must be called on the full trace and cannot be used after filtering operations like `called_tool()` or `called_agent()`, as these filters exclude the spans needed for duration measurement.
+**Parameters:**
+- `duration_limit`: Maximum duration allowed (float, supports decimal values)
+- `units`: Time unit for the limit - `"seconds"` (default), `"ms"`, or `"minutes"`
+- `span_type`: Type of spans to measure - `"workflow"` (default), `"agent_invocation"`, `"tool_invocation"`, `"agent_turn"`, or `"inference"`
+
+**Supported Span Types:**
+- `"workflow"` - Root workflow spans (overall execution time)
+- `"agent_invocation"` - Agent invocation spans (individual agent executions)
+- `"tool_invocation"` - Tool invocation spans (individual tool executions)
+- `"agent_turn"` - Agent turn spans (turn-level interactions)
+- `"inference"` - Inference spans (LLM API calls)
 
 **Examples:**
+
+**Basic workflow duration:**
 ```python
 @pytest.mark.asyncio
 async def test_execution_duration(monocle_trace_asserter):
     await monocle_trace_asserter.run_agent_async(root_agent, "google_adk", "query")
     
     # Assert workflow completes within 10 seconds
-    monocle_trace_asserter.under_duration(10)
+    monocle_trace_asserter.under_duration(10, units="seconds", span_type="workflow")
     
     # Decimal values supported for precise timing
-    monocle_trace_asserter.under_duration(12.5)
+    monocle_trace_asserter.under_duration(12.5, units="seconds", span_type="workflow")
+```
+
+**Multiple fact types with different units:**
+```python
+@pytest.mark.asyncio
+async def test_multi_level_duration(monocle_trace_asserter):
+    await monocle_trace_asserter.run_agent_async(root_agent, "google_adk", "query")
+    
+    # Workflow under 10 seconds
+    monocle_trace_asserter.under_duration(10, units="seconds", span_type="workflow")
+    # Each agent invocation under 0.2 minutes
+    monocle_trace_asserter.under_duration(0.2, units="minutes", span_type="agent_invocation")
+    # Each inference under 5000 milliseconds
+    monocle_trace_asserter.under_duration(5000, units="ms", span_type="inference")
+```
+
+**Filtered span duration with called_agent() and called_tool():**
+```python
+@pytest.mark.asyncio
+async def test_filtered_duration(monocle_trace_asserter):
+    await monocle_trace_asserter.run_agent_async(root_agent, "google_adk", "query")
+    
+    # Filter to specific agent and check its invocation duration
+    monocle_trace_asserter.called_agent("flight_booking_agent")\
+        .under_duration(0.2, units="minutes", span_type="agent_invocation")
+    
+    # Filter to specific tool and check its invocation duration
+    monocle_trace_asserter.called_tool("book_flight")\
+        .under_duration(5000, units="ms", span_type="tool_invocation")
 ```
 
 **Chaining Performance Assertions:**
@@ -278,30 +319,60 @@ async def test_execution_duration(monocle_trace_asserter):
 async def test_cost_and_performance(monocle_trace_asserter):
     await monocle_trace_asserter.run_agent_async(root_agent, "google_adk", "query")
     
-    # Chain token and duration assertions (both work on full trace)
+    # Chain token and duration assertions
     monocle_trace_asserter\
         .under_token_limit(1500)\
-        .under_duration(10)
+        .under_duration(10, units="seconds", span_type="workflow")\
+        .under_duration(0.2, units="minutes", span_type="agent_turn")\
+        .under_duration(4000, units="ms", span_type="inference")
 ```
 
-**Note:** Duration assertions cannot be chained after `called_tool()` or `called_agent()` filters, but can be combined with token limit assertions.
+**Multiple filtered assertions:**
+```python
+@pytest.mark.asyncio
+async def test_multiple_filtered_limits(monocle_trace_asserter):
+    await monocle_trace_asserter.run_agent_async(root_agent, "google_adk", "query")
+    
+    # Check flight booking agent duration
+    monocle_trace_asserter.called_agent("flight_booking_agent")\
+        .under_duration(0.15, units="minutes", span_type="agent_invocation")
+    
+    # Check hotel booking agent duration and tokens
+    monocle_trace_asserter.called_agent("hotel_booking_agent")\
+        .under_duration(0.18, units="minutes", span_type="agent_invocation")\
+        .under_token_limit(900)
+    
+    # Check tool invocation duration and tokens
+    monocle_trace_asserter.called_tool("book_flight")\
+        .under_duration(5000, units="ms", span_type="tool_invocation")\
+        .under_token_limit(80)
+```
 
 **Understanding Performance Failures:**
 
-When performance assertions fail, you'll see clear error messages:
+When performance assertions fail, you'll see clear error messages with entity-specific information:
 
 ```
 AssertionError: Token limit exceeded: 1623 > 1500
 ```
 
 ```
-AssertionError: Workflow duration 13.45s exceeds limit 12.5s.
+AssertionError: Duration limit exceeded: workflow took 13.45 seconds (limit: 12.5 seconds)
+```
+
+```
+AssertionError: Duration limit exceeded for agent 'flight_booking_agent': agent_invocation took 0.23 minutes (limit: 0.2 minutes)
+```
+
+```
+AssertionError: Duration limit exceeded for tool 'book_flight': tool_invocation took 5.5 ms (limit: 5 ms)
 ```
 
 ## Notes
 
-- Call `with_evaluation("okahu")` once per test before calling `check_eval()` to configure the evaluator.
- - You don't have to declare evaluator each time
+- Call `with_evaluation("okahu")` to configure an evaluator before calling `check_eval()`.
+  - You don't have to declare the evaluator each time — it persists for subsequent `check_eval()` calls
+  - You can switch evaluators within the same test by calling `with_evaluation()` with a different evaluator name
 - Use `run_agent_async()` or `run_agent()` to execute your agent and generate spans before evaluation.
 - The `check_eval()` method requires at least one of `expected` or `not_expected`:
   - `expected`: **(Optional)** Accepts a **string** or **list of strings** for values that should match

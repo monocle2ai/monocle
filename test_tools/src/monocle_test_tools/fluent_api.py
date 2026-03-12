@@ -322,9 +322,9 @@ class TraceAssertion():
         return self
 
     @collect_assertions
-    def under_duration(self, duration_limit: float, units: str = "seconds", fact_name:Optional[str] = "workflow", message:Optional[str] = None) -> 'TraceAssertion':
+    def under_duration(self, duration_limit: float, units: str = "seconds", span_type:Optional[str] = "workflow", message:Optional[str] = None) -> 'TraceAssertion':
         """Assert that the workflow span's duration is under the given limit."""
-        self.validator.check_duration_limits(duration_limit, filtered_spans=self._filtered_spans, units=units, fact_name=fact_name, custom_message=message)
+        self.validator.check_duration_limits(duration_limit, filtered_spans=self._filtered_spans, units=units, span_type=span_type, custom_message=message)
         return self
 
     def load_spans(self, spans:list[Span]) -> None:

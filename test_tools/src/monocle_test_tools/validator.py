@@ -548,14 +548,14 @@ class MonocleValidator:
         return True
 
     def check_duration_limits(self, max_duration:float, positive_test:bool = True,
-                                filtered_spans:Optional[list[Span]] = None, units: str = "seconds", fact_name: Optional[str] = "workflow", custom_message:Optional[str] = None) -> bool:
+                                filtered_spans:Optional[list[Span]] = None, units: str = "seconds", span_type: Optional[str] = "workflow", custom_message:Optional[str] = None) -> bool:
         """Verify that the workflow duration is under the specified limit.
          Args:
             max_duration (float): The maximum duration allowed.
             positive_test (bool): If True, asserts duration is under limit. If False, asserts duration exceeds limit.
             filtered_spans (Optional[list[Span]]): Spans to check. If None, uses all spans.
             units (str): The time units for max_duration ("ms","seconds", "minutes"). Default is "seconds".
-            fact_name (Optional[str]): The fact name to filter spans by. Default is "workflow".
+            span_type (Optional[str]): The span type to filter spans by. Default is "workflow".
          """
         if max_duration is None:
             return True
@@ -569,20 +569,20 @@ class MonocleValidator:
             assert False, custom_message if custom_message else "No spans available to check duration."
         
         span_types = []
-        if fact_name is None or fact_name.lower() == "workflow":
+        if span_type is None or span_type.lower() == "workflow":
             span_types.append("workflow")
-        elif fact_name.lower() == "agent_invocation":
+        elif span_type.lower() == "agent_invocation":
             span_types.append("agentic.invocation")
-        elif fact_name.lower() == "tool_invocation":
+        elif span_type.lower() == "tool_invocation":
             span_types.append("agentic.tool.invocation")
-        elif fact_name.lower() == "agent_turn":
+        elif span_type.lower() == "agent_turn":
             span_types.append("agentic.turn")
-        elif fact_name.lower() == "inference":
+        elif span_type.lower() == "inference":
             span_types.extend(["inference", "inference.framework"])
         else:
-            assert False, f"Unsupported fact name: {fact_name}"
+            assert False, f"Unsupported span type: {span_type}"
         
-        # set spans to iterable list of spans that match the span types for the given fact name
+        # set spans to iterable list of spans that match the span types for the given span type
         spans = []
         for span in spans_to_check:
             if "span.type" in span.attributes and span.attributes["span.type"] in span_types:
@@ -590,7 +590,7 @@ class MonocleValidator:
                 spans.append(span)
 
         if len(spans) == 0:
-            assert False, f"No spans found with fact name '{fact_name}' to check duration."
+            assert False, f"No spans found with span type '{span_type}' to check duration."
         
         # calculate duration for each span; make sure each span doesn't exceed max_duration
         for span in spans:
@@ -608,16 +608,16 @@ class MonocleValidator:
 
             # specify tool or agent info in assertion message
             entity_info = ''
-            if fact_name.lower() == "tool_invocation" and "entity.1.name" in span.attributes:
+            if span_type.lower() == "tool_invocation" and "entity.1.name" in span.attributes:
                 entity_info = f" for tool '{span.attributes['entity.1.name']}'"
-            elif fact_name.lower() == "agent_invocation" and "entity.1.name" in span.attributes:
+            elif span_type.lower() == "agent_invocation" and "entity.1.name" in span.attributes:
                 entity_info = f" for agent '{span.attributes['entity.1.name']}'"
 
             # no span should exceed the duration specified by the user
             if positive_test:
-                assert duration <= max_duration, custom_message if custom_message else f"Duration limit exceeded {entity_info}: {fact_name} took {duration:.2f} {units} (limit: {max_duration} {units})"
+                assert duration <= max_duration, custom_message if custom_message else f"Duration limit exceeded {entity_info}: {span_type} took {duration:.2f} {units} (limit: {max_duration} {units})"
             else:
-                assert duration > max_duration, custom_message if custom_message else f"Duration limit not exceeded as expected {entity_info}: {fact_name} took {duration:.2f} {units} (expected to exceed: {max_duration} {units})"
+                assert duration > max_duration, custom_message if custom_message else f"Duration limit not exceeded as expected {entity_info}: {span_type} took {duration:.2f} {units} (expected to exceed: {max_duration} {units})"
         
         return True
 

@@ -255,14 +255,14 @@ async def test_token_usage(monocle_trace_asserter):
 
 ### Duration Limit Validation
 
-**`under_duration(duration_limit: float, units: str = "seconds", fact_name: str = "workflow")`** - Asserts that span durations are under the specified time limit. The method measures duration for different span types based on the `fact_name` parameter.
+**`under_duration(duration_limit: float, units: str = "seconds", span_type: str = "workflow")`** - Asserts that span durations are under the specified time limit. The method measures duration for different span types based on the `span_type` parameter.
 
 **Parameters:**
 - `duration_limit`: Maximum duration allowed (float, supports decimal values)
 - `units`: Time unit for the limit - `"seconds"` (default), `"ms"`, or `"minutes"`
-- `fact_name`: Type of spans to measure - `"workflow"` (default), `"agent_invocation"`, `"tool_invocation"`, `"agent_turn"`, or `"inference"`
+- `span_type`: Type of spans to measure - `"workflow"` (default), `"agent_invocation"`, `"tool_invocation"`, `"agent_turn"`, or `"inference"`
 
-**Supported Fact Names:**
+**Supported Span Types:**
 - `"workflow"` - Root workflow spans (overall execution time)
 - `"agent_invocation"` - Agent invocation spans (individual agent executions)
 - `"tool_invocation"` - Tool invocation spans (individual tool executions)
@@ -278,10 +278,10 @@ async def test_execution_duration(monocle_trace_asserter):
     await monocle_trace_asserter.run_agent_async(root_agent, "google_adk", "query")
     
     # Assert workflow completes within 10 seconds
-    monocle_trace_asserter.under_duration(10, units="seconds", fact_name="workflow")
+    monocle_trace_asserter.under_duration(10, units="seconds", span_type="workflow")
     
     # Decimal values supported for precise timing
-    monocle_trace_asserter.under_duration(12.5, units="seconds", fact_name="workflow")
+    monocle_trace_asserter.under_duration(12.5, units="seconds", span_type="workflow")
 ```
 
 **Multiple fact types with different units:**
@@ -291,11 +291,11 @@ async def test_multi_level_duration(monocle_trace_asserter):
     await monocle_trace_asserter.run_agent_async(root_agent, "google_adk", "query")
     
     # Workflow under 10 seconds
-    monocle_trace_asserter.under_duration(10, units="seconds", fact_name="workflow")
+    monocle_trace_asserter.under_duration(10, units="seconds", span_type="workflow")
     # Each agent invocation under 0.2 minutes
-    monocle_trace_asserter.under_duration(0.2, units="minutes", fact_name="agent_invocation")
+    monocle_trace_asserter.under_duration(0.2, units="minutes", span_type="agent_invocation")
     # Each inference under 5000 milliseconds
-    monocle_trace_asserter.under_duration(5000, units="ms", fact_name="inference")
+    monocle_trace_asserter.under_duration(5000, units="ms", span_type="inference")
 ```
 
 **Filtered span duration with called_agent() and called_tool():**
@@ -306,11 +306,11 @@ async def test_filtered_duration(monocle_trace_asserter):
     
     # Filter to specific agent and check its invocation duration
     monocle_trace_asserter.called_agent("flight_booking_agent")\
-        .under_duration(0.2, units="minutes", fact_name="agent_invocation")
+        .under_duration(0.2, units="minutes", span_type="agent_invocation")
     
     # Filter to specific tool and check its invocation duration
     monocle_trace_asserter.called_tool("book_flight")\
-        .under_duration(5000, units="ms", fact_name="tool_invocation")
+        .under_duration(5000, units="ms", span_type="tool_invocation")
 ```
 
 **Chaining Performance Assertions:**
@@ -322,9 +322,9 @@ async def test_cost_and_performance(monocle_trace_asserter):
     # Chain token and duration assertions
     monocle_trace_asserter\
         .under_token_limit(1500)\
-        .under_duration(10, units="seconds", fact_name="workflow")\
-        .under_duration(0.2, units="minutes", fact_name="agent_turn")\
-        .under_duration(4000, units="ms", fact_name="inference")
+        .under_duration(10, units="seconds", span_type="workflow")\
+        .under_duration(0.2, units="minutes", span_type="agent_turn")\
+        .under_duration(4000, units="ms", span_type="inference")
 ```
 
 **Multiple filtered assertions:**
@@ -335,16 +335,16 @@ async def test_multiple_filtered_limits(monocle_trace_asserter):
     
     # Check flight booking agent duration
     monocle_trace_asserter.called_agent("flight_booking_agent")\
-        .under_duration(0.15, units="minutes", fact_name="agent_invocation")
+        .under_duration(0.15, units="minutes", span_type="agent_invocation")
     
     # Check hotel booking agent duration and tokens
     monocle_trace_asserter.called_agent("hotel_booking_agent")\
-        .under_duration(0.18, units="minutes", fact_name="agent_invocation")\
+        .under_duration(0.18, units="minutes", span_type="agent_invocation")\
         .under_token_limit(900)
     
     # Check tool invocation duration and tokens
     monocle_trace_asserter.called_tool("book_flight")\
-        .under_duration(5000, units="ms", fact_name="tool_invocation")\
+        .under_duration(5000, units="ms", span_type="tool_invocation")\
         .under_token_limit(80)
 ```
 

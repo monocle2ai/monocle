@@ -19,6 +19,7 @@ from monocle_apptrace.instrumentation.common.constants import (
 from monocle_apptrace.instrumentation.common.scope_wrapper import monocle_trace_scope
 from monocle_apptrace.instrumentation.common.span_handler import SpanHandler
 from monocle_apptrace.instrumentation.common.utils import (
+    MONOCLE_CONTEXT_MARKER,
     get_current_monocle_span,
     remove_scope,
     set_monocle_span_in_context,
@@ -348,6 +349,10 @@ async def amonocle_wrapper(tracer: Tracer, handler: SpanHandler, to_wrap, wrappe
 async def amonocle_iter_wrapper(tracer: Tracer, handler: SpanHandler, to_wrap, wrapped, instance, source_path, args, kwargs) -> AsyncGenerator[any, None]:
     token = None
     pre_trace_token = None
+    # Outer sentinel: guards post_tracing() detach calls in the outer finally.
+    # Set before the first yield so finalization in a different Context is detected.
+    _pre_trace_marker = object()
+    _pre_trace_marker_token = MONOCLE_CONTEXT_MARKER.set(_pre_trace_marker)
     try:
         try:
             pre_trace_token, alternate_to_wrapp = handler.pre_tracing(to_wrap, wrapped, instance, args, kwargs)
@@ -360,17 +365,24 @@ async def amonocle_iter_wrapper(tracer: Tracer, handler: SpanHandler, to_wrap, w
                 yield item
         else:
             add_workflow_span = get_value(ADD_NEW_WORKFLOW) == True
+            _marker = object()
+            _marker_token = MONOCLE_CONTEXT_MARKER.set(_marker)
             token = attach(set_value(ADD_NEW_WORKFLOW, False))
             try:
                 with monocle_trace_scope(get_builtin_scope_names(to_wrap)):
                     async for item in amonocle_iter_wrapper_span_processor(tracer, handler, to_wrap, wrapped, instance, source_path, add_workflow_span, args, kwargs):
                         yield item
             finally:
-                detach(token)
+                if MONOCLE_CONTEXT_MARKER.get() is _marker:
+                    detach(token)
+                    MONOCLE_CONTEXT_MARKER.reset(_marker_token)
+                    # After reset, MONOCLE_CONTEXT_MARKER.get() == _pre_trace_marker again
         return
     finally:
         try:
-            handler.post_tracing(to_wrap, wrapped, instance, args, kwargs, None, pre_trace_token)
+            if MONOCLE_CONTEXT_MARKER.get() is _pre_trace_marker:
+                handler.post_tracing(to_wrap, wrapped, instance, args, kwargs, None, pre_trace_token)
+                MONOCLE_CONTEXT_MARKER.reset(_pre_trace_marker_token)
         except Exception as e:
             logger.info(f"Warning: Error occurred in post_tracing: {e}")
 
@@ -461,16 +473,35 @@ def start_as_monocle_span(tracer: Tracer, name: str, auto_close_span: bool) -> I
         # If not isolating, use the default start_as_current_span
         yield tracer.start_as_current_span(name, end_on_exit=auto_close_span)
         return
-    
+
+    # Each entry into this context manager sets a unique sentinel in the current
+    # contextvars.Context.  If the finally/cleanup block runs in a DIFFERENT
+    # Context (e.g. Python's async-generator GC finalizer), the sentinel won't
+    # match and we skip the detach() calls so OTel never logs the misleading
+    # "Failed to detach context" ERROR.
+    _marker = object()
+    _marker_token = MONOCLE_CONTEXT_MARKER.set(_marker)
+
     original_span = get_current_span()
     monocle_span_token = attach(set_span_in_context(get_current_monocle_span()))
-    with tracer.start_as_current_span(name, end_on_exit=auto_close_span) as span:
-        new_monocle_token = attach(set_monocle_span_in_context(span))
-        original_span_token = attach(set_span_in_context(original_span))
+    # Use tracer.start_span + manual attach instead of start_as_current_span so
+    # every context token is owned by us (avoids OTel's internal context manager
+    # also trying to detach() in the wrong context).
+    span = tracer.start_span(name)
+    span_token = attach(set_span_in_context(span))
+    new_monocle_token = attach(set_monocle_span_in_context(span))
+    original_span_token = attach(set_span_in_context(original_span))
+    try:
         yield span
-        detach(original_span_token)
-        detach(new_monocle_token)
-    detach(monocle_span_token)
+    finally:
+        if MONOCLE_CONTEXT_MARKER.get() is _marker:
+            detach(original_span_token)
+            detach(new_monocle_token)
+            detach(span_token)
+            detach(monocle_span_token)
+            MONOCLE_CONTEXT_MARKER.reset(_marker_token)
+        if auto_close_span:
+            span.end()
 
 def get_builtin_scope_names(to_wrap) -> str:
     output_processor = None

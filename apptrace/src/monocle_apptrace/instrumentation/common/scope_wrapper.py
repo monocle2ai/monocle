@@ -5,7 +5,7 @@ from functools import wraps
 from contextlib import contextmanager, asynccontextmanager
 from opentelemetry.context import Context
 from monocle_apptrace.instrumentation.common.utils import (
-    set_scope, remove_scope, http_route_handler, http_async_route_handler, set_scopes
+    MONOCLE_CONTEXT_MARKER, set_scope, remove_scope, http_route_handler, http_async_route_handler, set_scopes
 )
 
 logger = logging.getLogger(__name__)
@@ -85,10 +85,14 @@ def monocle_trace_scope(
     token = None
     if scope_name:
         token = start_scope(scope_name, scope_value)
+    _marker = object()
+    _marker_token = MONOCLE_CONTEXT_MARKER.set(_marker)
     try:
         yield
     finally:
-        stop_scope(token)
+        if MONOCLE_CONTEXT_MARKER.get() is _marker:
+            stop_scope(token)
+            MONOCLE_CONTEXT_MARKER.reset(_marker_token)
 
 @asynccontextmanager
 async def amonocle_trace_scope(

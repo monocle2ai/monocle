@@ -43,29 +43,29 @@ def download_all() -> None:
     # 1. sentence-transformers model (used by SentenceComparer)
     st_model = MODELS["sentence-transformers"]
     if _is_model_cached(st_model):
-        print(f"  ✅ {st_model} already cached.")
+        print(f"  [OK] {st_model} already cached.")
     else:
         try:
             from sentence_transformers import SentenceTransformer
-            print(f"  ⬇ Downloading {st_model} ...")
+            print(f"  [DOWNLOADING] {st_model} ...")
             SentenceTransformer(model_name_or_path=st_model)
-            print(f"  ✅ {st_model} cached successfully.")
+            print(f"  [OK] {st_model} cached successfully.")
         except Exception as e:
-            print(f"  ❌ Failed to download sentence-transformers model: {e}")
+            print(f"  [FAILED] Failed to download sentence-transformers model: {e}")
             raise
 
     # 2. bert-score model (used by BertScoreComparer / BertScorerEval)
     bert_model = MODELS["bert-score"]
     if _is_model_cached(bert_model):
-        print(f"  ✅ {bert_model} already cached.")
+        print(f"  [OK] {bert_model} already cached.")
     else:
         try:
             from bert_score import BERTScorer
-            print(f"  ⬇ Downloading {bert_model} ...")
+            print(f"  [DOWNLOADING] {bert_model} ...")
             BERTScorer(model_type=bert_model, use_fast_tokenizer=True)
-            print(f"  ✅ {bert_model} cached successfully.")
+            print(f"  [OK] {bert_model} cached successfully.")
         except Exception as e:
-            print(f"  ❌ Failed to download bert-score model: {e}")
+            print(f"  [FAILED] Failed to download bert-score model: {e}")
             raise
 
     print("All models ready. Tests can now run offline.")

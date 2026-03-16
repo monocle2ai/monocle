@@ -7,7 +7,7 @@ logging.basicConfig(level=logging.WARN)
 
 import os
 import time
-from google.adk.agents import LlmAgent, SequentialAgent
+from google.adk.agents import LlmAgent, SequentialAgent, ParallelAgent
 
 MAX_OUTPUT_TOKENS = 50
 
@@ -77,4 +77,48 @@ root_agent = SequentialAgent(
         """
     ,
     sub_agents=[flight_booking_agent, hotel_booking_agent, trip_summary_agent],
+)
+
+# PARALLEL EXECUTION VERSION: Flight and hotel booking run concurrently
+# Create separate agent instances for parallel execution to avoid parent conflicts
+flight_booking_agent_parallel = LlmAgent(
+    name="adk_flight_booking_agent_5",
+    model="gemini-2.0-flash",
+    description= "Agent to book flights based on user queries.",
+    instruction= "You are a helpful agent who can assist users in booking flights. You only handle flight booking. Just handle that part from what the user says, ignore other parts of the requests.",
+    tools=[adk_book_flight_5] 
+)
+
+hotel_booking_agent_parallel = LlmAgent(
+    name="adk_hotel_booking_agent_5",
+    model="gemini-2.0-flash",
+    description= "Agent to book hotels based on user queries.",
+    instruction= "You are a helpful agent who can assist users in booking hotels. You only handle hotel booking. Just handle that part from what the user says, ignore other parts of the requests.",
+    tools=[adk_book_hotel_5] 
+)
+
+trip_summary_agent_parallel = LlmAgent(
+    name="adk_trip_summary_agent_5",
+    model="gemini-2.0-flash",
+    description= "Summarize the travel details from hotel bookings and flight bookings agents.",
+    instruction= "Summarize the travel details from hotel bookings and flight bookings agents. Be concise in response and provide a single sentence summary.",
+    output_key="booking_summary"
+)
+
+# Hybrid approach: ParallelAgent wrapped in SequentialAgent for correct result handling
+parallel_booking_agent = ParallelAgent(
+    name="adk_parallel_booking_coordinator_5",
+    description="Coordinates flight and hotel booking in parallel",
+    sub_agents=[flight_booking_agent_parallel, hotel_booking_agent_parallel],
+)
+
+root_agent_parallel = SequentialAgent(
+    name="adk_supervisor_agent_parallel_5",
+    description=
+        """
+            You are the supervisor agent that coordinates parallel flight and hotel booking,
+            then provides a consolidated summary.
+        """
+    ,
+    sub_agents=[parallel_booking_agent, trip_summary_agent_parallel],
 )

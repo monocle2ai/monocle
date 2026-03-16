@@ -18,9 +18,18 @@ class AdkSpanHandler(SpanHandler):
 
         agent_request_wrapper = None
         try:
-            if instance.config_type.model_fields['agent_class'].default in ['SequentialAgent', 'LoopAgent', 'ParallelAgent']:
+            agent_class = instance.config_type.model_fields['agent_class'].default
+            if agent_class in ['SequentialAgent', 'LoopAgent', 'ParallelAgent']:
                 agent_request_wrapper = to_wrap.copy()
                 agent_request_wrapper["output_processor"] = AGENT_ORCHESTRATOR
+                
+                # Set execution ID scope ONLY for ParallelAgent
+                if agent_class == 'ParallelAgent':
+                    execution_id = kwargs.get('execution_id')
+                    execution_token = set_scope("agentic.executionId", execution_id)
+                    # Combine tokens: if no session token, use execution token
+                    if session_id_token is None:
+                        session_id_token = execution_token
         except (ValueError, AttributeError):
             pass
 

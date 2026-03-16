@@ -1,4 +1,4 @@
-# Monocle Evaluation API Usage
+# Monocle Performance, Quality, and Cost Testing API
 
 This document explains how to use the Monocle evaluation quality, cost, and performance testing utilities with the `monocle_trace_asserter` fixture for validating AI agent quality, safety, and performance.
 
@@ -66,27 +66,27 @@ async def test_tool_evaluation(monocle_trace_asserter):
 
 All metrics provided by the "okahu" evaluator:
 
-| Metric | Possible Values |
-|--------|-----------------|
-| `ai_tone` | not_useful / slightly_useful / very_useful |
-| `answer_relevancy` | yes / no / idk |
-| `argument_correctness` | correct / incorrect / partially_correct |
-| `bias` | unbiased / biased / potentially_biased |
-| `contextual_precision` | high_precision / medium_precision / low_precision |
-| `contextual_recall` | high_recall / medium_recall / low_recall |
-| `contextual_relevancy` | highly_relevant / moderately_relevant / slightly_relevant / irrelevant |
-| `conversation_completeness` | complete / mostly_complete / partially_complete / incomplete |
-| `frustration` | frustrated / ok |
-| `hallucination` | no_hallucination / minor_hallucination / major_hallucination |
-| `knowledge_retention` | excellent_retention / good_retention / poor_retention / no_retention |
-| `mcp_task_completion` | completed / partially_completed / failed / not_attempted |
-| `misuse` | no_misuse / potential_misuse / clear_misuse |
-| `offtopic` | on_topic / off_topic |
-| `pii_leakage` | no_pii / potential_pii / pii_leakage |
-| `role_adherence` | excellent_adherence / good_adherence / poor_adherence / no_adherence |
-| `sentiment` | negative / positive / neutral |
-| `summarization` | excellent / good / fair / poor |
-| `toxicity` | non_toxic / mildly_toxic / moderately_toxic / highly_toxic |
+| Metric | Possible Values | Supported Fact Names |
+|--------|-----------------|----------------------|
+| `ai_tone` | not_useful / slightly_useful / very_useful | traces |
+| `answer_relevancy` | yes / no / idk | traces |
+| `argument_correctness` | correct / incorrect / partially_correct | traces |
+| `bias` | unbiased / biased / potentially_biased | traces |
+| `contextual_precision` | high_precision / medium_precision / low_precision | traces |
+| `contextual_recall` | high_recall / medium_recall / low_recall | traces |
+| `contextual_relevancy` | highly_relevant / moderately_relevant / slightly_relevant / irrelevant | traces, agent_sessions |
+| `conversation_completeness` | complete / mostly_complete / partially_complete / incomplete | traces |
+| `frustration` | frustrated / ok | traces, conversations |
+| `hallucination` | no_hallucination / minor_hallucination / major_hallucination | traces, agent_sessions |
+| `knowledge_retention` | excellent_retention / good_retention / poor_retention / no_retention | traces |
+| `mcp_task_completion` | completed / partially_completed / failed / not_attempted | traces, agent_sessions |
+| `misuse` | no_misuse / potential_misuse / clear_misuse | traces, agent_sessions |
+| `offtopic` | on_topic / off_topic | conversations, assessment, generic |
+| `pii_leakage` | no_pii / potential_pii / pii_leakage | traces, agent_sessions |
+| `role_adherence` | excellent_adherence / good_adherence / poor_adherence / no_adherence | traces, agent_sessions |
+| `sentiment` | negative / positive / neutral | traces, conversations, agent_sessions, inferences, generic |
+| `summarization` | excellent / good / fair / poor | traces |
+| `toxicity` | non_toxic / mildly_toxic / moderately_toxic / highly_toxic | traces, agent_sessions |
 
 ## 3. Using Positive and Negative Expectations
 

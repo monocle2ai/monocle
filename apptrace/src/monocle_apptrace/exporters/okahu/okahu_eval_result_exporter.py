@@ -45,7 +45,8 @@ class OkahuEvalResultExporter:
         self,
         job_id: str,
         eval_result: Any,
-        template_name: str
+        template_name: str,
+        fact_name: Optional[str] = "traces"
     ) -> Dict[str, Any]:
         """
         Export evaluation results to Okahu.
@@ -54,7 +55,7 @@ class OkahuEvalResultExporter:
             job_id: The evaluation job ID from Okahu.
             eval_result: The evaluation results to export.
             template_name: The name of the evaluation template.
-            
+            fact_name: The name of the fact being evaluated.
         Returns:
             Response data from Okahu.
             
@@ -73,7 +74,8 @@ class OkahuEvalResultExporter:
         url = f"{self.endpoint}/v1/eval/jobs/{job_id}/results"
         payload = {
             "evaluation_results": eval_result,
-            "template_name": template_name
+            "template_name": template_name,
+            "fact_name": fact_name
         }
         
         try:

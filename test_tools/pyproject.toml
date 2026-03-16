@@ -3,11 +3,13 @@ requires = ["hatchling","hatch-build-scripts"]
 build-backend = "hatchling.build"
 
 [[tool.hatch.build.hooks.build-scripts.scripts]]
+#commands = [
+#    "echo 'Running a pre-build step..copying license'",
+#    "if [ -f \"LICENSE\" ]; then echo \"✅ LICENSE already exists\"; elif [ -f \"../LICENSE\" ]; then cp \"../LICENSE\" \"LICENSE\" && echo \"✅ LICENSE copied from parent\"; else echo \"❌ ERROR: LICENSE not found\" && exit 1; fi"
+#]
 commands = [
-    "echo 'Running a pre-build step..copying license'",
-    "if [ -f \"LICENSE\" ]; then echo \"✅ LICENSE already exists\"; elif [ -f \"../LICENSE\" ]; then cp \"../LICENSE\" \"LICENSE\" && echo \"✅ LICENSE copied from parent\"; else echo \"❌ ERROR: LICENSE not found\" && exit 1; fi"
+    "python -c \"import shutil; import os; import sys; license_exists = os.path.isfile('LICENSE'); parent_license_exists = os.path.isfile('../LICENSE'); print('Running a pre-build step..copying license'); print('[OK] LICENSE already exists') if license_exists else (shutil.copy2('../LICENSE', 'LICENSE'), print('[OK] LICENSE copied from parent'))[1] if parent_license_exists else (print('[ERROR] ERROR: LICENSE not found'), sys.exit(1))\""
 ]
-
 [project]
 name = "monocle_test_tools"
 version = "0.7.0"
@@ -26,6 +28,20 @@ classifiers = [
     "Intended Audience :: Developers",
     "Topic :: Software Development :: Testing",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+with-no-comparer= [
+    # Core dependencies
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.26.0",
+    "pydantic>=2.11.7",
+    "jsonschema>=4.0.0",
+
+    # Monocle dependencies
+    "monocle_apptrace>=0.5.0",
+
+    # git
+    "GitPython==3.1.45"
 ]
 
 dependencies = [

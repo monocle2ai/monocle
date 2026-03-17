@@ -80,16 +80,6 @@ async def test_v1_agent_sessions_safety_evaluation(monocle_trace_asserter):
     monocle_trace_asserter.check_eval(fact_name="agent_sessions", eval_name="toxicity", not_expected=["highly_toxic", "moderately_toxic", "mildly_toxic"])
 
 @pytest.mark.asyncio
-async def test_v1_generic_and_assessment_evaluation(monocle_trace_asserter):
-    """v1: Evaluate sentiment on generic fact and offtopic on assessment fact."""
-    await monocle_trace_asserter.run_agent_async(root_agent, "google_adk",
-                        "Book a flight from Phoenix to Las Vegas for 1st Sept 2026.")
-    # Explicitly specify fact as "generic" - evaluates with generic fact type (sentiment and offtopic supported)
-    monocle_trace_asserter.with_evaluation("okahu").check_eval(fact_name="generic", eval_name="sentiment", expected=["positive", "neutral"], not_expected="negative")
-    # Explicitly specify fact as "assessment" - evaluates with assessment fact type (only offtopic supported)
-    monocle_trace_asserter.check_eval(fact_name="assessment", eval_name="offtopic", expected="on_topic")
-
-@pytest.mark.asyncio
 @pytest.mark.xfail(reason="This test is expected to fail as the specified template does not exist in Okahu.")
 async def test_v1_invalid_template_nonexistent(monocle_trace_asserter):
     """v1: Test that a completely non-existent template raises an error."""

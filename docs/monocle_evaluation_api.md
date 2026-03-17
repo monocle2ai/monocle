@@ -96,8 +96,6 @@ async def test_with_message(monocle_trace_asserter):
 - **`agent_sessions`** - Evaluates individual agent session spans
 - **`conversations`** - Evaluates conversation-level interactions
 - **`inferences`** - Evaluates individual LLM inference calls
-- **`generic`** - Generic span evaluation (supports sentiment, offtopic)
-- **`assessment`** - Assessment-level evaluation (supports offtopic)
 
 ### When to Specify Fact Names
 
@@ -128,7 +126,6 @@ All metrics provided by the "okahu" evaluator:
 
 | Metric | Possible Values | Supported Fact Names |
 |--------|-----------------|----------------------|
-| `ai_tone` | not_useful / slightly_useful / very_useful | traces |
 | `answer_relevancy` | yes / no / idk | traces |
 | `argument_correctness` | correct / incorrect / partially_correct | traces |
 | `bias` | unbiased / biased / potentially_biased | traces |
@@ -141,10 +138,10 @@ All metrics provided by the "okahu" evaluator:
 | `knowledge_retention` | excellent_retention / good_retention / poor_retention / no_retention | traces |
 | `mcp_task_completion` | completed / partially_completed / failed / not_attempted | traces, agent_sessions |
 | `misuse` | no_misuse / potential_misuse / clear_misuse | traces, agent_sessions |
-| `offtopic` | on_topic / off_topic | conversations, assessment, generic |
+| `offtopic` | on_topic / off_topic | conversations |
 | `pii_leakage` | no_pii / potential_pii / pii_leakage | traces, agent_sessions |
 | `role_adherence` | excellent_adherence / good_adherence / poor_adherence / no_adherence | traces, agent_sessions |
-| `sentiment` | negative / positive / neutral | traces, conversations, agent_sessions, inferences, generic |
+| `sentiment` | negative / positive / neutral | traces, conversations, agent_sessions, inferences |
 | `summarization` | excellent / good / fair / poor | traces |
 | `toxicity` | non_toxic / mildly_toxic / moderately_toxic / highly_toxic | traces, agent_sessions |
 
@@ -250,21 +247,6 @@ async def test_toxicity_check(monocle_trace_asserter):
     monocle_trace_asserter.with_evaluation("okahu")\
         .check_eval(fact_name="agent_sessions", eval_name="toxicity", 
                    not_expected=["highly_toxic", "moderately_toxic", "mildly_toxic"])
-```
-
-**Example 6: Generic and assessment fact types**
-```python
-@pytest.mark.asyncio
-async def test_generic_and_assessment(monocle_trace_asserter):
-    await monocle_trace_asserter.run_agent_async(root_agent, "google_adk", "query")
-    
-    # Evaluate with generic fact type
-    monocle_trace_asserter.with_evaluation("okahu")\
-        .check_eval(fact_name="generic", eval_name="sentiment", 
-                   expected=["positive", "neutral"], not_expected="negative")
-    
-    # Evaluate with assessment fact type
-    monocle_trace_asserter.check_eval(fact_name="assessment", eval_name="offtopic", expected="on_topic")
 ```
 
 ## 5. Running Tests
@@ -451,7 +433,7 @@ check_eval(fact_name, eval_name, expected=None, not_expected=None, message=None)
 ```
 
 **Parameters:**
-- `fact_name`: **(Optional)** The fact type to evaluate (traces, agent_sessions, conversations, inferences, generic, assessment). Defaults to "traces" if omitted.
+- `fact_name`: **(Optional)** The fact type to evaluate (traces, agent_sessions, conversations, inferences). Defaults to "traces" if omitted.
 - `eval_name`: **(Required)** The metric/evaluation name (e.g., "sentiment", "bias", "hallucination")
 - `expected`: **(Optional)** Accepts a **string** or **list of strings** for values that should match
 - `not_expected`: **(Optional)** Accepts a **string** or **list of strings** for values that should NOT match

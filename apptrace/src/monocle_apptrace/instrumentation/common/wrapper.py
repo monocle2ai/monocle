@@ -266,6 +266,10 @@ async def amonocle_iter_wrapper_span_processor(tracer: Tracer, handler: SpanHand
             # Recursive call for the actual span
             async for item in amonocle_iter_wrapper_span_processor(tracer, handler, to_wrap, wrapped, instance, source_path, False, args, kwargs):
                 yield item
+                # Repair monocle context if inner generators leaked theirs (Python 3.11
+                # defers aclose() to GC for non-exhausted async generators).
+                if get_current_monocle_span() is not span:
+                    attach(set_monocle_span_in_context(span))
             span.set_status(StatusCode.OK)
             if not auto_close_span:
                 span.end()
@@ -283,6 +287,8 @@ async def amonocle_iter_wrapper_span_processor(tracer: Tracer, handler: SpanHand
                         async for item in amonocle_iter_wrapper_span_processor(tracer, handler, to_wrap, wrapped, instance, source_path, False, args, kwargs):
                             last_item = item
                             yield item
+                            if get_current_monocle_span() is not span:
+                                attach(set_monocle_span_in_context(span))
                 except Exception as e:
                     ex = e
                     raise
@@ -296,11 +302,23 @@ async def amonocle_iter_wrapper_span_processor(tracer: Tracer, handler: SpanHand
                     logger.info(f"Warning: Error occurred in hydrate_span pre_process_span: {e}")
                 try:
                     skip_execution, last_item = SpanHandler.skip_execution(span)
+                    _has_response_processor = (not auto_close_span
+                        and to_wrap.get("output_processor")
+                        and to_wrap.get("output_processor").get("response_processor"))
+                    _raw_items = [] if _has_response_processor else None
                     if not skip_execution:
                         with SpanHandler.workflow_type(to_wrap, span):
                             async for item in wrapped(*args, **kwargs):
                                 last_item = item
+                                if _raw_items is not None:
+                                    _raw_items.append(item)
                                 yield item
+                                # Repair monocle context after resume from yield.
+                                # In Python 3.11, inner async generators broken out of
+                                # (e.g. tool-call → break) defer aclose() to GC, leaking
+                                # their monocle span into our context.
+                                if get_current_monocle_span() is not span:
+                                    attach(set_monocle_span_in_context(span))
                     else:
                         yield last_item
                 except Exception as e:
@@ -311,8 +329,8 @@ async def amonocle_iter_wrapper_span_processor(tracer: Tracer, handler: SpanHand
                         ret_val = post_process_span(handler, to_wrap, wrapped, instance, args, kwargs, ret_val, span, parent_span, ex)
                         if not auto_close_span:
                             span.end()
-                    if ex is None and not auto_close_span and to_wrap.get("output_processor") and to_wrap.get("output_processor").get("response_processor"):
-                        to_wrap.get("output_processor").get("response_processor")(to_wrap, None, post_process_span_internal)
+                    if ex is None and _has_response_processor:
+                        to_wrap.get("output_processor").get("response_processor")(to_wrap, _raw_items or None, post_process_span_internal)
                     else:
                         last_item = post_process_span_internal(last_item)
     return
@@ -375,14 +393,20 @@ async def amonocle_iter_wrapper(tracer: Tracer, handler: SpanHandler, to_wrap, w
             finally:
                 if MONOCLE_CONTEXT_MARKER.get() is _marker:
                     detach(token)
-                    MONOCLE_CONTEXT_MARKER.reset(_marker_token)
+                    try:
+                        MONOCLE_CONTEXT_MARKER.reset(_marker_token)
+                    except ValueError:
+                        pass
                     # After reset, MONOCLE_CONTEXT_MARKER.get() == _pre_trace_marker again
         return
     finally:
         try:
             if MONOCLE_CONTEXT_MARKER.get() is _pre_trace_marker:
                 handler.post_tracing(to_wrap, wrapped, instance, args, kwargs, None, pre_trace_token)
-                MONOCLE_CONTEXT_MARKER.reset(_pre_trace_marker_token)
+                try:
+                    MONOCLE_CONTEXT_MARKER.reset(_pre_trace_marker_token)
+                except ValueError:
+                    pass
         except Exception as e:
             logger.info(f"Warning: Error occurred in post_tracing: {e}")
 
@@ -482,8 +506,9 @@ def start_as_monocle_span(tracer: Tracer, name: str, auto_close_span: bool) -> I
     _marker = object()
     _marker_token = MONOCLE_CONTEXT_MARKER.set(_marker)
 
+    parent_monocle_span = get_current_monocle_span()
     original_span = get_current_span()
-    monocle_span_token = attach(set_span_in_context(get_current_monocle_span()))
+    monocle_span_token = attach(set_span_in_context(parent_monocle_span))
     # Use tracer.start_span + manual attach instead of start_as_current_span so
     # every context token is owned by us (avoids OTel's internal context manager
     # also trying to detach() in the wrong context).
@@ -499,7 +524,19 @@ def start_as_monocle_span(tracer: Tracer, name: str, auto_close_span: bool) -> I
             detach(new_monocle_token)
             detach(span_token)
             detach(monocle_span_token)
-            MONOCLE_CONTEXT_MARKER.reset(_marker_token)
+            try:
+                MONOCLE_CONTEXT_MARKER.reset(_marker_token)
+            except ValueError:
+                pass
+        else:
+            # Marker mismatch: cleanup is running in a context where the
+            # sentinel was not set (e.g. async-generator GC finalizer or
+            # after intermediate context switches by framework wrappers).
+            # Token-based detach() won't work correctly in this situation,
+            # so force-attach the parent monocle span to restore the
+            # correct span hierarchy for subsequent operations.
+            if parent_monocle_span is not None:
+                attach(set_monocle_span_in_context(parent_monocle_span))
         if auto_close_span:
             span.end()
 

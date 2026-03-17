@@ -92,7 +92,10 @@ def monocle_trace_scope(
     finally:
         if MONOCLE_CONTEXT_MARKER.get() is _marker:
             stop_scope(token)
-            MONOCLE_CONTEXT_MARKER.reset(_marker_token)
+            try:
+                MONOCLE_CONTEXT_MARKER.reset(_marker_token)
+            except ValueError:
+                pass
 
 @asynccontextmanager
 async def amonocle_trace_scope(

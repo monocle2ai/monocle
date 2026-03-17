@@ -106,6 +106,15 @@ class BaseStreamProcessor(ABC):
                 span_processor(self.build_span_result(state, stream_start_time))
             return None
 
+        if isinstance(response, list):
+            # Pre-consumed items from atask_iter_wrapper: process each fragment.
+            for item in response:
+                self.process_fragment(item, state)
+            state.stream_closed_time = state.stream_closed_time or time.time_ns()
+            if span_processor:
+                span_processor(self.create_span_result(state, stream_start_time))
+            return None
+
         if to_wrap:
             if hasattr(response, "__iter__"):
                 wrapper = self._wrap_sync_iterator(response, state, stream_start_time, span_processor)

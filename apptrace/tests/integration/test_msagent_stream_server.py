@@ -93,10 +93,15 @@ def test_msagent_stream_requests_call(setup):
     
 def verify_spans(custom_exporter):
     time.sleep(2)
-    spans = custom_exporter.get_captured_spans()
+    all_spans = custom_exporter.get_captured_spans()
+    # Filter to monocle-instrumented spans only (exclude server/framework spans)
+    spans = [s for s in all_spans if s.attributes and s.attributes.get("monocle_apptrace.version")]
 
-    for span in spans:
-        if span.name  == "agent_framework.ChatAgent.run_stream":
+    trace_ids = set()
+    for span in spans:        
+        trace_ids.add(span.context.trace_id)
+    
+        if span.attributes.get("span.type") == "inference":
             output_event = None
             for event in span.events:
                 if event.name == "data.output":
@@ -106,18 +111,11 @@ def verify_spans(custom_exporter):
             assert output_event is not None, "data.output event should exist"
             response_data = output_event.attributes.get("response", None)
             assert response_data is not None, "response_data should exist"
-            
-        if span.name  == "agent_framework.azure._assistants_client.AzureOpenAIAssistantsClient.get_streaming_response":
-            output_event = None
-            for event in span.events:
-                if event.name == "data.output":
-                    output_event = event
-                    break
-            
-            assert output_event is not None, "data.output event should exist"
-            response_data = output_event.attributes.get("response", None)
-            assert response_data is not None, "response_data should exist"
-
+    
+    assert len(trace_ids) == 1, (
+        f"Expected all monocle spans under one trace, but found {len(trace_ids)} traces: "
+        f"{[hex(tid) for tid in trace_ids]}"
+    )
 
 if __name__ == "__main__":
     pytest.main([__file__, "-s", "--tb=short"])

@@ -3,6 +3,7 @@ import inspect
 import os
 from typing import Optional, Union
 from monocle_test_tools.schema import Evaluation
+from monocle_test_tools.span_loader import JSONSpanLoader
 from .comparer.comparer_manager import get_comparer
 from .comparer.base_comparer import BaseComparer
 from .comparer.default_comparer import DefaultComparer
@@ -62,6 +63,7 @@ class TraceAssertion():
         self._filtered_spans = filtered_spans
         self.fluent_chain = fluent_chain
         self.is_assertion_failed = is_assertion_failed
+        self._skip_export = False
         
     def record_assertion(self, e:AssertionError, fluent_chain:list[str]) -> None:
         """Record an assertion error with its fluent chain context."""
@@ -330,6 +332,47 @@ class TraceAssertion():
     def load_spans(self, spans:list[Span]) -> None:
         """Load spans into the validator's memory exporter for assertions."""
         self.validator.memory_exporter.export(spans)
+
+    def import_traces(self, trace_source:str = "file", trace_id:str = None,
+                      trace_file:str = None, trace_dir:str = None) -> 'TraceAssertion':
+        """Import traces from a file source for assertion.
+
+        Loads previously exported trace spans into the asserter's memory
+        so assertions can be run against them without re-running the agent.
+
+        Args:
+            trace_source: Source type, currently only "file" is supported.
+            trace_id: The trace ID (hex string) to locate the trace file.
+            trace_file: Direct path to a trace JSON file (overrides trace_id lookup).
+            trace_dir: Directory to search for trace files. Defaults to .monocle/test_traces.
+
+        Returns:
+            self for fluent chaining.
+
+        Raises:
+            ValueError: If trace_source is not supported or required params are missing.
+            FileNotFoundError: If no trace file is found for the given trace_id.
+        """
+        if trace_source != "file":
+            raise ValueError(f"Unsupported trace_source: '{trace_source}'. Currently only 'file' is supported.")
+
+        if trace_file is None and trace_id is None:
+            raise ValueError("Either 'trace_id' or 'trace_file' must be provided.")
+
+        if trace_file is None:
+            trace_file = JSONSpanLoader.find_trace_file(trace_id, trace_dir)
+            if trace_file is None:
+                search_dir = trace_dir or os.path.join(".", ".monocle", "test_traces")
+                raise FileNotFoundError(
+                    f"No trace file found for trace_id '{trace_id}' in '{search_dir}'")
+
+        spans = JSONSpanLoader.from_json(trace_file)
+        self.load_spans(spans)
+        # Refresh filtered spans from the newly loaded data
+        self._filtered_spans = self.validator.spans
+        # Skip re-exporting imported traces to avoid duplicate trace files
+        self._skip_export = True
+        return self
 
     def _verify_input_output(self, spans:list[Span], expected_inputs:Optional[list[str]], expected_outputs:Optional[list[str]],
                         comparer:BaseComparer, eval:Optional[Evaluation], positive_test:Optional[bool]=True,

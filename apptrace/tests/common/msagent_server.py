@@ -27,6 +27,19 @@ def book_flight(
 
     return result
 
+def book_hotel(
+    hotel_name: Annotated[str, "The EXACT hotel name extracted from the user's current message"],
+    city: Annotated[str, "The EXACT city extracted from the user's current message"]) -> str:
+    """Books a hotel for a stay.
+
+    Args:
+        hotel_name (str): The name of the hotel to book.
+        city (str): The city where the hotel is located.
+
+    Returns:
+        dict: status and message.
+    """
+    return f"Successfully booked a stay at {hotel_name} in {city}."
 
 def get_agent_for_hosted_mode():
     """Create agent for Azure Hosted Agent deployment"""
@@ -52,7 +65,7 @@ Read the user's current message and extract:
 - Destination location (the place they want to fly TO)
 
 Then call the book_flight function with those exact locations from their message.""",
-        tools=[book_flight],
+        tools=[book_flight, book_hotel],
     )
 
 def start_msgent_server():    

@@ -73,7 +73,7 @@ def test_msagent_stream_requests_call(setup):
             "http://localhost:8088/responses",
             headers={"Content-Type": "application/json"},
             json={
-                "input": "Book a flight from BOM to JFK for January 15th, 2026.",
+                "input": "Book a flight from BOM to JFK for January 15th, 2026. Also book Mariot hotel in JFK city",
                 "stream": True,
             },
             timeout=120,

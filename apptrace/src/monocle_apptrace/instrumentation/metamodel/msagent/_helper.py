@@ -1073,7 +1073,7 @@ def extract_finish_reason(arguments):
                     if hasattr(choice_finish_reason, "value")
                     else str(choice_finish_reason)
                 )
-        if hasattr(response, "text") or hasattr(response, "messages"):
+        if hasattr(response, "text") or hasattr(response, "messages") or hasattr(response, "output_text"):
             return "stop"
     except Exception as exc:
         logger.warning(f"Error extracting finish_reason: {exc}")
@@ -1110,6 +1110,11 @@ def update_span_from_llm_response(response):
             meta_dict["completion_tokens"] = usage.get("completion_tokens", 0)
             meta_dict["prompt_tokens"] = usage.get("prompt_tokens", 0)
             meta_dict["total_tokens"] = usage.get("total_tokens", 0)
+            return meta_dict
+        if usage is not None and hasattr(usage, "input_token_count"):
+            meta_dict["completion_tokens"] = getattr(usage, "output_token_count", 0) or 0
+            meta_dict["prompt_tokens"] = getattr(usage, "input_token_count", 0) or 0
+            meta_dict["total_tokens"] = getattr(usage, "total_token_count", 0) or 0
             return meta_dict
 
         meta_dict.update({"completion_tokens": _get_field(_get_field(result, "usage_details"), "output_token_count", 0)})

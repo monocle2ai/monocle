@@ -67,6 +67,8 @@ def test_msagent_stream_requests_call(setup):
         pytest.skip("AZURE_OPENAI_ENDPOINT and AZURE_OPENAI_API_DEPLOYMENT are required")
 
     try:
+        # Reset captured spans to avoid bleeding from prior test runs
+        setup.reset()
         response = requests.post(
             "http://localhost:8088/responses",
             headers={"Content-Type": "application/json"},

@@ -133,3 +133,12 @@ class MSAgentStreamProcessor(BaseStreamProcessor):
                 self.logger.warning(
                     "Warning: Error occurred while processing tool calls: %s", str(e)
                 )
+
+        # Default finish_reason when the stream completed with text but no
+        # explicit finish_reason was received (common with Assistants API
+        # streaming where finish_reason is not set on individual updates).
+        if not state.finish_reason:
+            if state.tools:
+                state.finish_reason = "tool_calls"
+            elif state.accumulated_response:
+                state.finish_reason = "stop"

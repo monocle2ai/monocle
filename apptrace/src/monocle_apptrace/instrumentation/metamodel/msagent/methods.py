@@ -7,7 +7,10 @@ from monocle_apptrace.instrumentation.common.wrapper import (
 from monocle_apptrace.instrumentation.metamodel.msagent.entities.inference import (
     AGENT, 
     AGENT_REQUEST,
+    AGENT_REQUEST_STREAM,
+    AGENT_STREAM,
     INFERENCE,
+    INFERENCE_STREAM,
     TOOL,
 )
 
@@ -28,7 +31,8 @@ MSAGENT_METHODS = [
         "method": "run_stream",
         "span_handler": "msagent_request_handler",
         "wrapper_method": atask_iter_wrapper,
-        "output_processor": AGENT_REQUEST,
+        # "output_processor": AGENT_REQUEST,
+        "output_processor": AGENT_REQUEST_STREAM,
     },
     {
         "package": "agent_framework",
@@ -44,7 +48,7 @@ MSAGENT_METHODS = [
         "method": "get_streaming_response",
         "span_handler": "msagent_agent_handler",
         "wrapper_method": atask_iter_wrapper,
-        "output_processor": AGENT,
+        "output_processor": AGENT_STREAM,
     },
     {
         "package": "agent_framework.azure._chat_client",
@@ -60,7 +64,7 @@ MSAGENT_METHODS = [
         "method": "get_streaming_response",
         "span_handler": "msagent_agent_handler",
         "wrapper_method": atask_iter_wrapper,
-        "output_processor": AGENT,
+        "output_processor": AGENT_STREAM,
     },
     {
         "package": "agent_framework.azure._assistants_client",
@@ -76,7 +80,7 @@ MSAGENT_METHODS = [
         "method": "get_streaming_response",
         "span_handler": "msagent_agent_handler",
         "wrapper_method": atask_iter_wrapper,
-        "output_processor": AGENT,
+        "output_processor": AGENT_STREAM,
     },
     {
         "package": "agent_framework.openai._chat_client",
@@ -92,7 +96,7 @@ MSAGENT_METHODS = [
         "method": "get_streaming_response",
         "span_handler": "msagent_agent_handler",
         "wrapper_method": atask_iter_wrapper,
-        "output_processor": AGENT,
+        "output_processor": AGENT_STREAM,
     },
     {
         "package": "agent_framework.openai._assistants_client",
@@ -124,11 +128,24 @@ MSAGENT_METHODS = [
         "output_processor": INFERENCE,
     },
     {
+        "package": "agent_framework.azure._assistants_client",
+        "object": "AzureOpenAIAssistantsClient",
+        "method": "_inner_get_streaming_response",
+        "wrapper_method": atask_iter_wrapper,
+        "output_processor": INFERENCE_STREAM,
+    },
+    {
         "package": "agent_framework.openai._assistants_client",
         "object": "OpenAIAssistantsClient",
         "method": "_inner_get_response",
         "wrapper_method": atask_wrapper,
         "output_processor": INFERENCE,
     },
-
+    {
+        "package": "agent_framework.openai._assistants_client",
+        "object": "OpenAIAssistantsClient",
+        "method": "_inner_get_streaming_response",
+        "wrapper_method": atask_iter_wrapper,
+        "output_processor": INFERENCE_STREAM,
+    },
 ]

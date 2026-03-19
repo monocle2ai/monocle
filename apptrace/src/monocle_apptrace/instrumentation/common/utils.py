@@ -1,4 +1,5 @@
 import ast
+import contextvars
 import logging, json
 import os
 import threading
@@ -18,6 +19,15 @@ from monocle_apptrace.instrumentation.common.constants import (
 from importlib.metadata import version
 from opentelemetry.trace.span import INVALID_SPAN
 _MONOCLE_SPAN_KEY = "monocle" + _SPAN_KEY
+
+# Sentinel ContextVar used to detect when an async-generator's finally/cleanup
+# block runs in a different contextvars.Context than where attach() was called
+# (e.g. Python GC finalizer or event-loop asyncgen finalizer).  Each enter-site
+# sets a unique object() marker; cleanup code checks the marker before calling
+# detach() so that cross-context resets don't reach OTel's error logger.
+MONOCLE_CONTEXT_MARKER: contextvars.ContextVar = contextvars.ContextVar(
+    "_monocle_ctx_marker", default=None
+)
 
 T = TypeVar('T')
 U = TypeVar('U')
@@ -538,13 +548,24 @@ def patch_instance_method(obj, method_name, func):
         obj: the instance to patch
         method_name: the name of the method (e.g., '__iter__')
         func: the new function, expecting (self, ...)
+
+    Returns:
+        True if the instance was patched in-place, False if the type
+        cannot be subclassed (e.g. native generator / async_generator).
     """
     cls = obj.__class__
-    # Dynamically create a new class that inherits from obj's class
-    new_cls = type(f"Patched{cls.__name__}", (cls,), {
-        method_name: func
-    })
-    obj.__class__ = new_cls
+    try:
+        # Dynamically create a new class that inherits from obj's class
+        new_cls = type(f"Patched{cls.__name__}", (cls,), {
+            method_name: func
+        })
+        obj.__class__ = new_cls
+        return True
+    except TypeError:
+        # Built-in C-level types such as `generator` and `async_generator`
+        # cannot be subclassed.  Callers should detect this and use a
+        # wrapper object approach instead.
+        return False
 
 
 def set_monocle_span_in_context(

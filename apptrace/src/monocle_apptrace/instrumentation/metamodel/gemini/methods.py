@@ -1,6 +1,7 @@
 from monocle_apptrace.instrumentation.common.wrapper import atask_wrapper, task_wrapper
 from monocle_apptrace.instrumentation.metamodel.gemini.entities.inference import (
     INFERENCE,
+    STREAM_INFERENCE,
 )
 from monocle_apptrace.instrumentation.metamodel.gemini.entities.retrieval import (
     RETRIEVAL,
@@ -20,6 +21,20 @@ GEMINI_METHODS = [
       "method": "generate_content",
       "wrapper_method": atask_wrapper,
       "output_processor": INFERENCE,
+    },
+    {
+      "package": "google.genai.models",
+      "object": "Models",
+      "method": "generate_content_stream",
+      "wrapper_method": task_wrapper,
+      "output_processor": STREAM_INFERENCE,
+    },
+    {
+      "package": "google.genai.models",
+      "object": "AsyncModels",
+      "method": "generate_content_stream",
+      "wrapper_method": atask_wrapper,
+      "output_processor": STREAM_INFERENCE,
     },
     {
       "package": "google.genai.models",

@@ -4,6 +4,12 @@ from monocle_apptrace.instrumentation.metamodel.gemini import (
 )
 from monocle_apptrace.instrumentation.common.utils import get_error_message
 
+
+def process_stream(to_wrap, response, span_processor):
+    from monocle_apptrace.instrumentation.metamodel.gemini.gemini_stream_processor import GeminiStreamProcessor
+    processor = GeminiStreamProcessor()
+    return processor.process_stream(to_wrap, response, span_processor)
+
 INFERENCE = {
     "type": SPAN_TYPES.INFERENCE,
     "attributes": [
@@ -99,4 +105,10 @@ INFERENCE = {
 
 
     ]
+}
+
+STREAM_INFERENCE = {
+    **INFERENCE,
+    "is_auto_close": lambda kwargs: False,
+    "response_processor": process_stream,
 }

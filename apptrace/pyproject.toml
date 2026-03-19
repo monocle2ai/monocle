@@ -140,6 +140,7 @@ dev = [
   'bedrock-agentcore==1.2.0',
   'opentelemetry-semantic-conventions==0.60b1',
   'opentelemetry-semantic-conventions-ai==0.4.13',
+  'azure_ai_agentserver_agentframework==1.0.0b12',
 ]
 
 dev_tranformers = [

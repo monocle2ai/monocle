@@ -55,6 +55,7 @@ def test_gemini_model_sample(setup):
     # logger.info(response.text)
     spans = setup.get_captured_spans()
     check_span(spans)
+    setup.reset()
 
 
 def test_gemini_chat_sample(setup):
@@ -82,6 +83,7 @@ def test_gemini_chat_sample(setup):
 
     spans = setup.get_captured_spans()
     check_span_chat(spans)
+    setup.reset()
 
 def check_span(spans):
     """Verify spans using flexible utilities."""

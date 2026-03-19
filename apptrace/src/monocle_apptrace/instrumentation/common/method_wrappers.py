@@ -7,6 +7,7 @@ from opentelemetry.context import attach, get_current, detach
 from opentelemetry.sdk.trace import Span
 from opentelemetry.trace.span import INVALID_SPAN
 from opentelemetry.trace import get_tracer
+from opentelemetry.trace.status import StatusCode
 from contextlib import contextmanager, asynccontextmanager
 from monocle_apptrace.instrumentation.common.span_handler import SpanHandler
 from monocle_apptrace.instrumentation.common.wrapper import atask_wrapper, get_current_monocle_span, set_monocle_span_in_context, task_wrapper, start_as_monocle_span
@@ -119,8 +120,9 @@ def monocle_trace(
             
             try:
                 yield
-            finally:
-                pass
+            except Exception as ex:
+                span.set_status(StatusCode.ERROR, str(ex))
+                raise
 
             
     except Exception as e:
@@ -156,8 +158,9 @@ async def amonocle_trace(
             
             try:
                 yield
-            finally:
-                pass
+            except Exception as ex:
+                span.set_status(StatusCode.ERROR, str(ex))
+                raise
                 
             
     except Exception as e:

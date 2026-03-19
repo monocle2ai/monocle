@@ -3,8 +3,17 @@ from monocle_apptrace.instrumentation.common.constants import (
     SPAN_SUBTYPES,
     SPAN_TYPES,
 )
+from monocle_apptrace.instrumentation.metamodel.msagent.msagent_stream_processor import (
+    MSAgentStreamProcessor,
+)
 from monocle_apptrace.instrumentation.metamodel.msagent import _helper
 from monocle_apptrace.instrumentation.common.utils import get_error_message, resolve_from_alias
+
+
+def process_msagent_stream(to_wrap, response, span_processor):
+    """Process MS Agent streaming responses and finalize span on stream close."""
+    processor = MSAgentStreamProcessor()
+    return processor.process_stream(to_wrap, response, span_processor)
 
 # For Microsoft Agent Framework, turn doesn't include agent name (follows ADK pattern)
 AGENT_REQUEST = {
@@ -41,6 +50,13 @@ AGENT_REQUEST = {
             ]
         }
     ]
+}
+
+# Streaming variant keeps the turn span open until stream completion.
+AGENT_REQUEST_STREAM = {
+    **AGENT_REQUEST,
+    "is_auto_close": lambda kwargs: False,
+    "response_processor": process_msagent_stream,
 }
 
 # Agent invocation span (agentic.invocation with content_processing subtype)
@@ -105,6 +121,13 @@ AGENT = {
             ],
         },
     ],
+}
+
+# Streaming variant keeps the invocation span open until stream completion.
+AGENT_STREAM = {
+    **AGENT,
+    "is_auto_close": lambda kwargs: False,
+    "response_processor": process_msagent_stream,
 }
 
 
@@ -208,7 +231,7 @@ TOOL = {
             {
                 "_comment": "agent name (owner of the tool)",
                 "attribute": "name",
-                "accessor": lambda arguments: _helper.get_agent_name_from_context(),
+                "accessor": lambda arguments: _helper.get_tool_owner_agent_name(arguments),
             },
             {
                 "_comment": "agent type",
@@ -373,5 +396,13 @@ INFERENCE = {
             ],
         },
     ],
+}
+
+
+# Streaming variant keeps the span open until all chunks are consumed.
+INFERENCE_STREAM = {
+    **INFERENCE,
+    "is_auto_close": lambda kwargs: False,
+    "response_processor": process_msagent_stream,
 }
 

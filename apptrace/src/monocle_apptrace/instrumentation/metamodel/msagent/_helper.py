@@ -74,6 +74,30 @@ def get_agent_name_from_context() -> str:
         return ""
 
 
+def get_tool_owner_agent_name(arguments: Dict[str, Any]) -> str:
+    """Resolve tool-owner agent name with context-first, parent-span fallback strategy."""
+    try:
+        agent_name = get_agent_name_from_context()
+        if agent_name:
+            return agent_name
+
+        parent_span = arguments.get("parent_span")
+        if parent_span:
+            # Preferred propagated key.
+            propagated_name = parent_span.attributes.get("monocle.last.agent.name", "")
+            if propagated_name:
+                return propagated_name
+
+            # Fallback when tool span is directly under an invocation span.
+            direct_parent_name = parent_span.attributes.get("entity.1.name", "")
+            if direct_parent_name:
+                return direct_parent_name
+        return ""
+    except Exception as e:
+        logger.warning(f"Error resolving tool owner agent name: {e}")
+        return ""
+
+
 def get_tool_name(instance: Any) -> str:
     """Get the name of the tool."""
     try:
@@ -435,6 +459,100 @@ def get_from_agent_span_id(arguments: Dict[str, Any]) -> str:
     except Exception as e:
         logger.warning(f"Error extracting from_agent invocation id: {e}")
         return ''
+
+
+def _extract_text_from_part(part: Any) -> str:
+    """Extract text from a content part, including one nested text/value layer."""
+    if part is None:
+        return ""
+
+    if isinstance(part, str):
+        return part
+
+    if isinstance(part, dict):
+        if isinstance(part.get("text"), str):
+            return part.get("text", "")
+        text_obj = part.get("text")
+        if isinstance(text_obj, dict) and isinstance(text_obj.get("value"), str):
+            return text_obj.get("value", "")
+        if isinstance(part.get("value"), str):
+            return part.get("value", "")
+        if isinstance(part.get("content"), str):
+            return part.get("content", "")
+
+    text_attr = getattr(part, "text", None)
+    if isinstance(text_attr, str):
+        return text_attr
+    text_value = getattr(text_attr, "value", None)
+    if isinstance(text_value, str):
+        return text_value
+
+    value_attr = getattr(part, "value", None)
+    if isinstance(value_attr, str):
+        return value_attr
+
+    content_attr = getattr(part, "content", None)
+    if isinstance(content_attr, str):
+        return content_attr
+
+    return ""
+
+
+def _extract_text_from_content(content: Any) -> str:
+    """Extract text from content that may be str/list/object with one nested layer."""
+    if content is None:
+        return ""
+
+    if isinstance(content, str):
+        return content
+
+    if isinstance(content, list):
+        texts = []
+        for part in content:
+            part_text = _extract_text_from_part(part)
+            if part_text:
+                texts.append(part_text)
+        return " ".join(texts)
+
+    if isinstance(content, dict):
+        if isinstance(content.get("content"), list):
+            return _extract_text_from_content(content.get("content"))
+        return _extract_text_from_part(content)
+
+    return _extract_text_from_part(content)
+
+
+def _extract_text_from_output_items(output_items: Any) -> str:
+    """Extract assistant text from output items using one-level nested traversal."""
+    if not isinstance(output_items, list) or len(output_items) == 0:
+        return ""
+
+    for item in reversed(output_items):
+        # Dict form
+        if isinstance(item, dict):
+            item_type = item.get("type")
+            role = item.get("role")
+            if item_type == "message" or role == "assistant":
+                text = _extract_text_from_content(item.get("content"))
+                if text:
+                    return text
+            # Fallback for non-message items carrying output text
+            text = _extract_text_from_content(item.get("output"))
+            if text:
+                return text
+
+        # Object form
+        item_type = getattr(item, "type", None)
+        role = getattr(item, "role", None)
+        if item_type == "message" or role == "assistant":
+            text = _extract_text_from_content(getattr(item, "content", None))
+            if text:
+                return text
+        text = _extract_text_from_content(getattr(item, "output", None))
+        if text:
+            return text
+
+    return ""
     
 def extract_chat_client_input(arguments: Dict[str, Any]) -> str:
     """Extract input from chat client get_response/get_streaming_response arguments."""
@@ -454,6 +572,14 @@ def extract_chat_client_input(arguments: Dict[str, Any]) -> str:
             if isinstance(messages, list) and len(messages) > 0:
                 # Get the last user message (most recent input)
                 last_msg = messages[-1]
+
+                # Dict-based message structure
+                if isinstance(last_msg, dict):
+                    text = _extract_text_from_content(last_msg.get("content"))
+                    if text:
+                        return text
+                    if isinstance(last_msg.get("text"), str):
+                        return last_msg.get("text", "")
                 
                 # Try to extract content from the message object
                 if hasattr(last_msg, "content"):
@@ -462,16 +588,8 @@ def extract_chat_client_input(arguments: Dict[str, Any]) -> str:
                     if isinstance(content, str):
                         return content
                     elif isinstance(content, list):
-                        # Extract text from content parts
-                        text_parts = []
-                        for part in content:
-                            if isinstance(part, dict) and "text" in part:
-                                text_parts.append(part["text"])
-                            elif hasattr(part, "text"):
-                                text_parts.append(str(part.text))
-                            elif isinstance(part, str):
-                                text_parts.append(part)
-                        return " ".join(text_parts) if text_parts else str(content)
+                        deep_text = _extract_text_from_content(content)
+                        return deep_text if deep_text else str(content)
                     else:
                         return str(content)
                 
@@ -501,11 +619,31 @@ def extract_chat_client_response(result: Any, span: Any = None) -> str:
         # Handle streaming result (SimpleNamespace from process_msagent_stream)
         if hasattr(result, "type") and hasattr(result, "output_text"):
             if getattr(result, "type", None) == "stream":
-                return str(result.output_text) if result.output_text else ""
+                if result.output_text:
+                    return str(result.output_text)
+
+                # Go one level deeper for stream responses that keep content in response/output.
+                response_obj = getattr(result, "response", None)
+                if response_obj is not None:
+                    nested_output = getattr(response_obj, "output", None)
+                    nested_text = _extract_text_from_output_items(nested_output)
+                    if nested_text:
+                        return nested_text
         
         # Check for accumulated_text attribute (set by wrapper for streaming)
         if hasattr(result, "accumulated_text"):
             return str(result.accumulated_text) if result.accumulated_text else ""
+
+        # Some streaming adapters expose response.output on the result directly.
+        if hasattr(result, "response"):
+            nested_output = getattr(result.response, "output", None)
+            nested_text = _extract_text_from_output_items(nested_output)
+            if nested_text:
+                return nested_text
+        if hasattr(result, "output"):
+            nested_text = _extract_text_from_output_items(result.output)
+            if nested_text:
+                return nested_text
         
         # Handle ChatResponseUpdate (streaming) - has 'text' attribute
         if hasattr(result, "text"):
@@ -935,7 +1073,7 @@ def extract_finish_reason(arguments):
                     if hasattr(choice_finish_reason, "value")
                     else str(choice_finish_reason)
                 )
-        if hasattr(response, "text") or hasattr(response, "messages"):
+        if hasattr(response, "text") or hasattr(response, "messages") or hasattr(response, "output_text"):
             return "stop"
     except Exception as exc:
         logger.warning(f"Error extracting finish_reason: {exc}")
@@ -966,13 +1104,26 @@ def update_span_from_llm_response(response):
         result = response.get("result") if isinstance(response, dict) else response
         if result is None:
             return meta_dict
+
+        usage = _get_field(result, "usage")
+        if isinstance(usage, dict):
+            meta_dict["completion_tokens"] = usage.get("completion_tokens", 0)
+            meta_dict["prompt_tokens"] = usage.get("prompt_tokens", 0)
+            meta_dict["total_tokens"] = usage.get("total_tokens", 0)
+            return meta_dict
+        if usage is not None and hasattr(usage, "input_token_count"):
+            meta_dict["completion_tokens"] = getattr(usage, "output_token_count", 0) or 0
+            meta_dict["prompt_tokens"] = getattr(usage, "input_token_count", 0) or 0
+            meta_dict["total_tokens"] = getattr(usage, "total_token_count", 0) or 0
+            return meta_dict
+
         meta_dict.update({"completion_tokens": _get_field(_get_field(result, "usage_details"), "output_token_count", 0)})
         meta_dict.update({"prompt_tokens": _get_field(_get_field(result, "usage_details"), "input_token_count", 0)})
-        meta_dict.update({"total_tokens": _get_field(_get_field(result, "usage_details"), "total_token_count", 0)}    )
+        meta_dict.update({"total_tokens": _get_field(_get_field(result, "usage_details"), "total_token_count", 0)})
         if meta_dict:
             return meta_dict
         if _response_contains_tool_calls(result):
-            return {"completion_tokens": 0,"prompt_tokens": 0,"total_tokens": 0,}
+            return {"completion_tokens": 0, "prompt_tokens": 0, "total_tokens": 0}
     except Exception as exc:
         logger.warning(f"Error updating span from LLM response: {exc}")
     return meta_dict

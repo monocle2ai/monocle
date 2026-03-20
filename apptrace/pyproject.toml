@@ -135,11 +135,11 @@ dev = [
   'google-adk',
   'openai-agents',
   'azure-identity',
-  'agent-framework-core==1.0.0b260130',
   'agent-framework-azure-ai',
   'bedrock-agentcore==1.2.0',
   'opentelemetry-semantic-conventions==0.60b1',
   'opentelemetry-semantic-conventions-ai==0.4.13',
+  'azure_ai_agentserver_agentframework==1.0.0b12',
   'agent-framework-core==1.0.0b260107',
 ]
 

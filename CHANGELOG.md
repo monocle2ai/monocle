@@ -1,3 +1,17 @@
+## Version 0.7.7 (2026-03-20)
+
+- Implement MS Agent streaming support ([#487](https://github.com/monocle2ai/monocle/pull/487))
+- Implement Azure and OpenAI specific stream processors ([#474](https://github.com/monocle2ai/monocle/pull/474))
+- Support under_duration assertion in monocle test frameworks ([#484](https://github.com/monocle2ai/monocle/pull/484))
+- MS Agent with OpenAI inference integration ([#483](https://github.com/monocle2ai/monocle/pull/483))
+- MS agent inference span fix ([#464](https://github.com/monocle2ai/monocle/pull/464))
+- Monocle Test Execution in Jenkins ([#479](https://github.com/monocle2ai/monocle/pull/479))
+- ms agent runner ([#480](https://github.com/monocle2ai/monocle/pull/480))
+- MS foundry type in workflow ([#482](https://github.com/monocle2ai/monocle/pull/482))
+- Changes for Crew eval ([#473](https://github.com/monocle2ai/monocle/pull/473))
+- Implement duplicate setup detection for telemetry configuration and add integration tests ([#478](https://github.com/monocle2ai/monocle/pull/478))
+- Added input and output in FastApi, Flask, Aiohhtp for POST method ([#481](https://github.com/monocle2ai/monocle/pull/481))
+
 ## Version 0.7.6 (2026-02-27)
 
 - Updated runners to include session id details ([#461](https://github.com/monocle2ai/monocle/pull/461))

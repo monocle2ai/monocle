@@ -74,7 +74,7 @@ async def test_openai_assistants_multi_turn_session(setup):
         model_id=OPENAI_CHAT_MODEL_ID,
     )
 
-    flight_agent = client.as_agent(
+    flight_agent = client.create_agent(
         name="MS_OpenAI_Flight_Booking_Agent",
         instructions=(
             "You are a Flight Booking Assistant. "

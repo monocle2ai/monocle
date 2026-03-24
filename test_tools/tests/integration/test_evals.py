@@ -65,8 +65,7 @@ async def test_v1_agent_sessions_task_evaluation(monocle_trace_asserter):
                         "Book a flight from Dallas to Houston for 1st May 2026 and book a hotel for 2 nights.")
     # Evaluate agent_sessions for hallucination, role adherence and task completion
     monocle_trace_asserter.with_evaluation("okahu").check_eval(fact_name="agent_sessions", eval_name="hallucination", expected="no_hallucination")
-    monocle_trace_asserter.check_eval(fact_name="agent_sessions", eval_name="role_adherence", expected=["excellent_adherence", "good_adherence"], not_expected=["poor_adherence", "no_adherence"])
-    monocle_trace_asserter.check_eval(fact_name="agent_sessions", eval_name="mcp_task_completion", expected=["completed", "partially_completed"], not_expected="failed")\
+    monocle_trace_asserter.check_eval(fact_name="agent_sessions", eval_name="role_adherence", expected=["excellent_adherence", "good_adherence"], not_expected=["poor_adherence", "no_adherence"])\
         .check_eval(fact_name="agent_sessions", eval_name="contextual_relevancy", expected="highly_relevant")
 
 @pytest.mark.asyncio

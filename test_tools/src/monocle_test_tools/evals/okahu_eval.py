@@ -90,6 +90,10 @@ class OkahuEval(BaseEval):
         
         if not filtered_spans:
             raise ValueError("No spans provided for evaluation.")
+        
+        # Validate and default fact_name if not provided
+        if not fact_name:
+            fact_name = "traces"
 
         # Get API credentials
         api_key = (os.getenv("OKAHU_API_KEY")).strip()
@@ -159,6 +163,7 @@ class OkahuEval(BaseEval):
             job_id = data.get("job_id")
             eval_result = data.get("result")
             label = json.loads(eval_result[0].get('result')).get('label')
+            explanation = json.loads(eval_result[0].get('result')).get('explanation')
         except Exception as exc:
             raise AssertionError(
                 f"Unexpected response format from evaluation service. Expected 'result' key in response. Received: {data}"
@@ -174,7 +179,7 @@ class OkahuEval(BaseEval):
                     fact_name=fact_name
                 )
         
-        return label
+        return label, explanation
     
     def cleanup(self):
         """Clean up trace from Okahu evaluation service. Called once at test end."""

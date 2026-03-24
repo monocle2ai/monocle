@@ -46,7 +46,7 @@ class OkahuEvalResultExporter:
         job_id: str,
         eval_result: Any,
         template_name: str,
-        fact_name: Optional[str] = "traces"
+        fact_name: str = "traces"
     ) -> Dict[str, Any]:
         """
         Export evaluation results to Okahu.
@@ -70,6 +70,8 @@ class OkahuEvalResultExporter:
             raise ValueError("job_id is required.")
         if not template_name:
             raise ValueError("template_name is required.")
+        if not fact_name:
+            raise ValueError("fact_name is required.")
         
         url = f"{self.endpoint}/v1/eval/jobs/{job_id}/results"
         payload = {

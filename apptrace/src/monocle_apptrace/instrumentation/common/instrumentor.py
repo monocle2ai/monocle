@@ -146,6 +146,9 @@ class MonocleInstrumentor(BaseInstrumentor):
                 logger.debug(f"ignoring module {e.name}")
 
             except Exception as ex:
+                if target_package == "agent_framework._tools":
+                    logger.debug("ignoring wrap exception for package: agent_framework._tools")
+                    continue
                 logger.error(f"""_instrument wrap exception: {str(ex)}
                             for package: {target_package},
                             object:{target_object},

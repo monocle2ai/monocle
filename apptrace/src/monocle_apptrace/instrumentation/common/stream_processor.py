@@ -4,6 +4,7 @@ Base streaming processor using Template Method pattern for generic framework sup
 
 import logging
 import time
+import types as _builtin_types
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from types import SimpleNamespace
@@ -86,21 +87,48 @@ class BaseStreamProcessor(ABC):
     # PUBLIC API - Main entry point (do not override)
     # =============================================================================
     
-    def process_stream(self, to_wrap: bool, response: Any, span_processor: Optional[Callable]) -> None:
-        """Template method for processing streaming responses."""
+    def process_stream(self, to_wrap: Any, response: Any, span_processor: Optional[Callable]) -> Optional[Any]:
+        """Template method for processing streaming responses.
+
+        Returns a wrapper object when the response is a native Python generator
+        (which cannot be patched in-place), or None when patching succeeded.
+        """
         stream_start_time = time.time_ns()
         state = self.initialize_state(stream_start_time)
-        
+        wrapper = None
+
+        if response is None:
+            # The iter wrapper already consumed the stream before calling response_processor.
+            # Fire span_processor immediately so the span is hydrated and closed.
+            if span_processor:
+                self.assemble_data(state)
+                state.stream_closed_time = time.time_ns()
+                span_processor(self.build_span_result(state, stream_start_time))
+            return None
+
+        if isinstance(response, list):
+            # Pre-consumed items from atask_iter_wrapper: process each fragment.
+            for item in response:
+                self.process_fragment(item, state)
+            state.stream_closed_time = state.stream_closed_time or time.time_ns()
+            if span_processor:
+                span_processor(self.create_span_result(state, stream_start_time))
+            return None
+
         if to_wrap:
             if hasattr(response, "__iter__"):
-                self._wrap_sync_iterator(response, state, stream_start_time, span_processor)
+                wrapper = self._wrap_sync_iterator(response, state, stream_start_time, span_processor)
             elif hasattr(response, "__next__"):
                 self._wrap_sync_next(response, state, stream_start_time, span_processor)
-            
+
             if hasattr(response, "__aiter__"):
-                self._wrap_async_iterator(response, state, stream_start_time, span_processor)
+                async_wrapper = self._wrap_async_iterator(response, state, stream_start_time, span_processor)
+                if async_wrapper is not None:
+                    wrapper = async_wrapper
             elif hasattr(response, "__anext__"):
                 self._wrap_async_next(response, state, stream_start_time, span_processor)
+
+        return wrapper
     
     # =============================================================================
     # ABSTRACT METHODS - Must be implemented by subclasses
@@ -251,11 +279,15 @@ class BaseStreamProcessor(ABC):
     # INTERNAL IMPLEMENTATION - Do not override these methods
     # =============================================================================
     
-    def _wrap_sync_iterator(self, response: Any, state: StreamState, 
-                           stream_start_time: int, span_processor: Optional[Callable]) -> None:
-        """Wrap synchronous iterator."""
+    def _wrap_sync_iterator(self, response: Any, state: StreamState,
+                           stream_start_time: int, span_processor: Optional[Callable]) -> Optional[Any]:
+        """Wrap synchronous iterator.
+
+        Returns a SyncGeneratorWrapper when the response is a native generator
+        that cannot be patched in-place, or None when patching succeeded.
+        """
         original_iter = response.__iter__
-        
+
         def new_iter(self_iter):
             iterator = original_iter()
             while True:
@@ -268,14 +300,21 @@ class BaseStreamProcessor(ABC):
                         ret_val = self.create_span_result(state, stream_start_time)
                         span_processor(ret_val)
                     break
-        
-        patch_instance_method(response, "__iter__", new_iter)
+
+        if not patch_instance_method(response, "__iter__", new_iter):
+            # Native C-level generator — return a wrapper object instead
+            return self._create_sync_generator_wrapper(response, state, stream_start_time, span_processor)
+        return None
     
     def _wrap_async_iterator(self, response: Any, state: StreamState,
-                            stream_start_time: int, span_processor: Optional[Callable]) -> None:
-        """Wrap asynchronous iterator."""
+                            stream_start_time: int, span_processor: Optional[Callable]) -> Optional[Any]:
+        """Wrap asynchronous iterator.
+
+        Returns an AsyncGeneratorWrapper when the response is a native async generator
+        that cannot be patched in-place, or None when patching succeeded.
+        """
         original_iter = response.__aiter__
-        
+
         async def new_aiter(self_iter):
             iterator = original_iter()
             while True:
@@ -288,8 +327,11 @@ class BaseStreamProcessor(ABC):
                         ret_val = self.create_span_result(state, stream_start_time)
                         span_processor(ret_val)
                     break
-        
-        patch_instance_method(response, "__aiter__", new_aiter)
+
+        if not patch_instance_method(response, "__aiter__", new_aiter):
+            # Native C-level async_generator — return a wrapper object instead
+            return self._create_async_generator_wrapper(response, state, stream_start_time, span_processor)
+        return None
 
     def _wrap_sync_next(self, response: Any, state: StreamState,
                         stream_start_time: int, span_processor: Optional[Callable]) -> None:
@@ -327,6 +369,76 @@ class BaseStreamProcessor(ABC):
 
         patch_instance_method(response, "__anext__", new_anext)
     
+    def _create_sync_generator_wrapper(self, response: Any, state: StreamState,
+                                       stream_start_time: int, span_processor: Optional[Callable]) -> Any:
+        """Create a wrapper object for native Python generators that cannot be subclassed."""
+        processor = self
+
+        class SyncGeneratorWrapper:
+            """Wraps a native generator, intercepts each item, and fires span_processor on exhaustion."""
+
+            def __init__(self):
+                self._gen = response
+
+            def __iter__(self):
+                return self
+
+            def __next__(self):
+                try:
+                    item = next(self._gen)
+                    processor.process_fragment(item, state)
+                    return item
+                except StopIteration:
+                    if span_processor:
+                        ret_val = processor.create_span_result(state, stream_start_time)
+                        span_processor(ret_val)
+                    raise
+
+            @property
+            def text(self):
+                """Return the accumulated text after the stream has been fully consumed."""
+                return state.accumulated_response
+
+            def __getattr__(self, name):
+                return getattr(self._gen, name)
+
+        return SyncGeneratorWrapper()
+
+    def _create_async_generator_wrapper(self, response: Any, state: StreamState,
+                                        stream_start_time: int, span_processor: Optional[Callable]) -> Any:
+        """Create a wrapper object for native async generators that cannot be subclassed."""
+        processor = self
+
+        class AsyncGeneratorWrapper:
+            """Wraps a native async_generator, intercepts each item, and fires span_processor on exhaustion."""
+
+            def __init__(self):
+                self._gen = response
+
+            def __aiter__(self):
+                return self
+
+            async def __anext__(self):
+                try:
+                    item = await self._gen.__anext__()
+                    processor.process_fragment(item, state)
+                    return item
+                except StopAsyncIteration:
+                    if span_processor:
+                        ret_val = processor.create_span_result(state, stream_start_time)
+                        span_processor(ret_val)
+                    raise
+
+            @property
+            def text(self):
+                """Return the accumulated text after the stream has been fully consumed."""
+                return state.accumulated_response
+
+            def __getattr__(self, name):
+                return getattr(self._gen, name)
+
+        return AsyncGeneratorWrapper()
+
     def process_fragment(self, item: Any, state: StreamState) -> None:
         """Template method for processing a single stream fragment."""
         try:

@@ -110,10 +110,13 @@ class MSAgentRequestHandler(SpanHandler):
             # AssistantsClient: ChatAgent.run creates turn only, AssistantsClient methods create invocation
             if not is_scope_set(scope_name):
                 # Create turn scope, AssistantsClient will create invocation later
-                logger.debug(f"AssistantsClient: setting output_processor=AGENT_REQUEST")
                 alternate_to_wrap = to_wrap.copy()
-                alternate_to_wrap["output_processor"] = AGENT_REQUEST
-        
+                # For streaming variants (e.g. run_stream), the original output_processor is
+                # AGENT_REQUEST_STREAM which has response_processor and is_auto_close=False.
+                # Preserve it so the stream processor runs and populates data.output.response.
+                original_processor = to_wrap.get("output_processor")
+                if not (original_processor and original_processor.get("response_processor")):
+                    alternate_to_wrap["output_processor"] = AGENT_REQUEST        
         return context_token, alternate_to_wrap
     
     def post_tracing(self, to_wrap, wrapped, instance, args, kwargs, result, token):

@@ -45,6 +45,7 @@ class FileSpanExporter(SpanExporterBase):
             self.task_processor.start()
         self.last_file_processed:str = None
         self.last_trace_id = None
+        self._root_span_seen: set = set()  # traces where root arrived but child hasn't yet
 
     def export(self, spans: Sequence[ReadableSpan]) -> SpanExportResult:
         is_root_span = any(not span.parent for span in spans)
@@ -163,8 +164,25 @@ class FileSpanExporter(SpanExporterBase):
                     print(f"Error formatting span {span.context.span_id}: {e}")
                     continue
         
-        # Close handles for traces with root spans
+        # Close handles for traces that are complete (have both root and child spans)
+        traces_to_close = set()
         for trace_id in root_span_traces:
+            has_child_spans = any(s.parent for s in spans_by_trace.get(trace_id, []))
+            if has_child_spans:
+                # Root + child in same batch: complete trace, close now
+                traces_to_close.add(trace_id)
+                self._root_span_seen.discard(trace_id)
+            else:
+                # Root only: child may arrive in a later batch, defer closing
+                self._root_span_seen.add(trace_id)
+
+        # Also close traces where root was seen earlier and child just arrived
+        for trace_id in spans_by_trace:
+            if trace_id in self._root_span_seen and trace_id not in root_span_traces:
+                traces_to_close.add(trace_id)
+                self._root_span_seen.discard(trace_id)
+
+        for trace_id in traces_to_close:
             self._close_trace_handle(trace_id)
         
         # Flush remaining handles

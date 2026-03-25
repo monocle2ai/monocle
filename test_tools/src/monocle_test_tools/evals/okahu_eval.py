@@ -48,22 +48,65 @@ class OkahuEval(BaseEval):
         self._trace_exported = True
         return trace_id
     
+    def verify_eval_template_exists(self, eval_name: str, fact_name: str = "traces"):
+        """Helper method to verify the specified evaluation template exists in Okahu before submitting eval job."""
+        api_key = (os.getenv("OKAHU_API_KEY")).strip()
+        if not api_key:
+            raise AssertionError("OKAHU_API_KEY is not configured.")
+        
+        base = os.getenv("OKAHU_EVALUATION_ENDPOINT", OKAHU_PROD_EVALUATION_ENDPOINT).rstrip("/")
+        list_url = f"{base}/v1/eval/templates"
+        headers = {"x-api-key": api_key}
+        params = {"fact_name": fact_name}
+        
+        try:
+            response = requests.get(url=list_url, headers=headers, params=params)
+            response.raise_for_status()
+            templates = response.json().get("templates", [])
+            
+            # Check if a template exists with both matching name and group_by
+            matching_template = None
+            for template in templates:
+                if template.get("name") == eval_name and template.get("group_by") == fact_name:
+                    matching_template = template
+                    break
+            
+            if not matching_template:
+                # Format available templates to show only name and group_by
+                available_templates = [
+                    {"name": t.get("name"), "group_by": t.get("group_by")} 
+                    for t in templates
+                ]
+                raise AssertionError(
+                    f"Evaluation template with name '{eval_name}' and group_by '{fact_name}' not found in Okahu. "
+                    f"Available templates: {available_templates}"
+                )
+        except requests.RequestException as exc:
+            raise AssertionError(f"Failed to verify evaluation template existence: {exc}") from exc
+
     def evaluate(self, filtered_spans:Optional[list[Span]] = [],  eval_name:Optional[str] = "", fact_name: Optional[str] = "traces", eval_args: dict = {}) -> Union[str,dict]:
         if not eval_name:
             raise ValueError("eval_name is required for evaluation.")
         
         if not filtered_spans:
             raise ValueError("No spans provided for evaluation.")
+        
+        # Validate and default fact_name if not provided
+        if not fact_name:
+            fact_name = "traces"
 
         # Get API credentials
         api_key = (os.getenv("OKAHU_API_KEY")).strip()
         if not api_key:
             raise AssertionError("OKAHU_API_KEY is not configured.")
 
-        # LAZY EXPORT: Export on first eval call only
+        # Export on first eval call only
         if not self._trace_exported:
             self.export_trace(filtered_spans)
         
+        # Verify eval template exists before submitting job
+        self.verify_eval_template_exists(eval_name=eval_name, fact_name=fact_name)
+
         #setting parameters, headers, payload for eval job submission
         trace_id = self._current_trace_id
         span = filtered_spans[0]
@@ -74,7 +117,7 @@ class OkahuEval(BaseEval):
         end_span_ns = span.end_time + 24 * 60 * 60 * 1e9  # 24 hours after the first span's end time, in nanoseconds
         start = datetime.fromtimestamp(start_span_ns / 1e9, timezone.utc).strftime('%Y-%m-%dT%H:%M:%S.%fZ')
         end = datetime.fromtimestamp(end_span_ns / 1e9, timezone.utc).strftime('%Y-%m-%dT%H:%M:%S.%fZ')
-
+        
         headers = {"x-api-key": api_key}
         payload = {"template_name": eval_name}
         params = {
@@ -83,7 +126,7 @@ class OkahuEval(BaseEval):
             "end_time": end,
             "breakdown_filter": "traces",
             "trace_id": trace_id, 
-            "fact_name": "traces",
+            "fact_name": fact_name,
             "shadow_eval": True
         }
         
@@ -93,8 +136,7 @@ class OkahuEval(BaseEval):
                 url=submit_url,
                 headers=headers,
                 json=payload,
-                params=params,
-                timeout=30
+                params=params
             )
         except requests.Timeout as exc:
             raise AssertionError(f"Evaluation service request timed out: {exc}") from exc
@@ -121,6 +163,7 @@ class OkahuEval(BaseEval):
             job_id = data.get("job_id")
             eval_result = data.get("result")
             label = json.loads(eval_result[0].get('result')).get('label')
+            explanation = json.loads(eval_result[0].get('result')).get('explanation')
         except Exception as exc:
             raise AssertionError(
                 f"Unexpected response format from evaluation service. Expected 'result' key in response. Received: {data}"
@@ -132,10 +175,11 @@ class OkahuEval(BaseEval):
                 result_exporter.export_results(
                     job_id=job_id,
                     eval_result=eval_result,
-                    template_name=eval_name
+                    template_name=eval_name,
+                    fact_name=fact_name
                 )
         
-        return label
+        return label, explanation
     
     def cleanup(self):
         """Clean up trace from Okahu evaluation service. Called once at test end."""

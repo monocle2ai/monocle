@@ -1,11 +1,15 @@
 import datetime
 import json
+import logging
 import os
 import glob
 from typing import Any, Dict, List, Optional
+import requests
 from opentelemetry.sdk.trace import ReadableSpan, Status, StatusCode, Event, Resource
 from opentelemetry import trace as trace_api
 from monocle_apptrace.exporters.file_exporter import DEFAULT_TRACE_FOLDER
+
+logger = logging.getLogger(__name__)
 
 
 class JSONSpanLoader:
@@ -58,16 +62,35 @@ class JSONSpanLoader:
 
     @staticmethod
     def _from_dict(span_data: Dict[str, Any]) -> ReadableSpan:
-        """Create a ReadableSpan instance from a dictionary."""
-        # Parse context
+        """Create a ReadableSpan instance from a dictionary.
+
+        Handles both the local file export format and the Okahu API format:
+        - File format: name, context.trace_id, context.span_id, parent_id, kind, resource, links
+        - Okahu format: span_name, trace_id, span_id (top-level), no parent_id/kind/resource/links
+        """
+        # Resolve span name: "name" (file format) or "span_name" (Okahu format)
+        span_name = span_data.get("name") or span_data.get("span_name", "unknown")
+
+        # Parse context — file format uses nested "context" dict, Okahu uses top-level fields
         context = None
         if span_data.get("context"):
             context = JSONSpanLoader._parse_context(span_data["context"])
+        elif span_data.get("trace_id") and span_data.get("span_id"):
+            trace_id_str = str(span_data["trace_id"]).replace("0x", "")
+            span_id_str = str(span_data["span_id"]).replace("0x", "")
+            context = trace_api.SpanContext(
+                trace_id=int(trace_id_str, 16),
+                span_id=int(span_id_str, 16),
+                is_remote=False,
+                trace_flags=trace_api.TraceFlags.DEFAULT,
+                trace_state=None,
+            )
 
         # Parse parent context
         parent = None
-        if span_data.get("parent_id"):
-            parent_span_id = int(span_data["parent_id"], 16)
+        parent_id_str = span_data.get("parent_id") or span_data.get("parent_span_id")
+        if parent_id_str:
+            parent_span_id = int(str(parent_id_str).replace("0x", ""), 16)
             if context:
                 parent = trace_api.SpanContext(
                     trace_id=context.trace_id,
@@ -90,9 +113,16 @@ class JSONSpanLoader:
         status = Status(StatusCode.UNSET)
         if span_data.get("status"):
             status_data = span_data["status"]
-            status_code = getattr(StatusCode, status_data["status_code"], StatusCode.UNSET)
-            description = status_data.get("description")
-            status = Status(status_code, description)
+            if isinstance(status_data, str):
+                # Handle plain string status e.g. "OK", "ok", "ERROR", "UNSET"
+                status_code = getattr(StatusCode, status_data.upper(), StatusCode.UNSET)
+                status = Status(status_code)
+            elif isinstance(status_data, dict):
+                # Handle dict status e.g. {"status_code": "OK"} or {"code": "ok"}
+                code_str = (status_data.get("status_code") or status_data.get("code") or "UNSET").upper()
+                status_code = getattr(StatusCode, code_str, StatusCode.UNSET)
+                description = status_data.get("description") or status_data.get("message")
+                status = Status(status_code, description)
 
         # Parse kind
         kind = trace_api.SpanKind.INTERNAL
@@ -128,12 +158,17 @@ class JSONSpanLoader:
         if span_data.get("resource"):
             resource = Resource.create(span_data["resource"].get("attributes", {}))
 
+        # Normalise attributes – flatten structured "entity" list from Okahu
+        # into the flat "entity.N.key" format used by the validator.
+        attributes = span_data.get("attributes") or {}
+        attributes = JSONSpanLoader._normalize_attributes(attributes)
+
         return ReadableSpan(
-            name=span_data["name"],
+            name=span_name,
             context=context,
             parent=parent,
             resource=resource,
-            attributes=span_data.get("attributes"),
+            attributes=attributes,
             events=events,
             links=links,
             kind=kind,
@@ -160,3 +195,278 @@ class JSONSpanLoader:
         """Convert ISO format timestamp string to nanoseconds."""
         dt = datetime.datetime.fromisoformat(iso_str.replace('Z', '+00:00'))
         return int(dt.timestamp() * 1e9)
+
+    @staticmethod
+    def _normalize_attributes(attributes: Dict[str, Any]) -> Dict[str, Any]:
+        """Normalise attributes from Okahu structured format to flat format.
+
+        Okahu returns entities as:
+            {"entity": [{"name": "foo", "type": "tool.adk"}, ...], "entity.count": 2}
+        The validator expects:
+            {"entity.1.name": "foo", "entity.1.type": "tool.adk", "entity.count": 2}
+
+        This method converts the structured list into the flattened format while
+        preserving all other attributes unchanged.
+        """
+        if not isinstance(attributes, dict):
+            return attributes
+
+        entity_list = attributes.get("entity")
+        if not isinstance(entity_list, list):
+            return attributes
+
+        # Check if the list contains dicts (Okahu structured format)
+        if not entity_list or not isinstance(entity_list[0], dict):
+            return attributes
+
+        normalised = {k: v for k, v in attributes.items() if k != "entity"}
+        for idx, entity in enumerate(entity_list, start=1):
+            if isinstance(entity, dict):
+                for key, value in entity.items():
+                    normalised[f"entity.{idx}.{key}"] = value
+        if "entity.count" not in normalised:
+            normalised["entity.count"] = len(entity_list)
+        return normalised
+
+
+class OkahuSpanLoader:
+    """Utility class to load spans from Okahu trace service.
+
+    Uses the Okahu REST API:
+        - GET /api/v1/workflows/<wf_name>/traces?duration_fact=<fact>&fact_ids=<id>
+          Get traces matching a fact (e.g. ``agentic_session``).
+        - GET /api/v1/workflows/<wf_name>/traces/<trace_id>/spans
+          Get spans for a trace, optionally filtered by session.
+
+    Base URL defaults to https://api.okahu.co and can be overridden
+    with the OKAHU_API_ENDPOINT environment variable.
+    """
+
+    @staticmethod
+    def _get_api_base(endpoint: Optional[str] = None) -> str:
+        """Return the Okahu API base URL (no trailing slash)."""
+        return (endpoint or os.environ.get("OKAHU_API_ENDPOINT", OKAHU_PROD_API_ENDPOINT)).rstrip("/")
+
+    @staticmethod
+    def _get_headers(api_key: Optional[str] = None) -> dict:
+        """Return common request headers."""
+        key = api_key or os.environ.get("OKAHU_API_KEY")
+        if not key:
+            raise ValueError("OKAHU_API_KEY is not configured. Set the environment variable or pass api_key.")
+        return {
+            "Content-Type": "application/json",
+            "x-api-key": key
+        }
+
+    @staticmethod
+    def _do_get(url: str, headers: dict, params: Optional[dict] = None,
+                timeout: int = 30, context_msg: str = "") -> Any:
+        """Execute a GET request with standard error handling."""
+        try:
+            response = requests.get(url=url, headers=headers, params=params, timeout=timeout)
+            response.raise_for_status()
+        except requests.Timeout as exc:
+            raise ConnectionError(f"Okahu request timed out ({context_msg}): {exc}") from exc
+        except requests.HTTPError as exc:
+            raise ConnectionError(
+                f"Okahu request failed ({context_msg}). "
+                f"HTTP {response.status_code}: {response.text}"
+            ) from exc
+        except requests.RequestException as exc:
+            raise ConnectionError(f"Failed to reach Okahu service ({context_msg}): {exc}") from exc
+
+        try:
+            return response.json()
+        except ValueError as exc:
+            raise ConnectionError(
+                f"Okahu returned invalid JSON ({context_msg}): {response.text}"
+            ) from exc
+
+    @staticmethod
+    def _unwrap_list(data: Any, wrapper_keys: tuple, context_msg: str = "") -> list:
+        """Unwrap a list from a possible dict wrapper."""
+        if isinstance(data, dict):
+            for key in wrapper_keys:
+                if key in data and isinstance(data[key], list):
+                    return data[key]
+            raise ConnectionError(
+                f"Okahu response is a dict but no known list key found ({context_msg}). "
+                f"Keys: {list(data.keys())}"
+            )
+        if isinstance(data, list):
+            return data
+        raise ConnectionError(
+            f"Expected a list from Okahu ({context_msg}), got: {type(data).__name__}"
+        )
+
+    # ------------------------------------------------------------------ #
+    #  Public helpers                                                     #
+    # ------------------------------------------------------------------ #
+
+    @staticmethod
+    def get_trace_ids(
+        workflow_name: str,
+        fact_name: str,
+        fact_id: str,
+        endpoint: Optional[str] = None,
+        api_key: Optional[str] = None,
+        timeout: int = 30,
+    ) -> List[str]:
+        """Fetch trace IDs from Okahu filtered by a fact.
+
+        Uses:  GET /api/v1/workflows/<wf>/traces?duration_fact=<fact_name>&fact_ids=<fact_id>
+
+        Args:
+            workflow_name: The workflow / service name registered in Okahu.
+            fact_name: The fact to filter by (e.g. ``agentic_session``).
+            fact_id: The fact value (e.g. a session ID).
+            endpoint: Okahu API base URL override.
+            api_key: Okahu API key override.
+            timeout: Request timeout in seconds.
+
+        Returns:
+            A list of trace ID strings.
+        """
+        base = OkahuSpanLoader._get_api_base(endpoint)
+        headers = OkahuSpanLoader._get_headers(api_key)
+        url = f"{base}/api/v1/workflows/{workflow_name}/traces"
+        params = {
+            "duration_fact": fact_name,
+            "fact_ids": fact_id,
+        }
+
+        data = OkahuSpanLoader._do_get(
+            url, headers, params=params, timeout=timeout,
+            context_msg=f"traces for {fact_name}='{fact_id}' in workflow '{workflow_name}'"
+        )
+
+        trace_list = OkahuSpanLoader._unwrap_list(
+            data, ("traces", "data", "results"),
+            context_msg=f"traces for {fact_name}='{fact_id}'"
+        )
+
+        trace_ids = []
+        for item in trace_list:
+            if isinstance(item, dict) and "trace_id" in item:
+                trace_ids.append(item["trace_id"])
+            elif isinstance(item, str):
+                trace_ids.append(item)
+
+        logger.debug(
+            "Found %d trace(s) for %s='%s' in workflow '%s'",
+            len(trace_ids), fact_name, fact_id, workflow_name,
+        )
+        return trace_ids
+
+    @staticmethod
+    def get_spans(
+        workflow_name: str,
+        trace_id: str,
+        filter_fact: Optional[str] = None,
+        filter_fact_id: Optional[str] = None,
+        endpoint: Optional[str] = None,
+        api_key: Optional[str] = None,
+        timeout: int = 30,
+    ) -> List[ReadableSpan]:
+        """Fetch spans from Okahu for a given trace_id.
+
+        Uses:  GET /api/v1/workflows/<wf>/traces/<trace_id>/spans
+        Optionally appends ``?filter_fact=<fact>&filter_fact_id=<id>``
+        to filter spans server-side (e.g. by session).
+
+        Args:
+            workflow_name: The workflow / service name registered in Okahu.
+            trace_id: The trace ID (hex string) to fetch spans for.
+            filter_fact: Optional server-side span filter fact name.
+            filter_fact_id: Optional server-side span filter fact value.
+            endpoint: Okahu API base URL override.
+            api_key: Okahu API key override.
+            timeout: Request timeout in seconds.
+
+        Returns:
+            A list of ReadableSpan instances.
+
+        Raises:
+            ValueError: If OKAHU_API_KEY is not configured.
+            ConnectionError: If the request to Okahu fails.
+        """
+        # Strip 0x prefix if present
+        trace_id = trace_id.replace("0x", "")
+
+        base = OkahuSpanLoader._get_api_base(endpoint)
+        headers = OkahuSpanLoader._get_headers(api_key)
+        url = f"{base}/api/v1/workflows/{workflow_name}/traces/{trace_id}/spans"
+
+        params = {}
+        if filter_fact and filter_fact_id:
+            params["filter_fact"] = filter_fact
+            params["filter_fact_id"] = filter_fact_id
+
+        span_data_list = OkahuSpanLoader._do_get(
+            url, headers, params=params or None, timeout=timeout,
+            context_msg=f"spans for trace_id '{trace_id}' in workflow '{workflow_name}'"
+        )
+
+        span_data_list = OkahuSpanLoader._unwrap_list(
+            span_data_list, ("spans", "batch", "data", "results", "trace_spans"),
+            context_msg=f"spans for trace_id '{trace_id}'"
+        )
+
+        span_list = []
+        for item in span_data_list:
+            span = JSONSpanLoader._from_dict(span_data=item)
+            span_list.append(span)
+
+        logger.debug("Loaded %d spans from Okahu for trace_id '%s'", len(span_list), trace_id)
+        return span_list
+
+    @staticmethod
+    def load_by_session(
+        workflow_name: str,
+        session_id: str,
+        endpoint: Optional[str] = None,
+        api_key: Optional[str] = None,
+        timeout: int = 30,
+    ) -> List[ReadableSpan]:
+        """Fetch all spans for every trace in a session.
+
+        1. GET traces with ``duration_fact=agentic_session&fact_ids=<session_id>``
+        2. For each trace, GET spans with ``filter_fact=agent_sessions&filter_fact_id=<session_id>``
+        3. Convert event arrays into ``event.x.property`` format and return ReadableSpan objects.
+
+        Args:
+            workflow_name: The workflow / service name registered in Okahu.
+            session_id: The agent session ID.
+            endpoint: Okahu API base URL override.
+            api_key: Okahu API key override.
+            timeout: Request timeout in seconds.
+
+        Returns:
+            A flat list of ReadableSpan instances from all matching traces.
+        """
+        trace_ids = OkahuSpanLoader.get_trace_ids(
+            workflow_name,
+            fact_name="agentic_session",
+            fact_id=session_id,
+            endpoint=endpoint, api_key=api_key, timeout=timeout,
+        )
+        if not trace_ids:
+            raise ConnectionError(
+                f"No traces found for session '{session_id}' in workflow '{workflow_name}'"
+            )
+
+        all_spans: List[ReadableSpan] = []
+        for tid in trace_ids:
+            spans = OkahuSpanLoader.get_spans(
+                workflow_name, tid,
+                filter_fact="agent_sessions",
+                filter_fact_id=session_id,
+                endpoint=endpoint, api_key=api_key, timeout=timeout,
+            )
+            all_spans.extend(spans)
+
+        logger.debug(
+            "Loaded %d total spans across %d trace(s) for session '%s'",
+            len(all_spans), len(trace_ids), session_id,
+        )
+        return all_spans

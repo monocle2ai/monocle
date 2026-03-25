@@ -3,7 +3,7 @@ import inspect
 import os
 from typing import Optional, Union
 from monocle_test_tools.schema import Evaluation
-from monocle_test_tools.span_loader import JSONSpanLoader
+from monocle_test_tools.span_loader import JSONSpanLoader, OkahuSpanLoader
 from .comparer.comparer_manager import get_comparer
 from .comparer.base_comparer import BaseComparer
 from .comparer.default_comparer import DefaultComparer
@@ -333,40 +333,73 @@ class TraceAssertion():
         """Load spans into the validator's memory exporter for assertions."""
         self.validator.memory_exporter.export(spans)
 
-    def import_traces(self, trace_source:str = "file", trace_id:str = None,
-                      trace_file:str = None, trace_dir:str = None) -> 'TraceAssertion':
-        """Import traces from a file source for assertion.
+    def import_traces(self, trace_source: str, id: str,
+                      fact_name: Optional[str] = "trace",
+                      workflow_name: Optional[str] = None) -> 'TraceAssertion':
+        """Import traces from a source for assertion.
 
         Loads previously exported trace spans into the asserter's memory
         so assertions can be run against them without re-running the agent.
 
         Args:
-            trace_source: Source type, currently only "file" is supported.
-            trace_id: The trace ID (hex string) to locate the trace file.
-            trace_file: Direct path to a trace JSON file (overrides trace_id lookup).
-            trace_dir: Directory to search for trace files. Defaults to .monocle/test_traces.
+            trace_source: Source type — ``"file"`` or ``"okahu"``.
+            id: Identifier whose meaning depends on *fact_name*:
+                - When fact_name is ``"trace"`` → a trace ID (hex string).
+                - When fact_name is ``"session"`` → an agent session ID.
+            fact_name: What *id* represents.
+                ``"trace"`` (default) — *id* is a single trace ID.
+                ``"session"`` — *id* is a session ID; all traces in that
+                session are fetched and their spans loaded.
+                For ``trace_source="file"`` only ``"trace"`` is supported.
+            workflow_name: Okahu workflow / service name
+                (required when ``trace_source="okahu"``).
 
         Returns:
             self for fluent chaining.
 
         Raises:
-            ValueError: If trace_source is not supported or required params are missing.
-            FileNotFoundError: If no trace file is found for the given trace_id.
+            ValueError: If arguments are invalid or incomplete.
+            FileNotFoundError: If no local trace file is found (file source).
+            ConnectionError: If fetching from Okahu fails (okahu source).
         """
-        if trace_source != "file":
-            raise ValueError(f"Unsupported trace_source: '{trace_source}'. Currently only 'file' is supported.")
+        if trace_source not in ("file", "okahu"):
+            raise ValueError(
+                f"Unsupported trace_source: '{trace_source}'. "
+                "Supported sources: 'file', 'okahu'."
+            )
+        if not id:
+            raise ValueError("'id' is required.")
 
-        if trace_file is None and trace_id is None:
-            raise ValueError("Either 'trace_id' or 'trace_file' must be provided.")
+        if trace_source == "okahu":
+            if workflow_name is None:
+                raise ValueError("'workflow_name' is required for okahu trace source.")
 
-        if trace_file is None:
-            trace_file = JSONSpanLoader.find_trace_file(trace_id, trace_dir)
+            if fact_name == "session":
+                # Session-based: get traces for this session, then spans
+                spans = OkahuSpanLoader.load_by_session(
+                    workflow_name=workflow_name,
+                    session_id=id,
+                )
+            else:
+                # Direct trace_id lookup
+                spans = OkahuSpanLoader.get_spans(
+                    workflow_name=workflow_name,
+                    trace_id=id,
+                )
+        else:
+            # File source — fact_name must be "trace"
+            if fact_name != "trace":
+                raise ValueError(
+                    "Only fact_name='trace' is supported for file trace source."
+                )
+            trace_file = JSONSpanLoader.find_trace_file(id)
             if trace_file is None:
-                search_dir = trace_dir or os.path.join(".", ".monocle", "test_traces")
+                search_dir = os.path.join(".", ".monocle", "test_traces")
                 raise FileNotFoundError(
-                    f"No trace file found for trace_id '{trace_id}' in '{search_dir}'")
+                    f"No trace file found for trace_id '{id}' in '{search_dir}'")
 
-        spans = JSONSpanLoader.from_json(trace_file)
+            spans = JSONSpanLoader.from_json(trace_file)
+
         self.load_spans(spans)
         # Refresh filtered spans from the newly loaded data
         self._filtered_spans = self.validator.spans

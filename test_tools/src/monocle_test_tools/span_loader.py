@@ -245,7 +245,7 @@ class OkahuSpanLoader:
     @staticmethod
     def _get_api_base(endpoint: Optional[str] = None) -> str:
         """Return the Okahu API base URL (no trailing slash)."""
-        return (endpoint or os.environ.get("OKAHU_API_ENDPOINT", OKAHU_PROD_API_ENDPOINT)).rstrip("/")
+        return (endpoint or os.environ.get("OKAHU_API_ENDPOINT", '')).rstrip("/")
 
     @staticmethod
     def _get_headers(api_key: Optional[str] = None) -> dict:
@@ -426,11 +426,11 @@ class OkahuSpanLoader:
         session_id: str,
         endpoint: Optional[str] = None,
         api_key: Optional[str] = None,
-        timeout: int = 30,
+        timeout: int = 60,
     ) -> List[ReadableSpan]:
         """Fetch all spans for every trace in a session.
 
-        1. GET traces with ``duration_fact=agentic_session&fact_ids=<session_id>``
+        1. GET traces with ``duration_fact=agent_sessions&fact_ids=<session_id>``
         2. For each trace, GET spans with ``filter_fact=agent_sessions&filter_fact_id=<session_id>``
         3. Convert event arrays into ``event.x.property`` format and return ReadableSpan objects.
 
@@ -446,7 +446,7 @@ class OkahuSpanLoader:
         """
         trace_ids = OkahuSpanLoader.get_trace_ids(
             workflow_name,
-            fact_name="agentic_session",
+            fact_name="agent_sessions",
             fact_id=session_id,
             endpoint=endpoint, api_key=api_key, timeout=timeout,
         )

@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import time
 from datetime import datetime, timezone
 from opentelemetry.sdk.trace import Span
 import requests
@@ -84,53 +85,65 @@ class OkahuEval(BaseEval):
         except requests.RequestException as exc:
             raise AssertionError(f"Failed to verify evaluation template existence: {exc}") from exc
 
-    def evaluate(self, filtered_spans:Optional[list[Span]] = [],  eval_name:Optional[str] = "", fact_name: Optional[str] = "traces", eval_args: dict = {}) -> Union[str,dict]:
-        if not eval_name:
-            raise ValueError("eval_name is required for evaluation.")
-        
+    def enumerate_fact_ids(self, filtered_spans: list[Span], fact_name: str) -> list[str]:
+        """Enumerate unique fact IDs for a supported fact name from spans."""
         if not filtered_spans:
-            raise ValueError("No spans provided for evaluation.")
-        
-        # Validate and default fact_name if not provided
-        if not fact_name:
-            fact_name = "traces"
+            return []
 
-        # Get API credentials
-        api_key = (os.getenv("OKAHU_API_KEY")).strip()
-        if not api_key:
-            raise AssertionError("OKAHU_API_KEY is not configured.")
+        def _trace_id(span: Span) -> str:
+            return format(span.get_span_context().trace_id, '032x')
 
-        # Export on first eval call only
-        if not self._trace_exported:
-            self.export_trace(filtered_spans)
-        
-        # Verify eval template exists before submitting job
-        self.verify_eval_template_exists(eval_name=eval_name, fact_name=fact_name)
+        def _span_id(span: Span) -> str:
+            return format(span.get_span_context().span_id, '016x')
 
-        #setting parameters, headers, payload for eval job submission
-        trace_id = self._current_trace_id
-        span = filtered_spans[0]
-        workflow_name = span.attributes.get("workflow.name")
-        base = os.getenv("OKAHU_EVALUATION_ENDPOINT", OKAHU_PROD_EVALUATION_ENDPOINT).rstrip("/")
-        submit_url = f"{base}/v1/eval/jobs"
-        start_span_ns = span.start_time - 24 * 60 * 60 * 1e9  # 24 hours before the first span's start time, in nanoseconds
-        end_span_ns = span.end_time + 24 * 60 * 60 * 1e9  # 24 hours after the first span's end time, in nanoseconds
-        start = datetime.fromtimestamp(start_span_ns / 1e9, timezone.utc).strftime('%Y-%m-%dT%H:%M:%S.%fZ')
-        end = datetime.fromtimestamp(end_span_ns / 1e9, timezone.utc).strftime('%Y-%m-%dT%H:%M:%S.%fZ')
-        
-        headers = {"x-api-key": api_key}
-        payload = {"template_name": eval_name}
-        params = {
-            "workflow_name": workflow_name,
-            "start_time": start,
-            "end_time": end,
-            "breakdown_filter": "traces",
-            "trace_id": trace_id, 
-            "fact_name": fact_name,
-            "shadow_eval": True
-        }
-        
-        # submit evaluation job to okahu and handle response/errors
+        def _attr(span: Span, key: str) -> str:
+            value = span.attributes.get(key)
+            return str(value).strip() if value else ""
+
+        def _span_type(span: Span) -> str:
+            return _attr(span, "span.type")
+
+        unique_ids: set[str] = set()
+        ordered_ids: list[str] = []
+
+        def _add(candidate: str) -> None:
+            if candidate and candidate not in unique_ids:
+                unique_ids.add(candidate)
+                ordered_ids.append(candidate)
+
+        for span in filtered_spans:
+            if fact_name == "agent_sessions":
+                _add(_attr(span, "scope.session_id"))
+            elif fact_name == "agent_requests":
+                if _span_type(span) == "agentic.turn":
+                    _add(_attr(span, "scope.agentic.turn"))
+            elif fact_name == "agent_operations":
+                if _span_type(span) == "agentic.invocation":
+                    _add(_attr(span, "scope.agentic.invocation"))
+            elif fact_name == "tool_operations":
+                if _span_type(span) == "agentic.tool.invocation":
+                    _add(f"{_trace_id(span)}.{_span_id(span)}")
+            elif fact_name == "inferences":
+                if _span_type(span) == "inference":
+                    _add(f"{_trace_id(span)}.{_span_id(span)}")
+            elif fact_name == "traces":
+                _add(_trace_id(span))
+            elif fact_name == "conversations":
+                _add(_attr(span, "scope.msteams.conversation.id"))
+            elif fact_name == "git_commits":
+                _add(_attr(span, "scope.git.commit.hash"))
+            elif fact_name == "test_runs":
+                _add(_attr(span, "scope.git.run.id"))
+            elif fact_name == "tests":
+                run_id = _attr(span, "scope.git.run.id")
+                test_name = _attr(span, "scope.test_name")
+                if run_id and test_name:
+                    _add(f"{run_id}.{test_name}")
+
+        return ordered_ids
+
+    def _submit_eval_job(self, submit_url: str, headers: dict, payload: dict, params: dict) -> tuple[str, str, str, list[dict]]:
+        """Submit one eval job and parse result payload."""
         try:
             response = requests.post(
                 url=submit_url,
@@ -142,6 +155,7 @@ class OkahuEval(BaseEval):
             raise AssertionError(f"Evaluation service request timed out: {exc}") from exc
         except requests.RequestException as exc:
             raise AssertionError(f"Failed to reach evaluation service: {exc}") from exc
+
         try:
             response.raise_for_status()
         except requests.HTTPError as exc:
@@ -152,14 +166,17 @@ class OkahuEval(BaseEval):
                 ) from exc
             response_body = response.text or "<empty body>"
             raise AssertionError(f"Evaluation service returned HTTP {status_code}: {response_body}") from exc
+
         content_type = response.headers.get("Content-Type", "").lower()
         if "application/json" not in content_type:
             raise AssertionError(f"Evaluation service returned non-JSON response: {response.text}")
+
         try:
             data = response.json()
         except ValueError as exc:
             raise AssertionError(f"Evaluation service returned invalid JSON: {response.text}") from exc
-        try: 
+
+        try:
             job_id = data.get("job_id")
             eval_result = data.get("result")
             label = json.loads(eval_result[0].get('result')).get('label')
@@ -168,17 +185,162 @@ class OkahuEval(BaseEval):
             raise AssertionError(
                 f"Unexpected response format from evaluation service. Expected 'result' key in response. Received: {data}"
             ) from exc
+
+        return job_id, label, explanation, eval_result
+
+    def _poll_eval_result(self, base: str, headers: dict, job_id: str, timeout_seconds: int = 30, interval_seconds: int = 1) -> tuple[list[dict], str, str]:
+        """Poll Okahu job endpoints until evaluation result is available."""
+        if not job_id:
+            raise AssertionError("Evaluation service did not return a job_id.")
+
+        urls = [
+            f"{base}/v1/eval/jobs/{job_id}",
+            f"{base}/v1/eval/jobs/{job_id}/results",
+        ]
+        deadline = time.time() + timeout_seconds
+        last_payload = None
+
+        while time.time() < deadline:
+            for url in urls:
+                try:
+                    response = requests.get(url=url, headers=headers)
+                    if response.status_code >= 400:
+                        continue
+                    payload = response.json()
+                    last_payload = payload
+                except Exception:
+                    continue
+
+                eval_result = payload.get("result") or payload.get("evaluation_results") or []
+                if eval_result:
+                    try:
+                        parsed = json.loads(eval_result[0].get("result"))
+                        return eval_result, parsed.get("label"), parsed.get("explanation")
+                    except Exception as exc:
+                        raise AssertionError(
+                            f"Unexpected response format from evaluation service while polling job results. Received: {payload}"
+                        ) from exc
+
+            time.sleep(interval_seconds)
+
+        raise AssertionError(
+            f"Evaluation job '{job_id}' did not produce results within {timeout_seconds}s. Last payload: {last_payload}"
+        )
+
+    def evaluate(self, filtered_spans: Optional[list[Span]] = [], eval_name: Optional[str] = "", fact_name: Optional[str] = "traces", eval_args: dict = {}) -> Union[str, dict]:
+        if not eval_name:
+            raise ValueError("eval_name is required for evaluation.")
         
-        # Export eval results if okahu exporter is configured
-        if "okahu" in (os.getenv("MONOCLE_EXPORTER", "")):
-            with OkahuEvalResultExporter(api_key=api_key, endpoint=base) as result_exporter:
-                result_exporter.export_results(
-                    job_id=job_id,
-                    eval_result=eval_result,
-                    template_name=eval_name,
-                    fact_name=fact_name
+        if not filtered_spans:
+            raise ValueError("No spans provided for evaluation.")
+        
+        # Validate and default fact_name if not provided
+        if not fact_name:
+            fact_name = "traces"
+
+        # Get API credentials
+        api_key = (os.getenv("OKAHU_API_KEY") or "").strip()
+        if not api_key:
+            raise AssertionError("OKAHU_API_KEY is not configured.")
+
+        # Export on first eval call only
+        if not self._trace_exported:
+            self.export_trace(filtered_spans)
+        
+        # Verify eval template exists before submitting job
+        self.verify_eval_template_exists(eval_name=eval_name, fact_name=fact_name)
+
+        # setting parameters, headers, payload for eval job submission
+        trace_id = self._current_trace_id
+        span = filtered_spans[0]
+        workflow_name = span.attributes.get("workflow.name")
+        base = os.getenv("OKAHU_EVALUATION_ENDPOINT", OKAHU_PROD_EVALUATION_ENDPOINT).rstrip("/")
+        submit_url = f"{base}/v1/eval/jobs"
+        start_span_ns = span.start_time - 24 * 60 * 60 * 1e9  # 24 hours before the first span's start time, in nanoseconds
+        end_span_ns = span.end_time + 24 * 60 * 60 * 1e9  # 24 hours after the first span's end time, in nanoseconds
+        start = datetime.fromtimestamp(start_span_ns / 1e9, timezone.utc).strftime('%Y-%m-%dT%H:%M:%S.%fZ')
+        end = datetime.fromtimestamp(end_span_ns / 1e9, timezone.utc).strftime('%Y-%m-%dT%H:%M:%S.%fZ')
+
+        fact_ids = self.enumerate_fact_ids(filtered_spans=filtered_spans, fact_name=fact_name)
+        if not fact_ids:
+            raise AssertionError(f"No fact IDs found in spans for fact_name='{fact_name}'.")
+
+        headers = {"x-api-key": api_key}
+        payload = {"template_name": eval_name}
+        label = None
+        explanation = ""
+
+        for fact_id in fact_ids:
+            params = {
+                "workflow_name": workflow_name,
+                "start_time": start,
+                "end_time": end,
+                "breakdown_filter": fact_name,
+                "trace_id": fact_id,
+                "fact_name": fact_name,
+                "shadow_eval": True
+            }
+            
+            # submit evaluation job to okahu and handle response/errors
+            try:
+                response = requests.post(
+                    url=submit_url,
+                    headers=headers,
+                    json=payload,
+                    params=params
                 )
-        
+            except requests.Timeout as exc:
+                raise AssertionError(f"Evaluation service request timed out: {exc}") from exc
+            except requests.RequestException as exc:
+                raise AssertionError(f"Failed to reach evaluation service: {exc}") from exc
+            try:
+                response.raise_for_status()
+            except requests.HTTPError as exc:
+                status_code = response.status_code
+                if status_code == 404:
+                    raise AssertionError(
+                        "Trace not found in evaluation service. Confirm the span data was ingested before running check_eval."
+                    ) from exc
+                response_body = response.text or "<empty body>"
+                raise AssertionError(f"Evaluation service returned HTTP {status_code}: {response_body}") from exc
+            content_type = response.headers.get("Content-Type", "").lower()
+            if "application/json" not in content_type:
+                raise AssertionError(f"Evaluation service returned non-JSON response: {response.text}")
+            try:
+                data = response.json()
+            except ValueError as exc:
+                raise AssertionError(f"Evaluation service returned invalid JSON: {response.text}") from exc
+            try:
+                job_id = data.get("job_id")
+                eval_result = data.get("result") or []
+
+                if not eval_result:
+                    eval_result, label, explanation = self._poll_eval_result(
+                        base=base,
+                        headers=headers,
+                        job_id=job_id,
+                    )
+                else:
+                    parsed = json.loads(eval_result[0].get("result"))
+                    label = parsed.get("label")
+                    explanation = parsed.get("explanation")
+            except AssertionError:
+                raise
+            except Exception as exc:
+                raise AssertionError(
+                    f"Unexpected response format from evaluation service. Expected 'result' key in response. Received: {data}"
+                ) from exc
+            
+            # Export eval results if okahu exporter is configured
+            if "okahu" in (os.getenv("MONOCLE_EXPORTER", "")):
+                with OkahuEvalResultExporter(api_key=api_key, endpoint=base) as result_exporter:
+                    result_exporter.export_results(
+                        job_id=job_id,
+                        eval_result=eval_result,
+                        template_name=eval_name,
+                        fact_name=fact_name
+                    )
+
         return label, explanation
     
     def cleanup(self):
@@ -187,7 +349,7 @@ class OkahuEval(BaseEval):
             return  # Nothing to clean up
         
         # Get API credentials
-        api_key = (os.getenv("OKAHU_API_KEY")).strip()
+        api_key = (os.getenv("OKAHU_API_KEY") or "").strip()
         if not api_key:
             raise AssertionError("OKAHU_API_KEY is not configured.")
         

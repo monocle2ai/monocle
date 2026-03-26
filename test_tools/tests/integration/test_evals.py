@@ -105,7 +105,14 @@ async def test_v1_invalid_template_wrong_fact_name_frustration(monocle_trace_ass
     # frustration exists for conversations and traces, but NOT for inferences
     monocle_trace_asserter.with_evaluation("okahu").check_eval(fact_name="inferences", eval_name="frustration", expected="ok")
 
-
+@pytest.mark.asyncio
+async def test_eval_fact_name_trace_inference(monocle_trace_asserter):
+    """v0: Basic sentiment, bias evaluation on trace - only specify eval name and expected value."""
+    await monocle_trace_asserter.run_agent_async(root_agent, "google_adk",
+                        "Book a flight from San Jose to Seattle for 27th Nov 2025.")
+    # Fact is implicit (trace), only specify eval template name and expected value
+    monocle_trace_asserter.with_evaluation("okahu").check_eval("sentiment", "positive", fact_name="inferences")\
+        .check_eval("bias", "unbiased")
 
 if __name__ == "__main__":
     pytest.main([__file__]) 

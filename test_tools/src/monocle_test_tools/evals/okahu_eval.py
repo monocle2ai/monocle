@@ -1,7 +1,6 @@
 import json
 import logging
 import os
-import time
 from datetime import datetime, timezone
 from opentelemetry.sdk.trace import Span
 import requests
@@ -188,45 +187,6 @@ class OkahuEval(BaseEval):
 
         return job_id, label, explanation, eval_result
 
-    def _poll_eval_result(self, base: str, headers: dict, job_id: str, timeout_seconds: int = 30, interval_seconds: int = 1) -> tuple[list[dict], str, str]:
-        """Poll Okahu job endpoints until evaluation result is available."""
-        if not job_id:
-            raise AssertionError("Evaluation service did not return a job_id.")
-
-        urls = [
-            f"{base}/v1/eval/jobs/{job_id}",
-            f"{base}/v1/eval/jobs/{job_id}/results",
-        ]
-        deadline = time.time() + timeout_seconds
-        last_payload = None
-
-        while time.time() < deadline:
-            for url in urls:
-                try:
-                    response = requests.get(url=url, headers=headers)
-                    if response.status_code >= 400:
-                        continue
-                    payload = response.json()
-                    last_payload = payload
-                except Exception:
-                    continue
-
-                eval_result = payload.get("result") or payload.get("evaluation_results") or []
-                if eval_result:
-                    try:
-                        parsed = json.loads(eval_result[0].get("result"))
-                        return eval_result, parsed.get("label"), parsed.get("explanation")
-                    except Exception as exc:
-                        raise AssertionError(
-                            f"Unexpected response format from evaluation service while polling job results. Received: {payload}"
-                        ) from exc
-
-            time.sleep(interval_seconds)
-
-        raise AssertionError(
-            f"Evaluation job '{job_id}' did not produce results within {timeout_seconds}s. Last payload: {last_payload}"
-        )
-
     def evaluate(self, filtered_spans: Optional[list[Span]] = [], eval_name: Optional[str] = "", fact_name: Optional[str] = "traces", eval_args: dict = {}) -> Union[str, dict]:
         if not eval_name:
             raise ValueError("eval_name is required for evaluation.")
@@ -313,17 +273,9 @@ class OkahuEval(BaseEval):
             try:
                 job_id = data.get("job_id")
                 eval_result = data.get("result") or []
-
-                if not eval_result:
-                    eval_result, label, explanation = self._poll_eval_result(
-                        base=base,
-                        headers=headers,
-                        job_id=job_id,
-                    )
-                else:
-                    parsed = json.loads(eval_result[0].get("result"))
-                    label = parsed.get("label")
-                    explanation = parsed.get("explanation")
+                parsed = json.loads(eval_result[0].get("result"))
+                label = parsed.get("label")
+                explanation = parsed.get("explanation")
             except AssertionError:
                 raise
             except Exception as exc:

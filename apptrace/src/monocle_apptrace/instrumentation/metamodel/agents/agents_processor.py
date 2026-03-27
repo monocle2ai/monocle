@@ -148,7 +148,7 @@ class AgentsSpanHandler(BaseSpanHandler):
         agent_name = get_agent_name(args, kwargs)
         context = set_value(AGENT_NAME_KEY, agent_name)
         context = set_value(AGENT_PREFIX_KEY, DELEGATION_NAME_PREFIX, context)
-        return attach(context)
+        return attach(context), None
 
     def post_task_processing(self, to_wrap, wrapped, instance, args, kwargs, result, ex, span, parent_span):
         """Post-processing for agent tasks."""

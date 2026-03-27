@@ -46,7 +46,7 @@ agent_test_cases:list[dict] = [
     },
 ]
 @pytest.mark.asyncio
-@pytest.mark.parametrize("test_case", agent_test_cases)
+@pytest.mark.parametrize("monocle_test_case", agent_test_cases)
 #@MonocleValidator().monocle_testcase(agent_test_cases)
 async def test_run_agents(monocle_test_case):
    await MonocleValidator().test_agent_async(root_agent, "google_adk", monocle_test_case)

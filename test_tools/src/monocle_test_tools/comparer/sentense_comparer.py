@@ -1,10 +1,8 @@
 from typing import Union
 import numpy as np
-from pydantic_core import CoreSchema, PydanticSerializationError, core_schema
 from sentence_transformers import SentenceTransformer
 from monocle_test_tools.comparer.base_comparer import BaseComparer
 import logging
-from pydantic import BaseModel, ConfigDict
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +19,9 @@ class SentenceComparer(BaseComparer):
     
     def __init__(self, **data):
         super().__init__(**data)
-        self._test_transformer = SentenceTransformer(model_name_or_path=MODEL_NAME)
+        self._test_transformer = SentenceTransformer(
+            model_name_or_path=MODEL_NAME, local_files_only=True
+        )
 
     def compare(self, expected: Union[dict, str], actual: Union[dict, str]) -> bool:
         if expected == actual:

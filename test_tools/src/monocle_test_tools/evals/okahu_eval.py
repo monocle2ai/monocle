@@ -97,7 +97,13 @@ class OkahuEval(BaseEval):
 
         def _attr(span: Span, key: str) -> str:
             value = span.attributes.get(key)
-            return str(value).strip() if value else ""
+            if not value:
+                return ""
+            str_value = str(value).strip()
+            # Strip 0x prefix if present (for hex IDs)
+            if str_value.startswith("0x"):
+                str_value = str_value[2:]
+            return str_value
 
         def _span_type(span: Span) -> str:
             return _attr(span, "span.type")
@@ -139,6 +145,7 @@ class OkahuEval(BaseEval):
                 if run_id and test_name:
                     _add(f"{run_id}.{test_name}")
 
+        print(f"[enumerate_fact_ids] fact_name={fact_name}, ids={ordered_ids}")
         return ordered_ids
 
     def _submit_eval_job(self, submit_url: str, headers: dict, payload: dict, params: dict) -> tuple[str, str, str, list[dict]]:

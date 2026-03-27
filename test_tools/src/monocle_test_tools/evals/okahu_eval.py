@@ -145,7 +145,6 @@ class OkahuEval(BaseEval):
                 if run_id and test_name:
                     _add(f"{run_id}.{test_name}")
 
-        print(f"[enumerate_fact_ids] fact_name={fact_name}, ids={ordered_ids}")
         return ordered_ids
 
     def _submit_eval_job(self, submit_url: str, headers: dict, payload: dict, params: dict) -> tuple[str, str, str, list[dict]]:

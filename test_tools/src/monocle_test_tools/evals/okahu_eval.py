@@ -118,7 +118,7 @@ class OkahuEval(BaseEval):
 
         for span in filtered_spans:
             if fact_name == "agent_sessions":
-                _add(_attr(span, "scope.session_id"))
+                _add(_attr(span, "scope.agentic.session"))
             elif fact_name == "agent_requests":
                 if _span_type(span) == "agentic.turn":
                     _add(_attr(span, "scope.agentic.turn"))

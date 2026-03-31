@@ -33,12 +33,15 @@ def start_weather_server():
 
 @pytest.fixture(scope="module")
 def setup_instrumentation(in_memory_exporter):
-    instrumentor = setup_monocle_telemetry(
-        workflow_name="weather_mcp",
-        span_processors=[SimpleSpanProcessor(in_memory_exporter), BatchSpanProcessor(FileSpanExporter())]
-    )
-    yield instrumentor
-    in_memory_exporter.clear()
+    try:
+        instrumentor = setup_monocle_telemetry(
+            workflow_name="weather_mcp",
+            span_processors=[SimpleSpanProcessor(in_memory_exporter), BatchSpanProcessor(FileSpanExporter())]
+        )
+        yield instrumentor
+    finally:
+        if instrumentor and instrumentor.is_instrumented_by_opentelemetry:
+            instrumentor.uninstrument()
 
 @pytest.mark.asyncio
 async def test_weather_mcp_tool_call(start_weather_server, setup_instrumentation, in_memory_exporter):

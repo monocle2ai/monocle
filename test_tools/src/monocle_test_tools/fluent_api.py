@@ -302,16 +302,16 @@ class TraceAssertion():
             raise AssertionError(message if message else "No evaluator configured. Call with_evaluation before check_eval.")
         if not self._filtered_spans:
             raise AssertionError(message if message else "No spans available for evaluation. Chain a span selector before check_eval.")
-        eval_result = self._eval.evaluate(filtered_spans=self._filtered_spans, eval_name=eval_name, fact_name=fact_name)        
+        eval_result, explanation = self._eval.evaluate(filtered_spans=self._filtered_spans, eval_name=eval_name, fact_name=fact_name)        
         
         # Check expectations
         if (positive and eval_result not in positive) or (negative and eval_result in negative):
             if message:
                 raise AssertionError(message)
             elif positive and eval_result not in positive:
-                raise AssertionError(f"Evaluation '{eval_name}' did not match expected result. Expected one of {positive}. Received '{eval_result}'.")
+                raise AssertionError(f"Evaluation '{eval_name}' did not match expected result. Expected one of {positive}. Received '{eval_result}'. \n Explanation: {explanation}")
             else:
-                raise AssertionError(f"Evaluation '{eval_name}' matched an unexpected result. Should not be any of {negative}. Received '{eval_result}'.")
+                raise AssertionError(f"Evaluation '{eval_name}' matched an unexpected result. Should not be any of {negative}. Received '{eval_result}'. \n Explanation: {explanation}")
         
         return self
 

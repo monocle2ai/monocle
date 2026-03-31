@@ -1107,9 +1107,9 @@ def update_span_from_llm_response(response):
 
         usage = _get_field(result, "usage")
         if isinstance(usage, dict):
-            meta_dict["completion_tokens"] = usage.get("completion_tokens", 0)
-            meta_dict["prompt_tokens"] = usage.get("prompt_tokens", 0)
-            meta_dict["total_tokens"] = usage.get("total_tokens", 0)
+            meta_dict["completion_tokens"] = usage.get("completion_tokens", 0) or usage.get("output_token_count", 0) or 0
+            meta_dict["prompt_tokens"] = usage.get("prompt_tokens", 0) or usage.get("input_token_count", 0) or 0
+            meta_dict["total_tokens"] = usage.get("total_tokens", 0) or usage.get("total_token_count", 0) or 0
             return meta_dict
         if usage is not None and hasattr(usage, "input_token_count"):
             meta_dict["completion_tokens"] = getattr(usage, "output_token_count", 0) or 0

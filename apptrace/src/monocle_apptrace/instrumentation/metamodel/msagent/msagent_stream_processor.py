@@ -50,8 +50,8 @@ class MSAgentStreamProcessor(BaseStreamProcessor):
                         "arguments": getattr(content, "arguments", ""),
                     })
                     handled = True
-                elif _is_usage(content) and hasattr(content, "details"):
-                    state.token_usage = content.details
+                elif _is_usage(content) and hasattr(content, "usage_details"):
+                    state.token_usage = content.usage_details
                     handled = True
 
             # Extract text (property that concatenates TextContent items)

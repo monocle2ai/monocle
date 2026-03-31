@@ -1,6 +1,7 @@
 """Processor handlers for Microsoft Agent Framework instrumentation."""
 
 import logging
+from contextvars import ContextVar
 from opentelemetry.context import attach, set_value, detach, get_value
 from monocle_apptrace.instrumentation.common.span_handler import SpanHandler
 from monocle_apptrace.instrumentation.common.constants import AGENT_INVOCATION_SPAN_NAME, AGENT_NAME_KEY, AGENT_SESSION, LAST_AGENT_INVOCATION_ID, LAST_AGENT_NAME
@@ -8,6 +9,10 @@ from monocle_apptrace.instrumentation.common.utils import set_scope, remove_scop
 from opentelemetry.trace import Span
 
 logger = logging.getLogger(__name__)
+
+# Context variable to signal that _inner_get_response is active,
+# so the child _inner_get_streaming_response span should be suppressed.
+_INNER_GET_RESPONSE_ACTIVE: ContextVar[bool] = ContextVar('_inner_get_response_active', default=False)
 
 # Context key for storing agent information
 MSAGENT_CONTEXT_KEY = "msagent.agent_info"
@@ -288,6 +293,34 @@ class MSAgentAgentHandler(SpanHandler):
     def hydrate_span(self, to_wrap, wrapped, instance, args, kwargs, result, span, parent_span=None, ex: Exception = None, is_post_exec: bool = False) -> bool:
         """Hydrate span with agent-specific attributes."""
         return super().hydrate_span(to_wrap, wrapped, instance, args, kwargs, result, span, parent_span, ex, is_post_exec)
+
+
+class MSAgentInferenceHandler(SpanHandler):
+    """Handler for _inner_get_response (non-streaming inference path).
+    
+    Sets a context variable so the child _inner_get_streaming_response
+    knows to skip its own span creation.
+    """
+
+    def pre_tracing(self, to_wrap, wrapped, instance, args, kwargs):
+        self._token = _INNER_GET_RESPONSE_ACTIVE.set(True)
+        return None, None
+
+    def post_tracing(self, to_wrap, wrapped, instance, args, kwargs, result, token):
+        _INNER_GET_RESPONSE_ACTIVE.reset(self._token)
+        if token is not None:
+            detach(token)
+
+
+class MSAgentInferenceStreamHandler(SpanHandler):
+    """Handler for _inner_get_streaming_response.
+    
+    Skips span creation when called from within _inner_get_response
+    (non-streaming path) since that parent already creates the inference span.
+    """
+
+    def skip_span(self, to_wrap, wrapped, instance, args, kwargs) -> bool:
+        return _INNER_GET_RESPONSE_ACTIVE.get(False)
 
 
 class MSAgentToolHandler(SpanHandler):

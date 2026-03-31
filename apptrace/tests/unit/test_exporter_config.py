@@ -33,7 +33,7 @@ class TestHandler(unittest.TestCase):
     def test_memory_exporter(self):
         os.environ['MONOCLE_EXPORTER'] = "memory"
         default_exporter = get_monocle_exporter()
-        assert default_exporter[0].__class__.__name__ == "InMemorySpanExporter"
+        assert default_exporter[0].__class__.__name__ == "MonocleInMemorySpanExporter"
         os.environ.clear()
 
     def test_console_exporter(self):
@@ -45,7 +45,7 @@ class TestHandler(unittest.TestCase):
     def test_multi_exporter(self):
         os.environ['MONOCLE_EXPORTER'] = "file,memory,console"
         exporters = get_monocle_exporter()
-        expected_exporters = ["FileSpanExporter", "InMemorySpanExporter", "ConsoleSpanExporter"]
+        expected_exporters = ["FileSpanExporter", "MonocleInMemorySpanExporter", "ConsoleSpanExporter"]
         exporter_class_names = [exporter.__class__.__name__ for exporter in exporters]
         assert exporter_class_names == expected_exporters, f"Expected {expected_exporters}, but got {exporter_class_names}"
         os.environ.clear()

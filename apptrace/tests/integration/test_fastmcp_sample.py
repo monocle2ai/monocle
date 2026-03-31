@@ -22,15 +22,19 @@ def setup_instrumentation(in_memory_exporter):
     """Setup Monocle instrumentation with in-memory exporter"""
     
     # Setup Monocle telemetry
-    instrumentor = setup_monocle_telemetry(
-        workflow_name="fastmcp",
-        span_processors=[SimpleSpanProcessor(in_memory_exporter), BatchSpanProcessor(FileSpanExporter())]
-    )
-    
-    yield instrumentor
+    try:
+        instrumentor = setup_monocle_telemetry(
+            workflow_name="fastmcp",
+            span_processors=[SimpleSpanProcessor(in_memory_exporter), BatchSpanProcessor(FileSpanExporter())]
+        )
+        
+        yield instrumentor
     
     # Cleanup
-    in_memory_exporter.clear()
+    finally:
+        in_memory_exporter.clear()
+        if instrumentor and instrumentor.is_instrumented_by_opentelemetry:
+            instrumentor.uninstrument()
 
 
 @pytest.fixture

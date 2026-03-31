@@ -120,6 +120,8 @@ def update_span_from_llm_response(response, instance):
             meta_dict.update({"completion_tokens": token_usage.candidates_token_count})
             meta_dict.update({"prompt_tokens": token_usage.prompt_token_count })
             meta_dict.update({"total_tokens": token_usage.total_token_count})
+            if hasattr(token_usage, "thoughts_token_count") and token_usage.thoughts_token_count is not None:
+                meta_dict.update({"thoughts_tokens": token_usage.thoughts_token_count})
     return meta_dict
 
 def extract_finish_reason(arguments):

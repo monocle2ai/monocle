@@ -3,7 +3,7 @@ import pytest
 import random
 import time
 import os
-from common.custom_exporter import CustomConsoleSpanExporter
+from monocle_apptrace.exporters.base_exporter import MonocleInMemorySpanExporter
 from monocle_apptrace.exporters.file_exporter import FileSpanExporter
 from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, SimpleSpanProcessor
@@ -39,18 +39,18 @@ api_key = os.getenv("AZURE_OPENAI_API_KEY") if MICROSOFT_AGENT_AVAILABLE else No
 @pytest.fixture(scope="module")
 def setup():
     """Setup telemetry instrumentation for Microsoft Agent Framework session tests."""
-    custom_exporter = CustomConsoleSpanExporter()
+    memory_exporter = MonocleInMemorySpanExporter()
     file_exporter = FileSpanExporter()
     span_processors = [
         BatchSpanProcessor(file_exporter),
-        SimpleSpanProcessor(custom_exporter)
+        SimpleSpanProcessor(memory_exporter)
     ]
     try:
         instrumentor = setup_monocle_telemetry(
             workflow_name="mic_ag_assistants_session_test",
             span_processors=span_processors,
         )
-        yield custom_exporter
+        yield memory_exporter
     finally:
         if instrumentor and instrumentor.is_instrumented_by_opentelemetry:
             instrumentor.uninstrument()
@@ -79,7 +79,7 @@ async def test_assistants_multi_turn_session(setup):
         )
     
     # Create flight booking agent
-    flight_agent = client.as_agent(
+    flight_agent = client.create_agent(
         name="MS_Flight_Booking_Agent",
         instructions=(
             "You are a Flight Booking Assistant. "
@@ -141,7 +141,7 @@ async def test_assistants_multi_turn_session(setup):
     verify_spans_with_session(setup, azure_thread_id)
 
 
-def verify_spans_with_session(custom_exporter, expected_thread_id):
+def verify_spans_with_session(memory_exporter, expected_thread_id):
     """Verify spans contain scope.agentic.session attribute with the thread ID."""
     time.sleep(2)
     
@@ -152,7 +152,7 @@ def verify_spans_with_session(custom_exporter, expected_thread_id):
     session_ids_found = set()
     spans_with_session = []
     
-    spans = custom_exporter.get_captured_spans()
+    spans = memory_exporter.get_finished_spans()
     
     logger.info(f"Analyzing {len(spans)} spans for session tracking...")
     

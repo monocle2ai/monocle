@@ -31,11 +31,16 @@ def clear_spans():
 @pytest.fixture(scope="module")
 def setup():
     # Setup Monocle telemetry
-    setup_monocle_telemetry(
-        workflow_name="generic_deepseek_1",
-        span_processors=[BatchSpanProcessor(custom_exporter)],
-        wrapper_methods=[],
-    )
+    try:
+        instrumentor = setup_monocle_telemetry(
+            workflow_name="generic_deepseek_1",
+            span_processors=[BatchSpanProcessor(custom_exporter)],
+            wrapper_methods=[],
+        )
+        yield
+    finally:
+        if instrumentor and instrumentor.is_instrumented_by_opentelemetry:
+            instrumentor.uninstrument()
 
 @pytest.mark.integration()
 def test_deepseek_api_sample(setup):

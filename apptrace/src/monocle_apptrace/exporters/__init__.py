@@ -6,7 +6,6 @@ from monocle_apptrace.exporters.span_filter import (
 )
 from monocle_apptrace.exporters.monocle_exporters import (
     get_monocle_exporter,
-    get_filtered_exporter,
     monocle_exporters,
 )
 from monocle_apptrace.exporters.base_exporter import (
@@ -21,7 +20,6 @@ __all__ = [
     
     # Exporter registry
     "get_monocle_exporter",
-    "get_filtered_exporter",
     "monocle_exporters",
     
     # Base classes

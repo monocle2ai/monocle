@@ -4,5 +4,4 @@ from .instrumentation import *
 from monocle_apptrace.exporters import (
     SpanFilter,
     FilteredSpanExporter,
-    get_filtered_exporter,
 )

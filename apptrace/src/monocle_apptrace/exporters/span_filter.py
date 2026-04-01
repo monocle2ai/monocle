@@ -282,6 +282,49 @@ class SpanFilter:
         return filtered_spans
 
 
+class FilteredReadableSpan:
+    """
+    Wrapper around ReadableSpan that returns filtered JSON.
+    
+    This allows the filtered span to be passed through the standard
+    SpanExporter interface while controlling what gets serialized.
+    """
+    
+    def __init__(self, original_span: ReadableSpan, filtered_data: Dict[str, Any]):
+        """
+        Initialize the wrapper.
+        
+        Args:
+            original_span: The original ReadableSpan object
+            filtered_data: The filtered/projected span data dictionary
+        """
+        self._original_span = original_span
+        self._filtered_data = filtered_data
+    
+    def to_json(self, **kwargs) -> str:
+        """
+        Return filtered JSON instead of full span.
+        
+        Args:
+            **kwargs: Ignored (for compatibility with ReadableSpan.to_json)
+        
+        Returns:
+            JSON string of filtered span data
+        """
+        # Respect indent if provided
+        indent = kwargs.get('indent')
+        return json.dumps(self._filtered_data, indent=indent)
+    
+    def __getattr__(self, name):
+        """
+        Delegate all other attributes to the original span.
+        
+        This ensures the wrapper behaves like a ReadableSpan for
+        all properties except to_json().
+        """
+        return getattr(self._original_span, name)
+
+
 class FilteredSpanExporter:
     """
     Wrapper exporter that filters spans before passing to wrapped exporter.
@@ -317,12 +360,22 @@ class FilteredSpanExporter:
         self.span_filter = span_filter
     
     def export(self, spans: Sequence[ReadableSpan]):
-        """Export only the filtered spans."""
+        """
+        Export filtered and projected spans.
+        
+        Applies both span type filtering and field projection,
+        then wraps the result in FilteredReadableSpan objects.
+        """
         filtered_spans = []
         
         for span in spans:
-            if self.span_filter.should_include_span(span):
-                filtered_spans.append(span)
+            # Apply full filtering (type + field projection)
+            filtered_data = self.span_filter.filter(span)
+            
+            if filtered_data is not None:
+                # Wrap the span so it returns filtered data when serialized
+                wrapped_span = FilteredReadableSpan(span, filtered_data)
+                filtered_spans.append(wrapped_span)
         
         if filtered_spans:
             return self.base_exporter.export(filtered_spans)

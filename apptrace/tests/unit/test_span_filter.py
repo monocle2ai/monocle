@@ -364,6 +364,26 @@ class TestFilteredSpanExporter:
         """Create a mock span."""
         span = Mock(spec=ReadableSpan)
         span.attributes = {"span.type": "inference"}
+        span.name = "test.span"
+        span.context = Mock(trace_id=123, span_id=456)
+        span.parent = Mock(span_id=111)
+        span.start_time = 1000000000
+        span.end_time = 2000000000
+        span.status = Mock(status_code=0)
+        
+        # Mock to_json to return proper JSON string
+        span.to_json.return_value = json.dumps({
+            "name": span.name,
+            "context": {"trace_id": "123", "span_id": "456"},
+            "kind": "INTERNAL",
+            "parent_id": "111",
+            "start_time": span.start_time,
+            "end_time": span.end_time,
+            "status": {"status_code": "UNSET"},
+            "attributes": span.attributes,
+            "events": [],
+            "resource": {"attributes": {}}
+        })
         return span
     
     def test_filtered_exporter_delegates_export(self, mock_base_exporter, mock_span):

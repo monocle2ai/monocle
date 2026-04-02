@@ -6,6 +6,7 @@ from monocle_apptrace.instrumentation.metamodel.hugging_face.entities.agent impo
 )
 from monocle_apptrace.instrumentation.metamodel.hugging_face.entities.inference import (
     INFERENCE,
+    STREAM_INFERENCE,
 )
 
 HUGGING_FACE_METHODS = [
@@ -15,7 +16,7 @@ HUGGING_FACE_METHODS = [
         "method": "chat_completion",  # sync
         "wrapper_method": task_wrapper,
         "span_handler": "non_framework_handler",
-        "output_processor": INFERENCE,
+        "output_processor": STREAM_INFERENCE,
     },
     {
         "package": "huggingface_hub",
@@ -23,7 +24,7 @@ HUGGING_FACE_METHODS = [
         "method": "chat_completion",  # async
         "wrapper_method": atask_wrapper,
         "span_handler": "non_framework_handler",
-        "output_processor": INFERENCE,
+        "output_processor": STREAM_INFERENCE,
     },
     {
         "package": "smolagents.agents",

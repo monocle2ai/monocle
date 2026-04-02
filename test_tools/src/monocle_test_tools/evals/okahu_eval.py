@@ -103,7 +103,7 @@ class OkahuEval(BaseEval):
         params = {"fact_name": fact_name}
         
         try:
-            response = requests.get(url=list_url, headers=headers, params=params)
+            response = requests.get(url=list_url, headers=headers, params=params, timeout=10)
             response.raise_for_status()
             templates = response.json().get("templates", [])
             
@@ -310,7 +310,8 @@ class OkahuEval(BaseEval):
                     url=submit_url,
                     headers=headers,
                     json=payload,
-                    params=params
+                    params=params,
+                    timeout=60
                 )
             except requests.Timeout as exc:
                 raise AssertionError(f"Evaluation service request timed out: {exc}") from exc
@@ -353,7 +354,8 @@ class OkahuEval(BaseEval):
                         job_id=job_id,
                         eval_result=eval_result,
                         template_name=eval_name,
-                        fact_name=fact_name
+                        fact_name=fact_name,
+                        timeout=30
                     )
 
         return label, explanation

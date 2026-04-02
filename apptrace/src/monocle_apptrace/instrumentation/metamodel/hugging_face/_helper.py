@@ -66,13 +66,18 @@ def extract_messages(kwargs):
 
 def extract_assistant_message(arguments):
     """
-    Extract the assistant message from a Mistral response or stream chunks.
+    Extract the assistant message from a HF response or stream result.
     Returns a JSON string like {"assistant": "<text>"}.
     """
     try:
         result = _unwrap_result(arguments)
         if result is None:
             return ""
+
+        # Handle stream result (SimpleNamespace produced by HFStreamProcessor)
+        if hasattr(result, "output_text") and result.output_text:
+            role = getattr(result, "role", "assistant")
+            return get_json_dumps({role: result.output_text})
 
         # Handle full response
         if hasattr(result, "choices") and result.choices:

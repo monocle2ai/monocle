@@ -13,19 +13,25 @@ from common.helpers import (
 )
 from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
 from monocle_apptrace.instrumentation.common.utils import logger
-from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from monocle_apptrace.exporters.file_exporter import FileSpanExporter
+from opentelemetry.sdk.trace.export import BatchSpanProcessor, SimpleSpanProcessor
 
 logger = logging.getLogger(__name__)
 ANTHROPIC_MODEL = os.environ.get("ANTHROPIC_MODEL")
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture(scope="module")
 def setup():
     try:
         custom_exporter = CustomConsoleSpanExporter()
+        file_exporter = FileSpanExporter()
+        span_processors = [
+            BatchSpanProcessor(file_exporter),
+            SimpleSpanProcessor(custom_exporter)
+        ]
         instrumentor = setup_monocle_telemetry(
             workflow_name="anthropic_app_1",
-            span_processors=[BatchSpanProcessor(custom_exporter)],
+            span_processors=span_processors,
             wrapper_methods=[
             ])
         yield custom_exporter

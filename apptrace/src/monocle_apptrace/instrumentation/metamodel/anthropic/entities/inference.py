@@ -4,6 +4,13 @@ from monocle_apptrace.instrumentation.metamodel.anthropic import (
 )
 from monocle_apptrace.instrumentation.common.utils import (get_error_message, resolve_from_alias)
 
+
+def process_stream(to_wrap, response, span_processor):
+    from monocle_apptrace.instrumentation.metamodel.anthropic.anthropic_stream_processor import AnthropicStreamProcessor
+
+    processor = AnthropicStreamProcessor()
+    return processor.process_stream(to_wrap, response, span_processor)
+
 INFERENCE = {
     "type": SPAN_TYPES.INFERENCE,
     "subtype": lambda arguments: _helper.agent_inference_type(arguments),
@@ -98,5 +105,13 @@ INFERENCE = {
                 }
             ]
         }
-    ]
+    ],
+    "is_auto_close": lambda kwargs: kwargs.get("stream", False) is False,
+    "response_processor": process_stream,
+}
+
+STREAM_INFERENCE = {
+    **INFERENCE,
+    "is_auto_close": lambda kwargs: False,
+    "response_processor": process_stream,
 }

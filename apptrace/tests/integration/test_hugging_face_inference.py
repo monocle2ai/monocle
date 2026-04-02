@@ -235,46 +235,5 @@ async def test_huggingface_api_async_streaming_sample(setup):
     assert workflow_span.attributes["workflow.name"] == "generic_hf_1"
     assert workflow_span.attributes["entity.1.type"] == "workflow.huggingface"
 
-# def test_huggingface_invalid_api_key(setup):
-#     """Test Hugging Face client with invalid API key using temporary environment variable"""
-#     with temporary_env_var("HUGGINGFACEHUB_API_TOKEN", "invalid_key_123"):
-#         client = InferenceClient()  # No key passed explicitly — taken from env
-#         try:
-#             client.chat_completion(
-#                 model="openai/gpt-oss-120b",
-#                 messages=[{"role": "user", "content": "test"}],
-#             )
-#         except Exception as e:
-#             # Accept 401, 403, Unauthorized, Forbidden errors
-#             error_str = str(e)
-#             assert (
-#                 "401" in error_str
-#                 or "403" in error_str
-#                 or "Unauthorized" in error_str
-#                 or "Forbidden" in error_str
-#                 or "provide an api_key" in error_str
-#             ), f"Unexpected error: {error_str}"
-
-#         # Allow spans to flush
-#         time.sleep(5)
-#         spans = setup.get_captured_spans()
-#         for span in spans:
-#             logger.info(f"SPAN: {span.name}")
-#             for e in span.events:
-#                 logger.info(f" EVENT: {e.name} {e.attributes}")
-
-#         for span in spans:
-#             if span.attributes.get("span.type") in ["inference", "inference.framework"]:
-#                 assert "span.subtype" in span.attributes, "Expected span.subtype attribute to be present"
-#                 assert span.attributes.get("span.subtype") in ["turn_end", "tool_call", "delegation"]
-#                 events = [e for e in span.events if e.name == "data.output"]
-#                 assert len(events) > 0
-#                 assert span.status.status_code.value == 2
-#                 error_code = events[0].attributes.get("error_code")
-#                 assert error_code == "error"
-#                 response = events[0].attributes.get("response")
-#                 assert response is None or response == ""
-
-
 if __name__ == "__main__":
     pytest.main([__file__, "-s", "--tb=short"])

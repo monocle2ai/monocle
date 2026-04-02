@@ -45,3 +45,13 @@ class HFStreamProcessor(OpenAIStreamProcessor):
                 pass
 
         return True
+
+    def try_framework_specific_processing(self, item: Any, state: StreamState) -> bool:
+        """Run both chunk and completion handlers on every item.
+
+        HF may send usage on the same chunk as the final content delta,
+        so we must not short-circuit after handle_chunk succeeds.
+        """
+        has_chunk = self.handle_chunk(item, state)
+        has_completion = self.handle_completion(item, state)
+        return has_chunk or has_completion

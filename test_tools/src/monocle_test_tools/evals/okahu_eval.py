@@ -19,6 +19,7 @@ class OkahuEval(BaseEval):
         # Instance-level state tracking for hybrid approach
         self._trace_exported = False
         self._current_trace_id = None
+        self._fact_map_cache = None  # Cache for fact mapping from API
     
     @staticmethod
     def _map_fact_name(fact_name: str) -> str:
@@ -103,7 +104,7 @@ class OkahuEval(BaseEval):
         params = {"fact_name": fact_name}
         
         try:
-            response = requests.get(url=list_url, headers=headers, params=params, timeout=10)
+            response = requests.get(url=list_url, headers=headers, params=params, timeout=20)
             response.raise_for_status()
             templates = response.json().get("templates", [])
             
@@ -127,10 +128,59 @@ class OkahuEval(BaseEval):
         except requests.RequestException as exc:
             raise AssertionError(f"Failed to verify evaluation template existence: {exc}") from exc
 
+    def get_fact_map(self) -> dict:
+        """Fetch the fact mapping from Okahu API with caching."""
+        # Return cached version if available
+        if self._fact_map_cache is not None:
+            return self._fact_map_cache
+        
+        api_key = (os.getenv("OKAHU_API_KEY") or "").strip()
+        if not api_key:
+            raise AssertionError("OKAHU_API_KEY is not configured.")
+        
+        base = os.getenv("OKAHU_EVALUATION_ENDPOINT", OKAHU_PROD_EVALUATION_ENDPOINT).rstrip("/")
+        fact_map_url = f"{base}/v1/eval/fact_map"
+        headers = {"x-api-key": api_key}
+        
+        try:
+            response = requests.get(url=fact_map_url, headers=headers, timeout=10)
+            response.raise_for_status()
+            self._fact_map_cache = response.json()
+            return self._fact_map_cache
+        except requests.Timeout as exc:
+            raise AssertionError(f"Fact map request timed out: {exc}") from exc
+        except requests.HTTPError as exc:
+            status_code = response.status_code
+            response_body = response.text or "<empty body>"
+            raise AssertionError(f"Fact map service returned HTTP {status_code}: {response_body}") from exc
+        except requests.RequestException as exc:
+            raise AssertionError(f"Failed to reach fact map service: {exc}") from exc
+        except ValueError as exc:
+            raise AssertionError(f"Fact map service returned invalid JSON: {response.text}") from exc
+
     def enumerate_fact_ids(self, filtered_spans: list[Span], fact_name: str) -> list[str]:
-        """Enumerate unique fact IDs for a supported fact name from spans."""
+        """Enumerate unique fact IDs for a supported fact name from spans using API mapping."""
         if not filtered_spans:
             return []
+        
+        # Get the fact mapping from API
+        fact_map = self.get_fact_map()
+        mapping_value = fact_map.get(fact_name)
+        
+        if not mapping_value:
+            raise AssertionError(
+                f"Unsupported fact_name '{fact_name}'. "
+                f"Supported values: {', '.join(sorted(fact_map.keys()))}"
+            )
+
+        # Define span type filters for fact names that require them
+        span_type_filters = {
+            "agent_requests": ["agentic.turn"],
+            "agent_operations": ["agentic.invocation"],
+            "tool_operations": ["agentic.tool.invocation"],
+            "inferences": ["inference", "inference.framework"],
+            "mcp_invocations": ["agentic.tool.invocation"]
+        }
 
         def _trace_id(span: Span) -> str:
             return format(span.get_span_context().trace_id, '032x')
@@ -159,34 +209,33 @@ class OkahuEval(BaseEval):
                 unique_ids.add(candidate)
                 ordered_ids.append(candidate)
 
+        # Get required span types for this fact_name (if any)
+        required_span_types = span_type_filters.get(fact_name)
+
+        # Process each span based on the mapping
         for span in filtered_spans:
-            if fact_name == "agent_sessions":
-                _add(_attr(span, "scope.agentic.session"))
-            elif fact_name == "agent_requests":
-                if _span_type(span) == "agentic.turn":
-                    _add(_attr(span, "scope.agentic.turn"))
-            elif fact_name == "agent_operations":
-                if _span_type(span) == "agentic.invocation":
-                    _add(_attr(span, "scope.agentic.invocation"))
-            elif fact_name == "tool_operations":
-                if _span_type(span) == "agentic.tool.invocation":
-                    _add(f"{_trace_id(span)}.{_span_id(span)}")
-            elif fact_name == "inferences":
-                if _span_type(span) == "inference":
-                    _add(f"{_trace_id(span)}.{_span_id(span)}")
-            elif fact_name == "traces":
+            # Filter by span type if required
+            if required_span_types:
+                current_span_type = _span_type(span)
+                if current_span_type not in required_span_types:
+                    continue
+            
+            if mapping_value == "trace_id":
                 _add(_trace_id(span))
-            elif fact_name == "conversations":
-                _add(_attr(span, "scope.msteams.conversation.id"))
-            elif fact_name == "git_commits":
-                _add(_attr(span, "scope.git.commit.hash"))
-            elif fact_name == "test_runs":
-                _add(_attr(span, "scope.git.run.id"))
-            elif fact_name == "tests":
-                run_id = _attr(span, "scope.git.run.id")
+            elif mapping_value == "span_id":
+                _add(_span_id(span))
+            elif mapping_value == "inference_id":
+                # For inferences, use trace_id.span_id
+                _add(f"{_trace_id(span)}.{_span_id(span)}")
+            elif mapping_value.startswith("CONCAT"):
+                # Handle special CONCAT case for tests: test_name@run_id
                 test_name = _attr(span, "scope.test_name")
-                if run_id and test_name:
-                    _add(f"{run_id}.{test_name}")
+                run_id = _attr(span, "scope.git.run.id")
+                if test_name and run_id:
+                    _add(f"{test_name}@{run_id}")
+            else:
+                # Extract from attributes (e.g., "scope.agentic.turn")
+                _add(_attr(span, mapping_value))
 
         return ordered_ids
 
@@ -354,8 +403,7 @@ class OkahuEval(BaseEval):
                         job_id=job_id,
                         eval_result=eval_result,
                         template_name=eval_name,
-                        fact_name=fact_name,
-                        timeout=30
+                        fact_name=fact_name
                     )
 
         return label, explanation

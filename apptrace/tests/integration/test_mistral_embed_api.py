@@ -10,10 +10,11 @@ from common.helpers import (
     verify_embedding_span,  # <-- add this
     verify_inference_span,
 )
-from mistralai import Mistral, models
+from mistralai.client import Mistral
+from monocle_apptrace.exporters.file_exporter import FileSpanExporter
 from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
 from monocle_apptrace.instrumentation.common.utils import logger
-from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+from opentelemetry.sdk.trace.export import BatchSpanProcessor, SimpleSpanProcessor
 from config.conftest import temporary_env_var
 
 logger = logging.getLogger(__name__)
@@ -21,11 +22,16 @@ logger = logging.getLogger(__name__)
 @pytest.fixture(scope="module")
 def setup():
     custom_exporter = CustomConsoleSpanExporter()
+    file_exporter = FileSpanExporter()
+    span_processors = [
+        BatchSpanProcessor(file_exporter),
+        SimpleSpanProcessor(custom_exporter),
+    ]
     instrumentor = None
     try:
         instrumentor = setup_monocle_telemetry(
             workflow_name="generic_mistral_embed",
-            span_processors=[SimpleSpanProcessor(custom_exporter)],
+            span_processors=span_processors,
         )
         yield custom_exporter
     finally:

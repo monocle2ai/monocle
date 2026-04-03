@@ -108,6 +108,19 @@ def extract_assistant_message(arguments):
         if result is None:
             return ""
 
+        # Handle stream-processor output namespace
+        if hasattr(result, "output_text"):
+            if hasattr(result, "tools") and result.tools:
+                tool = result.tools[0]
+                return get_json_dumps(
+                    {
+                        "assistant": f'"model": {tool.get("name", "")}, "args": {tool.get("arguments", "")}'
+                    }
+                )
+            text = getattr(result, "output_text", "")
+            role = getattr(result, "role", "assistant") or "assistant"
+            return get_json_dumps({role: text}) if text else ""
+
         # Handle full response
         if hasattr(result, "choices") and result.choices:
             msg_obj = result.choices[0].message
@@ -146,6 +159,12 @@ def update_span_from_llm_response(result, include_token_counts=False):
         # Try to extract token usage from the response
         if hasattr(result, "usage"):
             usage = result.usage
+            if isinstance(usage, dict):
+                return {
+                    "completion_tokens": usage.get("completion_tokens", 0),
+                    "prompt_tokens": usage.get("prompt_tokens", 0),
+                    "total_tokens": usage.get("total_tokens", 0),
+                }
             tokens = {
                 "completion_tokens": getattr(usage, "completion_tokens", 0),
                 "prompt_tokens": getattr(usage, "prompt_tokens", 0),
@@ -164,6 +183,10 @@ def extract_finish_reason(arguments):
         response = arguments.get("result") if isinstance(arguments, dict) else arguments
         if response is None:
             return None
+
+        # Handle stream-processor output namespace
+        if hasattr(response, "output_text") and hasattr(response, "finish_reason"):
+            return response.finish_reason
 
         # Handle full response: check choices for finish_reason
         if hasattr(response, "choices") and response.choices:
@@ -244,6 +267,10 @@ def agent_inference_type(arguments):
 def _get_first_tool_call(response):
 
     with suppress(AttributeError, IndexError, TypeError):
+        if hasattr(response, "tools") and response.tools and len(response.tools) > 0:
+            return response.tools[0]
+
+    with suppress(AttributeError, IndexError, TypeError):
         if response is not None and hasattr(response, "choices") and len(response.choices) > 0:
             if hasattr(response.choices[0], "message") and hasattr(response.choices[0].message, "tool_calls"):
                 tool_calls = response.choices[0].message.tool_calls
@@ -264,6 +291,7 @@ def extract_tool_name(arguments):
             return None
 
         for getter in [
+            lambda tc: tc.get("name") if isinstance(tc, dict) else None,
             lambda tc: tc.function.name,
         ]:
             try:

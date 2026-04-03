@@ -2,10 +2,11 @@ import logging
 import os
 
 import pytest
-from mistralai import Mistral
+from mistralai.client import Mistral
 from common.custom_exporter import CustomConsoleSpanExporter
+from monocle_apptrace.exporters.file_exporter import FileSpanExporter
 from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
-from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+from opentelemetry.sdk.trace.export import BatchSpanProcessor, SimpleSpanProcessor
 
 logger = logging.getLogger(__name__)
 
@@ -17,9 +18,14 @@ def setup():
     try:
         # Setup telemetry
         custom_exporter = CustomConsoleSpanExporter()
+        file_exporter = FileSpanExporter()
+        span_processors = [
+            BatchSpanProcessor(file_exporter),
+            SimpleSpanProcessor(custom_exporter),
+        ]
         instrumentor = setup_monocle_telemetry(
             workflow_name="mistral_integration_tests",
-            span_processors=[SimpleSpanProcessor(custom_exporter)],
+            span_processors=span_processors,
         )
         yield custom_exporter
     finally:

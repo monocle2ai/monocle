@@ -7,9 +7,33 @@ from monocle_apptrace.instrumentation.common.utils import (
     resolve_from_alias,
     get_llm_type,
 )
+
+def process_response(to_wrap, response, span_processor):
+    """Handle both streaming and non-streaming responses."""
+    import inspect
+    
+    # LiteLLM non-streaming responses expose .choices; stream responses are iterable wrappers.
+    is_streaming = (
+        response is not None
+        and not hasattr(response, "choices")
+        and (
+            inspect.isgenerator(response)
+            or hasattr(response, "__iter__")
+            or hasattr(response, "__aiter__")
+        )
+    )
+    
+    if is_streaming:
+        from monocle_apptrace.instrumentation.metamodel.litellm.litellm_stream_processor import LiteLLMStreamProcessor
+        processor = LiteLLMStreamProcessor()
+        return processor.process_stream(to_wrap, response, span_processor)
+    
+    return response
 INFERENCE = {
     "type": SPAN_TYPES.INFERENCE,
     "subtype": lambda arguments: _helper.agent_inference_type(arguments),
+    "is_auto_close": lambda kwargs: not _helper.is_streaming_request(kwargs),
+    "response_processor": process_response,
     "attributes": [
         [
             {

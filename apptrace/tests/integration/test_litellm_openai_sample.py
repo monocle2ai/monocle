@@ -6,22 +6,28 @@ import pytest
 from common.custom_exporter import CustomConsoleSpanExporter
 from custom_litellm.llm import LiteLLMClient
 from custom_litellm.prompt_loader import PromptLoader
+from monocle_apptrace.exporters.file_exporter import FileSpanExporter
 from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
-from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from opentelemetry.sdk.trace.export import BatchSpanProcessor, SimpleSpanProcessor
 from tests.common.helpers import (
     find_spans_by_type,
     verify_inference_span,
 )
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture(scope="module")
 def setup():
+    """Setup telemetry instrumentation for LiteLLM tests."""
     custom_exporter = CustomConsoleSpanExporter()
+    file_exporter = FileSpanExporter()
+    span_processors = [
+        BatchSpanProcessor(file_exporter),
+        SimpleSpanProcessor(custom_exporter)
+    ]
     try:
         instrumentor = setup_monocle_telemetry(
             workflow_name="litellm_app_1",
-            span_processors=[BatchSpanProcessor(custom_exporter)],
-            wrapper_methods=[]
+            span_processors=span_processors,
         )
         yield custom_exporter
     finally:
@@ -108,7 +114,10 @@ def test_llm_openai(setup):
 
 
 
-@pytest.mark.unit()
+@pytest.mark.skipif(
+    not (os.getenv("AZURE_API_KEY") and os.getenv("AZURE_API_BASE") and os.getenv("AZURE_API_VERSION")),
+    reason="Azure credentials not configured"
+)
 def test_llm_azure_openai(setup):
     azure_api_key = os.getenv("AZURE_API_KEY")
     azure_api_base = os.getenv("AZURE_API_BASE")

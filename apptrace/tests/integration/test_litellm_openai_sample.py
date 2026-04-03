@@ -114,10 +114,7 @@ def test_llm_openai(setup):
 
 
 
-@pytest.mark.skipif(
-    not (os.getenv("AZURE_API_KEY") and os.getenv("AZURE_API_BASE") and os.getenv("AZURE_API_VERSION")),
-    reason="Azure credentials not configured"
-)
+@pytest.mark.unit()
 def test_llm_azure_openai(setup):
     azure_api_key = os.getenv("AZURE_API_KEY")
     azure_api_base = os.getenv("AZURE_API_BASE")

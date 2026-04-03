@@ -4,7 +4,7 @@ import os
 
 import pytest
 from common.custom_exporter import CustomConsoleSpanExporter
-from common.helpers import find_span_by_type, find_spans_by_type, verify_inference_span
+from common.helpers import find_span_by_type, find_spans_by_type, verify_inference_span, validate_inference_span_events
 from mistralai.client import Mistral
 from monocle_apptrace.exporters.file_exporter import FileSpanExporter
 from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
@@ -46,7 +46,7 @@ async def test_mistral_stream_async(setup):
         messages=[
             {
                 "role": "user",
-                "content": "How far is the moon from earth? Answer with the distance in km only.",
+                "content": "How far is the moon from earth in km?",
             },
         ],
     )
@@ -83,6 +83,32 @@ async def test_mistral_stream_async(setup):
             check_metadata=False,
             check_input_output=True,
         )
+        
+        # Validate the actual event content (input, output, metadata)
+        validate_inference_span_events(
+            span=span,
+            expected_event_count=3,
+            input_patterns=[
+                r"^\{\"user\": \".+\"\}$",  # Pattern for user message
+            ],
+            output_pattern=r"^[\s\S]+$",  # Raw streamed response text (supports multiline)
+            metadata_requirements={
+                "completion_tokens": int,
+                "prompt_tokens": int,
+                "total_tokens": int,
+                "finish_reason": str,
+                "finish_type": str,
+            },
+        )
+        output_event = next((event for event in span.events if event.name == "data.output"), None)
+        assert output_event is not None, "Expected data.output event"
+        assert output_event.attributes.get("response") == full_response
+
+        metadata_event = next((event for event in span.events if event.name == "metadata"), None)
+        assert metadata_event is not None, "Expected metadata event"
+        assert isinstance(metadata_event.attributes.get("completion_tokens", 0), int)
+        assert isinstance(metadata_event.attributes.get("prompt_tokens", 0), int)
+        assert isinstance(metadata_event.attributes.get("total_tokens", 0), int)
         assert span.attributes.get("span.subtype") in ["turn_end", "tool_call", "delegation"]
 
     workflow_span = find_span_by_type(spans, "workflow")

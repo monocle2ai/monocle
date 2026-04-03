@@ -118,8 +118,8 @@ def extract_assistant_message(arguments):
                     }
                 )
             text = getattr(result, "output_text", "")
-            role = getattr(result, "role", "assistant") or "assistant"
-            return get_json_dumps({role: text}) if text else ""
+            # For streaming, capture the concrete accumulated text payload directly.
+            return text if text else ""
 
         # Handle full response
         if hasattr(result, "choices") and result.choices:
@@ -134,13 +134,46 @@ def extract_assistant_message(arguments):
                     choice = chunk.data.choices[0]
                     if hasattr(choice, "delta") and hasattr(choice.delta, "content"):
                         content.append(choice.delta.content or "")
-            return get_json_dumps({"assistant": "".join(content)})
+            return "".join(content)
 
         return ""
 
     except Exception as e:
         logger.warning("Warning in extract_assistant_message: %s", str(e))
         return ""
+
+
+def extract_output_text(arguments):
+    """Extract raw assistant text output from Mistral responses/streams."""
+    try:
+        result = arguments.get("result") if isinstance(arguments, dict) else arguments
+        if result is None:
+            return ""
+
+        # Stream processor output
+        if hasattr(result, "output_text"):
+            return getattr(result, "output_text", "") or ""
+
+        # Non-streaming complete response
+        if hasattr(result, "choices") and result.choices:
+            msg_obj = getattr(result.choices[0], "message", None)
+            if msg_obj is not None:
+                return getattr(msg_obj, "content", "") or ""
+
+        # Raw list of streaming chunks
+        if isinstance(result, list):
+            content = []
+            for chunk in result:
+                if hasattr(chunk, "data") and hasattr(chunk.data, "choices") and chunk.data.choices:
+                    choice = chunk.data.choices[0]
+                    if hasattr(choice, "delta") and hasattr(choice.delta, "content"):
+                        content.append(choice.delta.content or "")
+            return "".join(content)
+
+    except Exception as e:
+        logger.warning("Warning in extract_output_text: %s", str(e))
+
+    return ""
 
 
 '''def update_span_from_llm_response(response):
@@ -156,19 +189,50 @@ def extract_assistant_message(arguments):
 def update_span_from_llm_response(result, include_token_counts=False):
     tokens = {}
     if include_token_counts and result is not None:
+        def _to_int(value, default=0):
+            try:
+                return int(value)
+            except (TypeError, ValueError):
+                return default
+
+        def _pick(usage_obj, keys):
+            if usage_obj is None:
+                return 0
+            for key in keys:
+                if isinstance(usage_obj, dict) and key in usage_obj and usage_obj.get(key) is not None:
+                    return _to_int(usage_obj.get(key), 0)
+                if hasattr(usage_obj, key):
+                    value = getattr(usage_obj, key)
+                    if value is not None:
+                        return _to_int(value, 0)
+            return 0
+
         # Try to extract token usage from the response
         if hasattr(result, "usage"):
             usage = result.usage
-            if isinstance(usage, dict):
-                return {
-                    "completion_tokens": usage.get("completion_tokens", 0),
-                    "prompt_tokens": usage.get("prompt_tokens", 0),
-                    "total_tokens": usage.get("total_tokens", 0),
-                }
+            completion_tokens = _pick(usage, ["completion_tokens", "output_tokens", "candidates_token_count"])
+            prompt_tokens = _pick(usage, ["prompt_tokens", "input_tokens", "prompt_token_count"])
+            total_tokens = _pick(usage, ["total_tokens", "total_token_count"]) 
+            if total_tokens == 0:
+                total_tokens = completion_tokens + prompt_tokens
             tokens = {
-                "completion_tokens": getattr(usage, "completion_tokens", 0),
-                "prompt_tokens": getattr(usage, "prompt_tokens", 0),
-                "total_tokens": getattr(usage, "total_tokens", 0),
+                "completion_tokens": completion_tokens,
+                "prompt_tokens": prompt_tokens,
+                "total_tokens": total_tokens,
+            }
+
+        # Fallback for SDKs that place usage in response_metadata/token_usage.
+        elif hasattr(result, "response_metadata") and isinstance(result.response_metadata, dict):
+            usage = result.response_metadata.get("token_usage")
+            completion_tokens = _pick(usage, ["completion_tokens", "output_tokens", "candidates_token_count"])
+            prompt_tokens = _pick(usage, ["prompt_tokens", "input_tokens", "prompt_token_count"])
+            total_tokens = _pick(usage, ["total_tokens", "total_token_count"])
+            if total_tokens == 0:
+                total_tokens = completion_tokens + prompt_tokens
+            tokens = {
+                "completion_tokens": completion_tokens,
+                "prompt_tokens": prompt_tokens,
+                "total_tokens": total_tokens,
             }
 
     return tokens

@@ -45,7 +45,7 @@ def test_mistral_stream_sync(setup):
         messages=[
             {
                 "role": "user",
-                "content": "How far is the moon from earth? Answer with the distance in km only.",
+                "content": "How far is the moon from earth in km?",
             },
         ],
     )

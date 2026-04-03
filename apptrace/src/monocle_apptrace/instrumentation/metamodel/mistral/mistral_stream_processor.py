@@ -68,3 +68,9 @@ class MistralStreamProcessor(BaseStreamProcessor):
         state.token_usage = usage
         state.close_stream()
         return True
+
+    def try_framework_specific_processing(self, item: Any, state: StreamState) -> bool:
+        """Allow both chunk parsing and completion usage capture on the same item."""
+        has_chunk = self.handle_chunk(item, state)
+        has_completion = self.handle_completion(item, state)
+        return has_chunk or has_completion

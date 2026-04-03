@@ -15,5 +15,5 @@ LITELLM_METHODS = [
         "method": "completion",
         "wrapper_method": task_wrapper,
         "output_processor": INFERENCE
-    }
+    },
 ]

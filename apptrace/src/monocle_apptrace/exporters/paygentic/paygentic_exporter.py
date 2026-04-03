@@ -12,11 +12,12 @@ import logging
 import os
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import Any, Optional, Sequence
+from typing import Any, Dict, List, Optional, Sequence
 
 import requests
 from monocle_apptrace.exporters.base_exporter import SpanExporterBase
 from monocle_apptrace.exporters.exporter_processor import ExportTaskProcessor
+from monocle_apptrace.exporters.span_filter import SpanFilter
 from opentelemetry.sdk.trace import ReadableSpan
 from opentelemetry.sdk.trace.export import SpanExportResult
 
@@ -46,13 +47,21 @@ class PaygenticSpanExporter(SpanExporterBase):
         self,
         endpoint: Optional[str] = None,
         timeout: Optional[int] = None,
-        session: Optional[requests.Session] = None,
         task_processor: Optional[ExportTaskProcessor] = None,
         source: Optional[str] = None,
         namespace: Optional[str] = None,
         sandbox: Optional[bool] = None,
-        allowed_types: Optional[set[str]] = None,
+        span_filter_config: Optional[Dict[str, Any]] = None,
     ) -> None:
+        """Initialise the exporter.
+
+        Args:
+            span_filter_config: SpanFilter configuration dict.  Defaults to
+                inference spans with only ``entity.1.type``, ``scope.*``
+                attributes and ``metadata`` events.  Custom configs must
+                keep ``scope.*`` in ``fields_to_include.attributes`` or
+                ``_resolve_subject`` will fail to find a subject for every span.
+        """
         super().__init__()
         api_key = os.environ.get("PAYGENTIC_API_KEY")
         if not api_key:
@@ -71,35 +80,44 @@ class PaygenticSpanExporter(SpanExporterBase):
         self._timeout = timeout or int(os.environ.get("PAYGENTIC_TIMEOUT", "15"))
         self._source = source or os.environ.get("PAYGENTIC_SOURCE", "monocle")
         self._namespace = namespace or os.environ.get("PAYGENTIC_NAMESPACE")
-        self._allowed_types = allowed_types
         self._closed = False
-        self._session = session or requests.Session()
-        self._session.headers.update({
+        self._headers = {
             "Content-Type": "application/json",
             "Authorization": f"Bearer {api_key}",
-        })
+        }
         # event types rejected by the API (type -> timestamp of rejection)
-        self._rejected_types: dict[str, float] = {}
+        self._rejected_types: Dict[str, float] = {}
 
-        self.task_processor = task_processor or None
+        self.task_processor = task_processor
         if task_processor is not None:
             task_processor.start()
+
+        self._span_filter = SpanFilter(
+            span_filter_config or {
+                "span_types_to_include": ["inference", "inference.*"],
+                "fields_to_include": {
+                    "attributes": ["entity.1.type", "scope.*"],
+                    "events": [{"name": "metadata"}],
+                },
+            }
+        )
 
         logger.info("Initializing with endpoint: %s", self._endpoint)
 
     @staticmethod
-    def _resolve_subject(span: ReadableSpan) -> str | None:
-        """Resolve the event subject from monocle scopes on the span.
+    def _resolve_subject(
+        attributes: Dict[str, Any], span_name: str, trace_id: str,
+    ) -> Optional[str]:
+        """Resolve the event subject from monocle scopes.
 
         Priority: subscriptionId scope > customerId scope.
         Returns None and logs an error when no subject can be determined.
         """
-        attrs = span.attributes or {}
-        subscription_id = attrs.get(SCOPE_SUBSCRIPTION_ID)
+        subscription_id = attributes.get(SCOPE_SUBSCRIPTION_ID)
         if subscription_id:
             return str(subscription_id)
 
-        customer_id = attrs.get(SCOPE_CUSTOMER_ID)
+        customer_id = attributes.get(SCOPE_CUSTOMER_ID)
         if customer_id:
             return str(customer_id)
 
@@ -107,42 +125,19 @@ class PaygenticSpanExporter(SpanExporterBase):
             "No subscriptionId or customerId scope set on span %s (trace %s). "
             "Set a monocle scope for 'subscriptionId' or 'customerId' before "
             "the traced call.",
-            span.name,
-            format(span.context.trace_id, "032x"),
+            span_name,
+            trace_id,
         )
         return None
 
     @staticmethod
-    def _derive_type(span: ReadableSpan) -> str:
-        """Derive CloudEvent type from the span's entity.1.type attribute.
+    def _derive_type(attributes: Dict[str, Any]) -> str:
+        """Derive CloudEvent type from the entity.1.type attribute.
 
         e.g. "inference.vertexai" -> "ai.inference.vertexai"
         """
-        attrs = span.attributes or {}
-        entity_type = attrs.get("entity.1.type", "unknown")
+        entity_type = attributes.get("entity.1.type", "unknown")
         return f"ai.{entity_type}"
-
-    @staticmethod
-    def _build_data(span: ReadableSpan) -> dict[str, Any] | None:
-        """Build the CloudEvent data payload from span context and metadata event.
-
-        Returns None if the span has no metadata event (nothing to report).
-        """
-        metadata_attrs: dict[str, Any] = {}
-        for event in span.events or []:
-            if event.name == "metadata":
-                metadata_attrs.update(event.attributes or {})
-
-        if not metadata_attrs:
-            return None
-
-        ctx = span.context
-        return {
-            "span_id": format(ctx.span_id, "016x"),
-            "trace_id": format(ctx.trace_id, "032x"),
-            "name": span.name,
-            **metadata_attrs,
-        }
 
     def _is_type_rejected(self, event_type: str) -> bool:
         """Check if an event type is temporarily rejected (cooldown not expired)."""
@@ -150,7 +145,7 @@ class PaygenticSpanExporter(SpanExporterBase):
         if rejected_at is None:
             return False
         if time.monotonic() - rejected_at > REJECTED_TYPE_COOLDOWN:
-            del self._rejected_types[event_type]
+            self._rejected_types.pop(event_type, None)
             logger.info("Cooldown expired for event type %r, will retry", event_type)
             return False
         return True
@@ -178,26 +173,40 @@ class PaygenticSpanExporter(SpanExporterBase):
             if self.skip_export(span):
                 continue
 
-            event_type = self._derive_type(span)
-            if self._allowed_types and event_type not in self._allowed_types:
+            filtered = self._span_filter.filter(span)
+            if filtered is None:
                 continue
+
+            attrs = filtered.get("attributes", {})
+            ctx = filtered.get("context", {})
+            trace_id = ctx.get("trace_id", "")
+
+            # Events are already filtered to metadata-only by SpanFilter
+            metadata_attrs: Dict[str, Any] = {}
+            for ev in filtered.get("events", []):
+                metadata_attrs.update(ev.get("attributes", {}))
+            if not metadata_attrs:
+                continue
+
+            event_type = self._derive_type(attrs)
             if self._is_type_rejected(event_type):
                 continue
 
-            data = self._build_data(span)
-            if data is None:
-                continue
-
-            subject = self._resolve_subject(span)
+            subject = self._resolve_subject(attrs, filtered.get("name", ""), trace_id)
             if subject is None:
                 continue
 
-            event: dict[str, Any] = {
+            event: Dict[str, Any] = {
                 "type": event_type,
                 "source": self._source,
                 "subject": subject,
-                "idempotencyKey": format(span.context.trace_id, "032x"),
-                "data": data,
+                "idempotencyKey": f"{trace_id}_{ctx.get('span_id', '')}",
+                "data": {
+                    "span_id": ctx.get("span_id", ""),
+                    "trace_id": trace_id,
+                    "name": filtered.get("name"),
+                    **metadata_attrs,
+                },
             }
             if self._namespace:
                 event["namespace"] = self._namespace
@@ -218,7 +227,7 @@ class PaygenticSpanExporter(SpanExporterBase):
 
         return self._send_events(events)
 
-    def _send_events(self, events: list[dict[str, Any]]) -> SpanExportResult:
+    def _send_events(self, events: List[Dict[str, Any]]) -> SpanExportResult:
         logger.info("Sending %d event(s) to %s", len(events), self._endpoint)
 
         failed = 0
@@ -244,9 +253,10 @@ class PaygenticSpanExporter(SpanExporterBase):
     @SpanExporterBase.retry_with_backoff(
         exceptions=(requests.exceptions.ConnectionError, requests.exceptions.Timeout)
     )
-    def _post_single_event(self, event: dict[str, Any]) -> None:
-        resp = self._session.post(
-            self._endpoint, json=event, timeout=self._timeout
+    def _post_single_event(self, event: Dict[str, Any]) -> None:
+        resp = requests.post(
+            self._endpoint, json=event, headers=self._headers,
+            timeout=self._timeout,
         )
         if resp.status_code == 429:
             raise requests.exceptions.ConnectionError("Rate limited")
@@ -274,7 +284,6 @@ class PaygenticSpanExporter(SpanExporterBase):
         if self._closed:
             return
         self._closed = True
-        self._session.close()
         logger.info("Shut down")
 
     def force_flush(self, timeout_millis: int = 30000) -> bool:

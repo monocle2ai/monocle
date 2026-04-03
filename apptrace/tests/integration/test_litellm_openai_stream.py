@@ -64,6 +64,7 @@ def test_llm_openai_stream(setup):
             model="gpt-4o-mini",
             messages=messages,
             stream=True,
+            stream_options={"include_usage": True},
         )
         
         # Collect streaming chunks
@@ -112,6 +113,7 @@ def test_llm_openai_stream(setup):
             
             # Verify response contains the streamed content
             has_output = False
+            has_tokens = False
             for event in span.events:
                 if event.name == "data.output":
                     output = event.attributes.get("response", "")
@@ -121,13 +123,22 @@ def test_llm_openai_stream(setup):
                         # Verify output looks like a response
                         assert "paris" in output.lower() or "france" in output.lower() or len(output) > 20, \
                             f"Expected meaningful output, got: {output[:100]}"
+                if event.name == "metadata":
+                    completion_tokens = event.attributes.get("completion_tokens", 0)
+                    prompt_tokens = event.attributes.get("prompt_tokens", 0)
+                    total_tokens = event.attributes.get("total_tokens", 0)
+                    logger.info(
+                        f"Metadata tokens: completion={completion_tokens}, prompt={prompt_tokens}, total={total_tokens}"
+                    )
+                    if total_tokens or completion_tokens or prompt_tokens:
+                        has_tokens = True
             
-            if has_output:
+            if has_output and has_tokens:
                 verified = True
-                logger.info("Streaming response captured and verified")
+                logger.info("Streaming response and token usage captured and verified")
                 break
     
-    assert verified, "Expected to find inference span with streamed output data"
+    assert verified, "Expected to find inference span with streamed output and token metadata"
 
 
 if __name__ == '__main__':

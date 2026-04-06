@@ -3,6 +3,12 @@ from monocle_apptrace.instrumentation.common.utils import get_error_message, res
 from monocle_apptrace.instrumentation.metamodel.hugging_face import _helper
 
 
+def process_stream(to_wrap, response, span_processor):
+    from monocle_apptrace.instrumentation.metamodel.hugging_face.hf_stream_processor import HFStreamProcessor
+    processor = HFStreamProcessor()
+    return processor.process_stream(to_wrap, response, span_processor)
+
+
 INFERENCE = {
     "type": SPAN_TYPES.INFERENCE,
     "subtype": lambda arguments: _helper.agent_inference_type(arguments),
@@ -91,4 +97,10 @@ INFERENCE = {
             ]
         }
     ]
+}
+
+STREAM_INFERENCE = {
+    **INFERENCE,
+    "is_auto_close": lambda kwargs: kwargs.get("stream", False) is False,
+    "response_processor": process_stream,
 }

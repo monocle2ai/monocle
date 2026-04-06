@@ -32,7 +32,7 @@ LANGGRAPH_METHODS = [
         "wrapper_method": task_wrapper,
         "span_handler": "langgraph_agent_handler",
         "scope_name": "agent.invocation",
-        "output_processor_list": [AGENT_STREAM, AGENT_REQUEST_STREAM],
+        "output_processor_list": [AGENT_REQUEST_STREAM, AGENT_STREAM],
     },
     {
         "package": "langgraph.graph.state",
@@ -41,7 +41,7 @@ LANGGRAPH_METHODS = [
         "wrapper_method": atask_iter_wrapper,
         "span_handler": "langgraph_agent_handler",
         "scope_name": "agent.invocation",
-        "output_processor_list": [AGENT_STREAM, AGENT_REQUEST_STREAM],
+        "output_processor_list": [AGENT_REQUEST_STREAM, AGENT_STREAM],
     },
     {
         "package": "langchain_core.tools.simple",

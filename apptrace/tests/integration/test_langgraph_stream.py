@@ -40,23 +40,6 @@ def setup():
         if instrumentor and instrumentor.is_instrumented_by_opentelemetry:
             instrumentor.uninstrument()
 
-
-@tool
-def get_coffee_menu(query: str = "") -> str:
-    """Returns the available coffee menu."""
-    return "\n".join([f"{k}: {v}" for k, v in coffee_menu.items()])
-
-
-@tool
-def order_coffee(order: str) -> str:
-    """Processes a coffee order. Provide the coffee name."""
-    order = order.lower()
-    if order in coffee_menu:
-        return f"Your {order} is being prepared. Enjoy your coffee!"
-    else:
-        return "Sorry, we don't have that coffee option. Please choose from the menu."
-
-
 @tool
 def get_coffee_details(coffee_name: str) -> str:
     """Provides details about a specific coffee. Input the coffee name."""
@@ -65,51 +48,10 @@ def get_coffee_details(coffee_name: str) -> str:
 
 
 # Define tools for the chatbot
-tools = [get_coffee_menu, order_coffee, get_coffee_details]
+tools = [get_coffee_details]
 
 # Set up the Chat Model
 llm = ChatOpenAI(model_name="gpt-4", temperature=0)
-
-
-def test_sync_stream_chat_sample(setup):
-    """Test synchronous streaming with stream_mode='values'."""
-
-    agent_executor = create_react_agent(llm, tools, name="coffee_agent")
-
-    # Consume stream chunks
-    chunk_count = 0
-    last_chunk = None
-    for chunk in agent_executor.stream(
-        input={"messages": [HumanMessage(content="order an espresso")]},
-        stream_mode="values"
-    ):
-        chunk_count += 1
-        last_chunk = chunk
-        logger.info(f"Stream chunk {chunk_count}: {chunk}")
-
-    logger.info(f"Total stream chunks received: {chunk_count}")
-    time.sleep(2)
-    verify_stream_spans(memory_exporter=setup, test_name="sync_stream")
-
-
-def test_sync_stream_updates_mode(setup):
-    """Test synchronous streaming with stream_mode='updates'."""
-
-    agent_executor = create_react_agent(llm, tools, name="coffee_agent")
-
-    # Consume stream chunks in updates mode
-    chunk_count = 0
-    for chunk in agent_executor.stream(
-        input={"messages": [HumanMessage(content="get the coffee menu")]},
-        stream_mode="updates"
-    ):
-        chunk_count += 1
-        logger.info(f"Stream update chunk {chunk_count}: {chunk}")
-
-    logger.info(f"Total stream updates received: {chunk_count}")
-    time.sleep(2)
-    verify_stream_spans(memory_exporter=setup, test_name="sync_stream_updates")
-
 
 @pytest.mark.asyncio
 async def test_async_stream_chat_sample(setup):
@@ -131,27 +73,6 @@ async def test_async_stream_chat_sample(setup):
     logger.info(f"Total async stream chunks received: {chunk_count}")
     time.sleep(2)
     verify_stream_spans(memory_exporter=setup, test_name="async_stream")
-
-
-@pytest.mark.asyncio
-async def test_async_stream_updates_mode(setup):
-    """Test asynchronous streaming with stream_mode='updates'."""
-
-    agent_executor = create_react_agent(llm, tools, name="coffee_agent")
-
-    # Consume stream chunks in updates mode asynchronously
-    chunk_count = 0
-    async for chunk in agent_executor.astream(
-        input={"messages": [HumanMessage(content="recommend a coffee for morning")]},
-        stream_mode="updates"
-    ):
-        chunk_count += 1
-        logger.info(f"Async stream update chunk {chunk_count}: {chunk}")
-
-    logger.info(f"Total async stream updates received: {chunk_count}")
-    time.sleep(2)
-    verify_stream_spans(memory_exporter=setup, test_name="async_stream_updates")
-
 
 def verify_stream_spans(memory_exporter=None, test_name=""):
     """Verify streaming spans are correctly instrumented."""

@@ -129,7 +129,7 @@ def tools(instance):
 def update_span_from_llm_response(response):
     meta_dict = {}
     token_usage = None
-    if response is not None and "messages" in response:
+    if response is not None and "messages" in response and isinstance(response["messages"], list) and len(response["messages"]) > 0:
         token = response["messages"][-1]
         if token.response_metadata is not None:
             token_usage = token.response_metadata["token_usage"]
@@ -144,7 +144,7 @@ def extract_tool_response(result):
         return result.content
     if isinstance(result, str):
         return result
-    if isinstance(result[0], str):
+    if isinstance(result, (list, tuple)) and len(result) > 0 and isinstance(result[0], str):
         return result[0]
     if isinstance(result, tuple) and len(result) > 1:
         if isinstance(result[1], dict) and 'structured_content' in result[1]:

@@ -54,7 +54,21 @@ class LangGraphStreamProcessor(BaseStreamProcessor):
         if part_type in ["updates", "values", "tasks", "checkpoints", "debug"]:
             text = self._extract_text_from_data(data)
             if text:
-                state.add_content(text)
+                # updates/values modes are state snapshots; keep the latest assistant text
+                state.update_first_token_time()
+                state.accumulated_response = text
+            return True
+
+        # Fallback for common LangGraph stream snapshot shapes:
+        # - values mode: {"messages": [...]}
+        # - updates mode: {"agent": {"messages": [...]}, ...}
+        text = self._extract_text_from_stream_item(item)
+        if text:
+            state.update_first_token_time()
+            state.accumulated_response = text
+            usage = self._extract_usage_from_stream_item(item)
+            if usage is not None:
+                state.token_usage = usage
             return True
 
         return False
@@ -98,11 +112,68 @@ class LangGraphStreamProcessor(BaseStreamProcessor):
         if isinstance(data, dict):
             messages = data.get("messages")
             if isinstance(messages, list) and len(messages) > 0:
-                last = messages[-1]
-                content = getattr(last, "content", None)
-                if content is not None:
-                    return str(content)
+                return self._extract_latest_message_text(messages)
             return ""
+
+        return ""
+
+    def _extract_latest_message_text(self, messages: Any) -> str:
+        if not isinstance(messages, list) or len(messages) == 0:
+            return ""
+
+        # Walk backwards and pick the last non-empty message content.
+        for msg in reversed(messages):
+            content = getattr(msg, "content", None)
+            if content is None and isinstance(msg, dict):
+                content = msg.get("content")
+
+            if content is None:
+                continue
+
+            if isinstance(content, str):
+                if content.strip():
+                    return content
+                continue
+
+            if isinstance(content, list):
+                parts = []
+                for part in content:
+                    if isinstance(part, str) and part:
+                        parts.append(part)
+                    elif isinstance(part, dict):
+                        text = part.get("text") or part.get("content")
+                        if text:
+                            parts.append(str(text))
+                combined = "".join(parts)
+                if combined.strip():
+                    return combined
+                continue
+
+            text = str(content)
+            if text.strip():
+                return text
+
+        return ""
+
+    def _extract_text_from_stream_item(self, item: Any) -> str:
+        if not isinstance(item, dict):
+            return ""
+
+        # values mode shape
+        messages = item.get("messages")
+        if isinstance(messages, list):
+            text = self._extract_latest_message_text(messages)
+            if text:
+                return text
+
+        # updates mode shape where each node can hold messages
+        for value in item.values():
+            if isinstance(value, dict):
+                nested_messages = value.get("messages")
+                if isinstance(nested_messages, list):
+                    text = self._extract_latest_message_text(nested_messages)
+                    if text:
+                        return text
 
         return ""
 
@@ -128,3 +199,19 @@ class LangGraphStreamProcessor(BaseStreamProcessor):
             "prompt_tokens": usage.get("prompt_tokens"),
             "total_tokens": usage.get("total_tokens"),
         }
+
+    def _extract_usage_from_stream_item(self, item: Any):
+        if not isinstance(item, dict):
+            return None
+
+        usage = self._extract_usage_from_data(item)
+        if usage is not None:
+            return usage
+
+        for value in item.values():
+            if isinstance(value, dict):
+                usage = self._extract_usage_from_data(value)
+                if usage is not None:
+                    return usage
+
+        return None

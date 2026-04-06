@@ -9,7 +9,7 @@ from monocle_apptrace.instrumentation.metamodel.langgraph._helper import (
    DELEGATION_NAME_PREFIX, get_name, is_root_agent_name, is_delegation_tool, extract_thread_id, extract_parent_command_message, is_single_agent_instance
 )
 from monocle_apptrace.instrumentation.metamodel.langgraph.entities.inference import (
-    AGENT_DELEGATION, AGENT_REQUEST, AGENT
+    AGENT_DELEGATION, AGENT_REQUEST, AGENT, AGENT_REQUEST_STREAM, AGENT_STREAM
 )
 from monocle_apptrace.instrumentation.common.scope_wrapper import start_scope, stop_scope
 from monocle_apptrace.instrumentation.common.utils import is_scope_set, get_scopes, propogate_agent_name_to_parent_span
@@ -47,12 +47,16 @@ class LanggraphAgentHandler(SpanHandler):
         context = set_value(AGENT_NAME_KEY, get_name(instance))
         context = set_value(AGENT_PREFIX_KEY, DELEGATION_NAME_PREFIX, context)
         scope_name = AGENT_REQUEST.get("type")
+        is_streaming_call = to_wrap.get("method") in ["stream", "astream"]
         if not is_scope_set(scope_name):
             agent_request_wrapper = to_wrap.copy()
             if is_single_agent_instance(instance):
-                agent_request_wrapper["output_processor_list"] = [AGENT_REQUEST, AGENT]
+                if is_streaming_call:
+                    agent_request_wrapper["output_processor_list"] = [AGENT_REQUEST_STREAM, AGENT_STREAM]
+                else:
+                    agent_request_wrapper["output_processor_list"] = [AGENT_REQUEST, AGENT]
             else:
-                agent_request_wrapper["output_processor"] = AGENT_REQUEST
+                agent_request_wrapper["output_processor"] = AGENT_REQUEST_STREAM if is_streaming_call else AGENT_REQUEST
             session_id = extract_thread_id(kwargs)
             if session_id is not None:
                 return start_scope(AGENT_SESSION, scope_value=session_id, context=context), agent_request_wrapper

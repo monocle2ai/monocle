@@ -383,7 +383,7 @@ async def test_invalid_api_key_error_code_in_span(setup):
                         and span_attributes["span.type"] == "agentic.invocation"
                         and "entity.1.name" in span_attributes
                 ):
-                    span_input, span_output, _ = span.events
+                    span_input, span_output = span.events
                     assert "error_code" in span_output.attributes
                     assert span_output.attributes["error_code"] == "invalid_api_key"
 

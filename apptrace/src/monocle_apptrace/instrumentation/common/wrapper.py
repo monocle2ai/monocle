@@ -155,7 +155,9 @@ def monocle_wrapper_span_processor(tracer: Tracer, handler: SpanHandler, to_wrap
                             span.end()
                         return ret_val
                     if ex is None and not auto_close_span and to_wrap.get("output_processor") and to_wrap.get("output_processor").get("response_processor"):
-                        to_wrap.get("output_processor").get("response_processor")(to_wrap, return_value, post_process_span_internal)
+                        wrapper = to_wrap.get("output_processor").get("response_processor")(to_wrap, return_value, post_process_span_internal)
+                        if wrapper is not None:
+                            return_value = wrapper
                     else:
                         return_value = post_process_span_internal(return_value)
             span_status = span.status
@@ -245,7 +247,9 @@ async def amonocle_wrapper_span_processor(tracer: Tracer, handler: SpanHandler, 
                             span.end()
                         return ret_val
                     if ex is None and not auto_close_span and to_wrap.get("output_processor") and to_wrap.get("output_processor").get("response_processor"):
-                        to_wrap.get("output_processor").get("response_processor")(to_wrap, return_value, post_process_span_internal)
+                        wrapper = to_wrap.get("output_processor").get("response_processor")(to_wrap, return_value, post_process_span_internal)
+                        if wrapper is not None:
+                            return_value = wrapper
                     else:
                         return_value = post_process_span_internal(return_value)
         span_status = span.status

@@ -1,4 +1,4 @@
-# Monocle Evaluation API Usage
+# Monocle Performance, Quality, and Cost Testing API
 
 This document explains how to use the Monocle evaluation quality, cost, and performance testing utilities with the `monocle_trace_asserter` fixture for validating AI agent quality, safety, and performance.
 
@@ -22,7 +22,26 @@ The evaluation tool will not run without this environment variable configured.
 ## 1. `monocle_trace_asserter` (Pytest Fixture)
 A pytest fixture for running agents and asserting on evaluation metrics across entire traces or filtered spans.
 
-**Example (Trace-level evaluation):**
+### Basic Syntax
+
+The `check_eval()` method supports two syntax styles:
+
+**Simple syntax** (defaults to "traces" fact):
+```python
+.check_eval("metric_name", "expected_value")
+.check_eval("metric_name", expected="value")
+.check_eval("metric_name", not_expected="value")
+```
+
+**Explicit syntax** (specify fact name):
+```python
+.check_eval(fact_name="fact_type", eval_name="metric_name", expected="value")
+.check_eval(fact_name="fact_type", eval_name="metric_name", not_expected="value")
+```
+
+### Examples
+
+**Example 1: Basic trace-level evaluation (simple syntax)**
 ```python
 import pytest
 from monocle_test_tools.pytest_plugin import monocle_trace_asserter
@@ -34,61 +53,99 @@ async def test_sentiment_bias_evaluation(monocle_trace_asserter):
         "Book a flight from San Jose to Seattle for 27th Nov 2025."
     )
     
+    # Simple syntax - evaluates on "traces" fact by default
     monocle_trace_asserter.with_evaluation("okahu")\
-        .check_eval("sentiment", expected="positive")\
-        .check_eval("bias", expected="unbiased")
+        .check_eval("sentiment", "positive")\
+        .check_eval("bias", "unbiased")
 ```
 
-**Example (Filtered agent evaluation):**
+**Example 2: Multiple evaluators in same test**
 ```python
 @pytest.mark.asyncio
-async def test_agent_evaluation(monocle_trace_asserter):
+async def test_multiple_evaluators(monocle_trace_asserter):
     await monocle_trace_asserter.run_agent_async(root_agent, "google_adk", "query")
     
-    monocle_trace_asserter.called_agent("flight_booking_agent")
-    monocle_trace_asserter.with_evaluation("okahu")\
-        .check_eval("conversation_completeness", expected="complete")
+    # Use okahu evaluator
+    monocle_trace_asserter.with_evaluation("okahu").check_eval("frustration", "ok")
+    
+    # Switch to bert_score evaluator
+    monocle_trace_asserter.with_evaluation("bert_score", {"model_type": "bert-base-uncased"})
+    
+    # Switch back to okahu evaluator
+    monocle_trace_asserter.with_evaluation("okahu").check_eval("hallucination", "no_hallucination")
 ```
 
-**Example (Filtered tool evaluation):**
+**Example 3: Custom failure message**
 ```python
 @pytest.mark.asyncio
-async def test_tool_evaluation(monocle_trace_asserter):
+async def test_with_message(monocle_trace_asserter):
     await monocle_trace_asserter.run_agent_async(root_agent, "google_adk", "query")
     
-    monocle_trace_asserter.called_tool("book_flight", "flight_booking_agent")
     monocle_trace_asserter.with_evaluation("okahu")\
-        .check_eval("toxicity", expected="non_toxic")\
-        .check_eval("contextual_relevancy", expected="highly_relevant")
+        .check_eval("summarization", "excellent", 
+                   message="Summarization should capture all key details accurately.")
 ```
 
-## 2. Available Evaluation Metrics
+## 2. Understanding Fact Names
+
+**Fact names** represent the scope or type of spans that evaluations are performed on. When you call `check_eval()`, you can optionally specify which fact type to evaluate:
+
+### Available Fact Names
+
+- **`traces`** (default) - Evaluates the entire trace from start to finish
+- **`agent_sessions`** - Evaluates individual agent session spans
+- **`conversations`** - Evaluates conversation-level interactions
+- **`inferences`** - Evaluates individual LLM inference calls
+
+### When to Specify Fact Names
+
+**Omit `fact_name` (defaults to "traces"):**
+```python
+# Simple syntax - evaluates on entire trace
+.check_eval("sentiment", "positive")
+.check_eval("bias", "unbiased")
+```
+
+**Specify `fact_name` explicitly:**
+```python
+# Evaluate sentiment on each inference span
+.check_eval(fact_name="inferences", eval_name="sentiment", not_expected="negative")
+
+# Evaluate hallucination on agent sessions
+.check_eval(fact_name="agent_sessions", eval_name="hallucination", expected="no_hallucination")
+
+# Evaluate frustration on conversations
+.check_eval(fact_name="conversations", eval_name="frustration", expected="ok")
+```
+
+**Important:** Each metric supports specific fact names. Using an unsupported combination will raise an error. Refer to the "Supported Fact Names" column in the table below to see which fact names each metric supports.
+
+## 3. Available Evaluation Metrics
 
 All metrics provided by the "okahu" evaluator:
 
-| Metric | Possible Values |
-|--------|-----------------|
-| `ai_tone` | not_useful / slightly_useful / very_useful |
-| `answer_relevancy` | yes / no / idk |
-| `argument_correctness` | correct / incorrect / partially_correct |
-| `bias` | unbiased / biased / potentially_biased |
-| `contextual_precision` | high_precision / medium_precision / low_precision |
-| `contextual_recall` | high_recall / medium_recall / low_recall |
-| `contextual_relevancy` | highly_relevant / moderately_relevant / slightly_relevant / irrelevant |
-| `conversation_completeness` | complete / mostly_complete / partially_complete / incomplete |
-| `frustration` | frustrated / ok |
-| `hallucination` | no_hallucination / minor_hallucination / major_hallucination |
-| `knowledge_retention` | excellent_retention / good_retention / poor_retention / no_retention |
-| `mcp_task_completion` | completed / partially_completed / failed / not_attempted |
-| `misuse` | no_misuse / potential_misuse / clear_misuse |
-| `offtopic` | on_topic / off_topic |
-| `pii_leakage` | no_pii / potential_pii / pii_leakage |
-| `role_adherence` | excellent_adherence / good_adherence / poor_adherence / no_adherence |
-| `sentiment` | negative / positive / neutral |
-| `summarization` | excellent / good / fair / poor |
-| `toxicity` | non_toxic / mildly_toxic / moderately_toxic / highly_toxic |
+| Metric | Possible Values | Supported Fact Names |
+|--------|-----------------|----------------------|
+| `answer_relevancy` | yes / no / idk | traces |
+| `argument_correctness` | correct / incorrect / partially_correct | traces |
+| `bias` | unbiased / biased / potentially_biased | traces |
+| `contextual_precision` | high_precision / medium_precision / low_precision | traces |
+| `contextual_recall` | high_recall / medium_recall / low_recall | traces |
+| `contextual_relevancy` | highly_relevant / moderately_relevant / slightly_relevant / irrelevant | traces, agent_sessions |
+| `conversation_completeness` | complete / mostly_complete / partially_complete / incomplete | traces |
+| `frustration` | frustrated / ok | traces, conversations |
+| `hallucination` | no_hallucination / minor_hallucination / major_hallucination | traces, agent_sessions |
+| `knowledge_retention` | excellent_retention / good_retention / poor_retention / no_retention | traces |
+| `mcp_task_completion` | completed / partially_completed / failed / not_attempted | traces, agent_sessions |
+| `misuse` | no_misuse / potential_misuse / clear_misuse | traces, agent_sessions |
+| `offtopic` | on_topic / off_topic | conversations |
+| `pii_leakage` | no_pii / potential_pii / pii_leakage | traces, agent_sessions |
+| `role_adherence` | excellent_adherence / good_adherence / poor_adherence / no_adherence | traces, agent_sessions |
+| `sentiment` | negative / positive / neutral | traces, conversations, agent_sessions, inferences |
+| `summarization` | excellent / good / fair / poor | traces |
+| `toxicity` | non_toxic / mildly_toxic / moderately_toxic / highly_toxic | traces, agent_sessions |
 
-## 3. Using Positive and Negative Expectations
+## 4. Using Positive and Negative Expectations
 
 The `check_eval()` method supports both **positive expectations** (values that should match) and **negative expectations** (values that should NOT match) through separate parameters:
 
@@ -111,104 +168,88 @@ Each parameter accepts either:
            not_expected="positive")  # ValueError!
 ```
 
-### Syntax
+### Syntax Options
 
-**Single expected value:**
-```python
-# Must be "positive"
-.check_eval("sentiment", expected="positive")
-```
+| Syntax Type | Example | Description |
+|-------------|---------|-------------|
+| **Simple - Single value** | `.check_eval("sentiment", "positive")` | Positional syntax, defaults to traces fact |
+| **Simple - Expected** | `.check_eval("sentiment", expected="positive")` | Single expected value, defaults to traces fact |
+| **Simple - Not expected** | `.check_eval("sentiment", not_expected="negative")` | Single not_expected value, defaults to traces fact |
+| **Simple - Multiple expected** | `.check_eval("sentiment", expected=["positive", "neutral"])` | Multiple expected values (OR logic), defaults to traces fact |
+| **Simple - Multiple not expected** | `.check_eval("toxicity", not_expected=["highly_toxic", "moderately_toxic"])` | Multiple not_expected values (AND logic), defaults to traces fact |
+| **Simple - Both parameters** | `.check_eval("sentiment", expected=["positive", "neutral"], not_expected="negative")` | Combine expected and not_expected, defaults to traces fact |
+| **Explicit - With fact_name** | `.check_eval(fact_name="inferences", eval_name="sentiment", not_expected="negative")` | Specify fact type explicitly |
+| **Explicit - Multiple expected** | `.check_eval(fact_name="agent_sessions", eval_name="sentiment", expected=["positive", "neutral"])` | Multiple expected values on specific fact |
+| **Explicit - Multiple not expected** | `.check_eval(fact_name="agent_sessions", eval_name="toxicity", not_expected=["highly_toxic", "moderately_toxic"])` | Multiple not_expected values on specific fact |
+| **Explicit - Both parameters** | `.check_eval(fact_name="conversations", eval_name="sentiment", expected=["positive", "neutral"], not_expected="negative")` | Combine expected and not_expected on specific fact |
 
-**Single not_expected value:**
-```python
-# Must NOT be "negative"
-.check_eval("sentiment", not_expected="negative")
-```
+### Comprehensive Examples
 
-**Multiple expected values:**
-```python
-# Must be "positive" OR "neutral"
-.check_eval("sentiment", expected=["positive", "neutral"])
-```
-
-**Multiple not_expected values:**
-```python
-# Must NOT be "highly_toxic" or "moderately_toxic"
-.check_eval("toxicity", not_expected=["highly_toxic", "moderately_toxic"])
-```
-
-**Expected with not_expected:**
-```python
-# Must be "positive" or "neutral" AND must NOT be "negative"
-.check_eval("sentiment", expected=["positive", "neutral"], not_expected="negative")
-```
-
-**Multiple expected and not_expected values:**
-```python
-# Must be "completed" or "partially_completed" AND must NOT be "failed"
-.check_eval("mcp_task_completion", expected=["completed", "partially_completed"], not_expected="failed")
-```
-
-### Examples
-
-**Example 1: Single expected value**
+**Example 1: Simple syntax - Trace-level evaluation (defaults to traces)**
 ```python
 @pytest.mark.asyncio
-async def test_positive_sentiment(monocle_trace_asserter):
+async def test_trace_sentiment_bias(monocle_trace_asserter):
     await monocle_trace_asserter.run_agent_async(root_agent, "google_adk", "query")
     
-    # Result must be "positive"
+    # Simple syntax - evaluates on traces fact by default
     monocle_trace_asserter.with_evaluation("okahu")\
-        .check_eval("sentiment", expected="positive")
+        .check_eval("sentiment", "positive")\
+        .check_eval("bias", "unbiased")
 ```
 
-**Example 2: Single not_expected value**
+**Example 2: Inference spans with not_expected**
 ```python
 @pytest.mark.asyncio
-async def test_not_negative_sentiment(monocle_trace_asserter):
+async def test_inferences_sentiment(monocle_trace_asserter):
     await monocle_trace_asserter.run_agent_async(root_agent, "google_adk", "query")
     
-    # Result must NOT be "negative"
+    # Evaluate sentiment on each inference span - must NOT be negative
     monocle_trace_asserter.with_evaluation("okahu")\
-        .check_eval("sentiment", not_expected="negative")
+        .check_eval(fact_name="inferences", eval_name="sentiment", not_expected="negative")
 ```
 
-**Example 3: Multiple not_expected values**
+**Example 3: Conversations with multiple evaluations**
 ```python
 @pytest.mark.asyncio
-async def test_no_toxicity(monocle_trace_asserter):
+async def test_conversations_evaluation(monocle_trace_asserter):
     await monocle_trace_asserter.run_agent_async(root_agent, "google_adk", "query")
     
-    # Result must NOT be any form of toxic
+    # Evaluate conversation-level metrics
     monocle_trace_asserter.with_evaluation("okahu")\
-        .check_eval("toxicity", not_expected=["mildly_toxic", "moderately_toxic", "highly_toxic"])
+        .check_eval(fact_name="conversations", eval_name="frustration", not_expected="frustrated")
+    monocle_trace_asserter.check_eval(fact_name="conversations", eval_name="offtopic", expected="on_topic")
 ```
 
-**Example 4: Expected with not_expected**
+**Example 4: Agent sessions with combined expected and not_expected**
 ```python
 @pytest.mark.asyncio
-async def test_no_high_toxicity(monocle_trace_asserter):
+async def test_agent_sessions_quality(monocle_trace_asserter):
     await monocle_trace_asserter.run_agent_async(root_agent, "google_adk", "query")
     
-    # Must be non_toxic or mildly_toxic, but NOT highly_toxic
+    # Role adherence must be excellent or good, NOT poor or none
     monocle_trace_asserter.with_evaluation("okahu")\
-        .check_eval("toxicity", expected=["non_toxic", "mildly_toxic"], not_expected="highly_toxic")
+        .check_eval(fact_name="agent_sessions", eval_name="role_adherence",
+                   expected=["excellent_adherence", "good_adherence"],
+                   not_expected=["poor_adherence", "no_adherence"])
+    
+    # Task must be completed or partially completed, NOT failed
+    monocle_trace_asserter.check_eval(fact_name="agent_sessions", eval_name="mcp_task_completion", 
+                   expected=["completed", "partially_completed"], not_expected="failed")
 ```
 
-**Example 4: Combined with multiple not_expected values**
+**Example 5: Multiple not_expected values**
 ```python
 @pytest.mark.asyncio
-async def test_task_completion(monocle_trace_asserter):
+async def test_toxicity_check(monocle_trace_asserter):
     await monocle_trace_asserter.run_agent_async(root_agent, "google_adk", "query")
     
-    # Task must be completed or partially_completed, AND must not have failed or not_attempted
+    # Agent sessions must NOT be toxic at any level
     monocle_trace_asserter.with_evaluation("okahu")\
-        .check_eval("mcp_task_completion", 
-                   expected=["completed", "partially_completed"], 
-                   not_expected=["failed", "not_attempted"])
+        .check_eval(fact_name="agent_sessions", eval_name="toxicity", 
+                   not_expected=["highly_toxic", "moderately_toxic", "mildly_toxic"])
 ```
 
-## 4. Running Tests
+## 5. Running Tests
 
 **Via VS Code Testing UI:**
 1. Open Testing view (beaker icon or `Ctrl+Shift+T`)
@@ -226,7 +267,7 @@ pytest -k "sentiment"             # Run matching keyword
 
 Passing tests display `PASSED` in green.
 
-## 5. Understanding Failures
+## 6. Understanding Failures
 
 When an evaluation fails, the assertion error indicates the metric, expected value, and actual value:
 
@@ -235,7 +276,7 @@ AssertionError: Evaluation 'sentiment' did not match expected result.
 Expected positive. Received negative.
 ```
 
-## 6. Cost and Performance Testing
+## 7. Cost and Performance Testing
 
 The `monocle_trace_asserter` fixture provides methods for validating performance metrics such as token consumption and execution time. These assertions help ensure your AI agents stay within acceptable cost and latency boundaries.
 
@@ -370,16 +411,41 @@ AssertionError: Duration limit exceeded for tool 'book_flight': tool_invocation 
 
 ## Notes
 
-- Call `with_evaluation("okahu")` to configure an evaluator before calling `check_eval()`.
-  - You don't have to declare the evaluator each time — it persists for subsequent `check_eval()` calls
-  - You can switch evaluators within the same test by calling `with_evaluation()` with a different evaluator name
-- Use `run_agent_async()` or `run_agent()` to execute your agent and generate spans before evaluation.
-- The `check_eval()` method requires at least one of `expected` or `not_expected`:
-  - `expected`: **(Optional)** Accepts a **string** or **list of strings** for values that should match
-  - `not_expected`: **(Optional)** Accepts a **string** or **list of strings** for values that should NOT match
-  - Both parameters can be used together for comprehensive validation
-  - A `ValueError` is raised if both are omitted
-  - The method validates that there's no overlap between the two parameters
-- Multiple evaluations can be chained: `.check_eval("sentiment", expected="positive").check_eval("bias", expected="unbiased")`
-- Test files and functions must start with `test_` for pytest discovery.
-- Evaluation results are sent to the Okahu UI portal when `MONOCLE_EXPORTER` is properly configured.
+### Evaluator Configuration
+- Call `with_evaluation("okahu")` to configure an evaluator before calling `check_eval()`
+- You don't have to declare the evaluator each time — it persists for subsequent `check_eval()` calls
+- You can switch evaluators within the same test by calling `with_evaluation()` with a different evaluator name
+- Example: `.with_evaluation("bert_score", {"model_type": "bert-base-uncased"})`
+
+### Agent Execution
+- Use `run_agent_async()` or `run_agent()` to execute your agent and generate spans before evaluation
+
+### check_eval() Method Signatures
+
+**Simple syntax (defaults to "traces" fact):**
+```python
+check_eval(eval_name, expected=None, not_expected=None, message=None)
+```
+
+**Explicit syntax (with fact_name):**
+```python
+check_eval(fact_name, eval_name, expected=None, not_expected=None, message=None)
+```
+
+**Parameters:**
+- `fact_name`: **(Optional)** The fact type to evaluate (traces, agent_sessions, conversations, inferences). Defaults to "traces" if omitted.
+- `eval_name`: **(Required)** The metric/evaluation name (e.g., "sentiment", "bias", "hallucination")
+- `expected`: **(Optional)** Accepts a **string** or **list of strings** for values that should match
+- `not_expected`: **(Optional)** Accepts a **string** or **list of strings** for values that should NOT match
+- `message`: **(Optional)** Custom message to display on evaluation failure
+
+**Important:**
+- At least one of `expected` or `not_expected` must be provided — omitting both will raise a `ValueError`
+- Both parameters can be used together for comprehensive validation
+- The method validates that there's no overlap between `expected` and `not_expected`
+- Each metric supports specific fact names — using an unsupported combination will raise an error (see "Supported Fact Names" column in the metrics table)
+
+### Chaining and Pytest
+- Multiple evaluations can be chained: `.check_eval("sentiment", "positive").check_eval("bias", "unbiased")`
+- Test files and functions must start with `test_` for pytest discovery
+- Evaluation results are sent to the Okahu UI portal when `MONOCLE_EXPORTER` is properly configured

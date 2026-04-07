@@ -2,7 +2,7 @@ from asyncio import sleep
 import pytest
 
 from monocle_test_tools import MonocleValidator
-from test_common.adk_travel_agent import root_agent
+from test_common.adk_travel_agent import root_agent, root_agent_parallel
 
 agent_test_cases:list[dict] = [
     {
@@ -46,10 +46,81 @@ agent_test_cases:list[dict] = [
     },
 ]
 @pytest.mark.asyncio
-@pytest.mark.parametrize("test_case", agent_test_cases)
+@pytest.mark.parametrize("monocle_test_case", agent_test_cases)
 #@MonocleValidator().monocle_testcase(agent_test_cases)
 async def test_run_agents(monocle_test_case):
    await MonocleValidator().test_agent_async(root_agent, "google_adk", monocle_test_case)
+   await sleep(2)  # To avoid rate limiting
+
+# PARALLEL EXECUTION TEST CASES
+# Tests for the parallel agent to verify scope.agentic.executionId is set correctly
+parallel_agent_test_cases:list[dict] = [
+    {
+        "test_input": ["Book a flight from San Francisco to Mumbai for 26th Nov 2025. Book a two queen room at Marriot Intercontinental at Juhu, Mumbai for 27th Nov 2025 for 4 nights."],
+        "test_output": "A flight from San Francisco to Mumbai on November 26, 2025, and a four-night stay at the Marriot Intercontinental in Juhu, Mumbai starting November 27, 2025, have been booked.",
+        "comparer": "similarity",
+        "test_spans": [
+            {
+                "span_type": "agentic.invocation",
+                "entities": [
+                    {"type": "agent", "name": "adk_parallel_booking_coordinator_5"}
+                ],
+                # Verify scope.agentic.executionId is present for ParallelAgent
+                "attributes": {
+                    "scope.agentic.executionId": "present"  # Check that this scope exists
+                }
+            }
+        ]
+    },
+    {
+        "test_input": ["Book a flight from San Francisco to Mumbai for 26th Nov 2025. Book a two queen room at Marriot Intercontinental at Juhu, Mumbai for 27th Nov 2025 for 4 nights."],
+        "test_spans": [
+            {
+                "span_type": "agentic.turn",
+                "output": "A flight from San Francisco to Mumbai on November 26, 2025, and a four-night stay at the Marriot Intercontinental in Juhu, Mumbai starting November 27, 2025, have been booked.",
+                "comparer": "similarity"
+            },
+            {
+                "span_type": "agentic.invocation",
+                "entities": [
+                    {"type": "agent", "name": "adk_flight_booking_agent_5"}
+                ]
+            },
+            {
+                "span_type": "agentic.invocation",
+                "entities": [
+                    {"type": "agent", "name": "adk_hotel_booking_agent_5"}
+                ]
+            },
+            {
+                "span_type": "agentic.invocation",
+                "entities": [
+                    {"type": "agent", "name": "adk_trip_summary_agent_5"}
+                ]
+            },
+            {
+                "span_type": "agentic.tool.invocation",
+                "entities": [
+                    {"type": "tool", "name": "adk_book_flight_5"},
+                    {"type": "agent", "name": "adk_flight_booking_agent_5"}
+                ]
+            },
+            {
+                "span_type": "agentic.tool.invocation",
+                "entities": [
+                    {"type": "tool", "name": "adk_book_hotel_5"},
+                    {"type": "agent", "name": "adk_hotel_booking_agent_5"}
+                ]
+            }
+        ]
+    }
+]
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("monocle_test_case", parallel_agent_test_cases)
+async def test_run_parallel_agents(monocle_test_case):
+   """Test parallel agent execution and verify scope.agentic.executionId is present."""
+   await MonocleValidator().test_agent_async(root_agent_parallel, "google_adk", monocle_test_case)
    await sleep(2)  # To avoid rate limiting
 
 if __name__ == "__main__":

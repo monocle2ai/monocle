@@ -144,15 +144,15 @@ TOOLS = {
             {
                 "_comment": "name of the tool",
                 "attribute": "name",
-                "accessor": lambda arguments: _helper.get_tool_name(
-                    arguments["instance"]
+                "accessor": lambda arguments: _helper.get_tool_name_from_arguments(
+                    arguments
                 ),
             },
             {
                 "_comment": "tool description",
                 "attribute": "description",
-                "accessor": lambda arguments: _helper.get_tool_description(
-                    arguments["instance"]
+                "accessor": lambda arguments: _helper.get_tool_description_from_arguments(
+                    arguments
                 ),
             },
         ],

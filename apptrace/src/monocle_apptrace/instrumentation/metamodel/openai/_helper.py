@@ -30,6 +30,32 @@ URL_MAP = {
     # add more providers here as needed
 }
 
+
+def _normalized_openai_inputs(arguments):
+    """Return a merged request payload that supports positional _fetch_response calls."""
+    kwargs = dict(arguments.get("kwargs", {}) or {})
+    args = list(arguments.get("args", []) or [])
+
+    if "input" not in kwargs and len(args) > 1:
+        kwargs["input"] = args[1]
+    if "instructions" not in kwargs and len(args) > 0:
+        kwargs["instructions"] = args[0]
+
+    return kwargs
+
+
+def _normalize_result_object(result):
+    """Unwrap common wrapper return shapes to access the actual model response object."""
+    candidate = result
+
+    if isinstance(candidate, (tuple, list)) and len(candidate) > 0:
+        candidate = candidate[0]
+
+    if hasattr(candidate, "response") and getattr(candidate, "response") is not None:
+        return getattr(candidate, "response")
+
+    return candidate
+
 def extract_messages(kwargs):
     """Extract system and user messages"""
     try:
@@ -137,7 +163,7 @@ def extract_assistant_message(arguments):
         messages = []
         status = get_status_code(arguments)
         if status == 'success' or status == 'completed':
-            response = arguments["result"]
+            response = _normalize_result_object(arguments["result"])
             if hasattr(response, "tools") and isinstance(response.tools, list) and len(response.tools) > 0 and isinstance(response.tools[0], dict):
                 tools = []
                 for tool in response.tools:
@@ -164,6 +190,16 @@ def extract_assistant_message(arguments):
             if hasattr(response, "output_text") and len(response.output_text):
                 role = response.role if hasattr(response, "role") else "assistant"
                 messages.append({role: response.output_text})
+            if not messages and hasattr(response, "output") and isinstance(response.output, list) and len(response.output) > 0:
+                serialized_output = []
+                for item in response.output:
+                    if hasattr(item, "model_dump"):
+                        serialized_output.append(item.model_dump())
+                    elif isinstance(item, dict):
+                        serialized_output.append(item)
+                    else:
+                        serialized_output.append(str(item))
+                messages.append({"assistant": get_json_dumps(serialized_output)})
             if (
                 response is not None
                 and hasattr(response, "choices")
@@ -240,6 +276,7 @@ def update_output_span_events(results):
 
 def update_span_from_llm_response(response):
     meta_dict = {}
+    response = _normalize_result_object(response)
     if response is not None and hasattr(response, "usage"):
         if hasattr(response, "usage") and response.usage is not None:
             token_usage = response.usage
@@ -289,11 +326,33 @@ def extract_finish_reason(arguments):
         if "exception" in arguments and arguments["exception"] is not None:
             if hasattr(arguments["exception"], "code") and arguments["exception"].code in OPENAI_FINISH_REASON_MAPPING.keys():
                 return arguments["exception"].code
-        response = arguments["result"]
+        response = _normalize_result_object(arguments["result"])
 
         # Handle streaming responses
         if hasattr(response, "finish_reason") and response.finish_reason:
+            if response.finish_reason == "stop" and agent_inference_type(arguments) == INFERENCE_TOOL_CALL:
+                return "tool_calls"
             return response.finish_reason
+
+        # Handle OpenAI Responses API objects where finish reason is implicit.
+        if hasattr(response, "output") and isinstance(response.output, list) and len(response.output) > 0:
+            has_tool_call = any(getattr(item, "type", "") == "function_call" for item in response.output)
+            if has_tool_call:
+                return "tool_calls"
+
+        # Fallback for streamed/wrapped Responses objects where output may not be directly available.
+        if agent_inference_type(arguments) == INFERENCE_TOOL_CALL:
+            return "tool_calls"
+
+        if hasattr(response, "status") and response.status:
+            if response.status == "completed":
+                return "stop"
+            if response.status == "incomplete":
+                incomplete_details = getattr(response, "incomplete_details", None)
+                reason = getattr(incomplete_details, "reason", None)
+                if reason:
+                    return reason
+                return "length"
 
         # Handle non-streaming responses
         if response is not None and hasattr(response, "choices") and len(response.choices) > 0:
@@ -320,6 +379,51 @@ def agent_inference_type(arguments):
         return INFERENCE_TOOL_CALL
     return INFERENCE_TURN_END
 
+
+def extract_messages_from_arguments(arguments):
+    """Extract system and user messages from wrapper arguments."""
+    return extract_messages(_normalized_openai_inputs(arguments))
+
+
+def extract_model_name(arguments):
+    """Extract model name across chat completions and Responses/Agents call shapes."""
+    request_payload = _normalized_openai_inputs(arguments)
+    model_name = resolve_from_alias(
+        request_payload,
+        ["model", "model_name", "endpoint_name", "deployment_name"],
+    )
+    if model_name:
+        return model_name
+
+    instance = arguments.get("instance")
+    if instance is not None:
+        model_name = getattr(instance, "model", None)
+        if model_name:
+            return model_name
+
+    args = list(arguments.get("args", []) or [])
+    # OpenAIResponsesModel._fetch_response signature has model_settings at args[2].
+    if len(args) > 2:
+        model_settings = args[2]
+        extra_args = getattr(model_settings, "extra_args", None)
+        if isinstance(extra_args, dict):
+            model_name = resolve_from_alias(
+                extra_args,
+                ["model", "model_name", "endpoint_name", "deployment_name"],
+            )
+            if model_name:
+                return model_name
+
+    return None
+
+
+def extract_model_type(arguments):
+    """Extract model entity type for inference spans."""
+    model_name = extract_model_name(arguments)
+    if model_name:
+        return f"model.llm.{model_name}"
+    return None
+
 def _get_first_tool_call(response):
     """Helper function to extract the first tool call from various LangChain response formats"""
 
@@ -330,27 +434,47 @@ def _get_first_tool_call(response):
                 if tool_calls and len(tool_calls) > 0:
                     return tool_calls[0]
 
+    with suppress(AttributeError, IndexError, TypeError):
+        if response is not None and hasattr(response, "output") and isinstance(response.output, list) and len(response.output) > 0:
+            for item in response.output:
+                if getattr(item, "type", "") == "function_call":
+                    return item
+
+    with suppress(AttributeError, IndexError, TypeError):
+        if response is not None and hasattr(response, "tools") and isinstance(response.tools, list) and len(response.tools) > 0:
+            return response.tools[0]
+
     return None
 
 def extract_tool_name(arguments):
     """Extract tool name from OpenAI response when finish_type is tool_call"""
     try:
-        finish_type = map_finish_reason_to_finish_type(extract_finish_reason(arguments))
-        if finish_type != "tool_call":
-            return None
-
-        tool_call = _get_first_tool_call(arguments["result"])
+        response = _normalize_result_object(arguments.get("result"))
+        tool_call = _get_first_tool_call(response)
         if not tool_call:
             return None
 
         # Try different name extraction approaches
         for getter in [
-            lambda tc: tc.function.name  # object with function.name
+            lambda tc: tc.function.name,  # chat.completions tool call
+            lambda tc: tc.name,  # responses API function_call output item
+            lambda tc: tc.get("tool_name") if isinstance(tc, dict) else None,
+            lambda tc: tc.get("name") if isinstance(tc, dict) else None,
         ]:
             try:
-                return getter(tool_call)
+                tool_name = getter(tool_call)
+                if tool_name:
+                    return tool_name
             except (KeyError, AttributeError, TypeError):
                 continue
+
+        # Fallback: extract from serialized assistant/tools payload.
+        message = json.loads(extract_assistant_message(arguments) or "{}")
+        tools = message.get("tools") if isinstance(message, dict) else None
+        if isinstance(tools, list) and len(tools) > 0 and isinstance(tools[0], dict):
+            tool_name = tools[0].get("tool_name") or tools[0].get("name")
+            if tool_name:
+                return tool_name
 
     except Exception as e:
         logger.warning("Warning: Error occurred in extract_tool_name: %s", str(e))
@@ -367,11 +491,11 @@ def extract_tool_type(arguments):
         if response is None:
             return None
         
+        response = _normalize_result_object(response)
         # Check for tool calls in the response
         tool_call = _get_first_tool_call(response)
         if tool_call:
-            # Return generic tool type for OpenAI tools
-            return "tool.openai"
+            return "tool.function"
             
     except Exception as e:
         logger.warning("Warning: Error occurred in extract_tool_type: %s", str(e))

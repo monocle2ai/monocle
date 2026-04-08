@@ -28,11 +28,27 @@ AGENTS_METHODS = [
         "span_handler": "agents_agent_handler",
         "output_processor": AGENT_REQUEST,
     },
-    # AgentRunner class methods (internal runner)
     {
         "package": "agents.run",
-        "object": "AgentRunner",
-        "method": "_run_single_turn",
+        "object": "Runner",
+        "method": "run_streamed",
+        "wrapper_method": task_wrapper,
+        "span_handler": "agents_agent_handler",
+        "output_processor": AGENT_REQUEST,
+    },
+    # Turn-level internals for richer agentic spans in new SDK.
+    {
+        "package": "agents.run_internal.run_loop",
+        "object": "",
+        "method": "run_single_turn",
+        "wrapper_method": atask_wrapper,
+        "span_handler": "agents_agent_handler",
+        "output_processor": AGENT,
+    },
+    {
+        "package": "agents.run_internal.run_loop",
+        "object": "",
+        "method": "run_single_turn_streamed",
         "wrapper_method": atask_wrapper,
         "span_handler": "agents_agent_handler",
         "output_processor": AGENT,
@@ -43,6 +59,14 @@ AGENTS_METHODS = [
         "object": "FunctionTool",
         "method": "__init__",  # Empty string means wrap the function itself
         "wrapper_method": constructor_wrapper,
+        "output_processor": TOOLS,
+    },
+    {
+        "package": "agents.tool",
+        "object": "",
+        "method": "invoke_function_tool",
+        "wrapper_method": atask_wrapper,
+        "span_handler": "agents_agent_handler",
         "output_processor": TOOLS,
     },
 ]

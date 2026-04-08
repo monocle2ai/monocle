@@ -16,7 +16,11 @@ logger = logging.getLogger(__name__)
 memory_exporter = InMemorySpanExporter()
 @pytest.fixture(scope="module")
 def setup():
-    subprocess.check_call([sys.executable, "-m", "pip", "install", ".[dev_strands]"])
+    project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+    subprocess.check_call(
+        [sys.executable, "-m", "pip", "install", ".[dev_strands]"],
+        cwd=project_root,
+    )
     try:
         instrumentor = setup_monocle_telemetry(
             workflow_name="strand_agent_workflow",
@@ -68,6 +72,7 @@ def verify_spans():
     time.sleep(2)
     found_inference = found_agent = found_tool = False
     found_travel_agent = False
+    found_book_flight_tool = False
     spans = memory_exporter.get_finished_spans()
     for span in spans:
         span_attributes = span.attributes

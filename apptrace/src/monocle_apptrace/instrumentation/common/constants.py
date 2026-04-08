@@ -125,6 +125,7 @@ SCOPE_NAME = "scope_name"
 AGENT_INVOCATION_SPAN_NAME = "agentic.invocation"
 AGENT_REQUEST_SPAN_NAME = "agentic.turn"
 AGENT_SESSION = "agentic.session"
+AGENT_EXECUTION_ID = "agentic.executionId"
 LAST_INFERENCE = "last.inference"
 INFERENCE_DECISION = "inference.decision.span.id"
 

@@ -60,6 +60,24 @@ def extract_assistant_message(arguments):
     try:
         status = get_status_code(arguments)
         response = arguments["result"]
+
+        # Streaming path: SimpleNamespace produced by stream processor.
+        if hasattr(response, "output_text"):
+            messages = []
+            role = getattr(response, "role", "assistant") or "assistant"
+            if hasattr(response, "tools") and response.tools:
+                tool = response.tools[0]
+                messages.append({
+                    "tools": [{
+                        "tool_id": tool.get("id", ""),
+                        "tool_name": tool.get("name", ""),
+                        "tool_arguments": tool.get("arguments", {}),
+                    }]
+                })
+            elif response.output_text:
+                messages.append({role: response.output_text})
+            return get_json_dumps(messages[0]) if messages else ""
+
         if status == 'success':
             messages = []
             role = response.role if hasattr(response, 'role') else "assistant"
@@ -111,6 +129,11 @@ def extract_assistant_message(arguments):
 
 def update_span_from_llm_response(response):
     meta_dict = {}
+    # Streaming path: SimpleNamespace with usage as a dict
+    if response is not None and hasattr(response, "usage") and isinstance(response.usage, dict):
+        meta_dict.update(response.usage)
+        return meta_dict
+
     if response is not None and hasattr(response, "usage"):
         if hasattr(response, "usage") and response.usage is not None:
             token_usage = response.usage
@@ -118,9 +141,12 @@ def update_span_from_llm_response(response):
             response_metadata = response.response_metadata
             token_usage = response_metadata.get("token_usage")
         if token_usage is not None:
-            meta_dict.update({"completion_tokens": getattr(response.usage, "output_tokens", 0)})
-            meta_dict.update({"prompt_tokens": getattr(response.usage, "input_tokens", 0)})
-            meta_dict.update({"total_tokens": getattr(response.usage, "input_tokens", 0)+getattr(response.usage, "output_tokens", 0)})
+            output_tokens = getattr(token_usage, "output_tokens", getattr(token_usage, "completion_tokens", 0))
+            input_tokens = getattr(token_usage, "input_tokens", getattr(token_usage, "prompt_tokens", 0))
+            total_tokens = getattr(token_usage, "total_tokens", input_tokens + output_tokens)
+            meta_dict.update({"completion_tokens": output_tokens})
+            meta_dict.update({"prompt_tokens": input_tokens})
+            meta_dict.update({"total_tokens": total_tokens})
     return meta_dict
 
 def extract_finish_reason(arguments):
@@ -128,6 +154,9 @@ def extract_finish_reason(arguments):
     try:
         # Arguments may be a dict with 'result' or just the response object
         response = arguments.get("result") if isinstance(arguments, dict) else arguments
+        # Streaming path: SimpleNamespace with finish_reason.
+        if response is not None and hasattr(response, "output_text") and hasattr(response, "finish_reason"):
+            return response.finish_reason
         if response is not None and hasattr(response, "stop_reason"):
             return response.stop_reason
     except Exception as e:
@@ -201,7 +230,13 @@ def extract_tool_name(arguments):
         if finish_type != "tool_call":
             return None
 
-        tool_call = _get_first_tool_call(arguments["result"])
+        response = arguments["result"]
+
+        # Streaming path: SimpleNamespace with tools list.
+        if hasattr(response, "output_text") and hasattr(response, "tools") and response.tools:
+            return response.tools[0].get("name")
+
+        tool_call = _get_first_tool_call(response)
         if not tool_call:
             return None
 
@@ -225,6 +260,12 @@ def extract_tool_type(arguments):
         finish_type = map_finish_reason_to_finish_type(extract_finish_reason(arguments))
         if finish_type != "tool_call":
             return None
+
+        response = arguments["result"]
+
+        # Streaming path: SimpleNamespace with tools list.
+        if hasattr(response, "output_text") and hasattr(response, "tools") and response.tools:
+            return TOOL_TYPE
 
         tool_name = extract_tool_name(arguments)
         if tool_name:

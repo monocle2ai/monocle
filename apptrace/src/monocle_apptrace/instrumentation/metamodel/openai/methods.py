@@ -55,38 +55,38 @@ OPENAI_METHODS = [
         "span_handler": "openai_handler",
         "output_processor": INFERENCE
     },
-    {
-        "package": "openai.resources.responses.responses",
-        "object": "ResponsesWithStreamingResponse",
-        "method": "create",
-        "wrapper_method": task_wrapper,
-        "span_handler": "openai_handler",
-        "output_processor": INFERENCE
-    },
-    {
-        "package": "openai.resources.responses.responses",
-        "object": "AsyncResponsesWithStreamingResponse",
-        "method": "create",
-        "wrapper_method": atask_wrapper,
-        "span_handler": "openai_handler",
-        "output_processor": INFERENCE
-    },
-    {
-        "package": "openai.resources.responses.responses",
-        "object": "ResponsesWithRawResponse",
-        "method": "create",
-        "wrapper_method": task_wrapper,
-        "span_handler": "openai_handler",
-        "output_processor": INFERENCE
-    },
-    {
-        "package": "openai.resources.responses.responses",
-        "object": "AsyncResponsesWithRawResponse",
-        "method": "create",
-        "wrapper_method": atask_wrapper,
-        "span_handler": "openai_handler",
-        "output_processor": INFERENCE
-    },
+    # {
+    #     "package": "openai.resources.responses.responses",
+    #     "object": "ResponsesWithStreamingResponse",
+    #     "method": "create",
+    #     "wrapper_method": task_wrapper,
+    #     "span_handler": "openai_handler",
+    #     "output_processor": INFERENCE
+    # },
+    # {
+    #     "package": "openai.resources.responses.responses",
+    #     "object": "AsyncResponsesWithStreamingResponse",
+    #     "method": "create",
+    #     "wrapper_method": atask_wrapper,
+    #     "span_handler": "openai_handler",
+    #     "output_processor": INFERENCE
+    # },
+    # {
+    #     "package": "openai.resources.responses.responses",
+    #     "object": "ResponsesWithRawResponse",
+    #     "method": "create",
+    #     "wrapper_method": task_wrapper,
+    #     "span_handler": "openai_handler",
+    #     "output_processor": INFERENCE
+    # },
+    # {
+    #     "package": "openai.resources.responses.responses",
+    #     "object": "AsyncResponsesWithRawResponse",
+    #     "method": "create",
+    #     "wrapper_method": atask_wrapper,
+    #     "span_handler": "openai_handler",
+    #     "output_processor": INFERENCE
+    # },
     {
         "package": "agents.models.openai_responses",
         "object": "OpenAIResponsesModel",

@@ -42,7 +42,23 @@ def extract_agent_input(arguments):
     return arguments['kwargs']['prompt']
 
 def extract_agent_response(result):
-    return result.message['content'][0]['text']
+    if result is None:
+        return ""
+
+    # stream_async yields dict events; final event is typically {"result": AgentResult}
+    if isinstance(result, dict) and "result" in result:
+        result = result.get("result")
+
+    # AgentResult object shape
+    if hasattr(result, "message") and result.message:
+        message = result.message
+        if isinstance(message, dict):
+            content = message.get("content", [])
+            if content and isinstance(content[0], dict) and "text" in content[0]:
+                return content[0]["text"]
+
+    # Fallback for unexpected shapes
+    return str(result)
 
 def get_tool_type(arguments):
     ## TODO: check for MCP type

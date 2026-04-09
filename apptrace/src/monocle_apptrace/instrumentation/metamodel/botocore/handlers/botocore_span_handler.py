@@ -11,7 +11,14 @@ class BotoCoreSpanHandler(SpanHandler):
         retrieval_methods = []
 
         # Methods that generate inference spans (default for most)
-        inference_methods = ["converse", "invoke_model", "invoke_data_automation_async", "invoke_endpoint"]
+        inference_methods = [
+            "converse",
+            "converse_stream",
+            "invoke_model",
+            "invoke_model_with_response_stream",
+            "invoke_data_automation_async",
+            "invoke_endpoint",
+        ]
 
         if method_name == "retrieve_and_generate":
             return [RETRIEVAL, INFERENCE]
@@ -28,7 +35,7 @@ class BotoCoreSpanHandler(SpanHandler):
         service_name = kwargs.get("service_name")
         service_method_mapping = {
             "sagemaker-runtime": ["invoke_endpoint"],
-            "bedrock-runtime": ["converse", "invoke_model"],
+            "bedrock-runtime": ["converse", "converse_stream", "invoke_model", "invoke_model_with_response_stream"],
             "bedrock-agent-runtime": ["retrieve_and_generate"],
             "bedrock-data-automation-runtime": ["invoke_data_automation_async"],
         }

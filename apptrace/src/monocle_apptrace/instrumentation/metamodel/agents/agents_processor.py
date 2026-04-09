@@ -6,7 +6,7 @@ from monocle_apptrace.instrumentation.common.constants import AGENT_NAME_KEY, AG
 from monocle_apptrace.instrumentation.common.span_handler import (
     SpanHandler as BaseSpanHandler,
 )
-from monocle_apptrace.instrumentation.common.utils import with_tracer_wrapper, propogate_agent_name_to_parent_span
+from monocle_apptrace.instrumentation.common.utils import with_tracer_wrapper, propogate_agent_name_to_parent_span, get_current_monocle_span
 from monocle_apptrace.instrumentation.common.wrapper import atask_wrapper
 from monocle_apptrace.instrumentation.metamodel.agents._helper import (
     AGENTS_AGENT_NAME_KEY,
@@ -154,3 +154,20 @@ class AgentsSpanHandler(BaseSpanHandler):
         """Post-processing for agent tasks."""
         propogate_agent_name_to_parent_span(span, parent_span)
         super().post_task_processing(to_wrap, wrapped, instance, args, kwargs, result, ex, span, parent_span)
+
+    def skip_span(self, to_wrap, wrapped, instance, args, kwargs) -> bool:
+        """Skip nested streaming spans to avoid duplicates.
+        
+        When run_streamed is called, it internally calls run_single_turn_streamed,
+        which would create duplicate spans. Skip the inner call when parent is outer.
+        """
+        method_name = to_wrap.get("method", "")
+        
+        # Skip run_single_turn_streamed when parent is run_streamed
+        if method_name == "run_single_turn_streamed":
+            parent_span = get_current_monocle_span()
+            parent_name = getattr(parent_span, "name", "") if parent_span else ""
+            if parent_name.endswith("run_streamed"):
+                return True
+        
+        return False

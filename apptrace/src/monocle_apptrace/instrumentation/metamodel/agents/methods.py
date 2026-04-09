@@ -34,7 +34,7 @@ AGENTS_METHODS = [
         "method": "run_streamed",
         "wrapper_method": task_wrapper,
         "span_handler": "agents_agent_handler",
-        "output_processor": AGENT_REQUEST,
+        "output_processor_list": [AGENT_REQUEST, AGENT],
     },
     # Turn-level internals for richer agentic spans in new SDK.
     {

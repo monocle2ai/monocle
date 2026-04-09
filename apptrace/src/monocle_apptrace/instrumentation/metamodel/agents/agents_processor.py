@@ -12,7 +12,8 @@ from monocle_apptrace.instrumentation.metamodel.agents._helper import (
     AGENTS_AGENT_NAME_KEY,
     DELEGATION_NAME_PREFIX,
     get_runner_agent_name,
-    get_agent_name
+    get_agent_name,
+    extract_agent_response,
 )
 from monocle_apptrace.instrumentation.metamodel.agents.entities.inference import (
     AGENT_DELEGATION,
@@ -153,6 +154,31 @@ class AgentsSpanHandler(BaseSpanHandler):
     def post_task_processing(self, to_wrap, wrapped, instance, args, kwargs, result, ex, span, parent_span):
         """Post-processing for agent tasks."""
         propogate_agent_name_to_parent_span(span, parent_span)
+
+        # Copy final invocation response into parent turn span.
+        # This makes agentic.turn data.output mirror the resolved turn_end output.
+        try:
+            if (
+                span is not None
+                and parent_span is not None
+                and span.attributes.get("span.type") == "agentic.invocation"
+                and parent_span.attributes.get("span.type") == "agentic.turn"
+            ):
+                response = extract_agent_response(result)
+                if response:
+                    updated = False
+                    for event in getattr(parent_span, "events", []):
+                        if event.name == "data.output":
+                            if hasattr(event, "attributes") and hasattr(event.attributes, "_dict"):
+                                event.attributes._dict["response"] = response
+                                updated = True
+                                break
+
+                    if not updated and hasattr(parent_span, "add_event"):
+                        parent_span.add_event("data.output", attributes={"response": response})
+        except Exception as e:
+            logger.debug(f"Could not copy invocation response to turn span: {e}")
+
         super().post_task_processing(to_wrap, wrapped, instance, args, kwargs, result, ex, span, parent_span)
 
     def skip_span(self, to_wrap, wrapped, instance, args, kwargs) -> bool:

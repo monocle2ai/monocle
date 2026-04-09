@@ -15,6 +15,7 @@ __all__ = [
     "extract_tool_response",
     "should_skip_delegation",
     "should_skip_request",
+    "should_skip_stream_when_nested_under_call",
 ]
 
 
@@ -88,3 +89,18 @@ def should_skip_request(arguments):
     if arguments.get('parent_span') and arguments.get('parent_span').attributes.get("span.type") in [SPAN_TYPES.AGENTIC_TOOL_INVOCATION, SPAN_TYPES.AGENTIC_REQUEST]:
         return True
     return False
+
+
+def should_skip_stream_when_nested_under_call(arguments):
+    """Skip stream_async agent spans only when stream_async is internally invoked by Agent.__call__."""
+    span = arguments.get("span")
+    parent_span = arguments.get("parent_span")
+
+    if span is None or parent_span is None:
+        return False
+
+    span_name = getattr(span, "name", "") or ""
+    parent_name = getattr(parent_span, "name", "") or ""
+
+    # __call__ internally invokes stream_async; instrumenting both creates duplicate turn/invocation spans.
+    return span_name.endswith("Agent.stream_async") and parent_name.endswith("Agent.__call__")

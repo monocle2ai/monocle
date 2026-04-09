@@ -8,31 +8,21 @@ import subprocess
 import sys
 
 from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
-from monocle_apptrace.exporters.file_exporter import FileSpanExporter
-from common.custom_exporter import CustomConsoleSpanExporter
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, SimpleSpanProcessor
+from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 
 logger = logging.getLogger(__name__)
-
+logger = logging.getLogger(__name__)
+memory_exporter = InMemorySpanExporter()
 @pytest.fixture(scope="module")
 def setup():
-    project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
-    subprocess.check_call(
-        [sys.executable, "-m", "pip", "install", ".[dev_strands]"],
-        cwd=project_root,
-    )
-    custom_exporter = CustomConsoleSpanExporter()
-    file_exporter = FileSpanExporter()
-    span_processors = [
-        BatchSpanProcessor(file_exporter),
-        SimpleSpanProcessor(custom_exporter)
-    ]
+    subprocess.check_call([sys.executable, "-m", "pip", "install", ".[dev_strands]"])
     try:
         instrumentor = setup_monocle_telemetry(
             workflow_name="strand_agent_workflow",
-            span_processors=span_processors,
+            span_processors=[SimpleSpanProcessor(memory_exporter)],
         )
-        yield custom_exporter
+        yield
     finally:
         # Clean up instrumentor to avoid global state leakage
         if instrumentor and instrumentor.is_instrumented_by_opentelemetry:
@@ -72,14 +62,13 @@ def test_strand_agent(setup):
                     description="Travel booking agent",
                 )
     response = travel_agent ("Book a flight from New York to San Francisco for 26 Nov 2025.")
-    verify_spans(setup)
+    verify_spans()
 
-def verify_spans(custom_exporter):
+def verify_spans():
     time.sleep(2)
     found_inference = found_agent = found_tool = False
     found_travel_agent = False
-    found_book_flight_tool = False
-    spans = custom_exporter.get_captured_spans()
+    spans = memory_exporter.get_finished_spans()
     for span in spans:
         span_attributes = span.attributes
 

@@ -33,7 +33,7 @@ TOOL = {
               {
                 "_comment": "agent type",
                 "attribute": "type",
-                "accessor": lambda arguments:'agent.stands'
+                "accessor": lambda arguments:'agent.strands'
               }
         ]
       ],

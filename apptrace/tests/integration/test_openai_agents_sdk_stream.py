@@ -65,7 +65,7 @@ async def test_agents_sdk_streaming_multi_agent(setup):
 
     streamed_result = Runner.run_streamed(
         hotel_agent,
-        "Book a hotel in Los Angeles using the hotel tool.",
+        "Book a hotel in Los Angeles for 2 nights.",
     )
     if asyncio.iscoroutine(streamed_result):
         streamed_result = await streamed_result

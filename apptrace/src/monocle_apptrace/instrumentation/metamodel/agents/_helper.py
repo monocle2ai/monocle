@@ -35,8 +35,26 @@ def _find_agent_instance(args, kwargs):
 
 
 def extract_agent_response(response):
-    """Extract the final output from an Agents SDK RunResult."""
+    """Extract the final output from an Agents SDK RunResult or RunResultStreaming."""
     try:
+        if response is None:
+            return ""
+        
+        # Handle StreamingResultWrapper - final_output available after stream consumed
+        class_name = type(response).__name__
+        if class_name == "StreamingResultWrapper":
+            # Try to get final_output from the wrapped streaming result
+            if hasattr(response, '_streaming_result'):
+                underlying = response._streaming_result
+                if hasattr(underlying, 'final_output'):
+                    try:
+                        final_output = underlying.final_output
+                        if final_output is not None:
+                            return str(final_output)
+                    except Exception:
+                        pass
+            return ""
+        
         if response is not None and hasattr(response, "final_output"):
             return str(response.final_output)
         elif (

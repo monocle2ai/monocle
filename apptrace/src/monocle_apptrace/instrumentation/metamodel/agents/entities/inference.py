@@ -2,6 +2,7 @@ from monocle_apptrace.instrumentation.common.constants import AGENT_REQUEST_SPAN
 from monocle_apptrace.instrumentation.common.utils import get_error_message
 from monocle_apptrace.instrumentation.metamodel.agents import _helper
 from monocle_apptrace.instrumentation.common.utils import get_error_message, extract_from_agent_name, extract_from_agent_invocation_id
+from monocle_apptrace.instrumentation.metamodel.agents.agents_stream_processor import process_agent_stream
 
 AGENT = {
     "type": SPAN_TYPES.AGENTIC_INVOCATION,
@@ -70,17 +71,6 @@ AGENT = {
             {
                 "attribute": "error_code",
                 "accessor": lambda arguments: get_error_message(arguments)
-                }
-            ],
-        },
-        {
-            "name": "metadata",
-            "attributes": [
-                {
-                    "_comment": "this is metadata from Agent response",
-                    "accessor": lambda arguments: _helper.update_span_from_agent_response(
-                        arguments["result"]
-                    ),
                 }
             ],
         },
@@ -222,4 +212,18 @@ AGENT_DELEGATION = {
             },
         ]
     ],
+}
+
+# Streaming variant for run_streamed that keeps spans open until stream completes
+AGENT_REQUEST_STREAM = {
+    **AGENT_REQUEST,
+    "is_auto_close": lambda kwargs: False,
+    "response_processor": process_agent_stream,
+}
+
+# Streaming variant for agentic.invocation spans from run_streamed
+AGENT_STREAM = {
+    **AGENT,
+    "is_auto_close": lambda kwargs: False,
+    "response_processor": process_agent_stream,
 }

@@ -3,7 +3,9 @@ from monocle_apptrace.instrumentation.metamodel.agents.entities.inference import
     AGENT,
     AGENT_DELEGATION,
     TOOLS,
-    AGENT_REQUEST
+    AGENT_REQUEST,
+    AGENT_REQUEST_STREAM,
+    AGENT_STREAM,
 )
 from monocle_apptrace.instrumentation.metamodel.agents.agents_processor import (
     constructor_wrapper,
@@ -34,7 +36,7 @@ AGENTS_METHODS = [
         "method": "run_streamed",
         "wrapper_method": task_wrapper,
         "span_handler": "agents_agent_handler",
-        "output_processor_list": [AGENT_REQUEST, AGENT],
+        "output_processor_list": [AGENT_REQUEST_STREAM, AGENT_STREAM],
     },
     # Turn-level internals for richer agentic spans in new SDK.
     {

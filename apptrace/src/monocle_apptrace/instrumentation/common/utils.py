@@ -489,8 +489,8 @@ def get_llm_type(instance):
         t_name = t_name.replace("async", "") if "async" in t_name else t_name
         llm_type = llm_type_map.get(t_name)
         return llm_type
-    except:
-        pass
+    except Exception:
+        return None
 
 def get_status(arguments):
     if arguments['exception'] is not None:

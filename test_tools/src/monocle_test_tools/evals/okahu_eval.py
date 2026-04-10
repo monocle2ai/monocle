@@ -16,15 +16,14 @@ class OkahuEval(BaseEval):
     def __init__(self, **data):
         eval_options = data.get("eval_options")
         super().__init__(eval_options=eval_options)
-        # Instance-level state tracking for hybrid approach
         self._trace_exported = False
         self._current_trace_id = None
-        self._fact_map_cache = None  # Cache for fact mapping from API
+        self._fact_map_cache = None
     
     @staticmethod
     def _map_fact_name(fact_name: str) -> str:
         """
-        Map user-friendly fact names to internal Okahu fact names.
+        Map user-friendly fact names to Okahu fact names.
         
         User-facing terms:
         - "traces" -> "traces"
@@ -39,7 +38,7 @@ class OkahuEval(BaseEval):
             fact_name: The user-provided fact name
             
         Returns:
-            The internal fact name used by Okahu
+            The fact name used by Okahu
         """
         mapping = {
             "traces": "traces",
@@ -92,7 +91,7 @@ class OkahuEval(BaseEval):
     def verify_eval_template_exists(self, eval_name: str, fact_name: str = "traces"):
         """Helper method to verify the specified evaluation template exists in Okahu before submitting eval job.
         
-        Note: fact_name should already be the internal name (already mapped) when this method is called.
+        Note: fact_name should already be mapped to the okahu fact_name when this method is called.
         """
         api_key = (os.getenv("OKAHU_API_KEY")).strip()
         if not api_key:
@@ -104,7 +103,7 @@ class OkahuEval(BaseEval):
         params = {"fact_name": fact_name}
         
         try:
-            response = requests.get(url=list_url, headers=headers, params=params, timeout=20)
+            response = requests.get(url=list_url, headers=headers, params=params, timeout=30)
             response.raise_for_status()
             templates = response.json().get("templates", [])
             
@@ -116,14 +115,14 @@ class OkahuEval(BaseEval):
                     break
             
             if not matching_template:
-                # Format available templates to show only name and group_by
+                # Format available templates to show only name and fact_name
                 available_templates = [
-                    {"name": t.get("name"), "group_by": t.get("group_by")} 
+                    {"name": t.get("name")} 
                     for t in templates
                 ]
                 raise AssertionError(
-                    f"Evaluation template with name '{eval_name}' and group_by '{fact_name}' not found in Okahu. "
-                    f"Available templates: {available_templates}"
+                    f"Evaluation template with name '{eval_name}' and fact_name '{fact_name}' not found in Okahu. "
+                    f"Supported templates for that fact: {available_templates}"
                 )
         except requests.RequestException as exc:
             raise AssertionError(f"Failed to verify evaluation template existence: {exc}") from exc
@@ -143,7 +142,7 @@ class OkahuEval(BaseEval):
         headers = {"x-api-key": api_key}
         
         try:
-            response = requests.get(url=fact_map_url, headers=headers, timeout=10)
+            response = requests.get(url=fact_map_url, headers=headers, timeout=30)
             response.raise_for_status()
             self._fact_map_cache = response.json()
             return self._fact_map_cache
@@ -173,13 +172,13 @@ class OkahuEval(BaseEval):
                 f"Supported values: {', '.join(sorted(fact_map.keys()))}"
             )
 
-        # Define span type filters for fact names that require them
+        # Map from attribute/ID type to required span types
+        # Mappings that don't need filtering: trace_id, scope.agentic.session, scope.*, etc.
         span_type_filters = {
-            "agent_requests": ["agentic.turn"],
-            "agent_operations": ["agentic.invocation"],
-            "tool_operations": ["agentic.tool.invocation"],
-            "inferences": ["inference", "inference.framework"],
-            "mcp_invocations": ["agentic.tool.invocation"]
+            "scope.agentic.turn": ["agentic.turn"],
+            "scope.agentic.invocation": ["agentic.invocation"],
+            "span_id": ["agentic.tool.invocation"],
+            "inference_id": ["inference", "inference.framework"],
         }
 
         def _trace_id(span: Span) -> str:
@@ -209,8 +208,8 @@ class OkahuEval(BaseEval):
                 unique_ids.add(candidate)
                 ordered_ids.append(candidate)
 
-        # Get required span types for this fact_name (if any)
-        required_span_types = span_type_filters.get(fact_name)
+        # Get required span types based on the mapping_value (not fact_name)
+        required_span_types = span_type_filters.get(mapping_value)
 
         # Process each span based on the mapping
         for span in filtered_spans:
@@ -296,11 +295,9 @@ class OkahuEval(BaseEval):
         if not fact_name:
             fact_name = "traces"
         
-        # Map user-friendly fact name to internal name
+        # Map user-friendly fact name to Okahu fact name
         fact_name = self._map_fact_name(fact_name)
         
-        logger.info(f"After mapping: fact_name={fact_name} (this is the internal DB name)")
-
         # Get API credentials
         api_key = (os.getenv("OKAHU_API_KEY") or "").strip()
         if not api_key:
@@ -314,7 +311,6 @@ class OkahuEval(BaseEval):
         self.verify_eval_template_exists(eval_name=eval_name, fact_name=fact_name)
 
         # setting parameters, headers, payload for eval job submission
-        trace_id = self._current_trace_id
         span = filtered_spans[0]
         workflow_name = span.attributes.get("workflow.name")
         base = os.getenv("OKAHU_EVALUATION_ENDPOINT", OKAHU_PROD_EVALUATION_ENDPOINT).rstrip("/")
@@ -344,13 +340,7 @@ class OkahuEval(BaseEval):
                 "shadow_eval": True
             }
             
-            logger.info(
-                "Submitting evaluation job: eval_name=%s, fact_name=%s (internal), fact_id=%s",
-                eval_name,
-                fact_name,
-                fact_id
-            )
-            
+            logger.debug("Submitting evaluation on fact_id: %s", fact_id)
             logger.debug(f"Request params: {params}")
             
             # submit evaluation job to okahu and handle response/errors

@@ -138,12 +138,10 @@ class S3SpanExporter(SpanExporterBase):
         try:
             # Run the asynchronous export logic in an event loop
             logger.info(f"Exporting {len(spans)} spans to S3.")
-            try:
-                # Try to get the running event loop
-                loop = asyncio.get_running_loop()
+            if self._is_running_in_event_loop():
                 # If we're already in an event loop, create a task
                 asyncio.create_task(self.__export_async(spans))
-            except RuntimeError:
+            else:
                 # No event loop is running, so we can use asyncio.run()
                 asyncio.run(self.__export_async(spans))
             return SpanExportResult.SUCCESS
@@ -233,7 +231,7 @@ class S3SpanExporter(SpanExporterBase):
         )
         logger.debug(f"Trace {format_trace_id_without_0x(trace_id)} uploaded to AWS S3 as {file_name}.")
 
-    async def force_flush(self, timeout_millis: int = 30000) -> bool:
+    def force_flush(self, timeout_millis: int = 30000) -> bool:
         """Flush all pending traces to S3."""
         trace_ids_to_upload = list(self.trace_spans.keys())
         for trace_id in trace_ids_to_upload:

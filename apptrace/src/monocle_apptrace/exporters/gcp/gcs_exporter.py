@@ -2,6 +2,7 @@ import os
 import datetime
 import logging
 import asyncio
+import threading
 from google.cloud import storage
 from google.cloud.exceptions import NotFound, Forbidden, GoogleCloudError, Conflict, TooManyRequests
 from opentelemetry.sdk.trace import ReadableSpan
@@ -211,9 +212,28 @@ class GCSSpanExporter(SpanExporterBase):
         del self.trace_spans[trace_id]
 
     def export(self, spans: Sequence[ReadableSpan]) -> SpanExportResult:
+        """Synchronous export method that internally handles async logic."""
         try:
-            # Run the asynchronous export logic in an event loop
-            asyncio.run(self._export_async(spans))
+            if self._is_running_in_event_loop():
+                # If we're already in an event loop, create a task
+                asyncio.create_task(self._export_async(spans))
+            else:
+                # No event loop is running, so we can use asyncio.run()
+                asyncio.run(self._export_async(spans))
+            return SpanExportResult.SUCCESS
+        except Exception as e:
+            logger.error(f"Error exporting spans to GCS: {e}", exc_info=True)
+            return SpanExportResult.FAILURE
+
+    async def _export_async(self, spans: Sequence[ReadableSpan]):
+                        worker_error["exception"] = exc
+
+                export_thread = threading.Thread(target=_run_export)
+                export_thread.start()
+                export_thread.join()
+
+                if "exception" in worker_error:
+                    raise worker_error["exception"]
             return SpanExportResult.SUCCESS
         except Exception as e:
             logger.error(f"Error exporting spans to GCS: {e}", exc_info=True)
@@ -336,7 +356,7 @@ class GCSSpanExporter(SpanExporterBase):
             logger.error(f"Unexpected error uploading to GCS: {e}", exc_info=True)
             raise
 
-    async def force_flush(self, timeout_millis: int = 30000) -> bool:
+    def force_flush(self, timeout_millis: int = 30000) -> bool:
         logger.info(f"Force flushing {len(self.trace_spans)} pending traces to GCS")
         trace_ids_to_upload = list(self.trace_spans.keys())
         for trace_id in trace_ids_to_upload:

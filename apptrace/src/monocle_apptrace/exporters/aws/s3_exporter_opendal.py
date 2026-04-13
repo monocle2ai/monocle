@@ -3,6 +3,7 @@ import time
 import datetime
 import logging
 import asyncio
+import threading
 from typing import Sequence, Optional
 from opentelemetry.sdk.trace import ReadableSpan
 from opentelemetry.sdk.trace.export import SpanExportResult
@@ -44,8 +45,12 @@ class OpenDALS3Exporter(SpanExporterBase):
     def export(self, spans: Sequence[ReadableSpan]) -> SpanExportResult:
         """Synchronous export method that internally handles async logic."""
         try:
-            # Run the asynchronous export logic in an event loop
-            asyncio.run(self.__export_async(spans))
+            if self._is_running_in_event_loop():
+                # If we're already in an event loop, create a task
+                asyncio.create_task(self.__export_async(spans))
+            else:
+                # No event loop is running, so we can use asyncio.run()
+                asyncio.run(self.__export_async(spans))
             return SpanExportResult.SUCCESS
         except Exception as e:
             logger.error(f"Error exporting spans: {e}")
@@ -131,8 +136,29 @@ class OpenDALS3Exporter(SpanExporterBase):
                 raise e
 
 
-    async def force_flush(self, timeout_millis: int = 30000) -> bool:
-        await self.__export_spans()
+    def force_flush(self, timeout_millis: int = 30000) -> bool:
+        timeout_secs = timeout_millis / 1000.0
+        worker_error = {}
+
+        def _run_flush():
+            try:
+                asyncio.run(self.__export_spans())
+            except Exception as exc:
+                worker_error["exception"] = exc
+
+        if self._is_running_in_event_loop():
+            t = threading.Thread(target=_run_flush)
+            t.start()
+            t.join(timeout=timeout_secs)
+            if t.is_alive():
+                logger.warning("force_flush timed out waiting for export to complete.")
+                return False
+        else:
+            asyncio.run(self.__export_spans())
+
+        if "exception" in worker_error:
+            logger.error(f"Error during force_flush: {worker_error['exception']}")
+            return False
         return True
 
     def shutdown(self) -> None:

@@ -110,15 +110,19 @@ class AzureBlobSpanExporter(SpanExporterBase):
     def export(self, spans: Sequence[ReadableSpan]) -> SpanExportResult:
         """Synchronous export method that internally handles async logic."""
         try:
-            # Run the asynchronous export logic in an event loop
-            asyncio.run(self._export_async(spans))
+            if self._is_running_in_event_loop():
+                # If we're already in an event loop, create a task
+                asyncio.create_task(self._export_async(spans))
+            else:
+                # No event loop is running, so we can use asyncio.run()
+                asyncio.run(self._export_async(spans))
             return SpanExportResult.SUCCESS
         except Exception as e:
             logger.error(f"Error exporting spans: {e}")
             return SpanExportResult.FAILURE
 
     async def _export_async(self, spans: Sequence[ReadableSpan]):
-        """The actual async export logic is run here."""
+        """Blocking export logic — safe to call from a thread or a plain sync context."""
         try:
             # Cleanup expired traces first
             self._cleanup_expired_traces()
@@ -193,7 +197,7 @@ class AzureBlobSpanExporter(SpanExporterBase):
         blob_client.upload_blob(span_data_batch, overwrite=True)
         logger.debug(f"Trace {format_trace_id_without_0x(trace_id)} uploaded to Azure Blob Storage as {file_name}.")
 
-    async def force_flush(self, timeout_millis: int = 30000) -> bool:
+    def force_flush(self, timeout_millis: int = 30000) -> bool:
         """Flush all pending traces to Azure Blob."""
         trace_ids_to_upload = list(self.trace_spans.keys())
         for trace_id in trace_ids_to_upload:

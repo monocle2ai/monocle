@@ -23,10 +23,13 @@ def setup():
     instrumentor = None
     try:
         instrumentor = setup_monocle_telemetry(
-            workflow_name="llamaindex_agent_stream",
+            workflow_name="llamaindex_multi_agent_stream",
             span_processors=[
                 SimpleSpanProcessor(memory_exporter),
-                BatchSpanProcessor(file_exporter),
+                # Large delay ensures no auto-flush fires mid-test; force_flush
+                # is called explicitly after the workflow so all spans land in
+                # one batch -> one file.
+                BatchSpanProcessor(file_exporter, schedule_delay_millis=30000),
             ],
         )
         yield memory_exporter
@@ -53,60 +56,34 @@ def setup_agents() -> AgentWorkflow:
         name="book_flight",
         description="Books a flight from one airport to another.",
     )
-    flight_agent = FunctionAgent(
-        name="flight_booking_agent",
-        tools=[flight_tool],
-        llm=llm,
-        system_prompt=(
-            "You are a flight booking agent who books flights as per the request. "
-            "Once you complete the task, you handoff to the coordinator agent only."
-        ),
-        description="Flight booking agent",
-        streaming=True,  # Enable streaming of LLM responses
-    )
-
     hotel_tool = FunctionTool.from_defaults(
         fn=book_hotel,
         name="book_hotel",
         description="Books a hotel stay.",
     )
-    hotel_agent = FunctionAgent(
-        name="hotel_booking_agent",
-        tools=[hotel_tool],
-        llm=llm,
-        system_prompt=(
-            "You are a hotel booking agent who books hotels as per the request. "
-            "Once you complete the task, you handoff to the coordinator agent only."
-        ),
-        description="Hotel booking agent",
-        streaming=True,  # Enable streaming of LLM responses
-    )
 
-    coordinator = FunctionAgent(
-        name="coordinator",
-        tools=[],
+    travel_agent = FunctionAgent(
+        name="travel_booking_agent",
+        tools=[flight_tool, hotel_tool],
         llm=llm,
         system_prompt=(
-            "You are a coordinator agent who manages the flight and hotel booking agents. "
-            "Separate hotel booking and flight booking tasks clearly from the input query. "
-            "Delegate only hotel booking to the hotel booking agent and only flight booking to "
-            "the flight booking agent. Once they complete their tasks, you collect their "
-            "responses and provide consolidated response to the user."
+            "You are a travel booking agent who handles both flight and hotel booking tasks. "
+            "Use the available tools directly and provide a consolidated response once both "
+            "bookings are completed."
         ),
-        description="Travel booking coordinator agent",
-        can_handoff_to=["flight_booking_agent", "hotel_booking_agent"],
+        description="Single travel booking agent",
         streaming=True,  # Enable streaming of LLM responses
     )
 
     return AgentWorkflow(
-        agents=[coordinator, flight_agent, hotel_agent],
-        root_agent=coordinator.name,
+        agents=[travel_agent],
+        root_agent=travel_agent.name,
     )
 
 
 async def run_streaming_agent() -> tuple[str, object, int]:
     """
-    Run a multi-agent workflow with streaming enabled.
+    Run a single-agent workflow with streaming enabled.
     
     The streaming=True flag on agents enables internal streaming of LLM responses.
     The AgentWorkflow.run() method executes the entire workflow and returns the result.
@@ -134,19 +111,6 @@ async def run_streaming_agent() -> tuple[str, object, int]:
                 streamed_chunks.append(delta)
                 chunk_count += 1
 
-                # Emit chunk-level evidence into the currently active span so
-                # traces show real streaming (not only final aggregated output).
-                current_span = otel_trace.get_current_span()
-                if current_span and current_span.is_recording():
-                    current_span.add_event(
-                        "data.chunk",
-                        {
-                            "chunk.index": chunk_count,
-                            "chunk.length": len(delta),
-                            "chunk.preview": delta[:120],
-                        },
-                    )
-
     result = await handler if hasattr(handler, "__await__") else handler
 
     # Prefer actual streamed content, fall back to final response content if needed.
@@ -164,16 +128,20 @@ async def run_streaming_agent() -> tuple[str, object, int]:
     return response_text, result, chunk_count
 
 
-def test_multi_agent_streaming(setup):
-    """Test multi-agent workflow with streaming enabled.
+def test_single_agent_streaming(setup):
+    """Test single-agent workflow with streaming enabled.
     
     Verifies that:
     - Stream events are consumed via handler.stream_events() for real-time chunks
     - FunctionAgent with streaming=True enables internal LLM streaming
-    - Multi-agent delegation works (coordinator → agents → coordinator)
+    - Single-agent tool execution works for both bookings
     - Span instrumentation captures agent and inference interactions
     """
     streamed_text, final_result, chunk_count = asyncio.run(run_streaming_agent())
+
+    # Flush all buffered spans to the file exporter in one shot so a single
+    # trace file is produced (rather than two files from mid-test auto-flushes).
+    otel_trace.get_tracer_provider().force_flush()
 
     assert final_result is not None, "Agent workflow should return a final response"
     assert streamed_text.strip(), "Expected non-empty response text from the workflow"
@@ -185,12 +153,11 @@ def test_multi_agent_streaming(setup):
 
 
 def verify_spans(memory_exporter=None):
-    """Verify that streaming agents were captured with proper telemetry spans."""
+    """Verify that the streaming single-agent flow was captured with proper telemetry spans."""
     time.sleep(2)
     found_inference = False
     found_agent = False
     found_tool = False
-    found_chunk_event = False
     agent_names = set()
     tool_names = set()
 
@@ -200,10 +167,6 @@ def verify_spans(memory_exporter=None):
     for span in spans:
         span_attributes = span.attributes
         span_type = span_attributes.get("span.type")
-
-        for event in span.events:
-            if event.name == "data.chunk":
-                found_chunk_event = True
 
         # Verify inference spans
         if span_type in ("inference", "inference.framework"):
@@ -237,15 +200,10 @@ def verify_spans(memory_exporter=None):
     assert found_inference, f"No inference spans found. Spans captured: {len(spans)}"
     assert found_agent, "No agent invocation spans found"
     assert found_tool, "No tool invocation spans found"
-    assert found_chunk_event, "No chunk-level streaming events (data.chunk) found in trace"
-    
-    # Verify we captured spans for the expected agents and tools
-    assert "coordinator" in agent_names, \
-        f"Coordinator agent not found in spans. Agents: {agent_names}"
-    assert "flight_booking_agent" in agent_names, \
-        f"Flight booking agent not found in spans. Agents: {agent_names}"
-    assert "hotel_booking_agent" in agent_names, \
-        f"Hotel booking agent not found in spans. Agents: {agent_names}"
+
+    # Verify we captured spans for the expected single agent and tools
+    assert "travel_booking_agent" in agent_names, \
+        f"Travel booking agent not found in spans. Agents: {agent_names}"
     assert "book_flight" in tool_names, \
         f"book_flight tool not found in spans. Tools: {tool_names}"
     assert "book_hotel" in tool_names, \

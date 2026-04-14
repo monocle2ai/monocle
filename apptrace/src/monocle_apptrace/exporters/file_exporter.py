@@ -168,7 +168,10 @@ class FileSpanExporter(SpanExporterBase):
         traces_to_close = set()
         for trace_id in root_span_traces:
             has_child_spans = any(s.parent for s in spans_by_trace.get(trace_id, []))
-            if has_child_spans:
+            children_already_written = (
+                trace_id in self.file_handles and not self.file_handles[trace_id][3]
+            )
+            if has_child_spans or children_already_written:
                 # Root + child in same batch: complete trace, close now
                 traces_to_close.add(trace_id)
                 self._root_span_seen.discard(trace_id)

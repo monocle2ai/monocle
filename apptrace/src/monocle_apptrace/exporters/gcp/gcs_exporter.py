@@ -2,7 +2,6 @@ import os
 import datetime
 import logging
 import asyncio
-import threading
 from google.cloud import storage
 from google.cloud.exceptions import NotFound, Forbidden, GoogleCloudError, Conflict, TooManyRequests
 from opentelemetry.sdk.trace import ReadableSpan
@@ -220,20 +219,6 @@ class GCSSpanExporter(SpanExporterBase):
             else:
                 # No event loop is running, so we can use asyncio.run()
                 asyncio.run(self._export_async(spans))
-            return SpanExportResult.SUCCESS
-        except Exception as e:
-            logger.error(f"Error exporting spans to GCS: {e}", exc_info=True)
-            return SpanExportResult.FAILURE
-
-    async def _export_async(self, spans: Sequence[ReadableSpan]):
-                        worker_error["exception"] = exc
-
-                export_thread = threading.Thread(target=_run_export)
-                export_thread.start()
-                export_thread.join()
-
-                if "exception" in worker_error:
-                    raise worker_error["exception"]
             return SpanExportResult.SUCCESS
         except Exception as e:
             logger.error(f"Error exporting spans to GCS: {e}", exc_info=True)

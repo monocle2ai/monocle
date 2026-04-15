@@ -3,6 +3,12 @@ from monocle_apptrace.instrumentation.metamodel.langgraph import (
     _helper
 )
 from monocle_apptrace.instrumentation.common.utils import get_error_message, extract_from_agent_name, extract_from_agent_invocation_id
+from monocle_apptrace.instrumentation.metamodel.langgraph.langgraph_stream_processor import LangGraphStreamProcessor
+
+
+def process_langgraph_stream(to_wrap, response, span_processor):
+  processor = LangGraphStreamProcessor()
+  return processor.process_stream(to_wrap, response, span_processor)
 
 AGENT = {
       "type": SPAN_TYPES.AGENTIC_INVOCATION,
@@ -64,6 +70,12 @@ AGENT = {
       ]
     }
 
+AGENT_STREAM = {
+      **AGENT,
+      "is_auto_close": lambda kwargs: False,
+      "response_processor": process_langgraph_stream,
+}
+
 AGENT_REQUEST = {
       "type": SPAN_TYPES.AGENTIC_REQUEST,
       "subtype": SPAN_SUBTYPES.TURN,
@@ -98,6 +110,12 @@ AGENT_REQUEST = {
           ]
         }
       ]
+}
+
+AGENT_REQUEST_STREAM = {
+  **AGENT_REQUEST,
+  "is_auto_close": lambda kwargs: False,
+  "response_processor": process_langgraph_stream,
 }
 
 TOOLS = {

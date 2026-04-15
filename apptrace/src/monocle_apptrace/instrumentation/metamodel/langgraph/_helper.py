@@ -10,9 +10,48 @@ LANGGRAPTH_AGENT_NAME_KEY = "agent.langgraph"
 
 def extract_agent_response(response):
     try:
+        if response is None:
+            return ""
+
+        # Stream processor output from stream()/astream() paths
+        output_text = getattr(response, 'output_text', None)
+        if output_text is not None:
+            return str(output_text)
+
+        # LangGraph stream v2 may be returned as list[StreamPart]
+        if isinstance(response, list):
+            chunks = []
+            for part in response:
+                if not isinstance(part, dict):
+                    continue
+                part_type = part.get('type')
+                data = part.get('data')
+                if part_type == 'messages' and isinstance(data, (tuple, list)) and len(data) > 0:
+                    msg = data[0]
+                    content = getattr(msg, 'content', None)
+                    if content:
+                        chunks.append(str(content))
+                elif part_type == 'custom' and data is not None:
+                    chunks.append(str(data))
+                elif isinstance(data, dict) and 'messages' in data and isinstance(data['messages'], list) and len(data['messages']) > 0:
+                    output = data['messages'][-1]
+                    content = getattr(output, 'content', None)
+                    if content:
+                        chunks.append(str(content))
+            if len(chunks) > 0:
+                return "\n".join(chunks)
+
+        # Backward-compatible tuple forms from older stream format.
+        if isinstance(response, tuple) and len(response) > 0:
+            if len(response) > 1:
+                return extract_agent_response(response[-1])
+            return extract_agent_response(response[0])
+
         if response is not None and 'messages' in response:
             output = response["messages"][-1]
             return str(output.content)
+        if hasattr(response, 'content'):
+            return str(response.content)
     except Exception as e:
         logger.warning("Warning: Error occurred in handle_response: %s", str(e))
     return ""
@@ -90,7 +129,7 @@ def tools(instance):
 def update_span_from_llm_response(response):
     meta_dict = {}
     token_usage = None
-    if response is not None and "messages" in response:
+    if response is not None and "messages" in response and isinstance(response["messages"], list) and len(response["messages"]) > 0:
         token = response["messages"][-1]
         if token.response_metadata is not None:
             token_usage = token.response_metadata["token_usage"]
@@ -105,7 +144,7 @@ def extract_tool_response(result):
         return result.content
     if isinstance(result, str):
         return result
-    if isinstance(result[0], str):
+    if isinstance(result, (list, tuple)) and len(result) > 0 and isinstance(result[0], str):
         return result[0]
     if isinstance(result, tuple) and len(result) > 1:
         if isinstance(result[1], dict) and 'structured_content' in result[1]:

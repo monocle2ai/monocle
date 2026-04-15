@@ -326,10 +326,12 @@ class SpanHandler:
     @staticmethod
     def is_root_span(curr_span: Span) -> bool:
         try:
-            if curr_span is not None and hasattr(curr_span, "parent") or  curr_span.context.trace_state:
+            if curr_span is not None and (hasattr(curr_span, "parent") or curr_span.context.trace_state):
                 return curr_span.parent is None
+            return False
         except Exception as e:
             logger.warning(f"Error finding root span: {e}")
+            return False
 
     @staticmethod
     def attach_workflow_type(to_wrap=None, context=None): 

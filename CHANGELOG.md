@@ -1,3 +1,14 @@
+## Version 0.7.8 (2026-04-15)
+
+- Updated langrapgh dependencies to latest versions ([#517](https://github.com/monocle2ai/monocle/pull/517))
+- Add execution ID for parellel agent runs ([#488](https://github.com/monocle2ai/monocle/pull/488))
+- Implement paygentic exporter ([#501](https://github.com/monocle2ai/monocle/pull/501))
+- Hugging face streaming support ([#506](https://github.com/monocle2ai/monocle/pull/506))
+- Support for filtering specific attributes/fields in monocle spans ([#504](https://github.com/monocle2ai/monocle/pull/504))
+- Implement Gemini streaming support ([#493](https://github.com/monocle2ai/monocle/pull/493))
+- Add thought token in gemini thinking model ([#505](https://github.com/monocle2ai/monocle/pull/505))
+- Eval test enhancemebts ([#489](https://github.com/monocle2ai/monocle/pull/489))
+
 ## Version 0.7.7 (2026-03-21)
 
 - Implement MS Agent streaming support ([#487](https://github.com/monocle2ai/monocle/pull/487))

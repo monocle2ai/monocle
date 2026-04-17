@@ -1,4 +1,8 @@
 MONOCLE_WORKFLOW_NAME_KEY = "_monocle.workflow_name"
+
+# We set a higher default of 50KB to accommodate large responses
+DEFAULT_MAX_ATTRIBUTE_LENGTH = 51200  # 50KB
+
 # Azure environment constants
 AZURE_ML_ENDPOINT_ENV_NAME = "AZUREML_ENTRY_SCRIPT"
 AZURE_FUNCTION_WORKER_ENV_NAME = "FUNCTIONS_WORKER_RUNTIME"

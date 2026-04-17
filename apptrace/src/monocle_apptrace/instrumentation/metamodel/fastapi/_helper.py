@@ -10,7 +10,14 @@ import json
 import urllib.parse
 
 logger = logging.getLogger(__name__)
-MAX_DATA_LENGTH = 1000
+
+try:
+    from monocle_apptrace.instrumentation.common.constants import DEFAULT_MAX_ATTRIBUTE_LENGTH
+    MAX_DATA_LENGTH = DEFAULT_MAX_ATTRIBUTE_LENGTH
+except ImportError:
+    # Fallback if constant doesn't exist (backwards compatibility)
+    MAX_DATA_LENGTH = 51200  # 50KB
+
 token_data = local()
 token_data.current_token = None
 

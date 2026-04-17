@@ -19,6 +19,20 @@ from contextlib import suppress
 logger = logging.getLogger(__name__)
 
 
+def is_streaming_request(kwargs):
+    """Return True when LiteLLM completion request is configured for streaming."""
+    try:
+        if isinstance(kwargs, dict):
+            if kwargs.get("stream") is True:
+                return True
+            optional_params = kwargs.get("optional_params")
+            if isinstance(optional_params, dict) and optional_params.get("stream") is True:
+                return True
+    except Exception as e:
+        logger.warning("Warning: Error occurred in is_streaming_request: %s", str(e))
+    return False
+
+
 def extract_messages(kwargs):
     """Extract system and user messages"""
     try:
@@ -37,9 +51,22 @@ def extract_messages(kwargs):
 def extract_assistant_message(arguments):
     try:
         messages = []
+        response = arguments["result"]
+
+        # Streaming path: SimpleNamespace from stream processor
+        if response is not None and hasattr(response, 'output_text'):
+            if hasattr(response, 'tools') and response.tools:
+                role = "assistant"
+                tool = response.tools[0]
+                messages.append({role: f'"tool_name": "{tool.get("name", "")}", "arguments": {tool.get("args", {})}'})
+            elif response.output_text:
+                role = getattr(response, 'role', 'assistant') or 'assistant'
+                messages.append({role: response.output_text})
+            return get_json_dumps(messages[0]) if messages else ""
+
+        # Non-streaming path
         status = get_status_code(arguments)
         if status == 'success' or status == 'completed':
-            response = arguments["result"]
             if (response is not None and hasattr(response, "choices") and len(response.choices) > 0):
                 if hasattr(response.choices[0], "message"):
                     role = (
@@ -52,8 +79,8 @@ def extract_assistant_message(arguments):
         else:
             if arguments["exception"] is not None:
                 return get_exception_message(arguments)
-            elif hasattr(arguments["result"], "error"):
-                return arguments["result"].error
+            elif hasattr(response, "error"):
+                return response.error
 
     except (IndexError, AttributeError) as e:
         logger.warning(
@@ -79,7 +106,14 @@ def resolve_from_alias(my_map, alias):
 def update_span_from_llm_response(response):
     meta_dict = {}
     token_usage = None
+    
     if response is not None:
+        # Streaming path: SimpleNamespace with .usage dict
+        if hasattr(response, 'usage') and isinstance(response.usage, dict):
+            meta_dict.update(response.usage)
+            return meta_dict
+        
+        # Non-streaming path
         if token_usage is None and hasattr(response, "usage") and response.usage is not None:
             token_usage = response.usage
         elif token_usage is None and hasattr(response, "response_metadata"):
@@ -94,8 +128,9 @@ def update_span_from_llm_response(response):
 
 def agent_inference_type(arguments):
     """Extract agent inference type from LiteLLM response, following OpenAI pattern"""
-
-    finish_type = map_finish_reason_to_finish_type(extract_finish_reason(arguments))
+    finish_reason = extract_finish_reason(arguments)
+    finish_type = map_finish_reason_to_finish_type(finish_reason)
+    
     if finish_type == "tool_call":
         return INFERENCE_TOOL_CALL
 
@@ -108,6 +143,10 @@ def extract_finish_reason(arguments):
             return "error"
             
         response = arguments.get("result")
+        
+        # Streaming path: SimpleNamespace with .finish_reason directly
+        if response is not None and hasattr(response, 'output_text') and hasattr(response, 'finish_reason'):
+            return response.finish_reason
         
         # Handle LiteLLM response structure (similar to OpenAI)
         if response is not None and hasattr(response, "choices") and len(response.choices) > 0:

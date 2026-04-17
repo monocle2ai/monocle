@@ -6,22 +6,28 @@ import pytest
 from common.custom_exporter import CustomConsoleSpanExporter
 from custom_litellm.llm import LiteLLMClient
 from custom_litellm.prompt_loader import PromptLoader
+from monocle_apptrace.exporters.file_exporter import FileSpanExporter
 from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
-from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from opentelemetry.sdk.trace.export import BatchSpanProcessor, SimpleSpanProcessor
 from tests.common.helpers import (
     find_spans_by_type,
     verify_inference_span,
 )
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture(scope="module")
 def setup():
+    """Setup telemetry instrumentation for LiteLLM tests."""
     custom_exporter = CustomConsoleSpanExporter()
+    file_exporter = FileSpanExporter()
+    span_processors = [
+        BatchSpanProcessor(file_exporter),
+        SimpleSpanProcessor(custom_exporter)
+    ]
     try:
         instrumentor = setup_monocle_telemetry(
             workflow_name="litellm_app_1",
-            span_processors=[BatchSpanProcessor(custom_exporter)],
-            wrapper_methods=[]
+            span_processors=span_processors,
         )
         yield custom_exporter
     finally:

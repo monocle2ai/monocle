@@ -141,8 +141,26 @@ class TraceAssertion():
     @collect_assertions
     def called_agent(self, agent_name:str, message:Optional[str] = None) -> 'TraceAssertion':
         """Assert that the given agent was called."""
+        # Phase 1: find agentic.invocation spans for the named agent
         self._filtered_spans = self.validator._get_agent_invocation_spans(agent_name, filtered_spans=self._filtered_spans)
         TraceAssertion._assert_on_spans(self._filtered_spans, f"Agent '{agent_name}' was not called", custom_message=message)
+
+        # Phase 2: for each matched invocation span, collect all spans across the
+        # full span list that share the same scope.agentic.invocation id
+        invocation_ids = {
+            span.attributes.get("scope.agentic.invocation")
+            for span in self._filtered_spans
+            if span.attributes.get("scope.agentic.invocation")
+        }
+        if invocation_ids:
+            seen = {id(span) for span in self._filtered_spans}
+            related = [
+                span for span in self.validator.spans
+                if span.attributes.get("scope.agentic.invocation") in invocation_ids
+                and id(span) not in seen
+            ]
+            self._filtered_spans = list(self._filtered_spans) + related
+
         return self
 
     @collect_assertions

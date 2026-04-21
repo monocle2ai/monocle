@@ -1,4 +1,5 @@
 import time, os
+import asyncio
 import random
 import logging
 from abc import ABC, abstractmethod
@@ -33,6 +34,14 @@ class SpanExporterBase(ABC):
         if self.export_monocle_only and (not span.attributes.get(MONOCLE_SDK_VERSION)):
             return True
         return False
+
+    @staticmethod
+    def _is_running_in_event_loop() -> bool:
+        try:
+            asyncio.get_running_loop()
+            return True
+        except RuntimeError:
+            return False
 
     @staticmethod
     def retry_with_backoff(retries=3, backoff_in_seconds=1, max_backoff_in_seconds=32, exceptions=(Exception,)):

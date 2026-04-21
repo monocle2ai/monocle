@@ -47,14 +47,12 @@ def record_monocle_feedback(
     if not feedback:
         raise ValueError("feedback is required")
     
-    # Build feedback data structure
     feedback_data = {
         "session_id": session_id,
         "feedback": feedback,
         "turn_id": turn_id
     }
     
-    # Create span attributes following the FEEDBACK entity structure
     span_attributes = {
         "span.type": "monocle.feedback",
         "entity.1.type": "feedback.monocle",
@@ -64,7 +62,6 @@ def record_monocle_feedback(
     if turn_id:
         span_attributes["entity.1.turn_id"] = turn_id
     
-    # Create output event with feedback
     events = [
         {
             "name": "data.output",

@@ -14,24 +14,15 @@ Monocle instruments Claude Code by registering hooks for all session events. Eac
 pip install monocle_apptrace
 ```
 
-Or from source:
-```bash
-cd monocle/apptrace && pip install -e .
-```
-
 ### 2. Set Environment Variables
 
-Add these to your `~/.zshrc` or `~/.bashrc` and reload:
+Add these to your `~/.zshrc` or `~/.bashrc`:
 
 ```bash
 export OKAHU_API_KEY="your-api-key"
 export OKAHU_INGESTION_ENDPOINT="https://ingest.okahu.co/api/v1/trace/ingest"
 export MONOCLE_EXPORTER="okahu,file"        # okahu | file | console (combinable)
 export MONOCLE_WORKFLOW_NAME="claude-cli"   # labels your traces
-```
-
-```bash
-source ~/.zshrc
 ```
 
 ### 3. Register the Hooks

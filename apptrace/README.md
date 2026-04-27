@@ -4,7 +4,7 @@
 
 **Monocle** is a community-driven OSS framework for tracing GenAI app code governed as a [Linux Foundation AI & Data project](https://lfaidata.foundation/projects/monocle/). 
 
-## Instrument your code
+## Use Monocle
 
 - Get the Monocle package
   
@@ -24,9 +24,7 @@
 
 See [Monocle user guide](Monocle_User_Guide.md) for more details.
 
-## Trace Claude Code CLI sessions (zero-code)
-
-Monocle can automatically trace your Claude Code CLI sessions without any code changes — just install and configure once:
+## Claude Code Instrumentation
 
 ```bash
 # 1. Install package
@@ -39,7 +37,6 @@ python -m monocle_apptrace claude-install
 export MONOCLE_EXPORTER="okahu,file"
 export OKAHU_API_KEY="your-api-key"
 export MONOCLE_WORKFLOW_NAME="claude-cli"
-source ~/.zshrc
 ```
 
 Start a new Claude Code session — traces flow automatically.

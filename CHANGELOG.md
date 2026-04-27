@@ -1,3 +1,8 @@
+## Version 0.7.9 (2026-04-27)
+- Monocle test framework to support Okahu eval testing for facts beyond just traces
+- Okahu exporter to load API key from .env.monocle if provided
+- Minor bugfixes
+
 ## Version 0.7.8 (2026-04-15)
 
 - Updated langrapgh dependencies to latest versions ([#517](https://github.com/monocle2ai/monocle/pull/517))

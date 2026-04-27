@@ -8,6 +8,13 @@ class StopFailureError(Exception):
         self.code = error
 
 
+class ToolFailureError(Exception):
+    """Raised when a tool call fails (PostToolUseFailure hook event)."""
+    def __init__(self, tool_name: str, error: str):
+        super().__init__(error or f"Tool '{tool_name}' failed")
+        self.tool_name = tool_name
+
+
 class ReplayHandler:
 
     def handle_turn(self, prompt: str, response: str, **kwargs) -> str:
@@ -65,20 +72,26 @@ class ReplayHandler:
 
         for tc in tool_calls:
             tool_name = tc["tool_name"]
-            if tool_name.startswith("mcp__"):
-                self.handle_mcp_call(
-                    tool_name=tool_name,
-                    tool_input=tc["tool_input"],
-                    tool_output=tc["tool_output"],
-                    **{SPAN_START_TIME: tc.get(SPAN_START_TIME), SPAN_END_TIME: tc.get(SPAN_END_TIME)},
-                )
-            else:
-                self.handle_tool_call(
-                    tool_name=tool_name,
-                    tool_input=tc["tool_input"],
-                    tool_output=tc["tool_output"],
-                    **{SPAN_START_TIME: tc.get(SPAN_START_TIME), SPAN_END_TIME: tc.get(SPAN_END_TIME)},
-                )
+            extra = {"failed": True, "error": tc.get("error", "")} if tc.get("failed") else {}
+            try:
+                if tool_name.startswith("mcp__"):
+                    self.handle_mcp_call(
+                        tool_name=tool_name,
+                        tool_input=tc["tool_input"],
+                        tool_output=tc["tool_output"],
+                        **extra,
+                        **{SPAN_START_TIME: tc.get(SPAN_START_TIME), SPAN_END_TIME: tc.get(SPAN_END_TIME)},
+                    )
+                else:
+                    self.handle_tool_call(
+                        tool_name=tool_name,
+                        tool_input=tc["tool_input"],
+                        tool_output=tc["tool_output"],
+                        **extra,
+                        **{SPAN_START_TIME: tc.get(SPAN_START_TIME), SPAN_END_TIME: tc.get(SPAN_END_TIME)},
+                    )
+            except ToolFailureError:
+                pass  # span already recorded with ERROR status
 
         for sa in subagents:
             self.handle_subagent(
@@ -105,10 +118,16 @@ class ReplayHandler:
 
     def handle_tool_call(self, tool_name: str, tool_input: dict, tool_output: dict, **kwargs) -> dict:
         """agentic.tool.invocation span — one tool execution."""
+        if kwargs.get("failed"):
+            error_msg = kwargs.get("error", "") or f"Tool '{tool_name}' failed"
+            raise ToolFailureError(tool_name, error_msg)
         return tool_output
 
     def handle_mcp_call(self, tool_name: str, tool_input: dict, tool_output: dict, **kwargs) -> dict:
         """agentic.mcp.invocation span — one MCP tool execution."""
+        if kwargs.get("failed"):
+            error_msg = kwargs.get("error", "") or f"Tool '{tool_name}' failed"
+            raise ToolFailureError(tool_name, error_msg)
         return tool_output
 
     def handle_subagent(self, prompt: str = "", response: str = "", **kwargs) -> str:
@@ -116,20 +135,26 @@ class ReplayHandler:
         tool_calls = kwargs.get("tool_calls") or []
         for tc in tool_calls:
             tool_name = tc["tool_name"]
-            if tool_name.startswith("mcp__"):
-                self.handle_mcp_call(
-                    tool_name=tool_name,
-                    tool_input=tc["tool_input"],
-                    tool_output=tc["tool_output"],
-                    **{SPAN_START_TIME: tc.get(SPAN_START_TIME), SPAN_END_TIME: tc.get(SPAN_END_TIME)},
-                )
-            else:
-                self.handle_tool_call(
-                    tool_name=tool_name,
-                    tool_input=tc["tool_input"],
-                    tool_output=tc["tool_output"],
-                    **{SPAN_START_TIME: tc.get(SPAN_START_TIME), SPAN_END_TIME: tc.get(SPAN_END_TIME)},
-                )
+            extra = {"failed": True, "error": tc.get("error", "")} if tc.get("failed") else {}
+            try:
+                if tool_name.startswith("mcp__"):
+                    self.handle_mcp_call(
+                        tool_name=tool_name,
+                        tool_input=tc["tool_input"],
+                        tool_output=tc["tool_output"],
+                        **extra,
+                        **{SPAN_START_TIME: tc.get(SPAN_START_TIME), SPAN_END_TIME: tc.get(SPAN_END_TIME)},
+                    )
+                else:
+                    self.handle_tool_call(
+                        tool_name=tool_name,
+                        tool_input=tc["tool_input"],
+                        tool_output=tc["tool_output"],
+                        **extra,
+                        **{SPAN_START_TIME: tc.get(SPAN_START_TIME), SPAN_END_TIME: tc.get(SPAN_END_TIME)},
+                    )
+            except ToolFailureError:
+                pass  # span already recorded with ERROR status
         # One inference span per subagent capturing its final response and aggregate tokens
         if response:
             self.handle_inference_round(

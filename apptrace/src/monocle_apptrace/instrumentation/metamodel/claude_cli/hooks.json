@@ -44,6 +44,17 @@
         ]
       }
     ],
+    "PostToolUseFailure": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python -m monocle_apptrace.instrumentation.metamodel.claude_cli",
+            "statusMessage": "Monocle telemetry"
+          }
+        ]
+      }
+    ],
     "SubagentStart": [
       {
         "hooks": [

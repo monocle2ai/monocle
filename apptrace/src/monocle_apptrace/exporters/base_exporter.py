@@ -1,4 +1,5 @@
 import time, os
+import json
 import asyncio
 import random
 import logging
@@ -85,3 +86,16 @@ def format_trace_id_without_0x(trace_id: int) -> str:
 def format_span_id_without_0x(span_id: int) -> str:
     """Format span_id as 16-character lowercase hex string without 0x prefix."""
     return f"{span_id:016x}"
+
+def serialize_span(span) -> dict:
+    """Serialize a ReadableSpan to a dict using OTLP JSON field names.
+
+    OTel's to_json() uses 'description' for the status message; OTLP JSON
+    (and the Monocle backend) expects 'message'.  This function normalizes
+    the key so all exporters produce consistent output.
+    """
+    obj = json.loads(span.to_json())
+    status = obj.get("status", {})
+    if "description" in status:
+        status["message"] = status.pop("description")
+    return obj

@@ -31,7 +31,7 @@ See [Monocle user guide](Monocle_User_Guide.md) for more details.
 pip install monocle_apptrace
 
 # 2. Register hooks into ~/.claude/settings.json
-python -m monocle_apptrace claude-install
+python -m monocle_apptrace claude-setup
 
 # 3. Set environment variables in ~/.zshrc (or ~/.bashrc)
 export MONOCLE_EXPORTER="okahu,file"

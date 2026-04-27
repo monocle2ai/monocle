@@ -1,14 +1,33 @@
 import json
+import shlex
+import sys
 from pathlib import Path
 
-_COMMAND = "python -m monocle_apptrace.instrumentation.metamodel.claude_cli"
 _MARKER = "monocle_apptrace.instrumentation.metamodel.claude_cli"
 _SETTINGS = Path.home() / ".claude" / "settings.json"
 _HOOKS_JSON = Path(__file__).parent / "hooks.json"
 
 
+def _resolve_command(template: str) -> str:
+    """Replace the leading ``python`` token with the interpreter that ran setup.
+
+    Hook processes inherit the user's shell PATH, which may resolve ``python`` to
+    a different interpreter than the one with ``monocle_apptrace`` installed.
+    Pinning to ``sys.executable`` at install time avoids that silent failure.
+    """
+    parts = shlex.split(template)
+    if parts and parts[0] == "python":
+        parts[0] = sys.executable
+    return shlex.join(parts)
+
+
 def install() -> int:
     monocle_hooks = json.loads(_HOOKS_JSON.read_text())["hooks"]
+    for hook_groups in monocle_hooks.values():
+        for group in hook_groups:
+            for hook in group.get("hooks", []):
+                if "command" in hook:
+                    hook["command"] = _resolve_command(hook["command"])
 
     _SETTINGS.parent.mkdir(parents=True, exist_ok=True)
     try:
@@ -43,5 +62,6 @@ def install() -> int:
     if already:
         print(f"[monocle] Already registered:   {', '.join(already)}")
     print(f"[monocle] Settings written to {_SETTINGS}")
+    print(f"[monocle] Hooks bound to interpreter: {sys.executable}")
     print("[monocle] Start a new Claude Code session — traces will flow automatically.")
     return 0

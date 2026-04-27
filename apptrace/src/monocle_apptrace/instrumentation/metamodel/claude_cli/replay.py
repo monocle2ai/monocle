@@ -21,7 +21,19 @@ from monocle_apptrace.instrumentation.metamodel.claude_cli.trace_events import _
 logger = logging.getLogger(__name__)
 
 
+_telemetry_ready = False
+
+
 def _configure_telemetry():
+    """Run setup_monocle_telemetry once per process.
+
+    Only the hook firings that actually emit spans (Stop, StopFailure, PostCompact,
+    SessionEnd-with-pending-replay) need this. Calling it lazily keeps record-only
+    hooks (SessionStart, PreToolUse, PostToolUse, …) off the instrumentation hot path.
+    """
+    global _telemetry_ready
+    if _telemetry_ready:
+        return
     workflow_name = (
         os.environ.get("MONOCLE_WORKFLOW_NAME")
         or os.environ.get("DEFAULT_WORKFLOW_NAME")
@@ -29,9 +41,8 @@ def _configure_telemetry():
     )
     from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
     setup_monocle_telemetry(workflow_name=workflow_name)
+    _telemetry_ready = True
 
-
-_configure_telemetry()
 
 from monocle_apptrace.instrumentation.metamodel.claude_cli.replay_handlers import ReplayHandler, StopFailureError
 from monocle_apptrace.instrumentation.metamodel.claude_cli._helper import (
@@ -85,10 +96,13 @@ def _load_events(session_id: str) -> list:
 # ── Tool call pairing ─────────────────────────────────────────────────────────
 
 def _pair_tool_call(pre_event: dict, post_event: dict) -> dict:
+    is_failure = post_event.get("hook_event_name") == "PostToolUseFailure"
     return {
         "tool_name": pre_event.get("tool_name", post_event.get("tool_name", "")),
         "tool_input": pre_event.get("tool_input", {}),
         "tool_output": post_event.get("tool_response", {}),
+        "failed": is_failure,
+        "error": post_event.get("error", "") if is_failure else "",
         SPAN_START_TIME: pre_event.get("timestamp"),
         SPAN_END_TIME: post_event.get("timestamp"),
     }
@@ -114,7 +128,7 @@ def _derive_inference_rounds(turn_events: list, prompt_ts: str, stop_ts: str, mo
     """
     parent_tools = [
         e for e in turn_events
-        if e.get("hook_event_name") in ("PreToolUse", "PostToolUse")
+        if e.get("hook_event_name") in ("PreToolUse", "PostToolUse", "PostToolUseFailure")
         and not e.get("agent_id")
     ]
 
@@ -147,7 +161,7 @@ def _derive_inference_rounds(turn_events: list, prompt_ts: str, stop_ts: str, mo
                     "finish_type": "tool_call",
                 })
                 inference_start = None
-        elif name == "PostToolUse":
+        elif name in ("PostToolUse", "PostToolUseFailure"):
             last_post_ts = ts
             inference_start = ts
 
@@ -216,6 +230,15 @@ def _collect_turn_events(turn_events: list) -> tuple:
                 sa_id = resp.get("agentId", "")
                 if sa_id and sa_id in subagent_data:
                     subagent_data[sa_id]["post_agent_event"] = event
+            else:
+                pre = _pop_pre_tool(pending_tools, event.get("tool_use_id") or "")
+                parent_tool_calls.append(_pair_tool_call(pre or event, event))
+
+        elif name == "PostToolUseFailure":
+            if agent_id:
+                sd = subagent_data.get(agent_id, {})
+                pre = _pop_pre_tool(sd.get("pre_tools", {}), event.get("tool_use_id") or "")
+                sd.get("tool_calls", []).append(_pair_tool_call(pre or event, event))
             else:
                 pre = _pop_pre_tool(pending_tools, event.get("tool_use_id") or "")
                 parent_tool_calls.append(_pair_tool_call(pre or event, event))
@@ -306,6 +329,7 @@ def _process_turn(turn_events: list, session_id: str, model: str, handler: Repla
 # ── Public API ────────────────────────────────────────────────────────────────
 
 def replay_compaction(session_id: str) -> None:
+    _configure_telemetry()
     events = _load_events(session_id)
 
     post = next(
@@ -393,6 +417,8 @@ def replay_session(session_id: str) -> None:
 
     if not new_events:
         return
+
+    _configure_telemetry()
 
     model = state.get("model", "claude")
     for e in events:

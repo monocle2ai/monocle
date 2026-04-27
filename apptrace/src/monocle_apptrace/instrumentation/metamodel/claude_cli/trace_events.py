@@ -1,11 +1,9 @@
 """
 Monocle Claude Trace
 
-Writes every hook event to a single append-only trace file at the project root:
-  .monocle_claude_trace.jsonl
-
-All sessions share the same file, so the full history of events across
-sessions is available in one place.
+Per-session JSONL event logs and the append-only trace file live in a
+``.monocle/`` folder at the directory where Claude Code was launched, so each
+project keeps its own trace history alongside its source.
 """
 
 import json
@@ -15,17 +13,19 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-# Project root is one level above the hooks/ directory
-TRACE_FILE = Path(__file__).parent.parent / ".monocle_claude_trace.jsonl"
-# set current directory to the location of this script, so we can write session logs here
-SESSIONS_DIR = Path(os.getcwd()) / ".monocle" / ".claude_sessions"
+_STATE_DIR = Path(os.getcwd()) / ".monocle"
+SESSIONS_DIR = _STATE_DIR / ".claude_sessions"
+TRACE_FILE = _STATE_DIR / ".monocle_claude_trace.jsonl"
+
 
 def _session_log(session_id: str) -> Path:
     SESSIONS_DIR.mkdir(parents=True, exist_ok=True)
     return SESSIONS_DIR / f".monocle_claude_{session_id}.jsonl"
 
+
 def record_trace_event(entry: dict) -> None:
     """Append an enriched event dict as a single JSON line to the trace file."""
+    SESSIONS_DIR.mkdir(parents=True, exist_ok=True)
     with TRACE_FILE.open("a") as fh:
         fh.write(json.dumps(entry) + "\n")
 

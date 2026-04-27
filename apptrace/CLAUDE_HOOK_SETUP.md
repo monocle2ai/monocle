@@ -28,7 +28,7 @@ export MONOCLE_WORKFLOW_NAME="claude-cli"   # labels your traces
 ### 3. Register the Hooks
 
 ```bash
-python -m monocle_apptrace claude-install
+python -m monocle_apptrace claude-setup
 ```
 
 This writes all 11 hooks into `~/.claude/settings.json` non-destructively — existing hooks from other tools are preserved. Re-running is safe (idempotent).
@@ -68,7 +68,7 @@ Exporters — Okahu / file / console
 **Hooks not running:**
 ```bash
 cat ~/.claude/settings.json   # verify hooks are registered
-python -m monocle_apptrace claude-install   # re-run if missing
+python -m monocle_apptrace claude-setup   # re-run if missing
 ```
 
 **No traces appearing:**

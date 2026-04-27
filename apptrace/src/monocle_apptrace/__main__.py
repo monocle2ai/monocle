@@ -12,7 +12,7 @@ def main():
             hook_main()
             sys.exit(0)
 
-        if cmd in ("claude-install", "claude_install"):
+        if cmd in ("claude-setup", "claude_setup"):
             from monocle_apptrace.instrumentation.metamodel.claude_cli.installer import install
             sys.exit(install())
 
@@ -20,8 +20,8 @@ def main():
     if len(sys.argv) < 2 or not sys.argv[1].endswith(".py"):
         print("Usage:")
         print("  python -m monocle_apptrace <your-main-module-file>   wrap a script with Monocle telemetry")
-        print("  python -m monocle_apptrace claude-install             register Claude Code hooks")
-        print("  python -m monocle_apptrace claude-hook                (called automatically by Claude Code)")
+        print("  python -m monocle_apptrace claude-setup              register Claude Code hooks")
+        print("  python -m monocle_apptrace claude-hook               read a hook event from stdin (manual testing)")
         sys.exit(1)
     
     file_name = os.path.basename(sys.argv[1])

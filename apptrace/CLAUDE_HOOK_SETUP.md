@@ -72,26 +72,6 @@ Exporters — Okahu / file / console
 
 ---
 
-## Testing
-
-### Verify with a mock event
-
-```bash
-echo '{"session_id":"test","hook_event_name":"Stop","last_assistant_message":"hello"}' \
-  | python -m monocle_apptrace.instrumentation.metamodel.claude_cli
-```
-
-### Watch live during a real session
-
-```bash
-export MONOCLE_EXPORTER=console
-claude   # start from this shell so the env var is inherited
-```
-
-Spans appear in Claude Code's status bar and in your terminal as each turn completes.
-
----
-
 ## Troubleshooting
 
 **Hooks not running:**
@@ -100,10 +80,12 @@ cat ~/.claude/settings.json   # verify hooks are registered
 python -m monocle_apptrace claude-install   # re-run if missing
 ```
 
-**No traces:**
+**No traces appearing:**
+
+Make sure env vars are set in the same shell that launches `claude` — hooks inherit the environment from that shell.
 ```bash
-env | grep -E "MONOCLE|OKAHU"   # verify env vars are set
-export MONOCLE_EXPORTER=console && claude   # watch traces in terminal
+env | grep -E "MONOCLE|OKAHU"   # verify env vars visible in current shell
+export MONOCLE_EXPORTER=console && claude   # switch to console to see spans live
 ```
 
 **Import errors:**

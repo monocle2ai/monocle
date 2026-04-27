@@ -4,7 +4,7 @@
 
 **Monocle** is a community-driven OSS framework for tracing GenAI app code governed as a [Linux Foundation AI & Data project](https://lfaidata.foundation/projects/monocle/). 
 
-## Use Monocle
+## Instrument your code
 
 - Get the Monocle package
   
@@ -24,9 +24,9 @@
 
 See [Monocle user guide](Monocle_User_Guide.md) for more details.
 
-## Claude Code Hook
+## Trace Claude Code CLI sessions (zero-code)
 
-Trace your Claude Code CLI sessions automatically:
+Monocle can automatically trace your Claude Code CLI sessions without any code changes — just install and configure once:
 
 ```bash
 # 1. Install package

@@ -1,12 +1,14 @@
 """
 Convenience methods for recording Monocle feedback in traces.
 
-Simple API for capturing user feedback from Kahu agent.
+Simple API for capturing user feedback from agents.
 """
 
 from typing import Any, Dict, Optional
 from monocle_apptrace.instrumentation.common.method_wrappers import monocle_trace
 from monocle_apptrace.instrumentation.metamodel.feedback.entities.feedback import FEEDBACK
+from monocle_apptrace.instrumentation.common.utils import set_scope, remove_scope
+from monocle_apptrace.instrumentation.common.constants import AGENT_SESSION
 
 
 def record_monocle_feedback(
@@ -17,7 +19,7 @@ def record_monocle_feedback(
     """
     Record Monocle feedback as a span in the current trace.
     
-    Explicitly invoked API to capture user feedback from Kahu agent.
+    Explicitly invoked API to capture user feedback from agents.
     
     Args:
         session_id: Session ID (required) - identifies the conversation session
@@ -53,32 +55,38 @@ def record_monocle_feedback(
         "turn_id": turn_id
     }
     
-    span_attributes = {
-        "span.type": "monocle.feedback",
-        "entity.1.type": "feedback.monocle",
-        "entity.1.session_id": session_id,
-    }
-    
+    session_token = set_scope(AGENT_SESSION, session_id)
+    turn_token = None
     if turn_id:
-        span_attributes["entity.1.turn_id"] = turn_id
+        turn_token = set_scope("agentic.turn", turn_id)
     
-    events = [
-        {
-            "name": "data.output",
-            "attributes": {
-                "feedback": feedback
-            }
+    try:
+        span_attributes = {
+            "span.type": "monocle.feedback",
+            "entity.1.type": "feedback.monocle",
         }
-    ]
-    
-    # Create the span with monocle_trace context manager
-    with monocle_trace(
-        span_name="monocle.feedback",
-        attributes=span_attributes,
-        events=events
-    ):
-        # The span is automatically created and closed
-        pass
+        
+        events = [
+            {
+                "name": "data.output",
+                "attributes": {
+                    "feedback": feedback
+                }
+            }
+        ]
+        
+        # Create the span with monocle_trace context manager
+        with monocle_trace(
+            span_name="monocle.feedback",
+            attributes=span_attributes,
+            events=events
+        ):
+            pass
+    finally:
+        if session_token:
+            remove_scope(session_token)
+        if turn_token:
+            remove_scope(turn_token)
     
     return feedback_data
 

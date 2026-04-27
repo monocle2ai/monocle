@@ -195,8 +195,8 @@ class SPAN_TYPES:
     # LLM inference operation invoked by an LLM orchestration framework (eg LangChain, LlamaIndex, etc)
     INFERENCE_FRAMEWORK = "inference.framework"
 
-    # Monocle feedback from Kahu agent
-    MONOCLE_FEEDBACK = "monocle.feedback"
+    # Monocle feedback 
+    FEEDBACK = "monocle.feedback"
 
 class SPAN_SUBTYPES:
     # Agentic planing

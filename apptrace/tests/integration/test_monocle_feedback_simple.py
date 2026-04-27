@@ -1,5 +1,5 @@
 """
-Simple example of Monocle feedback instrumentation for Kahu agent.
+Simple example of Monocle feedback instrumentation for agent.
 """
 
 from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
@@ -11,7 +11,7 @@ def example_simple_feedback():
     
     # Setup Monocle telemetry
     setup_monocle_telemetry(
-        workflow_name="kahu_agent_feedback",
+        workflow_name="agent_feedback",
         monocle_exporters_list="console"
     )
     
@@ -67,7 +67,7 @@ def example_in_chatbot_context():
     """Example showing feedback in a chatbot conversation context."""
     
     setup_monocle_telemetry(
-        workflow_name="kahu_chatbot",
+        workflow_name="chatbot",
         monocle_exporters_list="console"
     )
     
@@ -159,7 +159,7 @@ def example_validation():
 
 if __name__ == "__main__":
     print("=" * 80)
-    print("Monocle Feedback Examples for Kahu Agent")
+    print("Monocle Feedback Examples")
     print("=" * 80)
     
     print("\n" + "=" * 80)

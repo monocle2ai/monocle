@@ -1,0 +1,125 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python -m monocle_apptrace.instrumentation.metamodel.claude_cli",
+            "statusMessage": "Monocle telemetry"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python -m monocle_apptrace.instrumentation.metamodel.claude_cli",
+            "statusMessage": "Monocle telemetry"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python -m monocle_apptrace.instrumentation.metamodel.claude_cli",
+            "statusMessage": "Monocle telemetry"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python -m monocle_apptrace.instrumentation.metamodel.claude_cli",
+            "statusMessage": "Monocle telemetry"
+          }
+        ]
+      }
+    ],
+    "SubagentStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python -m monocle_apptrace.instrumentation.metamodel.claude_cli",
+            "statusMessage": "Monocle telemetry"
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python -m monocle_apptrace.instrumentation.metamodel.claude_cli",
+            "statusMessage": "Monocle telemetry"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python -m monocle_apptrace.instrumentation.metamodel.claude_cli",
+            "statusMessage": "Monocle telemetry"
+          }
+        ]
+      }
+    ],
+    "StopFailure": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python -m monocle_apptrace.instrumentation.metamodel.claude_cli",
+            "statusMessage": "Monocle telemetry"
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python -m monocle_apptrace.instrumentation.metamodel.claude_cli",
+            "statusMessage": "Monocle telemetry"
+          }
+        ]
+      }
+    ],
+    "PostCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python -m monocle_apptrace.instrumentation.metamodel.claude_cli",
+            "statusMessage": "Monocle telemetry"
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python -m monocle_apptrace.instrumentation.metamodel.claude_cli",
+            "statusMessage": "Monocle telemetry"
+          }
+        ]
+      }
+    ]
+  }
+}

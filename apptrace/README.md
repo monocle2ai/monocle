@@ -23,6 +23,22 @@
 - (Optionally) Modify config to alter where traces are sent
 
 See [Monocle user guide](Monocle_User_Guide.md) for more details.
-  
 
+## Claude Code Hook
 
+Trace your Claude Code CLI sessions automatically:
+
+```bash
+# 1. Install package
+pip install -e .
+
+# 2. Configure Claude Code settings
+cp claude_hook_settings.json ~/.claude/settings.json
+
+# 3. Set environment variables in ~/.zshrc
+export MONOCLE_EXPORTER="okahu,file"
+export OKAHU_API_KEY="your-api-key"
+export MONOCLE_SERVICE_NAME="claude-cli"
+```
+
+See [Claude Hook Setup Guide](CLAUDE_HOOK_SETUP.md) for complete instructions.

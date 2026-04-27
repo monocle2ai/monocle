@@ -4,7 +4,7 @@ This guide explains how to set up Monocle tracing for Claude Code CLI sessions.
 
 ## Overview
 
-Monocle instruments Claude Code by registering hooks for all session events. Each hook fires `python -m monocle_apptrace claude-hook`, which records the event and replays it as OpenTelemetry spans at the end of each turn.
+Monocle instruments Claude Code by registering hooks for all session events. Each hook fires `python -m monocle_apptrace.instrumentation.metamodel.claude_cli`, which records the event and replays it as OpenTelemetry spans at the end of each turn.
 
 ## Setup (3 steps)
 
@@ -28,7 +28,6 @@ export OKAHU_API_KEY="your-api-key"
 export OKAHU_INGESTION_ENDPOINT="https://ingest.okahu.co/api/v1/trace/ingest"
 export MONOCLE_EXPORTER="okahu,file"        # okahu | file | console (combinable)
 export MONOCLE_WORKFLOW_NAME="claude-cli"   # labels your traces
-export MONOCLE_CLAUDE_DEBUG=1               # optional: verbose hook logging
 ```
 
 ```bash
@@ -53,8 +52,8 @@ This writes all 11 hooks into `~/.claude/settings.json` non-destructively — ex
 Claude Code session event fires (any of 11 hooks)
            │
            ▼
-python -m monocle_apptrace claude-hook   (reads event JSON from stdin)
-           │
+python -m monocle_apptrace.instrumentation.metamodel.claude_cli
+           │  (reads event JSON from stdin)
            ▼
 Event Handler — records event to per-session JSONL log
            │
@@ -79,22 +78,17 @@ Exporters — Okahu / file / console
 
 ```bash
 echo '{"session_id":"test","hook_event_name":"Stop","last_assistant_message":"hello"}' \
-  | python -m monocle_apptrace claude-hook
-```
-
-### Run the integration test script
-
-```bash
-cd monocle/apptrace && ./test_claude_hook.sh
+  | python -m monocle_apptrace.instrumentation.metamodel.claude_cli
 ```
 
 ### Watch live during a real session
 
 ```bash
-export MONOCLE_CLAUDE_DEBUG=1
+export MONOCLE_EXPORTER=console
 claude   # start from this shell so the env var is inherited
 ```
-Hook output (including span creation) appears in Claude Code's status bar.
+
+Spans appear in Claude Code's status bar and in your terminal as each turn completes.
 
 ---
 
@@ -125,5 +119,4 @@ pip install -e monocle/apptrace --force-reinstall
 | Path | Purpose |
 |---|---|
 | `~/.claude/settings.json` | Claude Code config — hooks registered here by `claude-install` |
-| `.monocle/.claude_sessions/` | Per-session event logs (auto-cleaned on SessionEnd) |
-| `.monocle_claude_trace.jsonl` | Global raw event audit log |
+| `.monocle/.claude_sessions/` | Per-session event logs (auto-cleaned on `SessionEnd`) |

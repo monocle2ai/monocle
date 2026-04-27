@@ -30,15 +30,18 @@ Trace your Claude Code CLI sessions automatically:
 
 ```bash
 # 1. Install package
-pip install -e .
+pip install monocle_apptrace
 
-# 2. Configure Claude Code settings
-cp claude_hook_settings.json ~/.claude/settings.json
+# 2. Register hooks into ~/.claude/settings.json
+python -m monocle_apptrace claude-install
 
-# 3. Set environment variables in ~/.zshrc
+# 3. Set environment variables in ~/.zshrc (or ~/.bashrc)
 export MONOCLE_EXPORTER="okahu,file"
 export OKAHU_API_KEY="your-api-key"
-export MONOCLE_SERVICE_NAME="claude-cli"
+export MONOCLE_WORKFLOW_NAME="claude-cli"
+source ~/.zshrc
 ```
+
+Start a new Claude Code session — traces flow automatically.
 
 See [Claude Hook Setup Guide](CLAUDE_HOOK_SETUP.md) for complete instructions.

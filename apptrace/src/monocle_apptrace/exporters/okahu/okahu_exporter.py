@@ -6,7 +6,7 @@ import requests
 from opentelemetry.sdk.trace import ReadableSpan
 from opentelemetry.sdk.trace.export import SpanExporter, SpanExportResult, ConsoleSpanExporter
 from requests.exceptions import ReadTimeout
-from monocle_apptrace.exporters.base_exporter import SpanExporterBase
+from monocle_apptrace.exporters.base_exporter import SpanExporterBase, serialize_span
 from monocle_apptrace.exporters.exporter_processor import ExportTaskProcessor
 
 REQUESTS_SUCCESS_STATUS_CODES = (200, 202, 204)
@@ -113,9 +113,7 @@ class OkahuSpanExporter(SpanExporterBase):
         for span in spans:
             if self.skip_export(span):
                 continue
-            # create a object from serialized span
-            obj = json.loads(span.to_json())
-            span_list["batch"].append(obj)
+            span_list["batch"].append(serialize_span(span))
 
         # if there are no spans to export after filtering, then return
         if len(span_list["batch"]) == 0:

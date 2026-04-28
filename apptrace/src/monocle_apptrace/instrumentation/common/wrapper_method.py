@@ -5,6 +5,7 @@ from monocle_apptrace.instrumentation.common.span_handler import SpanHandler, No
 from monocle_apptrace.instrumentation.metamodel.azureaiinference.methods import AZURE_AI_INFERENCE_METHODS
 from monocle_apptrace.instrumentation.metamodel.botocore.methods import BOTOCORE_METHODS
 from monocle_apptrace.instrumentation.metamodel.botocore.handlers.botocore_span_handler import BotoCoreSpanHandler
+from monocle_apptrace.instrumentation.metamodel.claude_cli.claude_span_handler import ClaudeSpanHandler
 from monocle_apptrace.instrumentation.metamodel.hugging_face.methods import HUGGING_FACE_METHODS
 from monocle_apptrace.instrumentation.metamodel.langchain.methods import (
     LANGCHAIN_METHODS,
@@ -48,6 +49,7 @@ from monocle_apptrace.instrumentation.metamodel.mistral.methods import MISTRAL_M
 from monocle_apptrace.instrumentation.metamodel.strands.methods import STRAND_METHODS
 from monocle_apptrace.instrumentation.metamodel.strands.strands_processor import StrandsSpanHandler
 from monocle_apptrace.instrumentation.metamodel.agentcore.methods import AGENTCORE_METHODS
+from monocle_apptrace.instrumentation.metamodel.claude_cli.methods import CLAUDE_CLI_PROXY_METHODS
 
 class WrapperMethod:
     def __init__(
@@ -125,7 +127,8 @@ DEFAULT_METHODS_LIST = (
     MISTRAL_METHODS +
     HUGGING_FACE_METHODS +
     STRAND_METHODS +
-    AGENTCORE_METHODS
+    AGENTCORE_METHODS +
+    CLAUDE_CLI_PROXY_METHODS
 )
 
 MONOCLE_SPAN_HANDLERS: Dict[str, SpanHandler] = {
@@ -158,5 +161,6 @@ MONOCLE_SPAN_HANDLERS: Dict[str, SpanHandler] = {
     "llamaindex_single_agent_tool_handler": LlamaIndexSingleAgenttToolHandlerWrapper(),
     "lambda_func_handler": lambdaSpanHandler(),
     "adk_handler": AdkSpanHandler(),
-    "strands_handler": StrandsSpanHandler()
+    "strands_handler": StrandsSpanHandler(),
+    "claude_handler": ClaudeSpanHandler()
 }

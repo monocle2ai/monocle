@@ -16,6 +16,7 @@ from monocle_apptrace.instrumentation.common.instrumentor import (
     start_trace,
     stop_trace,
 )
+from monocle_apptrace.instrumentation.common.scope_wrapper import start_scope, stop_scope
 from monocle_apptrace.instrumentation.common.wrapper import atask_wrapper, task_wrapper
 from monocle_apptrace.instrumentation.common.wrapper_method import WrapperMethod
 from opentelemetry import trace
@@ -1009,6 +1010,69 @@ class TestMonocleTraceMethodInputOutput(unittest.IsolatedAsyncioTestCase):
         # Check span type attribute
         span_type = custom_span.attributes.get("span.type")
         self.assertEqual(span_type, "custom")
+    def test_monocle_trace_method_captures_scope_attributes(self):
+        """Test that custom spans capture scope attributes like session and turn when used with agentic spans"""
+        
+        # Define a custom span function
+        @monocle_trace_method(span_name="process_user_request")
+        def process_request(user_id, request_text):
+            """Custom processing function"""
+            return {"status": "processed", "user_id": user_id, "text": request_text}
+        
+        # Set up agentic scopes (session and turn)
+        session_scope_name = "agentic.session"
+        session_scope_value = "test_session_12345"
+        turn_scope_name = "agentic.turn"
+        turn_scope_value = "test_turn_67890"
+        
+        # Start session scope
+        session_token = start_scope(session_scope_name, session_scope_value)
+        
+        try:
+            # Start turn scope
+            turn_token = start_scope(turn_scope_name, turn_scope_value)
+            
+            try:
+                # Call the custom span function within the scope
+                result = process_request(user_id=42, request_text="Hello, agent!")
+                
+                # Verify function result
+                self.assertEqual(result["status"], "processed")
+                self.assertEqual(result["user_id"], 42)
+                
+                # Flush and get spans
+                self.exporter.force_flush()
+                spans = self.exporter.captured_spans
+                
+                # Find the custom span
+                custom_span = [s for s in spans if s.name == "process_user_request"][0]
+                
+                # Verify custom span has captured scope attributes
+                self.assertEqual(custom_span.attributes.get(f"scope.{session_scope_name}"), session_scope_value,
+                               "Custom span should capture session scope attribute")
+                self.assertEqual(custom_span.attributes.get(f"scope.{turn_scope_name}"), turn_scope_value,
+                               "Custom span should capture turn scope attribute")
+                
+                # Verify span type is custom
+                self.assertEqual(custom_span.attributes.get("span.type"), "custom")
+                
+                # Verify input/output are still captured
+                input_event = [e for e in custom_span.events if e.name == "data.input"][0]
+                input_data = json.loads(input_event.attributes.get("input"))
+                self.assertEqual(input_data["args"], [])
+                self.assertEqual(input_data["kwargs"], {"user_id": 42, "request_text": "Hello, agent!"})
+                
+                output_event = [e for e in custom_span.events if e.name == "data.output"][0]
+                output_data = json.loads(output_event.attributes.get("response"))
+                self.assertEqual(output_data["result"]["status"], "processed")
+                
+            finally:
+                # Stop turn scope
+                stop_scope(turn_token)
+        finally:
+            # Stop session scope
+            stop_scope(session_token)
+
 
 
 if __name__ == '__main__':

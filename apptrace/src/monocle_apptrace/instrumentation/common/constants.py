@@ -244,3 +244,6 @@ PROVIDER_BASE_URLS = {
     "deepseek": "https://api.deepseek.com",
     # Add more providers here later
 }
+
+SPAN_START_TIME:str = "monocle_span_start_time"
+SPAN_END_TIME:str = "monocle_span_end_time"

@@ -80,7 +80,7 @@ class SpanHandler:
 
     def pre_task_processing(self, to_wrap, wrapped, instance, args,kwargs, span):
         try:
-            if "pipeline" in to_wrap['package']:
+            if 'package' in to_wrap and "pipeline" in to_wrap['package']:
                 set_attribute(QUERY, args[0]['prompt_builder']['question'])
         except Exception as e:
             logger.warning("Warning: Error occurred in pre_task_processing: %s", str(e))

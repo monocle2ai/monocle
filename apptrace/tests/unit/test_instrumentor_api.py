@@ -1,4 +1,5 @@
 import asyncio
+import json
 import logging
 import os
 import unittest
@@ -15,6 +16,7 @@ from monocle_apptrace.instrumentation.common.instrumentor import (
     start_trace,
     stop_trace,
 )
+from monocle_apptrace.instrumentation.common.scope_wrapper import start_scope, stop_scope
 from monocle_apptrace.instrumentation.common.wrapper import atask_wrapper, task_wrapper
 from monocle_apptrace.instrumentation.common.wrapper_method import WrapperMethod
 from opentelemetry import trace
@@ -721,6 +723,355 @@ class TestMonocleTraceMethod(unittest.IsolatedAsyncioTestCase):
 
         trace_ids = {span.context.trace_id for span in spans}
         self.assertEqual(len(trace_ids), 3)
+
+
+class TestMonocleTraceMethodInputOutput(unittest.IsolatedAsyncioTestCase):
+    """Test class for monocle_trace_method decorator input/output capture"""
+    
+    @classmethod
+    def setUpClass(cls):
+        # Don't create exporter or instrumentor here -  do it per test
+        cls.instrumentor = None
+        cls.exporter = None
+
+    @classmethod
+    def tearDownClass(cls):
+        if cls.instrumentor is not None:
+            cls.instrumentor.uninstrument()
+
+    def setUp(self):
+        # Import here to access the global state functions
+        from monocle_apptrace.instrumentation.common.instrumentor import (
+            get_monocle_instrumentor,
+            set_monocle_instrumentor,
+            set_monocle_setup_signature
+        )
+        
+        # Force cleanup of any existing instrumentor
+        existing_instrumentor = get_monocle_instrumentor()
+        if existing_instrumentor is not None and existing_instrumentor.is_instrumented_by_opentelemetry:
+            existing_instrumentor.uninstrument()
+        
+        # Reset global state
+        set_monocle_instrumentor(None)
+        set_monocle_setup_signature(None)
+        
+        # Create a fresh exporter and instrumentor for each test
+        self.exporter = CustomConsoleSpanExporter()
+        self.instrumentor = setup_monocle_telemetry(
+            workflow_name="trace_method_io_test",
+            span_processors=[SimpleSpanProcessor(self.exporter)]
+        )
+
+    def tearDown(self):
+        # Import here to access the global state functions
+        from monocle_apptrace.instrumentation.common.instrumentor import (
+            set_monocle_instrumentor,
+            set_monocle_setup_signature
+        )
+        
+        # Clean up after each test
+        if self.instrumentor is not None and self.instrumentor.is_instrumented_by_opentelemetry:
+            self.instrumentor.uninstrument()
+        
+        # Reset global state
+        set_monocle_instrumentor(None)
+        set_monocle_setup_signature(None)
+        
+        if self.exporter:
+            self.exporter.reset()
+
+    def test_monocle_trace_method_captures_simple_args(self):
+        """Test that monocle_trace_method captures simple positional arguments"""
+        
+        @monocle_trace_method(span_name="simple_args_function")
+        def test_function(x, y, z):
+            return x + y + z
+        
+        result = test_function(1, 2, 3)
+        
+        self.assertEqual(result, 6)
+        self.exporter.force_flush()
+        spans = self.exporter.captured_spans
+        
+        # Find the custom span (not workflow span)
+        custom_span = [s for s in spans if s.name == "simple_args_function"][0]
+        
+        # Check that span has data.input event
+        input_event = [e for e in custom_span.events if e.name == "data.input"]
+        self.assertEqual(len(input_event), 1)
+        
+        # Verify input attributes contain the args
+        input_data = json.loads(input_event[0].attributes.get("input"))
+        self.assertEqual(input_data["args"], [1, 2, 3])
+        self.assertEqual(input_data["kwargs"], {})
+        
+        # Check that span has data.output event
+        output_event = [e for e in custom_span.events if e.name == "data.output"]
+        self.assertEqual(len(output_event), 1)
+        
+        # Verify output contains the result
+        output_data = json.loads(output_event[0].attributes.get("response"))
+        self.assertEqual(output_data["result"], 6)
+
+    def test_monocle_trace_method_captures_kwargs(self):
+        """Test that monocle_trace_method captures keyword arguments"""
+        
+        @monocle_trace_method(span_name="kwargs_function")
+        def test_function(x, y=10, z=20):
+            return x + y + z
+        
+        result = test_function(5, y=15, z=25)
+        
+        self.assertEqual(result, 45)
+        self.exporter.force_flush()
+        spans = self.exporter.captured_spans
+        
+        custom_span = [s for s in spans if s.name == "kwargs_function"][0]
+        
+        # Check input event
+        input_event = [e for e in custom_span.events if e.name == "data.input"][0]
+        input_data = json.loads(input_event.attributes.get("input"))
+        
+        self.assertEqual(input_data["args"], [5])
+        self.assertEqual(input_data["kwargs"], {"y": 15, "z": 25})
+
+    def test_monocle_trace_method_captures_complex_types(self):
+        """Test that monocle_trace_method captures complex data types"""
+        
+        @monocle_trace_method(span_name="complex_types_function")
+        def test_function(data_dict, data_list):
+            return {"processed": True, "count": len(data_list)}
+        
+        input_dict = {"name": "test", "value": 42}
+        input_list = [1, 2, 3, 4, 5]
+        
+        result = test_function(input_dict, input_list)
+        
+        self.exporter.force_flush()
+        spans = self.exporter.captured_spans
+        
+        custom_span = [s for s in spans if s.name == "complex_types_function"][0]
+        
+        # Check input captures dict and list
+        input_event = [e for e in custom_span.events if e.name == "data.input"][0]
+        input_data = json.loads(input_event.attributes.get("input"))
+        
+        self.assertEqual(input_data["args"][0], {"name": "test", "value": 42})
+        self.assertEqual(input_data["args"][1], [1, 2, 3, 4, 5])
+        
+        # Check output captures dict result
+        output_event = [e for e in custom_span.events if e.name == "data.output"][0]
+        output_data = json.loads(output_event.attributes.get("response"))
+        
+        self.assertEqual(output_data["result"], {"processed": True, "count": 5})
+
+    def test_monocle_trace_method_captures_string_return(self):
+        """Test that monocle_trace_method captures string return values"""
+        
+        @monocle_trace_method(span_name="string_function")
+        def test_function(name):
+            return f"Hello, {name}!"
+        
+        result = test_function("World")
+        
+        self.assertEqual(result, "Hello, World!")
+        self.exporter.force_flush()
+        spans = self.exporter.captured_spans
+        
+        custom_span = [s for s in spans if s.name == "string_function"][0]
+        
+        # Check input
+        input_event = [e for e in custom_span.events if e.name == "data.input"][0]
+        input_data = json.loads(input_event.attributes.get("input"))
+        self.assertEqual(input_data["args"], ["World"])
+        
+        # Check output
+        output_event = [e for e in custom_span.events if e.name == "data.output"][0]
+        output_data = json.loads(output_event.attributes.get("response"))
+        self.assertEqual(output_data["result"], "Hello, World!")
+
+    def test_monocle_trace_method_captures_exception(self):
+        """Test that monocle_trace_method captures errors when function raises exception"""
+        
+        @monocle_trace_method(span_name="error_capture_function")
+        def test_function(x):
+            raise ValueError("Test error message")
+        
+        with self.assertRaises(ValueError):
+            test_function(42)
+        
+        self.exporter.force_flush()
+        spans = self.exporter.captured_spans
+        
+        custom_span = [s for s in spans if s.name == "error_capture_function"][0]
+        
+        # Check input was captured
+        input_event = [e for e in custom_span.events if e.name == "data.input"][0]
+        input_data = json.loads(input_event.attributes.get("input"))
+        self.assertEqual(input_data["args"], [42])
+        
+        # Check error code in output event
+        output_event = [e for e in custom_span.events if e.name == "data.output"][0]
+        error_code = output_event.attributes.get("error_code")
+        self.assertEqual(error_code, "error")
+        
+        # Check span status is ERROR
+        self.assertEqual(custom_span.status.status_code, StatusCode.ERROR)
+
+    def test_monocle_trace_method_captures_none_return(self):
+        """Test that monocle_trace_method handles None return value"""
+        
+        @monocle_trace_method(span_name="none_function")
+        def test_function(x):
+            # Function returns None implicitly
+            pass
+        
+        result = test_function(123)
+        
+        self.assertIsNone(result)
+        self.exporter.force_flush()
+        spans = self.exporter.captured_spans
+        
+        custom_span = [s for s in spans if s.name == "none_function"][0]
+        
+        # Check output captures None
+        output_event = [e for e in custom_span.events if e.name == "data.output"][0]
+        output_data = json.loads(output_event.attributes.get("response"))
+        self.assertIsNone(output_data["result"])
+
+    async def test_monocle_trace_method_async_captures_input_output(self):
+        """Test that monocle_trace_method captures input/output for async functions"""
+        
+        @monocle_trace_method(span_name="async_io_function")
+        async def async_test_function(value, multiplier=2):
+            await asyncio.sleep(0.001)
+            return value * multiplier
+        
+        result = await async_test_function(10, multiplier=3)
+        
+        self.assertEqual(result, 30)
+        self.exporter.force_flush()
+        spans = self.exporter.captured_spans
+        
+        custom_span = [s for s in spans if s.name == "async_io_function"][0]
+        
+        # Check input
+        input_event = [e for e in custom_span.events if e.name == "data.input"][0]
+        input_data = json.loads(input_event.attributes.get("input"))
+        self.assertEqual(input_data["args"], [10])
+        self.assertEqual(input_data["kwargs"], {"multiplier": 3})
+        
+        # Check output
+        output_event = [e for e in custom_span.events if e.name == "data.output"][0]
+        output_data = json.loads(output_event.attributes.get("response"))
+        self.assertEqual(output_data["result"], 30)
+
+    async def test_monocle_trace_method_async_captures_exception(self):
+        """Test that monocle_trace_method captures errors in async functions"""
+        
+        @monocle_trace_method(span_name="async_error_function")
+        async def async_test_function(x):
+            await asyncio.sleep(0.001)
+            raise RuntimeError("Async error")
+        
+        with self.assertRaises(RuntimeError):
+            await async_test_function(999)
+        
+        self.exporter.force_flush()
+        spans = self.exporter.captured_spans
+        
+        custom_span = [s for s in spans if s.name == "async_error_function"][0]
+        
+        # Check input was captured
+        input_event = [e for e in custom_span.events if e.name == "data.input"][0]
+        input_data = json.loads(input_event.attributes.get("input"))
+        self.assertEqual(input_data["args"], [999])
+        
+        # Check error was recorded
+        output_event = [e for e in custom_span.events if e.name == "data.output"][0]
+        error_code = output_event.attributes.get("error_code")
+        self.assertEqual(error_code, "error")
+
+    def test_monocle_trace_method_span_type_is_custom(self):
+        """Test that monocle_trace_method sets span type to 'custom'"""
+        
+        @monocle_trace_method(span_name="type_check_function")
+        def test_function():
+            return "done"
+        
+        test_function()
+        
+        self.exporter.force_flush()
+        spans = self.exporter.captured_spans
+        
+        custom_span = [s for s in spans if s.name == "type_check_function"][0]
+        
+        # Check span type attribute
+        span_type = custom_span.attributes.get("span.type")
+        self.assertEqual(span_type, "custom")
+    def test_monocle_trace_method_captures_scope_attributes(self):
+        """Test that custom spans capture scope attributes like session and turn when used with agentic spans"""
+        
+        # Define a custom span function
+        @monocle_trace_method(span_name="process_user_request")
+        def process_request(user_id, request_text):
+            """Custom processing function"""
+            return {"status": "processed", "user_id": user_id, "text": request_text}
+        
+        # Set up agentic scopes (session and turn)
+        session_scope_name = "agentic.session"
+        session_scope_value = "test_session_12345"
+        turn_scope_name = "agentic.turn"
+        turn_scope_value = "test_turn_67890"
+        
+        # Start session scope
+        session_token = start_scope(session_scope_name, session_scope_value)
+        
+        try:
+            # Start turn scope
+            turn_token = start_scope(turn_scope_name, turn_scope_value)
+            
+            try:
+                # Call the custom span function within the scope
+                result = process_request(user_id=42, request_text="Hello, agent!")
+                
+                # Verify function result
+                self.assertEqual(result["status"], "processed")
+                self.assertEqual(result["user_id"], 42)
+                
+                # Flush and get spans
+                self.exporter.force_flush()
+                spans = self.exporter.captured_spans
+                
+                # Find the custom span
+                custom_span = [s for s in spans if s.name == "process_user_request"][0]
+                
+                # Verify custom span has captured scope attributes
+                self.assertEqual(custom_span.attributes.get(f"scope.{session_scope_name}"), session_scope_value,
+                               "Custom span should capture session scope attribute")
+                self.assertEqual(custom_span.attributes.get(f"scope.{turn_scope_name}"), turn_scope_value,
+                               "Custom span should capture turn scope attribute")
+                
+                # Verify span type is custom
+                self.assertEqual(custom_span.attributes.get("span.type"), "custom")
+                
+                # Verify input/output are still captured
+                input_event = [e for e in custom_span.events if e.name == "data.input"][0]
+                input_data = json.loads(input_event.attributes.get("input"))
+                self.assertEqual(input_data["args"], [])
+                self.assertEqual(input_data["kwargs"], {"user_id": 42, "request_text": "Hello, agent!"})
+                
+                output_event = [e for e in custom_span.events if e.name == "data.output"][0]
+                output_data = json.loads(output_event.attributes.get("response"))
+                self.assertEqual(output_data["result"]["status"], "processed")
+                
+            finally:
+                # Stop turn scope
+                stop_scope(turn_token)
+        finally:
+            # Stop session scope
+            stop_scope(session_token)
 
 
 

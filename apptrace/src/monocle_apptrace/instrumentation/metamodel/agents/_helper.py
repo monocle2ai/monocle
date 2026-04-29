@@ -13,9 +13,48 @@ ROOT_AGENT_NAME = "AgentsSDK"
 AGENTS_AGENT_NAME_KEY = "agent.openai_agents"
 
 
+def _find_agent_instance(args, kwargs):
+    # Preferred explicit kwargs names used by Runner/AgentRunner internals.
+    for key in ("agent", "starting_agent"):
+        candidate = kwargs.get(key)
+        if candidate is not None:
+            return candidate
+
+    # Fallback: locate an argument that looks like an Agent object.
+    for candidate in args or []:
+        if candidate is None:
+            continue
+        if hasattr(candidate, "name") and (
+            hasattr(candidate, "instructions")
+            or hasattr(candidate, "tools")
+            or hasattr(candidate, "handoffs")
+        ):
+            return candidate
+
+    return None
+
+
 def extract_agent_response(response):
-    """Extract the final output from an Agents SDK RunResult."""
+    """Extract the final output from an Agents SDK RunResult or RunResultStreaming."""
     try:
+        if response is None:
+            return ""
+        
+        # Handle StreamingResultWrapper - final_output available after stream consumed
+        class_name = type(response).__name__
+        if class_name == "StreamingResultWrapper":
+            # Try to get final_output from the wrapped streaming result
+            if hasattr(response, '_streaming_result'):
+                underlying = response._streaming_result
+                if hasattr(underlying, 'final_output'):
+                    try:
+                        final_output = underlying.final_output
+                        if final_output is not None:
+                            return str(final_output)
+                    except Exception:
+                        pass
+            return ""
+        
         if response is not None and hasattr(response, "final_output"):
             return str(response.final_output)
         elif (
@@ -70,12 +109,7 @@ def extract_agent_input(arguments):
 
 def get_agent_name(args, kwargs) -> str:
     """Get the name of an agent."""
-    instance = None
-    # For Runner methods, the agent is passed as an argument, not instance
-    if args and len(args) > 0:
-        instance = args[0]
-    else:
-        instance = kwargs.get("agent")
+    instance = _find_agent_instance(args, kwargs)
     if instance is None:
         return "Unknown Agent"
     return get_name(instance)
@@ -83,12 +117,7 @@ def get_agent_name(args, kwargs) -> str:
 
 def get_agent_description(arguments) -> str:
     """Get the description of an agent."""
-    instance = None
-    # For Runner methods, the agent is passed as an argument, not instance
-    if arguments["args"] and len(arguments["args"]) > 0:
-        instance = arguments["args"][0]
-    else:
-        instance = arguments["kwargs"].get("agent")
+    instance = _find_agent_instance(arguments["args"], arguments["kwargs"])
     if instance is None:
         return ""
     return get_description(instance)
@@ -96,12 +125,7 @@ def get_agent_description(arguments) -> str:
 
 def get_agent_instructions(arguments) -> str:
     """Get the instructions of an agent."""
-    instance = None
-    # For Runner methods, the agent is passed as an argument, not instance
-    if arguments["args"] and len(arguments["args"]) > 0:
-        instance = arguments["args"][0]
-    else:
-        instance = arguments["kwargs"].get("agent")
+    instance = _find_agent_instance(arguments["args"], arguments["kwargs"])
     if instance is None:
         return ""
     if hasattr(instance, "instructions"):
@@ -129,6 +153,13 @@ def extract_tool_response(result):
 def extract_tool_input(arguments):
     """Extract input arguments passed to a tool."""
     try:
+        if "kwargs" in arguments and "arguments" in arguments["kwargs"]:
+            tool_input = arguments["kwargs"].get("arguments")
+            if isinstance(tool_input, str):
+                return tool_input
+            if tool_input is not None:
+                return get_json_dumps(tool_input)
+
         # For function tools, the input is typically in args
         if len(arguments["args"]) > 1:
             tool_input = arguments["args"][
@@ -170,6 +201,14 @@ def get_tool_name(instance) -> str:
     return get_name(instance)
 
 
+def get_tool_name_from_arguments(arguments) -> str:
+    """Get the tool name from instrumented call arguments."""
+    tool = arguments.get("kwargs", {}).get("function_tool")
+    if tool is not None:
+        return get_name(tool)
+    return get_tool_name(arguments.get("instance"))
+
+
 def is_root_agent_name(instance) -> bool:
     """Check if this is the root agent."""
     return get_name(instance) == ROOT_AGENT_NAME
@@ -195,6 +234,14 @@ def get_description(instance) -> str:
 def get_tool_description(instance) -> str:
     """Get the description of a tool."""
     return get_description(instance)
+
+
+def get_tool_description_from_arguments(arguments) -> str:
+    """Get the tool description from instrumented call arguments."""
+    tool = arguments.get("kwargs", {}).get("function_tool")
+    if tool is not None:
+        return get_description(tool)
+    return get_tool_description(arguments.get("instance"))
 
 
 def extract_handoff_target(arguments):

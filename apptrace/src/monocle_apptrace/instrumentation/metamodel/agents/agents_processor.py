@@ -6,13 +6,14 @@ from monocle_apptrace.instrumentation.common.constants import AGENT_NAME_KEY, AG
 from monocle_apptrace.instrumentation.common.span_handler import (
     SpanHandler as BaseSpanHandler,
 )
-from monocle_apptrace.instrumentation.common.utils import with_tracer_wrapper, propogate_agent_name_to_parent_span
+from monocle_apptrace.instrumentation.common.utils import with_tracer_wrapper, propogate_agent_name_to_parent_span, get_current_monocle_span
 from monocle_apptrace.instrumentation.common.wrapper import atask_wrapper
 from monocle_apptrace.instrumentation.metamodel.agents._helper import (
     AGENTS_AGENT_NAME_KEY,
     DELEGATION_NAME_PREFIX,
     get_runner_agent_name,
-    get_agent_name
+    get_agent_name,
+    extract_agent_response,
 )
 from monocle_apptrace.instrumentation.metamodel.agents.entities.inference import (
     AGENT_DELEGATION,
@@ -148,9 +149,51 @@ class AgentsSpanHandler(BaseSpanHandler):
         agent_name = get_agent_name(args, kwargs)
         context = set_value(AGENT_NAME_KEY, agent_name)
         context = set_value(AGENT_PREFIX_KEY, DELEGATION_NAME_PREFIX, context)
-        return attach(context)
+        return attach(context), None
 
     def post_task_processing(self, to_wrap, wrapped, instance, args, kwargs, result, ex, span, parent_span):
         """Post-processing for agent tasks."""
         propogate_agent_name_to_parent_span(span, parent_span)
+
+        # Copy final invocation response into parent turn span.
+        # This makes agentic.turn data.output mirror the resolved turn_end output.
+        try:
+            if (
+                span is not None
+                and parent_span is not None
+                and span.attributes.get("span.type") == "agentic.invocation"
+                and parent_span.attributes.get("span.type") == "agentic.turn"
+            ):
+                response = extract_agent_response(result)
+                if response:
+                    updated = False
+                    for event in getattr(parent_span, "events", []):
+                        if event.name == "data.output":
+                            if hasattr(event, "attributes") and hasattr(event.attributes, "_dict"):
+                                event.attributes._dict["response"] = response
+                                updated = True
+                                break
+
+                    if not updated and hasattr(parent_span, "add_event"):
+                        parent_span.add_event("data.output", attributes={"response": response})
+        except Exception as e:
+            logger.debug(f"Could not copy invocation response to turn span: {e}")
+
         super().post_task_processing(to_wrap, wrapped, instance, args, kwargs, result, ex, span, parent_span)
+
+    def skip_span(self, to_wrap, wrapped, instance, args, kwargs) -> bool:
+        """Skip nested streaming spans to avoid duplicates.
+        
+        When run_streamed is called, it internally calls run_single_turn_streamed,
+        which would create duplicate spans. Skip the inner call when parent is outer.
+        """
+        method_name = to_wrap.get("method", "")
+        
+        # Skip run_single_turn_streamed when parent is run_streamed
+        if method_name == "run_single_turn_streamed":
+            parent_span = get_current_monocle_span()
+            parent_name = getattr(parent_span, "name", "") if parent_span else ""
+            if parent_name.endswith("run_streamed"):
+                return True
+        
+        return False

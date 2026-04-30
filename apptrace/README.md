@@ -42,3 +42,21 @@ export MONOCLE_WORKFLOW_NAME="claude-cli"
 Start a new Claude Code session — traces flow automatically.
 
 See [Claude Hook Setup Guide](CLAUDE_HOOK_SETUP.md) for complete instructions.
+
+## Codex CLI Instrumentation
+
+```bash
+# 1. Install package
+pip install monocle_apptrace
+
+# 2. Register hooks into ~/.codex/hooks.json
+#    (also enables [features] codex_hooks = true in ~/.codex/config.toml)
+python -m monocle_apptrace codex-setup
+
+# 3. Set environment variables in ~/.zshrc (or ~/.bashrc)
+export MONOCLE_EXPORTER="okahu,file"
+export OKAHU_API_KEY="your-api-key"
+export MONOCLE_WORKFLOW_NAME="codex-cli"
+```
+
+Start a new Codex session — traces flow automatically.

@@ -1,0 +1,26 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python -m monocle_apptrace.instrumentation.metamodel.codex_cli",
+            "statusMessage": "Monocle telemetry"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python -m monocle_apptrace.instrumentation.metamodel.codex_cli",
+            "statusMessage": "Monocle telemetry"
+          }
+        ]
+      }
+    ]
+  }
+}

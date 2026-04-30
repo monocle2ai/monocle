@@ -16,12 +16,23 @@ def main():
             from monocle_apptrace.instrumentation.metamodel.claude_cli.installer import install
             sys.exit(install())
 
+        if cmd in ("codex-hook", "codex_hook", "--codex-hook"):
+            from monocle_apptrace.instrumentation.metamodel.codex_cli.event_handler import main as hook_main
+            hook_main()
+            sys.exit(0)
+
+        if cmd in ("codex-setup", "codex_setup"):
+            from monocle_apptrace.instrumentation.metamodel.codex_cli.installer import install
+            sys.exit(install())
+
     # Original behavior: wrap user scripts
     if len(sys.argv) < 2 or not sys.argv[1].endswith(".py"):
         print("Usage:")
         print("  python -m monocle_apptrace <your-main-module-file>   wrap a script with Monocle telemetry")
         print("  python -m monocle_apptrace claude-setup              register Claude Code hooks")
         print("  python -m monocle_apptrace claude-hook               read a hook event from stdin (manual testing)")
+        print("  python -m monocle_apptrace codex-setup               register Codex CLI hooks")
+        print("  python -m monocle_apptrace codex-hook                read a Codex hook event from stdin (manual testing)")
         sys.exit(1)
     
     file_name = os.path.basename(sys.argv[1])

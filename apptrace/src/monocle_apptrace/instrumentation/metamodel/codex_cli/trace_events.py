@@ -1,9 +1,4 @@
-"""
-Per-session state for replay (cursor into the Codex transcript).
-
-We don't capture our own per-event JSONL anymore — Codex's transcript at
-``transcript_path`` is the source of truth. Only the cursor sidecar lives here.
-"""
+"""Per-session replay state (transcript line cursor) and TTL cleanup."""
 
 import json
 import logging
@@ -42,10 +37,7 @@ def save_state(session_id: str, state: dict) -> None:
 
 
 def sweep_stale_sessions() -> None:
-    """Drop session state files older than TTL.
-
-    Codex has no SessionEnd hook, so SessionStart is the natural cleanup point.
-    """
+    """Drop session state files older than TTL (no SessionEnd hook in Codex)."""
     if not SESSIONS_DIR.exists():
         return
     cutoff = time.time() - _TTL_SECONDS

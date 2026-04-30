@@ -1,10 +1,5 @@
 #!/usr/bin/env python3
-"""
-Codex CLI Hook Handler
-
-The hook is just a trigger. On Stop, replay walks Codex's own transcript.
-On SessionStart, we sweep stale state files (Codex has no SessionEnd event).
-"""
+"""Hook entry point. SessionStart sweeps stale state; Stop triggers replay."""
 
 import json
 import logging

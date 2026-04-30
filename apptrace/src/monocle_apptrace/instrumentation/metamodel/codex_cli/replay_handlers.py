@@ -1,24 +1,16 @@
 from monocle_apptrace.instrumentation.common.constants import SPAN_START_TIME, SPAN_END_TIME
 
 
-class ReplayHandler:
-    """Dummy method bodies that the Monocle wrapper turns into spans.
+class ToolFailureError(Exception):
+    """Raised when a tool's output looks like a failure. The wrapper marks the span ERROR."""
 
-    Each method exists as an anchor for ``task_wrapper`` plus an output
-    processor; the actual span timestamps and attributes are extracted from
-    kwargs by the wrapper machinery.
-    """
+
+class ReplayHandler:
+    """Empty method bodies — task_wrapper turns each call into a span via methods.py."""
 
     def handle_turn(self, prompt: str, response: str, **kwargs) -> str:
-        """agentic.turn span — outer container for one user→assistant exchange."""
-        turn_start = kwargs.get("_turn_start")
-        turn_end = kwargs.get("_turn_end")
-        timing = {}
-        if turn_start:
-            timing[SPAN_START_TIME] = turn_start
-        if turn_end:
-            timing[SPAN_END_TIME] = turn_end
-
+        # _turn_start/_turn_end recover the ISO timestamps that CodexSpanHandler
+        # already popped from kwargs as SPAN_START_TIME/SPAN_END_TIME.
         self.handle_invocation(
             prompt=prompt,
             response=response,
@@ -26,16 +18,13 @@ class ReplayHandler:
             subagents=kwargs.get("subagents") or [],
             inference_rounds=kwargs.get("inference_rounds") or [],
             model=kwargs.get("model", "codex"),
-            tokens=kwargs.get("tokens") or {},
             from_agent="Codex CLI",
-            _turn_start=turn_start,
-            _turn_end=turn_end,
-            **timing,
+            **{SPAN_START_TIME: kwargs.get("_turn_start"),
+               SPAN_END_TIME: kwargs.get("_turn_end")},
         )
         return response
 
     def handle_invocation(self, prompt: str, response: str, **kwargs) -> str:
-        """agentic.invocation span — Codex's reasoning + tool-use loop."""
         tool_calls = kwargs.get("tool_calls") or []
         subagents = kwargs.get("subagents") or []
         inference_rounds = kwargs.get("inference_rounds") or []
@@ -81,29 +70,33 @@ class ReplayHandler:
             "tool_input": tc["tool_input"],
             "tool_output": tc["tool_output"],
             "call_id": tc.get("call_id", ""),
+            "failed": tc.get("failed", False),
             "from_agent": from_agent,
             SPAN_START_TIME: tc.get(SPAN_START_TIME),
             SPAN_END_TIME: tc.get(SPAN_END_TIME),
         }
-        if tool_name.startswith("mcp__"):
-            self.handle_mcp_call(**kwargs)
-        else:
-            self.handle_tool_call(**kwargs)
+        try:
+            if tool_name.startswith("mcp__"):
+                self.handle_mcp_call(**kwargs)
+            else:
+                self.handle_tool_call(**kwargs)
+        except ToolFailureError:
+            pass  # span already marked ERROR by the wrapper's exception handling
 
     def handle_inference_round(self, input_text: str = "", output_text: str = "", **kwargs) -> str:
-        """inference span — one LLM call (thinking between tool uses)."""
         return output_text
 
     def handle_tool_call(self, tool_name: str, tool_input, tool_output, **kwargs):
-        """agentic.tool.invocation span — one tool execution."""
+        if kwargs.get("failed"):
+            raise ToolFailureError(str(tool_output) or f"{tool_name} failed")
         return tool_output
 
     def handle_mcp_call(self, tool_name: str, tool_input, tool_output, **kwargs):
-        """agentic.mcp.invocation span — one MCP tool execution."""
+        if kwargs.get("failed"):
+            raise ToolFailureError(str(tool_output) or f"{tool_name} failed")
         return tool_output
 
     def handle_subagent(self, prompt: str = "", response: str = "", **kwargs) -> str:
-        """agentic.invocation span for a spawned subagent."""
         nickname = kwargs.get("agent_nickname") or kwargs.get("agent_role", "agent")
         for tc in kwargs.get("tool_calls") or []:
             self._dispatch_tool(tc, from_agent=nickname)

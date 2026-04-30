@@ -52,21 +52,11 @@ def extract_tool_input(arguments) -> str:
 
 
 def extract_tool_response(result) -> str:
-    if isinstance(result, dict):
-        if "stdout" in result:
-            return result["stdout"]
-        return json.dumps(result)
-    if isinstance(result, list):
-        return json.dumps(result)
     return str(result) if result else ""
 
 
 def find_subagent_transcript(parent_transcript_path: str, thread_id: str):
-    """Locate the JSONL file Codex writes for a spawned subagent thread.
-
-    Subagents share the parent's date directory under ``~/.codex/sessions``;
-    fall back to a recursive glob if not found there.
-    """
+    """Locate ~/.codex/sessions/.../rollout-*-<thread_id>.jsonl."""
     if not thread_id:
         return None
     parent = Path(parent_transcript_path) if parent_transcript_path else None

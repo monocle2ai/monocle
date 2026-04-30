@@ -1,19 +1,9 @@
-"""
-Session Replay (transcript-driven)
-
-On Stop, walks the Codex transcript JSONL linearly. Each ``task_started`` →
-``task_complete`` pair becomes one turn. Tool calls are detected from
-``*_end`` event_msg entries (and from ``function_call_output`` as a fallback for
-tools without a structured end event). Subagents are recursively walked from
-their own transcript files.
-
-The walk produces fully-populated turn dicts which are then handed to the
-ReplayHandler dummy methods — Monocle's wrapper turns each call into a span.
-"""
+"""On Stop, walks the Codex transcript JSONL and emits one span tree per turn."""
 
 import json
 import logging
 import os
+import re
 from pathlib import Path
 from typing import Optional
 
@@ -45,113 +35,32 @@ def _configure_telemetry():
     _telemetry_ready = True
 
 
-# ── Tool extractors ───────────────────────────────────────────────────────────
-#
-# Each extractor pulls (tool_name, tool_input, tool_output) from one of Codex's
-# *_end event_msg payloads. tool_input/tool_output fall back to whatever was
-# captured on the corresponding response_item function_call/custom_tool_call.
-
-def _exec_extractor(payload, pre):
-    cmd = payload.get("command") or []
-    fallback_input = " ".join(cmd) if isinstance(cmd, list) else str(cmd)
-    return (
-        "exec_command",
-        (pre or {}).get("tool_input") or fallback_input,
-        payload.get("aggregated_output") or payload.get("stdout") or "",
-    )
+# Universal signals: response_item *_call (paired by call_id with *_call_output)
+# for tools, event_msg collab_agent_spawn_end for subagents. No per-tool dispatch.
 
 
-def _mcp_extractor(payload, pre):
-    inv = payload.get("invocation") or {}
-    server = inv.get("server", "")
-    tool = inv.get("tool", "")
-    name = f"mcp__{server}__{tool}" if server else (pre or {}).get("tool_name", tool)
-    result = payload.get("result") or {}
-    if isinstance(result, dict):
-        output = result.get("Ok") or result.get("Err") or result
-    else:
-        output = result
-    return (
-        name,
-        (pre or {}).get("tool_input") or inv.get("arguments", {}),
-        output,
-    )
+_ERROR_PREFIXES = ("unable to", "error:", "failed:", "no such", "denied",
+                   "invalid", "not found", "cannot ")
+_EXEC_FAILURE_RE = re.compile(r"Process exited with code (\d+)")
 
 
-def _patch_extractor(payload, pre):
-    return (
-        "apply_patch",
-        (pre or {}).get("tool_input", ""),
-        payload.get("stdout", ""),
-    )
+def _output_signals_failure(output):
+    """Heuristic: does this tool output text look like a failure?
 
-
-def _web_search_extractor(payload, pre):
-    action = payload.get("action") or {}
-    return (
-        "web_search",
-        payload.get("query", "") or json.dumps(action),
-        "",
-    )
-
-
-def _view_image_extractor(payload, pre):
-    return (
-        "view_image",
-        (pre or {}).get("tool_input") or payload.get("path", ""),
-        "",
-    )
-
-
-def _image_gen_extractor(payload, pre):
-    return (
-        "image_generation",
-        (pre or {}).get("tool_input") or payload.get("revised_prompt", ""),
-        "[image]",  # base64 result is too large for span attributes
-    )
-
-
-def _collab_verb_extractor(verb_name):
-    def _extract(payload, pre):
-        status = payload.get("status") or payload.get("agent_statuses")
-        return (
-            verb_name,
-            (pre or {}).get("tool_input", ""),
-            json.dumps(status) if status else "",
-        )
-    return _extract
-
-
-_TOOL_EXTRACTORS = {
-    "exec_command_end": _exec_extractor,
-    "mcp_tool_call_end": _mcp_extractor,
-    "patch_apply_end": _patch_extractor,
-    "web_search_end": _web_search_extractor,
-    "view_image_tool_call": _view_image_extractor,
-    "image_generation_end": _image_gen_extractor,
-    "collab_waiting_end": _collab_verb_extractor("wait_agent"),
-    "collab_close_end": _collab_verb_extractor("close_agent"),
-    "collab_resume_end": _collab_verb_extractor("resume_agent"),
-    "collab_agent_interaction_end": _collab_verb_extractor("send_input"),
-}
-
-
-def _record_tool(turn, pending_calls, ts, payload, extractor):
-    cid = payload.get("call_id")
-    # Some Codex tools emit two ``*_end`` events per call (e.g. unified_exec
-    # startup vs close). Dedupe by call_id so we don't double-span.
-    if cid and any(tc.get("call_id") == cid for tc in turn["tool_calls"]):
-        return
-    pre = pending_calls.pop(cid, None) if cid else None
-    name, tool_input, tool_output = extractor(payload, pre)
-    turn["tool_calls"].append({
-        "tool_name": name,
-        "tool_input": tool_input,
-        "tool_output": tool_output,
-        "call_id": cid or "",
-        SPAN_START_TIME: (pre or {}).get("start_ts", ts),
-        SPAN_END_TIME: ts,
-    })
+    Fragile to Codex changing its output format — accepted tradeoff to keep
+    failure detection generic instead of carrying a per-tool table.
+    """
+    if not isinstance(output, str) or not output:
+        return False
+    head = output.strip().lower()[:120]
+    if any(head.startswith(p) for p in _ERROR_PREFIXES):
+        return True
+    m = _EXEC_FAILURE_RE.search(output)
+    if m and int(m.group(1)) != 0:
+        return True
+    if '"Err"' in output or '"isError":true' in output:
+        return True
+    return False
 
 
 # ── Token binning ─────────────────────────────────────────────────────────────
@@ -161,8 +70,7 @@ def _empty_tokens():
 
 
 def _sum_tokens_in_window(token_entries, start_ts, end_ts):
-    """Sum ``last_token_usage`` for token_count events whose timestamp falls in
-    [start_ts, end_ts]. ISO-8601 timestamps compare lexicographically."""
+    """Sum token_count entries whose timestamp falls in [start_ts, end_ts]."""
     acc = _empty_tokens()
     for t in token_entries:
         ts = t.get("ts") or ""
@@ -195,12 +103,7 @@ def _format_tokens(acc):
 # ── Inference rounds ──────────────────────────────────────────────────────────
 
 def _derive_inference_rounds(turn):
-    """Tool boundaries split a turn into inference rounds. Tokens are binned
-    into the round whose [start, end] window contains the token_count timestamp.
-
-    No tools  → one round covering the whole turn.
-    N tools   → N+1 rounds: [turn_start → tool_1.start], [tool_i.end → tool_{i+1}.start], [tool_N.end → turn_end].
-    """
+    """Split a turn into N+1 inference rounds bracketed by tool calls; bin tokens by timestamp."""
     tool_calls = turn["tool_calls"]
     rounds = []
     turn_start = turn["start_ts"]
@@ -262,17 +165,8 @@ def _build_subagent(parent_path, thread_id, spawn_payload, spawn_ts):
     sa_end = sub_turns[-1].get("end_ts") or sa_start
     response = sub_turns[-1].get("last_agent_message", "")
 
-    all_tool_calls = []
-    for st in sub_turns:
-        all_tool_calls.extend(st.get("tool_calls", []))
-
-    acc = _empty_tokens()
-    for st in sub_turns:
-        for t in st.get("tokens", []):
-            acc["input"] += t.get("input_tokens", 0) or 0
-            acc["cached"] += t.get("cached_input_tokens", 0) or 0
-            acc["output"] += t.get("output_tokens", 0) or 0
-            acc["reasoning"] += t.get("reasoning_output_tokens", 0) or 0
+    all_tools = [tc for st in sub_turns for tc in st.get("tool_calls", [])]
+    all_tokens = [t for st in sub_turns for t in st.get("tokens", [])]
 
     return {
         "thread_id": thread_id,
@@ -280,8 +174,8 @@ def _build_subagent(parent_path, thread_id, spawn_payload, spawn_ts):
         "agent_nickname": spawn_payload.get("new_agent_nickname", ""),
         "prompt": spawn_payload.get("prompt", ""),
         "response": response,
-        "tool_calls": all_tool_calls,
-        "tokens": _format_tokens(acc),
+        "tool_calls": all_tools,
+        "tokens": _sum_tokens_in_window(all_tokens, None, None),
         "model": sa_model or spawn_payload.get("model", "codex"),
         SPAN_START_TIME: sa_start or spawn_ts,
         SPAN_END_TIME: sa_end or spawn_ts,
@@ -291,12 +185,7 @@ def _build_subagent(parent_path, thread_id, spawn_payload, spawn_ts):
 # ── Transcript walk ───────────────────────────────────────────────────────────
 
 def _walk_turns(transcript_path, start_line, current_model):
-    """Walk transcript JSONL from ``start_line`` and yield completed turns.
-
-    Returns (turns, next_start_line, last_seen_model). Partial turns (no
-    matching task_complete) are not returned; the cursor stops just after the
-    last completed turn so the next replay picks them up.
-    """
+    """Walk transcript from start_line. Returns (completed_turns, next_cursor, model)."""
     if not transcript_path:
         return [], start_line, current_model
     path = Path(transcript_path)
@@ -312,7 +201,24 @@ def _walk_turns(transcript_path, start_line, current_model):
     turns = []
     turn = None
     pending_calls: dict = {}
+    handled_subagent_calls: set = set()
     next_cursor = start_line
+
+    def _flush_inline_calls():
+        """Emit any *_call entries that never got a matching *_call_output."""
+        for cid, pre in pending_calls.items():
+            if cid in handled_subagent_calls:
+                continue
+            output = pre.get("inline_output", "")
+            turn["tool_calls"].append({
+                "tool_name": pre["tool_name"],
+                "tool_input": pre["tool_input"],
+                "tool_output": output,
+                "call_id": cid,
+                "failed": _output_signals_failure(output),
+                SPAN_START_TIME: pre["start_ts"],
+                SPAN_END_TIME: pre["start_ts"],
+            })
 
     for offset, line in enumerate(lines[start_line:]):
         idx = start_line + offset
@@ -350,15 +256,16 @@ def _walk_turns(transcript_path, start_line, current_model):
                 "user_prompt": "",
                 "tool_calls": [],
                 "subagents": [],
-                "agent_messages": [],
                 "last_agent_message": "",
                 "tokens": [],
             }
             pending_calls = {}
+            handled_subagent_calls = set()
             continue
 
         if etype == "event_msg" and ptype == "task_complete":
             if turn is not None:
+                _flush_inline_calls()
                 turn["end_ts"] = ts
                 msg = payload.get("last_agent_message")
                 if msg:
@@ -368,6 +275,7 @@ def _walk_turns(transcript_path, start_line, current_model):
                 turns.append(turn)
                 turn = None
                 pending_calls = {}
+                handled_subagent_calls = set()
                 next_cursor = idx + 1  # advance cursor past this complete turn
             continue
 
@@ -380,7 +288,6 @@ def _walk_turns(transcript_path, start_line, current_model):
             elif ptype == "agent_message":
                 msg = payload.get("message", "") or ""
                 if msg:
-                    turn["agent_messages"].append({"ts": ts, "text": msg})
                     turn["last_agent_message"] = msg
             elif ptype == "token_count":
                 info = payload.get("info") or {}
@@ -388,38 +295,61 @@ def _walk_turns(transcript_path, start_line, current_model):
                 if last:
                     turn["tokens"].append({"ts": ts, **last})
             elif ptype == "collab_agent_spawn_end":
-                # Pop the matching function_call so we don't emit a duplicate
-                # "spawn_agent" Tool span on top of the Sub-Agent span.
+                # Suppress the matching function_call_output — it'd duplicate the Sub-Agent.
                 cid = payload.get("call_id")
                 if cid:
+                    handled_subagent_calls.add(cid)
                     pending_calls.pop(cid, None)
                 sa = _build_subagent(transcript_path, payload.get("new_thread_id"), payload, ts)
                 if sa:
                     turn["subagents"].append(sa)
-            elif ptype in _TOOL_EXTRACTORS:
-                _record_tool(turn, pending_calls, ts, payload, _TOOL_EXTRACTORS[ptype])
 
-        elif etype == "response_item":
-            if ptype in ("function_call", "custom_tool_call"):
+        elif etype == "response_item" and isinstance(ptype, str):
+            if ptype.endswith("_call_output"):
                 cid = payload.get("call_id")
-                if cid:
-                    pending_calls[cid] = {
-                        "tool_name": payload.get("name", ""),
-                        "tool_input": payload.get("arguments") or payload.get("input", ""),
-                        "start_ts": ts,
-                    }
-            elif ptype in ("function_call_output", "custom_tool_call_output"):
-                # Fallback for tools without a structured *_end event
-                # (e.g. update_plan, list_mcp_resources, multi_tool_use.parallel).
-                cid = payload.get("call_id")
+                if cid in handled_subagent_calls:
+                    continue  # spawn_agent — already a Sub-Agent span
                 pre = pending_calls.pop(cid, None) if cid else None
                 if pre:
+                    output = payload.get("output", "")
                     turn["tool_calls"].append({
-                        "tool_name": pre.get("tool_name", ""),
-                        "tool_input": pre.get("tool_input", ""),
-                        "tool_output": payload.get("output", ""),
+                        "tool_name": pre["tool_name"],
+                        "tool_input": pre["tool_input"],
+                        "tool_output": output,
                         "call_id": cid or "",
-                        SPAN_START_TIME: pre.get("start_ts", ts),
+                        "failed": _output_signals_failure(output),
+                        SPAN_START_TIME: pre["start_ts"],
+                        SPAN_END_TIME: ts,
+                    })
+            elif ptype.endswith("_call"):
+                cid = payload.get("call_id") or payload.get("id") or ""
+                tool_name = payload.get("name") or ptype[: -len("_call")]
+                tool_input = (
+                    payload.get("arguments")
+                    or payload.get("input")
+                    or payload.get("revised_prompt")
+                    or payload.get("query")
+                    or json.dumps(payload.get("action")) if payload.get("action") else ""
+                )
+                inline_output = payload.get("result") or ""
+                if isinstance(inline_output, str) and len(inline_output) > 1000:
+                    inline_output = "[truncated]"
+                if cid:
+                    pending_calls[cid] = {
+                        "tool_name": tool_name,
+                        "tool_input": tool_input,
+                        "inline_output": inline_output,
+                        "start_ts": ts,
+                    }
+                else:
+                    # No id (web_search_call) — never pairable, emit now.
+                    turn["tool_calls"].append({
+                        "tool_name": tool_name,
+                        "tool_input": tool_input,
+                        "tool_output": inline_output,
+                        "call_id": "",
+                        "failed": _output_signals_failure(inline_output),
+                        SPAN_START_TIME: ts,
                         SPAN_END_TIME: ts,
                     })
 
@@ -469,14 +399,3 @@ def replay_session(session_id: str, transcript_path: Optional[str]) -> None:
     state["transcript_lines_processed"] = next_cursor
     state["model"] = model
     save_state(session_id, state)
-
-    # Force-flush before the hook subprocess exits. Monocle's default
-    # BatchSpanProcessor queues spans asynchronously; without this the trace
-    # file only appears when a later hook firing happens to drive the flush.
-    try:
-        from opentelemetry import trace as otel_trace
-        provider = otel_trace.get_tracer_provider()
-        if hasattr(provider, "force_flush"):
-            provider.force_flush()
-    except Exception as e:
-        logger.debug(f"Span flush failed: {e}")

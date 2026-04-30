@@ -45,11 +45,7 @@ _EXEC_FAILURE_RE = re.compile(r"Process exited with code (\d+)")
 
 
 def _output_signals_failure(output):
-    """Heuristic: does this tool output text look like a failure?
-
-    Fragile to Codex changing its output format — accepted tradeoff to keep
-    failure detection generic instead of carrying a per-tool table.
-    """
+    """Fragile to Codex's output format — accepted to avoid a per-tool table."""
     if not isinstance(output, str) or not output:
         return False
     head = output.strip().lower()[:120]
@@ -103,7 +99,7 @@ def _format_tokens(acc):
 # ── Inference rounds ──────────────────────────────────────────────────────────
 
 def _derive_inference_rounds(turn):
-    """Split a turn into N+1 inference rounds bracketed by tool calls; bin tokens by timestamp."""
+    """N tool calls produce N+1 rounds; tokens get binned by timestamp."""
     tool_calls = turn["tool_calls"]
     rounds = []
     turn_start = turn["start_ts"]
@@ -237,7 +233,6 @@ def _walk_turns(transcript_path, start_line, current_model):
             continue
         ptype = payload.get("type")
 
-        # Session/turn metadata can update the active model
         if etype == "turn_context":
             m = payload.get("model")
             if m:
@@ -247,7 +242,6 @@ def _walk_turns(transcript_path, start_line, current_model):
             if mp and current_model == "codex":
                 current_model = mp
 
-        # Turn boundaries
         if etype == "event_msg" and ptype == "task_started":
             turn = {
                 "turn_id": payload.get("turn_id", ""),

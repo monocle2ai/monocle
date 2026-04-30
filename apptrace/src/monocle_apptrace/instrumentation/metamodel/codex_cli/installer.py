@@ -32,7 +32,6 @@ def install() -> int:
             for hook in group.get("hooks", []):
                 hook["command"] = _pin_interpreter(hook.get("command", ""))
 
-    # Merge non-destructively; skip events already carrying our marker.
     try:
         settings = json.loads(_HOOKS_FILE.read_text()) if _HOOKS_FILE.exists() else {}
     except Exception:
@@ -48,7 +47,6 @@ def install() -> int:
         added.append(event)
     _HOOKS_FILE.write_text(json.dumps(settings, indent=2))
 
-    # Append-only: don't rewrite TOML structure, just add the flag if missing.
     text = _CONFIG_FILE.read_text() if _CONFIG_FILE.exists() else ""
     flag_added = "codex_hooks = true" not in text
     if flag_added:

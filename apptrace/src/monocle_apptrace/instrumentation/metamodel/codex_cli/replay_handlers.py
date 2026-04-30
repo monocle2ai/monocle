@@ -2,7 +2,7 @@ from monocle_apptrace.instrumentation.common.constants import SPAN_START_TIME, S
 
 
 class ToolFailureError(Exception):
-    """Raised when a tool's output looks like a failure. The wrapper marks the span ERROR."""
+    """Raised so task_wrapper marks the span ERROR with this as status.message."""
 
 
 class ReplayHandler:

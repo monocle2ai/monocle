@@ -1,3 +1,7 @@
+## Version 0.8.0 (2026-04-30)
+- Claude code instrumentation
+- Custom span enhancement - capture arguement and results 
+
 ## Version 0.7.9 (2026-04-27)
 - Monocle test framework to support Okahu eval testing for facts beyond just traces
 - Okahu exporter to load API key from .env.monocle if provided

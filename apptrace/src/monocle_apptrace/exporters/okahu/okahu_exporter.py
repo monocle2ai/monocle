@@ -6,13 +6,69 @@ import requests
 from opentelemetry.sdk.trace import ReadableSpan
 from opentelemetry.sdk.trace.export import SpanExporter, SpanExportResult, ConsoleSpanExporter
 from requests.exceptions import ReadTimeout
-from monocle_apptrace.exporters.base_exporter import SpanExporterBase
+from monocle_apptrace.exporters.base_exporter import SpanExporterBase, serialize_span
 from monocle_apptrace.exporters.exporter_processor import ExportTaskProcessor
 
 REQUESTS_SUCCESS_STATUS_CODES = (200, 202, 204)
 OKAHU_PROD_INGEST_ENDPOINT = "https://ingest.okahu.co/api/v1/trace/ingest"
 
 logger = logging.getLogger(__name__)
+
+
+def _parse_monocle_env_file_value(line: str, key: str) -> Optional[str]:
+    stripped_line = line.strip()
+    if not stripped_line or stripped_line.startswith("#"):
+        return None
+
+    # Allow optional shell-style prefix: export KEY=value
+    if stripped_line.startswith("export "):
+        stripped_line = stripped_line[len("export "):].strip()
+
+    if not stripped_line.startswith(f"{key}="):
+        return None
+
+    value = stripped_line.split("=", 1)[1].strip()
+    if not value:
+        return None
+
+    # Strip matching quotes around the value, if present.
+    if (value.startswith('"') and value.endswith('"')) or (
+        value.startswith("'") and value.endswith("'")
+    ):
+        value = value[1:-1].strip()
+
+    return value or None
+
+
+def _get_monocle_env_value(key: str) -> Optional[str]:
+    env_value = os.environ.get(key)
+    if env_value:
+        return env_value
+
+    # Support both filenames for compatibility.
+    env_file_names = (".env.monocle",)
+
+    for env_file_name in env_file_names:
+        env_file_path = os.path.join(os.getcwd(), env_file_name)
+        try:
+            with open(env_file_path, "r", encoding="utf-8") as env_file:
+                for line in env_file:
+                    parsed_value = _parse_monocle_env_file_value(line, key)
+                    if parsed_value is not None:
+                        return parsed_value
+        except OSError:
+            continue
+
+    return None
+
+
+def _get_okahu_api_key() -> Optional[str]:
+    return _get_monocle_env_value("OKAHU_API_KEY")
+
+
+def _get_monocle_exporter() -> Optional[str]:
+    """Get MONOCLE_EXPORTER setting from environment or .env.monocle file."""
+    return _get_monocle_env_value("MONOCLE_EXPORTER")
 
 
 class OkahuSpanExporter(SpanExporterBase):
@@ -26,11 +82,11 @@ class OkahuSpanExporter(SpanExporterBase):
     ):
         """Okahu exporter."""
         super().__init__()
-        okahu_endpoint: str = os.environ.get("OKAHU_INGESTION_ENDPOINT", OKAHU_PROD_INGEST_ENDPOINT)
+        okahu_endpoint: str = _get_monocle_env_value("OKAHU_INGESTION_ENDPOINT") or OKAHU_PROD_INGEST_ENDPOINT
         if evaluate:
             okahu_endpoint = okahu_endpoint.replace("/trace/ingest", "/eval/ingest")
         self.endpoint = endpoint or okahu_endpoint
-        api_key: str = os.environ.get("OKAHU_API_KEY")
+        api_key: Optional[str] = _get_okahu_api_key()
         self._closed = False
         if not api_key:
             raise ValueError("OKAHU_API_KEY not set.")
@@ -62,9 +118,7 @@ class OkahuSpanExporter(SpanExporterBase):
         for span in spans:
             if self.skip_export(span):
                 continue
-            # create a object from serialized span
-            obj = json.loads(span.to_json())
-            span_list["batch"].append(obj)
+            span_list["batch"].append(serialize_span(span))
 
         # if there are no spans to export after filtering, then return
         if len(span_list["batch"]) == 0:

@@ -1,5 +1,6 @@
 #pylint: disable=consider-using-with
 
+import json
 from os import linesep, path
 from io import TextIOWrapper
 from datetime import datetime
@@ -8,7 +9,7 @@ from typing import Optional, Callable, Sequence, Dict, Tuple
 from opentelemetry.sdk.trace import ReadableSpan
 from opentelemetry.sdk.trace.export import SpanExporter, SpanExportResult
 from opentelemetry.sdk.resources import SERVICE_NAME
-from monocle_apptrace.exporters.base_exporter import SpanExporterBase, format_trace_id_without_0x
+from monocle_apptrace.exporters.base_exporter import SpanExporterBase, format_trace_id_without_0x, serialize_span
 from monocle_apptrace.exporters.exporter_processor import ExportTaskProcessor
 
 DEFAULT_FILE_PREFIX:str = "monocle_trace_"
@@ -25,7 +26,7 @@ class FileSpanExporter(SpanExporterBase):
         time_format = DEFAULT_TIME_FORMAT,
         formatter: Callable[
             [ReadableSpan], str
-        ] = lambda span: span.to_json(indent = 4)
+        ] = lambda span: json.dumps(serialize_span(span), indent=4)
         + linesep,
         task_processor: Optional[ExportTaskProcessor] = None
     ):

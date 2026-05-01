@@ -103,7 +103,7 @@ class OkahuEval(BaseEval):
         params = {"fact_name": fact_name}
         
         try:
-            response = requests.get(url=list_url, headers=headers, params=params, timeout=30)
+            response = requests.get(url=list_url, headers=headers, params=params, timeout=60)
             response.raise_for_status()
             templates = response.json().get("templates", [])
             
@@ -142,7 +142,7 @@ class OkahuEval(BaseEval):
         headers = {"x-api-key": api_key}
         
         try:
-            response = requests.get(url=fact_map_url, headers=headers, timeout=30)
+            response = requests.get(url=fact_map_url, headers=headers, timeout=60)
             response.raise_for_status()
             self._fact_map_cache = response.json()
             return self._fact_map_cache
@@ -343,19 +343,25 @@ class OkahuEval(BaseEval):
             logger.debug("Submitting evaluation on fact_id: %s", fact_id)
             logger.debug(f"Request params: {params}")
             
-            # submit evaluation job to okahu and handle response/errors
-            try:
-                response = requests.post(
-                    url=submit_url,
-                    headers=headers,
-                    json=payload,
-                    params=params,
-                    timeout=60
-                )
-            except requests.Timeout as exc:
-                raise AssertionError(f"Evaluation service request timed out: {exc}") from exc
-            except requests.RequestException as exc:
-                raise AssertionError(f"Failed to reach evaluation service: {exc}") from exc
+            # submit evaluation job to okahu and handle response/errors with retries for timeouts
+            max_attempts = 3
+            for attempts in range(1, max_attempts + 1):
+                try:
+                    response = requests.post(
+                        url=submit_url,
+                        headers=headers,
+                        json=payload,
+                        params=params,
+                        timeout=120
+                    )
+                    break # successfully received a response, exit loop
+                except requests.Timeout as exc:
+                    if attempts < max_attempts:
+                        logger.warning(f"Evaluation request timed out (attempt {attempts}/{max_attempts}), retrying...")
+                    else:
+                        raise AssertionError(f"Evaluation service timed out after {max_attempts} attempts. Service may be overloaded or unreachable.") from exc
+                except requests.RequestException as exc:
+                    raise AssertionError(f"Failed to reach evaluation service: {exc}. Check network connectivity and endpoint configuration.") from exc
             try:
                 response.raise_for_status()
             except requests.HTTPError as exc:

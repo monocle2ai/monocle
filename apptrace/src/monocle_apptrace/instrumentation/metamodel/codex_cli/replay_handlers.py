@@ -1,4 +1,6 @@
-from monocle_apptrace.instrumentation.common.constants import SPAN_START_TIME, SPAN_END_TIME
+from monocle_apptrace.instrumentation.common.constants import SPAN_START_TIME, SPAN_END_TIME, AGENT_INVOCATION_ID
+
+_MCP_BUILTIN_TOOLS = {"read_mcp_resource", "list_mcp_resources", "list_mcp_resource_templates"}
 
 
 class ToolFailureError(Exception):
@@ -58,7 +60,11 @@ class ReplayHandler:
                 tool_calls=sa.get("tool_calls", []),
                 tokens=sa.get("tokens", {}),
                 model=sa.get("model", "codex"),
-                **{SPAN_START_TIME: sa.get(SPAN_START_TIME), SPAN_END_TIME: sa.get(SPAN_END_TIME)},
+                **{
+                    SPAN_START_TIME: sa.get(SPAN_START_TIME),
+                    SPAN_END_TIME: sa.get(SPAN_END_TIME),
+                    AGENT_INVOCATION_ID: sa.get(AGENT_INVOCATION_ID) or sa.get("thread_id", ""),
+                },
             )
 
         return response
@@ -76,7 +82,7 @@ class ReplayHandler:
             SPAN_END_TIME: tc.get(SPAN_END_TIME),
         }
         try:
-            if tool_name.startswith("mcp__"):
+            if tool_name.startswith("mcp__") or tool_name in _MCP_BUILTIN_TOOLS:
                 self.handle_mcp_call(**kwargs)
             else:
                 self.handle_tool_call(**kwargs)

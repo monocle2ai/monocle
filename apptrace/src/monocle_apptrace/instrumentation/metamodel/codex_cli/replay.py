@@ -7,7 +7,7 @@ import re
 from pathlib import Path
 from typing import Optional
 
-from monocle_apptrace.instrumentation.common.constants import AGENT_SESSION, SPAN_START_TIME, SPAN_END_TIME
+from monocle_apptrace.instrumentation.common.constants import AGENT_SESSION, AGENT_TURN_ID, AGENT_INVOCATION_ID, SPAN_START_TIME, SPAN_END_TIME
 from monocle_apptrace.instrumentation.metamodel.codex_cli._helper import find_subagent_transcript
 from monocle_apptrace.instrumentation.metamodel.codex_cli.replay_handlers import ReplayHandler
 from monocle_apptrace.instrumentation.metamodel.codex_cli.trace_events import (
@@ -62,7 +62,7 @@ def _output_signals_failure(output):
 # ── Token binning ─────────────────────────────────────────────────────────────
 
 def _empty_tokens():
-    return {"input": 0, "cached": 0, "output": 0, "reasoning": 0}
+    return {"input": 0, "cached": 0, "output": 0}
 
 
 def _sum_tokens_in_window(token_entries, start_ts, end_ts):
@@ -77,22 +77,17 @@ def _sum_tokens_in_window(token_entries, start_ts, end_ts):
         acc["input"] += t.get("input_tokens", 0) or 0
         acc["cached"] += t.get("cached_input_tokens", 0) or 0
         acc["output"] += t.get("output_tokens", 0) or 0
-        acc["reasoning"] += t.get("reasoning_output_tokens", 0) or 0
     return _format_tokens(acc)
 
 
 def _format_tokens(acc):
     if not any(acc.values()):
         return {}
-    prompt_t = acc["input"] + acc["cached"]
-    completion_t = acc["output"] + acc["reasoning"]
     return {
-        "prompt_tokens": prompt_t,
-        "completion_tokens": completion_t,
-        "total_tokens": prompt_t + completion_t,
-        "input_tokens": acc["input"],
+        "prompt_tokens": acc["input"],
+        "completion_tokens": acc["output"],
+        "total_tokens": acc["input"] + acc["output"],
         "cache_read_tokens": acc["cached"],
-        "reasoning_tokens": acc["reasoning"],
     }
 
 
@@ -175,6 +170,7 @@ def _build_subagent(parent_path, thread_id, spawn_payload, spawn_ts):
         "model": sa_model or spawn_payload.get("model", "codex"),
         SPAN_START_TIME: sa_start or spawn_ts,
         SPAN_END_TIME: sa_end or spawn_ts,
+        AGENT_INVOCATION_ID: thread_id,
     }
 
 
@@ -264,8 +260,6 @@ def _walk_turns(transcript_path, start_line, current_model):
                 msg = payload.get("last_agent_message")
                 if msg:
                     turn["last_agent_message"] = msg
-                turn["duration_ms"] = payload.get("duration_ms")
-                turn["time_to_first_token_ms"] = payload.get("time_to_first_token_ms")
                 turns.append(turn)
                 turn = None
                 pending_calls = {}
@@ -378,15 +372,13 @@ def replay_session(session_id: str, transcript_path: Optional[str]) -> None:
             inference_rounds=rounds,
             model=turn["model"],
             tokens=turn_tokens,
-            turn_id=turn.get("turn_id", ""),
-            time_to_first_token_ms=turn.get("time_to_first_token_ms"),
-            duration_ms=turn.get("duration_ms"),
             _turn_start=turn["start_ts"],
             _turn_end=turn.get("end_ts"),
             **{
                 SPAN_START_TIME: turn["start_ts"],
                 SPAN_END_TIME: turn.get("end_ts") or turn["start_ts"],
                 AGENT_SESSION: session_id,
+                AGENT_TURN_ID: turn.get("turn_id", ""),
             },
         )
 

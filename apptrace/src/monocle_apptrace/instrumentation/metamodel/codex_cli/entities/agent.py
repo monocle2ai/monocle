@@ -71,9 +71,6 @@ REQUEST = {
         [
             {"attribute": "type", "accessor": lambda arguments: "agent.codex_cli"},
             {"attribute": "name", "accessor": lambda arguments: "Codex CLI"},
-            {"attribute": "turn_id", "accessor": lambda arguments: arguments["kwargs"].get("turn_id", "")},
-            {"attribute": "time_to_first_token_ms", "accessor": lambda arguments: arguments["kwargs"].get("time_to_first_token_ms")},
-            {"attribute": "duration_ms", "accessor": lambda arguments: arguments["kwargs"].get("duration_ms")},
         ]
     ],
     "events": [
@@ -143,10 +140,6 @@ SUBAGENT_INVOCATION = {
             {
                 "attribute": "role",
                 "accessor": lambda arguments: arguments["kwargs"].get("agent_role", ""),
-            },
-            {
-                "attribute": "thread_id",
-                "accessor": lambda arguments: arguments["kwargs"].get("thread_id", ""),
             },
             {"attribute": "from_agent", "accessor": lambda arguments: "Codex CLI"},
             {"attribute": "from_agent_span_id", "accessor": lambda arguments: get_span_id(arguments["parent_span"])},

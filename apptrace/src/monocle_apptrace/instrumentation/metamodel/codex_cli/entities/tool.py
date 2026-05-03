@@ -9,7 +9,6 @@ TOOL = {
             {"attribute": "type", "accessor": lambda arguments: _helper.get_tool_type(arguments)},
             {"attribute": "name", "accessor": lambda arguments: _helper.get_tool_name(arguments)},
             {"attribute": "description", "accessor": lambda arguments: _helper.get_tool_description(arguments)},
-            {"attribute": "call_id", "accessor": lambda arguments: arguments["kwargs"].get("call_id", "")},
         ],
         [
             {"attribute": "name", "accessor": lambda arguments: arguments["kwargs"].get("from_agent", "Codex CLI")},
@@ -45,7 +44,6 @@ MCP_TOOL = {
             {"attribute": "type", "accessor": lambda arguments: "tool.mcp"},
             {"attribute": "name", "accessor": lambda arguments: _helper.get_tool_name(arguments)},
             {"attribute": "description", "accessor": lambda arguments: _helper.get_tool_description(arguments)},
-            {"attribute": "call_id", "accessor": lambda arguments: arguments["kwargs"].get("call_id", "")},
         ],
         [
             {"attribute": "name", "accessor": lambda arguments: arguments["kwargs"].get("from_agent", "Codex CLI")},

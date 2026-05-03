@@ -130,9 +130,10 @@ class MonocleValidator:
         return token
 
     def post_test_cleanup(self, token:object, test_name:str, test_failed:bool,
-                        test_assertion_message:str = None) -> None:
+                        test_assertion_message:str = None, skip_export:bool = False) -> None:
         try:
-            self.flush_to_exporters(test_name, test_failed, test_assertion_message)
+            if not skip_export:
+                self.flush_to_exporters(test_name, test_failed, test_assertion_message)
         finally:
             self.cleanup()
             if token is not None:

@@ -165,27 +165,6 @@ def test_custom_span_creates_trace_file_with_io(setup):
     assert "result" in output_data
     assert output_data["result"]["item_count"] == 3
     assert output_data["result"]["discount_applied"] == True
-    
-    # Print summary for testers
-    print("\n" + "="*80)
-    print("✅ TRACE FILE CREATED SUCCESSFULLY")
-    print("="*80)
-    print(f"📁 Location: {trace_file}")
-    print(f"📊 File size: {os.path.getsize(trace_file)} bytes")
-    print(f"📝 Number of spans: {len(trace_data)}")
-    print("\n🎯 Custom Span Details:")
-    print(f"   - Span name: {custom_span['name']}")
-    print(f"   - Span type: {custom_span['attributes']['span.type']}")
-    print(f"\n📥 INPUT CAPTURED:")
-    print(f"   - Args: {len(input_data['args'])} argument(s)")
-    print(f"   - Kwargs: {list(input_data['kwargs'].keys())}")
-    print(f"\n📤 OUTPUT CAPTURED:")
-    print(f"   - Result keys: {list(output_data['result'].keys())}")
-    print(f"   - Full output: {json.dumps(output_data['result'], indent=2)}")
-    print("\n💡 View full trace:")
-    print(f"   cat {trace_file} | python -m json.tool")
-    print("="*80 + "\n")
-
 
 if __name__ == '__main__':
     pytest.main([__file__, "-v", "-s"])

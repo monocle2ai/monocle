@@ -23,6 +23,22 @@
 - (Optionally) Modify config to alter where traces are sent
 
 See [Monocle user guide](Monocle_User_Guide.md) for more details.
-  
 
+## Claude Code Instrumentation
 
+```bash
+# 1. Install package
+pip install monocle_apptrace
+
+# 2. Register hooks into ~/.claude/settings.json
+python -m monocle_apptrace claude-setup
+
+# 3. Set environment variables in ~/.zshrc (or ~/.bashrc)
+export MONOCLE_EXPORTER="okahu,file"
+export OKAHU_API_KEY="your-api-key"
+export MONOCLE_WORKFLOW_NAME="claude-cli"
+```
+
+Start a new Claude Code session — traces flow automatically.
+
+See [Claude Hook Setup Guide](CLAUDE_HOOK_SETUP.md) for complete instructions.

@@ -1,5 +1,6 @@
 #pylint: disable=consider-using-with
 
+import json
 from os import linesep, path
 from io import TextIOWrapper
 from datetime import datetime
@@ -8,7 +9,7 @@ from typing import Optional, Callable, Sequence, Dict, Tuple
 from opentelemetry.sdk.trace import ReadableSpan
 from opentelemetry.sdk.trace.export import SpanExporter, SpanExportResult
 from opentelemetry.sdk.resources import SERVICE_NAME
-from monocle_apptrace.exporters.base_exporter import SpanExporterBase, format_trace_id_without_0x
+from monocle_apptrace.exporters.base_exporter import SpanExporterBase, format_trace_id_without_0x, serialize_span
 from monocle_apptrace.exporters.exporter_processor import ExportTaskProcessor
 
 DEFAULT_FILE_PREFIX:str = "monocle_trace_"
@@ -25,7 +26,7 @@ class FileSpanExporter(SpanExporterBase):
         time_format = DEFAULT_TIME_FORMAT,
         formatter: Callable[
             [ReadableSpan], str
-        ] = lambda span: span.to_json(indent = 4)
+        ] = lambda span: json.dumps(serialize_span(span), indent=4)
         + linesep,
         task_processor: Optional[ExportTaskProcessor] = None
     ):
@@ -112,6 +113,12 @@ class FileSpanExporter(SpanExporterBase):
                 self.last_file_processed = file_path
                 self.last_trace_id = trace_id
 
+    def _is_first_span(self, trace_id: int) -> bool:
+        """Return True if no spans have been written yet for this trace (still the first span)."""
+        if trace_id in self.file_handles:
+            return self.file_handles[trace_id][3]
+        return True
+
     def _mark_span_written(self, trace_id: int) -> None:
         """Mark that a span has been written for this trace (no longer first span)."""
         if trace_id in self.file_handles:
@@ -168,7 +175,10 @@ class FileSpanExporter(SpanExporterBase):
         traces_to_close = set()
         for trace_id in root_span_traces:
             has_child_spans = any(s.parent for s in spans_by_trace.get(trace_id, []))
-            if has_child_spans:
+            children_already_written = (
+                trace_id in self.file_handles and not self._is_first_span(trace_id)
+            )
+            if has_child_spans or children_already_written:
                 # Root + child in same batch: complete trace, close now
                 traces_to_close.add(trace_id)
                 self._root_span_seen.discard(trace_id)

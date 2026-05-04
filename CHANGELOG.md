@@ -1,3 +1,19 @@
+## Version 0.7.9 (2026-04-27)
+- Monocle test framework to support Okahu eval testing for facts beyond just traces
+- Okahu exporter to load API key from .env.monocle if provided
+- Minor bugfixes
+
+## Version 0.7.8 (2026-04-15)
+
+- Updated langrapgh dependencies to latest versions ([#517](https://github.com/monocle2ai/monocle/pull/517))
+- Add execution ID for parellel agent runs ([#488](https://github.com/monocle2ai/monocle/pull/488))
+- Implement paygentic exporter ([#501](https://github.com/monocle2ai/monocle/pull/501))
+- Hugging face streaming support ([#506](https://github.com/monocle2ai/monocle/pull/506))
+- Support for filtering specific attributes/fields in monocle spans ([#504](https://github.com/monocle2ai/monocle/pull/504))
+- Implement Gemini streaming support ([#493](https://github.com/monocle2ai/monocle/pull/493))
+- Add thought token in gemini thinking model ([#505](https://github.com/monocle2ai/monocle/pull/505))
+- Eval test enhancemebts ([#489](https://github.com/monocle2ai/monocle/pull/489))
+
 ## Version 0.7.7 (2026-03-21)
 
 - Implement MS Agent streaming support ([#487](https://github.com/monocle2ai/monocle/pull/487))
@@ -354,4 +370,7 @@
 - Update s3 and blob exporter to put trace_id in filename of generated ndjson ([#330](https://github.com/monocle2ai/monocle/pull/330))
 - Added tool_call name and type in inference span ([#323](https://github.com/monocle2ai/monocle/pull/323))
 - Fix entity type for MCP tool invocation ([#327](https://github.com/monocle2ai/monocle/pull/327))
+
+- Claude code instrumentation
+- Custom span enhancement - capture arguement and results 
 

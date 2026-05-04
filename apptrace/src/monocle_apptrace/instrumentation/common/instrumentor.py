@@ -1,6 +1,6 @@
 import logging
 import inspect
-from typing import Collection, Dict, List, Union
+from typing import Collection, Dict, List, Union, Optional
 import uuid
 import inspect
 from opentelemetry import trace
@@ -41,7 +41,7 @@ _instruments = ()
 monocle_tracer_provider: TracerProvider = None
 monocle_instrumentor: 'MonocleInstrumentor' = None
 monocle_span_processor:'MonocleSynchronousMultiSpanProcessor' = None
-monocle_setup_signature: dict | None = None
+monocle_setup_signature: Optional[dict] = None
 
 class MonocleSynchronousMultiSpanProcessor(SynchronousMultiSpanProcessor):
     def clear_span_processors(self) -> None:
@@ -198,11 +198,11 @@ def get_monocle_span_processor() -> MonocleSynchronousMultiSpanProcessor:
     global monocle_span_processor
     return monocle_span_processor
 
-def set_monocle_setup_signature(signature: dict | None):
+def set_monocle_setup_signature(signature: Optional[dict]):
     global monocle_setup_signature
     monocle_setup_signature = signature
 
-def get_monocle_setup_signature() -> dict | None:
+def get_monocle_setup_signature() -> Optional[dict]:
     global monocle_setup_signature
     return monocle_setup_signature
 

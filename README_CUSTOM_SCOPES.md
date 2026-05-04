@@ -210,15 +210,7 @@ Returns `List[ReadableSpan]` for all traces matching the scope.
 pytest apptrace/tests/integration/test_cloud_trace_validation.py -v -s
 ```
 
-### Test with Example Script
 
-```bash
-# Generate traces
-python examples/custom_scope_e2e_example.py --generate --example test
-
-# Validate traces
-python examples/custom_scope_e2e_example.py --validate --example test --workflow my_app
-```
 
 ## Environment Setup
 
@@ -243,7 +235,6 @@ export MONOCLE_EXPORTER="okahu"
   - Enhanced `import_traces()` with scope_name parameter
 
 ### Documentation & Examples
-- `examples/custom_scope_e2e_example.py` - End-to-end example with generation and validation
 - `apptrace/tests/integration/test_cloud_trace_validation.py` - Integration tests for cloud trace validation
 
 ## Troubleshooting

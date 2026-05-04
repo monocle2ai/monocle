@@ -1,9 +1,5 @@
 """Monocle CLI — install hooks for AI coding agents and dispatch hook events.
-
-  monocle-apptrace claude-setup   register Monocle hooks for Claude Code
-  monocle-apptrace codex-setup    register Monocle hooks for Codex CLI
 """
-
 import argparse
 import getpass
 import importlib.metadata

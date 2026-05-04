@@ -2,7 +2,6 @@
 
 import json
 import logging
-import os
 import re
 from pathlib import Path
 from typing import Optional
@@ -25,12 +24,9 @@ def _configure_telemetry():
     global _telemetry_ready
     if _telemetry_ready:
         return
-    workflow_name = (
-        os.environ.get("MONOCLE_WORKFLOW_NAME")
-        or os.environ.get("DEFAULT_WORKFLOW_NAME")
-        or "codex-cli"
-    )
+    from monocle_apptrace.exporters.okahu.okahu_exporter import _get_monocle_env_value
     from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
+    workflow_name = _get_monocle_env_value("MONOCLE_WORKFLOW_NAME") or Path.cwd().name
     setup_monocle_telemetry(workflow_name=workflow_name)
     _telemetry_ready = True
 

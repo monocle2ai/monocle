@@ -45,11 +45,13 @@ def _get_monocle_env_value(key: str) -> Optional[str]:
     if env_value:
         return env_value
 
-    # Support both filenames for compatibility.
-    env_file_names = (".env.monocle",)
+    # Lookup order: ./env.monocle (per-project override) → ~/.monocle/.env (global).
+    candidates = (
+        os.path.join(os.getcwd(), ".env.monocle"),
+        os.path.join(os.path.expanduser("~"), ".monocle", ".env"),
+    )
 
-    for env_file_name in env_file_names:
-        env_file_path = os.path.join(os.getcwd(), env_file_name)
+    for env_file_path in candidates:
         try:
             with open(env_file_path, "r", encoding="utf-8") as env_file:
                 for line in env_file:

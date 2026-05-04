@@ -1,25 +1,28 @@
-"""Per-session replay state (transcript line cursor) and TTL cleanup."""
-
 import json
 import logging
-import os
 import time
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-_STATE_DIR = Path(os.getcwd()) / ".monocle"
-SESSIONS_DIR = _STATE_DIR / ".codex_sessions"
-
 _TTL_SECONDS = 24 * 60 * 60
 
 
-def _state_file(session_id: str) -> Path:
-    SESSIONS_DIR.mkdir(parents=True, exist_ok=True)
-    return SESSIONS_DIR / f".monocle_codex_{session_id}.state.json"
+def _state_dir():
+    return Path.cwd() / ".monocle"
 
 
-def load_state(session_id: str) -> dict:
+def _sessions_dir():
+    return _state_dir() / ".codex_sessions"
+
+
+def _state_file(session_id):
+    sessions = _sessions_dir()
+    sessions.mkdir(parents=True, exist_ok=True)
+    return sessions / ".monocle_codex_{}.state.json".format(session_id)
+
+
+def load_state(session_id):
     sf = _state_file(session_id)
     if sf.exists():
         try:
@@ -29,21 +32,22 @@ def load_state(session_id: str) -> dict:
     return {"transcript_lines_processed": 0, "model": "codex"}
 
 
-def save_state(session_id: str, state: dict) -> None:
+def save_state(session_id, state):
     try:
         _state_file(session_id).write_text(json.dumps(state))
     except Exception:
         pass
 
 
-def sweep_stale_sessions() -> None:
+def sweep_stale_sessions():
     """Drop session state files older than TTL (no SessionEnd hook in Codex)."""
-    if not SESSIONS_DIR.exists():
+    sessions = _sessions_dir()
+    if not sessions.exists():
         return
     cutoff = time.time() - _TTL_SECONDS
-    for f in SESSIONS_DIR.iterdir():
+    for f in sessions.iterdir():
         try:
             if f.is_file() and f.stat().st_mtime < cutoff:
                 f.unlink()
         except Exception as e:
-            logger.debug(f"Sweep skipped {f}: {e}")
+            logger.debug("Sweep skipped %s: %s", f, e)

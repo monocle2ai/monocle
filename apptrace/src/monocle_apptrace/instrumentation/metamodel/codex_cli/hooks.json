@@ -5,7 +5,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python -m monocle_apptrace.instrumentation.metamodel.codex_cli",
+            "command": "monocle-apptrace codex-hook",
             "statusMessage": "Monocle telemetry"
           }
         ]
@@ -16,7 +16,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python -m monocle_apptrace.instrumentation.metamodel.codex_cli",
+            "command": "monocle-apptrace codex-hook",
             "statusMessage": "Monocle telemetry"
           }
         ]

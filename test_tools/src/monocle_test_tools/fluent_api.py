@@ -335,6 +335,7 @@ class TraceAssertion():
 
     def import_traces(self, trace_source: str, id: str,
                       fact_name: Optional[str] = "trace",
+                      scope_name: Optional[str] = None,
                       workflow_name: Optional[str] = None) -> 'TraceAssertion':
         """Import traces from a source for assertion.
 
@@ -346,11 +347,15 @@ class TraceAssertion():
             id: Identifier whose meaning depends on *fact_name*:
                 - When fact_name is ``"trace"`` → a trace ID (hex string).
                 - When fact_name is ``"session"`` → an agent session ID.
+                - When fact_name is ``"scope"`` → any custom scope ID.
             fact_name: What *id* represents.
                 ``"trace"`` (default) — *id* is a single trace ID.
-                ``"session"`` — *id* is a session ID; all traces in that
-                session are fetched and their spans loaded.
+                ``"session"`` — *id* is a session ID (uses agent_sessions).
+                ``"scope"`` — *id* is a custom scope; requires *scope_name*.
                 For ``trace_source="file"`` only ``"trace"`` is supported.
+            scope_name: Name of custom scope/fact (e.g., "test_id", "my_scope").
+                Required when ``fact_name="scope"``. For fact_name="session",
+                defaults to "agent_sessions".
             workflow_name: Okahu workflow / service name
                 (required when ``trace_source="okahu"``).
 
@@ -361,6 +366,32 @@ class TraceAssertion():
             ValueError: If arguments are invalid or incomplete.
             FileNotFoundError: If no local trace file is found (file source).
             ConnectionError: If fetching from Okahu fails (okahu source).
+
+        Examples:
+            # Load by session (agent_sessions scope)
+            asserter.import_traces(
+                trace_source="okahu",
+                id="session_123",
+                fact_name="session",
+                workflow_name="my_app"
+            )
+
+            # Load by custom scope
+            asserter.import_traces(
+                trace_source="okahu",
+                id="test_456",
+                fact_name="scope",
+                scope_name="test_id",
+                workflow_name="my_app"
+            )
+
+            # Load by trace ID
+            asserter.import_traces(
+                trace_source="okahu",
+                id="abc123",
+                fact_name="trace",
+                workflow_name="my_app"
+            )
         """
         if trace_source not in ("file", "okahu"):
             raise ValueError(
@@ -375,10 +406,20 @@ class TraceAssertion():
                 raise ValueError("'workflow_name' is required for okahu trace source.")
 
             if fact_name == "session":
-                # Session-based: get traces for this session, then spans
-                spans = OkahuSpanLoader.load_by_session(
+                # Session-based: use agent_sessions scope
+                spans = OkahuSpanLoader.load_by_scope(
                     workflow_name=workflow_name,
-                    session_id=id,
+                    scope_name=OkahuSpanLoader.AGENT_SESSIONS_SCOPE,
+                    scope_id=id,
+                )
+            elif fact_name == "scope":
+                # Custom scope: requires scope_name
+                if not scope_name:
+                    raise ValueError("'scope_name' is required when fact_name='scope'.")
+                spans = OkahuSpanLoader.load_by_scope(
+                    workflow_name=workflow_name,
+                    scope_name=scope_name,
+                    scope_id=id,
                 )
             else:
                 # Direct trace_id lookup

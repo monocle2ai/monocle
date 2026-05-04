@@ -242,6 +242,9 @@ class OkahuSpanLoader:
     with the OKAHU_API_ENDPOINT environment variable.
     """
 
+    # Constants
+    AGENT_SESSIONS_SCOPE = "agent_sessions"
+
     @staticmethod
     def _get_api_base(endpoint: Optional[str] = None) -> str:
         """Return the Okahu API base URL (no trailing slash)."""
@@ -430,9 +433,8 @@ class OkahuSpanLoader:
     ) -> List[ReadableSpan]:
         """Fetch all spans for every trace in a session.
 
-        1. GET traces with ``duration_fact=agent_sessions&fact_ids=<session_id>``
-        2. For each trace, GET spans with ``filter_fact=agent_sessions&filter_fact_id=<session_id>``
-        3. Convert event arrays into ``event.x.property`` format and return ReadableSpan objects.
+        This is a convenience wrapper around ``load_by_scope()`` that uses
+        the standard "agent_sessions" scope name.
 
         Args:
             workflow_name: The workflow / service name registered in Okahu.
@@ -443,30 +445,84 @@ class OkahuSpanLoader:
 
         Returns:
             A flat list of ReadableSpan instances from all matching traces.
+
+        Raises:
+            ConnectionError: If no traces found or API call fails.
         """
+        return OkahuSpanLoader.load_by_scope(
+            workflow_name=workflow_name,
+            scope_name=OkahuSpanLoader.AGENT_SESSIONS_SCOPE,
+            scope_id=session_id,
+            endpoint=endpoint,
+            api_key=api_key,
+            timeout=timeout,
+        )
+
+    @staticmethod
+    def load_by_scope(
+        workflow_name: str,
+        scope_name: str,
+        scope_id: str,
+        endpoint: Optional[str] = None,
+        api_key: Optional[str] = None,
+        timeout: int = 60,
+    ) -> List[ReadableSpan]:
+        """Fetch all spans for every trace matching a custom scope.
+
+        This is a generic method that works with any Okahu fact/scope.
+        For example:
+        - scope_name="agent_sessions", scope_id="session_123"
+        - scope_name="test_id", scope_id="test_456"
+        - scope_name="my_custom_scope", scope_id="custom_789"
+
+        1. GET traces with ``duration_fact=<scope_name>&fact_ids=<scope_id>``
+        2. For each trace, GET spans with ``filter_fact=<scope_name>&filter_fact_id=<scope_id>``
+        3. Return ReadableSpan objects.
+
+        Args:
+            workflow_name: The workflow / service name registered in Okahu.
+            scope_name: The name of the scope/fact to filter by.
+            scope_id: The scope/fact value (e.g., session ID, test ID, etc.).
+            endpoint: Okahu API base URL override.
+            api_key: Okahu API key override.
+            timeout: Request timeout in seconds.
+
+        Returns:
+            A flat list of ReadableSpan instances from all matching traces.
+
+        Raises:
+            ValueError: If scope_name or scope_id is empty.
+            ConnectionError: If no traces found or API call fails.
+        """
+        # Validate inputs
+        if not scope_name or not scope_name.strip():
+            raise ValueError("scope_name cannot be empty")
+        if not scope_id or not scope_id.strip():
+            raise ValueError("scope_id cannot be empty")
+
         trace_ids = OkahuSpanLoader.get_trace_ids(
             workflow_name,
-            fact_name="agent_sessions",
-            fact_id=session_id,
+            fact_name=scope_name,
+            fact_id=scope_id,
             endpoint=endpoint, api_key=api_key, timeout=timeout,
         )
         if not trace_ids:
             raise ConnectionError(
-                f"No traces found for session '{session_id}' in workflow '{workflow_name}'"
+                f"No traces found for {scope_name}='{scope_id}' in workflow '{workflow_name}'"
             )
 
         all_spans: List[ReadableSpan] = []
         for tid in trace_ids:
             spans = OkahuSpanLoader.get_spans(
                 workflow_name, tid,
-                filter_fact="agent_sessions",
-                filter_fact_id=session_id,
+                filter_fact=scope_name,
+                filter_fact_id=scope_id,
                 endpoint=endpoint, api_key=api_key, timeout=timeout,
             )
             all_spans.extend(spans)
 
         logger.debug(
-            "Loaded %d total spans across %d trace(s) for session '%s'",
-            len(all_spans), len(trace_ids), session_id,
+            "Loaded %d total spans across %d trace(s) for %s='%s'",
+            len(all_spans), len(trace_ids), scope_name, scope_id,
         )
         return all_spans

@@ -7,7 +7,7 @@ import re
 from pathlib import Path
 from typing import Optional
 
-from monocle_apptrace.instrumentation.common.constants import AGENT_SESSION, AGENT_TURN_ID, AGENT_INVOCATION_ID, SPAN_START_TIME, SPAN_END_TIME
+from monocle_apptrace.instrumentation.common.constants import AGENT_SESSION, CODEX_TURN_SCOPE, CODEX_INVOCATION_SCOPE, SPAN_START_TIME, SPAN_END_TIME
 from monocle_apptrace.instrumentation.metamodel.codex_cli._helper import find_subagent_transcript
 from monocle_apptrace.instrumentation.metamodel.codex_cli.replay_handlers import ReplayHandler
 from monocle_apptrace.instrumentation.metamodel.codex_cli.trace_events import (
@@ -170,7 +170,7 @@ def _build_subagent(parent_path, thread_id, spawn_payload, spawn_ts):
         "model": sa_model or spawn_payload.get("model", "codex"),
         SPAN_START_TIME: sa_start or spawn_ts,
         SPAN_END_TIME: sa_end or spawn_ts,
-        AGENT_INVOCATION_ID: thread_id,
+        CODEX_INVOCATION_SCOPE: thread_id,
     }
 
 
@@ -378,7 +378,7 @@ def replay_session(session_id: str, transcript_path: Optional[str]) -> None:
                 SPAN_START_TIME: turn["start_ts"],
                 SPAN_END_TIME: turn.get("end_ts") or turn["start_ts"],
                 AGENT_SESSION: session_id,
-                AGENT_TURN_ID: turn.get("turn_id", ""),
+                CODEX_TURN_SCOPE: turn.get("turn_id", ""),
             },
         )
 

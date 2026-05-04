@@ -2,7 +2,7 @@ import datetime
 
 from monocle_apptrace.instrumentation.common.span_handler import SpanHandler
 from opentelemetry.context import attach, get_current, set_value, Context
-from monocle_apptrace.instrumentation.common.constants import SPAN_START_TIME, SPAN_END_TIME, AGENT_SESSION, AGENT_TURN_ID, AGENT_INVOCATION_ID
+from monocle_apptrace.instrumentation.common.constants import SPAN_START_TIME, SPAN_END_TIME, AGENT_SESSION, CODEX_TURN_SCOPE, CODEX_INVOCATION_SCOPE
 from monocle_apptrace.instrumentation.common.utils import set_scopes
 
 
@@ -23,10 +23,10 @@ class CodexSpanHandler(SpanHandler):
         if end_time:
             token_context = set_value(SPAN_END_TIME, CodexSpanHandler._iso_to_ns(end_time), token_context)
         scopes = {}
-        if AGENT_TURN_ID in kwargs:
-            scopes[AGENT_TURN_ID] = kwargs.pop(AGENT_TURN_ID)
-        if AGENT_INVOCATION_ID in kwargs:
-            scopes[AGENT_INVOCATION_ID] = kwargs.pop(AGENT_INVOCATION_ID)
+        if CODEX_TURN_SCOPE in kwargs:
+            scopes[CODEX_TURN_SCOPE] = kwargs.pop(CODEX_TURN_SCOPE)
+        if CODEX_INVOCATION_SCOPE in kwargs:
+            scopes[CODEX_INVOCATION_SCOPE] = kwargs.pop(CODEX_INVOCATION_SCOPE)
         if AGENT_SESSION in kwargs:
             scopes[AGENT_SESSION] = kwargs.get(AGENT_SESSION)
         if scopes:

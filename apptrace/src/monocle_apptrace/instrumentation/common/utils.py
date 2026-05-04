@@ -317,7 +317,7 @@ def set_scopes(scopes:dict[str, object], baggage_context:Context = None) -> obje
         baggage_context:Context = get_current()
     for scope_name, scope_value in scopes.items():
         if scope_value is None:
-            scope_value = baggage.get_baggage(f"{MONOCLE_SCOPE_NAME_PREFIX}{scope_name}", baggage_context) or __generate_scope_id()
+            scope_value = __generate_scope_id()
         baggage_context = baggage.set_baggage(f"{MONOCLE_SCOPE_NAME_PREFIX}{scope_name}", scope_value, baggage_context)
         
     token:object = attach(baggage_context)

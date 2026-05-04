@@ -1,4 +1,4 @@
-from monocle_apptrace.instrumentation.common.constants import SPAN_START_TIME, SPAN_END_TIME, AGENT_INVOCATION_ID
+from monocle_apptrace.instrumentation.common.constants import SPAN_START_TIME, SPAN_END_TIME, CODEX_INVOCATION_SCOPE
 
 _MCP_BUILTIN_TOOLS = {"read_mcp_resource", "list_mcp_resources", "list_mcp_resource_templates"}
 
@@ -63,7 +63,7 @@ class ReplayHandler:
                 **{
                     SPAN_START_TIME: sa.get(SPAN_START_TIME),
                     SPAN_END_TIME: sa.get(SPAN_END_TIME),
-                    AGENT_INVOCATION_ID: sa.get(AGENT_INVOCATION_ID) or sa.get("thread_id", ""),
+                    CODEX_INVOCATION_SCOPE: sa.get(CODEX_INVOCATION_SCOPE) or sa.get("thread_id", ""),
                 },
             )
 

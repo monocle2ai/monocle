@@ -214,4 +214,5 @@ disable = [
 ]
 
 [project.scripts]
+monocle-apptrace = "monocle_apptrace.cli:main"
 monocle_apptrace = "monocle_apptrace.mcp_server:main"

@@ -33,9 +33,9 @@ def _configure_telemetry():
     global _telemetry_ready
     if _telemetry_ready:
         return
-    from monocle_apptrace.exporters.okahu.okahu_exporter import _get_monocle_env_value
+    from monocle_apptrace.instrumentation.common.utils import get_monocle_env_value
     from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
-    workflow_name = _get_monocle_env_value("MONOCLE_WORKFLOW_NAME") or Path.cwd().name
+    workflow_name = get_monocle_env_value("MONOCLE_WORKFLOW_NAME") or Path.cwd().name
     setup_monocle_telemetry(workflow_name=workflow_name)
     _telemetry_ready = True
 

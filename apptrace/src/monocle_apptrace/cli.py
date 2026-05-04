@@ -51,9 +51,9 @@ def _save_env(**kwargs):
 
 
 def setup(agent, label, settings_file, hooks_template, extra_setup=None):
-    from monocle_apptrace.exporters.okahu.okahu_exporter import _get_okahu_api_key
+    from monocle_apptrace.instrumentation.common.utils import get_monocle_env_value
 
-    api_key = _get_okahu_api_key()
+    api_key = get_monocle_env_value("OKAHU_API_KEY")
     if api_key:
         print("Using existing Okahu API key.")
     else:

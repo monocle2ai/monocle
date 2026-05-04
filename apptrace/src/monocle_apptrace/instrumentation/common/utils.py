@@ -765,3 +765,33 @@ def get_workflow_name() -> str:
 def get_span_id(span: Span) -> str:
     """Get the span ID as a hex string without 0x prefix."""
     return format(span.context.span_id, '016x')
+
+def get_monocle_env_value(key: str) -> Optional[str]:
+    """Look up a Monocle config value from the environment or .env files.
+    """
+    env_value = os.environ.get(key)
+    if env_value:
+        return env_value
+    candidates = (
+        os.path.join(os.getcwd(), ".env.monocle"),
+        os.path.join(os.path.expanduser("~"), ".monocle", ".env"),
+    )
+    for env_file_path in candidates:
+        try:
+            with open(env_file_path, "r", encoding="utf-8") as env_file:
+                for line in env_file:
+                    line = line.strip()
+                    if not line or line.startswith("#"):
+                        continue
+                    if line.startswith("export "):
+                        line = line[len("export "):].strip()
+                    if not line.startswith(f"{key}="):
+                        continue
+                    value = line.split("=", 1)[1].strip()
+                    if value.startswith(('"', "'")):
+                        value = value[1:-1].strip()
+                    if value:
+                        return value
+        except OSError:
+            continue
+    return None

@@ -3,6 +3,7 @@ import inspect
 import os
 from typing import Optional, Union
 from monocle_test_tools.schema import Evaluation
+from monocle_test_tools.span_loader import JSONSpanLoader, OkahuSpanLoader
 from .comparer.comparer_manager import get_comparer
 from .comparer.base_comparer import BaseComparer
 from .comparer.default_comparer import DefaultComparer
@@ -62,6 +63,7 @@ class TraceAssertion():
         self._filtered_spans = filtered_spans
         self.fluent_chain = fluent_chain
         self.is_assertion_failed = is_assertion_failed
+        self._skip_export = False
         
     def record_assertion(self, e:AssertionError, fluent_chain:list[str]) -> None:
         """Record an assertion error with its fluent chain context."""
@@ -330,6 +332,121 @@ class TraceAssertion():
     def load_spans(self, spans:list[Span]) -> None:
         """Load spans into the validator's memory exporter for assertions."""
         self.validator.memory_exporter.export(spans)
+
+    def import_traces(self, trace_source: str, id: str,
+                      fact_name: Optional[str] = "trace",
+                      scope_name: Optional[str] = None,
+                      workflow_name: Optional[str] = None) -> 'TraceAssertion':
+        """Import traces from a source for assertion.
+
+        Loads previously exported trace spans into the asserter's memory
+        so assertions can be run against them without re-running the agent.
+
+        Args:
+            trace_source: Source type — ``"file"`` or ``"okahu"``.
+            id: Identifier whose meaning depends on *fact_name*:
+                - When fact_name is ``"trace"`` → a trace ID (hex string).
+                - When fact_name is ``"session"`` → an agent session ID.
+                - When fact_name is ``"scope"`` → any custom scope ID.
+            fact_name: What *id* represents.
+                ``"trace"`` (default) — *id* is a single trace ID.
+                ``"session"`` — *id* is a session ID (uses agent_sessions).
+                ``"scope"`` — *id* is a custom scope; requires *scope_name*.
+                For ``trace_source="file"`` only ``"trace"`` is supported.
+            scope_name: Name of custom scope/fact (e.g., "test_id", "my_scope").
+                Required when ``fact_name="scope"``. For fact_name="session",
+                defaults to "agent_sessions".
+            workflow_name: Okahu workflow / service name
+                (required when ``trace_source="okahu"``).
+
+        Returns:
+            self for fluent chaining.
+
+        Raises:
+            ValueError: If arguments are invalid or incomplete.
+            FileNotFoundError: If no local trace file is found (file source).
+            ConnectionError: If fetching from Okahu fails (okahu source).
+
+        Examples:
+            # Load by session (agent_sessions scope)
+            asserter.import_traces(
+                trace_source="okahu",
+                id="session_123",
+                fact_name="session",
+                workflow_name="my_app"
+            )
+
+            # Load by custom scope
+            asserter.import_traces(
+                trace_source="okahu",
+                id="test_456",
+                fact_name="scope",
+                scope_name="test_id",
+                workflow_name="my_app"
+            )
+
+            # Load by trace ID
+            asserter.import_traces(
+                trace_source="okahu",
+                id="abc123",
+                fact_name="trace",
+                workflow_name="my_app"
+            )
+        """
+        if trace_source not in ("file", "okahu"):
+            raise ValueError(
+                f"Unsupported trace_source: '{trace_source}'. "
+                "Supported sources: 'file', 'okahu'."
+            )
+        if not id:
+            raise ValueError("'id' is required.")
+
+        if trace_source == "okahu":
+            if workflow_name is None:
+                raise ValueError("'workflow_name' is required for okahu trace source.")
+
+            if fact_name == "session":
+                # Session-based: use agent_sessions scope
+                spans = OkahuSpanLoader.load_by_scope(
+                    workflow_name=workflow_name,
+                    scope_name=OkahuSpanLoader.AGENT_SESSIONS_SCOPE,
+                    scope_id=id,
+                )
+            elif fact_name == "scope":
+                # Custom scope: requires scope_name
+                if not scope_name:
+                    raise ValueError("'scope_name' is required when fact_name='scope'.")
+                spans = OkahuSpanLoader.load_by_scope(
+                    workflow_name=workflow_name,
+                    scope_name=scope_name,
+                    scope_id=id,
+                )
+            else:
+                # Direct trace_id lookup
+                spans = OkahuSpanLoader.get_spans(
+                    workflow_name=workflow_name,
+                    trace_id=id,
+                )
+        else:
+            # File source — fact_name must be "trace"
+            if fact_name != "trace":
+                raise ValueError(
+                    "Only fact_name='trace' is supported for file trace source."
+                )
+            trace_file = JSONSpanLoader.find_trace_file(id)
+            if trace_file is None:
+                search_dir = os.path.join(".", ".monocle", "test_traces")
+                raise FileNotFoundError(
+                    f"No trace file found for trace_id '{id}' in '{search_dir}'")
+
+            spans = JSONSpanLoader.from_json(trace_file)
+
+        self.load_spans(spans)
+        # Refresh filtered spans from the newly loaded data
+        self._filtered_spans = self.validator.spans
+        # Skip re-exporting imported traces to avoid duplicate trace files
+        self._skip_export = True
+        return self
 
     def _verify_input_output(self, spans:list[Span], expected_inputs:Optional[list[str]], expected_outputs:Optional[list[str]],
                         comparer:BaseComparer, eval:Optional[Evaluation], positive_test:Optional[bool]=True,

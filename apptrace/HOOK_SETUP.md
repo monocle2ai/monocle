@@ -7,7 +7,10 @@ This guide covers setting up Monocle tracing for Claude Code and Codex CLI.
 ### 1. Install the Monocle Package
 
 ```bash
-pip install monocle_apptrace
+# Install uv (if not already installed)
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+uv tool install monocle_apptrace
 ```
 
 ### 2. Register Hooks

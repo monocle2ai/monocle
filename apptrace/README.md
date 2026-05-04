@@ -27,10 +27,13 @@ See [Monocle user guide](Monocle_User_Guide.md) for more details.
 ## Claude Code Instrumentation
 
 ```bash
-# 1. Install package
-pip install monocle_apptrace
+# 1. Install uv (if not already installed)
+curl -LsSf https://astral.sh/uv/install.sh | sh
 
-# 2. Register hooks — prompts for Okahu API key (leave blank for local-only)
+# 2. Install package
+uv tool install monocle_apptrace
+
+# 3. Register hooks — prompts for Okahu API key (leave blank for local-only)
 monocle-apptrace claude-setup
 ```
 
@@ -41,10 +44,13 @@ See [Hook Setup Guide](HOOK_SETUP.md) for complete instructions.
 ## Codex CLI Instrumentation
 
 ```bash
-# 1. Install package
-pip install monocle_apptrace
+# 1. Install uv (if not already installed)
+curl -LsSf https://astral.sh/uv/install.sh | sh
 
-# 2. Register hooks — prompts for Okahu API key (leave blank for local-only)
+# 2. Install package
+uv tool install monocle_apptrace
+
+# 3. Register hooks — prompts for Okahu API key (leave blank for local-only)
 monocle-apptrace codex-setup
 ```
 

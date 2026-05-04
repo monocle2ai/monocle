@@ -3,7 +3,7 @@ import logging
 import os
 from contextlib import contextmanager
 import os
-from typing import AsyncGenerator, Iterator
+from typing import AsyncGenerator, Iterator, Optional
 import logging
 from opentelemetry.trace import Tracer
 from opentelemetry.trace.propagation import set_span_in_context, get_current_span
@@ -14,6 +14,8 @@ from opentelemetry.trace.status import StatusCode
 from monocle_apptrace.instrumentation.common.constants import (
     ADD_NEW_WORKFLOW,
     AGENTIC_SPANS,
+    SPAN_START_TIME,
+    SPAN_END_TIME,
     WORKFLOW_TYPE_KEY,
 )
 from monocle_apptrace.instrumentation.common.scope_wrapper import monocle_trace_scope
@@ -492,10 +494,18 @@ def evaluate_scope_values(args, kwargs, to_wrap, scope_values):
     return None
 
 @contextmanager
-def start_as_monocle_span(tracer: Tracer, name: str, auto_close_span: bool) -> Iterator["Span"]:
+def start_as_monocle_span(tracer: Tracer, name: str, auto_close_span: bool,
+                           start_time: Optional[int] = None,
+                           end_time: Optional[int] = None) -> Iterator["Span"]:
     """ Wrapper to OTEL start_as_current_span to isolate monocle and non monocle spans.
         This essentially links monocle and non-monocle spans separately which is default behavior.
         It can be optionally overridden by setting the environment variable MONOCLE_ISOLATE_SPANS to false.
+
+        start_time / end_time are nanosecond epoch timestamps. When provided, the span carries
+        explicit historical timestamps instead of the current wall clock. This is used by
+        transcript-replay instrumentation (e.g. Claude Code hook) where spans are emitted
+        after the fact. Both parameters are forwarded to OTel; None means "use current time".
+        Note: explicit timestamps are not supported when MONOCLE_ISOLATE_SPANS=false.
     """
     if not ISOLATE_MONOCLE_SPANS:
         # If not isolating, use the default start_as_current_span
@@ -516,7 +526,9 @@ def start_as_monocle_span(tracer: Tracer, name: str, auto_close_span: bool) -> I
     # Use tracer.start_span + manual attach instead of start_as_current_span so
     # every context token is owned by us (avoids OTel's internal context manager
     # also trying to detach() in the wrong context).
-    span = tracer.start_span(name)
+    effective_start = start_time if start_time is not None else get_value(SPAN_START_TIME)
+    effective_end = end_time if end_time is not None else get_value(SPAN_END_TIME)
+    span = tracer.start_span(name, start_time=effective_start)
     span_token = attach(set_span_in_context(span))
     new_monocle_token = attach(set_monocle_span_in_context(span))
     original_span_token = attach(set_span_in_context(original_span))
@@ -542,7 +554,7 @@ def start_as_monocle_span(tracer: Tracer, name: str, auto_close_span: bool) -> I
             if parent_monocle_span is not None:
                 attach(set_monocle_span_in_context(parent_monocle_span))
         if auto_close_span:
-            span.end()
+            span.end(end_time=effective_end)
 
 def get_builtin_scope_names(to_wrap) -> str:
     output_processor = None

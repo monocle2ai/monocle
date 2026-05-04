@@ -10,6 +10,7 @@ from opentelemetry.trace import SpanContext, TraceFlags
 from opentelemetry.sdk.resources import Resource
 
 from monocle_apptrace.exporters.span_filter import SpanFilter, FilteredSpanExporter
+from tests.common.span_filter_test_exporter import SpanFilterTestExporter
 
 
 class TestSpanFilter:
@@ -502,3 +503,191 @@ class TestSpanFilterIntegration:
         mock_span = Mock(spec=ReadableSpan)
         mock_span.attributes = {"span.type": "agentic.tool.invocation"}
         assert span_filter.should_include_span(mock_span) is True
+
+
+# ---------------------------------------------------------------------------
+# Tests that use SpanFilterTestExporter
+# ---------------------------------------------------------------------------
+
+def _make_span(span_type: str, name: str, extra_attrs: dict = None, events: list = None) -> Mock:
+    """Build a minimal mock ReadableSpan suitable for SpanFilter tests."""
+    span = Mock(spec=ReadableSpan)
+    attrs = {"span.type": span_type, **(extra_attrs or {})}
+    span.attributes = attrs
+    span.name = name
+    span.context = SpanContext(
+        trace_id=111111111, span_id=222222222,
+        is_remote=False, trace_flags=TraceFlags(0x01),
+    )
+    span.parent = None
+    span.start_time = 1_000_000_000
+    span.end_time = 2_000_000_000
+    span.status = Mock(status_code=0)
+    span.resource = Resource.create({"service.name": "test-svc"})
+
+    raw_events = events or []
+    span.to_json.return_value = json.dumps({
+        "name": name,
+        "context": {"trace_id": "0000000006a5f6c7", "span_id": "000000000de0b6b3", "trace_state": "[]"},
+        "kind": "SpanKind.INTERNAL",
+        "parent_id": None,
+        "start_time": span.start_time,
+        "end_time": span.end_time,
+        "status": {"status_code": "UNSET"},
+        "attributes": attrs,
+        "events": raw_events,
+        "resource": {"attributes": {"service.name": "test-svc"}},
+    })
+    return span
+
+
+class TestSpanFilterTestExporter:
+    """Tests for SpanFilterTestExporter used as the base_exporter in FilteredSpanExporter."""
+
+    def _make_inference_span(self):
+        return _make_span(
+            span_type="inference",
+            name="openai.chat",
+            extra_attrs={
+                "entity.1.type": "inference.openai",
+                "entity.1.name": "gpt-4",
+                "scope.customer_id": "cust_001",
+                "scope.session_id": "sess_abc",
+                "monocle_apptrace.version": "1.0.0",
+            },
+            events=[
+                {"name": "data.input", "timestamp": 1, "attributes": {"input": "hello"}},
+                {"name": "metadata", "timestamp": 2, "attributes": {
+                    "completion_tokens": 10,
+                    "prompt_tokens": 5,
+                    "total_tokens": 15,
+                    "finish_reason": "stop",
+                }},
+            ],
+        )
+
+    def _make_retrieval_span(self):
+        return _make_span(
+            span_type="retrieval",
+            name="chroma.query",
+            extra_attrs={"entity.1.name": "vector-db", "scope.customer_id": "cust_001"},
+        )
+
+    # --- standalone usage (no FilteredSpanExporter wrapper) ---
+
+    def test_standalone_captures_matching_spans(self):
+        test_exporter = SpanFilterTestExporter(
+            span_filter=SpanFilter({
+                "span_types_to_include": ["inference"],
+                "fields_to_include": {
+                    "attributes": ["entity.1.type", "scope.*"],
+                    "events": [{"name": "metadata"}],
+                },
+            })
+        )
+
+        spans = [self._make_inference_span(), self._make_retrieval_span()]
+        test_exporter.export(spans)
+
+        test_exporter.assert_exported_count(1)
+        test_exporter.assert_attribute_present(0, "entity.1.type")
+        test_exporter.assert_attribute_present(0, "scope.customer_id")
+        test_exporter.assert_attribute_absent(0, "monocle_apptrace.version")
+        test_exporter.assert_event_present(0, "metadata")
+        test_exporter.assert_event_absent(0, "data.input")
+
+    def test_standalone_excludes_all_when_no_match(self):
+        test_exporter = SpanFilterTestExporter(
+            span_filter=SpanFilter({
+                "span_types_to_include": ["workflow"],
+                "fields_to_include": {},
+            })
+        )
+        test_exporter.export([self._make_inference_span(), self._make_retrieval_span()])
+        test_exporter.assert_exported_count(0)
+
+    # --- usage via FilteredSpanExporter ---
+
+    def test_with_filtered_exporter_captures_filtered_content(self):
+        test_exporter = SpanFilterTestExporter()
+        filtered_exporter = FilteredSpanExporter(
+            base_exporter=test_exporter,
+            span_filter=SpanFilter({
+                "span_types_to_include": ["inference"],
+                "fields_to_include": {
+                    "attributes": ["entity.1.name", "scope.*"],
+                    "events": [{"name": "metadata", "attributes": ["completion_tokens"]}],
+                },
+            }),
+        )
+
+        filtered_exporter.export([self._make_inference_span(), self._make_retrieval_span()])
+
+        test_exporter.assert_exported_count(1)
+        test_exporter.assert_attribute_present(0, "entity.1.name")
+        test_exporter.assert_attribute_present(0, "scope.customer_id")
+        # attribute not in filter config — must be absent
+        test_exporter.assert_attribute_absent(0, "entity.1.type")
+
+        # only completion_tokens requested from metadata
+        event_attrs = test_exporter.get_event_attributes(0, "metadata")
+        assert "completion_tokens" in event_attrs
+        assert "prompt_tokens" not in event_attrs
+
+    def test_with_filtered_exporter_exclude_mode(self):
+        test_exporter = SpanFilterTestExporter()
+        filtered_exporter = FilteredSpanExporter(
+            base_exporter=test_exporter,
+            span_filter=SpanFilter({
+                "span_types_to_include": ["retrieval"],
+                "mode": "exclude",
+                "fields_to_include": {},
+            }),
+        )
+
+        filtered_exporter.export([self._make_inference_span(), self._make_retrieval_span()])
+
+        # retrieval span excluded → only inference span exported
+        test_exporter.assert_exported_count(1)
+        spans = test_exporter.find_spans_by_type("inference")
+        assert len(spans) == 1
+
+    def test_reset_clears_captured_spans(self):
+        test_exporter = SpanFilterTestExporter(
+            span_filter=SpanFilter({"span_types_to_include": ["inference"], "fields_to_include": {}})
+        )
+        test_exporter.export([self._make_inference_span()])
+        assert test_exporter.export_count == 1
+
+        test_exporter.reset()
+        assert test_exporter.export_count == 0
+
+    def test_find_spans_by_name(self):
+        test_exporter = SpanFilterTestExporter(
+            span_filter=SpanFilter({"span_types_to_include": ["inference"], "fields_to_include": {}})
+        )
+        test_exporter.export([self._make_inference_span()])
+
+        matches = test_exporter.find_spans_by_name("openai.chat")
+        assert len(matches) == 1
+
+        no_matches = test_exporter.find_spans_by_name("nonexistent")
+        assert len(no_matches) == 0
+
+    def test_assertion_helpers_raise_on_failure(self):
+        test_exporter = SpanFilterTestExporter(
+            span_filter=SpanFilter({
+                "span_types_to_include": ["inference"],
+                "fields_to_include": {"attributes": ["entity.1.name"], "events": []},
+            })
+        )
+        test_exporter.export([self._make_inference_span()])
+
+        with pytest.raises(AssertionError):
+            test_exporter.assert_exported_count(99)
+
+        with pytest.raises(AssertionError):
+            test_exporter.assert_attribute_present(0, "nonexistent_key")
+
+        with pytest.raises(AssertionError):
+            test_exporter.assert_attribute_absent(0, "entity.1.name")  # it IS present

@@ -209,7 +209,7 @@ def load_scopes() -> dict:
     return scope_methods
 
 
-def _normalize_exporters_list(monocle_exporters_list: str | None):
+def _normalize_exporters_list(monocle_exporters_list: Optional[str]):
     if monocle_exporters_list is None:
         return None
     exporters = [item.strip().lower() for item in monocle_exporters_list.split(",") if item.strip()]
@@ -232,9 +232,9 @@ def _normalize_bool(value) -> bool:
 
 def build_setup_signature(
         workflow_name: str,
-        span_processors: list | None = None,
-        span_handlers: dict | None = None,
-        wrapper_methods: list | None = None,
+        span_processors: Optional[list] = None,
+        span_handlers: Optional[dict] = None,
+        wrapper_methods: Optional[list] = None,
         union_with_default_methods: bool = True,
         monocle_exporters_list: str = None,
 ) -> dict:
@@ -256,7 +256,7 @@ def changed_setup_fields(previous: dict, current: dict) -> list[str]:
 
 def check_duplicate_setup(
         workflow_name: str,
-        previous_signature: dict | None,
+        previous_signature: Optional[dict],
         current_signature: dict,
         instrumentor_exists: bool,
 ) -> bool:

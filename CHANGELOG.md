@@ -371,3 +371,6 @@
 - Added tool_call name and type in inference span ([#323](https://github.com/monocle2ai/monocle/pull/323))
 - Fix entity type for MCP tool invocation ([#327](https://github.com/monocle2ai/monocle/pull/327))
 
+- Claude code instrumentation
+- Custom span enhancement - capture arguement and results 
+

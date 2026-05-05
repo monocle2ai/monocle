@@ -66,6 +66,11 @@ def _get_okahu_api_key() -> Optional[str]:
     return _get_monocle_env_value("OKAHU_API_KEY")
 
 
+def _get_monocle_exporter() -> Optional[str]:
+    """Get MONOCLE_EXPORTER setting from environment or .env.monocle file."""
+    return _get_monocle_env_value("MONOCLE_EXPORTER")
+
+
 class OkahuSpanExporter(SpanExporterBase):
     def __init__(
             self,

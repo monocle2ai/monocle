@@ -9,11 +9,11 @@ from monocle_apptrace.exporters.okahu.okahu_eval_result_exporter import OkahuEva
 from monocle_test_tools.evals.base_eval import BaseEval
 from typing import Optional, Union
 
-from apptrace.src.monocle_apptrace.instrumentation.common import utils
+from monocle_apptrace.instrumentation.common import utils
 
 logger = logging.getLogger(__name__)
 OKAHU_PROD_EVALUATION_ENDPOINT = "https://eval.okahu.co/api"
-OKAHU_PROD_ENDPOINT = "https://api.okahu.co/api"
+OKAHU_METADATA_ENDPOINT = "https://api.okahu.co/api"
 
 class OkahuEval(BaseEval):
     def __init__(self, **data):
@@ -30,8 +30,8 @@ class OkahuEval(BaseEval):
         if not api_key:
             raise AssertionError("OKAHU_API_KEY is not configured.")
         
-        # Use environment variable for endpoint
-        base = os.getenv("OKAHU_PROD_ENDPOINT", OKAHU_PROD_ENDPOINT).rstrip("/")
+        # Use environment variable for endpoint, default to production endpoint
+        base = os.getenv("OKAHU_METADATA_ENDPOINT", OKAHU_METADATA_ENDPOINT).rstrip("/")
         fact_alias_url = f"{base}/v1/metadata/fact_alias"
         headers = {"x-api-key": api_key}
         params = {"fact_name": fact_name}
@@ -172,7 +172,7 @@ class OkahuEval(BaseEval):
                 f"Supported values: {', '.join(sorted(fact_map.keys()))}"
             )
 
-        span_type_filters = utils.get_scope_id_from_fact(fact_name)
+        span_type_filters = utils.get_scope_id_from_fact()
 
         def _trace_id(span: Span) -> str:
             return format(span.get_span_context().trace_id, '032x')

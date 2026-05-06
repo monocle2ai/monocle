@@ -22,43 +22,44 @@ class OkahuEval(BaseEval):
         self._trace_exported = False
         self._current_trace_id = None
         self._fact_map_cache = None
+        self._fact_alias_cache = None
     
-    def map_fact_name(self, fact_name: str) -> str:
-        """Map user-friendly fact names to Okahu fact names using API."""
-        # Get API credentials
+    def _get_fact_aliases(self) -> dict[str, str]:
+        if self._fact_alias_cache is not None:
+            return self._fact_alias_cache
+
         api_key = (os.getenv("OKAHU_API_KEY") or "").strip()
         if not api_key:
             raise AssertionError("OKAHU_API_KEY is not configured.")
-        
-        # Use environment variable for endpoint, default to production endpoint
+
         base = os.getenv("OKAHU_METADATA_ENDPOINT", OKAHU_METADATA_ENDPOINT).rstrip("/")
-        fact_alias_url = f"{base}/v1/metadata/fact_alias"
+        url = f"{base}/v1/metadata/facts"
         headers = {"x-api-key": api_key}
-        params = {"fact_name": fact_name}
-        
+
         try:
-            response = requests.get(
-                url=fact_alias_url,
-                headers=headers,
-                params=params,
-                timeout=30
-            )
+            response = requests.get(url=url, headers=headers, timeout=30)
             response.raise_for_status()
-            result = response.json().get("fact_alias", fact_name)
-            return result
-            
+            self._fact_alias_cache = response.json().get("fact_aliases", {})
+            return self._fact_alias_cache
         except requests.Timeout as exc:
-            raise AssertionError(f"Fact alias request timed out for '{fact_name}': {exc}") from exc
+            raise AssertionError(f"Fact alias request timed out: {exc}") from exc
         except requests.HTTPError as exc:
             status_code = response.status_code
             response_body = response.text or "<empty body>"
-            raise AssertionError(
-                f"Fact alias service returned HTTP {status_code} for '{fact_name}': {response_body}"
-            ) from exc
+            raise AssertionError(f"Fact alias service returned HTTP {status_code}: {response_body}") from exc
         except requests.RequestException as exc:
             raise AssertionError(f"Failed to reach fact alias service: {exc}") from exc
         except ValueError as exc:
             raise AssertionError(f"Fact alias service returned invalid JSON: {response.text}") from exc
+
+    def map_fact_name(self, fact_name: str) -> str:
+        aliases = self._get_fact_aliases()
+        mapped = aliases.get(fact_name)
+        if mapped is None:
+            raise AssertionError(
+                f"Invalid fact_name '{fact_name}'. Supported values: {', '.join(sorted(aliases))}"
+            )
+        return mapped
     
     def export_trace(self, filtered_spans: list[Span]) -> str:
         """Export trace to Okahu evaluation service once per test."""

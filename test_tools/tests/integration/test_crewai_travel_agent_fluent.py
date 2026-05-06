@@ -4,6 +4,13 @@ import pytest
 from monocle_test_tools import TraceAssertion
 from test_common.crewai_travel_agent import create_crewai_travel_crew
 
+@pytest.mark.asyncio
+async def test_evals(monocle_trace_asserter:TraceAssertion):
+   """Test timeout handling in Okahu evals with retries."""
+   travel_request = "Book a hotel room at Hilton in San Francisco for 2 nights starting Nov 1st 2025"
+   crew = create_crewai_travel_crew(travel_request)
+   await monocle_trace_asserter.run_agent_async(crew, "crewai", travel_request)
+   monocle_trace_asserter.with_evaluation("okahu").check_eval("hallucination", "no_hallucination") 
 
 @pytest.mark.asyncio
 async def test_tool_invocation(monocle_trace_asserter:TraceAssertion):
@@ -13,7 +20,7 @@ async def test_tool_invocation(monocle_trace_asserter:TraceAssertion):
     crew = create_crewai_travel_crew(travel_request)
     
     # Run the agent
-    await monocle_trace_asserter.run_async_agent(crew, "crewai", travel_request)
+    await monocle_trace_asserter.run_agent_async(crew, "crewai", travel_request)
     
     # Verify tool was called
     monocle_trace_asserter.called_tool("crew_book_hotel", "CrewAI Hotel Booking Agent").contains_output("success")
@@ -26,7 +33,7 @@ async def test_agent_invocation(monocle_trace_asserter:TraceAssertion):
     crew = create_crewai_travel_crew(travel_request)
     
     # Run the agent
-    await monocle_trace_asserter.run_async_agent(crew, "crewai", travel_request)
+    await monocle_trace_asserter.run_agent_async(crew, "crewai", travel_request)
     
     # Verify agent was invoked
     monocle_trace_asserter.called_agent("CrewAI Hotel Booking Agent").contains_output("success")

@@ -765,3 +765,14 @@ def get_workflow_name() -> str:
 def get_span_id(span: Span) -> str:
     """Get the span ID as a hex string without 0x prefix."""
     return format(span.context.span_id, '016x')
+
+def get_scope_id_from_fact() -> dict[str, list[str]]:
+    # Map from attribute/ID type to required span types
+    # Mappings that don't need filtering: trace_id, scope.agentic.session, scope.*, etc.
+    span_type_filters = {
+        "scope.agentic.turn": ["agentic.turn"],
+        "scope.agentic.invocation": ["agentic.invocation"],
+        "span_id": ["agentic.tool.invocation"],
+        "inference_id": ["inference", "inference.framework"],
+    }
+    return span_type_filters

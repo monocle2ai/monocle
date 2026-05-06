@@ -9,8 +9,11 @@ from monocle_apptrace.exporters.okahu.okahu_eval_result_exporter import OkahuEva
 from monocle_test_tools.evals.base_eval import BaseEval
 from typing import Optional, Union
 
+from monocle_apptrace.instrumentation.common import utils
+
 logger = logging.getLogger(__name__)
 OKAHU_PROD_EVALUATION_ENDPOINT = "https://eval.okahu.co/api"
+OKAHU_METADATA_ENDPOINT = "https://api.okahu.co/api"
 
 class OkahuEval(BaseEval):
     def __init__(self, **data):
@@ -19,44 +22,42 @@ class OkahuEval(BaseEval):
         self._trace_exported = False
         self._current_trace_id = None
         self._fact_map_cache = None
+        self._fact_alias_cache = None
     
-    @staticmethod
-    def _map_fact_name(fact_name: str) -> str:
-        """
-        Map user-friendly fact names to Okahu fact names.
-        
-        User-facing terms:
-        - "traces" -> "traces"
-        - "inferences" -> "inferences"
-        - "agentic_turns" -> "agent_requests"
-        - "agentic_sessions" -> "agent_sessions"
-        - "agent_invocation" -> "agent_operations"
-        - "tool_execution" -> "tool_operations"
-        - "commits" -> "git_commits"
-        
-        Args:
-            fact_name: The user-provided fact name
-            
-        Returns:
-            The fact name used by Okahu
-        """
-        mapping = {
-            "traces": "traces",
-            "inferences": "inferences",
-            "agentic_turns": "agent_requests",
-            "agentic_sessions": "agent_sessions",
-            "agent_invocation": "agent_operations",
-            "tool_execution": "tool_operations",
-            "commits": "git_commits",
-            "conversations": "conversations",
-            "test_runs": "test_runs",
-            "tests": "tests"
-        }
-        
-        mapped = mapping.get(fact_name)
+    def _get_fact_aliases(self) -> dict[str, str]:
+        if self._fact_alias_cache is not None:
+            return self._fact_alias_cache
+
+        api_key = (os.getenv("OKAHU_API_KEY") or "").strip()
+        if not api_key:
+            raise AssertionError("OKAHU_API_KEY is not configured.")
+
+        base = os.getenv("OKAHU_METADATA_ENDPOINT", OKAHU_METADATA_ENDPOINT).rstrip("/")
+        url = f"{base}/v1/metadata/facts"
+        headers = {"x-api-key": api_key}
+
+        try:
+            response = requests.get(url=url, headers=headers, timeout=30)
+            response.raise_for_status()
+            self._fact_alias_cache = response.json().get("fact_aliases", {})
+            return self._fact_alias_cache
+        except requests.Timeout as exc:
+            raise AssertionError(f"Fact alias request timed out: {exc}") from exc
+        except requests.HTTPError as exc:
+            status_code = response.status_code
+            response_body = response.text or "<empty body>"
+            raise AssertionError(f"Fact alias service returned HTTP {status_code}: {response_body}") from exc
+        except requests.RequestException as exc:
+            raise AssertionError(f"Failed to reach fact alias service: {exc}") from exc
+        except ValueError as exc:
+            raise AssertionError(f"Fact alias service returned invalid JSON: {response.text}") from exc
+
+    def map_fact_name(self, fact_name: str) -> str:
+        aliases = self._get_fact_aliases()
+        mapped = aliases.get(fact_name)
         if mapped is None:
-            raise ValueError(
-                f"Invalid fact_name '{fact_name}'. Supported values: {', '.join(sorted(set(mapping.keys())))}"
+            raise AssertionError(
+                f"Invalid fact_name '{fact_name}'. Supported values: {', '.join(sorted(aliases))}"
             )
         return mapped
     
@@ -172,14 +173,7 @@ class OkahuEval(BaseEval):
                 f"Supported values: {', '.join(sorted(fact_map.keys()))}"
             )
 
-        # Map from attribute/ID type to required span types
-        # Mappings that don't need filtering: trace_id, scope.agentic.session, scope.*, etc.
-        span_type_filters = {
-            "scope.agentic.turn": ["agentic.turn"],
-            "scope.agentic.invocation": ["agentic.invocation"],
-            "span_id": ["agentic.tool.invocation"],
-            "inference_id": ["inference", "inference.framework"],
-        }
+        span_type_filters = utils.get_scope_id_from_fact()
 
         def _trace_id(span: Span) -> str:
             return format(span.get_span_context().trace_id, '032x')
@@ -296,7 +290,7 @@ class OkahuEval(BaseEval):
             fact_name = "traces"
         
         # Map user-friendly fact name to Okahu fact name
-        fact_name = self._map_fact_name(fact_name)
+        fact_name = self.map_fact_name(fact_name)
         
         # Get API credentials
         api_key = (os.getenv("OKAHU_API_KEY") or "").strip()

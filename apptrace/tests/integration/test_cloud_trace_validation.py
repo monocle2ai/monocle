@@ -141,16 +141,14 @@ def test_validate_cloud_traces_by_session(generate_cloud_traces):
     test_items = generate_cloud_traces["test_items"]
     result = generate_cloud_traces["result"]
     
-    # Create asserter
-    asserter = TraceAssertion()
-    
-    # Import traces from Okahu cloud by session
-    asserter.import_traces(
-        trace_source="okahu",
-        id=session_id,
-        fact_name="session",
-        workflow_name=workflow_name
-    )
+    # Use fluent API with with_trace_source() to load traces from Okahu
+    asserter = TraceAssertion() \
+        .with_trace_source(
+            "okahu",
+            id=session_id,
+            fact_name="session",
+            workflow_name=workflow_name
+        )
     
     # Validate custom span exists
     asserter.assert_has_custom_span("calculate_order_total")
@@ -183,16 +181,14 @@ def test_validate_cloud_traces_workflow_scope(generate_cloud_traces):
     
     workflow_name = generate_cloud_traces["workflow_name"]
     
-    # Create asserter
-    asserter = TraceAssertion()
-    
-    # Import traces by workflow (may return multiple sessions)
-    asserter.import_traces(
-        trace_source="okahu",
-        id=generate_cloud_traces["session_id"],
-        fact_name="session",
-        workflow_name=workflow_name
-    )
+    # Use fluent API with with_trace_source() to load traces from Okahu
+    asserter = TraceAssertion() \
+        .with_trace_source(
+            "okahu",
+            id=generate_cloud_traces["session_id"],
+            fact_name="session",
+            workflow_name=workflow_name
+        )
     
     # Validate at least one custom span exists
     asserter.assert_has_custom_span("calculate_order_total")

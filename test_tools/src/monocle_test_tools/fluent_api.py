@@ -120,6 +120,66 @@ class TraceAssertion():
         self._comparer = get_comparer(comparer)
         return self
 
+    def with_trace_source(self, source: str = "local", **kwargs) -> 'TraceAssertion':
+        """Configure trace source for assertions.
+
+        Args:
+            source: Trace source type:
+                - ``"local"`` (default) — Use traces from memory (current execution).
+                - ``"file"`` — Load traces from local .monocle/*.json files.
+                - ``"okahu"`` — Fetch traces from Okahu cloud.
+            **kwargs: Additional arguments passed to ``import_traces()`` when
+                source is "file" or "okahu". Common arguments:
+                - id (str): Trace/session/scope ID
+                - fact_name (str): "trace", "session", or "scope"
+                - scope_name (str): Custom scope name (when fact_name="scope")
+                - workflow_name (str): Okahu workflow name (required for "okahu")
+
+        Returns:
+            self for fluent chaining.
+
+        Examples:
+            # Use local/memory traces (default behavior)
+            asserter.with_trace_source("local").called_tool("search")
+
+            # Load from file
+            asserter.with_trace_source(
+                "file",
+                id="abc123"
+            ).called_tool("search")
+
+            # Load from Okahu by session
+            asserter.with_trace_source(
+                "okahu",
+                id="session_123",
+                fact_name="session",
+                workflow_name="my_app"
+            ).called_tool("search")
+
+            # Load from Okahu by custom scope
+            asserter.with_trace_source(
+                "okahu",
+                id="test_456",
+                fact_name="scope",
+                scope_name="test_id",
+                workflow_name="my_app"
+            ).called_tool("search")
+        """
+        if source == "local":
+            # Default behavior: use traces already in memory
+            # No action needed - validator already has spans from current execution
+            pass
+        elif source in ("file", "okahu"):
+            # Delegate to import_traces() for file and okahu sources
+            self.import_traces(trace_source=source, **kwargs)
+        else:
+            raise ValueError(
+                f"Unsupported trace source: '{source}'. "
+                "Supported sources: 'local', 'file', 'okahu'."
+            )
+
+        return self
+
     @collect_assertions
     def called_tool(self, tool_name:str, agent_name:Optional[str] = None, message:Optional[str] = None) -> 'TraceAssertion':
         """Assert that the given tool was called, optionally by a specific agent."""

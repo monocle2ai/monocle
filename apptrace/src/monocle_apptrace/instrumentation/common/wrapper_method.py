@@ -50,6 +50,8 @@ from monocle_apptrace.instrumentation.metamodel.strands.methods import STRAND_ME
 from monocle_apptrace.instrumentation.metamodel.strands.strands_processor import StrandsSpanHandler
 from monocle_apptrace.instrumentation.metamodel.agentcore.methods import AGENTCORE_METHODS
 from monocle_apptrace.instrumentation.metamodel.claude_cli.methods import CLAUDE_CLI_PROXY_METHODS
+from monocle_apptrace.instrumentation.metamodel.codex_cli.codex_span_handler import CodexSpanHandler
+from monocle_apptrace.instrumentation.metamodel.codex_cli.methods import CODEX_CLI_PROXY_METHODS
 
 class WrapperMethod:
     def __init__(
@@ -128,7 +130,8 @@ DEFAULT_METHODS_LIST = (
     HUGGING_FACE_METHODS +
     STRAND_METHODS +
     AGENTCORE_METHODS +
-    CLAUDE_CLI_PROXY_METHODS
+    CLAUDE_CLI_PROXY_METHODS +
+    CODEX_CLI_PROXY_METHODS
 )
 
 MONOCLE_SPAN_HANDLERS: Dict[str, SpanHandler] = {
@@ -162,5 +165,6 @@ MONOCLE_SPAN_HANDLERS: Dict[str, SpanHandler] = {
     "lambda_func_handler": lambdaSpanHandler(),
     "adk_handler": AdkSpanHandler(),
     "strands_handler": StrandsSpanHandler(),
-    "claude_handler": ClaudeSpanHandler()
+    "claude_handler": ClaudeSpanHandler(),
+    "codex_handler": CodexSpanHandler()
 }

@@ -5,7 +5,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python -m monocle_apptrace.instrumentation.metamodel.claude_cli",
+            "command": "monocle-apptrace claude-hook",
             "statusMessage": "Monocle telemetry"
           }
         ]
@@ -16,7 +16,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python -m monocle_apptrace.instrumentation.metamodel.claude_cli",
+            "command": "monocle-apptrace claude-hook",
             "statusMessage": "Monocle telemetry"
           }
         ]
@@ -27,7 +27,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python -m monocle_apptrace.instrumentation.metamodel.claude_cli",
+            "command": "monocle-apptrace claude-hook",
             "statusMessage": "Monocle telemetry"
           }
         ]
@@ -38,7 +38,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python -m monocle_apptrace.instrumentation.metamodel.claude_cli",
+            "command": "monocle-apptrace claude-hook",
             "statusMessage": "Monocle telemetry"
           }
         ]
@@ -49,7 +49,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python -m monocle_apptrace.instrumentation.metamodel.claude_cli",
+            "command": "monocle-apptrace claude-hook",
             "statusMessage": "Monocle telemetry"
           }
         ]
@@ -60,7 +60,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python -m monocle_apptrace.instrumentation.metamodel.claude_cli",
+            "command": "monocle-apptrace claude-hook",
             "statusMessage": "Monocle telemetry"
           }
         ]
@@ -71,7 +71,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python -m monocle_apptrace.instrumentation.metamodel.claude_cli",
+            "command": "monocle-apptrace claude-hook",
             "statusMessage": "Monocle telemetry"
           }
         ]
@@ -82,7 +82,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python -m monocle_apptrace.instrumentation.metamodel.claude_cli",
+            "command": "monocle-apptrace claude-hook",
             "statusMessage": "Monocle telemetry"
           }
         ]
@@ -93,7 +93,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python -m monocle_apptrace.instrumentation.metamodel.claude_cli",
+            "command": "monocle-apptrace claude-hook",
             "statusMessage": "Monocle telemetry"
           }
         ]
@@ -104,7 +104,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python -m monocle_apptrace.instrumentation.metamodel.claude_cli",
+            "command": "monocle-apptrace claude-hook",
             "statusMessage": "Monocle telemetry"
           }
         ]
@@ -115,7 +115,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python -m monocle_apptrace.instrumentation.metamodel.claude_cli",
+            "command": "monocle-apptrace claude-hook",
             "statusMessage": "Monocle telemetry"
           }
         ]
@@ -126,7 +126,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python -m monocle_apptrace.instrumentation.metamodel.claude_cli",
+            "command": "monocle-apptrace claude-hook",
             "statusMessage": "Monocle telemetry"
           }
         ]

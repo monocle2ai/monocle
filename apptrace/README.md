@@ -27,18 +27,33 @@ See [Monocle user guide](Monocle_User_Guide.md) for more details.
 ## Claude Code Instrumentation
 
 ```bash
-# 1. Install package
-pip install monocle_apptrace
+# 1. Install uv (if not already installed)
+curl -LsSf https://astral.sh/uv/install.sh | sh
 
-# 2. Register hooks into ~/.claude/settings.json
-python -m monocle_apptrace claude-setup
+# 2. Install package
+uv tool install monocle_apptrace
 
-# 3. Set environment variables in ~/.zshrc (or ~/.bashrc)
-export MONOCLE_EXPORTER="okahu,file"
-export OKAHU_API_KEY="your-api-key"
-export MONOCLE_WORKFLOW_NAME="claude-cli"
+# 3. Register hooks — prompts for Okahu API key (leave blank for local-only)
+monocle-apptrace claude-setup
 ```
 
 Start a new Claude Code session — traces flow automatically.
 
-See [Claude Hook Setup Guide](CLAUDE_HOOK_SETUP.md) for complete instructions.
+See [Hook Setup Guide](HOOK_SETUP.md) for complete instructions.
+
+## Codex CLI Instrumentation
+
+```bash
+# 1. Install uv (if not already installed)
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# 2. Install package
+uv tool install monocle_apptrace
+
+# 3. Register hooks — prompts for Okahu API key (leave blank for local-only)
+monocle-apptrace codex-setup
+```
+
+Start a new Codex session — traces flow automatically.
+
+See [Hook Setup Guide](HOOK_SETUP.md) for complete instructions.

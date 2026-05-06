@@ -1,0 +1,26 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "monocle-apptrace codex-hook",
+            "statusMessage": "Monocle telemetry"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "monocle-apptrace codex-hook",
+            "statusMessage": "Monocle telemetry"
+          }
+        ]
+      }
+    ]
+  }
+}

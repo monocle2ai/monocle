@@ -5,7 +5,7 @@ from contextlib import contextmanager
 import os
 from typing import AsyncGenerator, Iterator, Optional
 import logging
-from opentelemetry.trace import Tracer
+from opentelemetry.trace import NonRecordingSpan, Tracer
 from opentelemetry.trace.propagation import set_span_in_context, get_current_span
 from opentelemetry.context import set_value, attach, detach, get_value
 from opentelemetry.trace.span import INVALID_SPAN, Span, SpanContext, TraceFlags, TraceState
@@ -522,6 +522,10 @@ def start_as_monocle_span(tracer: Tracer, name: str, auto_close_span: bool,
 
     parent_monocle_span = get_current_monocle_span()
     original_span = get_current_span()
+    if not parent_monocle_span.get_span_context().is_valid and original_span.get_span_context().is_valid and isinstance(original_span, NonRecordingSpan) :
+        # This can happen if we're called in a context where a non-monocle span is active but no monocle span has been set yet.
+        # To preserve the span hierarchy, we treat the current non-monocle span as the parent monocle span and link the new span to it.
+        parent_monocle_span = original_span
     monocle_span_token = attach(set_span_in_context(parent_monocle_span))
     # Use tracer.start_span + manual attach instead of start_as_current_span so
     # every context token is owned by us (avoids OTel's internal context manager

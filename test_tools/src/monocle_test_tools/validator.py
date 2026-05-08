@@ -33,7 +33,7 @@ from monocle_apptrace.instrumentation.common.utils import set_workflow_name
 logger = logging.getLogger(__name__)
 
 class MonocleValidator:
-    _spans:Span = []
+    _spans:tuple[Span] = ()
     memory_exporter:MonocleInMemorySpanExporter = None
     file_exporter:FileSpanExporter = None
     trace_id = None
@@ -86,7 +86,7 @@ class MonocleValidator:
 
     def cleanup(self):
         """Cleanup the validator state for a fresh test run."""
-        self._spans = []
+        self._spans = ()
         if self.memory_exporter is not None:
             self.memory_exporter.clear()
         if self.file_exporter is not None:
@@ -98,6 +98,9 @@ class MonocleValidator:
         if len(self._spans) == 0 and self.memory_exporter is not None:
             self._spans = self.memory_exporter.get_finished_spans()
         return self._spans
+
+    def reload_spans(self, spans:list[Span]):
+        self._spans = self._spans + tuple(spans)
 
     def flush_to_exporters(self, test_name:str, test_failed:bool, test_assertion_message:str = None):
         """Flush the current spans and prepare for validation."""

@@ -37,7 +37,9 @@ logger = logging.getLogger(__name__)
 embedding_model_context = {}
 scope_id_generator = id_generator.RandomIdGenerator()
 http_scopes:dict[str:str] = {}
-monocle_workflow_name: str = None
+monocle_workflow_name: contextvars.ContextVar[Optional[str]] = contextvars.ContextVar(
+    "_monocle_workflow_name", default=None
+)
 
 try:
     monocle_sdk_version = version("monocle_apptrace")
@@ -441,7 +443,7 @@ def get_monocle_version() -> str:
 def add_monocle_trace_state(headers:dict[str:str]) -> None:
     if headers is None:
         return
-    monocle_trace_state = f"{MONOCLE_SDK_VERSION}={get_monocle_version()}"
+    monocle_trace_state = f"{MONOCLE_SDK_VERSION.replace('.', '_')}={get_monocle_version()}"
     if 'tracestate' in headers:
         headers['tracestate'] = f"{headers['tracestate']},{monocle_trace_state}"
     else:

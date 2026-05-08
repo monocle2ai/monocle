@@ -23,11 +23,12 @@ class OkahuSpanLoader:
 
     # Constants
     AGENT_SESSIONS_SCOPE = "agent_sessions"
+    OKAHU_BASE_URL = "https://api.okahu.co"
 
     @staticmethod
     def _get_api_base(endpoint: Optional[str] = None) -> str:
         """Return the Okahu API base URL (no trailing slash)."""
-        return (endpoint or os.environ.get("OKAHU_API_ENDPOINT", '')).rstrip("/")
+        return (endpoint or os.environ.get("OKAHU_API_ENDPOINT", OkahuSpanLoader.OKAHU_BASE_URL)).rstrip("/")
 
     @staticmethod
     def _get_headers(api_key: Optional[str] = None) -> dict:

@@ -2,6 +2,8 @@ from functools import wraps
 import inspect
 import os
 from typing import Optional, Union
+from monocle_apptrace.instrumentation.common.method_wrappers import monocle_trace_method
+from monocle_apptrace.instrumentation.common.utils import get_workflow_name
 from monocle_test_tools.schema import Evaluation
 from monocle_test_tools.span_loader import JSONSpanLoader, OkahuSpanLoader
 from .comparer.comparer_manager import get_comparer
@@ -391,9 +393,9 @@ class TraceAssertion():
 
     def load_spans(self, spans:list[Span]) -> None:
         """Load spans into the validator's memory exporter for assertions."""
-        self.validator.memory_exporter.export(spans)
+        self.validator.reload_spans(spans)
 
-    def import_traces(self, trace_source: str, id: str,
+    def import_traces(self, trace_source: str, id: Optional[str] = None,
                       fact_name: Optional[str] = "trace",
                       scope_name: Optional[str] = None,
                       workflow_name: Optional[str] = None) -> 'TraceAssertion':
@@ -458,11 +460,15 @@ class TraceAssertion():
                 f"Unsupported trace_source: '{trace_source}'. "
                 "Supported sources: 'file', 'okahu'."
             )
+        if not id and trace_source == "okahu":
+            id = self._get_current_trace_id()
         if not id:
             raise ValueError("'id' is required.")
 
         if trace_source == "okahu":
             if workflow_name is None:
+                workflow_name = get_workflow_name()
+            if not workflow_name:
                 raise ValueError("'workflow_name' is required for okahu trace source.")
 
             if fact_name == "session":
@@ -504,9 +510,13 @@ class TraceAssertion():
         self.load_spans(spans)
         # Refresh filtered spans from the newly loaded data
         self._filtered_spans = self.validator.spans
-        # Skip re-exporting imported traces to avoid duplicate trace files
-        self._skip_export = True
         return self
+
+    def _get_current_trace_id(self) -> Optional[str]:
+        """Helper to get the current trace ID from the validator's spans."""
+        if self.validator.spans and len(self.validator.spans) > 0:
+            return format(self.validator.spans[0].get_span_context().trace_id, '032x')
+        return None
 
     def _verify_input_output(self, spans:list[Span], expected_inputs:Optional[list[str]], expected_outputs:Optional[list[str]],
                         comparer:BaseComparer, eval:Optional[Evaluation], positive_test:Optional[bool]=True,

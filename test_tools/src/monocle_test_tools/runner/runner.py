@@ -32,5 +32,8 @@ def get_agent_runner(runner_type: str) -> AgentRunner:
     elif runner_type == AgentTypes.MSAGENT:
         from .msagent_runner import MSAgentRunner
         return MSAgentRunner()
+    elif runner_type == "http":
+        from .http_runner import HttpRunner
+        return HttpRunner()
     else:
         raise ValueError(f"Unknown runner type: {runner_type}")

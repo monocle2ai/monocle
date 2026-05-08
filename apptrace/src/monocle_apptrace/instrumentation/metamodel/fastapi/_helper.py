@@ -11,8 +11,6 @@ import urllib.parse
 
 logger = logging.getLogger(__name__)
 MAX_DATA_LENGTH = 1000
-token_data = local()
-token_data.current_token = None
 
 @with_tracer_wrapper
 async def fastapi_atask_wrapper(tracer, handler, to_wrap, wrapped, instance,
@@ -93,21 +91,18 @@ def extract_status(arguments) -> str:
 def fastapi_pre_tracing(scope):
     headers = {k.decode('utf-8').lower(): v.decode('utf-8')
                for k, v in scope.get('headers', [])}
-    token_data.current_token = extract_http_headers(headers)
+    return extract_http_headers(headers)
 
-def fastapi_post_tracing():
-    clear_http_scopes(token_data.current_token)
-    token_data.current_token = None
+def fastapi_post_tracing(token):
+    clear_http_scopes(token)
 
 class FastAPISpanHandler(HttpSpanHandler):
     def pre_tracing(self, to_wrap, wrapped, instance, args, kwargs):
         scope = args[0] if args else {}
-        fastapi_pre_tracing(scope)
-        return super().pre_tracing(to_wrap, wrapped, instance, args, kwargs)
+        return fastapi_pre_tracing(scope), None
 
     def post_tracing(self, to_wrap, wrapped, instance, args, kwargs, return_value, token):
-        fastapi_post_tracing()
-        return super().post_tracing(to_wrap, wrapped, instance, args, kwargs, return_value, token)
+        fastapi_post_tracing(token)
 
 class FastAPIResponseSpanHandler(SpanHandler):
     # This span is only used to collect the data.input and data.output events and merge with parent span.

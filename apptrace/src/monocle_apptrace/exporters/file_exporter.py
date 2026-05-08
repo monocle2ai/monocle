@@ -48,8 +48,13 @@ class FileSpanExporter(SpanExporterBase):
         self.last_trace_id = None
         self._root_span_seen: set = set()  # traces where root arrived but child hasn't yet
 
+    @staticmethod
+    def _is_root_span(span: ReadableSpan) -> bool:
+        """Return True if the span has no parent (i.e. it is a root span)."""
+        return (not span.parent) or (span.attributes.get("span.type") == "workflow")
+
     def export(self, spans: Sequence[ReadableSpan]) -> SpanExportResult:
-        is_root_span = any(not span.parent for span in spans)
+        is_root_span = any(FileSpanExporter._is_root_span(span) for span in spans)
         if self.task_processor is not None and callable(getattr(self.task_processor, 'queue_task', None)):
             # Check if any span is a root span (no parent)
             self.task_processor.queue_task(
@@ -140,7 +145,7 @@ class FileSpanExporter(SpanExporterBase):
             spans_by_trace[trace_id].append(span)
             
             # Check if this span is a root span
-            if not span.parent:
+            if FileSpanExporter._is_root_span(span):
                 root_span_traces.add(trace_id)
         
         # Process spans for each trace

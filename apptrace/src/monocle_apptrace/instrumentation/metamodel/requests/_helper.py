@@ -1,8 +1,11 @@
 import os
+
+from opentelemetry.context import attach, detach, get_value, set_value
+from opentelemetry.trace.propagation import _SPAN_KEY
 from  monocle_apptrace.instrumentation.metamodel.requests import allowed_urls
 from opentelemetry.propagate import inject
 from monocle_apptrace.instrumentation.common.span_handler import SpanHandler
-from monocle_apptrace.instrumentation.common.utils import add_monocle_trace_state
+from monocle_apptrace.instrumentation.common.utils import _MONOCLE_SPAN_KEY, add_monocle_trace_state
 from urllib.parse import urlparse, ParseResult
 
 
@@ -43,8 +46,10 @@ def request_pre_task_processor(kwargs):
     inject(headers)
     kwargs['headers'] = headers
 
-def request_skip_span(kwargs) -> bool:
+def request_skip_span(kwargs, trace_all_urls: bool) -> bool:
     # add traceparent to the request headers in kwargs
+    if trace_all_urls:
+        return False
     if 'url' in kwargs:
         url:str = kwargs['url']
         for allowed_url in allowed_urls:
@@ -54,9 +59,21 @@ def request_skip_span(kwargs) -> bool:
 
 class RequestSpanHandler(SpanHandler):
 
+    _trace_all_urls:bool = False
+
+    @staticmethod
+    def set_trace_all_urls_for_test(trace_all:bool):
+        RequestSpanHandler._trace_all_urls = trace_all
+
     def pre_task_processing(self, to_wrap, wrapped, instance, args,kwargs, span):
-        request_pre_task_processor(kwargs)
+        token = None
+        try:
+            token = attach(set_value(_SPAN_KEY, get_value(_MONOCLE_SPAN_KEY)))
+            request_pre_task_processor(kwargs)
+        finally:
+            if token is not None:
+                detach(token)
         super().pre_task_processing(to_wrap, wrapped, instance, args,kwargs,span)
 
     def skip_span(self, to_wrap, wrapped, instance, args, kwargs) -> bool:
-        return request_skip_span(kwargs)
+        return request_skip_span(kwargs, RequestSpanHandler._trace_all_urls)

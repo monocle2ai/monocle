@@ -77,7 +77,7 @@ class OkahuSpanExporter(SpanExporterBase):
             return
         
         # Calculate is_root_span by checking if any span has no parent
-        is_root_span = any(not span.parent for span in spans)
+        is_root_span = any(OkahuSpanExporter._is_root_span(span) for span in spans)
 
         def send_spans_to_okahu(span_list_local=None, is_root=False):
             try:
@@ -108,6 +108,11 @@ class OkahuSpanExporter(SpanExporterBase):
             )
             return SpanExportResult.SUCCESS
         return send_spans_to_okahu(span_list, is_root_span)
+
+    @staticmethod
+    def _is_root_span(span: ReadableSpan) -> bool:
+        """Return True if the span has no parent (i.e. it is a root span)."""
+        return (not span.parent) or (span.attributes.get("span.type") == "workflow")
 
     def shutdown(self) -> None:
         if self._closed:

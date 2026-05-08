@@ -174,6 +174,11 @@ def verify_spans(memory_exporter):
             assert "entity.1.inference_endpoint" in span_attributes
             assert span_attributes["entity.2.name"] == "gemini-2.0-flash"
             assert span_attributes["entity.2.type"] == "model.llm.gemini-2.0-flash"
+            
+            # Assertions for span.subtype
+            assert "span.subtype" in span_attributes, "Expected span.subtype attribute to be present"
+            assert span_attributes.get("span.subtype") in ["turn_end", "tool_call"], \
+                f"Unexpected span.subtype value: {span_attributes.get('span.subtype')}"
 
             # Assertions for metadata
             span_input, span_output, span_metadata = span.events

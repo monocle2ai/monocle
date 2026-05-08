@@ -51,10 +51,7 @@ class OkahuSpanLoader:
         except requests.Timeout as exc:
             raise ConnectionError(f"Okahu request timed out ({context_msg}): {exc}") from exc
         except requests.HTTPError as exc:
-            raise ConnectionError(
-                f"Okahu request failed ({context_msg}). "
-                f"HTTP {response.status_code}: {response.text}"
-            ) from exc
+            raise
         except requests.RequestException as exc:
             raise ConnectionError(f"Failed to reach Okahu service ({context_msg}): {exc}") from exc
 
@@ -199,6 +196,9 @@ class OkahuSpanLoader:
         for item in span_data_list:
             span = JSONSpanLoader._from_dict(span_data=item)
             span_list.append(span)
+        # verify that there's a span with span.attributes["span.type"] == "workflow" otherwise raise HttpError 404
+        if not any(span.attributes.get("span.type") == "workflow" for span in span_list):
+            raise requests.HTTPError(f"No workflow span found in trace '{trace_id}' - possible invalid trace ID or trace not fully ingested yet.")
 
         logger.debug("Loaded %d spans from Okahu for trace_id '%s'", len(span_list), trace_id)
         return span_list

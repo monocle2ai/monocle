@@ -9,6 +9,7 @@ from opentelemetry.sdk.trace.export import SpanProcessor, SimpleSpanProcessor
 from opentelemetry.sdk.trace.export import SpanExporter
 from opentelemetry.context import set_value, Context, detach, attach
 import pytest
+import requests
 #from sqlalchemy import func
 from monocle_apptrace.exporters.file_exporter import FileSpanExporter, DEFAULT_TRACE_FOLDER
 from monocle_apptrace.exporters.base_exporter import MonocleInMemorySpanExporter
@@ -18,7 +19,9 @@ import logging
 from monocle_apptrace.exporters.monocle_exporters import get_monocle_exporter
 from monocle_apptrace.instrumentation.common.instrumentor import MonocleInstrumentor, setup_monocle_telemetry, reset_span_processors, get_monocle_instrumentor
 from pydantic import BaseModel, ValidationError
+from monocle_test_tools.file_span_loader import JSONSpanLoader
 from monocle_test_tools.gitutils import get_git_context, get_repo_name
+from monocle_test_tools.okahu_span_loader import OkahuSpanLoader
 from monocle_test_tools.schema import SpanType, TestSpan, TestCase, Evaluation, EvalInputs, MockTool
 from monocle_test_tools.constants import TEST_SCOPE_NAME, DEFAULT_WORKFLOW_NAME, TEST_STATUS_ATTRIBUTE, TEST_ASSERTION_ATTRIBUTE
 from monocle_test_tools.comparer.base_comparer import BaseComparer
@@ -29,8 +32,10 @@ from monocle_apptrace.instrumentation.metamodel.adk.entities.tool import TOOL as
 from monocle_apptrace.instrumentation.metamodel.langgraph.methods import LANGGRAPH_METHODS
 from monocle_apptrace.instrumentation.metamodel.langgraph.entities.inference import TOOLS as LANGGRAPH_TOOL
 from monocle_apptrace.instrumentation.common.constants import MONOCLE_SKIP_EXECUTIONS, MONOCLE_WORKFLOW_NAME_KEY
-from monocle_apptrace.instrumentation.common.utils import set_workflow_name
+from monocle_apptrace.instrumentation.common.utils import set_workflow_name, get_workflow_name
+
 logger = logging.getLogger(__name__)
+RETRY_TIMEOUT_SECONDS = 10
 
 class MonocleValidator:
     _spans:tuple[Span] = ()
@@ -100,7 +105,7 @@ class MonocleValidator:
         return self._spans
 
     def reload_spans(self, spans:list[Span]):
-        self._spans = self._spans + tuple(spans)
+        self._spans = self.spans + tuple(spans)
 
     def flush_to_exporters(self, test_name:str, test_failed:bool, test_assertion_message:str = None):
         """Flush the current spans and prepare for validation."""
@@ -232,20 +237,24 @@ class MonocleValidator:
         self.validate_result(test_case, result)
         return result
 
-    @staticmethod
-    def run_agent(agent, agent_type:str, *args, **kwargs):
+    def run_agent(self, agent, agent_type:str, *args, **kwargs):
         agent_runner = get_agent_runner(agent_type)
         if agent_runner is None:
             raise ValueError(f"Unsupported agent type: {agent_type}")
         result = agent_runner.run_agent(agent, *args, **kwargs)
+        remote_trace_source = agent_runner.get_remote_traces_source()
+        if remote_trace_source:
+            self._fetch_remote_traces(remote_trace_source)
         return result
 
-    @staticmethod
-    async def run_agent_async(agent, agent_type:str, *args, session_id:str=None, **kwargs):
+    async def run_agent_async(self, agent, agent_type:str, *args, session_id:str=None, **kwargs):
         agent_runner = get_agent_runner(agent_type)
         if agent_runner is None:
             raise ValueError(f"Unsupported agent type: {agent_type}")
         result = await agent_runner.run_agent_async(agent, *args, session_id=session_id, **kwargs)
+        remote_trace_source = agent_runner.get_remote_traces_source()
+        if remote_trace_source:
+            self._fetch_remote_traces(remote_trace_source)
         return result
 
     async def test_agent_async(self, agent, agent_type:str, test_case:Union[TestCase, dict], session_id:str=None):
@@ -253,7 +262,7 @@ class MonocleValidator:
             test_case = TestCase.model_validate(test_case)
         result = None
         try:
-            result = await MonocleValidator.run_agent_async(agent, agent_type, *test_case.test_input, session_id=session_id)
+            result = await self.run_agent_async(agent, agent_type, *test_case.test_input, session_id=session_id)
         except Exception as e:
             if not test_case.expect_errors:
                 raise
@@ -265,12 +274,148 @@ class MonocleValidator:
             test_case = TestCase.model_validate(test_case)
         result = None
         try:
-            result = MonocleValidator.run_agent(agent, agent_type, *test_case.test_input)
+            result = self.run_agent(agent, agent_type, *test_case.test_input)
         except Exception as e:
             if not test_case.expect_errors:
                 raise
         self.validate_result(test_case, result)
         return result
+
+    def _fetch_remote_traces(self, trace_source:str):
+        import time
+        if trace_source == "okahu":
+            deadline = time.monotonic() + RETRY_TIMEOUT_SECONDS
+            last_exc = None
+            while time.monotonic() < deadline:
+                try:
+                    self.import_traces(trace_source)
+                    return
+                except requests.HTTPError as e:
+                    last_exc = e
+                    time.sleep(1)
+            if last_exc is not None:
+                raise last_exc
+
+    def import_traces(self, trace_source: str, id: Optional[str] = None,
+                      fact_name: Optional[str] = "trace",
+                      scope_name: Optional[str] = None,
+                      workflow_name: Optional[str] = None) -> None:
+        """Import traces from a source for assertion.
+
+        Loads previously exported trace spans into the asserter's memory
+        so assertions can be run against them without re-running the agent.
+
+        Args:
+            trace_source: Source type — ``"file"`` or ``"okahu"``.
+            id: Identifier whose meaning depends on *fact_name*:
+                - When fact_name is ``"trace"`` → a trace ID (hex string).
+                - When fact_name is ``"session"`` → an agent session ID.
+                - When fact_name is ``"scope"`` → any custom scope ID.
+            fact_name: What *id* represents.
+                ``"trace"`` (default) — *id* is a single trace ID.
+                ``"session"`` — *id* is a session ID (uses agent_sessions).
+                ``"scope"`` — *id* is a custom scope; requires *scope_name*.
+                For ``trace_source="file"`` only ``"trace"`` is supported.
+            scope_name: Name of custom scope/fact (e.g., "test_id", "my_scope").
+                Required when ``fact_name="scope"``. For fact_name="session",
+                defaults to "agent_sessions".
+            workflow_name: Okahu workflow / service name
+                (required when ``trace_source="okahu"``).
+
+        Returns:
+            self for fluent chaining.
+
+        Raises:
+            ValueError: If arguments are invalid or incomplete.
+            FileNotFoundError: If no local trace file is found (file source).
+            ConnectionError: If fetching from Okahu fails (okahu source).
+
+        Examples:
+            # Load by session (agent_sessions scope)
+            asserter.import_traces(
+                trace_source="okahu",
+                id="session_123",
+                fact_name="session",
+                workflow_name="my_app"
+            )
+
+            # Load by custom scope
+            asserter.import_traces(
+                trace_source="okahu",
+                id="test_456",
+                fact_name="scope",
+                scope_name="test_id",
+                workflow_name="my_app"
+            )
+
+            # Load by trace ID
+            asserter.import_traces(
+                trace_source="okahu",
+                id="abc123",
+                fact_name="trace",
+                workflow_name="my_app"
+            )
+        """
+        if trace_source not in ("file", "okahu"):
+            raise ValueError(
+                f"Unsupported trace_source: '{trace_source}'. "
+                "Supported sources: 'file', 'okahu'."
+            )
+        if not id and trace_source == "okahu":
+            id = self._get_current_trace_id()
+        if not id:
+            raise ValueError("'id' is required.")
+
+        if trace_source == "okahu":
+            if workflow_name is None:
+                workflow_name = get_workflow_name()
+            if not workflow_name:
+                raise ValueError("'workflow_name' is required for okahu trace source.")
+
+            if fact_name == "session":
+                # Session-based: use agent_sessions scope
+                spans = OkahuSpanLoader.load_by_scope(
+                    workflow_name=workflow_name,
+                    scope_name=OkahuSpanLoader.AGENT_SESSIONS_SCOPE,
+                    scope_id=id,
+                )
+            elif fact_name == "scope":
+                # Custom scope: requires scope_name
+                if not scope_name:
+                    raise ValueError("'scope_name' is required when fact_name='scope'.")
+                spans = OkahuSpanLoader.load_by_scope(
+                    workflow_name=workflow_name,
+                    scope_name=scope_name,
+                    scope_id=id,
+                )
+            else:
+                # Direct trace_id lookup
+                spans = OkahuSpanLoader.get_spans(
+                    workflow_name=workflow_name,
+                    trace_id=id,
+                )
+        else:
+            # File source — fact_name must be "trace"
+            if fact_name != "trace":
+                raise ValueError(
+                    "Only fact_name='trace' is supported for file trace source."
+                )
+            trace_file = JSONSpanLoader.find_trace_file(id)
+            if trace_file is None:
+                search_dir = os.path.join(".", ".monocle", "test_traces")
+                raise FileNotFoundError(
+                    f"No trace file found for trace_id '{id}' in '{search_dir}'")
+
+            spans = JSONSpanLoader.from_json(trace_file)
+
+        self.reload_spans(spans)
+        return None
+
+    def _get_current_trace_id(self) -> Optional[str]:
+        """Helper to get the current trace ID from the validator's spans."""
+        if self.spans and len(self.spans) > 0:
+            return format(self.spans[0].get_span_context().trace_id, '032x')
+        return None
 
     def _set_wrapper_methods(self, mock_tools: list[MockTool]) -> list[dict]:
         skip_exec: dict[str, dict] = {}

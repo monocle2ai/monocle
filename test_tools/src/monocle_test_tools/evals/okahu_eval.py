@@ -16,7 +16,8 @@ class OkahuEval(BaseEval):
     def __init__(self, **data):
         eval_options = data.get("eval_options")
         super().__init__(eval_options=eval_options)
-        self._trace_exported = False
+        self._trace_source = eval_options.get("trace_source", "")
+        self._trace_exported = self._trace_source == "okahu"  # Only export if using okahu trace source, otherwise assume already exported
         self._current_trace_id = None
         self._fact_map_cache = None
     
@@ -337,7 +338,7 @@ class OkahuEval(BaseEval):
                 "breakdown_filter": fact_name,
                 "trace_id": fact_id,
                 "fact_name": fact_name,
-                "shadow_eval": True
+                "shadow_eval": self._trace_source != "okahu"
             }
             
             logger.debug("Submitting evaluation on fact_id: %s", fact_id)
@@ -393,7 +394,7 @@ class OkahuEval(BaseEval):
                 ) from exc
             
             # Export eval results if okahu exporter is configured
-            if "okahu" in (os.getenv("MONOCLE_EXPORTER", "")):
+            if "okahu" in (os.getenv("MONOCLE_EXPORTER", "")) or self._trace_source == "okahu":
                 with OkahuEvalResultExporter(api_key=api_key, endpoint=base) as result_exporter:
                     result_exporter.export_results(
                         job_id=job_id,
@@ -418,8 +419,9 @@ class OkahuEval(BaseEval):
         base = os.getenv("OKAHU_EVALUATION_ENDPOINT", OKAHU_PROD_EVALUATION_ENDPOINT).rstrip("/")
 
         try:
-            with OkahuEvalResultExporter(api_key=api_key, endpoint=base) as result_exporter:
-                result_exporter.delete_trace(trace_id=trace_id)
+            if self._trace_source != "okahu":
+                with OkahuEvalResultExporter(api_key=api_key, endpoint=base) as result_exporter:
+                    result_exporter.delete_trace(trace_id=trace_id)
         except Exception:
             pass
         finally:

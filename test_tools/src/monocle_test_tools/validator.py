@@ -38,7 +38,6 @@ logger = logging.getLogger(__name__)
 RETRY_TIMEOUT_SECONDS = 10
 
 class MonocleValidator:
-    _spans:tuple[Span] = ()
     memory_exporter:MonocleInMemorySpanExporter = None
     file_exporter:FileSpanExporter = None
     trace_id = None
@@ -60,6 +59,8 @@ class MonocleValidator:
             if exporter_list is not None:
                 raise ValueError("Exporter list can only be set during the first initialization of MonocleValidator.")
             return
+        self._spans:tuple[Span] = ()
+        self._test_all_up_spans:tuple[Span] = ()
         test_trace_path:str = os.path.join(".", DEFAULT_TRACE_FOLDER, "test_traces")
         os.environ["MONOCLE_TRACE_OUTPUT_PATH"] = test_trace_path
         if exporter_list is None:
@@ -91,7 +92,8 @@ class MonocleValidator:
 
     def cleanup(self):
         """Cleanup the validator state for a fresh test run."""
-        self._spans = ()
+        self.clear_spans()
+        self._test_all_up_spans = ()
         if self.memory_exporter is not None:
             self.memory_exporter.clear()
         if self.file_exporter is not None:
@@ -102,9 +104,14 @@ class MonocleValidator:
     def spans(self):
         if len(self._spans) == 0 and self.memory_exporter is not None:
             self._spans = self.memory_exporter.get_finished_spans()
+            self._test_all_up_spans += self._spans
+            self.memory_exporter.clear()
         return self._spans
 
-    def reload_spans(self, spans:list[Span]):
+    def clear_spans(self):
+        self._spans = ()
+
+    def add_remote_spans(self, spans:list[Span]):
         self._spans = self.spans + tuple(spans)
 
     def flush_to_exporters(self, test_name:str, test_failed:bool, test_assertion_message:str = None):
@@ -113,7 +120,7 @@ class MonocleValidator:
             return
         span:Span = None
         for exporter in self.exporters:
-            for span in self.memory_exporter.get_finished_spans():
+            for span in self._test_all_up_spans:
                 if test_failed:
                     span._attributes[TEST_STATUS_ATTRIBUTE] = "failed"
                     if test_assertion_message is not None:
@@ -172,7 +179,6 @@ class MonocleValidator:
             finally:
                 test_failed = validation_failed or (request.session.testsfailed > prior_test_failed_count)
                 self.post_test_cleanup(token, request.node.name, test_failed, validation_error_message)
-                self._spans = []
                 if token is not None:
                     stop_scope(token)
 
@@ -209,6 +215,7 @@ class MonocleValidator:
             workflow_func (callable): The workflow function to test.
             test_case (TestCase): The test case containing input and expected output.
         """
+        self.clear_spans()
         if isinstance(test_case, dict):
             test_case = TestCase.model_validate(test_case)
         result = None
@@ -226,6 +233,7 @@ class MonocleValidator:
             workflow_func (callable): The workflow function to test.
             test_case (TestCase): The test case containing input and expected output.
         """
+        self.clear_spans()
         if isinstance(test_case, dict):
             test_case = TestCase.model_validate(test_case)
         result = None
@@ -238,23 +246,23 @@ class MonocleValidator:
         return result
 
     def run_agent(self, agent, agent_type:str, *args, **kwargs):
+        self.clear_spans()
         agent_runner = get_agent_runner(agent_type)
         if agent_runner is None:
             raise ValueError(f"Unsupported agent type: {agent_type}")
         result = agent_runner.run_agent(agent, *args, **kwargs)
-        remote_trace_source = agent_runner.get_remote_traces_source()
-        if remote_trace_source:
-            self._fetch_remote_traces(remote_trace_source)
+        self._trace_source =  agent_runner.get_remote_traces_source()
+        self._fetch_remote_traces()
         return result
 
     async def run_agent_async(self, agent, agent_type:str, *args, session_id:str=None, **kwargs):
+        self.clear_spans()
         agent_runner = get_agent_runner(agent_type)
         if agent_runner is None:
             raise ValueError(f"Unsupported agent type: {agent_type}")
         result = await agent_runner.run_agent_async(agent, *args, session_id=session_id, **kwargs)
-        remote_trace_source = agent_runner.get_remote_traces_source()
-        if remote_trace_source:
-            self._fetch_remote_traces(remote_trace_source)
+        self._trace_source = agent_runner.get_remote_traces_source()
+        self._fetch_remote_traces()
         return result
 
     async def test_agent_async(self, agent, agent_type:str, test_case:Union[TestCase, dict], session_id:str=None):
@@ -281,20 +289,21 @@ class MonocleValidator:
         self.validate_result(test_case, result)
         return result
 
-    def _fetch_remote_traces(self, trace_source:str):
+    def _fetch_remote_traces(self):
         import time
-        if trace_source == "okahu":
-            deadline = time.monotonic() + RETRY_TIMEOUT_SECONDS
-            last_exc = None
-            while time.monotonic() < deadline:
-                try:
-                    self.import_traces(trace_source)
-                    return
-                except requests.HTTPError as e:
-                    last_exc = e
-                    time.sleep(1)
-            if last_exc is not None:
-                raise last_exc
+        deadline = time.monotonic() + RETRY_TIMEOUT_SECONDS
+        last_exc = None
+        while time.monotonic() < deadline:
+            try:
+                self.import_traces(self._trace_source)
+                return
+            except requests.exceptions.HTTPError | requests.HTTPError as e:
+                time.sleep(1)
+                last_exc = e
+            except ValueError as e:
+                return
+        if last_exc is not None:
+            raise last_exc
 
     def import_traces(self, trace_source: str, id: Optional[str] = None,
                       fact_name: Optional[str] = "trace",
@@ -361,7 +370,7 @@ class MonocleValidator:
                 f"Unsupported trace_source: '{trace_source}'. "
                 "Supported sources: 'file', 'okahu'."
             )
-        if not id and trace_source == "okahu":
+        if not id:
             id = self._get_current_trace_id()
         if not id:
             raise ValueError("'id' is required.")
@@ -408,7 +417,7 @@ class MonocleValidator:
 
             spans = JSONSpanLoader.from_json(trace_file)
 
-        self.reload_spans(spans)
+        self.add_remote_spans(spans)
         return None
 
     def _get_current_trace_id(self) -> Optional[str]:
@@ -488,8 +497,6 @@ class MonocleValidator:
                 assert False, f"Expected request doesn't match"
             elif valid_input and not positive_test:
                 assert False, f"Request matched, but was not expected to be"
-        if eval is not None:
-            self._evaluate_span(agent_request_span, eval, positive_test)
 
     def verify_inference(self, test_span: TestSpan) -> bool:
         """Verify that the inference response matches the expected response or schema.
@@ -549,9 +556,6 @@ class MonocleValidator:
             assert False, f"No inference matched the expected response."
         elif expected_output is not None and verified_response and not positive_test:
             assert False, f"An inference matched the expected response, but was not expected to be."
-
-        if eval is not None and verified_response and verified_response_span is not None:
-            self._evaluate_span(verified_response_span, eval, positive_test)
 
         if max_output_tokens is not None:
             self.check_completion_token_limits(max_output_tokens, positive_test)
@@ -858,8 +862,6 @@ class MonocleValidator:
                     found_output = True
                     candidate_span = span
                 if candidate_span is not None:
-                    if eval is not None:
-                        self._evaluate_span(candidate_span, eval, positive_test)
                     candidate_spans.append(candidate_span)
             if tool_name is not None:
                 self._verify_tool_input_output(tool_name, agent_name, expected_inputs, found_input, expected_outputs, found_output, positive_test)

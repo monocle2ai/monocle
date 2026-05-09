@@ -112,9 +112,11 @@ class TraceAssertion():
         """Run the given async agent with provided args and kwargs."""
         return await self.validator.run_agent_async(agent, agent_type, *args, session_id=session_id, **kwargs)
 
-    def with_evaluation(self, eval:Union[str, BaseEval], eval_options:Optional[dict] = None) -> 'TraceAssertion':
+    def with_evaluation(self, eval:Union[str, BaseEval], eval_options:Optional[dict] = {}) -> 'TraceAssertion':
         """Set the evaluation method for input/output comparisons."""
-        self._eval = get_evaluator(eval, eval_options)
+        updated_eval_options = eval_options.copy() if eval_options else {}
+        updated_eval_options['trace_source'] = self.validator._trace_source
+        self._eval = get_evaluator(eval, updated_eval_options)
         return self
 
     def with_comparer(self, comparer:Union[str, BaseComparer]) -> 'TraceAssertion':
@@ -393,7 +395,7 @@ class TraceAssertion():
 
     def load_spans(self, spans:list[Span]) -> None:
         """Load spans into the validator's memory exporter for assertions."""
-        self.validator.reload_spans(spans)
+        self.validator.add_remote_spans(spans)
 
     def _verify_input_output(self, spans:list[Span], expected_inputs:Optional[list[str]], expected_outputs:Optional[list[str]],
                         comparer:BaseComparer, eval:Optional[Evaluation], positive_test:Optional[bool]=True,

@@ -161,7 +161,7 @@ def map_finish_reason_to_finish_type(finish_reason):
     return map_gemini_finish_reason_to_finish_type(finish_reason)
 
 def agent_inference_type(arguments):
-    """Extract agent inference type from Gemini response, following OpenAI pattern"""
+    """Determine inference span subtype based on finish_reason (tool_call or turn_end)"""
     
     finish_type = map_finish_reason_to_finish_type(extract_finish_reason(arguments))
     if finish_type == "tool_call":

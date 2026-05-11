@@ -105,7 +105,9 @@ def extract_tool_response(result):
         return result.content
     if isinstance(result, str):
         return result
-    if isinstance(result[0], str):
+    if isinstance(result, dict):
+        return str(result)
+    if isinstance(result, list) and isinstance(result[0], str):
         return result[0]
     if isinstance(result, tuple) and len(result) > 1:
         if isinstance(result[1], dict) and 'structured_content' in result[1]:

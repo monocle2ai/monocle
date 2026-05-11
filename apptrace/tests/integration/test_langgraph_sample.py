@@ -119,6 +119,11 @@ def test_langgraph_chat_sample(setup):
             assert "entity.1.name" in span_attributes
             assert span_attributes["entity.1.name"] == "order_coffee"
             assert span_attributes["entity.1.type"] == "tool.langgraph"
+            # verify that the tool input and output are present in the events
+            tool_input_event = span.events[0]
+            tool_output_event = span.events[1]
+            assert tool_input_event.attributes["input"] != ""
+            assert tool_output_event.attributes["response"] != ""
             found_tool = True
         
         if "span.type" in span_attributes and span_attributes["span.type"] == "agentic.turn":

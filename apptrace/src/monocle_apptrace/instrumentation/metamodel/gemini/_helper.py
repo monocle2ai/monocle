@@ -128,6 +128,15 @@ def update_span_from_llm_response(response, instance):
                 meta_dict.update({"thoughts_tokens": token_usage.thoughts_token_count})
     return meta_dict
 
+def _get_first_tool_call(response):
+    """Helper to get the first function call from Gemini response parts"""
+    with suppress(AttributeError, IndexError, TypeError):
+        if hasattr(response,"parts") and len(response.parts)>0:
+            for part in response.parts:
+                if hasattr(part,"function_call") and part.function_call is not None:
+                    return part.function_call
+    return None
+
 def extract_finish_reason(arguments):
     """Extract finish_reason from Gemini response"""
     try:
@@ -140,9 +149,10 @@ def extract_finish_reason(arguments):
         if hasattr(response, 'output_text') and hasattr(response, 'finish_reason'):
             return response.finish_reason
 
-        with suppress(IndexError, AttributeError):
-            if response.parts is not None and response.parts[0].function_call is not None:
-                return "FUNCTION_CALL"
+        # Check for function call first (higher priority than finish_reason)
+        # Use _get_first_tool_call to properly detect function calls
+        if _get_first_tool_call(response) is not None:
+            return "FUNCTION_CALL"
         
         # Handle Gemini response structure
         if (response is not None and 
@@ -168,16 +178,6 @@ def agent_inference_type(arguments):
         return INFERENCE_TOOL_CALL
     
     return INFERENCE_TURN_END
-
-def _get_first_tool_call(response):
-
-    with suppress(AttributeError, IndexError, TypeError):
-        if hasattr(response,"parts") and len(response.parts)>0:
-            for part in response.parts:
-                if hasattr(part,"function_call") and part.function_call is not None:
-                    return part.function_call
-
-    return None
 
 def extract_tool_name(arguments):
     """Extract tool name from Gemini response when function calls are present"""

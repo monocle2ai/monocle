@@ -160,6 +160,7 @@ async def test_invalid_api_key_error_code_in_span(setup):
 def verify_spans(memory_exporter):
     time.sleep(2)
     found_inference = found_agent = found_tool = False
+    inference_span_id = None
     spans = memory_exporter.get_finished_spans()
     for span in spans:
         span_attributes = span.attributes
@@ -179,6 +180,10 @@ def verify_spans(memory_exporter):
             assert "span.subtype" in span_attributes, "Expected span.subtype attribute to be present"
             assert span_attributes.get("span.subtype") in ["turn_end", "tool_call"], \
                 f"Unexpected span.subtype value: {span_attributes.get('span.subtype')}"
+            
+            # Capture inference span ID when it's a tool_call
+            if span_attributes.get("span.subtype") == "tool_call":
+                inference_span_id = format(span.context.span_id, '#018x')
 
             # Assertions for metadata
             span_input, span_output, span_metadata = span.events
@@ -206,6 +211,12 @@ def verify_spans(memory_exporter):
             assert span_attributes["entity.1.type"] == "tool.adk"
             if span_attributes["entity.1.name"] == "get_weather":
                 found_tool = True
+                # Verify that tool span has inference.decision.span.id
+                if inference_span_id:
+                    assert "inference.decision.span.id" in span_attributes, \
+                        "Tool invocation span should have inference.decision.span.id attribute"
+                    assert span_attributes["inference.decision.span.id"] == inference_span_id, \
+                        f"Expected inference.decision.span.id to be {inference_span_id}, got {span_attributes.get('inference.decision.span.id')}"
 
         if 'monocle_apptrace.version' in span_attributes:
             assert "scope.agentic.session" in span_attributes, f"scope.agentic.session not found in span {span.name}"

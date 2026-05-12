@@ -245,22 +245,38 @@ class MonocleValidator:
         self.validate_result(test_case, result)
         return result
 
-    def run_agent(self, agent, agent_type:str, *args, **kwargs):
+    def run_agent(self, agent, agent_type:str, *args, mock_tools:list[MockTool]=[], **kwargs):
         self.clear_spans()
         agent_runner = get_agent_runner(agent_type)
         if agent_runner is None:
             raise ValueError(f"Unsupported agent type: {agent_type}")
-        result = agent_runner.run_agent(agent, *args, **kwargs)
+        mock_tool_token = None
+        try:
+            context = self._set_wrapper_methods(mock_tools)
+            if context is not None:
+                mock_tool_token = attach(context)
+            result = agent_runner.run_agent(agent, *args, **kwargs)
+        finally:
+            if mock_tool_token is not None:
+                detach(mock_tool_token)
         self._trace_source =  agent_runner.get_remote_traces_source()
         self._fetch_remote_traces()
         return result
 
-    async def run_agent_async(self, agent, agent_type:str, *args, session_id:str=None, **kwargs):
+    async def run_agent_async(self, agent, agent_type:str, *args, session_id:str=None, mock_tools:list[MockTool]=[], **kwargs):
         self.clear_spans()
         agent_runner = get_agent_runner(agent_type)
         if agent_runner is None:
             raise ValueError(f"Unsupported agent type: {agent_type}")
-        result = await agent_runner.run_agent_async(agent, *args, session_id=session_id, **kwargs)
+        mock_tool_token = None
+        try:
+            context = self._set_wrapper_methods(mock_tools)
+            if context is not None:
+                mock_tool_token = attach(context)
+            result = await agent_runner.run_agent_async(agent, *args, session_id=session_id, **kwargs)
+        finally:
+            if mock_tool_token is not None:
+                detach(mock_tool_token)
         self._trace_source = agent_runner.get_remote_traces_source()
         self._fetch_remote_traces()
         return result

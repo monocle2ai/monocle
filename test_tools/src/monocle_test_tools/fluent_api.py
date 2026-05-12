@@ -14,6 +14,7 @@ from .evals.eval_manager import get_evaluator
 from .evals.base_eval import BaseEval
 from .validator import MonocleValidator
 from .trace_utils import get_function_signature, get_caller_file_line
+from .schema import MockTool
 from opentelemetry.sdk.trace import Span
 
 def collect_assertions(func):
@@ -66,6 +67,7 @@ class TraceAssertion():
         self.fluent_chain = fluent_chain
         self.is_assertion_failed = is_assertion_failed
         self._skip_export = False
+        self.mock_tools: Optional[list[MockTool]] = []
         
     def record_assertion(self, e:AssertionError, fluent_chain:list[str]) -> None:
         """Record an assertion error with its fluent chain context."""
@@ -106,11 +108,16 @@ class TraceAssertion():
 
     def run_agent(self, agent, agent_type:str, *args, **kwargs) -> any:
         """Run the given agent with provided args and kwargs."""
-        return self.validator.run_agent(agent, agent_type, *args, **kwargs)
+        return self.validator.run_agent(agent, agent_type, *args, mock_tools=self.mock_tools, **kwargs)
 
     async def run_agent_async(self, agent, agent_type:str, *args, session_id:str=None, **kwargs) -> any:
         """Run the given async agent with provided args and kwargs."""
-        return await self.validator.run_agent_async(agent, agent_type, *args, session_id=session_id, **kwargs)
+        return await self.validator.run_agent_async(agent, agent_type, *args, session_id=session_id, mock_tools=self.mock_tools, **kwargs)
+
+    def with_mock_tool(self, mock_tool:MockTool) -> 'TraceAssertion':
+        """Set mock tools to be used during agent execution."""
+        self.mock_tools.append(mock_tool)
+        return self
 
     def with_evaluation(self, eval:Union[str, BaseEval], eval_options:Optional[dict] = {}) -> 'TraceAssertion':
         """Set the evaluation method for input/output comparisons."""

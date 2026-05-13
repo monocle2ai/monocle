@@ -42,9 +42,13 @@ log_format = "%(asctime)s %(levelname)s %(pathname)s:%(lineno)d %(message)s"
 log_date_format = "%Y-%m-%d %H:%M:%S"
 
 pythonpath = [
+  ".",
   "src",
   "tests"
 ]
+
+# Explicitly set the asyncio fixture loop scope to avoid deprecation warning
+asyncio_default_fixture_loop_scope = "function"
 
 # Simple ignore patterns - uncomment lines to ignore specific tests
 # Just uncomment the patterns you want to ignore:

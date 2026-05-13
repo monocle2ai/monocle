@@ -230,7 +230,7 @@ def test_llamaindex_anthropic_finish_reason(setup):
         pytest.skip("llama-index-llms-anthropic not available")
     
     llm = Anthropic(
-        model="claude-3-haiku-20240307",
+        model="claude-haiku-4-5-20251001",
         api_key=ANTHROPIC_API_KEY,
         max_tokens=50
     )
@@ -270,7 +270,7 @@ def test_llamaindex_anthropic_finish_reason_max_tokens(setup):
         pytest.skip("llama-index-llms-anthropic not available")
     
     llm = Anthropic(
-        model="claude-3-haiku-20240307",
+        model="claude-haiku-4-5-20251001",
         api_key=ANTHROPIC_API_KEY,
         max_tokens=10  # Very low limit
     )

@@ -86,10 +86,15 @@ def _install_hooks(agent, settings_file, hooks_template, extra_setup=None):
     for event, groups in template.items():
         already_registered = False
         for group in settings["hooks"].get(event, []):
+            # nested format (Claude Code / Codex style)
             for hook in group.get("hooks", []):
                 if any(m in hook.get("command", "") for m in _HOOK_MARKERS):
                     hook["command"] = new_command
                     already_registered = True
+            # flat format (Copilot CLI style)
+            if any(m in group.get("command", "") for m in _HOOK_MARKERS):
+                group["command"] = new_command
+                already_registered = True
         if not already_registered:
             settings["hooks"].setdefault(event, []).extend(groups)
 
@@ -103,6 +108,8 @@ def hook_dispatch(agent):
         from monocle_apptrace.instrumentation.metamodel.claude_cli.event_handler import main as run
     elif agent == "codex":
         from monocle_apptrace.instrumentation.metamodel.codex_cli.event_handler import main as run
+    elif agent == "copilot":
+        from monocle_apptrace.instrumentation.metamodel.copilot_cli.event_handler import main as run
     else:
         print("Unknown agent: {}".format(agent), file=sys.stderr)
         return 1
@@ -117,6 +124,8 @@ def main(argv=None):
         return hook_dispatch("claude")
     if argv and argv[0] == "codex-hook":
         return hook_dispatch("codex")
+    if argv and argv[0] == "copilot-hook":
+        return hook_dispatch("copilot")
 
     if not argv:
         print("monocle-apptrace {}".format(_package_version()))
@@ -126,8 +135,9 @@ def main(argv=None):
     parser.add_argument("--version", action="version",
                         version="monocle-apptrace {}".format(_package_version()))
     sub = parser.add_subparsers(dest="command", required=True, metavar="<command>")
-    sub.add_parser("claude-setup", help="Register Monocle hooks for Claude Code")
-    sub.add_parser("codex-setup",  help="Register Monocle hooks for Codex CLI")
+    sub.add_parser("claude-setup",  help="Register Monocle hooks for Claude Code")
+    sub.add_parser("codex-setup",   help="Register Monocle hooks for Codex CLI")
+    sub.add_parser("copilot-setup", help="Register Monocle hooks for GitHub Copilot CLI")
 
     args = parser.parse_args(argv)
     if args.command == "claude-setup":
@@ -139,6 +149,10 @@ def main(argv=None):
                      Path.home() / ".codex" / "hooks.json",
                      _METAMODEL_DIR / "codex_cli" / "hooks.json",
                      _enable_codex_hooks_flag)
+    if args.command == "copilot-setup":
+        return setup("copilot", "GitHub Copilot CLI",
+                     Path.home() / ".copilot" / "hooks" / "monocle.json",
+                     _METAMODEL_DIR / "copilot_cli" / "hooks.json")
     return 1
 
 

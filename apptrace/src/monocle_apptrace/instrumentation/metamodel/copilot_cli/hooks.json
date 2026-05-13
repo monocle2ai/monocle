@@ -1,0 +1,18 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "type": "command",
+        "command": "monocle-apptrace copilot-hook",
+        "statusMessage": "Monocle telemetry"
+      }
+    ],
+    "Stop": [
+      {
+        "type": "command",
+        "command": "monocle-apptrace copilot-hook",
+        "statusMessage": "Monocle telemetry"
+      }
+    ]
+  }
+}

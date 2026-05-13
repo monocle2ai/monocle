@@ -1,6 +1,6 @@
 # Monocle Hook Setup Guide
 
-This guide covers setting up Monocle tracing for Claude Code and Codex CLI.
+This guide covers setting up Monocle tracing for Claude Code, Codex CLI, and GitHub Copilot CLI.
 
 ## Setup
 
@@ -25,7 +25,12 @@ monocle-apptrace claude-setup
 monocle-apptrace codex-setup
 ```
 
-Both commands prompt for your Okahu API key and save it to `~/.monocle/.env`. Leave blank to export to a local file only.
+**GitHub Copilot CLI:**
+```bash
+monocle-apptrace copilot-setup
+```
+
+All commands prompt for your Okahu API key and save it to `~/.monocle/.env`. Leave blank to export to a local file only.
 
 **Optional overrides** — add to `~/.zshrc` or `~/.bashrc` if you need them:
 
@@ -44,7 +49,7 @@ Start a new session — traces flow automatically.
 Agent session event fires
            │
            ▼
-monocle-apptrace {claude,codex}-hook
+monocle-apptrace {claude,codex,copilot}-hook
            │  (reads event JSON from stdin)
            ▼
 Event Handler — records event to per-session JSONL log
@@ -63,6 +68,9 @@ Exporters — Okahu / file / console
 `PreCompact`, `PostCompact`, `SessionEnd`
 
 **Codex hooks:** `SessionStart`, `SessionStop`
+
+**Copilot CLI hooks:** `SessionStart`, `Stop`
+Reads native `~/.copilot/session-state/<session_id>/events.jsonl` on Stop — no per-event collection needed.
 
 **Spans emitted per turn:**
 - `agentic.turn` — the full user turn (prompt → response)

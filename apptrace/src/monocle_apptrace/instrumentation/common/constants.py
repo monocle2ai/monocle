@@ -128,6 +128,7 @@ AGENT_SESSION = "agentic.session"
 AGENT_EXECUTION_ID = "agentic.executionId"
 CODEX_TURN_SCOPE = "codex.turn"
 CODEX_INVOCATION_SCOPE = "codex.invocation"
+COPILOT_TURN_SCOPE = "copilot.turn"
 LAST_INFERENCE = "last.inference"
 INFERENCE_DECISION = "inference.decision.span.id"
 

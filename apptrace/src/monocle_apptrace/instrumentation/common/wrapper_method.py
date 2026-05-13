@@ -52,6 +52,8 @@ from monocle_apptrace.instrumentation.metamodel.agentcore.methods import AGENTCO
 from monocle_apptrace.instrumentation.metamodel.claude_cli.methods import CLAUDE_CLI_PROXY_METHODS
 from monocle_apptrace.instrumentation.metamodel.codex_cli.codex_span_handler import CodexSpanHandler
 from monocle_apptrace.instrumentation.metamodel.codex_cli.methods import CODEX_CLI_PROXY_METHODS
+from monocle_apptrace.instrumentation.metamodel.copilot_cli.copilot_span_handler import CopilotSpanHandler
+from monocle_apptrace.instrumentation.metamodel.copilot_cli.methods import COPILOT_CLI_PROXY_METHODS
 
 class WrapperMethod:
     def __init__(
@@ -131,7 +133,8 @@ DEFAULT_METHODS_LIST = (
     STRAND_METHODS +
     AGENTCORE_METHODS +
     CLAUDE_CLI_PROXY_METHODS +
-    CODEX_CLI_PROXY_METHODS
+    CODEX_CLI_PROXY_METHODS +
+    COPILOT_CLI_PROXY_METHODS
 )
 
 MONOCLE_SPAN_HANDLERS: Dict[str, SpanHandler] = {
@@ -166,5 +169,6 @@ MONOCLE_SPAN_HANDLERS: Dict[str, SpanHandler] = {
     "adk_handler": AdkSpanHandler(),
     "strands_handler": StrandsSpanHandler(),
     "claude_handler": ClaudeSpanHandler(),
-    "codex_handler": CodexSpanHandler()
+    "codex_handler": CodexSpanHandler(),
+    "copilot_handler": CopilotSpanHandler()
 }

@@ -50,8 +50,7 @@ INFERENCE = {
                 "_comment": "provider type ,name , deployment , inference_endpoint",
                 "attribute": "type",
                 "accessor": lambda arguments: "inference."
-                + (_helper.get_inference_type(arguments["instance"]))
-                or "openai",
+                + (_helper.get_inference_type(arguments["instance"]) or "openai"),
             },
             {
                 "attribute": "provider_name",
@@ -93,10 +92,10 @@ INFERENCE = {
             {
                 "attribute": "type",
                 "accessor": lambda arguments: "model.llm."
-                + resolve_from_alias(
+                + (resolve_from_alias(
                     arguments["kwargs"],
                     ["model", "model_name", "endpoint_name", "deployment_name"],
-                ),
+                ) or "generic"),
             },
         ],
         [

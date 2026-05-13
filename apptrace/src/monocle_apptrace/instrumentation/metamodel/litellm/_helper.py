@@ -42,28 +42,42 @@ def extract_assistant_message(arguments):
             response = arguments["result"]
             if (response is not None and hasattr(response, "choices") and len(response.choices) > 0):
                 if hasattr(response.choices[0], "message"):
-                    role = (
-                        response.choices[0].message.role
-                        if hasattr(response.choices[0].message, "role")
-                        else "assistant"
-                    )
-                    messages.append({role: response.choices[0].message.content})
+                    message = response.choices[0].message
+                    role = message.role if hasattr(message, "role") else "assistant"
+                    content = getattr(message, "content", None)
+                    tool_calls = getattr(message, "tool_calls", None)
+                    if content is None and tool_calls:
+                        tool_payload = []
+                        for tc in tool_calls:
+                            try:
+                                tool_payload.append({
+                                    "tool_name": tc.function.name,
+                                    "tool_arguments": tc.function.arguments,
+                                })
+                            except (AttributeError, TypeError):
+                                continue
+                        messages.append({role: tool_payload})
+                    else:
+                        messages.append({role: content if content is not None else ""})
             return get_json_dumps(messages[0]) if messages else ""
         else:
             if arguments["exception"] is not None:
                 return get_exception_message(arguments)
             elif hasattr(arguments["result"], "error"):
-                return arguments["result"].error
+                return str(arguments["result"].error)
+            return ""
 
     except (IndexError, AttributeError) as e:
         logger.warning(
             "Warning: Error occurred in extract_assistant_message: %s", str(e)
         )
-        return None
+        return ""
 
 def extract_provider_name(url):
     """Extract host from a URL string (e.g., https://api.openai.com/v1/ -> api.openai.com)"""
     if not url:
+        return None
+    if not isinstance(url, str):
         return None
     return url.split("//")[-1].split("/")[0]
 
@@ -89,7 +103,7 @@ def update_span_from_llm_response(response):
         if token_usage is not None:
             meta_dict.update({"completion_tokens": getattr(token_usage, "completion_tokens", None) or getattr(token_usage, "output_tokens", None)})
             meta_dict.update({"prompt_tokens": getattr(token_usage, "prompt_tokens", None) or getattr(token_usage, "input_tokens", None)})
-            meta_dict.update({"total_tokens": getattr(token_usage, "total_tokens")})
+            meta_dict.update({"total_tokens": getattr(token_usage, "total_tokens", None)})
     return meta_dict
 
 def agent_inference_type(arguments):
@@ -105,8 +119,8 @@ def extract_finish_reason(arguments):
     """Extract finish_reason from LiteLLM response"""
     try:
         if arguments.get("exception") is not None:
-            return "error"
-            
+            return None
+
         response = arguments.get("result")
         
         # Handle LiteLLM response structure (similar to OpenAI)

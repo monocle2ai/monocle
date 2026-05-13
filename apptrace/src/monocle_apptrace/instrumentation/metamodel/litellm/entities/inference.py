@@ -30,7 +30,7 @@ INFERENCE = {
             {
                 "attribute": "deployment",
                 "accessor": lambda arguments: resolve_from_alias(
-                    arguments["kwargs"].__dict__,
+                    arguments["kwargs"],
                     [
                         "engine",
                         "azure_deployment",
@@ -60,10 +60,10 @@ INFERENCE = {
             {
                 "attribute": "type",
                 "accessor": lambda arguments: "model.llm."
-                + resolve_from_alias(
+                + (resolve_from_alias(
                     arguments["kwargs"],
                     ["model", "model_name", "endpoint_name", "deployment_name"],
-                ),
+                ) or "generic"),
             },
         ],
         [

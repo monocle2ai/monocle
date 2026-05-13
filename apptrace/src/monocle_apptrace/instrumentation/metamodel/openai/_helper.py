@@ -118,10 +118,10 @@ def extract_messages(kwargs):
                     try:
                         tool_call_messages = []
                         for tool_call in msg['tool_calls']:
-                            tool_call_messages.append(get_json_dumps({
+                            tool_call_messages.append({
                                 "tool_function": tool_call.function.name,
                                 "tool_arguments": tool_call.function.arguments,
-                            }))
+                            })
                         messages.append({msg['role']: tool_call_messages})
                     except Exception as e:
                         logger.warning("Warning: Error occurred while processing tool calls: %s", str(e))
@@ -141,27 +141,29 @@ def extract_assistant_message(arguments):
             if hasattr(response, "tools") and isinstance(response.tools, list) and len(response.tools) > 0 and isinstance(response.tools[0], dict):
                 tools = []
                 for tool in response.tools:
-                    tools.append({
-                        "tool_id": tool.get("id", ""),
-                        "tool_name": tool.get("name", ""),
-                        "tool_arguments": tool.get("arguments", "")
-                    })
-                messages.append({"tools": tools})
+                    if isinstance(tool, dict):
+                        tools.append({
+                            "tool_id": tool.get("id", ""),
+                            "tool_name": tool.get("name", ""),
+                            "tool_arguments": tool.get("arguments", "")
+                        })
+                if tools:
+                    messages.append({"tools": tools})
             if hasattr(response, "output") and isinstance(response.output, list) and len(response.output) > 0:
                 response_messages = []
                 role = "assistant"
                 for response_message in response.output:
-                    if(response_message.type == "function_call"):
+                    if getattr(response_message, "type", None) == "function_call":
                         role = "tools"
                         response_messages.append({
-                            "tool_id": response_message.call_id,
-                            "tool_name": response_message.name,
-                            "tool_arguments": response_message.arguments
+                            "tool_id": getattr(response_message, "call_id", ""),
+                            "tool_name": getattr(response_message, "name", ""),
+                            "tool_arguments": getattr(response_message, "arguments", "")
                         })
                 if len(response_messages) > 0:
                     messages.append({role: response_messages})
-                    
-            if hasattr(response, "output_text") and len(response.output_text):
+
+            if hasattr(response, "output_text") and response.output_text:
                 role = response.role if hasattr(response, "role") else "assistant"
                 messages.append({role: response.output_text})
             if (
@@ -170,46 +172,69 @@ def extract_assistant_message(arguments):
                 and len(response.choices) > 0
             ):
                 if hasattr(response.choices[0], "message"):
-                    role = (
-                        response.choices[0].message.role
-                        if hasattr(response.choices[0].message, "role")
-                        else "assistant"
-                    )
-                    messages.append({role: response.choices[0].message.content})
-            return get_json_dumps(messages[0]) if messages else ""
+                    message = response.choices[0].message
+                    role = message.role if hasattr(message, "role") else "assistant"
+                    content = getattr(message, "content", None)
+                    tool_calls = getattr(message, "tool_calls", None)
+                    if content is None and tool_calls:
+                        tool_payload = []
+                        for tc in tool_calls:
+                            try:
+                                tool_payload.append({
+                                    "tool_name": tc.function.name,
+                                    "tool_arguments": tc.function.arguments,
+                                })
+                            except (AttributeError, TypeError):
+                                continue
+                        messages.append({role: tool_payload})
+                    else:
+                        messages.append({role: content if content is not None else ""})
+            if not messages:
+                return ""
+            merged = {}
+            for msg in messages:
+                merged.update(msg)
+            return get_json_dumps(merged)
         else:
             if arguments["exception"] is not None:
                 return get_exception_message(arguments)
             elif hasattr(arguments["result"], "error"):
-                return arguments["result"].error
+                return str(arguments["result"].error)
+            return ""
 
     except (IndexError, AttributeError) as e:
         logger.warning(
             "Warning: Error occurred in extract_assistant_message: %s", str(e)
         )
-        return None
+        return ""
 
 
 def extract_provider_name(instance):
     # Try to get host from base_url if it's a parsed object
-    provider_url: Option[str] = try_option(getattr, instance._client.base_url, 'host')
-    if provider_url.unwrap_or(None) is not None:
-        return provider_url.unwrap_or(None)
+    try:
+        provider_url: Option[str] = try_option(getattr, instance._client.base_url, 'host')
+        if provider_url.unwrap_or(None) is not None:
+            return provider_url.unwrap_or(None)
 
-    # If base_url is just a string (e.g., "https://api.deepseek.com")
-    base_url = getattr(instance._client, "base_url", None)
-    if isinstance(base_url, str):
-        parsed = urlparse(base_url)
-        if parsed.hostname:
-            return parsed.hostname
+        # If base_url is just a string (e.g., "https://api.deepseek.com")
+        base_url = getattr(instance._client, "base_url", None)
+        if isinstance(base_url, str):
+            parsed = urlparse(base_url)
+            if parsed.hostname:
+                return parsed.hostname
+    except AttributeError:
+        pass
 
-    return None
+    return ""
 
 
 def extract_inference_endpoint(instance):
     inference_endpoint: Option[str] = try_option(getattr, instance._client, 'base_url').map(str)
-    if inference_endpoint.is_none() and "meta" in instance.client.__dict__:
-        inference_endpoint = try_option(getattr, instance.client.meta, 'endpoint_url').map(str)
+    if inference_endpoint.is_none():
+        client = getattr(instance, "client", None)
+        client_dict = getattr(client, "__dict__", None) if client is not None else None
+        if isinstance(client_dict, dict) and "meta" in client_dict:
+            inference_endpoint = try_option(getattr, instance.client.meta, 'endpoint_url').map(str)
 
     return inference_endpoint.unwrap_or(extract_provider_name(instance))
 
@@ -224,8 +249,11 @@ def resolve_from_alias(my_map, alias):
 
 def update_input_span_events(kwargs):
     if 'input' in kwargs and isinstance(kwargs['input'], list):
-        query = ' '.join(kwargs['input'])
-        return query
+        try:
+            return ' '.join(str(item) for item in kwargs['input'])
+        except Exception as e:
+            logger.warning("Warning: Error occurred in update_input_span_events: %s", str(e))
+            return ""
 
 
 def update_output_span_events(results):
@@ -240,16 +268,21 @@ def update_output_span_events(results):
 
 def update_span_from_llm_response(response):
     meta_dict = {}
-    if response is not None and hasattr(response, "usage"):
-        if hasattr(response, "usage") and response.usage is not None:
-            token_usage = response.usage
-        else:
-            response_metadata = response.response_metadata
+    if response is None:
+        return meta_dict
+    token_usage = None
+    if hasattr(response, "usage") and response.usage is not None:
+        token_usage = response.usage
+    elif hasattr(response, "response_metadata"):
+        response_metadata = response.response_metadata
+        if isinstance(response_metadata, dict):
             token_usage = response_metadata.get("token_usage")
-        if token_usage is not None:
-            meta_dict.update({"completion_tokens": getattr(token_usage,"completion_tokens",None) or getattr(token_usage,"output_tokens",None)})
-            meta_dict.update({"prompt_tokens": getattr(token_usage, "prompt_tokens", None) or getattr(token_usage, "input_tokens", None)})
-            meta_dict.update({"total_tokens": getattr(token_usage,"total_tokens", None)})
+        else:
+            token_usage = getattr(response_metadata, "token_usage", None)
+    if token_usage is not None:
+        meta_dict.update({"completion_tokens": getattr(token_usage,"completion_tokens",None) or getattr(token_usage,"output_tokens",None)})
+        meta_dict.update({"prompt_tokens": getattr(token_usage, "prompt_tokens", None) or getattr(token_usage, "input_tokens", None)})
+        meta_dict.update({"total_tokens": getattr(token_usage,"total_tokens", None)})
     return meta_dict
 
 def extract_vector_input(vector_input: dict):
@@ -310,8 +343,13 @@ def map_finish_reason_to_finish_type(finish_reason):
 
 def agent_inference_type(arguments):
     """Extract agent inference type from OpenAI response"""
-    message = json.loads(extract_assistant_message(arguments))
-    # message["tools"][0]["tool_name"]
+    try:
+        raw = extract_assistant_message(arguments)
+        if not raw:
+            return INFERENCE_TURN_END
+        message = json.loads(raw)
+    except (json.JSONDecodeError, TypeError, ValueError):
+        return INFERENCE_TURN_END
     if message and message.get("tools") and isinstance(message["tools"], list) and len(message["tools"]) > 0:
         agent_prefix = get_value(AGENT_PREFIX_KEY)
         tool_name = message["tools"][0].get("tool_name", "")

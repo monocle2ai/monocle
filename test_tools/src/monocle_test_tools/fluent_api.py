@@ -182,7 +182,7 @@ class TraceAssertion():
             pass
         elif source in ("file", "okahu"):
             # Delegate to import_traces() for file and okahu sources
-            self.import_traces(trace_source=source, **kwargs)
+            self.validator.import_traces(trace_source=source, **kwargs)
         else:
             raise ValueError(
                 f"Unsupported trace source: '{source}'. "

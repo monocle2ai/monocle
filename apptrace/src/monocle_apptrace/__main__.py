@@ -1,13 +1,14 @@
 import sys, os
 import runpy
 from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
+from monocle_apptrace.instrumentation.common.constants import WORKFLOW_NAME_ENV
 
 def main():
     if len(sys.argv) < 2 or not sys.argv[1].endswith(".py"):
         print("Usage: python -m monocle_apptrace <your-main-module-file> <args>")
         sys.exit(1)
     file_name = os.path.basename(sys.argv[1])
-    workflow_name = file_name[:-3]
+    workflow_name = os.getenv(WORKFLOW_NAME_ENV, file_name[:-3])
     setup_monocle_telemetry(workflow_name=workflow_name)
     sys.argv.pop(0)
 

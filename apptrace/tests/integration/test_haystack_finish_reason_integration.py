@@ -335,10 +335,17 @@ def test_haystack_openai_finish_reason_tool_use_with_entity_3_validation(setup):
     found_entity3 = False
     inference_span = find_inference_span_with_tool_call(spans)
     if inference_span:
+        # Verify span.subtype is tool_call
+        span_subtype = inference_span.attributes.get("span.subtype")
+        assert span_subtype == "tool_call", (
+            f"Expected span.subtype='tool_call', got '{span_subtype}'"
+        )
+        
         # Validate entity.3 attributes (tool information)
         entity_3_name = inference_span.attributes.get("entity.3.name")
         entity_3_type = inference_span.attributes.get("entity.3.type")
 
+        logger.info(f"span.subtype: {span_subtype}")
         logger.info(f"entity.3.name: {entity_3_name}")
         logger.info(f"entity.3.type: {entity_3_type}")
 
@@ -478,9 +485,16 @@ def test_haystack_anthropic_finish_reason_tool_use_with_entity_3_validation(setu
     # Note: This may not be implemented yet for Haystack Anthropic
     inference_span = find_inference_span_with_tool_call(spans)
     if inference_span:
+        # Verify span.subtype is tool_call
+        span_subtype = inference_span.attributes.get("span.subtype")
+        assert span_subtype == "tool_call", (
+            f"Expected span.subtype='tool_call', got '{span_subtype}'"
+        )
+        
         entity_3_name = inference_span.attributes.get("entity.3.name")
         entity_3_type = inference_span.attributes.get("entity.3.type")
 
+        logger.info(f"span.subtype: {span_subtype}")
         logger.info(f"entity.3.name: {entity_3_name}")
         logger.info(f"entity.3.type: {entity_3_type}")
 
@@ -491,6 +505,236 @@ def test_haystack_anthropic_finish_reason_tool_use_with_entity_3_validation(setu
         else:
             # Tool information not captured in entity attributes - log for future enhancement
             logger.warning("entity.3 attributes not captured for Haystack Anthropic tool calls (instrumentation limitation)")
+
+
+# ---------------------------------------------------------------------------
+# span.subtype tests
+# ---------------------------------------------------------------------------
+
+@pytest.mark.skipif(
+    not OPENAI_API_KEY,
+    reason="OPENAI_API_KEY not set"
+)
+def test_haystack_openai_subtype_tool_call(setup):
+    """Inference span gets span.subtype='tool_call' when LLM calls a tool via Haystack OpenAI."""
+    from haystack.components.generators import OpenAIGenerator
+
+    tool_definition = {
+        "type": "function",
+        "function": {
+            "name": "get_weather",
+            "description": "Get the current weather for a city",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "city": {"type": "string", "description": "The city name"}
+                },
+                "required": ["city"]
+            }
+        }
+    }
+
+    generator = OpenAIGenerator(
+        api_key=Secret.from_token(OPENAI_API_KEY),
+        model="gpt-3.5-turbo",
+        generation_kwargs={
+            'max_tokens': 100,
+            'temperature': 0.0,
+            'tools': [tool_definition],
+            'tool_choice': 'auto'
+        }
+    )
+    generator.run("What's the weather like in Paris?")
+
+    spans = setup.get_captured_spans()
+    assert spans, "No spans were exported"
+
+    # Find inference spans
+    inference_spans = [
+        s for s in spans
+        if s.attributes.get("span.type") in ("inference.framework", "inference")
+    ]
+    assert inference_spans, "No inference spans captured"
+
+    # Check for tool_call subtype
+    tool_call_spans = [
+        s for s in inference_spans
+        if s.attributes.get("span.subtype") == "tool_call"
+    ]
+    assert tool_call_spans, (
+        f"Expected at least one inference span with span.subtype='tool_call'. "
+        f"Got subtypes: {[s.attributes.get('span.subtype') for s in inference_spans]}"
+    )
+
+    span = tool_call_spans[0]
+    assert span.attributes.get("entity.3.name") == "get_weather", (
+        f"Expected entity.3.name='get_weather', got '{span.attributes.get('entity.3.name')}'"
+    )
+    assert span.attributes.get("entity.3.type") == "tool.function", (
+        f"Expected entity.3.type='tool.function', got '{span.attributes.get('entity.3.type')}'"
+    )
+    logger.info("✓ Haystack OpenAI: span.subtype='tool_call' and entity.3 verified")
+
+
+@pytest.mark.skipif(
+    not OPENAI_API_KEY,
+    reason="OPENAI_API_KEY not set"
+)
+def test_haystack_openai_subtype_turn_end(setup):
+    """Inference span gets span.subtype='turn_end' for a normal Haystack OpenAI response."""
+    from haystack.components.generators import OpenAIGenerator
+
+    generator = OpenAIGenerator(
+        api_key=Secret.from_token(OPENAI_API_KEY),
+        model="gpt-3.5-turbo",
+        generation_kwargs={'max_tokens': 10, 'temperature': 0.0}
+    )
+    generator.run("Say hello in one word.")
+
+    spans = setup.get_captured_spans()
+    assert spans, "No spans were exported"
+
+    # Find inference spans
+    inference_spans = [
+        s for s in spans
+        if s.attributes.get("span.type") in ("inference.framework", "inference")
+    ]
+    assert inference_spans, "No inference spans captured"
+
+    span = inference_spans[-1]
+    assert "span.subtype" in span.attributes, "span.subtype attribute must be present"
+    assert span.attributes.get("span.subtype") == "turn_end", (
+        f"Expected span.subtype='turn_end', got '{span.attributes.get('span.subtype')}'"
+    )
+    logger.info("✓ Haystack OpenAI: span.subtype='turn_end' verified")
+
+
+@pytest.mark.skipif(
+    not OPENAI_API_KEY,
+    reason="OPENAI_API_KEY not set"
+)
+def test_haystack_openai_entity3_absent_on_turn_end(setup):
+    """entity.3.name should not be set on a non-tool-call inference span."""
+    from haystack.components.generators import OpenAIGenerator
+
+    generator = OpenAIGenerator(
+        api_key=Secret.from_token(OPENAI_API_KEY),
+        model="gpt-3.5-turbo",
+        generation_kwargs={'max_tokens': 20, 'temperature': 0.0}
+    )
+    generator.run("What is 2 + 2?")
+
+    spans = setup.get_captured_spans()
+    assert spans, "No spans were exported"
+
+    # Find inference spans with turn_end subtype
+    turn_end_spans = [
+        s for s in spans
+        if s.attributes.get("span.type") in ("inference.framework", "inference")
+        and s.attributes.get("span.subtype") == "turn_end"
+    ]
+    assert turn_end_spans, "Expected a turn_end span"
+    assert turn_end_spans[0].attributes.get("entity.3.name") is None, (
+        "entity.3.name should not be set when there is no tool call"
+    )
+    logger.info("✓ entity.3.name correctly absent on turn_end inference span")
+
+
+@pytest.mark.skipif(
+    not ANTHROPIC_API_KEY,
+    reason="ANTHROPIC_API_KEY not set"
+)
+def test_haystack_anthropic_subtype_tool_call(setup):
+    """Inference span gets span.subtype='tool_call' when LLM calls a tool via Haystack Anthropic."""
+    try:
+        from haystack.tools import Tool
+        from haystack_integrations.components.generators.anthropic import AnthropicChatGenerator
+    except ImportError:
+        pytest.skip("haystack-ai[anthropic] not available")
+
+    def get_weather(city: str) -> str:
+        """Get current weather for a city."""
+        return f"Sunny, 25°C in {city}"
+
+    weather_tool = Tool(
+        name="get_weather",
+        description="Get the current weather for a city",
+        parameters={
+            "type": "object",
+            "properties": {"city": {"type": "string", "description": "The city name"}},
+            "required": ["city"]
+        },
+        function=get_weather
+    )
+
+    generator = AnthropicChatGenerator(
+        model=ANTHROPIC_MODEL,
+        generation_kwargs={'max_tokens': 100, 'temperature': 0.0}
+    )
+    messages = [
+        ChatMessage.from_system("You are a helpful assistant with weather tools."),
+        ChatMessage.from_user("What's the weather in Paris?")
+    ]
+    generator.run(messages=messages, tools=[weather_tool])
+
+    spans = setup.get_captured_spans()
+    assert spans, "No spans were exported"
+
+    inference_spans = [
+        s for s in spans
+        if s.attributes.get("span.type") in ("inference.framework", "inference")
+    ]
+    assert inference_spans, "No inference spans captured"
+
+    tool_call_spans = [
+        s for s in inference_spans
+        if s.attributes.get("span.subtype") == "tool_call"
+    ]
+    assert tool_call_spans, (
+        f"Expected at least one inference span with span.subtype='tool_call'. "
+        f"Got subtypes: {[s.attributes.get('span.subtype') for s in inference_spans]}"
+    )
+
+    span = tool_call_spans[0]
+    assert span.attributes.get("entity.3.name") == "get_weather", (
+        f"Expected entity.3.name='get_weather', got '{span.attributes.get('entity.3.name')}'"
+    )
+    logger.info("✓ Haystack Anthropic: span.subtype='tool_call' and entity.3.name verified")
+
+
+@pytest.mark.skipif(
+    not ANTHROPIC_API_KEY,
+    reason="ANTHROPIC_API_KEY not set"
+)
+def test_haystack_anthropic_subtype_turn_end(setup):
+    """Inference span gets span.subtype='turn_end' for a normal Haystack Anthropic response."""
+    try:
+        from haystack_integrations.components.generators.anthropic import AnthropicChatGenerator
+    except ImportError:
+        pytest.skip("haystack-ai[anthropic] not available")
+
+    generator = AnthropicChatGenerator(
+        model=ANTHROPIC_MODEL,
+        generation_kwargs={'max_tokens': 20, 'temperature': 0.0}
+    )
+    messages = [ChatMessage.from_user("Say hello in one word.")]
+    generator.run(messages=messages)
+
+    spans = setup.get_captured_spans()
+    assert spans, "No spans were exported"
+
+    inference_spans = [
+        s for s in spans
+        if s.attributes.get("span.type") in ("inference.framework", "inference")
+    ]
+    assert inference_spans, "No inference spans captured"
+
+    span = inference_spans[-1]
+    assert "span.subtype" in span.attributes, "span.subtype attribute must be present"
+    assert span.attributes.get("span.subtype") == "turn_end", (
+        f"Expected span.subtype='turn_end', got '{span.attributes.get('span.subtype')}'"
+    )
+    logger.info("✓ Haystack Anthropic: span.subtype='turn_end' verified")
 
 
 if __name__ == "__main__":

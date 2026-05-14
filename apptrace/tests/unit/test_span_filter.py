@@ -10,7 +10,7 @@ from opentelemetry.trace import SpanContext, TraceFlags
 from opentelemetry.sdk.resources import Resource
 
 from monocle_apptrace.exporters.span_filter import SpanFilter, FilteredSpanExporter
-from tests.common.span_filter_test_exporter import SpanFilterTestExporter
+from common.span_filter_test_exporter import SpanFilterTestExporter
 
 
 class TestSpanFilter:

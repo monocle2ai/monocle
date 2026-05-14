@@ -33,23 +33,20 @@ def setup():
         if instrumentor and instrumentor.is_instrumented_by_opentelemetry:
             instrumentor.uninstrument()
 
-# class GeminiEmbeddingFunction(embedding_functions.EmbeddingFunction):
-#     def __call__(self, input):
-#         client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
-#         response = client.models.embed_content(
-#             model=EMBEDDING_MODEL_ID,
-#             contents=input,
-#             config=types.EmbedContentConfig(
-#                 task_type="retrieval_document",
-#                 title="Custom query"
-#             )
-#         )
-#         return [response.embeddings[0].values]
+class GeminiEmbeddingFunction(embedding_functions.EmbeddingFunction):
+    def __call__(self, input):
+        client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+        response = client.models.embed_content(
+            model=EMBEDDING_MODEL_ID,
+            contents=input,
+            config=types.EmbedContentConfig(
+                task_type="retrieval_document",
+            )
+        )
+        return [e.values for e in response.embeddings]
 
 def setup_embedding(chroma_client: ClientAPI) -> Collection:
-    chroma_embedding_model = embedding_functions.GoogleGenerativeAiEmbeddingFunction(
-        model_name=EMBEDDING_MODEL_ID, api_key=os.environ["GEMINI_API_KEY"]
-    )
+    chroma_embedding_model = GeminiEmbeddingFunction()
     collection = chroma_client.get_or_create_collection(
         name=COLLECTION_NAME,
         embedding_function=chroma_embedding_model

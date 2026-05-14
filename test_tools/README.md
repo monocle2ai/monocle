@@ -251,11 +251,11 @@ Run assertions against saved trace JSON files without invoking live agents. This
 
 ```python
 from monocle_test_tools import TraceAssertion
-from span_loader import JSONSpanLoader
+from monocle_test_tools.span_loader import JSONSpanLoader
 
 def test_tool_invocation_from_trace(monocle_trace_asserter):
     # Load spans from a saved trace file
-    monocle_trace_asserter.load_spans(JSONSpanLoader.load_spans("traces/trace1.json"))
+    monocle_trace_asserter.load_spans(JSONSpanLoader.from_json("traces/trace1.json"))
 
     monocle_trace_asserter \
         .called_tool("adk_book_hotel", "adk_hotel_booking_agent") \
@@ -267,7 +267,7 @@ def test_tool_invocation_from_trace(monocle_trace_asserter):
         .does_not_contain_output("failed")
 
 def test_agent_invocation_from_trace(monocle_trace_asserter):
-    monocle_trace_asserter.load_spans(JSONSpanLoader.load_spans("traces/trace1.json"))
+    monocle_trace_asserter.load_spans(JSONSpanLoader.from_json("traces/trace1.json"))
 
     monocle_trace_asserter \
         .called_agent("adk_hotel_booking_agent") \
@@ -280,7 +280,7 @@ You can also use `MonocleValidator` directly for programmatic validation:
 
 ```python
 from monocle_test_tools import MonocleValidator, TestCase, TestSpan, Entity, DefaultComparer
-from span_loader import JSONSpanLoader
+from monocle_test_tools.span_loader import JSONSpanLoader
 
 @pytest.fixture(scope="module")
 def validator():

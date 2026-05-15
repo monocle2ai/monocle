@@ -4,6 +4,7 @@ from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from opentelemetry.sdk.trace import ReadableSpan
 from opentelemetry.sdk.trace.export import SpanExporter, SpanExportResult
+from opentelemetry import trace
 from common.dummy_class import dummy_wrapper
 from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry, reset_span_processors, get_monocle_instrumentor, get_monocle_span_processor
 from monocle_apptrace.instrumentation.common.wrapper_method import WrapperMethod
@@ -60,9 +61,9 @@ class TestHandler(unittest.TestCase):
 
     def tearDown(self) -> None:
         try:
-            span_processor = get_monocle_span_processor()
-            if span_processor is not None:
-                span_processor.shutdown()
+            # Force flush and shutdown tracer provider to properly close all span processors
+            trace.get_tracer_provider().force_flush()
+            trace.get_tracer_provider().shutdown()
             
             if self.instrumentor is not None:
                 self.instrumentor.uninstrument()

@@ -23,7 +23,7 @@ from monocle_test_tools.file_span_loader import JSONSpanLoader
 from monocle_test_tools.gitutils import get_git_context, get_repo_name
 from monocle_test_tools.okahu_span_loader import OkahuSpanLoader
 from monocle_test_tools.schema import SpanType, TestSpan, TestCase, Evaluation, EvalInputs, MockTool
-from monocle_test_tools.constants import TEST_SCOPE_NAME, DEFAULT_WORKFLOW_NAME, TEST_STATUS_ATTRIBUTE, TEST_ASSERTION_ATTRIBUTE
+from monocle_test_tools.constants import TEST_SCOPE_NAME, DEFAULT_WORKFLOW_NAME, TEST_STATUS_ATTRIBUTE, TEST_ASSERTION_ATTRIBUTE, TEST_WORKFLOW_ENV
 from monocle_test_tools.comparer.base_comparer import BaseComparer
 from monocle_test_tools.runner.runner import get_agent_runner
 from monocle_test_tools import trace_utils
@@ -31,7 +31,7 @@ from monocle_apptrace.instrumentation.metamodel.adk.methods import ADK_METHODS
 from monocle_apptrace.instrumentation.metamodel.adk.entities.tool import TOOL as ADK_TOOL
 from monocle_apptrace.instrumentation.metamodel.langgraph.methods import LANGGRAPH_METHODS
 from monocle_apptrace.instrumentation.metamodel.langgraph.entities.inference import TOOLS as LANGGRAPH_TOOL
-from monocle_apptrace.instrumentation.common.constants import MONOCLE_SKIP_EXECUTIONS, MONOCLE_WORKFLOW_NAME_KEY
+from monocle_apptrace.instrumentation.common.constants import MONOCLE_SKIP_EXECUTIONS, WORKFLOW_NAME_ENV
 from monocle_apptrace.instrumentation.common.utils import set_workflow_name, get_workflow_name
 
 logger = logging.getLogger(__name__)
@@ -70,7 +70,7 @@ class MonocleValidator:
         if export_failed_tests_only is None:
             export_failed_tests_only = os.getenv("MONOCLE_EXPORT_FAILED_TESTS_ONLY", "false").lower() == "true"
         if workflow_name is None:
-            workflow_name = os.getenv("MONOCLE_TEST_WORKFLOW_NAME")
+            workflow_name = os.getenv(TEST_WORKFLOW_ENV, os.getenv(WORKFLOW_NAME_ENV))
             if workflow_name is None:
                 workflow_name = get_repo_name() or DEFAULT_WORKFLOW_NAME
         self.export_failed_tests_only = export_failed_tests_only

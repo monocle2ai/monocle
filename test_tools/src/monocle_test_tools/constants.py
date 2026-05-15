@@ -1,3 +1,4 @@
+TEST_WORKFLOW_ENV: str = "MONOCLE_TEST_WORKFLOW_NAME"
 TEST_SCOPE_NAME: str = "test_name"
 GIT_RUN_ID_ATTRIBUTE: str = "git.run.id"
 GIT_WORKFLOW_NAME_ATTRIBUTE: str = "git.workflow.name"

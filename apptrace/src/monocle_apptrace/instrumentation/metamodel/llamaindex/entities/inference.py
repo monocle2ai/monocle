@@ -6,6 +6,7 @@ from monocle_apptrace.instrumentation.common.utils import get_error_message, res
 
 INFERENCE = {
     "type": SPAN_TYPES.INFERENCE_FRAMEWORK,
+    "subtype": lambda arguments: _helper.agent_inference_type(arguments),
     "attributes": [
         [
             {

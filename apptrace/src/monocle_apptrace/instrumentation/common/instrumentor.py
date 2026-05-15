@@ -30,7 +30,10 @@ from monocle_apptrace.instrumentation.common.utils import (
     build_setup_signature,
     check_duplicate_setup,
 )
-from monocle_apptrace.instrumentation.common.constants import MONOCLE_INSTRUMENTOR, MONOCLE_WORKFLOW_NAME_KEY, CUSTOM_INSTRUMENTATION_FILE_NAME, CUSTOM_INSTRUMENTATION_FILE_PATH_ENV
+from monocle_apptrace.instrumentation.common.constants import ( 
+    MONOCLE_INSTRUMENTOR, MONOCLE_WORKFLOW_NAME_KEY, CUSTOM_INSTRUMENTATION_FILE_NAME,
+    CUSTOM_INSTRUMENTATION_FILE_PATH_ENV, WORKFLOW_NAME_ENV
+)
 from monocle_apptrace.instrumentation.common.custom_span_processor import CUSTOM_SPAN_PROCESSOR
 from functools import wraps
 
@@ -63,6 +66,7 @@ def load_custom_instrumentation() -> List[WrapperMethod]:
                 package=entry.get("package"),
                 object_name=entry.get("class"),
                 method=entry.get("method"),
+                span_name=entry.get("span_name"),
                 wrapper_method=task_wrapper if entry.get("sync", True) else atask_wrapper,
                 output_processor=CUSTOM_SPAN_PROCESSOR
             ))
@@ -244,7 +248,7 @@ def get_monocle_setup_signature() -> Optional[dict]:
     return monocle_setup_signature
 
 def setup_monocle_telemetry(
-        workflow_name: str,
+        workflow_name: str = None,
         span_processors: List[SpanProcessor] = None,
         span_handlers: Dict[str,SpanHandler] = None,
         wrapper_methods: List[Union[dict,WrapperMethod]] = None,
@@ -273,6 +277,17 @@ def setup_monocle_telemetry(
         For OTLP exporter, configure the endpoint via OTEL_EXPORTER_OTLP_ENDPOINT environment variable.
         This can't be combined with `span_processors`.
     """
+    # workflow_name is determined in the following order of precedence:
+    # 1. Argument passed to this function
+    # 2. Environment variable MONOCLE_WORKFLOW_NAME
+    # 3. filename of the file containing the main module
+    if not workflow_name:
+        workflow_name = os.getenv(WORKFLOW_NAME_ENV)
+    if not workflow_name:
+        try:
+            workflow_name = os.path.basename(inspect.stack()[-1].filename).split(".")[0]
+        except Exception:
+            workflow_name = "monocle_workflow"
     current_signature = build_setup_signature(
         workflow_name=workflow_name,
         span_processors=span_processors,

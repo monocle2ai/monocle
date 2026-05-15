@@ -1,4 +1,4 @@
-
+ 
 
 import json
 import logging
@@ -15,6 +15,7 @@ from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_t
 from monocle_apptrace.instrumentation.common.wrapper import task_wrapper
 from monocle_apptrace.instrumentation.common.wrapper_method import WrapperMethod
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from opentelemetry import trace
 from transformers import GPT2DoubleHeadsModel, GPT2Tokenizer
 
 logger = logging.getLogger(__name__)
@@ -29,11 +30,14 @@ class TestHandler(unittest.TestCase):
 
     def tearDown(self):
         """Clean up instrumentation state"""
-        if self.instrumentor is not None:
-            try:
+        try:
+            # Shutdown tracer provider to flush and close all span processors
+            trace.get_tracer_provider().shutdown()
+            
+            if self.instrumentor is not None:
                 self.instrumentor.uninstrument()
-            except Exception as e:
-                logger.warning(f"Uninstrument failed: {e}")
+        except Exception as e:
+            logger.warning(f"Teardown failed: {e}")
 
     @patch.object(requests.Session, 'post')
     def test_pytorch(self, mock_post):
@@ -76,7 +80,10 @@ class TestHandler(unittest.TestCase):
             outputs = model(input_ids, mc_token_ids=mc_token_ids)
             lm_prediction_scores, mc_prediction_scores = outputs[:2]
 
-            time.sleep(5)
+            # Force flush to ensure all spans are exported before validation
+            trace.get_tracer_provider().force_flush()
+            time.sleep(1)  # Small delay to ensure export completes
+            
             mock_post.assert_called_with(
                 url = 'https://localhost:3000/api/v1/traces',
                 data=ANY,

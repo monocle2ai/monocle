@@ -4,6 +4,7 @@ import unittest
 from common.dummy_class import DummyClass
 from common.utils import verify_scope, verify_traceID, SCOPE_NAME, SCOPE_VALUE
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+from opentelemetry import trace
 from monocle_apptrace import setup_monocle_telemetry, monocle_trace_scope, start_scope, stop_scope, monocle_trace_scope_method
 from monocle_apptrace.instrumentation.common.wrapper_method import WrapperMethod
 from common.custom_exporter import CustomConsoleSpanExporter
@@ -11,33 +12,32 @@ from monocle_apptrace.instrumentation.common.wrapper import atask_wrapper
 from opentelemetry.trace.status import StatusCode
 
 logger = logging.getLogger(__name__)
-exporter = CustomConsoleSpanExporter()
+
 class TestHandler(unittest.IsolatedAsyncioTestCase):
     dummy = DummyClass()
     instrumentor = None
+    exporter = None
     
     def setUp(self):
-        exporter.reset()
-
-    def tearDown(self):
-        exporter.reset()
-        return super().tearDown()
-    
-    @classmethod
-    def tearDownClass(cls):
-        if cls.instrumentor is not None:
-            cls.instrumentor.uninstrument()
-        cls.instrumentor = None
-        cls.exporter = None
-        super().tearDownClass()
-    
-    @classmethod
-    def setUpClass(cls):
-        exporter.reset()
-        cls.instrumentor = setup_monocle_telemetry(
+        #  Clear any existing instrumentation state
+        from monocle_apptrace.instrumentation.common.instrumentor import get_monocle_instrumentor, set_monocle_instrumentor, set_monocle_setup_signature
+        existing = get_monocle_instrumentor()
+        if existing is not None:
+            try:
+                existing.uninstrument()
+            except:
+                pass
+        set_monocle_instrumentor(None)
+        set_monocle_setup_signature(None)
+        
+        # Create new exporter and instrumentor for each test
+        self.exporter = CustomConsoleSpanExporter()
+        self.exporter.reset()
+        
+        self.instrumentor = setup_monocle_telemetry(
             workflow_name="async_test",
             span_processors=[
-                    SimpleSpanProcessor(exporter)
+                    SimpleSpanProcessor(self.exporter)
                 ],
             wrapper_methods=[
                 WrapperMethod(
@@ -62,13 +62,30 @@ class TestHandler(unittest.IsolatedAsyncioTestCase):
                     wrapper_method= atask_wrapper
                 )                        
         ])
-        return super().setUpClass()
+
+    def tearDown(self):
+        try:
+            # Shutdown tracer provider to flush and close all span processors
+            trace.get_tracer_provider().shutdown()
+            
+            if self.instrumentor is not None:
+                self.instrumentor.uninstrument()
+        except Exception as e:
+            logger.warning(f"TearDown failed: {e}")
+        
+        self.exporter = None
+        self.instrumentor = None
+        return super().tearDown()
 
     # verify nested async calls have same traceID
     async def test_nested_async_traceID(self):
         res = await self.dummy.add1(10)
         assert res == 16
-        verify_traceID(exporter, excepted_span_count=4)
+        # Filter out Haystack spans
+        self.exporter.force_flush()
+        app_spans = [s for s in self.exporter.captured_spans if "haystack" not in s.name.lower()]
+        self.exporter.captured_spans = app_spans
+        verify_traceID(self.exporter, excepted_span_count=4)
 
     # verify nested async calls have same scope set using scope API
     async def test_nested_async_scopes_with_API(self):
@@ -76,14 +93,22 @@ class TestHandler(unittest.IsolatedAsyncioTestCase):
         res = await self.dummy.add1(10)
         stop_scope(token)
         assert res == 16
-        verify_scope(exporter, excepted_span_count=4)
+        # Filter out Haystack autoenable spans that may occur during setup
+        self.exporter.force_flush()
+        app_spans = [s for s in self.exporter.captured_spans if "haystack" not in s.name.lower()]
+        self.exporter.captured_spans = app_spans
+        verify_scope(self.exporter, excepted_span_count=4)
 
     # verify nested async calls have same scope set using scope API
     async def test_nested_async_scopes_with_wrapper(self):
         with monocle_trace_scope(SCOPE_NAME, SCOPE_VALUE):
             res = await self.dummy.add1(10)
         assert res == 16
-        verify_scope(exporter, excepted_span_count=4)
+        # Filter out Haystack spans
+        self.exporter.force_flush()
+        app_spans = [s for s in self.exporter.captured_spans if "haystack" not in s.name.lower()]
+        self.exporter.captured_spans = app_spans
+        verify_scope(self.exporter, excepted_span_count=4)
 
     # verify nested async calls have same scope set using scope API
     async def test_nested_async_scopes_with_wrapper_errors(self):
@@ -93,8 +118,9 @@ class TestHandler(unittest.IsolatedAsyncioTestCase):
                 assert False
             except Exception as e:
                 logger.info(f"Got exception {e}")
-        exporter.force_flush()
-        spans = exporter.captured_spans
+        self.exporter.force_flush()
+        app_spans = [s for s in self.exporter.captured_spans if "haystack" not in s.name.lower()]
+        spans = app_spans
         assert len(spans) == 4
         traceID = None
         for span in spans:
@@ -110,14 +136,22 @@ class TestHandler(unittest.IsolatedAsyncioTestCase):
     async def test_nested_async_scopes_with_decorator(self):
         res = await self.dummy.scope_async_decorator_test_method()
         assert res == 16
-        verify_scope(exporter, excepted_span_count=4)
+        # Filter out Haystack spans
+        self.exporter.force_flush()
+        app_spans = [s for s in self.exporter.captured_spans if "haystack" not in s.name.lower()]
+        self.exporter.captured_spans = app_spans
+        verify_scope(self.exporter, excepted_span_count=4)
 
     # verify nested async calls have same scope set using scope decorator
     async def test_nested_async_scopes_with_config(self):
         with monocle_trace_scope(SCOPE_NAME, SCOPE_VALUE):
             res = await self.dummy.scope_async_config_test_method()
         assert res == 16
-        verify_scope(exporter, excepted_span_count=4)
+        # Filter out Haystack spans
+        self.exporter.force_flush()
+        app_spans = [s for s in self.exporter.captured_spans if "haystack" not in s.name.lower()]
+        self.exporter.captured_spans = app_spans
+        verify_scope(self.exporter, excepted_span_count=4)
 
 if __name__ == '__main__':
     unittest.main()

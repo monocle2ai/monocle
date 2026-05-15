@@ -60,11 +60,14 @@ class TestHandler(unittest.TestCase):
 
     def tearDown(self) -> None:
         try:
+            span_processor = get_monocle_span_processor()
+            if span_processor is not None:
+                span_processor.shutdown()
+            
             if self.instrumentor is not None:
                 self.instrumentor.uninstrument()
         except Exception as e:
-            print("Uninstrument failed:", e)
-        
+            print("Teardown failed:", e)
         return super().tearDown()
 
     def test_call_multi_setup_telemetry(self):

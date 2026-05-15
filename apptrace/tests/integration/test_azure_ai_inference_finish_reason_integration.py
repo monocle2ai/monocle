@@ -14,9 +14,6 @@ import os
 from types import SimpleNamespace
 
 import pytest
-from azure.ai.inference import ChatCompletionsClient
-from azure.ai.inference.models import ToolMessage, UserMessage
-from azure.core.credentials import AzureKeyCredential
 from common.custom_exporter import CustomConsoleSpanExporter
 from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
 from monocle_apptrace.instrumentation.metamodel.azureaiinference._helper import (
@@ -25,11 +22,32 @@ from monocle_apptrace.instrumentation.metamodel.azureaiinference._helper import 
 )
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 
+# Try importing azure-ai-inference
+try:
+    from azure.ai.inference import ChatCompletionsClient
+    from azure.ai.inference.models import ToolMessage, UserMessage
+    from azure.core.credentials import AzureKeyCredential
+    AZURE_AI_INFERENCE_AVAILABLE = True
+except ImportError:
+    ChatCompletionsClient = None
+    ToolMessage = None
+    UserMessage = None
+    AzureKeyCredential = None
+    AZURE_AI_INFERENCE_AVAILABLE = False
+
 logger = logging.getLogger(__name__)
 
 
 AZURE_AI_INFERENCE_ENDPOINT = os.environ.get("AZURE_AI_INFERENCE_ENDPOINT")
 AZURE_AI_INFERENCE_KEY = os.environ.get("AZURE_AI_INFERENCE_KEY")
+
+_SKIP_REASON = "Azure AI Inference credentials not set or azure-ai-inference not available"
+_REQUIRES_AZURE = pytest.mark.skipif(
+    not AZURE_AI_INFERENCE_AVAILABLE 
+    or not AZURE_AI_INFERENCE_ENDPOINT 
+    or not AZURE_AI_INFERENCE_KEY,
+    reason=_SKIP_REASON
+)
 
 @pytest.fixture(scope="module")
 def setup():
@@ -57,10 +75,7 @@ def find_inference_span_and_event_attributes(spans, event_name="metadata"):
     return None
 
 
-@pytest.mark.skipif(
-    not AZURE_AI_INFERENCE_ENDPOINT or not AZURE_AI_INFERENCE_KEY,
-    reason="Azure AI Inference credentials not set or azure-ai-inference not available"
-)
+@_REQUIRES_AZURE
 def test_azure_ai_inference_finish_reason_stop(setup):
     """Test finish_reason == 'stop' for normal completion with Azure AI Inference."""
     try:
@@ -106,10 +121,7 @@ def test_azure_ai_inference_finish_reason_stop(setup):
         assert finish_type == "success"
 
 
-@pytest.mark.skipif(
-    not AZURE_AI_INFERENCE_ENDPOINT or not AZURE_AI_INFERENCE_KEY,
-    reason="Azure AI Inference credentials not set or azure-ai-inference not available"
-)
+@_REQUIRES_AZURE
 def test_azure_ai_inference_finish_reason_length(setup):
     """Test finish_reason == 'length' when hitting token limit with Azure AI Inference."""
     try:
@@ -152,10 +164,7 @@ def test_azure_ai_inference_finish_reason_length(setup):
         assert finish_type == "truncated"
 
 
-@pytest.mark.skipif(
-    not AZURE_AI_INFERENCE_ENDPOINT or not AZURE_AI_INFERENCE_KEY,
-    reason="Azure AI Inference credentials not set or azure-ai-inference not available"
-)
+@_REQUIRES_AZURE
 def test_azure_ai_inference_streaming(setup):
     """Test finish_reason with streaming responses from Azure AI Inference."""
     try:
@@ -208,10 +217,7 @@ def test_azure_ai_inference_streaming(setup):
         assert finish_type == "success"
 
 
-@pytest.mark.skipif(
-    not AZURE_AI_INFERENCE_ENDPOINT or not AZURE_AI_INFERENCE_KEY,
-    reason="Azure AI Inference credentials not set or azure-ai-inference not available"
-)
+@_REQUIRES_AZURE
 def test_azure_ai_inference_with_tools(setup):
     """Test finish_reason with tool calls in Azure AI Inference."""
  
@@ -281,6 +287,10 @@ def test_azure_ai_inference_with_tools(setup):
             assert finish_reason in ["tool_calls", "function_call", "stop"]
             if finish_reason in ["tool_calls", "function_call"]:
                 assert finish_type == "tool_call"
+                # Verify span.subtype when finish_type is tool_call
+                assert span_attributes.get("span.subtype") == "tool_call", (
+                    f"Expected span.subtype='tool_call', got '{span_attributes.get('span.subtype')}'"
+                )
                 # Verify entity.3 attributes when finish_type is tool_call
                 assert "entity.3.name" in span_attributes, "entity.3.name should be present when finish_type is tool_call"
                 assert "entity.3.type" in span_attributes, "entity.3.type should be present when finish_type is tool_call"
@@ -288,6 +298,9 @@ def test_azure_ai_inference_with_tools(setup):
                 assert span_attributes["entity.3.type"] == "tool.function", f"Expected tool type 'tool.function', got '{span_attributes.get('entity.3.type')}'"
             else:
                 assert finish_type == "success"
+                assert span_attributes.get("span.subtype") == "turn_end", (
+                    f"Expected span.subtype='turn_end', got '{span_attributes.get('span.subtype')}'"
+                )
     
     except Exception as e:
         # Some Azure AI models might not support tools
@@ -346,10 +359,7 @@ def test_azure_ai_inference_finish_reason_mapping_edge_cases():
     assert map_finish_reason_to_finish_type("") is None
 
 
-@pytest.mark.skipif(
-    not AZURE_AI_INFERENCE_ENDPOINT or not AZURE_AI_INFERENCE_KEY,
-    reason="Azure AI Inference credentials not set or azure-ai-inference not available"
-)
+@_REQUIRES_AZURE
 def test_azure_ai_inference_finish_reason_content_filter(setup):
     """Test finish_reason == 'content_filter' with Azure AI Inference (may not always trigger)."""
     try:
@@ -401,10 +411,7 @@ def test_azure_ai_inference_finish_reason_content_filter(setup):
             assert finish_type == "success"
 
 
-@pytest.mark.skipif(
-    not AZURE_AI_INFERENCE_ENDPOINT or not AZURE_AI_INFERENCE_KEY,
-    reason="Azure AI Inference credentials not set or azure-ai-inference not available"
-)
+@_REQUIRES_AZURE
 def test_azure_ai_inference_error_handling(setup):
     """Test finish_reason extraction during error scenarios."""
     try:
@@ -447,6 +454,212 @@ def test_azure_ai_inference_error_handling(setup):
                 if finish_reason:
                     assert finish_reason == "error"
                     assert finish_type == "error"
+
+
+# ---------------------------------------------------------------------------
+# span.subtype tests
+# ---------------------------------------------------------------------------
+
+@_REQUIRES_AZURE
+def test_azure_ai_inference_subtype_tool_call(setup):
+    """Inference span gets span.subtype='tool_call' when LLM decides to use a tool."""
+    try:
+        from azure.ai.inference import ChatCompletionsClient
+        from azure.ai.inference.models import UserMessage
+        from azure.core.credentials import AzureKeyCredential
+    except ImportError:
+        pytest.skip("azure-ai-inference not available")
+    
+    client = ChatCompletionsClient(
+        endpoint=AZURE_AI_INFERENCE_ENDPOINT,
+        credential=AzureKeyCredential(AZURE_AI_INFERENCE_KEY)
+    )
+    
+    tools = [
+        {
+            "type": "function",
+            "function": {
+                "name": "get_weather",
+                "description": "Get the current weather for a city",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "city": {"type": "string", "description": "City name"}
+                    },
+                    "required": ["city"]
+                }
+            }
+        }
+    ]
+    
+    messages = [UserMessage(content="What's the weather like in Paris?")]
+    
+    try:
+        response = client.complete(
+            messages=messages,
+            tools=tools,
+            max_tokens=100
+        )
+        
+        spans = setup.get_captured_spans()
+        assert spans, "No spans were exported"
+        
+        # Find inference span
+        inference_spans = [
+            s for s in spans
+            if "inference" in s.attributes.get("span.type", "")
+        ]
+        assert inference_spans, "No inference spans captured"
+        
+        # Check for tool_call subtype
+        tool_call_spans = [
+            s for s in inference_spans
+            if s.attributes.get("span.subtype") == "tool_call"
+        ]
+        assert tool_call_spans, (
+            f"Expected at least one inference span with span.subtype='tool_call'. "
+            f"Got subtypes: {[s.attributes.get('span.subtype') for s in inference_spans]}"
+        )
+        
+        span = tool_call_spans[0]
+        assert span.attributes.get("entity.3.name") == "get_weather", (
+            f"Expected entity.3.name='get_weather', got '{span.attributes.get('entity.3.name')}'"
+        )
+        assert span.attributes.get("entity.3.type") == "tool.function", (
+            f"Expected entity.3.type='tool.function', got '{span.attributes.get('entity.3.type')}'"
+        )
+        logger.info("✓ span.subtype='tool_call' and entity.3.name='get_weather' verified")
+        
+    except Exception as e:
+        logger.info(f"Tool calling not supported or failed: {e}")
+        pytest.skip("Tool calling not supported by this Azure AI model")
+
+
+@_REQUIRES_AZURE
+def test_azure_ai_inference_subtype_turn_end(setup):
+    """Inference span gets span.subtype='turn_end' when LLM responds without a tool call."""
+    try:
+        from azure.ai.inference import ChatCompletionsClient
+        from azure.ai.inference.models import UserMessage
+        from azure.core.credentials import AzureKeyCredential
+    except ImportError:
+        pytest.skip("azure-ai-inference not available")
+    
+    client = ChatCompletionsClient(
+        endpoint=AZURE_AI_INFERENCE_ENDPOINT,
+        credential=AzureKeyCredential(AZURE_AI_INFERENCE_KEY)
+    )
+    
+    messages = [UserMessage(content="Say hello in one word.")]
+    
+    response = client.complete(
+        messages=messages,
+        max_tokens=10
+    )
+    
+    spans = setup.get_captured_spans()
+    assert spans, "No spans were exported"
+    
+    # Find inference spans
+    inference_spans = [
+        s for s in spans
+        if "inference" in s.attributes.get("span.type", "")
+    ]
+    assert inference_spans, "No inference spans captured"
+    
+    span = inference_spans[-1]
+    assert "span.subtype" in span.attributes, "span.subtype attribute must be present"
+    assert span.attributes.get("span.subtype") == "turn_end", (
+        f"Expected span.subtype='turn_end', got '{span.attributes.get('span.subtype')}'"
+    )
+    logger.info("✓ span.subtype='turn_end' verified for non-tool response")
+
+
+@_REQUIRES_AZURE
+def test_azure_ai_inference_entity3_absent_on_turn_end(setup):
+    """entity.3 attributes should not be set when there is no tool call."""
+    try:
+        from azure.ai.inference import ChatCompletionsClient
+        from azure.ai.inference.models import UserMessage
+        from azure.core.credentials import AzureKeyCredential
+    except ImportError:
+        pytest.skip("azure-ai-inference not available")
+    
+    client = ChatCompletionsClient(
+        endpoint=AZURE_AI_INFERENCE_ENDPOINT,
+        credential=AzureKeyCredential(AZURE_AI_INFERENCE_KEY)
+    )
+    
+    messages = [UserMessage(content="What is 2 + 2?")]
+    
+    response = client.complete(
+        messages=messages,
+        max_tokens=20
+    )
+    
+    spans = setup.get_captured_spans()
+    assert spans, "No spans were exported"
+    
+    # Find inference spans with turn_end subtype
+    turn_end_spans = [
+        s for s in spans
+        if "inference" in s.attributes.get("span.type", "")
+        and s.attributes.get("span.subtype") == "turn_end"
+    ]
+    assert turn_end_spans, "Expected a turn_end inference span"
+    
+    span = turn_end_spans[0]
+    assert span.attributes.get("entity.3.name") is None, (
+        "entity.3.name should not be set when there is no tool call"
+    )
+    logger.info("✓ entity.3.name correctly absent on turn_end inference span")
+
+
+@_REQUIRES_AZURE
+def test_azure_ai_inference_subtype_in_streaming(setup):
+    """span.subtype is present on inference spans for streaming responses."""
+    try:
+        from azure.ai.inference import ChatCompletionsClient
+        from azure.ai.inference.models import UserMessage
+        from azure.core.credentials import AzureKeyCredential
+    except ImportError:
+        pytest.skip("azure-ai-inference not available")
+    
+    client = ChatCompletionsClient(
+        endpoint=AZURE_AI_INFERENCE_ENDPOINT,
+        credential=AzureKeyCredential(AZURE_AI_INFERENCE_KEY)
+    )
+    
+    messages = [UserMessage(content="Count to three.")]
+    
+    response = client.complete(
+        messages=messages,
+        max_tokens=30,
+        stream=True
+    )
+    
+    # Consume the stream
+    for _ in response:
+        pass
+    
+    spans = setup.get_captured_spans()
+    assert spans, "No spans were exported"
+    
+    # Find inference spans
+    inference_spans = [
+        s for s in spans
+        if "inference" in s.attributes.get("span.type", "")
+    ]
+    assert inference_spans, "No inference spans captured"
+    
+    span = inference_spans[-1]
+    assert "span.subtype" in span.attributes, (
+        "span.subtype must be present on streaming inference spans"
+    )
+    assert span.attributes.get("span.subtype") in ("tool_call", "turn_end"), (
+        f"Unexpected span.subtype: '{span.attributes.get('span.subtype')}'"
+    )
+    logger.info(f"✓ Streaming span.subtype='{span.attributes.get('span.subtype')}' verified")
 
 
 if __name__ == "__main__":

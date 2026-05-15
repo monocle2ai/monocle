@@ -6,7 +6,10 @@ from opentelemetry.sdk.trace import ReadableSpan
 from opentelemetry.sdk.trace.export import SpanExporter, SpanExportResult
 from opentelemetry import trace
 from common.dummy_class import dummy_wrapper
-from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry, reset_span_processors, get_monocle_instrumentor, get_monocle_span_processor
+from monocle_apptrace.instrumentation.common.instrumentor import (
+    setup_monocle_telemetry, reset_span_processors, get_monocle_instrumentor, 
+    get_monocle_span_processor, set_monocle_instrumentor, set_monocle_setup_signature
+)
 from monocle_apptrace.instrumentation.common.wrapper_method import WrapperMethod
 from monocle_apptrace.instrumentation.common.wrapper import atask_wrapper
 from common.dummy_class import DummyClass
@@ -33,6 +36,13 @@ class TestHandler(unittest.TestCase):
         Exporter1.exec_count = 0
         Exporter2.exec_count = 0
         
+        # Shutdown any existing tracer provider completely
+        try:
+            trace.get_tracer_provider().force_flush()
+            trace.get_tracer_provider().shutdown()
+        except:
+            pass
+        
         # Clean up any existing instrumentor state
         existing_instrumentor = get_monocle_instrumentor()
         if existing_instrumentor is not None:
@@ -40,6 +50,10 @@ class TestHandler(unittest.TestCase):
                 existing_instrumentor.uninstrument()
             except:
                 pass
+        
+        # Clear global state
+        set_monocle_instrumentor(None)
+        set_monocle_setup_signature(None)
         
         self.exporter1 = Exporter1()
         self.exporter2 = Exporter2()
@@ -60,15 +74,34 @@ class TestHandler(unittest.TestCase):
                 ])
 
     def tearDown(self) -> None:
+        # Force flush and shutdown tracer provider to properly close all span processors
         try:
-            # Force flush and shutdown tracer provider to properly close all span processors
             trace.get_tracer_provider().force_flush()
-            trace.get_tracer_provider().shutdown()
-            
-            if self.instrumentor is not None:
-                self.instrumentor.uninstrument()
         except Exception as e:
-            print("Teardown failed:", e)
+            print(f"Force flush failed: {e}")
+        
+        try:
+            trace.get_tracer_provider().shutdown()
+        except Exception as e:
+            print(f"Tracer provider shutdown failed: {e}")
+        
+        # Uninstrument
+        if self.instrumentor is not None:
+            try:
+                self.instrumentor.uninstrument()
+            except Exception as e:
+                print(f"Uninstrument failed: {e}")
+        
+        # Clear global instrumentor state
+        try:
+            set_monocle_instrumentor(None)
+            set_monocle_setup_signature(None)
+        except Exception as e:
+            print(f"Clear global state failed: {e}")
+        
+        self.instrumentor = None
+        self.exporter1 = None
+        self.exporter2 = None
         return super().tearDown()
 
     def test_call_multi_setup_telemetry(self):

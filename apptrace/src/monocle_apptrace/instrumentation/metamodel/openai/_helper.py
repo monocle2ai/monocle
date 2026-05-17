@@ -118,11 +118,24 @@ def extract_messages(kwargs):
                     try:
                         tool_call_messages = []
                         for tool_call in msg['tool_calls']:
+                            tool_function_name = ""
+                            tool_arguments = ""
+                            if hasattr(tool_call, 'function') and hasattr(tool_call.function, 'name'):
+                                tool_function_name = tool_call.function.name
+                            if hasattr(tool_call, 'function') and hasattr(tool_call.function, 'arguments'):
+                                tool_arguments = tool_call.function.arguments
+                            if 'function' in tool_call:
+                                if 'name' in tool_call['function']:
+                                    tool_function_name = tool_call['function']['name']
+                                if 'arguments' in tool_call['function']:
+                                    tool_arguments = tool_call['function']['arguments']
                             tool_call_messages.append(get_json_dumps({
-                                "tool_function": tool_call.function.name,
-                                "tool_arguments": tool_call.function.arguments,
+                                "tool_function": tool_function_name,
+                                "tool_arguments": tool_arguments,
                             }))
-                        messages.append({msg['role']: tool_call_messages})
+                        
+                        if tool_call_messages:
+                            messages.append({msg['role']: tool_call_messages})
                     except Exception as e:
                         logger.warning("Warning: Error occurred while processing tool calls: %s", str(e))
 
@@ -164,18 +177,25 @@ def extract_assistant_message(arguments):
             if hasattr(response, "output_text") and len(response.output_text):
                 role = response.role if hasattr(response, "role") else "assistant"
                 messages.append({role: response.output_text})
-            if (
-                response is not None
-                and hasattr(response, "choices")
-                and len(response.choices) > 0
-            ):
-                if hasattr(response.choices[0], "message"):
-                    role = (
-                        response.choices[0].message.role
-                        if hasattr(response.choices[0].message, "role")
-                        else "assistant"
-                    )
-                    messages.append({role: response.choices[0].message.content})
+            
+            # Handle object format (response.choices[0].message) and dict format (response['choices'][0]['message'])
+            if response is not None and (hasattr(response, "choices") or isinstance(response, dict)):
+                try:
+                    # Try object format first
+                    if hasattr(response, "choices") and len(response.choices) > 0:
+                        role = getattr(response.choices[0].message, "role", "assistant")
+                        content = response.choices[0].message.content
+                        messages.append({role: content})
+                    # Fallback to dict format
+                    elif isinstance(response, dict) and 'choices' in response:
+                        message = response['choices'][0].get('message', {})
+                        role = message.get('role', 'assistant')
+                        content = message.get('content')
+                        if content:
+                            messages.append({role: content})
+                except (AttributeError, KeyError, IndexError, TypeError):
+                    pass
+            
             return get_json_dumps(messages[0]) if messages else ""
         else:
             if arguments["exception"] is not None:
@@ -241,15 +261,18 @@ def update_output_span_events(results):
 def update_span_from_llm_response(response):
     meta_dict = {}
     if response is not None and hasattr(response, "usage"):
-        if hasattr(response, "usage") and response.usage is not None:
-            token_usage = response.usage
-        else:
-            response_metadata = response.response_metadata
-            token_usage = response_metadata.get("token_usage")
-        if token_usage is not None:
+        token_usage = response.usage if response.usage is not None else response.response_metadata.get("token_usage")
+        if token_usage:
             meta_dict.update({"completion_tokens": getattr(token_usage,"completion_tokens",None) or getattr(token_usage,"output_tokens",None)})
             meta_dict.update({"prompt_tokens": getattr(token_usage, "prompt_tokens", None) or getattr(token_usage, "input_tokens", None)})
             meta_dict.update({"total_tokens": getattr(token_usage,"total_tokens", None)})
+    # Fallback to dict format
+    elif isinstance(response, dict) and 'usage' in response:
+        token_usage = response['usage']
+        if isinstance(token_usage, dict):
+            meta_dict.update({"completion_tokens": token_usage.get("completion_tokens") or token_usage.get("output_tokens")})
+            meta_dict.update({"prompt_tokens": token_usage.get("prompt_tokens") or token_usage.get("input_tokens")})
+            meta_dict.update({"total_tokens": token_usage.get("total_tokens")})
     return meta_dict
 
 def extract_vector_input(vector_input: dict):

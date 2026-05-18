@@ -178,6 +178,13 @@ def extract_assistant_message(arguments):
                 role = response.role if hasattr(response, "role") else "assistant"
                 messages.append({role: response.output_text})
             
+            # Handle serialized text response 
+            if response is not None and hasattr(response, "text") and isinstance(response.text, str):
+                try:
+                    response = json.loads(response.text)
+                except (json.JSONDecodeError, ValueError):
+                    pass
+            
             # Handle object format (response.choices[0].message) and dict format (response['choices'][0]['message'])
             if response is not None and (hasattr(response, "choices") or isinstance(response, dict)):
                 try:
@@ -260,6 +267,14 @@ def update_output_span_events(results):
 
 def update_span_from_llm_response(response):
     meta_dict = {}
+    
+    # Handle serialized text response 
+    if response is not None and hasattr(response, "text") and isinstance(response.text, str):
+        try:
+            response = json.loads(response.text)
+        except (json.JSONDecodeError, ValueError):
+            pass
+    
     if response is not None and hasattr(response, "usage"):
         token_usage = response.usage if response.usage is not None else response.response_metadata.get("token_usage")
         if token_usage:

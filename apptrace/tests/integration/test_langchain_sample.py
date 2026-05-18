@@ -153,8 +153,8 @@ def verify_spans(memory_exporter):
             check_input_output=True,
         )
     assert (
-        len(inference_spans) == 2
-    ), "Expected two inference spans for the LLM call (dual instrumentation)"
+        len(inference_spans) == 1
+    ), "Expected exactly one inference span for the LLM call"
 
     # Validate events using the generic function with regex patterns
     validate_inference_span_events(

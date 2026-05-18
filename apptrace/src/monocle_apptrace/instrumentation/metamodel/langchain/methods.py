@@ -20,20 +20,6 @@ LANGCHAIN_METHODS = [
         "wrapper_method": atask_wrapper
     },
     {
-        "package": "langchain.chat_models.base",
-        "object": "BaseChatModel",
-        "method": "invoke",
-        "wrapper_method": task_wrapper,
-        "output_processor": INFERENCE
-    },
-    {
-        "package": "langchain.chat_models.base",
-        "object": "BaseChatModel",
-        "method": "ainvoke",
-        "wrapper_method": atask_wrapper,
-        "output_processor": INFERENCE
-    },
-    {
         "package": "langchain_core.language_models.chat_models",
         "object": "BaseChatModel",
         "method": "invoke",

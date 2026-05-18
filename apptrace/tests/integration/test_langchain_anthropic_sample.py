@@ -84,8 +84,8 @@ def test_langchain_anthropic_sample(setup):
             check_input_output=True,
         )
     assert (
-        len(inference_spans) == 1
-    ), "Expected exactly one inference span for the LLM call"
+        len(inference_spans) == 2
+    ), "Expected two inference spans for the LLM call (dual instrumentation)"
 
     # Validate events using the generic function with regex patterns
     validate_inference_span_events(

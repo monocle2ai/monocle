@@ -109,8 +109,8 @@ def verify_spans(memory_exporter):
     # Find inference spans ("inference" or "inference.framework")
     inference_spans = [s for s in spans if s.attributes.get("span.type") in ("inference", "inference.framework")]
     assert len(inference_spans) > 0, "Expected to find at least one inference span"
-    # Only one LLM call expected
-    assert len(inference_spans) == 1, "Expected exactly one inference span for the LLM call"
+    # Two inference spans expected (dual instrumentation)
+    assert len(inference_spans) == 2, "Expected two inference spans for the LLM call (dual instrumentation)"
     inf_span = inference_spans[0]
     # Check key attributes
     assert inf_span.attributes.get("entity.1.type") == "inference.aws_bedrock"

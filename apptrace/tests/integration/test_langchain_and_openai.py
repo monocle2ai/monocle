@@ -39,7 +39,7 @@ def test_langchain_with_openai(setup):
 
     chain1.invoke("What is an americano?")
     verify_spans(
-        expected_langchain_inference_spans=1,
+        expected_langchain_inference_spans=2,
         expected_openai_inference_spans=0,
         exptected_workflow_spans=1,
         custom_exporter=setup
@@ -66,7 +66,7 @@ def test_langchain_with_openai(setup):
 
     chain2.invoke("What is an coffee?")
     verify_spans(
-        expected_langchain_inference_spans=1,
+        expected_langchain_inference_spans=2,
         expected_openai_inference_spans=0,
         exptected_workflow_spans=1,
         custom_exporter=setup
@@ -96,7 +96,7 @@ def test_langchain_with_openai_single_trace(setup):
     chain2.invoke("What is an coffee?")
     stop_trace(token)
     verify_spans(
-        expected_langchain_inference_spans=2,
+        expected_langchain_inference_spans=4,
         expected_openai_inference_spans=1,
         exptected_workflow_spans=1,
         custom_exporter=setup

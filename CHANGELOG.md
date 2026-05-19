@@ -1,3 +1,23 @@
+## Version 0.8.1 (2026-05-19)
+
+- Codex instrumentation and UV packaging ([#538](https://github.com/monocle2ai/monocle/pull/538))
+- Fetch traces by scope ID ([#542](https://github.com/monocle2ai/monocle/pull/542))
+- Handle tool output being dict/json ([#544](https://github.com/monocle2ai/monocle/pull/544))
+- Span subtypes in ADK ([#546](https://github.com/monocle2ai/monocle/pull/546))
+- Set inference.decision.span.id for ADK ([#548](https://github.com/monocle2ai/monocle/pull/548))
+- Test enhancement for asserting against remote traces ([#547](https://github.com/monocle2ai/monocle/pull/547))
+- Enable custom instrumentation via external config file ([#553](https://github.com/monocle2ai/monocle/pull/553))
+- Support workflow name via env variable and span name for custom instrumentation ([#558](https://github.com/monocle2ai/monocle/pull/558))
+- Span subtype for LlamaIndex ([#551](https://github.com/monocle2ai/monocle/pull/551))
+- Set span subtype for Azure AI ([#556](https://github.com/monocle2ai/monocle/pull/556))
+- Set span subtype for Haystack ([#557](https://github.com/monocle2ai/monocle/pull/557))
+- Use importlib to preserve namespaces for custom instrumentation; support custom startup function ([#563](https://github.com/monocle2ai/monocle/pull/563))
+- Fix for Dict format handling for OpenAI-compatible APIs (e.g. Nebius) ([#564](https://github.com/monocle2ai/monocle/pull/564))
+- Fix LangChain BaseChatModel package path ([#566](https://github.com/monocle2ai/monocle/pull/566))
+- Add git branch and repo name to test run scope ([#337](https://github.com/monocle2ai/monocle/pull/337))
+- Fix prompt value error ([#555](https://github.com/monocle2ai/monocle/pull/555))
+- Test exporter for span filter ([#521](https://github.com/monocle2ai/monocle/pull/521))
+
 ## Version 0.7.9 (2026-04-27)
 - Monocle test framework to support Okahu eval testing for facts beyond just traces
 - Okahu exporter to load API key from .env.monocle if provided

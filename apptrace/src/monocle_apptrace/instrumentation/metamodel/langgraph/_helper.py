@@ -1,5 +1,5 @@
 from opentelemetry.context import get_value
-from monocle_apptrace.instrumentation.common.utils import resolve_from_alias
+from monocle_apptrace.instrumentation.common.utils import resolve_from_alias, get_json_dumps
 from monocle_apptrace.instrumentation.common.constants import AGENT_NAME_KEY, LAST_AGENT_INVOCATION_ID, LAST_AGENT_NAME
 import logging
 logger = logging.getLogger(__name__)
@@ -30,45 +30,26 @@ def is_single_agent_instance(instance) -> bool:
     return False
 
 def extract_agent_input(arguments):
-    if arguments['kwargs'] is not None and 'input' in arguments['kwargs']:
-        history = arguments['kwargs']['input']['messages']
+    try:
         messages = []
-        for message in history:
-            is_user_message = False
-            content = None
-            # Check if message is from user/human using multiple getter approaches
-            for getter in [
-                lambda m: m['role'] == "user",  # dict with role key
-                lambda m: m.type == "human",  # object with type attribute
-            ]:
-                try:
-                    if getter(message):
-                        is_user_message = True
-                        break
-                except (KeyError, AttributeError, TypeError):
-                    continue
-
-            if is_user_message:
-                for content_getter in [
-                    lambda m: m['content'],  # dict with content key
-                    lambda m: m.content,     # object with content attribute
-                ]:
-                    try:
-                        content = content_getter(message)
-                        break
-                    except (KeyError, AttributeError, TypeError):
-                        continue
-                if content is not None:
-                    messages.append(content)
-        return messages
-    if arguments['args'] is not None and len(arguments['args']) > 0 and 'messages' in arguments['args'][0]:
-        history = arguments['args'][0]['messages']
-        messages = []
-        for message in history:
-            if hasattr(message, 'content') and hasattr(message, 'type') and message.type == "human":  # Check if the message is a HumanMessage
-                messages.append(message.content)
-        return messages
-    return []
+        if arguments['kwargs'] is not None and 'input' in arguments['kwargs']:
+            history = arguments['kwargs']['input']['messages']
+            for message in history:
+                if hasattr(message, 'type') and message.type == "human":
+                    messages.append(message.content)
+                elif isinstance(message, dict) and message.get('role') == "user" and 'content' in message:  # Check if it's a dict with role and content
+                    messages.append(message['content'])
+        elif arguments['args'] is not None and len(arguments['args']) > 0 and 'messages' in arguments['args'][0]:
+            history = arguments['args'][0]['messages']
+            for message in history:
+                if hasattr(message, 'type') and message.type == "human":
+                    messages.append(message.content)
+                elif isinstance(message, dict) and message.get('role') == "user" and 'content' in message:  # Check if it's a dict with role and content
+                    messages.append(message['content'])
+        return get_json_dumps(messages) if messages else ""
+    except Exception as e:
+        logger.warning("Warning: Error occurred in extract_agent_input: %s", str(e))
+        return ""
 
 def extract_parent_command_message(ex):
     try:

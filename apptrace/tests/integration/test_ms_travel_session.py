@@ -3,6 +3,7 @@ import pytest
 import random
 import time
 import os
+from typing import Annotated
 from monocle_apptrace.exporters.base_exporter import MonocleInMemorySpanExporter
 from monocle_apptrace.exporters.file_exporter import FileSpanExporter
 from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
@@ -12,7 +13,6 @@ try:
     from agent_framework import ChatAgent
     from agent_framework.azure import AzureOpenAIAssistantsClient
     from azure.identity.aio import AzureCliCredential
-    from typing import Annotated
     MICROSOFT_AGENT_AVAILABLE = True
 except ImportError:
     MICROSOFT_AGENT_AVAILABLE = False

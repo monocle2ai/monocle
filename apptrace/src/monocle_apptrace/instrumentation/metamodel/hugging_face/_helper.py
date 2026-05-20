@@ -28,7 +28,6 @@ def _unwrap_result(payload):
 
 def update_input_span_events(kwargs):
     input_text = ""
-    print("DEBUG kwargs:", kwargs)
     if "inputs" in kwargs:
         if isinstance(kwargs["inputs"], list):
             input_text = " | ".join(str(i) for i in kwargs["inputs"])

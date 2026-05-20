@@ -882,6 +882,27 @@ def _response_contains_tool_calls(response):
         if response is None:
             return False
 
+        # Check direct finish_reason first
+        direct_finish_reason = _get_field(response, "finish_reason")
+        if direct_finish_reason:
+            fr_str = direct_finish_reason.value if hasattr(direct_finish_reason, "value") else str(direct_finish_reason)
+            if fr_str in ("tool_calls", "function_call"):
+                return True
+        
+        # Check via choices array (most common path)
+        choices = _as_list(_get_field(response, "choices"))
+        if choices:
+            choice_finish_reason = _get_field(choices[0], "finish_reason")
+            if choice_finish_reason:
+                fr_str = (
+                    choice_finish_reason.value
+                    if hasattr(choice_finish_reason, "value")
+                    else str(choice_finish_reason)
+                )
+                if fr_str in ("tool_calls", "function_call"):
+                    return True
+
+        # Legacy checks for beta API and other formats
         if _as_list(_get_field(response, "tools")):
             return True
 
@@ -910,9 +931,6 @@ def _response_contains_tool_calls(response):
                     return True
 
         for choice in _as_list(_get_field(response, "choices")):
-            finish_reason = _get_field(choice, "finish_reason")
-            if finish_reason in ("tool_calls", "function_call"):
-                return True
             if _as_list(_get_field(_get_field(choice, "message"), "tool_calls")):
                 return True
             if _as_list(_get_field(_get_field(choice, "delta"), "tool_calls")):

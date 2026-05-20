@@ -45,8 +45,8 @@ def extract_messages(arguments):
         try:
             system_prompt = kwargs.get("template").prompt.sections[0].sections[0].template
             messages.append({'system': system_prompt})
-        except Exception as e:
-            print(f"Debug - Error accessing system prompt: {str(e)}")
+        except Exception:
+            pass
             
         # Try alternative path through context if memory path fails
         context = kwargs.get("context")
@@ -55,10 +55,6 @@ def extract_messages(arguments):
 
         return [get_json_dumps(message) for message in messages]
     except Exception as e:
-        print(f"Debug - Arguments structure: {str(arguments)}")
-        print(f"Debug - kwargs: {str(kwargs)}")
-        if "memory" in kwargs:
-            print(f"Debug - memory type: {type(kwargs['memory'])}")
         return f"Error capturing input: {str(e)}"
 
 def capture_prompt_info(arguments):

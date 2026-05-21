@@ -1,6 +1,8 @@
 import os
 
 import pytest
+
+import boto3
 from common.custom_exporter import CustomConsoleSpanExporter
 from common.langhchain_patch import create_history_aware_retriever
 from langsmith import Client
@@ -21,6 +23,7 @@ from monocle_apptrace.instrumentation.common.instrumentor import (
 )
 from opensearchpy import OpenSearch, RequestsHttpConnection
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from requests_aws4auth import AWS4Auth
 
 # Set up OpenTelemetry tracing
 
@@ -42,13 +45,20 @@ def setup():
 def test_langchain_opensearch_sample(setup):
     # OpenSearch endpoint and credentials
     endpoint = os.environ.get("OPEN_SEARCH_DOCSTORE_ENDPOINT")
-    http_auth = (os.environ.get("OPEN_SEARCH_AUTH_USER"), os.environ.get("OPEN_SEARCH_AUTH_PASSWORD"))
+    region = 'us-east-1'
+    service = 'aoss'
+    print(os.environ["AWS_ACCESS_KEY_ID"],os.environ["AWS_SECRET_ACCESS_KEY"] ,region,service)
+    aws_auth = AWS4Auth(os.environ["AWS_ACCESS_KEY_ID"], os.environ["AWS_SECRET_ACCESS_KEY"], region, service)
     index_name = "gpt-index-demo"
 
     # Initialize OpenSearch client
     opensearch_client = OpenSearch(
         hosts=[endpoint],
-        http_auth=http_auth,
+        http_auth=aws_auth,
+        use_ssl=True,
+        verify_certs=True,
+        ssl_assert_hostname=True,
+        ssl_show_warn=True,
         connection_class=RequestsHttpConnection
     )
 
@@ -68,7 +78,7 @@ def test_langchain_opensearch_sample(setup):
 
     # Use OpenSearchVectorStore instead of OpenSearchVectorSearch
     docsearch = OpenSearchVectorSearch.from_documents(
-        docs, embeddings, opensearch_url=endpoint, http_auth=http_auth
+        docs, embeddings, opensearch_url=endpoint, http_auth=aws_auth, connection_class=RequestsHttpConnection, timeout=30
     )
 
     # Convert to retriever

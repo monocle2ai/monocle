@@ -47,7 +47,6 @@ def test_langchain_opensearch_sample(setup):
     endpoint = os.environ.get("OPEN_SEARCH_DOCSTORE_ENDPOINT")
     region = 'us-east-1'
     service = 'aoss'
-    print(os.environ["AWS_ACCESS_KEY_ID"],os.environ["AWS_SECRET_ACCESS_KEY"] ,region,service)
     aws_auth = AWS4Auth(os.environ["AWS_ACCESS_KEY_ID"], os.environ["AWS_SECRET_ACCESS_KEY"], region, service)
     index_name = "gpt-index-demo"
 

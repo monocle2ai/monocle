@@ -1,4 +1,4 @@
-from typing import Union
+from typing import Optional, Union
 import numpy as np
 from pydantic_core import CoreSchema, PydanticSerializationError, core_schema
 from sentence_transformers import SentenceTransformer
@@ -17,11 +17,16 @@ MODEL_NAME = "sentence-transformers/all-mpnet-base-v2"  # Fast and good for sema
 SIMILARITY_THRESHOLD: float = 0.8
 
 class SentenceComparer(BaseComparer):
-    _test_transformer: SentenceTransformer
-    
+    _test_transformer: Optional[SentenceTransformer] = None
+
     def __init__(self, **data):
         super().__init__(**data)
-        self._test_transformer = SentenceTransformer(model_name_or_path=MODEL_NAME)
+
+    @property
+    def transformer(self) -> SentenceTransformer:
+        if self._test_transformer is None:
+            self._test_transformer = SentenceTransformer(model_name_or_path=MODEL_NAME)
+        return self._test_transformer
 
     def compare(self, expected: Union[dict, str], actual: Union[dict, str]) -> bool:
         if expected == actual:
@@ -68,9 +73,7 @@ class SentenceComparer(BaseComparer):
 
     def _generate_semantic_embeddings(self, texts: list[str]):
         """Generate semantic embeddings using sentence transformers"""
-        
-        # Generate embeddings
-        embeddings = self._test_transformer.encode(
+        embeddings = self.transformer.encode(
             texts,
             convert_to_numpy=True,
             normalize_embeddings=True,  # Normalize for cosine similarity

@@ -1,97 +1,258 @@
-# Monocle for tracing GenAI app code
+<p align="center">
+  <img src="https://github.com/monocle2ai/artwork/raw/main/horizontal/color/Monocle-Logo-Color.svg" alt="Monocle" width="400" />
+</p>
 
-<h4 align="center">
-    <a href="https://pypi.org/project/monocle-apptrace/" target="_blank">
-        <img src="https://img.shields.io/pypi/v/monocle-apptrace.svg" alt="PyPI Version">
-    </a>
-    <a href="https://discord.gg/D8vDbSUhJX">
-        <img src="https://img.shields.io/static/v1?label=Chat%20on&message=Discord&color=blue&logo=Discord&style=flat-square" alt="Discord">
-    </a>
-    <a href="https://join.slack.com/t/monocle2ai/shared_invite/zt-37pgez3jr-BNjNynF6VV8iHvRlaLM7QA">
-        <img src="https://img.shields.io/static/v1?label=Chat%20on&message=Slack&color=black&logo=Slack&style=flat-square" alt="Slack">
-    </a>
-</h4>
+<h1 align="center">Monocle</h1>
 
-**Monocle** helps developers and platform engineers building or managing GenAI apps monitor these in prod by making it easy to instrument their code to capture traces that are compliant with open-source cloud-native observability ecosystem. 
+<p align="center"><strong>Open-source tracing &amp; testing for GenAI apps and agents.</strong></p>
 
-**Monocle** is a community-driven OSS framework for tracing GenAI app code governed as a [Linux Foundation AI & Data project](https://lfaidata.foundation/projects/monocle/). 
+<p align="center">
+  <img src="https://img.shields.io/pypi/v/monocle-apptrace.svg" alt="PyPI Version" />
+  <img src="https://img.shields.io/pypi/dw/monocle-apptrace" alt="PyPI Downloads" />
+  <img src="https://img.shields.io/github/license/monocle2ai/monocle" alt="License" />
+  <img src="https://img.shields.io/badge/runtime-Python-3776ab?logo=python&logoColor=white" alt="Python" />
+  <img src="https://img.shields.io/badge/LF%20AI%20%26%20Data-project-0a7bba" alt="LF AI & Data" />
+</p>
 
-## Why Monocle
+<p align="center">
+  <a href="https://github.com/monocle2ai/monocle/issues"><img src="https://img.shields.io/badge/Report%20a%20Bug-000000?style=for-the-badge&logo=github&logoColor=white" alt="Report a Bug" /></a>
+  <a href="https://github.com/monocle2ai/monocle/issues"><img src="https://img.shields.io/badge/Request%20a%20Feature-5865F2?style=for-the-badge&logo=github&logoColor=white" alt="Request a Feature" /></a>
+</p>
 
-Monocle is built for: 
-- **app developers** to trace their app code in any environment without lots of custom code decoration 
-- **platform engineers** to instrument apps in prod through wrapping instead of asking app devs to recode
-- **GenAI component providers** to add observability features to their products 
-- **enterprises** to consume traces from GenAI apps in their existing open-source observability stack
+<p align="center"><strong>⭐ If Monocle2AI helps you trace, test, and debug your GenAI agents, a GitHub Star goes a long way.</strong></p>
 
-Benefits:
-- Monocle provides an implementation + package, not just a spec 
-   - No expertise in OpenTelemetry spec required
-   - No bespoke implementation of that spec required
-   - No last-mile GenAI domain specific code required to instrument your app
-- Monocle provides consistency  
-   - Connect traces across app code executions, model inference or data retrievals
-   - No cleansing of telemetry data across GenAI component providers required
-   - Works the same in personal lab dev or org cloud prod environments
-   - Send traces to location that fits your scale, budget and observability stack
-- Monocle is fully open source and community driven
-   - No vendor lock-in
-   - Implementation is transparent
-   - You can freely use or customize it to fit your needs 
+<p align="center">
+  <a href="#how-it-works">How It Works</a> ·
+  <a href="#quick-start">Quick Start</a> ·
+  <a href="#testing-ai-agents-with-monocle-test-tools">Testing</a> ·
+  <a href="#supported-frameworks-and-providers">Frameworks</a> ·
+  <a href="#ides-adk-and-ecosystem-integrations">Integrations</a> ·
+  <a href="#contributing--community">Contributing</a>
+</p>
 
-## What Monocle provides
+<p align="center">
+  Built under the <a href="https://lfaidata.foundation/projects/monocle/">Linux Foundation AI &amp; Data</a> umbrella,
+  designed to plug into your existing OpenTelemetry stack. With a few lines of code (or none at all),
+  you get rich traces, CI-friendly tests, and deep visibility across LLMs, agents, tools, and vector stores.
+</p>
 
-- Easy to [use](#use-monocle) code instrumentation
-- OpenTelemetry compatible format for [spans](src/monocle_apptrace/metamodel/spans/span_format.json). 
-- Community-curated and extensible [metamodel](src/monocle_apptrace/metamodel/README.md) for consisent tracing of GenAI components. 
-- Export to local and cloud storage 
+## How it works
 
-## Use Monocle
+At its core, Monocle is a **GenAI-specific observability layer built on OpenTelemetry**.
 
-### Generate traces
-Install monocle package and make simple two line change to your application to generate traces.
-  
+* 🧬 **Metamodel** — defines entities such as agents, prompts, responses, tools, and vector operations, and maps them to standardized span attributes. See the [metamodel docs](src/monocle_apptrace/metamodel/spans/span_format.json) for details.
+* 🔌 **Instrumentation adapters** — for GenAI frameworks automatically create spans for key operations (agent runs, tool calls, LLM invocations, retrieval queries) without you wiring them manually.
+* 📤 **OTLP-compatible traces** — your existing collectors, backends, and dashboards just work.
+
+Because the traces are structured and consistent, they are easy for humans, dashboards, and even SRE/QA agents to consume.
+
+## Why developers love Monocle
+
+* 🔍 **Turn black-box agents into step-by-step traces** — see every model call, tool invocation, vector lookup, and intermediate state in one connected timeline.
+* 🧩 **Works with the GenAI stack you already use** — LangChain, LlamaIndex, Haystack, Google ADK, OpenAI, Anthropic and more are supported through first-class instrumentation.
+* 📡 **Speaks OpenTelemetry natively** — Monocle emits standard OTLP spans so you can send them to any observability backend (file, console, cloud storage, or your favorite APM).
+* 🧪 **Makes AI testing real, not aspirational** — with `monocle-test-tools`, you can assert on traces themselves — agents invoked, tools used, token costs, error states — not just input/output pairs.
+* 🏛️ **Linux Foundation & CNCF community DNA** — built and governed in the open, with contributions from the broader AI and cloud-native observability communities.
+
+If you care about **debuggability, reliability, or compliance** for AI agents, Monocle is meant for you.
+
+## Who Monocle is for
+
+* 👩‍💻 **App developers** — trace GenAI apps in any environment without decorating every function with bespoke OpenTelemetry code.
+* 🏗️ **Platform / infra engineers** — prefer wrapping and operators over asking product teams to refactor their apps for observability.
+* 🏢 **Enterprises & SREs** — standardized, OTel-compliant traces and CI-friendly AI tests that fit existing pipelines and dashboards.
+
+## What's in this repo
+
+This repository contains the **Python implementation** of Monocle's tracing SDK and metamodel (`monocle_apptrace`), including:
+
+* Core instrumentation utilities.
+* A community-curated [metamodel](src/monocle_apptrace/metamodel/spans/span_format.json) for consistent tracing of GenAI components (agents, LLM calls, tools, vector stores, etc.).
+* Framework-specific adapters (e.g., LangChain, LlamaIndex, Haystack, Google ADK) so you don't have to handcraft spans.
+* Export configuration for local JSON files, console, and cloud storage backends.
+
+There is also a separate package, **[`monocle-test-tools`](test_tools/)**, which provides a testing and validation framework for AI agent tracing, built on top of pytest.
+
+## Quick Start
+
+### 1. Install
+
+```bash
+pip install monocle_apptrace
 ```
-    pip install monocle_apptrace 
+
+### 2. Initialize telemetry once
+
+```python
+from monocle_apptrace.instrumentor import setup_monocle_telemetry
+
+setup_monocle_telemetry(workflow_name="simple_math_app")
 ```
-- Instrument your app code
-     - Import the Monocle package
-       ```
-          from monocle_apptrace.instrumentor import setup_monocle_telemetry
-       ```
-     - Setup instrumentation in your ```main()``` function  
-       ``` 
-          setup_monocle_telemetry(workflow_name="your-app-name")
-       ```         
-- (Optionally) Modify config to alter where traces are sent
 
-See [Monocle user guide](Monocle_User_Guide.md) for more details.
-  
-### Monocle test tool
-Test your application and agent behavior by using Monocle's genAI test tool. Just define your input, expected output and expected agent or tool to be called. The Monocle test tool automatically generates the traces and validate your expected behavior.
+This wires up OpenTelemetry, configures the Monocle metamodel, and auto-instruments supported frameworks without requiring you to manually create spans.
 
-### Monocle MCP server
-The MCP server provided by Monocle integrates with your dev enviorment like Visual Studio and Github copilot. It provides curated prompts and tools to analyze the trace to find issues.
+### 3. Run your app and inspect traces
 
-## Roadmap 
+By default, Monocle exports traces as JSON files under a local `./monocle` directory:
 
-Goal of Monocle is to support tracing for apps written in *any language* with *any LLM orchestration or agentic framework* and built using models, vectors, agents or other components served up by *any cloud or model inference provider*. 
+```text
+monocle_trace_{workflow_name}_{trace_id}_{timestamp}.json
+```
 
-Current version supports: 
-- Language: (🟢) Python , (🟢) [Typescript](https://github.com/monocle2ai/monocle-typescript)
-- Agentic frameworks: (🟢) Langgraph, (🟢) LlamaIndex, (🟢) Google ADK, (🟢)  OpenAI Agent SDK, (🟢) AWS Strands, (🟢) CrewAI, (🟢) Microsoft Agent Framework
-- MCP/A2A frameworks: (🟢) FastMCP, (🟢) MCP client, (🟢) A2A client
-- Web/App frameworks: (🟢) Flask, (🟢) AIO Http, (🟢)FastAPI, (🟢) Azure Function, (🟢) AWS Lambda, (🟢) Vercel (typescript), (🟢) Microsoft Teams AI SDK, (🟢) Web/REST client, (🔜) Google Function, 
-- LLM-frameworks: (🟢) Langchain, (🟢) Llamaindex, (🟢) Haystack
-- Agent Runtime: (🟢) AWS Bedrock Agentcore
-- LLM inference providers: (🟢) OpenAI, (🟢) Azure OpenAI, (🟢) Azure AI, (🟢) Nvidia Triton, (🟢) AWS Bedrock, (🟢) AWS Sagemaker, (🟢) Google Vertex, (🟢) Google Gemini, (🟢) Hugging Face, (🟢) Deepseek, (🟢) Anthropic, (🟢) Mistral, (🟢) LiteLLM ,(🔜) Azure ML
-- Vector stores: (🟢) FAISS, (🔜) OpenSearch, (🔜) Milvus
-- Exporter: (🟢) stdout, (🟢) file, (🟢) Memory, (🟢) Azure Blob Storage, (🟢) AWS S3, (🟢) Okahu cloud, (🟢) OTEL compatible collectors, (🟢) Google Cloud Storage
+Each file contains an array of OpenTelemetry spans capturing agent runs, tool calls, and LLM interactions. Load them into any OTLP-compatible backend, or use the [Okahu VS Code extension](https://docs.okahu.ai/vscode-extension/) for a rich Gantt-style timeline visualization.
 
-## Get involved
-### Provide feedback
-- Submit issues and enhancements requests via Github issues
+## Testing AI agents with `monocle-test-tools`
 
-### Contribute
-- Monocle is community based open source project. We welcome your contributions. Please refer to the CONTRIBUTING and CODE_OF_CONDUCT for guidelines. The [contributor's guide](CONTRIBUTING.md) provides technical details of the project.
+**[`monocle-test-tools`](test_tools/)** is the companion test framework that lets you write pytest-style tests that assert on traces, not just return values.
 
+### What you can validate
+
+| Capability | Description |
+| --- | --- |
+| **Agentic response** | Did the agent produce the right kind of answer for a given input? |
+| **Agent invocation** | Did the correct agent or sub-agent run, and delegate the right tasks? |
+| **Tool behavior** | Were the intended tools called, with the expected parameters and outputs? |
+| **Inference quality & cost** | Did responses match your schemas or rubrics, and stay within token/cost budgets? |
+| **E2E evaluations in CI/CD** | Run eval-style tests as part of your pipeline using the same traces that power observability. |
+
+### Install
+
+```bash
+pip install monocle_test_tools
+```
+
+<details>
+  <summary><b>Example: validate agent behavior and tool calls</b></summary>
+
+  ```python
+  from monocle_test_tools import expected
+
+  def test_weather_agent():
+      result = expected(
+          input="What is the weather in London?",
+          expected_output="weather report for London"
+      )
+      result.called_agent("weather_agent")
+      result.called_tool("get_weather", agent_name="weather_agent")
+      result.under_token_limit(5000)
+      result.under_duration(10)
+  ```
+</details>
+
+<details>
+  <summary><b>Example: assert on pre-recorded traces (offline)</b></summary>
+
+  ```python
+  from monocle_test_tools import expected
+
+  def test_from_saved_trace():
+      result = expected(
+          input="Summarize the Q3 report",
+          expected_output="summary of revenue and growth",
+          trace_file="monocle/monocle_trace_my_app_abc123.json"
+      )
+      result.called_agent("summarizer_agent")
+      result.does_not_call_tool("delete_record")
+  ```
+</details>
+
+See the full [test assertions reference](docs/monocle_test_assertions.md) and [test tools README](test_tools/README.md) for detailed usage.
+
+## Zero- and low-code tracing modes
+
+Monocle supports both **in-app initialization** and **wrapper-style execution** so you can choose how invasive you want tracing to be.
+
+* 🟢 **In-code setup** — call `setup_monocle_telemetry()` once at startup and let Monocle auto-instrument supported frameworks.
+* 🟢 **Wrapper / operator mode** — use CLI-like entrypoints (e.g., running your script with a `monocle_apptrace` module) to trace apps without modifying the code, making it suitable for Lambda layers and platform-level integration.
+
+This flexibility is especially useful when platform teams want to inject tracing without touching product code, or when you ship multi-tenant AI platforms.
+
+<details>
+  <summary><b>Instrumenting Claude CLI and Codex CLI</b></summary>
+
+  Monocle can trace AI coding assistants that run as CLI tools. Wrap your CLI invocation with Monocle's zero-code mode to capture every LLM call, tool use, and agent step:
+
+  ```bash
+  # Trace Claude CLI sessions
+  python -m monocle_apptrace claude
+
+  # Trace OpenAI Codex CLI sessions
+  python -m monocle_apptrace codex
+  ```
+
+  Traces are emitted to the configured exporter (file, console, or cloud), giving you full visibility into how these assistants interact with your codebase.
+</details>
+
+## Supported frameworks and providers
+
+| Category | Supported |
+| --- | --- |
+| **Language** | 🟢 Python · 🟢 [Typescript](https://github.com/monocle2ai/monocle-typescript) |
+| **Agentic frameworks** | 🟢 Langgraph · 🟢 LlamaIndex · 🟢 Google ADK · 🟢 OpenAI Agent SDK · 🟢 AWS Strands · 🟢 CrewAI · 🟢 Microsoft Agent Framework |
+| **MCP / A2A** | 🟢 FastMCP · 🟢 MCP client · 🟢 A2A client |
+| **Web / App** | 🟢 Flask · 🟢 AIO Http · 🟢 FastAPI · 🟢 Azure Function · 🟢 AWS Lambda · 🟢 Vercel (TS) · 🟢 Microsoft Teams AI SDK · 🟢 Web/REST client · 🔜 Google Function |
+| **LLM frameworks** | 🟢 Langchain · 🟢 Llamaindex · 🟢 Haystack |
+| **Agent Runtime** | 🟢 AWS Bedrock Agentcore |
+| **LLM inference** | 🟢 OpenAI · 🟢 Azure OpenAI · 🟢 Azure AI · 🟢 Nvidia Triton · 🟢 AWS Bedrock · 🟢 AWS Sagemaker · 🟢 Google Vertex · 🟢 Google Gemini · 🟢 Hugging Face · 🟢 Deepseek · 🟢 Anthropic · 🟢 Mistral · 🟢 LiteLLM · 🔜 Azure ML |
+| **AI coding assistants** | 🟢 Claude CLI · 🟢 OpenAI Codex CLI |
+| **Vector stores** | 🟢 FAISS · 🔜 OpenSearch · 🔜 Milvus |
+| **Exporters** | 🟢 stdout · 🟢 file · 🟢 Memory · 🟢 Azure Blob Storage · 🟢 AWS S3 · 🟢 Okahu cloud · 🟢 OTEL collectors · 🟢 Google Cloud Storage |
+
+## IDEs, ADK, and ecosystem integrations
+
+Monocle is designed to play nicely with the tools you already use.
+
+### VS Code extension
+
+The **Okahu Trace Visualizer** extension reads Monocle JSON trace files and displays them in an interactive UI with timelines, JSON viewers, token counts, and error badges.
+
+<p align="center">
+  <a href="https://docs.okahu.ai/vscode-extension/"><b>👉 Download from VS Code Marketplace</b></a>
+</p>
+
+<p align="center">
+  <img src="https://docs.okahu.ai/images/vscode-extension/ide-overview.png" alt="VS Code Extension Overview" width="700" />
+</p>
+
+### Google Agent Development Kit (ADK)
+
+A dedicated integration automatically instruments ADK agents, tools, and runners after you call `setup_monocle_telemetry`, emitting spans for agent runs, tool calls, and LLM interactions. See the [Google ADK docs](https://google.github.io/adk-docs/observability/monocle/) for setup instructions.
+
+### Okahu cloud observability
+
+Okahu uses Monocle traces as a primary signal source for debugging, evaluation, and SRE-style monitoring of agentic applications.
+
+These integrations make it easy to go from **local debug** → **CI/CD testing** → **production observability** without switching tracing models.
+
+## Docs, examples, and learning resources
+
+| Resource | Description |
+| --- | --- |
+| **[User Guide](Monocle_User_Guide.md)** | Installation, configuration, and how traces are structured |
+| **[Trace API](docs/monocle_trace_api.md)** | `monocle_trace` / `amonocle_trace` and low-level `start_trace` / `stop_trace` |
+| **[Scope API](docs/monocle_scope_api.md)** | `monocle_trace_scope` helpers to attach scopes across spans |
+| **[Test Assertions](docs/monocle_test_assertions.md)** | Complete reference for all fluent API assertions in `monocle-test-tools` |
+| **[Test Tools](test_tools/README.md)** | Getting started with `monocle-test-tools`, `conftest.py` setup and examples |
+| **[Evaluation API](docs/monocle_evaluation_api.md)** | LLM-based evaluation integration for test assertions |
+| **[Contributing](CONTRIBUTING.md)** | Technical details for contributing to the project |
+| **[Examples](examples/)** | Sample apps demonstrating Monocle with various frameworks |
+
+## Roadmap
+
+Monocle's long-term goal is to support **tracing and testing for GenAI apps built in any language, with any orchestration or agent framework, on any LLM or vector backend.**
+
+* First-class support for more languages (TypeScript and beyond).
+* Deeper adapters for additional LLM hosting services and vector databases.
+* Richer test assertions and evaluation hooks in `monocle-test-tools` for complex, policy-driven AI systems.
+
+You can track progress and proposals via the [LF AI & Data Monocle project page](https://lfaidata.foundation/projects/monocle/) and [GitHub discussions](https://github.com/monocle2ai).
+
+## Contributing & community
+
+Monocle is a **community-based open source project** under the Apache 2.0 license.
+
+* File bugs and feature requests via [GitHub Issues](https://github.com/monocle2ai/monocle/issues).
+* Open PRs for new framework integrations, exporters, or metamodel improvements.
+* Join discussions on [Discord](https://discord.gg/D8vDbSUhJX) or [Slack](https://join.slack.com/t/monocle2ai/shared_invite/zt-37pgez3jr-BNjNynF6VV8iHvRlaLM7QA).
+
+Please see [CONTRIBUTING](CONTRIBUTING.md), [CODE_OF_CONDUCT](CODE_OF_CONDUCT.md), and [SECURITY](SECURITY.md) for detailed guidelines.

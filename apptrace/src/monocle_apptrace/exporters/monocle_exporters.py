@@ -59,4 +59,10 @@ def get_monocle_exporter(exporters_list:str=None) -> List[SpanExporter]:
         logger.debug("No valid Monocle span exporters configured. Defaulting to FileSpanExporter.")
         exporters.append(FileSpanExporter())
 
+    # MONOCLE_CONSOLE=true adds ConsoleSpanExporter alongside whatever is configured
+    if os.environ.get("MONOCLE_CONSOLE", "").lower() in ("1", "true", "yes"):
+        if not any(isinstance(e, ConsoleSpanExporter) for e in exporters):
+            exporters.append(ConsoleSpanExporter())
+            logger.debug("MONOCLE_CONSOLE is set: added ConsoleSpanExporter.")
+
     return exporters

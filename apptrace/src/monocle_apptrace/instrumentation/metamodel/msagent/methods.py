@@ -2,13 +2,34 @@
 
 """
 
-from monocle_apptrace.instrumentation.common.wrapper import atask_wrapper
+from monocle_apptrace.instrumentation.common.wrapper import (
+    atask_wrapper, 
+    atask_iter_wrapper,
+    amonocle_wrapper,
+    amonocle_iter_wrapper,
+    with_tracer_wrapper
+)
+from opentelemetry.trace import Tracer
+from monocle_apptrace.instrumentation.common.span_handler import SpanHandler
 from monocle_apptrace.instrumentation.metamodel.msagent.entities.inference import (
     AGENT, 
     AGENT_REQUEST,
-    INFERENCE,
     TOOL,
 )
+
+
+@with_tracer_wrapper
+async def msagent_adaptive_wrapper(tracer: Tracer, handler: SpanHandler, to_wrap, wrapped, instance, source_path, args, kwargs):
+    """
+    Adaptive wrapper for MS Agent methods that can return either a single result or an async iterator.
+    When stream=True, it yields multiple items. When stream=False, it awaits and yields once.
+    """
+    if kwargs.get("stream", False):
+        async for item in amonocle_iter_wrapper(tracer, handler, to_wrap, wrapped, instance, source_path, args, kwargs):
+            yield item
+    else:
+        result = await amonocle_wrapper(tracer, handler, to_wrap, wrapped, instance, source_path, args, kwargs)
+        yield result
 
 
 MSAGENT_METHODS = [
@@ -18,38 +39,22 @@ MSAGENT_METHODS = [
         "object": "Workflow",
         "method": "run",
         "span_handler": "msagent_request_handler",
-        "wrapper_method": atask_wrapper,
+        "wrapper_method": atask_iter_wrapper,
         "output_processor": AGENT_REQUEST,
     },
-    # Agent.run - agent request level (replaces ChatAgent.run)
-    # Note: Agent.run has stream parameter but returns different types
-    # For now, instrument as non-streaming; streaming may need separate handling
+    # Agent.run - agent request level (user-facing, needs adaptive wrapper for stream support)
     {
         "package": "agent_framework._agents",
         "object": "Agent",
         "method": "run",
         "span_handler": "msagent_request_handler",
-        "wrapper_method": atask_wrapper,
+        "wrapper_method": msagent_adaptive_wrapper,
         "output_processor": AGENT_REQUEST,
     },
-    # BaseChatClient - invocation level (base class for all chat clients)
-    {
-        "package": "agent_framework._clients",
-        "object": "BaseChatClient",
-        "method": "get_response",
-        "span_handler": "msagent_agent_handler",
-        "wrapper_method": atask_wrapper,
-        "output_processor": AGENT,
-    },
-    # BaseChatClient inference-level - the actual LLM API call
-    {
-        "package": "agent_framework._clients",
-        "object": "BaseChatClient",
-        "method": "_inner_get_response",
-        "span_handler": "msagent_inference_handler",
-        "wrapper_method": atask_wrapper,
-        "output_processor": INFERENCE,
-    },
+    # NOTE: BaseChatClient.get_response and _inner_get_response are NOT instrumented
+    # because they break when wrapped (SDK internal code expects specific return types).
+    # Streaming details are captured via the stream processor on Agent.run instead.
+    
     # AgentExecutor - agent invocation within workflow
     {
         "package": "agent_framework._workflows._agent_executor",

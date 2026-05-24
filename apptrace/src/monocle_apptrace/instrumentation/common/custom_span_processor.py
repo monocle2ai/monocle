@@ -60,13 +60,12 @@ def extract_input(arguments):
 def extract_output(arguments):
     """Extract and serialize function output."""
     try:
-        result = arguments.get("result")
-        
         # Handle errors
         error_msg = get_error_message(arguments)
         if error_msg:
-            return json.dumps({"error": error_msg})
+            return ""  # Don't capture output if there was an error
         
+        result = arguments.get("result")
         # Serialize the result
         output_data = {
             "result": serialize_value(result)

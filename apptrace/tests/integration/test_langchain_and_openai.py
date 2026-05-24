@@ -15,7 +15,7 @@ from openai import OpenAI
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="function")
 def setup():
     try:
         custom_exporter = CustomConsoleSpanExporter()
@@ -76,6 +76,12 @@ def test_langchain_with_openai(setup):
 
 # Test multiple chains with OpenAI APIs in between in a single trace Verify there only one workflow and all inference spans
 def test_langchain_with_openai_single_trace(setup):
+    from opentelemetry import trace
+    from monocle_apptrace.instrumentation.common.instrumentor import get_monocle_span_processor
+    
+    # Reset exporter to clean state before test
+    setup.reset()
+    
     chain1 = setup_simple_chain()
     chain2 = setup_simple_chain()
     openai = OpenAI()
@@ -95,6 +101,16 @@ def test_langchain_with_openai_single_trace(setup):
     )
     chain2.invoke("What is an coffee?")
     stop_trace(token)
+    
+    # Force flush to ensure all spans are exported
+    span_processor = get_monocle_span_processor()
+    if span_processor:
+        span_processor.force_flush()
+    
+    tracer_provider = trace.get_tracer_provider()
+    if hasattr(tracer_provider, 'force_flush'):
+        tracer_provider.force_flush()
+    
     verify_spans(
         expected_langchain_inference_spans=2,
         expected_openai_inference_spans=1,

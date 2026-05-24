@@ -2,16 +2,16 @@ import logging
 import pytest
 import random
 import time
+import os
+from typing import Annotated
 from common.custom_exporter import CustomConsoleSpanExporter
 from monocle_apptrace.exporters.file_exporter import FileSpanExporter
 from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, SimpleSpanProcessor
 from agent_framework import SequentialBuilder
 try:
-    from agent_framework.azure import AzureOpenAIChatClient
+    from agent_framework.openai import OpenAIChatClient
     from azure.identity.aio import AzureCliCredential
-    from typing import Annotated
-    import os
     MICROSOFT_AGENT_AVAILABLE = True
 except ImportError:
     MICROSOFT_AGENT_AVAILABLE = False
@@ -42,19 +42,21 @@ def book_hotel(
     return f"HOTEL BOOKING CONFIRMED #{confirmation}: {hotel_name} in {city} for {nights} nights - ${cost}"
 
 # Check for required environment variables
-endpoint = os.getenv("AZURE_OPENAI_ENDPOINT") if MICROSOFT_AGENT_AVAILABLE else None
-deployment = os.getenv("AZURE_OPENAI_API_DEPLOYMENT") if MICROSOFT_AGENT_AVAILABLE else None
+azure_endpoint = os.getenv("AZURE_OPENAI_ENDPOINT") if MICROSOFT_AGENT_AVAILABLE else None
+model = os.getenv("AZURE_OPENAI_API_DEPLOYMENT") if MICROSOFT_AGENT_AVAILABLE else None
+api_key = os.getenv("AZURE_OPENAI_API_KEY") if MICROSOFT_AGENT_AVAILABLE else None
 
 # Initialize Azure OpenAI client and agents at module level
-if MICROSOFT_AGENT_AVAILABLE and endpoint and deployment:
-    client = AzureOpenAIChatClient(
-        endpoint=endpoint,
-        deployment_name=deployment,
-        credential=AzureCliCredential(),
+if MICROSOFT_AGENT_AVAILABLE and azure_endpoint and model:
+    client = OpenAIChatClient(
+        model=model,
+        azure_endpoint=azure_endpoint,
+        api_key=api_key,
+        api_version="2025-02-01-preview",
     )
     
     # Create flight booking agent
-    flight_agent = client.create_agent(
+    flight_agent = client.as_agent(
         name="MS_Flight_Booking_Agent",
         instructions=(
             "You are a Flight Booking Assistant. "
@@ -65,7 +67,7 @@ if MICROSOFT_AGENT_AVAILABLE and endpoint and deployment:
     )
     
     # Create hotel booking agent
-    hotel_agent = client.create_agent(
+    hotel_agent = client.as_agent(
         name="MS_Hotel_Booking_Agent",
         instructions=(
             "You are a Hotel Booking Assistant. "
@@ -76,7 +78,7 @@ if MICROSOFT_AGENT_AVAILABLE and endpoint and deployment:
     )
     
     # Create summarizer agent that reviews both bookings
-    summarizer_agent = client.create_agent(
+    summarizer_agent = client.as_agent(
         name="MS_Travel_Summarizer",
         instructions=(
             "You are a Travel Booking Summarizer. "

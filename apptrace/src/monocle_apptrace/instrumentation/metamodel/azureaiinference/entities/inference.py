@@ -23,6 +23,7 @@ def process_stream(to_wrap, response, span_processor):
 
 INFERENCE = {
     "type": SPAN_TYPES.INFERENCE,
+    "subtype": lambda arguments: _helper.agent_inference_type(arguments),
     "is_auto_close": lambda kwargs: kwargs.get("stream", False) is False,
     "response_processor": process_stream,
     "attributes": [

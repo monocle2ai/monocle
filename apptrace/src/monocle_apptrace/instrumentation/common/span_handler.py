@@ -207,8 +207,14 @@ class SpanHandler:
             if subtype:
                 if callable(subtype):
                     try:
-                        subtype_result = subtype(arguments)
-                        span.set_attribute("span.subtype", subtype_result)
+                        # For inference spans, only evaluate subtype during post-execution when result is available
+                        span_type = span.attributes.get("span.type") if span.attributes else None
+                        if span_type == "inference" and not is_post_exec:
+                            # Skip subtype evaluation for inference during pre-execution
+                            pass  
+                        else:
+                            subtype_result = subtype(arguments)
+                            span.set_attribute("span.subtype", subtype_result)
                     except Exception as e:
                         logger.debug(f"Error processing subtype: {e}")
                 else:

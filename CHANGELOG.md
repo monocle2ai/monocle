@@ -1,3 +1,28 @@
+## Unreleased
+
+- feat(exporters): add `MONOCLE_CONSOLE` env var to enable console output alongside any configured exporter ([#577](https://github.com/monocle2ai/monocle/pull/577))
+- fix(test_tools): lazy-load `SentenceTransformer` to prevent crash at pytest collection time in network-restricted environments ([#576](https://github.com/monocle2ai/monocle/pull/576))
+
+## Version 0.8.1 (2026-05-19)
+
+- Codex instrumentation and UV packaging ([#538](https://github.com/monocle2ai/monocle/pull/538))
+- Fetch traces by scope ID ([#542](https://github.com/monocle2ai/monocle/pull/542))
+- Handle tool output being dict/json ([#544](https://github.com/monocle2ai/monocle/pull/544))
+- Span subtypes in ADK ([#546](https://github.com/monocle2ai/monocle/pull/546))
+- Set inference.decision.span.id for ADK ([#548](https://github.com/monocle2ai/monocle/pull/548))
+- Test enhancement for asserting against remote traces ([#547](https://github.com/monocle2ai/monocle/pull/547))
+- Enable custom instrumentation via external config file ([#553](https://github.com/monocle2ai/monocle/pull/553))
+- Support workflow name via env variable and span name for custom instrumentation ([#558](https://github.com/monocle2ai/monocle/pull/558))
+- Span subtype for LlamaIndex ([#551](https://github.com/monocle2ai/monocle/pull/551))
+- Set span subtype for Azure AI ([#556](https://github.com/monocle2ai/monocle/pull/556))
+- Set span subtype for Haystack ([#557](https://github.com/monocle2ai/monocle/pull/557))
+- Use importlib to preserve namespaces for custom instrumentation; support custom startup function ([#563](https://github.com/monocle2ai/monocle/pull/563))
+- Fix for Dict format handling for OpenAI-compatible APIs (e.g. Nebius) ([#564](https://github.com/monocle2ai/monocle/pull/564))
+- Fix LangChain BaseChatModel package path ([#566](https://github.com/monocle2ai/monocle/pull/566))
+- Add git branch and repo name to test run scope ([#337](https://github.com/monocle2ai/monocle/pull/337))
+- Fix prompt value error ([#555](https://github.com/monocle2ai/monocle/pull/555))
+- Test exporter for span filter ([#521](https://github.com/monocle2ai/monocle/pull/521))
+
 ## Version 0.7.9 (2026-04-27)
 - Monocle test framework to support Okahu eval testing for facts beyond just traces
 - Okahu exporter to load API key from .env.monocle if provided
@@ -122,7 +147,7 @@
 - fastapi methods update to fix coroutine issue during server start ([#322](https://github.com/monocle2ai/monocle/pull/322))
 
 ## Version 0.6.5 (2025-11-03)
- 
+
 - Added scope agentic invocation ([#282](https://github.com/monocle2ai/monocle/pull/282))
 - Standardize the inference sub type similar to other span.subtypes ([#303](https://github.com/monocle2ai/monocle/pull/303))
 - Fix mcp package name in Readme ([#300](https://github.com/monocle2ai/monocle/pull/300))
@@ -207,12 +232,8 @@
 - Update teams scopes ([#200](https://github.com/monocle2ai/monocle/pull/200))
 - Record input and errors for inference.modelapi in case of error ([#193](https://github.com/monocle2ai/monocle/pull/193))
 - Removed special handling for streaming in wrapper ([#192](https://github.com/monocle2ai/monocle/pull/192))
-
-
 - Add Span error handling ([#186](https://github.com/monocle2ai/monocle/pull/186))
 - Add teams ai enhancements ([#184](https://github.com/monocle2ai/monocle/pull/184))
-
-
 - Added conversation id in scope for teams ai bot ([#180](https://github.com/monocle2ai/monocle/pull/180))
 - Update inference entity type of TeamsAI SDK ([#178](https://github.com/monocle2ai/monocle/pull/178))
 - Added stream and async for openai ([#177](https://github.com/monocle2ai/monocle/pull/177))
@@ -264,11 +285,11 @@
 - Update inference span for botocore sagemaker ([#93](https://github.com/monocle2ai/monocle/pull/93))
 - Capturing inference output and token metadata for bedrock ([#82](https://github.com/monocle2ai/monocle/pull/82))
 - Add dev dependency for Mistral AI integration ([#81](https://github.com/monocle2ai/monocle/pull/81))
-- Add VectorStore deployment URL capture support ([#80](https://github.com/monocle2ai/monocle/pull/80))  
+- Add VectorStore deployment URL capture support ([#80](https://github.com/monocle2ai/monocle/pull/80))
 - Clean up cloud exporter implementation ([#79](https://github.com/monocle2ai/monocle/pull/79))
 - Capture inference span input/output events attributes ([#77](https://github.com/monocle2ai/monocle/pull/77))
 - Add release automation workflows ([#76](https://github.com/monocle2ai/monocle/pull/76))
-- Fix gaps in Monocle SDK implementation ([#72](https://github.com/monocle2ai/monocle/pull/72))  
+- Fix gaps in Monocle SDK implementation ([#72](https://github.com/monocle2ai/monocle/pull/72))
 - Add kwargs and return value handling in Accessor ([#71](https://github.com/monocle2ai/monocle/pull/71))
 - Update workflow name formatting ([#69](https://github.com/monocle2ai/monocle/pull/69))
 - Implement Haystack metamodel support ([#68](https://github.com/monocle2ai/monocle/pull/68))
@@ -292,7 +313,6 @@
 - Improvement in vectorstore traces ([#38](https://github.com/monocle2ai/monocle/pull/38))
 - Update key for session context field in attributes ([#34](https://github.com/monocle2ai/monocle/pull/34))
 
-
 ## 0.1.0 (Aug 27, 2024)
 
 - Fixed LlamaIndex tracing bugs ([#32](https://github.com/monocle2ai/monocle/pull/32))
@@ -302,75 +322,6 @@
 - Added a default file span exporter ([#21](https://github.com/monocle2ai/monocle/pull/21))
 - Moved input and output context and prompts from attributes to events ([#15](https://github.com/monocle2ai/monocle/pull/15))
 
-
-
-
-
-
 ## 0.0.1 (Jul 17, 2024)
 
 - First monocle release
-
-- Add support for teams finish type, move finish types to metadata section ([#240](https://github.com/monocle2ai/monocle/pull/240))
-- Fix integration tests ([#239](https://github.com/monocle2ai/monocle/pull/239))
-- Add function_name attribute for Azure function ([#238](https://github.com/monocle2ai/monocle/pull/238))
-- Added MCP and A2A ([#237](https://github.com/monocle2ai/monocle/pull/237))
-- Add Metamodel for Lambda Func ([#236](https://github.com/monocle2ai/monocle/pull/236))
-- Allow llm SDKs as workflow types ([#234](https://github.com/monocle2ai/monocle/pull/234))
-- Add Sample Span for VertexAI ([#233](https://github.com/monocle2ai/monocle/pull/233))
-- Add Haystack Gemini sample ([#232](https://github.com/monocle2ai/monocle/pull/232))
-- Add Llama Index Gemini sample ([#231](https://github.com/monocle2ai/monocle/pull/231))
-- Add workflow span name to all spans ([#230](https://github.com/monocle2ai/monocle/pull/230))
-- Add Langchain Gemini sample ([#229](https://github.com/monocle2ai/monocle/pull/229))
-- Add Embeddings Span in Gemini Metamodel ([#228](https://github.com/monocle2ai/monocle/pull/228))
-- Agent metamodel updates for LangGraph ([#227](https://github.com/monocle2ai/monocle/pull/227))
-- Add fastapi metamodel with fastapi tracid propogation testcase ([#226](https://github.com/monocle2ai/monocle/pull/226))
-
-
-- Fix missing inference span in google ADK ([#249](https://github.com/monocle2ai/monocle/pull/249))
-- Added openai agents instrumentation ([#248](https://github.com/monocle2ai/monocle/pull/248))
-- Google Agent development kit meta mode ([#247](https://github.com/monocle2ai/monocle/pull/247))
-- Add Support for LiteLLM OpenAI and AzureOpenAI ([#246](https://github.com/monocle2ai/monocle/pull/246))
-- Added inference subtype for langgrap, openai and anthropic ([#245](https://github.com/monocle2ai/monocle/pull/245))
-- Add support for teams finish type, move finish types to metadata section ([#240](https://github.com/monocle2ai/monocle/pull/240))
-- Fix integration tests ([#239](https://github.com/monocle2ai/monocle/pull/239))
-- Add function_name attribute for Azure function ([#238](https://github.com/monocle2ai/monocle/pull/238))
-- Added MCP and A2A ([#237](https://github.com/monocle2ai/monocle/pull/237))
-- Add Metamodel for Lambda Func ([#236](https://github.com/monocle2ai/monocle/pull/236))
-- Allow llm SDKs as workflow types ([#234](https://github.com/monocle2ai/monocle/pull/234))
-- Add Sample Span for VertexAI ([#233](https://github.com/monocle2ai/monocle/pull/233))
-- Add Haystack Gemini sample ([#232](https://github.com/monocle2ai/monocle/pull/232))
-- Add Llama Index Gemini sample ([#231](https://github.com/monocle2ai/monocle/pull/231))
-- Add workflow span name to all spans ([#230](https://github.com/monocle2ai/monocle/pull/230))
-- Add Langchain Gemini sample ([#229](https://github.com/monocle2ai/monocle/pull/229))
-- Add Embeddings Span in Gemini Metamodel ([#228](https://github.com/monocle2ai/monocle/pull/228))
-- Agent metamodel updates for LangGraph ([#227](https://github.com/monocle2ai/monocle/pull/227))
-- Add fastapi metamodel with fastapi tracid propogation testcase ([#226](https://github.com/monocle2ai/monocle/pull/226))
-
-- Added fix for Strand Boto Input ([#365](https://github.com/monocle2ai/monocle/pull/365))
-- Added fix for Failed to Entity index ([#363](https://github.com/monocle2ai/monocle/pull/363))
-- Handle test status and skipping passed test trace exports ([#362](https://github.com/monocle2ai/monocle/pull/362))
-- Fix typo in strand session id attribute ([#359](https://github.com/monocle2ai/monocle/pull/359))
-- CrewAI metamodel and tests ([#343](https://github.com/monocle2ai/monocle/pull/343))
-- Basic fluent style API for monocle test tool ([#355](https://github.com/monocle2ai/monocle/pull/355))
-- Added finish_reason, type and tool_call attributes for LiteLLM ([#352](https://github.com/monocle2ai/monocle/pull/352))
-- Support dict as arg for test runners to avoid test collection problem with parametrized tests ([#346](https://github.com/monocle2ai/monocle/pull/346))
-- Remove delegation as a span and instead use parent agent as attribute ([#333](https://github.com/monocle2ai/monocle/pull/333))
-- fix: use start_as_monocle_span in monocle_trace ([#348](https://github.com/monocle2ai/monocle/pull/348))
-- Removed '0x' prefix from trace_ids and span_ids ([#353](https://github.com/monocle2ai/monocle/pull/353))
-- Added tool_call attributes for Gemini ([#347](https://github.com/monocle2ai/monocle/pull/347))
-- Added tool_call attribute for MistralAI ([#339](https://github.com/monocle2ai/monocle/pull/339))
-- Added tool_call attribute for Llamaindex, Haystack ([#335](https://github.com/monocle2ai/monocle/pull/335))
-- added session tracking for aws strands, llamaindex, openai ([#345](https://github.com/monocle2ai/monocle/pull/345))
-- Added Fix for Entity Count in Span ([#344](https://github.com/monocle2ai/monocle/pull/344))
-- Fastmcp Instrumentation ([#331](https://github.com/monocle2ai/monocle/pull/331))
-- Handle gemini tool call inference ([#326](https://github.com/monocle2ai/monocle/pull/326))
-- Added the scope session_id for adk ([#332](https://github.com/monocle2ai/monocle/pull/332))
-- Added tool_call attribute for Anthropic, Azure and Boto ([#329](https://github.com/monocle2ai/monocle/pull/329))
-- Update s3 and blob exporter to put trace_id in filename of generated ndjson ([#330](https://github.com/monocle2ai/monocle/pull/330))
-- Added tool_call name and type in inference span ([#323](https://github.com/monocle2ai/monocle/pull/323))
-- Fix entity type for MCP tool invocation ([#327](https://github.com/monocle2ai/monocle/pull/327))
-
-- Claude code instrumentation
-- Custom span enhancement - capture arguement and results 
-

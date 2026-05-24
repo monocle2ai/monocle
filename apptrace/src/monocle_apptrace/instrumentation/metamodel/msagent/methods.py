@@ -1,16 +1,12 @@
-"""Microsoft Agent Framework method definitions for instrumentation."""
+"""Microsoft Agent Framework method definitions for instrumentation.
 
-from monocle_apptrace.instrumentation.common.wrapper import (
-    atask_wrapper, 
-    atask_iter_wrapper,
-)
+"""
+
+from monocle_apptrace.instrumentation.common.wrapper import atask_wrapper
 from monocle_apptrace.instrumentation.metamodel.msagent.entities.inference import (
     AGENT, 
     AGENT_REQUEST,
-    AGENT_REQUEST_STREAM,
-    AGENT_STREAM,
     INFERENCE,
-    INFERENCE_STREAM,
     TOOL,
 )
 
@@ -18,138 +14,57 @@ from monocle_apptrace.instrumentation.metamodel.msagent.entities.inference impor
 MSAGENT_METHODS = [
     # Workflow-level methods - top level span for multi-agent workflows
     {
-        "package": "agent_framework._workflows._handoff",
+        "package": "agent_framework._workflows._workflow",
         "object": "Workflow",
         "method": "run",
         "span_handler": "msagent_request_handler",
         "wrapper_method": atask_wrapper,
         "output_processor": AGENT_REQUEST,
     },
+    # Agent.run - agent request level (replaces ChatAgent.run)
+    # Note: Agent.run has stream parameter but returns different types
+    # For now, instrument as non-streaming; streaming may need separate handling
     {
-        "package": "agent_framework",
-        "object": "ChatAgent",
-        "method": "run_stream",
-        "span_handler": "msagent_request_handler",
-        "wrapper_method": atask_iter_wrapper,
-        # "output_processor": AGENT_REQUEST,
-        "output_processor": AGENT_REQUEST_STREAM,
-    },
-    {
-        "package": "agent_framework",
-        "object": "ChatAgent",
+        "package": "agent_framework._agents",
+        "object": "Agent",
         "method": "run",
         "span_handler": "msagent_request_handler",
         "wrapper_method": atask_wrapper,
         "output_processor": AGENT_REQUEST,
     },
+    # BaseChatClient - invocation level (base class for all chat clients)
     {
-        "package": "agent_framework.azure._chat_client",
-        "object": "AzureOpenAIChatClient",
-        "method": "get_streaming_response",
-        "span_handler": "msagent_agent_handler",
-        "wrapper_method": atask_iter_wrapper,
-        "output_processor": AGENT_STREAM,
-    },
-    {
-        "package": "agent_framework.azure._chat_client",
-        "object": "AzureOpenAIChatClient",
+        "package": "agent_framework._clients",
+        "object": "BaseChatClient",
         "method": "get_response",
         "span_handler": "msagent_agent_handler",
         "wrapper_method": atask_wrapper,
         "output_processor": AGENT,
     },
+    # BaseChatClient inference-level - the actual LLM API call
     {
-        "package": "agent_framework.azure._assistants_client",
-        "object": "AzureOpenAIAssistantsClient",
-        "method": "get_streaming_response",
-        "span_handler": "msagent_agent_handler",
-        "wrapper_method": atask_iter_wrapper,
-        "output_processor": AGENT_STREAM,
-    },
-    {
-        "package": "agent_framework.azure._assistants_client",
-        "object": "AzureOpenAIAssistantsClient",
-        "method": "get_response",
-        "span_handler": "msagent_agent_handler",
-        "wrapper_method": atask_wrapper,
-        "output_processor": AGENT,
-    },
-    {
-        "package": "agent_framework.openai._chat_client",
-        "object": "OpenAIChatClient",
-        "method": "get_streaming_response",
-        "span_handler": "msagent_agent_handler",
-        "wrapper_method": atask_iter_wrapper,
-        "output_processor": AGENT_STREAM,
-    },
-    {
-        "package": "agent_framework.openai._chat_client",
-        "object": "OpenAIChatClient",
-        "method": "get_response",
-        "span_handler": "msagent_agent_handler",
-        "wrapper_method": atask_wrapper,
-        "output_processor": AGENT,
-    },
-    {
-        "package": "agent_framework.openai._assistants_client",
-        "object": "OpenAIAssistantsClient",
-        "method": "get_streaming_response",
-        "span_handler": "msagent_agent_handler",
-        "wrapper_method": atask_iter_wrapper,
-        "output_processor": AGENT_STREAM,
-    },
-    {
-        "package": "agent_framework.openai._assistants_client",
-        "object": "OpenAIAssistantsClient",
-        "method": "get_response",
-        "span_handler": "msagent_agent_handler",
-        "wrapper_method": atask_wrapper,
-        "output_processor": AGENT,
-    },
-    {
-        "package": "agent_framework._tools",
-        "object": "FunctionTool",
-        "method": "invoke",
-        "wrapper_method": atask_wrapper,
-        "output_processor": TOOL,
-    },
-    {
-        "package": "agent_framework._tools",
-        "object": "AIFunction",
-        "method": "invoke",
-        "wrapper_method": atask_wrapper,
-        "output_processor": TOOL,
-    },
-    {
-        "package": "agent_framework.azure._assistants_client",
-        "object": "AzureOpenAIAssistantsClient",
+        "package": "agent_framework._clients",
+        "object": "BaseChatClient",
         "method": "_inner_get_response",
         "span_handler": "msagent_inference_handler",
         "wrapper_method": atask_wrapper,
         "output_processor": INFERENCE,
     },
+    # AgentExecutor - agent invocation within workflow
     {
-        "package": "agent_framework.azure._assistants_client",
-        "object": "AzureOpenAIAssistantsClient",
-        "method": "_inner_get_streaming_response",
-        "span_handler": "msagent_inference_stream_handler",
-        "wrapper_method": atask_iter_wrapper,
-        "output_processor": INFERENCE_STREAM,
-    },
-    {
-        "package": "agent_framework.openai._assistants_client",
-        "object": "OpenAIAssistantsClient",
-        "method": "_inner_get_response",
-        "span_handler": "msagent_inference_handler",
+        "package": "agent_framework._workflows._agent_executor",
+        "object": "AgentExecutor",
+        "method": "execute",
+        "span_handler": "msagent_agent_handler",
         "wrapper_method": atask_wrapper,
-        "output_processor": INFERENCE,
+        "output_processor": AGENT,
     },
+    # FunctionExecutor - tool invocation
     {
-        "package": "agent_framework.openai._assistants_client",
-        "object": "OpenAIAssistantsClient",
-        "method": "_inner_get_streaming_response",
-        "span_handler": "msagent_inference_stream_handler",
-        "wrapper_method": atask_iter_wrapper,
-        "output_processor": INFERENCE_STREAM,
+        "package": "agent_framework._workflows._function_executor",
+        "object": "FunctionExecutor",
+        "method": "execute",
+        "wrapper_method": atask_wrapper,
+        "output_processor": TOOL,
     },
 ]

@@ -1,5 +1,6 @@
 import logging
 import inspect
+import os
 from typing import Collection, Dict, List, Union, Optional
 import uuid
 import inspect
@@ -21,7 +22,7 @@ from monocle_apptrace.instrumentation.common.wrapper_method import (
     WrapperMethod,
     MONOCLE_SPAN_HANDLERS
 )
-from monocle_apptrace.instrumentation.common.wrapper import scope_wrapper, ascope_wrapper, monocle_wrapper, amonocle_wrapper
+from monocle_apptrace.instrumentation.common.wrapper import scope_wrapper, ascope_wrapper, monocle_wrapper, amonocle_wrapper, task_wrapper, atask_wrapper
 from monocle_apptrace.instrumentation.common.utils import (
     load_scopes,
     setup_readablespan_patch,
@@ -29,7 +30,11 @@ from monocle_apptrace.instrumentation.common.utils import (
     build_setup_signature,
     check_duplicate_setup,
 )
-from monocle_apptrace.instrumentation.common.constants import MONOCLE_INSTRUMENTOR, MONOCLE_WORKFLOW_NAME_KEY
+from monocle_apptrace.instrumentation.common.constants import ( 
+    MONOCLE_INSTRUMENTOR, MONOCLE_WORKFLOW_NAME_KEY, CUSTOM_INSTRUMENTATION_FILE_NAME,
+    CUSTOM_INSTRUMENTATION_FILE_PATH_ENV, WORKFLOW_NAME_ENV
+)
+from monocle_apptrace.instrumentation.common.custom_span_processor import CUSTOM_SPAN_PROCESSOR
 from functools import wraps
 
 logger = logging.getLogger(__name__)
@@ -37,6 +42,39 @@ logger = logging.getLogger(__name__)
 SESSION_PROPERTIES_KEY = "session"
 
 _instruments = ()
+
+
+def load_custom_instrumentation() -> List[WrapperMethod]:
+    """Load wrapper methods from .monocle/custom_instrumentation.yaml (if present).
+
+    The directory containing the YAML file can be overridden via the
+    MONOCLE_CUSTOM_INSTRUMENTATION_FILE_PATH env var (default: ``.monocle``,
+    resolved relative to the current working directory).
+    """
+    config_dir = os.getenv(CUSTOM_INSTRUMENTATION_FILE_PATH_ENV, ".monocle")
+    config_path = os.path.join(os.getcwd(), config_dir, CUSTOM_INSTRUMENTATION_FILE_NAME)
+    wrapper_methods: List[WrapperMethod] = []
+    try:
+        with open(config_path) as f:
+            import yaml  # local import: pyyaml is an optional dep, only needed when the config file exists
+            config = yaml.safe_load(f) or {}
+        for entry in config.get("instrument", []) or []:
+            if not entry.get("package") or not entry.get("method") or not entry.get("class"):
+                logger.warning(f"Skipping invalid instrumentation entry in {config_path}: {entry}")
+                continue
+            wrapper_methods.append(WrapperMethod(
+                package=entry.get("package"),
+                object_name=entry.get("class"),
+                method=entry.get("method"),
+                span_name=entry.get("span_name"),
+                wrapper_method=task_wrapper if entry.get("sync", True) else atask_wrapper,
+                output_processor=CUSTOM_SPAN_PROCESSOR
+            ))
+    except FileNotFoundError:
+        pass
+    except Exception as ex:
+        logger.debug(f"Error loading custom instrumentation from {config_path}: {ex}")
+    return wrapper_methods
 
 monocle_tracer_provider: TracerProvider = None
 monocle_instrumentor: 'MonocleInstrumentor' = None
@@ -115,6 +153,9 @@ class MonocleInstrumentor(BaseInstrumentor):
                 final_method_list.append(method)
             elif isinstance(method, WrapperMethod):
                 final_method_list.append(method.to_dict())
+
+        for method in load_custom_instrumentation():
+            final_method_list.append(method.to_dict())
 
         for method in load_scopes():
             if method.get('async', False):
@@ -207,7 +248,7 @@ def get_monocle_setup_signature() -> Optional[dict]:
     return monocle_setup_signature
 
 def setup_monocle_telemetry(
-        workflow_name: str,
+        workflow_name: str = None,
         span_processors: List[SpanProcessor] = None,
         span_handlers: Dict[str,SpanHandler] = None,
         wrapper_methods: List[Union[dict,WrapperMethod]] = None,
@@ -236,6 +277,17 @@ def setup_monocle_telemetry(
         For OTLP exporter, configure the endpoint via OTEL_EXPORTER_OTLP_ENDPOINT environment variable.
         This can't be combined with `span_processors`.
     """
+    # workflow_name is determined in the following order of precedence:
+    # 1. Argument passed to this function
+    # 2. Environment variable MONOCLE_WORKFLOW_NAME
+    # 3. filename of the file containing the main module
+    if not workflow_name:
+        workflow_name = os.getenv(WORKFLOW_NAME_ENV)
+    if not workflow_name:
+        try:
+            workflow_name = os.path.basename(inspect.stack()[-1].filename).split(".")[0]
+        except Exception:
+            workflow_name = "monocle_workflow"
     current_signature = build_setup_signature(
         workflow_name=workflow_name,
         span_processors=span_processors,

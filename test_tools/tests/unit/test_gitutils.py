@@ -4,7 +4,9 @@ import os
 
 import pytest
 from monocle_test_tools.constants import (
+    GIT_BRANCH_ATTRIBUTE,
     GIT_COMMIT_HASH_ATTRIBUTE,
+    GIT_REPO_ATTRIBUTE,
     GIT_RUN_ID_ATTRIBUTE,
     GIT_WORKFLOW_NAME_ATTRIBUTE,
     JENKINS_BUILD_URL_ATTRIBUTE,
@@ -13,6 +15,7 @@ from monocle_test_tools.constants import (
 )
 from monocle_test_tools.gitutils import (
     get_commit_hash,
+    get_git_branch,
     get_git_context,
     get_git_run_id,
     get_git_workflow_name,
@@ -291,3 +294,79 @@ class TestGitUtilsPriorityOrder:
         assert context[GIT_WORKFLOW_NAME_ATTRIBUTE] == "jenkins-job"
         assert context[GIT_RUN_ID_ATTRIBUTE].startswith("jenkins_10_")
         assert context[GIT_COMMIT_HASH_ATTRIBUTE] == "jenkins_hash"
+
+
+class TestGitBranchDetection:
+    """Test branch name detection across CI/CD environments"""
+
+    @pytest.fixture(autouse=True)
+    def cleanup_env_vars(self):
+        """Clean up environment variables before and after each test"""
+        original_env = {}
+        branch_vars = ["GIT_BRANCH", "GITHUB_HEAD_REF", "GITHUB_REF_NAME"]
+        for var in branch_vars:
+            original_env[var] = os.getenv(var)
+            if var in os.environ:
+                del os.environ[var]
+        yield
+        for var, value in original_env.items():
+            if value is not None:
+                os.environ[var] = value
+            elif var in os.environ:
+                del os.environ[var]
+
+    def test_jenkins_branch_detection(self):
+        """Test that Jenkins GIT_BRANCH is used"""
+        os.environ["GIT_BRANCH"] = "feature/my-feature"
+        assert get_git_branch() == "feature/my-feature"
+
+    def test_github_head_ref_for_prs(self):
+        """Test that GITHUB_HEAD_REF is used for pull requests"""
+        os.environ["GITHUB_HEAD_REF"] = "feature/pr-branch"
+        assert get_git_branch() == "feature/pr-branch"
+
+    def test_github_ref_name_for_pushes(self):
+        """Test that GITHUB_REF_NAME is used for push events"""
+        os.environ["GITHUB_REF_NAME"] = "main"
+        assert get_git_branch() == "main"
+
+    def test_jenkins_branch_priority_over_github(self):
+        """Test that Jenkins GIT_BRANCH takes priority over GitHub"""
+        os.environ["GIT_BRANCH"] = "jenkins-branch"
+        os.environ["GITHUB_HEAD_REF"] = "github-branch"
+        assert get_git_branch() == "jenkins-branch"
+
+    def test_github_head_ref_priority_over_ref_name(self):
+        """Test that GITHUB_HEAD_REF takes priority over GITHUB_REF_NAME"""
+        os.environ["GITHUB_HEAD_REF"] = "pr-branch"
+        os.environ["GITHUB_REF_NAME"] = "main"
+        assert get_git_branch() == "pr-branch"
+
+    def test_branch_in_context(self):
+        """Test that branch is included in get_git_context()"""
+        os.environ["GIT_BRANCH"] = "release/1.0"
+        context = get_git_context()
+        assert GIT_BRANCH_ATTRIBUTE in context
+        assert context[GIT_BRANCH_ATTRIBUTE] == "release/1.0"
+
+    def test_branch_always_present_in_context(self):
+        """Test that git.branch key is always present in context (even locally)"""
+        context = get_git_context()
+        assert GIT_BRANCH_ATTRIBUTE in context
+        assert context[GIT_BRANCH_ATTRIBUTE]  # not empty
+
+
+class TestGitRepoInContext:
+    """Test that repo name is included in the git context"""
+
+    def test_repo_attribute_key(self):
+        """Test that GIT_REPO_ATTRIBUTE constant has expected value"""
+        assert GIT_REPO_ATTRIBUTE == "git.repo"
+
+    def test_repo_in_context_when_available(self):
+        """Test that git.repo is present when a git repo is available"""
+        context = get_git_context()
+        # If running inside a git repo (which CI always is), repo should be present
+        if GIT_REPO_ATTRIBUTE in context:
+            assert context[GIT_REPO_ATTRIBUTE]  # not empty string
+            assert "/" not in context[GIT_REPO_ATTRIBUTE]  # org-repo format uses "-"

@@ -1,0 +1,33 @@
+[
+  {
+    "name": "openai.ChatCompletion.create",
+    "context": {
+      "trace_id": "0x7d675c7ccfcbecbc581510d4873bedca",
+      "span_id": "0x543b6c7c35b4f0bf"
+    },
+    "attributes": {
+      "span.type": "inference",
+      "entity.1.provider_name": "openai",
+      "entity.1.type": "inference.openai",
+      "entity.2.name": "gpt-4",
+      "entity.2.type": "model.llm",
+      "workflow.name": "test_app"
+    },
+    "events": [
+      {
+        "name": "data.input",
+        "attributes": {
+          "input": ["Hello"]
+        }
+      },
+      {
+        "name": "metadata",
+        "attributes": {
+          "prompt_tokens": 10,
+          "completion_tokens": 5,
+          "finish_reason": "stop"
+        }
+      }
+    ]
+  }
+]

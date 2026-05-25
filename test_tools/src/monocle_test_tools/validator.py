@@ -118,6 +118,9 @@ class MonocleValidator:
         """Flush the current spans and prepare for validation."""
         if self.export_failed_tests_only and not test_failed:
             return
+        # Ensure any remaining spans in memory_exporter are moved to _test_all_up_spans
+        # This is critical for failed tests where spans property may not have been accessed
+        _ = self.spans
         span:Span = None
         for exporter in self.exporters:
             for span in self._test_all_up_spans:

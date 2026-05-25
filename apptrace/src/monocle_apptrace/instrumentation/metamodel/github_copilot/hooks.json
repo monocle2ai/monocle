@@ -1,0 +1,64 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "type": "command",
+        "command": "monocle-apptrace copilot-hook"
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "type": "command",
+        "command": "monocle-apptrace copilot-hook"
+      }
+    ],
+    "PreToolUse": [
+      {
+        "type": "command",
+        "command": "monocle-apptrace copilot-hook"
+      }
+    ],
+    "PostToolUse": [
+      {
+        "type": "command",
+        "command": "monocle-apptrace copilot-hook"
+      }
+    ],
+    "PostToolUseFailure": [
+      {
+        "type": "command",
+        "command": "monocle-apptrace copilot-hook"
+      }
+    ],
+    "SubagentStart": [
+      {
+        "type": "command",
+        "command": "monocle-apptrace copilot-hook"
+      }
+    ],
+    "SubagentStop": [
+      {
+        "type": "command",
+        "command": "monocle-apptrace copilot-hook"
+      }
+    ],
+    "PreCompact": [
+      {
+        "type": "command",
+        "command": "monocle-apptrace copilot-hook"
+      }
+    ],
+    "Stop": [
+      {
+        "type": "command",
+        "command": "monocle-apptrace copilot-hook"
+      }
+    ],
+    "SessionEnd": [
+      {
+        "type": "command",
+        "command": "monocle-apptrace copilot-hook"
+      }
+    ]
+  }
+}

@@ -1,5 +1,6 @@
 ## Unreleased
 
+- feat(exporters): configurable file-name prefix for file and Azure Blob exporters via `MONOCLE_FILE_PREFIX` and `MONOCLE_BLOB_FILE_PREFIX`; S3 `MONOCLE_S3_KEY_PREFIX` renamed to `MONOCLE_S3_FILE_PREFIX` (old name still works with deprecation warning) ([#149](https://github.com/monocle2ai/monocle/issues/149))
 - feat(exporters): add `MONOCLE_CONSOLE` env var to enable console output alongside any configured exporter ([#577](https://github.com/monocle2ai/monocle/pull/577))
 - fix(test_tools): lazy-load `SentenceTransformer` to prevent crash at pytest collection time in network-restricted environments ([#576](https://github.com/monocle2ai/monocle/pull/576))
 

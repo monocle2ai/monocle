@@ -110,6 +110,30 @@ def hook_dispatch(agent):
     return 0
 
 
+def cmd_validate(trace_file, level="selective", fail_on_warning=False):
+    """Validate a Monocle trace file"""
+    try:
+        from monocle_apptrace.linter import MonocleValidator, ValidationReporter
+
+        validator = MonocleValidator()
+        results = validator.validate_trace_file(Path(trace_file))
+
+        # Format and print output
+        reporter = ValidationReporter()
+        output = reporter.format_results(results, fail_on_warning)
+        print(output)
+
+        # Return exit code
+        return reporter.get_exit_code(results, fail_on_warning)
+
+    except FileNotFoundError as e:
+        print(f"ERROR: {e}", file=sys.stderr)
+        return 1
+    except Exception as e:
+        print(f"ERROR: {e}", file=sys.stderr)
+        return 1
+
+
 def main(argv=None):
     argv = sys.argv[1:] if argv is None else list(argv)
 
@@ -129,6 +153,14 @@ def main(argv=None):
     sub.add_parser("claude-setup", help="Register Monocle hooks for Claude Code")
     sub.add_parser("codex-setup",  help="Register Monocle hooks for Codex CLI")
 
+    # Add validate subcommand
+    validate_parser = sub.add_parser("validate", help="Validate Monocle traces against metamodel conformance")
+    validate_parser.add_argument("trace_file", help="Path to trace JSON file")
+    validate_parser.add_argument("--level", choices=["basic", "selective", "strict"],
+                                default="selective", help="Validation level (default: selective)")
+    validate_parser.add_argument("--fail-on-warning", action="store_true",
+                                help="Treat warnings as errors (exit code 1)")
+
     args = parser.parse_args(argv)
     if args.command == "claude-setup":
         return setup("claude", "Claude Code",
@@ -139,6 +171,8 @@ def main(argv=None):
                      Path.home() / ".codex" / "hooks.json",
                      _METAMODEL_DIR / "codex_cli" / "hooks.json",
                      _enable_codex_hooks_flag)
+    if args.command == "validate":
+        return cmd_validate(args.trace_file, args.level, args.fail_on_warning)
     return 1
 
 

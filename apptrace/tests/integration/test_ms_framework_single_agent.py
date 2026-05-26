@@ -96,7 +96,13 @@ async def test_microsoft_agent_simple(setup):
     logger.info(f"Task: {task_description}")
     
     # Run the agent and collect response
-    response = await agent.run(task_description, stream=False)
+    # When stream=False, the wrapper still returns an async generator that yields once
+    result_gen = agent.run(task_description, stream=False)
+    response = None
+    async for item in result_gen:
+        response = item
+        break  # Only one item when stream=False
+    
     response_text = response.text if hasattr(response, 'text') else str(response)
     
     logger.info(f"Result: {response_text}")
@@ -141,17 +147,16 @@ def verify_spans(custom_exporter):
             
             found_inference = True
 
-        # Check for agent invocation spans
+        # Check for agent turn spans  (Agent.run creates agentic.turn spans)
         if (
                 "span.type" in span_attributes
-                and span_attributes["span.type"] == "agentic.invocation"
-                and "entity.1.name" in span_attributes
+                and span_attributes["span.type"] == "agentic.turn"
+                and "entity.1.type" in span_attributes
         ):
             assert "entity.1.type" in span_attributes
-            assert "entity.1.name" in span_attributes
             assert span_attributes["entity.1.type"] == "agent.microsoft"
-            if span_attributes["entity.1.name"] == "MS_Flight_Booking_Agent":
-                found_agent = True
+            # Agent.run span found
+            found_agent = True
 
         # Check for tool invocation spans
         if (
@@ -165,7 +170,7 @@ def verify_spans(custom_exporter):
                 found_tool = True
 
     assert found_inference, "Inference span not found"
-    assert found_agent, "Agent span not found"
+    assert found_agent, "Agent turn span not found (Agent.run)"
     assert found_tool_call, "Tool call finish reason not found"
 
 

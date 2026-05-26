@@ -2,6 +2,7 @@ import os
 import datetime
 import logging
 import asyncio
+import warnings
 import boto3
 from botocore.exceptions import ClientError
 from botocore.exceptions import (
@@ -46,7 +47,19 @@ class S3SpanExporter(SpanExporterBase):
                 region_name=region_name,
             )
         self.bucket_name = bucket_name or os.getenv('MONOCLE_S3_BUCKET_NAME','default-bucket')
-        self.file_prefix = os.getenv('MONOCLE_S3_KEY_PREFIX', DEFAULT_FILE_PREFIX)
+        # MONOCLE_S3_KEY_PREFIX is deprecated in favour of MONOCLE_S3_FILE_PREFIX —
+        # the new name is consistent across exporters (file/blob/s3) and is not
+        # confused with S3 access key configuration. The old name still wins if it
+        # is set on its own, so existing deployments keep working.
+        new_prefix = os.getenv('MONOCLE_S3_FILE_PREFIX')
+        legacy_prefix = os.getenv('MONOCLE_S3_KEY_PREFIX')
+        if legacy_prefix is not None and new_prefix is None:
+            warnings.warn(
+                "MONOCLE_S3_KEY_PREFIX is deprecated; use MONOCLE_S3_FILE_PREFIX instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+        self.file_prefix = new_prefix or legacy_prefix or DEFAULT_FILE_PREFIX
         self.time_format = DEFAULT_TIME_FORMAT
         self.task_processor = task_processor
         if self.task_processor is not None:

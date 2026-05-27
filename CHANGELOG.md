@@ -1,3 +1,6 @@
+## Version 0.8.2 (2026-05-27)
+- Fix test framework issue [584](https://github.com/monocle2ai/monocle/pull/584)
+
 ## Version 0.8.1 (2026-05-19)
 
 - Codex instrumentation and UV packaging ([#538](https://github.com/monocle2ai/monocle/pull/538))

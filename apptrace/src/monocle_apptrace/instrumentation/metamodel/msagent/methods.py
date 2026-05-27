@@ -17,7 +17,7 @@ from monocle_apptrace.instrumentation.metamodel.msagent.entities.inference impor
     TOOL,
 )
 
-
+@with_tracer_wrapper
 def msagent_adaptive_wrapper_dispatch(tracer: Tracer, handler: SpanHandler, to_wrap, wrapped, instance, source_path, args, kwargs):
     """
     Dispatch wrapper that routes to appropriate wrapper based on context.
@@ -34,10 +34,6 @@ def msagent_adaptive_wrapper_dispatch(tracer: Tracer, handler: SpanHandler, to_w
     else:
         # Non-streaming mode - return coroutine
         return amonocle_wrapper(tracer, handler, to_wrap, wrapped, instance, source_path, args, kwargs)
-
-
-# Wrap with tracer
-msagent_adaptive_wrapper = with_tracer_wrapper(msagent_adaptive_wrapper_dispatch)
 
 
 MSAGENT_METHODS = [

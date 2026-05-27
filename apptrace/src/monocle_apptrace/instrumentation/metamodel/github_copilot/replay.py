@@ -189,9 +189,9 @@ def _walk_interactions(transcript_events: list, subagent_intervals: list) -> lis
         itv = _interval_for_ts(ts, subagent_intervals)
         if itv is None:
             current_subagent = None
-            return current, False
+            return current
         if current is None:
-            return None, True
+            return None
         if current_subagent is None or current_subagent.get("agent_id") != itv["agent_id"]:
             current_subagent = {
                 "agent_id": itv["agent_id"],
@@ -204,7 +204,7 @@ def _walk_interactions(transcript_events: list, subagent_intervals: list) -> lis
                 "end_ts": itv["end_ts"],
             }
             current.setdefault("subagents", []).append(current_subagent)
-        return current_subagent, True
+        return current_subagent
 
     for event in transcript_events:
         etype = event.get("type", "")
@@ -224,7 +224,7 @@ def _walk_interactions(transcript_events: list, subagent_intervals: list) -> lis
         if etype == "user.message":
             itv = _interval_for_ts(ts, subagent_intervals)
             if itv and current is not None:
-                container, _ = _container_for_ts(ts)
+                container = _container_for_ts(ts)
                 if container is not None:
                     container["prompt"] = data.get("content", "")
                 continue
@@ -243,7 +243,7 @@ def _walk_interactions(transcript_events: list, subagent_intervals: list) -> lis
             current_subagent = None
 
         elif etype == "assistant.message" and current is not None:
-            container, _ = _container_for_ts(ts)
+            container = _container_for_ts(ts)
             if container is None:
                 continue
             container.setdefault("assistant_messages", []).append({
@@ -258,7 +258,7 @@ def _walk_interactions(transcript_events: list, subagent_intervals: list) -> lis
             call_id = data.get("toolCallId", "")
             if not call_id:
                 continue
-            container, _ = _container_for_ts(ts)
+            container = _container_for_ts(ts)
             if container is None:
                 continue
             pending_tools[call_id] = (container, {

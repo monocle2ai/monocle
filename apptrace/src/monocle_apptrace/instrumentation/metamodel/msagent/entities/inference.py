@@ -78,7 +78,11 @@ AGENT = {
             {
                 "_comment": "name of the agent",
                 "attribute": "name",
-                "accessor": lambda arguments: _helper.get_chat_client_name(arguments["instance"]),
+                "accessor": lambda arguments: (
+                    _helper.get_agent_executor_name(arguments["instance"]) 
+                    if hasattr(arguments["instance"], "_id") or (hasattr(arguments["instance"], "__class__") and arguments["instance"].__class__.__name__ == "AgentExecutor")
+                    else _helper.get_chat_client_name(arguments["instance"])
+                ),
             },
             {
                 "_comment": "model id",

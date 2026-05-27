@@ -18,18 +18,26 @@ from monocle_apptrace.instrumentation.metamodel.msagent.entities.inference impor
 )
 
 
-@with_tracer_wrapper
-async def msagent_adaptive_wrapper(tracer: Tracer, handler: SpanHandler, to_wrap, wrapped, instance, source_path, args, kwargs):
+def msagent_adaptive_wrapper_dispatch(tracer: Tracer, handler: SpanHandler, to_wrap, wrapped, instance, source_path, args, kwargs):
     """
-    Adaptive wrapper for MS Agent methods that can return either a single result or an async iterator.
-    When stream=True, it yields multiple items. When stream=False, it awaits and yields once.
+    Dispatch wrapper that routes to appropriate wrapper based on context.
+    The method signatures and return types are compatible across these versions.
     """
+    # Check if inside workout context
+    if handler.skip_span(to_wrap, wrapped, instance, args, kwargs):
+        return wrapped(*args, **kwargs)
+    
+    # Standalone agent call - check if streaming
     if kwargs.get("stream", False):
-        async for item in amonocle_iter_wrapper(tracer, handler, to_wrap, wrapped, instance, source_path, args, kwargs):
-            yield item
+        # Streaming mode - return async generator
+        return amonocle_iter_wrapper(tracer, handler, to_wrap, wrapped, instance, source_path, args, kwargs)
     else:
-        result = await amonocle_wrapper(tracer, handler, to_wrap, wrapped, instance, source_path, args, kwargs)
-        yield result
+        # Non-streaming mode - return coroutine
+        return amonocle_wrapper(tracer, handler, to_wrap, wrapped, instance, source_path, args, kwargs)
+
+
+# Wrap with tracer
+msagent_adaptive_wrapper = with_tracer_wrapper(msagent_adaptive_wrapper_dispatch)
 
 
 MSAGENT_METHODS = [
@@ -39,10 +47,10 @@ MSAGENT_METHODS = [
         "object": "Workflow",
         "method": "run",
         "span_handler": "msagent_request_handler",
-        "wrapper_method": atask_iter_wrapper,
+        "wrapper_method": atask_wrapper,
         "output_processor": AGENT_REQUEST,
     },
-    # Agent.run - agent request level (user-facing, needs adaptive wrapper for stream support)
+    # Agent.run - agent request level (standalone agent calls with streaming support)
     {
         "package": "agent_framework._agents",
         "object": "Agent",
@@ -69,6 +77,7 @@ MSAGENT_METHODS = [
         "package": "agent_framework._workflows._function_executor",
         "object": "FunctionExecutor",
         "method": "execute",
+        "span_handler": "msagent_tool_handler",
         "wrapper_method": atask_wrapper,
         "output_processor": TOOL,
     },

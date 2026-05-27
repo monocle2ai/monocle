@@ -56,6 +56,20 @@ def get_agent_name(instance: Any) -> str:
         return "UnknownAgent"
 
 
+def get_agent_executor_name(instance: Any) -> str:
+    """Get the agent name from AgentExecutor (v1.5.0 WorkflowBuilder API)."""
+    try:
+        # AgentExecutor has _id attribute with agent name
+        if hasattr(instance, "_id"):
+            return str(instance._id)
+        if hasattr(instance, "id"):
+            return str(instance.id)
+        return "UnknownAgent"
+    except Exception as e:
+        logger.warning(f"Error getting agent executor name: {e}")
+        return "UnknownAgent"
+
+
 def get_agent_name_from_context() -> str:
     """
     Get agent name from OpenTelemetry context.

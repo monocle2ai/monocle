@@ -25,7 +25,7 @@ class OpenDALAzureExporter(SpanExporterBase):
         self.container_name = container_name
 
         # Default values
-        self.file_prefix = DEFAULT_FILE_PREFIX
+        self.file_prefix = os.getenv('MONOCLE_BLOB_FILE_PREFIX', DEFAULT_FILE_PREFIX)
         self.time_format = DEFAULT_TIME_FORMAT
         self.export_queue = []  # Add this line to initialize export_queue
         self.last_export_time = time.time()  # Add this line to initialize last_export_time

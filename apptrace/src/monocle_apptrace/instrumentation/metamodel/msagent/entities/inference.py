@@ -19,6 +19,8 @@ def process_msagent_stream(to_wrap, response, span_processor):
 AGENT_REQUEST = {
     "type": SPAN_TYPES.AGENTIC_REQUEST,
     "subtype": SPAN_SUBTYPES.TURN,
+    "is_auto_close": lambda kwargs: kwargs.get("stream", False) is False,
+    "response_processor": process_msagent_stream,
     "attributes": [
         [
             {
@@ -64,6 +66,8 @@ AGENT_REQUEST_STREAM = {
 AGENT = {
     "type": SPAN_TYPES.AGENTIC_INVOCATION,
     "subtype": SPAN_SUBTYPES.CONTENT_PROCESSING,
+    "is_auto_close": lambda kwargs: kwargs.get("stream", False) is False,
+    "response_processor": process_msagent_stream,
     "attributes": [
         [
             {
@@ -274,6 +278,8 @@ TOOL = {
 INFERENCE = {
     "type": SPAN_TYPES.INFERENCE,
     "subtype": lambda arguments: _helper.agent_inference_type(arguments),
+    "is_auto_close": lambda kwargs: kwargs.get("stream", False) is False,
+    "response_processor": process_msagent_stream,
     "attributes": [
         [
             {

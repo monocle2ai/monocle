@@ -16,13 +16,15 @@ DEFAULT_FILE_PREFIX:str = "monocle_trace_"
 DEFAULT_TIME_FORMAT:str = "%Y-%m-%d_%H.%M.%S"
 HANDLE_TIMEOUT_SECONDS: int = 60  # 1 minute timeout
 DEFAULT_TRACE_FOLDER = ".monocle"
+# Sentinel so we can tell "caller passed nothing" apart from "caller passed default".
+_UNSET = object()
 
 class FileSpanExporter(SpanExporterBase):
     def __init__(
         self,
         service_name: Optional[str] = None,
         out_path:str = path.join(".", DEFAULT_TRACE_FOLDER),
-        file_prefix = DEFAULT_FILE_PREFIX,
+        file_prefix = _UNSET,
         time_format = DEFAULT_TIME_FORMAT,
         formatter: Callable[
             [ReadableSpan], str
@@ -38,7 +40,11 @@ class FileSpanExporter(SpanExporterBase):
         self.output_path = os.getenv("MONOCLE_TRACE_OUTPUT_PATH", out_path)
         if not os.path.exists(self.output_path):
             os.makedirs(self.output_path)
-        self.file_prefix = file_prefix
+        # Precedence: explicit constructor arg > MONOCLE_FILE_PREFIX env var > default.
+        if file_prefix is _UNSET:
+            self.file_prefix = os.getenv("MONOCLE_FILE_PREFIX", DEFAULT_FILE_PREFIX)
+        else:
+            self.file_prefix = file_prefix
         self.time_format = time_format
         self.task_processor = task_processor
         self.is_first_span_in_file = True  # Track if this is the first span in the current file

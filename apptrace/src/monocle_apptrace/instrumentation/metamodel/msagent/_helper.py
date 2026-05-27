@@ -57,17 +57,15 @@ def get_agent_name(instance: Any) -> str:
 
 
 def get_agent_executor_name(instance: Any) -> str:
-    """Get the agent name from AgentExecutor (v1.5.0 WorkflowBuilder API)."""
+    """Return the agent name, preferring AgentExecutor identity (_id/id) over chat client fallback."""
     try:
-        # AgentExecutor has _id attribute with agent name
         if hasattr(instance, "_id"):
             return str(instance._id)
-        if hasattr(instance, "id"):
+        if instance.__class__.__name__ == "AgentExecutor" and hasattr(instance, "id"):
             return str(instance.id)
-        return "UnknownAgent"
     except Exception as e:
         logger.warning(f"Error getting agent executor name: {e}")
-        return "UnknownAgent"
+    return get_chat_client_name(instance)
 
 
 def get_agent_name_from_context() -> str:

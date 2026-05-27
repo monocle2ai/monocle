@@ -8,13 +8,13 @@ from common.custom_exporter import CustomConsoleSpanExporter
 from monocle_apptrace.exporters.file_exporter import FileSpanExporter
 from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, SimpleSpanProcessor
-from agent_framework import SequentialBuilder
 try:
-    from agent_framework.openai import OpenAIChatClient
-    from azure.identity.aio import AzureCliCredential
+    from agent_framework import WorkflowBuilder
+    from agent_framework.openai import OpenAIChatCompletionClient
     MICROSOFT_AGENT_AVAILABLE = True
 except ImportError:
     MICROSOFT_AGENT_AVAILABLE = False
+    WorkflowBuilder = None
 
 logger = logging.getLogger(__name__)
 
@@ -48,7 +48,7 @@ api_key = os.getenv("AZURE_OPENAI_API_KEY") if MICROSOFT_AGENT_AVAILABLE else No
 
 # Initialize Azure OpenAI client and agents at module level
 if MICROSOFT_AGENT_AVAILABLE and azure_endpoint and model:
-    client = OpenAIChatClient(
+    client = OpenAIChatCompletionClient(
         model=model,
         azure_endpoint=azure_endpoint,
         api_key=api_key,
@@ -89,14 +89,15 @@ if MICROSOFT_AGENT_AVAILABLE and azure_endpoint and model:
         tools=[],
     )
 
-    # Create sequential workflow: flight -> hotel -> summarizer
+    # Create sequential workflow: flight -> hotel -> summarizer using WorkflowBuilder
     workflow = (
-        SequentialBuilder()
-        .register_participants([
-            lambda: flight_agent, 
-            lambda: hotel_agent, 
-            lambda: summarizer_agent
-        ])
+        WorkflowBuilder(name="travel_sequential_workflow")
+        .add_agent(flight_agent)
+        .add_agent(hotel_agent)
+        .add_agent(summarizer_agent)
+        .add_edge(flight_agent, hotel_agent)
+        .add_edge(hotel_agent, summarizer_agent)
+        .set_entry_point(flight_agent)
         .build()
     )
     

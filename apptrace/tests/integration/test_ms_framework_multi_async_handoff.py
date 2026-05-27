@@ -8,10 +8,8 @@ from common.custom_exporter import CustomConsoleSpanExporter
 from monocle_apptrace.exporters.file_exporter import FileSpanExporter
 from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, SimpleSpanProcessor
-from agent_framework import HandoffBuilder
 try:
-    from agent_framework.openai import OpenAIChatClient
-    from azure.identity.aio import AzureCliCredential
+    from agent_framework.openai import OpenAIChatCompletionClient
     MICROSOFT_AGENT_AVAILABLE = True
 except ImportError:
     MICROSOFT_AGENT_AVAILABLE = False
@@ -48,7 +46,7 @@ api_key = os.getenv("AZURE_OPENAI_API_KEY") if MICROSOFT_AGENT_AVAILABLE else No
 
 # Initialize Azure OpenAI client and agents at module level
 if MICROSOFT_AGENT_AVAILABLE and azure_endpoint and model:
-    client = OpenAIChatClient(
+    client = OpenAIChatCompletionClient(
         model=model,
         azure_endpoint=azure_endpoint,
         api_key=api_key,
@@ -94,17 +92,6 @@ if MICROSOFT_AGENT_AVAILABLE and azure_endpoint and model:
         tools=[],
     )
 
-    workflow = (
-    HandoffBuilder(
-        name="travel_handoff_workflow",
-        participants=[supervisor_agent, flight_agent, hotel_agent]
-    )
-    .set_coordinator(supervisor_agent)
-    .add_handoff(supervisor_agent, [flight_agent, hotel_agent])
-    .add_handoff(flight_agent, [supervisor_agent])
-    .add_handoff(hotel_agent, [supervisor_agent])
-    .build()
-)
 else:
     flight_agent = None
     hotel_agent = None

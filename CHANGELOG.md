@@ -5,6 +5,9 @@
 - feat(exporters): add `MONOCLE_CONSOLE` env var to enable console output alongside any configured exporter ([#577](https://github.com/monocle2ai/monocle/pull/577))
 - fix(test_tools): lazy-load `SentenceTransformer` to prevent crash at pytest collection time in network-restricted environments ([#576](https://github.com/monocle2ai/monocle/pull/576))
 
+## Version 0.8.2 (2026-05-27)
+- Fix test framework issue [584](https://github.com/monocle2ai/monocle/pull/584)
+
 ## Version 0.8.1 (2026-05-19)
 
 - Codex instrumentation and UV packaging ([#538](https://github.com/monocle2ai/monocle/pull/538))

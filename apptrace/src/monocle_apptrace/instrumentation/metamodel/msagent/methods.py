@@ -3,8 +3,7 @@
 """
 
 from monocle_apptrace.instrumentation.common.wrapper import (
-    atask_wrapper, 
-    atask_iter_wrapper,
+    atask_wrapper,
     amonocle_wrapper,
     amonocle_iter_wrapper,
     with_tracer_wrapper
@@ -23,10 +22,6 @@ def msagent_adaptive_wrapper_dispatch(tracer: Tracer, handler: SpanHandler, to_w
     Dispatch wrapper that routes to appropriate wrapper based on context.
     The method signatures and return types are compatible across these versions.
     """
-    # Check if inside workout context
-    if handler.skip_span(to_wrap, wrapped, instance, args, kwargs):
-        return wrapped(*args, **kwargs)
-    
     # Standalone agent call - check if streaming
     if kwargs.get("stream", False):
         # Streaming mode - return async generator
@@ -52,7 +47,7 @@ MSAGENT_METHODS = [
         "object": "Agent",
         "method": "run",
         "span_handler": "msagent_request_handler",
-        "wrapper_method": msagent_adaptive_wrapper,
+        "wrapper_method": msagent_adaptive_wrapper_dispatch,
         "output_processor": AGENT_REQUEST,
     },
     # NOTE: BaseChatClient.get_response and _inner_get_response are NOT instrumented

@@ -28,8 +28,8 @@ class OkahuApiError(Exception):
 
 
 def _pick_first(data: dict, *keys: str) -> Optional[str]:
-    # Okahu responses use snake_case, camelCase, or just `id` for the same
-    # field across endpoints. Tolerant lookup hides the inconsistency.
+    # Different Okahu endpoints name the same field differently
+    # (tenant_id vs tenantId vs id) — try each, take the first non-empty.
     for key in keys:
         value = data.get(key)
         if value:

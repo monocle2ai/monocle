@@ -1,12 +1,9 @@
 """One-shot loopback HTTP server that receives the OAuth redirect (RFC 8252).
 
-Port is pinned (default 18292) because Auth0 does exact-string matching on
-the registered redirect_uri. Override via MONOCLE_LOOPBACK_PORT if needed,
-but the Auth0 app's allow-list must also be updated to match.
+Port is hard-pinned to 18292 because Auth0 does exact-string matching on the
+registered redirect_uri — there's only one URL on the app's allow-list.
 """
 import html
-import os
-import socket
 import threading
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from typing import Optional
@@ -104,23 +101,13 @@ def _make_handler(expected_state: str, result: CallbackResult):
     return _Handler
 
 
-def _resolve_port() -> int:
-    override = os.environ.get("MONOCLE_LOOPBACK_PORT")
-    if override:
-        return int(override)
-    return _DEFAULT_LOOPBACK_PORT
-
-
 def start(expected_state: str):
-    """Bind a one-shot HTTP server on 127.0.0.1. Returns (port, result,
+    """Bind a one-shot HTTP server on 127.0.0.1:18292. Returns (port, result,
     shutdown_fn). Raises OSError if the port is already in use — callers
     are expected to catch that and fall back (see portal_auth.sign_in_smart).
     """
-    requested_port = _resolve_port()
     result = CallbackResult()
-    server = HTTPServer(("127.0.0.1", requested_port), _make_handler(expected_state, result))
-    # If requested_port was 0, the OS picked a free port — surface the real one.
-    actual_port = server.server_address[1]
+    server = HTTPServer(("127.0.0.1", _DEFAULT_LOOPBACK_PORT), _make_handler(expected_state, result))
 
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
@@ -129,4 +116,4 @@ def start(expected_state: str):
         server.shutdown()
         server.server_close()
 
-    return actual_port, result, shutdown
+    return _DEFAULT_LOOPBACK_PORT, result, shutdown

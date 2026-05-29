@@ -1,16 +1,13 @@
 """Auth0 + Okahu endpoint resolution.
 
-Defaults target prod. The Auth0 client_id, audience, and API hosts must come
-from the same environment — mixing them produces a 401 "signing key not
-found" because the API only trusts JWTs signed by its own Auth0 tenant.
-Override via the MONOCLE_AUTH0_* / MONOCLE_OKAHU_* env vars to point at
-stage.
+Auth0 client_id, audience, and API hosts must come from the same deployment
+or the API rejects the JWT (401 "signing key not found"). Override via the
+MONOCLE_AUTH0_* / MONOCLE_OKAHU_* env vars.
 """
 import os
 from dataclasses import dataclass
 
 
-"""Callback server for the Auth0 redirect."""
 _DEFAULT_AUTH0_DOMAIN = "auth.okahu.co"
 _DEFAULT_AUTH0_CLIENT_ID = "w5msUdJgpximQMqo8LqkrLyiQMYbYiDw"
 _DEFAULT_AUTH0_AUDIENCE = "https://api.okahu.co/"

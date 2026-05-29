@@ -304,8 +304,9 @@ def resolve_okahu_api_key(method: str = "smart") -> dict:
         prompt = "No Okahu account found for " + ui.bold(display) + ". Create one?"
         if not ui.confirm(prompt, default_yes=True):
             raise PortalAuthError("Account creation declined.")
+        ui.step("Provisioning your Okahu account...")
         tenant = okahu_api.create_tenant(bundle["access_token"], display, config)
-        ui.check("Tenant created")
+        ui.check("Account created")
         # The original token lacks the new tenant_id claim. Refresh so the
         # mint-key call gets a token Auth0 has reissued with the claim.
         if bundle.get("refresh_token"):

@@ -19,8 +19,6 @@ import sys
 from pathlib import Path
 
 from monocle_apptrace.auth import ui
-from monocle_apptrace.auth.okahu_api import OkahuApiError, is_max_api_keys_reached
-from monocle_apptrace.auth.portal_auth import PortalAuthError, resolve_okahu_api_key
 
 # Global install → write env config to ~/.monocle/.env (shared across all
 # sessions on this machine). Project install → write to ./.env.monocle in
@@ -110,6 +108,9 @@ def _get_api_key(args):
       api_key is the key string, or None for "no key — use file exporter."
       aborted is True only if the user tried to sign in and it failed.
     """
+    from monocle_apptrace.auth.okahu_api import OkahuApiError, is_max_api_keys_reached
+    from monocle_apptrace.auth.portal_auth import PortalAuthError, resolve_okahu_api_key
+
     if args.api_key:
         return args.api_key, False
     if args.local_only:

@@ -134,7 +134,7 @@ def sign_in_via_portal(timeout: float = _AUTHORIZE_TIMEOUT_SECONDS) -> dict:
     try:
         ui.step("Opening browser to sign in to Okahu...")
         ui.hint("If it doesn't open automatically, visit:")
-        ui.hint(authorize_url)
+        print(ui.dim(authorize_url))
         opened = webbrowser.open(authorize_url)
         if not opened:
             ui.hint("(Could not auto-open a browser — paste the URL above manually.)")
@@ -205,7 +205,8 @@ def sign_in_via_device_code(timeout: float = _AUTHORIZE_TIMEOUT_SECONDS) -> dict
     ui.blank()
     ui.step("To sign in, visit " + ui.brand_alt(verification_uri))
     ui.step("Enter this code:  " + ui.bold(user_code))
-    ui.hint("Or open the pre-filled URL: " + verification_uri_complete)
+    ui.hint("Or open the pre-filled URL:")
+    print(ui.dim(verification_uri_complete))
     ui.blank()
     try:
         webbrowser.open(verification_uri_complete)

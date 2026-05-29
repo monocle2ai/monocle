@@ -60,20 +60,22 @@ class MSAgentRequestHandler(SpanHandler):
         
         # Extract thread/session ID and set scope
         session_id_token = None
-        thread = kwargs.get("thread")
+        thread = kwargs.get("session") or kwargs.get("thread")
         if thread is not None:
-            # Extract thread ID from thread object
+            # Extract thread/session ID from object — check value is truthy
             thread_id = None
-            if hasattr(thread, "service_thread_id"):
+            if hasattr(thread, "service_session_id") and thread.service_session_id:
+                thread_id = thread.service_session_id
+            elif hasattr(thread, "service_thread_id") and thread.service_thread_id:
                 thread_id = thread.service_thread_id
-            elif hasattr(thread, "id"):
+            elif hasattr(thread, "session_id") and thread.session_id:
+                thread_id = thread.session_id
+            elif hasattr(thread, "id") and thread.id:
                 thread_id = thread.id
-            elif hasattr(thread, "thread_id"):
+            elif hasattr(thread, "thread_id") and thread.thread_id:
                 thread_id = thread.thread_id
-            
             if thread_id:
                 session_id_token = set_scope(AGENT_SESSION, thread_id)
-        
         # Attach agent info context
         context_token = None
         if agent_info:

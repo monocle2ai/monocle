@@ -48,7 +48,7 @@ MSAGENT_METHODS = [
         "method": "run",
         "span_handler": "msagent_request_handler",
         "wrapper_method": msagent_adaptive_wrapper_dispatch,
-        "output_processor": AGENT_REQUEST,
+        "output_processor_list": [AGENT_REQUEST, AGENT]
     },
     # NOTE: BaseChatClient.get_response and _inner_get_response are NOT instrumented
     # because they break when wrapped (SDK internal code expects specific return types).
@@ -68,6 +68,15 @@ MSAGENT_METHODS = [
         "package": "agent_framework._workflows._function_executor",
         "object": "FunctionExecutor",
         "method": "execute",
+        "span_handler": "msagent_tool_handler",
+        "wrapper_method": atask_wrapper,
+        "output_processor": TOOL,
+    },
+    # FunctionExecutor - tool invocation
+    {
+        "package": "agent_framework._tools",
+        "object": "FunctionTool",
+        "method": "invoke",
         "span_handler": "msagent_tool_handler",
         "wrapper_method": atask_wrapper,
         "output_processor": TOOL,

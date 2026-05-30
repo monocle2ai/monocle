@@ -15,7 +15,6 @@ try:
     MICROSOFT_AGENT_AVAILABLE = True
 except ImportError as e:
     MICROSOFT_AGENT_AVAILABLE = False
-    e2 = e
 
 logger = logging.getLogger(__name__)
 

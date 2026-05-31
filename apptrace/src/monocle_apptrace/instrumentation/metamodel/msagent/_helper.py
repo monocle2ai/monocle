@@ -371,6 +371,8 @@ def extract_tool_response(result: Any, span: Any = None) -> str:
             return result
         elif isinstance(result, dict):
             return str(result)
+        elif isinstance(result, list) and len(result) > 0 and hasattr(result[0], "text"):
+            return result[0].text
         elif isinstance(result, (list, tuple)):
             return str(result)
         else:

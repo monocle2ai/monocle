@@ -97,11 +97,7 @@ async def test_microsoft_agent_simple(setup):
     
     # Run the agent and collect response
     # When stream=False, the wrapper still returns an async generator that yields once
-    result_gen = agent.run(task_description, stream=False)
-    response = None
-    async for item in result_gen:
-        response = item
-        break  # Only one item when stream=False
+    response = await agent.run(task_description, stream=False)
     
     response_text = str(response)
     

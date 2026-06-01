@@ -173,7 +173,19 @@ def extract_assistant_message(arguments):
                         })
                 if len(response_messages) > 0:
                     messages.append({role: response_messages})
-                    
+
+            if response is not None and hasattr(response, "choices") and len(response.choices) > 0:
+                if hasattr(response.choices[0], "message") and hasattr(response.choices[0].message, "content"):
+                    role = getattr(response.choices[0].message, "role", "assistant")
+                    if hasattr(response.choices[0].message, "tool_calls") and response.choices[0].message.tool_calls:
+                        tools = []
+                        for tool in response.choices[0].message.tool_calls:
+                            tools.append({
+                                "tool_id": tool.id,
+                                "tool_name": tool.function.name,
+                                "tool_arguments": tool.function.arguments
+                            })
+                        messages.append({role: tools})
             if hasattr(response, "output_text") and len(response.output_text):
                 role = response.role if hasattr(response, "role") else "assistant"
                 messages.append({role: response.output_text})

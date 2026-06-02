@@ -104,22 +104,29 @@ def confirm(question: str, default_yes: bool = True) -> bool:
 # ---------------------------------------------------------------------------
 
 
-def select(question: str, options: list, docs_url: str = None) -> str:
+def select(question: str, options: list, links: list = None) -> str:
     """Single-select picker. Each option is a dict with `key`, `label`, and
-    optional `hint`. Returns the chosen `key`. Falls back to numeric input
+    optional `hint`. `links` is an optional list of (label, url) tuples shown
+    under the menu. Returns the chosen `key`. Falls back to numeric input
     when not running on an interactive POSIX TTY."""
     if not _INTERACTIVE or not _ARROW_KEYS_AVAILABLE:
-        return _select_numeric(question, options, docs_url)
-    return _select_arrow(question, options, docs_url)
+        return _select_numeric(question, options, links)
+    return _select_arrow(question, options, links)
 
 
-def _select_numeric(question: str, options: list, docs_url: str = None) -> str:
+def _link_label_width(links: list) -> int:
+    return max(len(label) for label, _ in links) if links else 0
+
+
+def _select_numeric(question: str, options: list, links: list = None) -> str:
     section(question)
     for line in _option_lines(options, -1):  # -1 → nothing highlighted in fallback
         print(line)
     print()
-    if docs_url:
-        print("  " + dim("Learn more  ·  ") + brand_alt(docs_url))
+    if links:
+        width = _link_label_width(links)
+        for label, url in links:
+            print("  " + dim(label.ljust(width) + "  ·  ") + brand_alt(url))
         print()
     valid = [str(i) for i in range(1, len(options) + 1)]
     while True:
@@ -151,7 +158,7 @@ def _option_lines(options: list, selected: int) -> list:
     return lines
 
 
-def _select_arrow(question: str, options: list, docs_url: str = None) -> str:
+def _select_arrow(question: str, options: list, links: list = None) -> str:
     selected = 0
     section(question)
     lines = _option_lines(options, selected)
@@ -159,11 +166,13 @@ def _select_arrow(question: str, options: list, docs_url: str = None) -> str:
         print(line)
     print()
     print("  " + dim("↑↓ navigate  ·  enter select  ·  ctrl-c cancel"))
-    if docs_url:
-        print("  " + dim("learn more  ·  ") + brand_alt(docs_url))
+    if links:
+        width = _link_label_width(links)
+        for label, url in links:
+            print("  " + dim(label.ljust(width) + "  ·  ") + brand_alt(url))
 
     menu_height = len(lines)
-    footer_height = 3 if docs_url else 2  # blank + nav (+ docs line)
+    footer_height = 2 + (len(links) if links else 0)  # blank + nav (+ one row per link)
     # Hide cursor while the menu is interactive (avoids blink at footer end).
     sys.stdout.write("\x1b[?25l")
     sys.stdout.flush()

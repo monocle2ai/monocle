@@ -29,6 +29,7 @@ PROJECT_ENV_FILENAME = ".env.monocle"
 _METAMODEL_DIR = Path(__file__).parent / "instrumentation" / "metamodel"
 _HOOK_MARKERS = ("monocle-apptrace", "monocle_apptrace.instrumentation.metamodel")
 _DOCS_URL = "https://docs.okahu.ai/"
+_VSCODE_EXTENSION_URL = "https://marketplace.visualstudio.com/items?itemName=OkahuAI.okahu-ai-observability"
 
 
 # =============================================================================
@@ -203,9 +204,12 @@ def _prompt_auth_method():
             {"key": "paste", "label": "Paste an API key",
              "hint": "if you already have one from the Okahu portal"},
             {"key": "skip",  "label": "Skip",
-             "hint": "store traces locally and inspect with the Chrome extension"},
+             "hint": "store traces locally and inspect with the VS Code Okahu extension"},
         ],
-        docs_url=_DOCS_URL,
+        links=[
+            ("learn more", _DOCS_URL),
+            ("extension", _VSCODE_EXTENSION_URL),
+        ],
     )
 
 

@@ -362,12 +362,18 @@ def agent_inference_type(arguments):
     """Extract agent inference type from OpenAI response"""
     message = json.loads(extract_assistant_message(arguments))
     # message["tools"][0]["tool_name"]
-    if message and message.get("tools") and isinstance(message["tools"], list) and len(message["tools"]) > 0:
+    if message:
         agent_prefix = get_value(AGENT_PREFIX_KEY)
-        tool_name = message["tools"][0].get("tool_name", "")
-        if tool_name and agent_prefix and tool_name.startswith(agent_prefix):
-            return INFERENCE_AGENT_DELEGATION
-        return INFERENCE_TOOL_CALL
+        if message.get("tools") and isinstance(message["tools"], list) and len(message["tools"]) > 0:
+            tool_name = message["tools"][0].get("tool_name", "")
+        elif message.get("assistant") and isinstance(message["assistant"], list) and len(message["assistant"]) > 0 and 'tool_name' in message["assistant"][0]:
+            tool_name = message["assistant"][0].get("tool_name", "")
+        else:
+            tool_name = None
+        if tool_name:
+            if agent_prefix and tool_name.startswith(agent_prefix):
+                return INFERENCE_AGENT_DELEGATION
+            return INFERENCE_TOOL_CALL
     return INFERENCE_TURN_END
 
 def _get_first_tool_call(response):

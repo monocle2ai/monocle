@@ -19,7 +19,7 @@ from monocle_apptrace.instrumentation.metamodel.finish_types import (
     map_openai_finish_reason_to_finish_type,
     OPENAI_FINISH_REASON_MAPPING
 )
-from monocle_apptrace.instrumentation.common.constants import AGENT_PREFIX_KEY, INFERENCE_AGENT_DELEGATION, INFERENCE_TURN_END, INFERENCE_TOOL_CALL
+from monocle_apptrace.instrumentation.common.constants import AGENT_PREFIX_KEY, INFERENCE_AGENT_DELEGATION, INFERENCE_TURN_END, INFERENCE_TOOL_CALL, TOOL_TYPE
 from contextlib import suppress
 
 logger = logging.getLogger(__name__)
@@ -427,7 +427,7 @@ def extract_tool_type(arguments):
         tool_call = _get_first_tool_call(response)
         if tool_call:
             # Return generic tool type for OpenAI tools
-            return "tool.openai"
+            return TOOL_TYPE
             
     except Exception as e:
         logger.warning("Warning: Error occurred in extract_tool_type: %s", str(e))

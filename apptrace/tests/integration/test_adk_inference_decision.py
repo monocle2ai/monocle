@@ -63,7 +63,7 @@ def get_time(city: str) -> dict:
 
 root_agent = Agent(
     name="multi_tool_agent",
-    model="gemini-2.0-flash",
+    model="gemini-2.5-flash",
     description="Agent that can check weather and time",
     instruction="You are a helpful agent. Answer questions about weather and time.",
     tools=[get_weather, get_time],

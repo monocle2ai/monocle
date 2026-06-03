@@ -5,6 +5,18 @@
 - feat(exporters): add `MONOCLE_CONSOLE` env var to enable console output alongside any configured exporter ([#577](https://github.com/monocle2ai/monocle/pull/577))
 - fix(test_tools): lazy-load `SentenceTransformer` to prevent crash at pytest collection time in network-restricted environments ([#576](https://github.com/monocle2ai/monocle/pull/576))
 
+## Version 0.8.3 (2026-06-03)
+
+- feat: Add Okahu Cloud Browser Sign-In for Monocle Agentic CLI Setup ([#592](https://github.com/monocle2ai/monocle/pull/592))
+- fix: Handle MS Agent SDK invocation span and missing inference events ([#593](https://github.com/monocle2ai/monocle/pull/593))
+- fix: Update tool type for inference span to generic tool.function in OpenAI ([#596](https://github.com/monocle2ai/monocle/pull/596))
+- fix: Incorrect span subtype in inference and extra output in workflow span ([#595](https://github.com/monocle2ai/monocle/pull/595))
+- chore: Update model version from gemini-2.0-flash to gemini-2.5-flash in agent tests and adjust tool type assertion in Azure OpenAI integration test ([#598](https://github.com/monocle2ai/monocle/pull/598))
+- feat(exporters): configurable file-name prefix for file and Azure Blob exporters via `MONOCLE_FILE_PREFIX` and `MONOCLE_BLOB_FILE_PREFIX`; S3 `MONOCLE_S3_KEY_PREFIX` renamed to `MONOCLE_S3_FILE_PREFIX` (old name still works with deprecation warning) ([#149](https://github.com/monocle2ai/monocle/issues/149))
+- chore(deps): add `opentelemetry-exporter-otlp-proto-http` as a default dependency so the OTLP exporter works out of the box ([#570](https://github.com/monocle2ai/monocle/issues/570))
+- feat(exporters): add `MONOCLE_CONSOLE` env var to enable console output alongside any configured exporter ([#577](https://github.com/monocle2ai/monocle/pull/577))
+- fix(test_tools): lazy-load `SentenceTransformer` to prevent crash at pytest collection time in network-restricted environments ([#576](https://github.com/monocle2ai/monocle/pull/576))
+
 ## Version 0.8.2 (2026-05-27)
 - Fix test framework issue [584](https://github.com/monocle2ai/monocle/pull/584)
 

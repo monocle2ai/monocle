@@ -58,6 +58,7 @@ class ReplayHandler:
                 tool_name=ir.get("tool_name", ""),
                 finish_reason=ir.get("finish_reason", ""),
                 finish_type=ir.get("finish_type", ""),
+                otel_trace_id=ir.get("otel_trace_id", ""),
                 **{SPAN_START_TIME: ir.get(SPAN_START_TIME), SPAN_END_TIME: ir.get(SPAN_END_TIME)},
             )
 

@@ -59,6 +59,10 @@ INFERENCE = {
                     "attribute": "finish_type",
                     "accessor": lambda arguments: arguments["kwargs"].get("finish_type", ""),
                 },
+                {
+                    "attribute": "otel_trace_id",
+                    "accessor": lambda arguments: arguments["kwargs"].get("otel_trace_id", ""),
+                },
             ],
         },
     ],

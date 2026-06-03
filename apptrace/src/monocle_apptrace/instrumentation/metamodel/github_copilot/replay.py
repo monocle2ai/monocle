@@ -22,6 +22,7 @@ from monocle_apptrace.instrumentation.metamodel.github_copilot.trace_events impo
     _sessions_dir,
 )
 from monocle_apptrace.instrumentation.metamodel.github_copilot.replay_handlers import ReplayHandler
+from monocle_apptrace.instrumentation.metamodel.github_copilot._otel_tokens import lookup_turn_tokens
 
 logger = logging.getLogger(__name__)
 
@@ -485,6 +486,22 @@ def _replay_session_locked(session_id: str) -> None:
             "",
         )
         round_dict = _build_inference_round(interaction, prompt)
+        turn_tokens = {}
+        turn_model = interaction.get("model", "copilot")
+        # VS Code Copilot Chat gives no tokens via hooks. Pull them from Copilot's
+        # own OTel export, anchored by trace id. Skipped for Copilot CLI, which
+        # already reports tokens via its transcript (session.shutdown rollup).
+        if round_dict and not session_totals.get("model_metrics"):
+            otel_tokens, otel_trace_id, otel_model = lookup_turn_tokens(
+                round_dict[SPAN_START_TIME], round_dict[SPAN_END_TIME]
+            )
+            if otel_tokens:
+                round_dict["tokens"] = otel_tokens
+                round_dict["otel_trace_id"] = otel_trace_id
+                if otel_model:
+                    round_dict["model"] = otel_model
+                turn_tokens = otel_tokens
+                turn_model = round_dict["model"]
         try:
             handler.handle_turn(
                 prompt=prompt,
@@ -492,8 +509,8 @@ def _replay_session_locked(session_id: str) -> None:
                 tool_calls=tool_calls,
                 subagents=subagents,
                 inference_rounds=[round_dict] if round_dict else [],
-                model=interaction.get("model", "copilot"),
-                tokens={},
+                model=turn_model,
+                tokens=turn_tokens,
                 _turn_start=turn_start,
                 _turn_end=turn_end,
                 **{SPAN_START_TIME: turn_start, SPAN_END_TIME: turn_end, AGENT_SESSION: session_id},

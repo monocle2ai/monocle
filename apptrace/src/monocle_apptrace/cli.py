@@ -24,6 +24,83 @@ def _enable_codex_hooks_flag():
     config.write_text(text + sep + "[features]\ncodex_hooks = true\n")
 
 
+def _configure_copilot_otel():
+    """Enable Copilot's native OTel file export for both surfaces (VS Code Chat +
+    Copilot CLI terminal), pointed at one JSON-lines file. We read token usage
+    from it on Stop replay — VS Code Chat doesn't surface tokens via hooks.
+
+    captureContent stays OFF: token counts are emitted as metadata, so we never
+    write prompts/responses/tool args (which is the content-policy-gated part).
+    """
+    otel_dir = Path.home() / ".monocle" / ".copilot_otel"
+    otel_dir.mkdir(parents=True, exist_ok=True)
+    outfile = str(otel_dir / "copilot.jsonl")
+
+    # VS Code Copilot Chat — patch user settings.json.
+    vscode_settings = _vscode_settings_path()
+    if vscode_settings is not None:
+        try:
+            settings = json.loads(vscode_settings.read_text()) if vscode_settings.exists() else {}
+        except Exception:
+            settings = {}
+        settings["github.copilot.chat.otel.enabled"] = True
+        settings["github.copilot.chat.otel.exporterType"] = "file"
+        settings["github.copilot.chat.otel.outfile"] = outfile
+        vscode_settings.parent.mkdir(parents=True, exist_ok=True)
+        vscode_settings.write_text(json.dumps(settings, indent=2) + "\n")
+        print("  VS Code OTel export enabled: {}".format(vscode_settings))
+
+    # Copilot CLI terminal sessions — env vars in the shell rc.
+    rc_path = _shell_rc_path()
+    if rc_path is not None:
+        _ensure_copilot_otel_rc_block(rc_path, outfile)
+        print("  Shell env updated: {}  (open a fresh terminal for CLI sessions)".format(rc_path))
+
+
+def _vscode_settings_path():
+    if sys.platform == "darwin":
+        return Path.home() / "Library" / "Application Support" / "Code" / "User" / "settings.json"
+    if sys.platform.startswith("linux"):
+        return Path.home() / ".config" / "Code" / "User" / "settings.json"
+    if sys.platform == "win32":
+        appdata = os.environ.get("APPDATA")
+        return Path(appdata) / "Code" / "User" / "settings.json" if appdata else None
+    return None
+
+
+def _shell_rc_path():
+    shell = os.environ.get("SHELL", "")
+    if shell.endswith("zsh"):
+        return Path.home() / ".zshrc"
+    if shell.endswith("bash"):
+        return Path.home() / (".bash_profile" if sys.platform == "darwin" else ".bashrc")
+    return None
+
+
+_OTEL_MARKER = "# >>> monocle copilot otel >>>"
+_OTEL_END_MARKER = "# <<< monocle copilot otel <<<"
+
+
+def _ensure_copilot_otel_rc_block(rc_path, outfile):
+    """Idempotently write the Copilot CLI OTel env block into the shell rc."""
+    block = "\n".join([
+        _OTEL_MARKER,
+        "export COPILOT_OTEL_ENABLED=true",
+        "export COPILOT_OTEL_FILE_EXPORTER_PATH={}".format(outfile),
+        _OTEL_END_MARKER,
+        "",
+    ])
+    existing = rc_path.read_text() if rc_path.exists() else ""
+    if _OTEL_MARKER in existing:
+        before = existing.split(_OTEL_MARKER)[0]
+        after = existing.split(_OTEL_END_MARKER, 1)
+        tail = after[1] if len(after) > 1 else ""
+        rc_path.write_text(before.rstrip() + "\n\n" + block + tail.lstrip())
+    else:
+        sep = "\n" if existing and not existing.endswith("\n") else ""
+        rc_path.write_text(existing + sep + "\n" + block)
+
+
 def _package_version():
     try:
         return importlib.metadata.version("monocle_apptrace")
@@ -186,7 +263,8 @@ def main(argv=None):
     if args.command == "copilot-setup":
         return setup("copilot", "GitHub Copilot",
                      Path.home() / ".copilot" / "hooks" / "monocle.json",
-                     _METAMODEL_DIR / "github_copilot" / "hooks.json")
+                     _METAMODEL_DIR / "github_copilot" / "hooks.json",
+                     _configure_copilot_otel)
     return 1
 
 

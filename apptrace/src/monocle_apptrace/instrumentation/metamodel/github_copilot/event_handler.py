@@ -14,6 +14,7 @@ from monocle_apptrace.instrumentation.metamodel.github_copilot.trace_events impo
     cleanup_session,
     sweep_stale_sessions,
 )
+from monocle_apptrace.instrumentation.metamodel.github_copilot._otel_tokens import prune_otel_file
 
 logger = logging.getLogger(__name__)
 
@@ -102,6 +103,7 @@ def main() -> None:
 
     if event_name == "SessionStart":
         sweep_stale_sessions()
+        prune_otel_file()
         _retry_pending_copilot_cli_sessions()
 
     record_event(event_data)

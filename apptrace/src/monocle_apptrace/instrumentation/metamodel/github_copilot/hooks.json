@@ -2,62 +2,112 @@
   "hooks": {
     "SessionStart": [
       {
-        "type": "command",
-        "command": "monocle-apptrace copilot-hook"
+        "hooks": [
+          {
+            "type": "command",
+            "command": "monocle-apptrace copilot-hook",
+            "statusMessage": "Monocle telemetry"
+          }
+        ]
       }
     ],
     "UserPromptSubmit": [
       {
-        "type": "command",
-        "command": "monocle-apptrace copilot-hook"
+        "hooks": [
+          {
+            "type": "command",
+            "command": "monocle-apptrace copilot-hook",
+            "statusMessage": "Monocle telemetry"
+          }
+        ]
       }
     ],
     "PreToolUse": [
       {
-        "type": "command",
-        "command": "monocle-apptrace copilot-hook"
+        "hooks": [
+          {
+            "type": "command",
+            "command": "monocle-apptrace copilot-hook",
+            "statusMessage": "Monocle telemetry"
+          }
+        ]
       }
     ],
     "PostToolUse": [
       {
-        "type": "command",
-        "command": "monocle-apptrace copilot-hook"
+        "hooks": [
+          {
+            "type": "command",
+            "command": "monocle-apptrace copilot-hook",
+            "statusMessage": "Monocle telemetry"
+          }
+        ]
       }
     ],
     "PostToolUseFailure": [
       {
-        "type": "command",
-        "command": "monocle-apptrace copilot-hook"
+        "hooks": [
+          {
+            "type": "command",
+            "command": "monocle-apptrace copilot-hook",
+            "statusMessage": "Monocle telemetry"
+          }
+        ]
       }
     ],
     "SubagentStart": [
       {
-        "type": "command",
-        "command": "monocle-apptrace copilot-hook"
+        "hooks": [
+          {
+            "type": "command",
+            "command": "monocle-apptrace copilot-hook",
+            "statusMessage": "Monocle telemetry"
+          }
+        ]
       }
     ],
     "SubagentStop": [
       {
-        "type": "command",
-        "command": "monocle-apptrace copilot-hook"
+        "hooks": [
+          {
+            "type": "command",
+            "command": "monocle-apptrace copilot-hook",
+            "statusMessage": "Monocle telemetry"
+          }
+        ]
       }
     ],
     "PreCompact": [
       {
-        "type": "command",
-        "command": "monocle-apptrace copilot-hook"
+        "hooks": [
+          {
+            "type": "command",
+            "command": "monocle-apptrace copilot-hook",
+            "statusMessage": "Monocle telemetry"
+          }
+        ]
       }
     ],
     "Stop": [
       {
-        "type": "command",
-        "command": "monocle-apptrace copilot-hook"
+        "hooks": [
+          {
+            "type": "command",
+            "command": "monocle-apptrace copilot-hook",
+            "statusMessage": "Monocle telemetry"
+          }
+        ]
       }
     ],
     "SessionEnd": [
       {
-        "type": "command",
-        "command": "monocle-apptrace copilot-hook"
+        "hooks": [
+          {
+            "type": "command",
+            "command": "monocle-apptrace copilot-hook",
+            "statusMessage": "Monocle telemetry"
+          }
+        ]
       }
     ]
   }

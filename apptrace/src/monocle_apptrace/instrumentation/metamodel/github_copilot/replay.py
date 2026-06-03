@@ -395,46 +395,6 @@ def _build_subagent_records(interaction: dict, subagent_outputs_by_id: dict) -> 
     return records
 
 
-def _normalize_tokens(usage: dict) -> dict:
-    """Canonicalize Copilot CLI's modelMetrics.usage. prompt_tokens sums
-    input+cacheRead+cacheWrite — raw inputTokens alone undercounts cached
-    prompts on warm sessions."""
-    input_t = usage.get("inputTokens", 0) or 0
-    output_t = usage.get("outputTokens", 0) or 0
-    cache_read = usage.get("cacheReadTokens", 0) or 0
-    cache_write = usage.get("cacheWriteTokens", 0) or 0
-    reasoning = usage.get("reasoningTokens", 0) or 0
-    prompt_t = input_t + cache_read + cache_write
-    if not prompt_t and not output_t:
-        return {}
-    return {
-        "prompt_tokens": prompt_t,
-        "completion_tokens": output_t,
-        "total_tokens": prompt_t + output_t,
-        "input_tokens": input_t,
-        "cache_read_tokens": cache_read,
-        "cache_creation_tokens": cache_write,
-        "reasoning_tokens": reasoning,
-    }
-
-
-def _extract_session_totals(transcript_events: list) -> dict:
-    """Latest session.shutdown event with per-model token totals. Empty for
-    VS Code Copilot Chat (no shutdown event)."""
-    shutdown = next(
-        (e for e in reversed(transcript_events) if e.get("type") == "session.shutdown"),
-        None,
-    )
-    if not shutdown:
-        return {}
-    data = shutdown.get("data") or {}
-    return {
-        "model_metrics": data.get("modelMetrics") or {},
-        "total_api_duration_ms": data.get("totalApiDurationMs", 0) or 0,
-        "shutdown_ts": shutdown.get("timestamp", ""),
-    }
-
-
 def replay_session(session_id: str) -> None:
     if not session_id:
         return
@@ -459,15 +419,13 @@ def _replay_session_locked(session_id: str) -> None:
 
     state = _load_state(session_id)
     already = set(state.get("interactions_processed", []))
-    shutdown_emitted = state.get("shutdown_emitted", False)
     # Skip interactions with no assistant response and not flagged interrupted (still mid-flight).
     new_interactions = [
         i for i in interactions
         if i["id"] not in already and (i.get("assistant_messages") or i.get("interrupted"))
     ]
-    session_totals = _extract_session_totals(transcript_events) if not shutdown_emitted else {}
 
-    if not new_interactions and not session_totals.get("model_metrics"):
+    if not new_interactions:
         return
 
     parent_outputs, subagent_outputs = _index_tool_outputs(hook_events, subagent_intervals)
@@ -488,10 +446,9 @@ def _replay_session_locked(session_id: str) -> None:
         round_dict = _build_inference_round(interaction, prompt)
         turn_tokens = {}
         turn_model = interaction.get("model", "copilot")
-        # VS Code Copilot Chat gives no tokens via hooks. Pull them from Copilot's
-        # own OTel export, anchored by trace id. Skipped for Copilot CLI, which
-        # already reports tokens via its transcript (session.shutdown rollup).
-        if round_dict and not session_totals.get("model_metrics"):
+        # Token counts come from Copilot's own OTel export — both VS Code Chat and
+        # the CLI write it — anchored by trace id within the turn window.
+        if round_dict:
             otel_tokens, otel_trace_id, otel_model = lookup_turn_tokens(
                 round_dict[SPAN_START_TIME], round_dict[SPAN_END_TIME]
             )
@@ -519,32 +476,7 @@ def _replay_session_locked(session_id: str) -> None:
             logger.debug(f"Turn replay failed for {iid}: {e}")
         already.add(iid)
 
-    # Copilot CLI session.shutdown rollup — one inference-shaped span per model.
-    if session_totals.get("model_metrics"):
-        shutdown_ts = session_totals.get("shutdown_ts", "")
-        session_start_ts = interactions[0].get("turn_start") if interactions else shutdown_ts
-        session_end_ts = shutdown_ts or session_start_ts
-        for model_name, metrics in session_totals["model_metrics"].items():
-            tokens = _normalize_tokens(metrics.get("usage") or {})
-            if not tokens:
-                continue
-            try:
-                handler.handle_inference_round(
-                    input_text="",
-                    output_text="",
-                    model=model_name,
-                    tokens=tokens,
-                    tool_name="",
-                    finish_reason="session_summary",
-                    finish_type="aggregate",
-                    **{SPAN_START_TIME: session_start_ts, SPAN_END_TIME: session_end_ts, AGENT_SESSION: session_id},
-                )
-                shutdown_emitted = True
-            except Exception as e:
-                logger.debug(f"Session summary span failed for {model_name}: {e}")
-
     state["interactions_processed"] = list(already)
-    state["shutdown_emitted"] = shutdown_emitted
     _save_state(session_id, state)
 
 

@@ -7,8 +7,10 @@ from pathlib import Path
 from typing import Optional
 
 from monocle_apptrace.instrumentation.common.constants import AGENT_SESSION, CODEX_TURN_SCOPE, CODEX_INVOCATION_SCOPE, SPAN_START_TIME, SPAN_END_TIME
+from monocle_apptrace.instrumentation.common.git_context import _file_types_summary
 from monocle_apptrace.instrumentation.metamodel.codex_cli._helper import find_subagent_transcript
 from monocle_apptrace.instrumentation.metamodel.codex_cli.replay_handlers import ReplayHandler
+from monocle_apptrace.instrumentation.metamodel.codex_cli import git_context
 from monocle_apptrace.instrumentation.metamodel.codex_cli.trace_events import (
     load_state,
     save_state,
@@ -55,6 +57,15 @@ def _output_signals_failure(output):
     return False
 
 
+def _tool_failed(tool_name, call_id, output, patch_results):
+    """Did this tool call fail? For apply_patch the transcript records an
+    authoritative `patch_apply_end.success`, so use it; everything else falls
+    back to sniffing the output string."""
+    if tool_name == "apply_patch" and call_id in patch_results:
+        return not patch_results[call_id]
+    return _output_signals_failure(output)
+
+
 # ── Token binning ─────────────────────────────────────────────────────────────
 
 def _empty_tokens():
@@ -85,6 +96,78 @@ def _format_tokens(acc):
         "total_tokens": acc["input"] + acc["output"],
         "cache_read_tokens": acc["cached"],
     }
+
+
+# ── Patch line counting ───────────────────────────────────────────────────────
+
+_PATCH_FILE_RE = re.compile(r"\*\*\* (?:Add|Update|Delete) File: (.+)")
+
+
+def _count_patch_lines(patch_text):
+    """Count added/removed lines and changed files in an apply_patch body.
+
+    Codex's apply_patch input is a `*** Begin Patch` block with one-char `+`/`-`
+    line prefixes. Returns (added, removed, files:set). Sourced from the
+    transcript so the counts ride with the turn — immune to the replay lag and
+    multi-Stop baseline problems that make wall-clock git diffing unreliable for
+    Codex per-turn deltas.
+    """
+    if not isinstance(patch_text, str) or not patch_text:
+        return 0, 0, set()
+    added = removed = 0
+    files = set()
+    for line in patch_text.splitlines():
+        m = _PATCH_FILE_RE.match(line)
+        if m:
+            files.add(m.group(1).strip())
+            continue
+        if line.startswith("***") or line.startswith("@@"):
+            continue
+        if line.startswith("+"):
+            added += 1
+        elif line.startswith("-"):
+            removed += 1
+    return added, removed, files
+
+
+def _count_apply_patches(tool_calls):
+    """Sum applied apply_patch deltas in a list of tool calls.
+
+    Skips failed patches — a failed apply_patch changed nothing, so its +/-
+    lines must not inflate the delta. Returns (added, removed, files:set).
+    """
+    added = removed = 0
+    files = set()
+    for tc in tool_calls:
+        if tc.get("tool_name") == "apply_patch" and not tc.get("failed"):
+            a, r, fs = _count_patch_lines(tc.get("tool_input"))
+            added += a
+            removed += r
+            files |= fs
+    return added, removed, files
+
+
+def _turn_line_stats(turn):
+    """Aggregate this turn's apply_patch deltas into edit.turn.* scope attributes.
+    """
+    added = removed = 0
+    files = set()
+    groups = [turn.get("tool_calls", [])]
+    groups += [sa.get("tool_calls", []) for sa in turn.get("subagents", [])]
+    for tool_calls in groups:
+        a, r, fs = _count_apply_patches(tool_calls)
+        added += a
+        removed += r
+        files |= fs
+    stats = {
+        "edit.turn.files_changed": len(files),
+        "edit.turn.lines_added": added,
+        "edit.turn.lines_removed": removed,
+    }
+    file_types = _file_types_summary(sorted(files))
+    if file_types:
+        stats["edit.turn.file_types"] = file_types
+    return stats
 
 
 # ── Inference rounds ──────────────────────────────────────────────────────────
@@ -189,6 +272,8 @@ def _walk_turns(transcript_path, start_line, current_model):
     turns = []
     turn = None
     pending_calls: dict = {}
+    patch_results: dict = {}  # call_id -> apply_patch success bool
+    pending_spawns: dict = {}  # call_id -> spawn_agent args (multi_agent_v1)
     handled_subagent_calls: set = set()
     next_cursor = start_line
 
@@ -203,7 +288,7 @@ def _walk_turns(transcript_path, start_line, current_model):
                 "tool_input": pre["tool_input"],
                 "tool_output": output,
                 "call_id": cid,
-                "failed": _output_signals_failure(output),
+                "failed": _tool_failed(pre["tool_name"], cid, output, patch_results),
                 SPAN_START_TIME: pre["start_ts"],
                 SPAN_END_TIME: pre["start_ts"],
             })
@@ -246,6 +331,8 @@ def _walk_turns(transcript_path, start_line, current_model):
                 "tokens": [],
             }
             pending_calls = {}
+            patch_results = {}
+            pending_spawns = {}
             handled_subagent_calls = set()
             continue
 
@@ -259,6 +346,8 @@ def _walk_turns(transcript_path, start_line, current_model):
                 turns.append(turn)
                 turn = None
                 pending_calls = {}
+                patch_results = {}
+                pending_spawns = {}
                 handled_subagent_calls = set()
                 next_cursor = idx + 1  # advance cursor past this complete turn
             continue
@@ -278,6 +367,13 @@ def _walk_turns(transcript_path, start_line, current_model):
                 last = info.get("last_token_usage") or {}
                 if last:
                     turn["tokens"].append({"ts": ts, **last})
+            elif ptype == "patch_apply_end":
+                # Authoritative apply_patch result, keyed by call_id — used both
+                # for the tool span's failed status and to exclude failed patches
+                # from the edit.turn.* line counts.
+                cid = payload.get("call_id")
+                if cid:
+                    patch_results[cid] = bool(payload.get("success", True))
             elif ptype == "collab_agent_spawn_end":
                 # Suppress the matching function_call_output — it'd duplicate the Sub-Agent.
                 cid = payload.get("call_id")
@@ -291,8 +387,25 @@ def _walk_turns(transcript_path, start_line, current_model):
         elif etype == "response_item" and isinstance(ptype, str):
             if ptype.endswith("_call_output"):
                 cid = payload.get("call_id")
+                if cid in pending_spawns:
+                    # spawn_agent result → resolve the subagent transcript by its
+                    # agent_id and emit a Sub-Agent (its edits roll into edit.turn.*).
+                    spawn_args = pending_spawns.pop(cid)
+                    try:
+                        out = json.loads(payload.get("output") or "{}")
+                    except Exception:
+                        out = {}
+                    spawn_payload = {
+                        "new_agent_role": spawn_args.get("agent_type", "agent"),
+                        "new_agent_nickname": out.get("nickname", ""),
+                        "prompt": spawn_args.get("message", ""),
+                    }
+                    sa = _build_subagent(transcript_path, out.get("agent_id"), spawn_payload, ts)
+                    if sa:
+                        turn["subagents"].append(sa)
+                    continue
                 if cid in handled_subagent_calls:
-                    continue  # spawn_agent — already a Sub-Agent span
+                    continue  # collab spawn / wait_agent — not a tool span
                 pre = pending_calls.pop(cid, None) if cid else None
                 if pre:
                     output = payload.get("output", "")
@@ -301,19 +414,31 @@ def _walk_turns(transcript_path, start_line, current_model):
                         "tool_input": pre["tool_input"],
                         "tool_output": output,
                         "call_id": cid or "",
-                        "failed": _output_signals_failure(output),
+                        "failed": _tool_failed(pre["tool_name"], cid, output, patch_results),
                         SPAN_START_TIME: pre["start_ts"],
                         SPAN_END_TIME: ts,
                     })
             elif ptype.endswith("_call"):
                 cid = payload.get("call_id") or payload.get("id") or ""
                 tool_name = payload.get("name") or ptype[: -len("_call")]
+                if tool_name == "spawn_agent":
+                    # multi_agent_v1: parent delegates to a subagent running in its
+                    # own transcript. Stash the spawn args; the matching *_call_output
+                    # carries the new agent_id we resolve the transcript with.
+                    try:
+                        pending_spawns[cid] = json.loads(payload.get("arguments") or "{}")
+                    except Exception:
+                        pending_spawns[cid] = {}
+                    continue
+                if tool_name == "wait_agent":
+                    handled_subagent_calls.add(cid)  # synchronization plumbing, not a tool
+                    continue
                 tool_input = (
                     payload.get("arguments")
                     or payload.get("input")
                     or payload.get("revised_prompt")
                     or payload.get("query")
-                    or json.dumps(payload.get("action")) if payload.get("action") else ""
+                    or (json.dumps(payload.get("action")) if payload.get("action") else "")
                 )
                 inline_output = payload.get("result") or ""
                 if isinstance(inline_output, str) and len(inline_output) > 1000:
@@ -357,6 +482,11 @@ def replay_session(session_id: str, transcript_path: Optional[str]) -> None:
     _configure_telemetry()
     handler = ReplayHandler()
 
+    # Snapshot facts (repo/branch/uncommitted/ahead-behind) are identical for
+    # every turn in this batch, so compute them once. Per-turn line deltas come
+    # from each turn's transcript patches, not from the wall-clock git diff.
+    snapshot_scopes = git_context.compute_scopes(session_id, include_turn_deltas=False)
+
     for turn in turns:
         rounds = _derive_inference_rounds(turn)
         turn_tokens = _sum_tokens_in_window(turn["tokens"], turn["start_ts"], turn.get("end_ts"))
@@ -368,6 +498,7 @@ def replay_session(session_id: str, transcript_path: Optional[str]) -> None:
             inference_rounds=rounds,
             model=turn["model"],
             tokens=turn_tokens,
+            git_scopes={**snapshot_scopes, **_turn_line_stats(turn)},
             _turn_start=turn["start_ts"],
             _turn_end=turn.get("end_ts"),
             **{

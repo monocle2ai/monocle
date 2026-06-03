@@ -56,6 +56,18 @@ def get_agent_name(instance: Any) -> str:
         return "UnknownAgent"
 
 
+def get_agent_executor_name(instance: Any) -> str:
+    """Return the agent name, preferring AgentExecutor identity (_id/id) over chat client fallback."""
+    try:
+        if hasattr(instance, "_id"):
+            return str(instance._id)
+        if instance.__class__.__name__ == "AgentExecutor" and hasattr(instance, "id"):
+            return str(instance.id)
+    except Exception as e:
+        logger.warning(f"Error getting agent executor name: {e}")
+    return get_chat_client_name(instance)
+
+
 def get_agent_name_from_context() -> str:
     """
     Get agent name from OpenTelemetry context.
@@ -359,6 +371,8 @@ def extract_tool_response(result: Any, span: Any = None) -> str:
             return result
         elif isinstance(result, dict):
             return str(result)
+        elif isinstance(result, list) and len(result) > 0 and hasattr(result[0], "text"):
+            return result[0].text
         elif isinstance(result, (list, tuple)):
             return str(result)
         else:

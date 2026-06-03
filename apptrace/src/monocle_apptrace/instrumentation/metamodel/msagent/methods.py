@@ -3,8 +3,7 @@
 """
 
 from monocle_apptrace.instrumentation.common.wrapper import (
-    atask_wrapper, 
-    atask_iter_wrapper,
+    atask_wrapper,
     amonocle_wrapper,
     amonocle_iter_wrapper,
     with_tracer_wrapper
@@ -17,19 +16,19 @@ from monocle_apptrace.instrumentation.metamodel.msagent.entities.inference impor
     TOOL,
 )
 
-
 @with_tracer_wrapper
-async def msagent_adaptive_wrapper(tracer: Tracer, handler: SpanHandler, to_wrap, wrapped, instance, source_path, args, kwargs):
+def msagent_adaptive_wrapper_dispatch(tracer: Tracer, handler: SpanHandler, to_wrap, wrapped, instance, source_path, args, kwargs):
     """
-    Adaptive wrapper for MS Agent methods that can return either a single result or an async iterator.
-    When stream=True, it yields multiple items. When stream=False, it awaits and yields once.
+    Dispatch wrapper that routes to appropriate wrapper based on context.
+    The method signatures and return types are compatible across these versions.
     """
+    # Standalone agent call - check if streaming
     if kwargs.get("stream", False):
-        async for item in amonocle_iter_wrapper(tracer, handler, to_wrap, wrapped, instance, source_path, args, kwargs):
-            yield item
+        # Streaming mode - return async generator
+        return amonocle_iter_wrapper(tracer, handler, to_wrap, wrapped, instance, source_path, args, kwargs)
     else:
-        result = await amonocle_wrapper(tracer, handler, to_wrap, wrapped, instance, source_path, args, kwargs)
-        yield result
+        # Non-streaming mode - return coroutine
+        return amonocle_wrapper(tracer, handler, to_wrap, wrapped, instance, source_path, args, kwargs)
 
 
 MSAGENT_METHODS = [
@@ -39,17 +38,17 @@ MSAGENT_METHODS = [
         "object": "Workflow",
         "method": "run",
         "span_handler": "msagent_request_handler",
-        "wrapper_method": atask_iter_wrapper,
+        "wrapper_method": atask_wrapper,
         "output_processor": AGENT_REQUEST,
     },
-    # Agent.run - agent request level (user-facing, needs adaptive wrapper for stream support)
+    # Agent.run - agent request level (standalone agent calls with streaming support)
     {
         "package": "agent_framework._agents",
         "object": "Agent",
         "method": "run",
         "span_handler": "msagent_request_handler",
-        "wrapper_method": msagent_adaptive_wrapper,
-        "output_processor": AGENT_REQUEST,
+        "wrapper_method": msagent_adaptive_wrapper_dispatch,
+        "output_processor_list": [AGENT_REQUEST, AGENT]
     },
     # NOTE: BaseChatClient.get_response and _inner_get_response are NOT instrumented
     # because they break when wrapped (SDK internal code expects specific return types).
@@ -69,6 +68,16 @@ MSAGENT_METHODS = [
         "package": "agent_framework._workflows._function_executor",
         "object": "FunctionExecutor",
         "method": "execute",
+        "span_handler": "msagent_tool_handler",
+        "wrapper_method": atask_wrapper,
+        "output_processor": TOOL,
+    },
+    # FunctionExecutor - tool invocation
+    {
+        "package": "agent_framework._tools",
+        "object": "FunctionTool",
+        "method": "invoke",
+        "span_handler": "msagent_tool_handler",
         "wrapper_method": atask_wrapper,
         "output_processor": TOOL,
     },

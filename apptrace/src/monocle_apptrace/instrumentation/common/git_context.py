@@ -46,19 +46,6 @@ def _snapshot():
     }
 
 
-def _ahead_behind():
-    out = _git("rev-list", "--left-right", "--count", "@{u}...HEAD")
-    if not out:
-        return 0, 0
-    parts = out.split()
-    if len(parts) != 2:
-        return 0, 0
-    try:
-        return int(parts[1]), int(parts[0])
-    except ValueError:
-        return 0, 0
-
-
 def _uncommitted_count():
     # Porcelain output is column-sensitive; bypass _git()'s rstrip via direct call.
     try:
@@ -197,8 +184,8 @@ class GitContext:
     def compute_scopes(self, session_id, include_turn_deltas=True):
         """Build scope.git.* attributes for the current working tree.
 
-        Snapshot fields (repo, branch, commit, uncommitted, ahead/behind) are
-        always included. Per-turn deltas (git.turn.*) are diffed against the
+        Snapshot fields (repo, branch, commit, uncommitted) are always
+        included. Per-turn deltas (git.turn.*) are diffed against the
         baseline captured at the start of the turn — set include_turn_deltas=False
         to skip them. Codex does this because its replay can lag a turn behind the
         working tree (transcript-flush race), so wall-clock git deltas would be
@@ -208,15 +195,12 @@ class GitContext:
         if not current:
             return {"git.status": "no repo connected"}
 
-        ahead, behind = _ahead_behind()
         scopes = {
             "git.repo": _repo_name(current["repo_url"]),
             "git.repo.url": current["repo_url"],
             "git.branch": current["branch"],
             "git.commit.hash": current["head_sha"],
             "git.uncommitted": _uncommitted_count(),
-            "git.ahead_count": ahead,
-            "git.behind_count": behind,
         }
         if current["is_submodule"]:
             scopes["git.is_submodule"] = True

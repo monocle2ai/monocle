@@ -227,7 +227,7 @@ class MSAgentRequestHandler(SpanHandler):
 
     def post_task_processing(self, to_wrap, wrapped, instance, args, kwargs, result, ex, span: Span, parent_span: Span):
         self.hydrate_events(to_wrap, wrapped, instance, args, kwargs,
-                            result, span=parent_span, is_post_exec=True)
+                            result, span=span, is_post_exec=True)
 
 class MSAgentAgentHandler(SpanHandler):
     """Handler for Microsoft Agent Framework agent invocations."""

@@ -1,4 +1,4 @@
-## Unreleased
+## Version 0.8.3 (2026-05-27)
 
 - feat: Add Okahu Cloud Browser Sign-In for Monocle Agentic CLI Setup ([#592](https://github.com/monocle2ai/monocle/pull/592))
 - fix: Handle MS Agent SDK invocation span and missing inference events ([#593](https://github.com/monocle2ai/monocle/pull/593))

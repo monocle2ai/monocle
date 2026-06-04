@@ -89,7 +89,7 @@ def get_current_time(city: str) -> dict:
 
 root_agent = Agent(
     name="weather_time_agent",
-    model="gemini-2.0-flash",
+    model="gemini-2.5-flash",
     description=(
         "Agent to answer questions about the time and weather in a city."
     ),
@@ -173,8 +173,8 @@ def verify_spans(memory_exporter):
             assert span_attributes["entity.1.type"] == "inference.gemini"
             assert "entity.1.provider_name" in span_attributes
             assert "entity.1.inference_endpoint" in span_attributes
-            assert span_attributes["entity.2.name"] == "gemini-2.0-flash"
-            assert span_attributes["entity.2.type"] == "model.llm.gemini-2.0-flash"
+            assert span_attributes["entity.2.name"] == "gemini-2.5-flash"
+            assert span_attributes["entity.2.type"] == "model.llm.gemini-2.5-flash"
             
             # Assertions for span.subtype
             assert "span.subtype" in span_attributes, "Expected span.subtype attribute to be present"

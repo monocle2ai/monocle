@@ -15,5 +15,19 @@ LITELLM_METHODS = [
         "method": "completion",
         "wrapper_method": task_wrapper,
         "output_processor": INFERENCE
+    },
+    {
+        "package": "litellm.llms.openai.openai",
+        "object": "OpenAIChatCompletion",
+        "method": "acompletion",
+        "wrapper_method": atask_wrapper,
+        "output_processor": INFERENCE
+    },
+    {
+        "package": "litellm.llms.azure.azure",
+        "object": "AzureChatCompletion",
+        "method": "acompletion",
+        "wrapper_method": atask_wrapper,
+        "output_processor": INFERENCE
     }
 ]

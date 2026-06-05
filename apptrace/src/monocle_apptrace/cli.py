@@ -3,11 +3,12 @@
 Subcommands:
   claude-setup    register Monocle hooks for Claude Code
   codex-setup     register Monocle hooks for Codex CLI
+  copilot-setup   register Monocle hooks for GitHub Copilot (CLI + VS Code Chat)
   validate        validate a trace file against the metamodel
   reset           dev helper — clear local state (REMOVE BEFORE PR)
 
-Hook dispatch (`claude-hook`, `codex-hook`) is invoked as a subprocess by
-each agent when a hook fires — see `main()` for that path.
+Hook dispatch (`claude-hook`, `codex-hook`, `copilot-hook`) is invoked as a
+subprocess by each agent when a hook fires — see `main()` for that path.
 """
 import argparse
 import getpass
@@ -58,19 +59,110 @@ def cmd_codex_setup(args):
     )
 
 
-def _run_setup(args, *, agent, label, hooks_subpath, hooks_template, post_install=None):
+def cmd_copilot_setup(args):
+    return _run_setup(
+        args,
+        agent="copilot",
+        label="GitHub Copilot",
+        # Project → <repo>/.github/hooks/; both Copilot CLI and VS Code Chat discover
+        # .github/hooks/*.json in the workspace by default. Global → ~/.copilot/hooks/.
+        hooks_subpath=".github/hooks/monocle.json",
+        global_hooks_subpath=".copilot/hooks/monocle.json",
+        hooks_template=_METAMODEL_DIR / "github_copilot" / "hooks.json",
+        post_install=_configure_copilot_otel,
+    )
+
+
+def _configure_copilot_otel(scope_root):
+    """Enable Copilot's native OTel file export (VS Code Chat + Copilot CLI) so replay
+    can read token counts. Fixed path (~/.monocle/.copilot_otel/copilot.jsonl) because
+    VS Code only reliably file-exports to a stable outfile."""
+    otel_dir = Path.home() / ".monocle" / ".copilot_otel"
+    otel_dir.mkdir(parents=True, exist_ok=True)
+    outfile = str(otel_dir / "copilot.jsonl")
+
+    # Record the path so replay finds it regardless of cwd/surface (VS Code hooks
+    # don't inherit the shell env, unlike the CLI).
+    env_file = GLOBAL_ENV_FILE if scope_root == Path.home() else scope_root / PROJECT_ENV_FILENAME
+    _save_env(env_file, MONOCLE_COPILOT_OTEL_FILE=outfile)
+
+    vscode_settings = _vscode_settings_path()
+    if vscode_settings is not None:
+        try:
+            settings = json.loads(vscode_settings.read_text()) if vscode_settings.exists() else {}
+        except Exception:
+            settings = {}
+        settings["github.copilot.chat.otel.enabled"] = True
+        settings["github.copilot.chat.otel.exporterType"] = "file"
+        settings["github.copilot.chat.otel.outfile"] = outfile
+        vscode_settings.parent.mkdir(parents=True, exist_ok=True)
+        vscode_settings.write_text(json.dumps(settings, indent=2) + "\n")
+        ui.hint("VS Code OTel export enabled: " + str(vscode_settings))
+
+    rc_path = _shell_rc_path()
+    if rc_path is not None:
+        _ensure_copilot_otel_rc_block(rc_path, outfile)
+        ui.hint("Shell env updated for Copilot CLI: " + str(rc_path))
+
+
+def _vscode_settings_path():
+    if sys.platform == "darwin":
+        return Path.home() / "Library" / "Application Support" / "Code" / "User" / "settings.json"
+    if sys.platform.startswith("linux"):
+        return Path.home() / ".config" / "Code" / "User" / "settings.json"
+    if sys.platform == "win32":
+        appdata = os.environ.get("APPDATA")
+        return Path(appdata) / "Code" / "User" / "settings.json" if appdata else None
+    return None
+
+
+def _shell_rc_path():
+    shell = os.environ.get("SHELL", "")
+    if shell.endswith("zsh"):
+        return Path.home() / ".zshrc"
+    if shell.endswith("bash"):
+        return Path.home() / (".bash_profile" if sys.platform == "darwin" else ".bashrc")
+    return None
+
+
+_COPILOT_OTEL_MARKER = "# >>> monocle copilot otel >>>"
+_COPILOT_OTEL_END = "# <<< monocle copilot otel <<<"
+
+
+def _ensure_copilot_otel_rc_block(rc_path, outfile):
+    block = "\n".join([
+        _COPILOT_OTEL_MARKER,
+        "export COPILOT_OTEL_ENABLED=true",
+        "export COPILOT_OTEL_EXPORTER_TYPE=file",  # CLI ignores the file path without this
+        "export COPILOT_OTEL_FILE_EXPORTER_PATH={}".format(outfile),
+        _COPILOT_OTEL_END,
+        "",
+    ])
+    existing = rc_path.read_text() if rc_path.exists() else ""
+    if _COPILOT_OTEL_MARKER in existing:
+        before = existing.split(_COPILOT_OTEL_MARKER)[0]
+        after = existing.split(_COPILOT_OTEL_END, 1)
+        tail = after[1] if len(after) > 1 else ""
+        rc_path.write_text(before.rstrip() + "\n\n" + block + tail.lstrip())
+    else:
+        sep = "\n" if existing and not existing.endswith("\n") else ""
+        rc_path.write_text(existing + sep + "\n" + block)
+
+
+def _run_setup(args, *, agent, label, hooks_subpath, hooks_template, post_install=None, global_hooks_subpath=None):
     ui.header("Monocle setup", label)
 
-    # 1. Where to install: ~ (global) or cwd (project). Both the hook file
-    #    and the env file are anchored at the same root.
+    # 1. Where to install: ~ (global) or cwd (project). global_hooks_subpath
+    #    overrides the global hook dir when it differs from the project one (Copilot).
     scope = args.scope or _prompt_install_scope(label)
     if scope == "global":
         root = Path.home()
         env_file = GLOBAL_ENV_FILE
+        settings_file = Path.home() / (global_hooks_subpath or hooks_subpath)
     else:
         root = Path.cwd()
         env_file = root / PROJECT_ENV_FILENAME
-    settings_file = root / hooks_subpath
+        settings_file = root / hooks_subpath
 
     # 2. Get the API key (or None if the user chose local-only / skip).
     api_key, aborted = _get_api_key(args)
@@ -268,14 +360,20 @@ def _install_hooks(agent, settings_file, hooks_template):
 
 
 def _enable_codex_hooks_flag(scope_root):
-    """Codex needs `[features] codex_hooks = true` in its config.toml to fire hooks."""
+    """Ensure `[features] hooks = true` in Codex's config.toml so hooks fire.
+
+    `hooks` is the canonical key; `codex_hooks` is a deprecated alias that makes
+    Codex print a warning, so migrate it in place when present."""
     config = scope_root / ".codex" / "config.toml"
     config.parent.mkdir(parents=True, exist_ok=True)
     text = config.read_text() if config.exists() else ""
     if "codex_hooks = true" in text:
+        config.write_text(text.replace("codex_hooks = true", "hooks = true"))
+        return
+    if "hooks = true" in text:
         return
     sep = "\n" if text and not text.endswith("\n") else ""
-    config.write_text(text + sep + "[features]\ncodex_hooks = true\n")
+    config.write_text(text + sep + "[features]\nhooks = true\n")
 
 
 # =============================================================================
@@ -288,6 +386,8 @@ def hook_dispatch(agent):
         from monocle_apptrace.instrumentation.metamodel.claude_cli.event_handler import main as run
     elif agent == "codex":
         from monocle_apptrace.instrumentation.metamodel.codex_cli.event_handler import main as run
+    elif agent == "copilot":
+        from monocle_apptrace.instrumentation.metamodel.github_copilot.event_handler import main as run
     else:
         print("Unknown agent: {}".format(agent), file=sys.stderr)
         return 1
@@ -412,6 +512,8 @@ def main(argv=None):
         return hook_dispatch("claude")
     if argv and argv[0] == "codex-hook":
         return hook_dispatch("codex")
+    if argv and argv[0] == "copilot-hook":
+        return hook_dispatch("copilot")
 
     if not argv:
         print("monocle-apptrace {}".format(_package_version()))
@@ -423,6 +525,8 @@ def main(argv=None):
         return cmd_claude_setup(args)
     if args.command == "codex-setup":
         return cmd_codex_setup(args)
+    if args.command == "copilot-setup":
+        return cmd_copilot_setup(args)
     if args.command == "validate":
         return cmd_validate(args)
     if args.command == "reset":
@@ -445,7 +549,8 @@ def _build_parser():
 
     # claude-setup and codex-setup share the same flags.
     for name, help_text in (("claude-setup", "Register Monocle hooks for Claude Code"),
-                            ("codex-setup",  "Register Monocle hooks for Codex CLI")):
+                            ("codex-setup",  "Register Monocle hooks for Codex CLI"),
+                            ("copilot-setup", "Register Monocle hooks for GitHub Copilot (CLI + VS Code)")):
         p = sub.add_parser(name, help=help_text)
         p.add_argument("--api-key", help="Use this API key without prompting")
         p.add_argument("--portal", action="store_true",

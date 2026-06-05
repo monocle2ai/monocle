@@ -167,19 +167,21 @@ Monocle supports both **in-app initialization** and **wrapper-style execution** 
 This flexibility is especially useful when platform teams want to inject tracing without touching product code, or when you ship multi-tenant AI platforms.
 
 <details>
-  <summary><b>Instrumenting Claude CLI and Codex CLI</b></summary>
+  <summary><b>Instrumenting Claude CLI, Codex CLI, and GitHub Copilot</b></summary>
 
-  Monocle can trace AI coding assistants that run as CLI tools. Wrap your CLI invocation with Monocle's zero-code mode to capture every LLM call, tool use, and agent step:
+  Monocle can trace the major AI coding assistants. Install once, then register hooks for the CLIs you use:
 
   ```bash
-  # Trace Claude CLI sessions
-  python -m monocle_apptrace claude
+  # Install the Monocle package
+  uv tool install monocle_apptrace
 
-  # Trace OpenAI Codex CLI sessions
-  python -m monocle_apptrace codex
+  # Register hooks (run the ones you use — each prompts for Okahu API key, blank = local file only)
+  monocle-apptrace claude-setup     # Claude Code
+  monocle-apptrace codex-setup      # OpenAI Codex CLI
+  monocle-apptrace copilot-setup    # GitHub Copilot (CLI + VS Code Chat)
   ```
 
-  Traces are emitted to the configured exporter (file, console, or cloud), giving you full visibility into how these assistants interact with your codebase.
+  Start a new session — traces flow automatically to whatever exporter you've configured (file, console, or cloud), giving you full visibility into how these assistants interact with your codebase.
 </details>
 
 ## Supported frameworks and providers
@@ -193,7 +195,7 @@ This flexibility is especially useful when platform teams want to inject tracing
 | **LLM frameworks** | 🟢 Langchain · 🟢 Llamaindex · 🟢 Haystack |
 | **Agent Runtime** | 🟢 AWS Bedrock Agentcore |
 | **LLM inference** | 🟢 OpenAI · 🟢 Azure OpenAI · 🟢 Azure AI · 🟢 Nvidia Triton · 🟢 AWS Bedrock · 🟢 AWS Sagemaker · 🟢 Google Vertex · 🟢 Google Gemini · 🟢 Hugging Face · 🟢 Deepseek · 🟢 Anthropic · 🟢 Mistral · 🟢 LiteLLM · 🔜 Azure ML |
-| **AI coding assistants** | 🟢 Claude CLI · 🟢 OpenAI Codex CLI |
+| **AI coding assistants** | 🟢 Claude CLI · 🟢 OpenAI Codex CLI · 🟢 GitHub Copilot (CLI + VS Code Chat) |
 | **Vector stores** | 🟢 FAISS · 🔜 OpenSearch · 🔜 Milvus |
 | **Exporters** | 🟢 stdout · 🟢 file · 🟢 Memory · 🟢 Azure Blob Storage · 🟢 AWS S3 · 🟢 Okahu cloud · 🟢 OTEL collectors · 🟢 Google Cloud Storage |
 

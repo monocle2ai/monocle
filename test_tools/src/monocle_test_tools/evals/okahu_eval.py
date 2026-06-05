@@ -316,10 +316,6 @@ class OkahuEval(BaseEval):
         workflow_name = span.attributes.get("workflow.name")
         base = os.getenv("OKAHU_EVALUATION_ENDPOINT", OKAHU_PROD_EVALUATION_ENDPOINT).rstrip("/")
         submit_url = f"{base}/v1/eval/jobs"
-        start_span_ns = span.start_time - 24 * 60 * 60 * 1e9  # 24 hours before the first span's start time, in nanoseconds
-        end_span_ns = span.end_time + 24 * 60 * 60 * 1e9  # 24 hours after the first span's end time, in nanoseconds
-        start = datetime.fromtimestamp(start_span_ns / 1e9, timezone.utc).strftime('%Y-%m-%dT%H:%M:%S.%fZ')
-        end = datetime.fromtimestamp(end_span_ns / 1e9, timezone.utc).strftime('%Y-%m-%dT%H:%M:%S.%fZ')
 
         fact_ids = self.enumerate_fact_ids(filtered_spans=filtered_spans, fact_name=fact_name)
         if not fact_ids:
@@ -333,8 +329,6 @@ class OkahuEval(BaseEval):
         for fact_id in fact_ids:
             params = {
                 "workflow_name": workflow_name,
-                "start_time": start,
-                "end_time": end,
                 "breakdown_filter": fact_name,
                 "trace_id": fact_id,
                 "fact_name": fact_name,

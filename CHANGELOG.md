@@ -5,6 +5,12 @@
 - feat(exporters): add `MONOCLE_CONSOLE` env var to enable console output alongside any configured exporter ([#577](https://github.com/monocle2ai/monocle/pull/577))
 - fix(test_tools): lazy-load `SentenceTransformer` to prevent crash at pytest collection time in network-restricted environments ([#576](https://github.com/monocle2ai/monocle/pull/576))
 
+## Version 0.8.4 (2026-06-08)
+- feat: Copilot CLI and VS Code Copilot instrumentation ([#586](https://github.com/monocle2ai/monocle/pull/586))
+- feat: Instrument LiteLLM async methods
+- feat: Add linter for monocle to validate meta model conformance ([#580](https://github.com/monocle2ai/monocle/pull/580))
+- feat: MS Agent streaming implementation ([#581](https://github.com/monocle2ai/monocle/pull/581))
+
 ## Version 0.8.3 (2026-06-03)
 
 - feat: Add Okahu Cloud Browser Sign-In for Monocle Agentic CLI Setup ([#592](https://github.com/monocle2ai/monocle/pull/592))

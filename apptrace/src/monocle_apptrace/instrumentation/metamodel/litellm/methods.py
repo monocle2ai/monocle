@@ -7,14 +7,16 @@ LITELLM_METHODS = [
         "object": "OpenAIChatCompletion",
         "method": "completion",
         "wrapper_method": task_wrapper,
-        "output_processor": INFERENCE
+        "output_processor": INFERENCE,
+        "span_handler": "litellm_sync_handler"
     },
     {
         "package": "litellm.llms.azure.azure",
         "object": "AzureChatCompletion",
         "method": "completion",
         "wrapper_method": task_wrapper,
-        "output_processor": INFERENCE
+        "output_processor": INFERENCE,
+        "span_handler": "litellm_sync_handler"
     },
     {
         "package": "litellm.llms.openai.openai",

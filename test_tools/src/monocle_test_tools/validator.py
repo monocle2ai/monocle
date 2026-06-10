@@ -61,6 +61,7 @@ class MonocleValidator:
             return
         self._spans:tuple[Span] = ()
         self._test_all_up_spans:tuple[Span] = ()
+        self._trace_source: str = ""
         test_trace_path:str = os.path.join(".", DEFAULT_TRACE_FOLDER, "test_traces")
         os.environ["MONOCLE_TRACE_OUTPUT_PATH"] = test_trace_path
         if exporter_list is None:
@@ -437,6 +438,7 @@ class MonocleValidator:
             spans = JSONSpanLoader.from_json(trace_file)
 
         self.add_remote_spans(spans)
+        self._trace_source = trace_source
         return None
 
     def _get_current_trace_id(self) -> Optional[str]:

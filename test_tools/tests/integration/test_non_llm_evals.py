@@ -20,7 +20,7 @@ import pytest
 
 import monocle_test_tools.trace_utils as trace_utils
 from monocle_test_tools.schema import Evaluation, EvalInputs
-from test_common.adk_travel_agent import root_agent
+from test_common.adk_travel_agent_litellm_openai import root_agent
 
 BOOKING_PROMPT = "Book a flight from San Jose to Seattle for 27th Nov 2025."
 

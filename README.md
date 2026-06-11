@@ -1,8 +1,6 @@
 <p align="center">
-  <img src="https://github.com/monocle2ai/artwork/raw/main/horizontal/color/Monocle-Logo-Color.svg" alt="Monocle" width="400" />
+  <img src="assets/monocle-mustache.svg" alt="Monocle" width="400" />
 </p>
-
-<h1 align="center">Monocle</h1>
 
 <p align="center"><strong>Open-source tracing &amp; testing for GenAI apps and agents.</strong></p>
 
@@ -15,10 +13,13 @@
 
 <p align="center">
   <a href="https://github.com/monocle2ai/monocle/issues"><img src="https://img.shields.io/badge/Report%20a%20Bug-000000?style=for-the-badge&logo=github&logoColor=white" alt="Report a Bug" /></a>
-  <a href="https://github.com/monocle2ai/monocle/issues"><img src="https://img.shields.io/badge/Request%20a%20Feature-5865F2?style=for-the-badge&logo=github&logoColor=white" alt="Request a Feature" /></a>
+  <a href="https://discord.gg/D8vDbSUhJX"><img src="https://img.shields.io/badge/Request%20a%20Feature-5865F2?style=for-the-badge&logo=github&logoColor=white" alt="Request a Feature" /></a>
 </p>
 
-<p align="center"><strong>⭐ If Monocle2AI helps you trace, test, and debug your GenAI agents, a GitHub Star goes a long way.</strong></p>
+<h2 align="center">
+  A GitHub Star goes a long way.
+  <img src="https://fonts.gstatic.com/s/e/notoemoji/latest/1f31f/512.gif" alt="Glowing star" width="32" height="32" align="top" />
+</h2>
 
 <p align="center">
   <a href="#how-it-works">How It Works</a> ·
@@ -83,7 +84,7 @@ pip install monocle_apptrace
 ### 2. Initialize telemetry once
 
 ```python
-from monocle_apptrace.instrumentor import setup_monocle_telemetry
+from monocle_apptrace import setup_monocle_telemetry
 
 setup_monocle_telemetry(workflow_name="simple_math_app")
 ```
@@ -99,6 +100,30 @@ monocle_trace_{workflow_name}_{trace_id}_{timestamp}.json
 ```
 
 Each file contains an array of OpenTelemetry spans capturing agent runs, tool calls, and LLM interactions. Load them into any OTLP-compatible backend, or use the [Okahu VS Code extension](https://docs.okahu.ai/vscode-extension/) for a rich Gantt-style timeline visualization.
+
+<details>
+  <summary><b>Example: tag traces with business context (scopes)</b></summary>
+
+  Use a scope to attach attributes like `user_id`, `session_id`, or `tenant_id` to every span created inside a block. Great for filtering traces by tenant or correlating a multi-step flow.
+
+  ```python
+  from monocle_apptrace.instrumentation.common.instrumentor import (
+      monocle_trace_scope,
+      monocle_trace_scope_method,
+  )
+
+  # Context manager — scope applies to every span inside the with-block
+  with monocle_trace_scope("user_id", "user-123"):
+      result = my_agent.run("What's the weather in London?")
+
+  # Decorator — scope applies to every call of the function
+  @monocle_trace_scope_method("tenant_id", "acme-corp")
+  def handle_request(payload):
+      ...
+  ```
+
+  Async equivalents (`amonocle_trace_scope`) and full reference: [Scope API docs](docs/monocle_scope_api.md).
+</details>
 
 ## Testing AI agents with `monocle-test-tools`
 
@@ -141,17 +166,55 @@ pip install monocle_test_tools
 <details>
   <summary><b>Example: assert on pre-recorded traces (offline)</b></summary>
 
-  ```python
-  from monocle_test_tools import expected
+  Load a saved Monocle trace JSON and assert against it — no live agent run, no API keys.
 
-  def test_from_saved_trace():
-      result = expected(
-          input="Summarize the Q3 report",
-          expected_output="summary of revenue and growth",
-          trace_file="monocle/monocle_trace_my_app_abc123.json"
+  ```python
+  from monocle_test_tools.span_loader import JSONSpanLoader
+
+  def test_from_saved_trace(monocle_trace_asserter):
+      monocle_trace_asserter.load_spans(
+          JSONSpanLoader.from_json("monocle/monocle_trace_my_app_abc123.json")
       )
-      result.called_agent("summarizer_agent")
-      result.does_not_call_tool("delete_record")
+
+      monocle_trace_asserter \
+          .called_agent("summarizer_agent") \
+          .contains_output("revenue")
+
+      monocle_trace_asserter.does_not_call_tool("delete_record")
+  ```
+</details>
+
+<details>
+  <summary><b>Example: multi-turn session evaluation</b></summary>
+
+  Pass a `session_id` so multiple turns roll up into one session, then evaluate at the `agentic_sessions` fact (role adherence, knowledge retention, conversation completeness across turns).
+
+  ```python
+  import pytest
+  from monocle_test_tools import MonocleValidator, TestCase
+
+  agent_test_cases = [
+      {"test_input": ["Book a flight from SFO to Mumbai on 26 Nov."]},
+      {"test_input": ["Now book a hotel near the airport for 4 nights."]},
+  ]
+
+  @MonocleValidator().monocle_testcase(agent_test_cases)
+  async def test_multi_turn_session(test_case: TestCase):
+      # Same session_id ties both turns to the same agentic session
+      await MonocleValidator().test_agent_async(
+          root_agent, "strands", test_case, session_id="travel_session_1"
+      )
+
+  @pytest.mark.asyncio
+  async def test_session_quality(monocle_trace_asserter):
+      # After the two turns above, evaluate the session as a whole
+      monocle_trace_asserter.with_evaluation("okahu") \
+          .check_eval(fact_name="agentic_sessions", eval_name="role_adherence",
+                      expected=["excellent_adherence", "good_adherence"]) \
+          .check_eval(fact_name="agentic_sessions", eval_name="knowledge_retention",
+                      expected=["excellent_retention", "good_retention"]) \
+          .check_eval(fact_name="agentic_sessions", eval_name="correctness",
+                      expected="correct")
   ```
 </details>
 
@@ -175,11 +238,27 @@ This flexibility is especially useful when platform teams want to inject tracing
   # Install the Monocle package
   uv tool install monocle_apptrace
 
-  # Register hooks (run the ones you use — each prompts for Okahu API key, blank = local file only)
+  # Register hooks for whichever assistants you use
   monocle-apptrace claude-setup     # Claude Code
   monocle-apptrace codex-setup      # OpenAI Codex CLI
   monocle-apptrace copilot-setup    # GitHub Copilot (CLI + VS Code Chat)
   ```
+
+  Each `*-setup` is interactive and asks two things:
+
+  1. **Where to install — two options:**
+     - **Global** (default) — hooks installed under your home directory (`~/.claude/`, `~/.codex/`, `~/.copilot/`); applies to every session on the machine.
+     - **This project** — hooks installed under the current repo (`.claude/`, `.codex/`, `.github/hooks/`); only sessions started inside that project are traced. Useful for trying Monocle on one repo without affecting others.
+
+     You can also skip the prompt with `--global` or `--project`:
+     ```bash
+     monocle-apptrace claude-setup --project
+     ```
+
+  2. **How to authenticate — local storage or Okahu cloud:**
+     - **Sign in** — opens a browser to sign in via **GitHub** (through Auth0); mints an Okahu API key so traces export to Okahu cloud in addition to local files.
+     - **Paste an API key** — if you already have one from the Okahu portal.
+     - **Skip** — local-file export only; inspect traces with the [Okahu VS Code extension](https://docs.okahu.ai/vscode-extension/).
 
   Start a new session — traces flow automatically to whatever exporter you've configured (file, console, or cloud), giving you full visibility into how these assistants interact with your codebase.
 </details>

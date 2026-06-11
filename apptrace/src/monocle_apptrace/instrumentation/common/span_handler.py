@@ -338,6 +338,18 @@ class SpanHandler:
             logger.warning(f"Error finding root span: {e}")
 
     @staticmethod
+    def is_remote_parent_span(curr_span: Span) -> bool:
+        """True when this span's parent lives in another process (W3C context
+        was extracted by *any* layer, not just monocle's extract_http_headers).
+        Used to emit a workflow span for a propagated trace fragment."""
+        try:
+            parent = getattr(curr_span, "parent", None)
+            return parent is not None and getattr(parent, "is_remote", False) is True
+        except Exception as e:
+            logger.warning(f"Error checking remote parent span: {e}")
+            return False
+
+    @staticmethod
     def attach_workflow_type(to_wrap=None, context=None): 
         token = None
         if to_wrap:

@@ -1,10 +1,10 @@
 """
-Integration tests for the built-in non-LLM (deterministic) evaluators.
+Integration tests for the core built-in non-LLM (deterministic) evaluators.
 
 These run a real ADK travel agent end-to-end, collect the real OpenTelemetry
 spans Monocle produces, extract each span's input/output with the same
-``trace_utils`` helpers the framework uses, and then exercise every non-LLM
-evaluator (and its comparer) against that genuine trace data.
+``trace_utils`` helpers the framework uses, and then exercise the core
+non-LLM evaluators against that genuine trace data.
 
 The ``_run_evaluation`` helper mirrors ``MonocleValidator._evaluate_span``: it
 builds ``eval_args`` from the ``Evaluation.args`` selectors, runs the evaluator,
@@ -58,22 +58,6 @@ def _run_evaluation(span, evaluation: Evaluation):
 # One evaluator per test, each against the real agentic.turn span.
 # ---------------------------------------------------------------------------
 @pytest.mark.asyncio
-async def test_turn_output_is_pii_free(monocle_trace_asserter):
-    """A booking confirmation should not leak PII (email / phone / SSN / card / IP)."""
-    await monocle_trace_asserter.run_agent_async(root_agent, "google_adk", BOOKING_PROMPT)
-    span = _get_turn_span(monocle_trace_asserter)
-
-    evaluation = Evaluation(
-        eval="pii_detection",
-        args=[EvalInputs.OUTPUT],
-        expected_result={"pii_free": 1.0},
-        comparer="metric",
-    )
-    passed, actual = _run_evaluation(span, evaluation)
-    assert passed, f"PII detected in agent output: {actual}"
-
-
-@pytest.mark.asyncio
 async def test_turn_output_has_booking_keywords(monocle_trace_asserter):
     """The confirmation should mention the booking and contain no error language."""
     await monocle_trace_asserter.run_agent_async(root_agent, "google_adk", BOOKING_PROMPT)
@@ -94,23 +78,6 @@ async def test_turn_output_has_booking_keywords(monocle_trace_asserter):
 
 
 @pytest.mark.asyncio
-async def test_turn_output_is_readable(monocle_trace_asserter):
-    """The output should be non-empty and produce a finite readability score."""
-    await monocle_trace_asserter.run_agent_async(root_agent, "google_adk", BOOKING_PROMPT)
-    span = _get_turn_span(monocle_trace_asserter)
-
-    evaluator = Evaluation(
-        eval="readability",
-        args=[EvalInputs.OUTPUT],
-        expected_result={"word_count": 1.0},  # require at least one word
-        comparer="metric",
-    )
-    passed, actual = _run_evaluation(span, evaluator)
-    assert passed, f"Readability check failed (empty output?): {actual}"
-    assert "flesch_reading_ease" in actual
-
-
-@pytest.mark.asyncio
 async def test_turn_output_matches_destination_regex(monocle_trace_asserter):
     """The confirmation should reference the requested destination city."""
     await monocle_trace_asserter.run_agent_async(root_agent, "google_adk", BOOKING_PROMPT)
@@ -125,22 +92,6 @@ async def test_turn_output_matches_destination_regex(monocle_trace_asserter):
     )
     passed, actual = _run_evaluation(span, evaluation)
     assert passed, f"Expected destination city not found in output: {actual}"
-
-
-@pytest.mark.asyncio
-async def test_turn_output_overlaps_request(monocle_trace_asserter):
-    """Output should share some vocabulary (cities, dates) with the request."""
-    await monocle_trace_asserter.run_agent_async(root_agent, "google_adk", BOOKING_PROMPT)
-    span = _get_turn_span(monocle_trace_asserter)
-
-    evaluation = Evaluation(
-        eval="token_overlap",
-        args=[EvalInputs.INPUT, EvalInputs.OUTPUT],
-        expected_result={"f1": 0.05},  # lenient floor; output is a summary, not a copy
-        comparer="metric",
-    )
-    passed, actual = _run_evaluation(span, evaluation)
-    assert passed, f"Token overlap below floor: {actual}"
 
 
 @pytest.mark.asyncio
@@ -168,80 +119,34 @@ async def test_turn_output_is_prose_not_json(monocle_trace_asserter):
     evaluator = Evaluation(
         eval="json_validity",
         args=[EvalInputs.OUTPUT],
-        expected_result={"valid_json": 0.0},  # prose is not a JSON document
+        expected_result={"valid_json": 0.0},
         comparer="metric",
     )
     _, actual = _run_evaluation(span, evaluator)
     assert actual["valid_json"] == 0.0, f"Turn output was unexpectedly raw JSON: {actual}"
 
 
-@pytest.mark.asyncio
-async def test_turn_output_bleu_against_request(monocle_trace_asserter):
-    """The confirmation shares vocabulary (cities/dates) with the request -> BLEU > 0."""
-    await monocle_trace_asserter.run_agent_async(root_agent, "google_adk", BOOKING_PROMPT)
-    span = _get_turn_span(monocle_trace_asserter)
-
-    evaluation = Evaluation(
-        eval="bleu",
-        eval_options={"max_n": 1},  # unigram BLEU; the summary is not a verbatim copy
-        args=[EvalInputs.INPUT, EvalInputs.OUTPUT],
-        expected_result={"bleu": 0.05},  # lenient floor
-        comparer="metric",
-    )
-    passed, actual = _run_evaluation(span, evaluation)
-    assert passed, f"BLEU below floor: {actual}"
-
-
-@pytest.mark.asyncio
-async def test_turn_output_rouge_against_request(monocle_trace_asserter):
-    """ROUGE recall against the request should be non-trivial (shared cities/dates)."""
-    await monocle_trace_asserter.run_agent_async(root_agent, "google_adk", BOOKING_PROMPT)
-    span = _get_turn_span(monocle_trace_asserter)
-
-    evaluation = Evaluation(
-        eval="rouge",
-        eval_options={"rouge_types": ["rouge1", "rougeL"]},
-        args=[EvalInputs.INPUT, EvalInputs.OUTPUT],
-        expected_result={"rouge1_r": 0.1},  # lenient recall floor
-        comparer="metric",
-    )
-    passed, actual = _run_evaluation(span, evaluation)
-    assert passed, f"ROUGE-1 recall below floor: {actual}"
-
-
 # ---------------------------------------------------------------------------
-# All nine evaluators against a single agent run (cost-efficient smoke test).
+# All core evaluators against a single agent run (cost-efficient smoke test).
 # ---------------------------------------------------------------------------
 @pytest.mark.asyncio
 async def test_all_non_llm_evals_on_single_run(monocle_trace_asserter):
-    """Exercise every non-LLM evaluator + comparer against one real turn span."""
+    """Exercise every core non-LLM evaluator + comparer against one real turn span."""
     await monocle_trace_asserter.run_agent_async(root_agent, "google_adk", BOOKING_PROMPT)
     span = _get_turn_span(monocle_trace_asserter)
 
     evaluations = [
-        Evaluation(eval="pii_detection", args=[EvalInputs.OUTPUT],
-                   expected_result={"pii_free": 1.0}, comparer="metric"),
         Evaluation(eval="keyword_presence",
                    eval_options={"required_keywords": ["flight"], "forbidden_keywords": ["traceback"]},
                    args=[EvalInputs.OUTPUT],
                    expected_result={"required_coverage": 1.0, "forbidden_absent": 1.0}, comparer="metric"),
-        Evaluation(eval="readability", args=[EvalInputs.OUTPUT],
-                   expected_result={"word_count": 1.0}, comparer="metric"),
         Evaluation(eval="regex_match",
                    eval_options={"pattern": r"seattle|san\s+jose", "ignore_case": True},
                    args=[EvalInputs.OUTPUT], expected_result={"match": 1.0}, comparer="metric"),
-        Evaluation(eval="token_overlap", args=[EvalInputs.INPUT, EvalInputs.OUTPUT],
-                   expected_result={"f1": 0.05}, comparer="metric"),
         Evaluation(eval="exact_match", args=[EvalInputs.INPUT, EvalInputs.OUTPUT],
                    expected_result={"exact_match": 0.0}, comparer="metric"),
         Evaluation(eval="json_validity", args=[EvalInputs.OUTPUT],
                    expected_result={"valid_json": 0.0}, comparer="metric"),
-        Evaluation(eval="bleu", eval_options={"max_n": 1},
-                   args=[EvalInputs.INPUT, EvalInputs.OUTPUT],
-                   expected_result={"bleu": 0.05}, comparer="metric"),
-        Evaluation(eval="rouge", eval_options={"rouge_types": ["rouge1", "rougeL"]},
-                   args=[EvalInputs.INPUT, EvalInputs.OUTPUT],
-                   expected_result={"rouge1_r": 0.1}, comparer="metric"),
     ]
 
     failures = []

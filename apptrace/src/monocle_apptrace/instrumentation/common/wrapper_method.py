@@ -43,6 +43,7 @@ from monocle_apptrace.instrumentation.metamodel.mcp.methods import MCP_METHODS
 from monocle_apptrace.instrumentation.metamodel.mcp.mcp_processor import MCPAgentHandler
 from monocle_apptrace.instrumentation.metamodel.a2a.methods import A2A_CLIENT_METHODS
 from monocle_apptrace.instrumentation.metamodel.litellm.methods import LITELLM_METHODS
+from monocle_apptrace.instrumentation.metamodel.litellm.litellm_span_handler import LiteLLMSyncSpanHandler
 from monocle_apptrace.instrumentation.metamodel.adk.methods import ADK_METHODS
 from monocle_apptrace.instrumentation.metamodel.adk.adk_handler import AdkSpanHandler
 from monocle_apptrace.instrumentation.metamodel.mistral.methods import MISTRAL_METHODS
@@ -170,5 +171,6 @@ MONOCLE_SPAN_HANDLERS: Dict[str, SpanHandler] = {
     "strands_handler": StrandsSpanHandler(),
     "claude_handler": ClaudeSpanHandler(),
     "codex_handler": CodexSpanHandler(),
-    "github_copilot_handler": GitHubCopilotSpanHandler()
+    "github_copilot_handler": GitHubCopilotSpanHandler(),
+    "litellm_sync_handler": LiteLLMSyncSpanHandler()
 }

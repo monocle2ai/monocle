@@ -30,7 +30,7 @@ that returned dict against your `expected_result`:
 | `metric`     | `actual[k] >= expected[k]` for every key `k` | numeric thresholds (scores, counts, coverage) |
 | `default`    | `actual == expected` (exact dict equality)   | fixed/boolean outcomes |
 
-Because all seven evaluators below return **numeric** values (typically `1.0`/`0.0`
+Because all nine evaluators below return **numeric** values (typically `1.0`/`0.0`
 flags plus raw scores), the `metric` comparer is the natural default: set
 `expected_result` to the minimum acceptable value for each metric you care about.
 
@@ -42,7 +42,7 @@ case (shown below).
 
 ---
 
-## The seven built-in non-LLM evaluators
+## The nine built-in non-LLM evaluators
 
 ### 1. `regex_match` — `RegexMatchEval`
 Checks whether the output matches a regular expression. Useful for asserting the
@@ -197,6 +197,54 @@ eval = {
 }
 ```
 
+### 8. `bleu` — `BleuEval`
+Computes sentence-level **BLEU** between a reference (`input`) and a candidate
+(`output`) — the standard precision-based n-gram overlap metric with a brevity
+penalty. Pure Python; no model or external dependency. Useful for translation/
+generation fidelity against a gold reference.
+
+- **Inputs (`args`):** `input`, `output`
+- **`eval_options`:**
+  - `max_n` (int, default `4`) — maximum n-gram order (BLEU-N).
+  - `weights` (list[float], optional) — per-order weights; defaults to uniform.
+  - `smooth` (bool, default `True`) — epsilon-smooth zero-count orders.
+  - `ignore_case` (bool, default `True`), `token_pattern` (str).
+- **Returns:** `{"bleu": <0.0-1.0>, "brevity_penalty": <float>, "precision_1": <float>, ...}`
+
+```python
+eval = {
+    "eval": "bleu",
+    "eval_options": {"max_n": 4},
+    "args": ["input", "output"],
+    "expected_result": {"bleu": 0.3},   # require BLEU >= 0.3
+    "comparer": "metric",
+}
+```
+
+### 9. `rouge` — `RougeEval`
+Computes **ROUGE** recall-oriented overlap between a reference (`input`) and a
+candidate (`output`): ROUGE-N (n-gram overlap) and ROUGE-L (longest common
+subsequence), each with precision/recall/F1. Pure Python; no model or external
+dependency. The standard metric family for summarization quality.
+
+- **Inputs (`args`):** `input`, `output`
+- **`eval_options`:**
+  - `rouge_types` (list[str], default `["rouge1", "rouge2", "rougeL"]`) — any of
+    `rouge1`, `rouge2`, … and `rougeL`.
+  - `ignore_case` (bool, default `True`), `token_pattern` (str).
+- **Returns (flat, numeric — one set per type):**
+  `{"rouge1_p": <float>, "rouge1_r": <float>, "rouge1_f": <float>, "rougeL_f": <float>, ...}`
+
+```python
+eval = {
+    "eval": "rouge",
+    "eval_options": {"rouge_types": ["rouge1", "rougeL"]},
+    "args": ["input", "output"],
+    "expected_result": {"rougeL_f": 0.4},   # require ROUGE-L F1 >= 0.4
+    "comparer": "metric",
+}
+```
+
 ---
 
 ## Using non-LLM evals in a test case
@@ -242,6 +290,62 @@ evaluator = get_evaluator("token_overlap", {"ignore_case": True})
 score = evaluator.evaluate({"input": "the quick brown fox", "output": "the brown fox jumped"})
 # -> {"precision": 0.75, "recall": 0.75, "f1": 0.75}
 ```
+
+## Running the end-to-end test cases
+
+The repository includes a full non-LLM eval test path in the unit test file
+[`test_non_llm_evals.py`](../test_tools/tests/unit/test_non_llm_evals.py) and a
+live end-to-end smoke test in the integration test file
+[`test_non_llm_evals.py`](../test_tools/tests/integration/test_non_llm_evals.py).
+
+The simplest local setup is to run them from a clean virtual environment and call
+`pytest` through the environment's Python, not the shell's global `pytest` entrypoint.
+
+```bash
+cd monocle
+python3 -m venv .venv-py310
+./.venv-py310/bin/python -m pip install -U pip
+./.venv-py310/bin/python -m pip install --trusted-host pypi.org --trusted-host files.pythonhosted.org \
+  requests wrapt rfc3986 pyyaml opentelemetry-api==1.42.1 opentelemetry-sdk==1.42.1 \
+  opentelemetry-instrumentation==0.63b1 opentelemetry-exporter-otlp-proto-http==1.42.1 \
+  pydantic==2.11.7 jsonschema==4.23.0 pytest==8.3.5 pytest-asyncio==0.26.0 \
+  GitPython==3.1.45 bert-score==0.3.13 transformers==4.57.3 sentence-transformers==3.3.1 \
+  google-adk==1.10.0 google-generativeai==0.8.5 editables
+./.venv-py310/bin/python -m pip install --no-deps --no-build-isolation -e ./apptrace -e ./test_tools
+```
+
+Run the deterministic unit suite first. This verifies every built-in non-LLM
+evaluator and the `NON_LLM_EVALS` registration table.
+
+```bash
+HOME="$PWD" GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_SYSTEM=/dev/null \
+PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 ./.venv-py310/bin/pytest -p pytest_asyncio.plugin \
+  test_tools/tests/unit/test_non_llm_evals.py
+```
+
+Run the live end-to-end smoke test after the unit suite passes. This exercises the
+full flow: ADK agent run -> trace capture -> span extraction -> deterministic evals
+-> comparer checks.
+
+```bash
+export GOOGLE_API_KEY=your_google_api_key
+# or, if you use Vertex AI:
+# export GOOGLE_GENAI_USE_VERTEXAI=true
+# export GOOGLE_CLOUD_PROJECT=your_project
+# export GOOGLE_CLOUD_LOCATION=your_location
+
+HOME="$PWD" GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_SYSTEM=/dev/null \
+PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 ./.venv-py310/bin/pytest -p pytest_asyncio.plugin \
+  test_tools/tests/integration/test_non_llm_evals.py -k all_non_llm_evals_on_single_run
+```
+
+Notes:
+
+- The unit suite should pass without any Google credentials.
+- The integration smoke test will fail if `GOOGLE_API_KEY` is empty and Vertex AI
+  settings are not configured.
+- In this workspace, `pytest` from the shell can resolve to a different Python
+  installation, so prefer the explicit `./.venv-py310/bin/pytest` command above.
 
 ---
 

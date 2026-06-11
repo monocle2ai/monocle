@@ -9,6 +9,8 @@ from monocle_test_tools.evals.exact_match_eval import ExactMatchEval
 from monocle_test_tools.evals.pii_detection_eval import PIIDetectionEval
 from monocle_test_tools.evals.readability_eval import ReadabilityEval
 from monocle_test_tools.evals.token_overlap_eval import TokenOverlapEval
+from monocle_test_tools.evals.bleu_eval import BleuEval
+from monocle_test_tools.evals.rouge_eval import RougeEval
 
 # String keys for the built-in, non-LLM evaluators.
 NON_LLM_EVALS = {
@@ -19,6 +21,8 @@ NON_LLM_EVALS = {
     "pii_detection": PIIDetectionEval,
     "readability": ReadabilityEval,
     "token_overlap": TokenOverlapEval,
+    "bleu": BleuEval,
+    "rouge": RougeEval,
 }
 
 def get_evaluator(eval: Optional[Union[str, BaseEval]], eval_options: Optional[dict] = None) -> BaseEval:

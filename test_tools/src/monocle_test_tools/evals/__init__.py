@@ -15,6 +15,8 @@ from .exact_match_eval import ExactMatchEval
 from .pii_detection_eval import PIIDetectionEval
 from .readability_eval import ReadabilityEval
 from .token_overlap_eval import TokenOverlapEval
+from .bleu_eval import BleuEval
+from .rouge_eval import RougeEval
 from .eval_manager import get_evaluator
 
 __all__ = [
@@ -28,5 +30,7 @@ __all__ = [
     "PIIDetectionEval",
     "ReadabilityEval",
     "TokenOverlapEval",
+    "BleuEval",
+    "RougeEval",
     "get_evaluator",
 ]

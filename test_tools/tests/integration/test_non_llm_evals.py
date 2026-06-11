@@ -175,8 +175,42 @@ async def test_turn_output_is_prose_not_json(monocle_trace_asserter):
     assert actual["valid_json"] == 0.0, f"Turn output was unexpectedly raw JSON: {actual}"
 
 
+@pytest.mark.asyncio
+async def test_turn_output_bleu_against_request(monocle_trace_asserter):
+    """The confirmation shares vocabulary (cities/dates) with the request -> BLEU > 0."""
+    await monocle_trace_asserter.run_agent_async(root_agent, "google_adk", BOOKING_PROMPT)
+    span = _get_turn_span(monocle_trace_asserter)
+
+    evaluation = Evaluation(
+        eval="bleu",
+        eval_options={"max_n": 1},  # unigram BLEU; the summary is not a verbatim copy
+        args=[EvalInputs.INPUT, EvalInputs.OUTPUT],
+        expected_result={"bleu": 0.05},  # lenient floor
+        comparer="metric",
+    )
+    passed, actual = _run_evaluation(span, evaluation)
+    assert passed, f"BLEU below floor: {actual}"
+
+
+@pytest.mark.asyncio
+async def test_turn_output_rouge_against_request(monocle_trace_asserter):
+    """ROUGE recall against the request should be non-trivial (shared cities/dates)."""
+    await monocle_trace_asserter.run_agent_async(root_agent, "google_adk", BOOKING_PROMPT)
+    span = _get_turn_span(monocle_trace_asserter)
+
+    evaluation = Evaluation(
+        eval="rouge",
+        eval_options={"rouge_types": ["rouge1", "rougeL"]},
+        args=[EvalInputs.INPUT, EvalInputs.OUTPUT],
+        expected_result={"rouge1_r": 0.1},  # lenient recall floor
+        comparer="metric",
+    )
+    passed, actual = _run_evaluation(span, evaluation)
+    assert passed, f"ROUGE-1 recall below floor: {actual}"
+
+
 # ---------------------------------------------------------------------------
-# All seven evaluators against a single agent run (cost-efficient smoke test).
+# All nine evaluators against a single agent run (cost-efficient smoke test).
 # ---------------------------------------------------------------------------
 @pytest.mark.asyncio
 async def test_all_non_llm_evals_on_single_run(monocle_trace_asserter):
@@ -202,6 +236,12 @@ async def test_all_non_llm_evals_on_single_run(monocle_trace_asserter):
                    expected_result={"exact_match": 0.0}, comparer="metric"),
         Evaluation(eval="json_validity", args=[EvalInputs.OUTPUT],
                    expected_result={"valid_json": 0.0}, comparer="metric"),
+        Evaluation(eval="bleu", eval_options={"max_n": 1},
+                   args=[EvalInputs.INPUT, EvalInputs.OUTPUT],
+                   expected_result={"bleu": 0.05}, comparer="metric"),
+        Evaluation(eval="rouge", eval_options={"rouge_types": ["rouge1", "rougeL"]},
+                   args=[EvalInputs.INPUT, EvalInputs.OUTPUT],
+                   expected_result={"rouge1_r": 0.1}, comparer="metric"),
     ]
 
     failures = []

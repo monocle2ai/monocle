@@ -74,6 +74,19 @@ Exporters — Okahu / file / console
 `PostToolUseFailure`, `SubagentStart`, `SubagentStop`,
 `PreCompact`, `Stop`, `SessionEnd`
 
+#### Token instrumentation via OTel file export
+
+GitHub Copilot does not surface token counts through its hook payload. `copilot-setup`
+compensates by enabling Copilot's native OpenTelemetry file exporter, which records
+`gen_ai.usage.*` attributes to a local JSONL file. Monocle correlates those records to the active turn at `Stop` time using the OTel trace ID and attaches the token data to the emitted spans.
+
+`copilot-setup` enables the following automatically:
+
+- **VS Code Copilot Chat** — OTel file export is turned on in your VS Code settings (`github.copilot.chat.otel.enabled`, `exporterType`, `outfile`).
+- **Copilot CLI** — the equivalent `COPILOT_OTEL_*` environment variables are added to your shell rc.
+
+All telemetry is written to `~/.monocle/.copilot_otel/copilot.jsonl`. No conversation content is captured — only usage metadata.
+
 **Spans emitted per turn:**
 - `agentic.turn` — the full user turn (prompt → response)
 - `inference` — one per LLM inference round

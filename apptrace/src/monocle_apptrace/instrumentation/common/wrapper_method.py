@@ -43,6 +43,7 @@ from monocle_apptrace.instrumentation.metamodel.mcp.methods import MCP_METHODS
 from monocle_apptrace.instrumentation.metamodel.mcp.mcp_processor import MCPAgentHandler
 from monocle_apptrace.instrumentation.metamodel.a2a.methods import A2A_CLIENT_METHODS
 from monocle_apptrace.instrumentation.metamodel.litellm.methods import LITELLM_METHODS
+from monocle_apptrace.instrumentation.metamodel.litellm.litellm_span_handler import LiteLLMSyncSpanHandler
 from monocle_apptrace.instrumentation.metamodel.adk.methods import ADK_METHODS
 from monocle_apptrace.instrumentation.metamodel.adk.adk_handler import AdkSpanHandler
 from monocle_apptrace.instrumentation.metamodel.mistral.methods import MISTRAL_METHODS
@@ -52,6 +53,8 @@ from monocle_apptrace.instrumentation.metamodel.agentcore.methods import AGENTCO
 from monocle_apptrace.instrumentation.metamodel.claude_cli.methods import CLAUDE_CLI_PROXY_METHODS
 from monocle_apptrace.instrumentation.metamodel.codex_cli.codex_span_handler import CodexSpanHandler
 from monocle_apptrace.instrumentation.metamodel.codex_cli.methods import CODEX_CLI_PROXY_METHODS
+from monocle_apptrace.instrumentation.metamodel.github_copilot.github_copilot_span_handler import GitHubCopilotSpanHandler
+from monocle_apptrace.instrumentation.metamodel.github_copilot.methods import GITHUB_COPILOT_PROXY_METHODS
 
 class WrapperMethod:
     def __init__(
@@ -131,7 +134,8 @@ DEFAULT_METHODS_LIST = (
     STRAND_METHODS +
     AGENTCORE_METHODS +
     CLAUDE_CLI_PROXY_METHODS +
-    CODEX_CLI_PROXY_METHODS
+    CODEX_CLI_PROXY_METHODS +
+    GITHUB_COPILOT_PROXY_METHODS
 )
 
 MONOCLE_SPAN_HANDLERS: Dict[str, SpanHandler] = {
@@ -166,5 +170,7 @@ MONOCLE_SPAN_HANDLERS: Dict[str, SpanHandler] = {
     "adk_handler": AdkSpanHandler(),
     "strands_handler": StrandsSpanHandler(),
     "claude_handler": ClaudeSpanHandler(),
-    "codex_handler": CodexSpanHandler()
+    "codex_handler": CodexSpanHandler(),
+    "github_copilot_handler": GitHubCopilotSpanHandler(),
+    "litellm_sync_handler": LiteLLMSyncSpanHandler()
 }

@@ -69,7 +69,7 @@ def book_hotel(hotel_name: str, city: str) -> dict:
 
 flight_booking_agent = LlmAgent(
     name="flight_assistant",
-    model="gemini-2.0-flash",
+    model="gemini-2.5-flash",
     description=(
         "Agent to book flights based on user queries."
     ),
@@ -81,7 +81,7 @@ flight_booking_agent = LlmAgent(
 
 hotel_booking_agent = LlmAgent(
     name="hotel_assistant",
-    model="gemini-2.0-flash",
+    model="gemini-2.5-flash",
     description=(
         "Agent to book hotels based on user queries."
     ),
@@ -93,7 +93,7 @@ hotel_booking_agent = LlmAgent(
 
 trip_summary_agent = LlmAgent(
     name="adk_trip_summary_agent",
-    model="gemini-2.0-flash",
+    model="gemini-2.5-flash",
     description= "Summarize the travel details from hotel bookings and flight bookings agents.",
     instruction= "Summarize the travel details from hotel bookings and flight bookings agents. Be concise in response and provide a single sentence summary.",
     output_key="booking_summary"
@@ -164,8 +164,8 @@ def verify_spans(memory_exporter):
             assert span_attributes["entity.1.type"] == "inference.gemini"
             assert "entity.1.provider_name" in span_attributes
             assert "entity.1.inference_endpoint" in span_attributes
-            assert span_attributes["entity.2.name"] == "gemini-2.0-flash"
-            assert span_attributes["entity.2.type"] == "model.llm.gemini-2.0-flash"
+            assert span_attributes["entity.2.name"] == "gemini-2.5-flash"
+            assert span_attributes["entity.2.type"] == "model.llm.gemini-2.5-flash"
 
             # Assertions for metadata, input and output events for inference spans
             span_input, span_output, span_metadata = span.events

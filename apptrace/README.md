@@ -57,3 +57,20 @@ monocle-apptrace codex-setup
 Start a new Codex session — traces flow automatically.
 
 See [Hook Setup Guide](HOOK_SETUP.md) for complete instructions.
+
+## GitHub Copilot Instrumentation
+
+```bash
+# 1. Install uv (if not already installed)
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# 2. Install package
+uv tool install monocle_apptrace
+
+# 3. Register hooks — prompts for Okahu API key (leave blank for local-only)
+monocle-apptrace copilot-setup
+```
+
+Captures traces from both Copilot CLI and VS Code Copilot Chat. Start a session — traces flow automatically.
+
+See [Hook Setup Guide](HOOK_SETUP.md) for complete instructions.

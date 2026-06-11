@@ -4,6 +4,7 @@ A comprehensive testing and validation framework for monocle AI agent tracing. T
 
 ## Features
 
+- **Test Generator**: Automatically generate test code from trace files
 - **Agentic Response**: Verify that agent requests get the appropriate response.
 - **Agent Invocation**: Verify that specific agents are invoked and delegate tasks correctly.
 - **Tool Validation**: Ensure tools are called with expected inputs and produce expected outputs.
@@ -307,6 +308,71 @@ def test_tool_span(validator):
     )
     validator.validate(test_case)
 ```
+
+---
+
+## Test Generator
+
+Automatically generate test code by analyzing trace files. The generator scans spans and creates Python test assertions for agents, tools, and outputs.
+
+### Quick Start
+
+```bash
+# Generate test code from a trace file
+python -m monocle_test_tools.generate_test trace.json
+
+# With custom test name
+python -m monocle_test_tools.generate_test trace.json --test-name test_my_agent
+
+# Save to file
+python -m monocle_test_tools.generate_test trace.json > test_generated.py
+```
+
+### Example Output
+
+```python
+import pytest
+from monocle_test_tools import TraceAssertion
+from monocle_test_tools.span_loader import JSONSpanLoader
+
+def test_generated(monocle_trace_asserter: TraceAssertion):
+    """Auto-generated test from trace analysis."""
+    spans = JSONSpanLoader.from_json("/path/to/trace.json")
+    monocle_trace_asserter.validator.add_remote_spans(spans)
+    
+    asserter = monocle_trace_asserter
+    
+    # Agent invocations with output checks
+    asserter.called_agent("travel_agent").contains_output("Successfully booked")
+    asserter.called_agent("hotel_agent").contains_output("Marriott reservation confirmed")
+    
+    # Tool invocations
+    asserter.called_tool("book_flight", "travel_agent")
+    asserter.called_tool("book_hotel", "hotel_agent")
+```
+
+### Python API
+
+```python
+from monocle_test_tools.test_generator import TestGenerator
+
+# From local file
+generator = TestGenerator.from_json_file("trace.json")
+test_code = generator.generate_test_code(test_name="test_my_agent")
+print(test_code)
+
+# Write to file
+generator.write_to_file("test_my_agent.py")
+
+# From Okahu
+generator = TestGenerator.from_okahu(trace_id="abc123", workflow_name="my_app")
+print(generator.generate_test_code())
+```
+
+The generator extracts:
+- **Agent invocations** with output checks (first 80 chars as key phrase)
+- **Tool invocations** with parent agent references
+- **Sorted by invocation order** for readability
 
 ---
 

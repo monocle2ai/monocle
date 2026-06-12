@@ -19,6 +19,7 @@ from monocle_apptrace.instrumentation.metamodel.claude_cli.trace_events import (
     mark_subagent_session,
     is_subagent_session,
 )
+from monocle_apptrace.instrumentation.metamodel.claude_cli import git_context
 
 logger = logging.getLogger(__name__)
 from monocle_apptrace.instrumentation.metamodel.claude_cli.replay import replay_session, replay_compaction, cleanup_session
@@ -49,6 +50,10 @@ def main() -> None:
 
     record_event(event_data)
     logger.debug(f"Recorded {event_name} for session {session_id}")
+
+    # Subagent submits share the parent's working tree
+    if event_name == "UserPromptSubmit" and not is_subagent_session(session_id):
+        git_context.capture_turn_baseline(session_id)
 
     # Track subagent sessions so we don't emit duplicate top-level turns for them
     if event_name == "SubagentStart":

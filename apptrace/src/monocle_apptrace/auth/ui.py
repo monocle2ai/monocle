@@ -1,18 +1,15 @@
 """Terminal styling helpers + arrow-key selection picker.
 
-Stdlib only. ANSI escapes for color, termios/tty for raw input. Falls back
-to numbered input when stdin isn't a TTY, on Windows, or when `NO_COLOR`
-is set. Glyphs: `>` header, `›` cursor, `✓` confirm, `•` step.
+Stdlib only. Falls back to numbered input on non-TTY, Windows, or NO_COLOR.
 """
 import os
+import re
 import sys
 
 
 _USE_COLOR = sys.stdout.isatty() and os.environ.get("NO_COLOR") is None
 _INTERACTIVE = sys.stdin.isatty() and sys.stdout.isatty()
 
-# Probe once for the raw-keystroke modules used by the arrow-key picker.
-# These ship with every CPython on POSIX but not on Windows.
 try:
     import termios as _termios
     import tty as _tty
@@ -32,8 +29,6 @@ def dim(text: str) -> str: return _style("2", text)
 def red(text: str) -> str: return _style("31", text)
 
 
-# Monocle brand palette — teal "Mon" + blue "ocle" from the logo.
-# 24-bit truecolor; degrades to plain text on NO_COLOR or non-TTY.
 _BRAND_TEAL = "38;2;77;182;182"   # ~#4DB6B6
 _BRAND_BLUE = "38;2;92;122;184"   # ~#5C7AB8
 
@@ -49,8 +44,6 @@ def _monocle_wordmark() -> str:
 
 
 def header(title: str, subtitle: str = "") -> None:
-    # Treat the literal word "Monocle" specially so the wordmark gets the
-    # brand gradient while the rest of the title stays default bold.
     if title.startswith("Monocle "):
         styled_title = _monocle_wordmark() + bold(title[len("Monocle"):])
     else:
@@ -77,7 +70,6 @@ def check(text: str) -> None:
 
 
 def fail(text: str) -> None:
-    # Red is intentional for errors — universal "broke" indicator.
     print("  " + red("✗") + " " + text)
 
 
@@ -105,10 +97,8 @@ def confirm(question: str, default_yes: bool = True) -> bool:
 
 
 def select(question: str, options: list, links: list = None) -> str:
-    """Single-select picker. Each option is a dict with `key`, `label`, and
-    optional `hint`. `links` is an optional list of (label, url) tuples shown
-    under the menu. Returns the chosen `key`. Falls back to numeric input
-    when not running on an interactive POSIX TTY."""
+    """Arrow-key single-select. Each option: {key, label, hint?}.
+    links: [(label, url), ...] shown below the menu. Returns the chosen key."""
     if not _INTERACTIVE or not _ARROW_KEYS_AVAILABLE:
         return _select_numeric(question, options, links)
     return _select_arrow(question, options, links)
@@ -118,9 +108,32 @@ def _link_label_width(links: list) -> int:
     return max(len(label) for label, _ in links) if links else 0
 
 
+def _terminal_width() -> int:
+    try:
+        return os.get_terminal_size().columns
+    except OSError:
+        return 80
+
+
+def _strip_ansi(s: str) -> str:
+    return re.sub(r'\x1b\[[0-9;]*m', '', s)
+
+
+def _physical_row_count(logical_lines: list, term_width: int) -> int:
+    """Physical rows occupied by logical_lines at term_width.
+    Needed after resize — the terminal reflows content so logical != physical."""
+    if term_width <= 0:
+        term_width = 1
+    count = 0
+    for line in logical_lines:
+        visible = len(_strip_ansi(line))
+        count += max(1, (visible + term_width - 1) // term_width)
+    return count
+
+
 def _select_numeric(question: str, options: list, links: list = None) -> str:
     section(question)
-    for line in _option_lines(options, -1):  # -1 → nothing highlighted in fallback
+    for line in _option_lines(options, -1):
         print(line)
     print()
     if links:
@@ -136,24 +149,24 @@ def _select_numeric(question: str, options: list, links: list = None) -> str:
 
 
 def _option_lines(options: list, selected: int) -> list:
-    # Labels padded to the widest one so the em-dash before each hint aligns.
-    # `selected = -1` highlights nothing (used by the numeric fallback).
+    # Pad labels to the widest so hints align. Truncate hints to terminal width
+    # so lines never wrap — wrapping breaks cursor math during redraws.
     label_width = max(len(opt["label"]) for opt in options)
+    hint_budget = _terminal_width() - (8 + label_width) - 5
     lines = []
     for i, opt in enumerate(options):
         label = opt["label"]
         if i == selected:
-            marker = brand("›")
-            num = brand(str(i + 1))
-            styled_label = bold(label)
+            marker, num, styled_label = brand("›"), brand(str(i + 1)), bold(label)
         else:
-            marker = " "
-            num = dim(str(i + 1))
-            styled_label = label
+            marker, num, styled_label = " ", dim(str(i + 1)), label
         pad = " " * (label_width - len(label))
         line = "  " + marker + " " + num + "   " + styled_label + pad
-        if opt.get("hint"):
-            line += "  " + dim("—  " + opt["hint"])
+        if opt.get("hint") and hint_budget >= 8:
+            hint = opt["hint"]
+            if len(hint) > hint_budget:
+                hint = hint[:hint_budget - 1] + "…"
+            line += "  " + dim("—  " + hint)
         lines.append(line)
     return lines
 
@@ -161,26 +174,27 @@ def _option_lines(options: list, selected: int) -> list:
 def _select_arrow(question: str, options: list, links: list = None) -> str:
     selected = 0
     section(question)
-    lines = _option_lines(options, selected)
-    for line in lines:
-        print(line)
-    print()
-    print("  " + dim("↑↓ navigate  ·  enter select  ·  ctrl-c cancel"))
+
+    _nav = "  " + dim("↑↓ navigate  ·  enter select  ·  ctrl-c cancel")
+    _link_lines = []
     if links:
         width = _link_label_width(links)
         for label, url in links:
-            print("  " + dim(label.ljust(width) + "  ·  ") + brand_alt(url))
+            _link_lines.append("  " + dim(label.ljust(width) + "  ·  ") + brand_alt(url))
+    _footer = [""] + [_nav] + _link_lines
 
-    menu_height = len(lines)
-    footer_height = 2 + (len(links) if links else 0)  # blank + nav (+ one row per link)
-    # Hide cursor while the menu is interactive (avoids blink at footer end).
+    lines = _option_lines(options, selected)
+    for line in lines:
+        print(line)
+    for footer_line in _footer:
+        print(footer_line)
+
     sys.stdout.write("\x1b[?25l")
     sys.stdout.flush()
     fd = sys.stdin.fileno()
     old_settings = _termios.tcgetattr(fd)
     try:
-        # `setcbreak` (not setraw): keeps OPOST so \n still translates to
-        # \r\n. Raw mode would cause each redraw line to start mid-row.
+        # setcbreak keeps OPOST so \n → \r\n; raw mode would misalign redraws.
         _tty.setcbreak(fd)
         while True:
             ch = sys.stdin.read(1)
@@ -192,12 +206,18 @@ def _select_arrow(question: str, options: list, links: list = None) -> str:
                     selected = (selected + 1) % len(options)
                 else:
                     continue
-                # Cursor is just past the footer. Walk up over (footer + menu),
-                # rewrite menu lines in place, walk back down to the footer.
-                sys.stdout.write("\x1b[{}A\r".format(footer_height + menu_height))
-                for line in _option_lines(options, selected):
-                    sys.stdout.write("\x1b[2K" + line + "\n")
-                sys.stdout.write("\x1b[{}B\r".format(footer_height))
+
+                # Recompute physical rows at current width — a resize reflows
+                # old content, so logical line count is no longer enough.
+                term_w = _terminal_width()
+                phys_up = (_physical_row_count(lines, term_w)
+                           + _physical_row_count(_footer, term_w))
+                sys.stdout.write("\x1b[{}A\r\x1b[J".format(phys_up))
+                lines = _option_lines(options, selected)
+                for line in lines:
+                    sys.stdout.write(line + "\n")
+                for footer_line in _footer:
+                    sys.stdout.write(footer_line + "\n")
                 sys.stdout.flush()
             elif ch in ("\r", "\n"):
                 break
@@ -212,17 +232,12 @@ def _select_arrow(question: str, options: list, links: list = None) -> str:
         sys.stdout.write("\x1b[?25h")
         sys.stdout.flush()
 
-    # Collapse menu+footer into one confirmation line so the screen reads
-    # as a clean trail of resolved choices.
-    #   section header + blank = 2 lines  (always)
-    #   menu                   = menu_height
-    #   blank + nav (+ docs)   = footer_height
-    section_height = 2
-    total_lines = section_height + menu_height + footer_height
-    sys.stdout.write("\x1b[{}A\r".format(total_lines))
-    for _ in range(total_lines):
-        sys.stdout.write("\x1b[2K\n")
-    sys.stdout.write("\x1b[{}A\r".format(total_lines))
+    # Collapse section + menu + footer into a single confirmation line.
+    term_w = _terminal_width()
+    phys_total = (_physical_row_count(["  " + bold(question), ""], term_w)
+                  + _physical_row_count(lines, term_w)
+                  + _physical_row_count(_footer, term_w))
+    sys.stdout.write("\x1b[{}A\r\x1b[J".format(phys_total))
     chosen = options[selected]
     print("  " + brand("✓") + " " + chosen["label"] + dim("  ·  " + question))
     sys.stdout.flush()

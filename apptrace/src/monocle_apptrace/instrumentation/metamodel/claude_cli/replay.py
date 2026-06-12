@@ -46,6 +46,7 @@ from monocle_apptrace.instrumentation.metamodel.claude_cli._helper import (
     read_transcript_tokens,
     read_subagent_transcript,
 )
+from monocle_apptrace.instrumentation.metamodel.claude_cli import git_context
 from monocle_apptrace.instrumentation.common.constants import AGENT_SESSION, SPAN_START_TIME, SPAN_END_TIME
 
 
@@ -310,6 +311,7 @@ def _process_turn(turn_events: list, session_id: str, model: str, handler: Repla
             inference_rounds=inference_rounds,
             model=model,
             tokens=parent_tokens,
+            git_scopes=git_context.compute_scopes(session_id),
             _turn_start=prompt_ts,
             _turn_end=stop_ts,
             **{
@@ -403,6 +405,7 @@ def cleanup_session(session_id: str) -> None:
 
     _session_log(session_id).unlink(missing_ok=True)
     _state_file(session_id).unlink(missing_ok=True)
+    git_context.cleanup(session_id)
     logger.debug(f"SessionEnd: cleaned up session files for {session_id}")
 
 

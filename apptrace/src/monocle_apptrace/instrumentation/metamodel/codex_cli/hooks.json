@@ -11,6 +11,17 @@
         ]
       }
     ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "monocle-apptrace codex-hook",
+            "statusMessage": "Monocle telemetry"
+          }
+        ]
+      }
+    ],
     "Stop": [
       {
         "hooks": [

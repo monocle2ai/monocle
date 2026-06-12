@@ -337,8 +337,19 @@ from monocle_test_tools.span_loader import JSONSpanLoader
 
 def test_generated(monocle_trace_asserter: TraceAssertion):
     """Auto-generated test from trace analysis."""
-    spans = JSONSpanLoader.from_json("/path/to/trace.json")
-    monocle_trace_asserter.validator.add_remote_spans(spans)
+    
+    # Option 1: Load from JSON file
+    spans = JSONSpanLoader.from_json("path/to/trace.json")
+    # monocle_trace_asserter.validator.add_remote_spans(spans)
+    
+    # Option 2: Load from Okahu
+    # from monocle_test_tools.span_loader import OkahuSpanLoader
+    # spans = OkahuSpanLoader.get_spans(workflow_name="your_workflow", trace_id="trace_id")
+    # monocle_trace_asserter.validator.add_remote_spans(spans)
+    
+    # Option 3: Run agent directly
+    # from your_module import your_agent
+    # await monocle_trace_asserter.run_agent_async(your_agent, "framework_name", "user input")
     
     asserter = monocle_trace_asserter
     

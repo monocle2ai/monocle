@@ -2,9 +2,7 @@
 import logging
 import os
 from contextlib import contextmanager
-import os
 from typing import AsyncGenerator, Iterator, Optional
-import logging
 from opentelemetry.trace import NonRecordingSpan, Tracer
 from opentelemetry.trace.propagation import set_span_in_context, get_current_span
 from opentelemetry.context import set_value, attach, detach, get_value
@@ -16,7 +14,6 @@ from monocle_apptrace.instrumentation.common.constants import (
     AGENTIC_SPANS,
     SPAN_START_TIME,
     SPAN_END_TIME,
-    WORKFLOW_TYPE_KEY,
 )
 from monocle_apptrace.instrumentation.common.scope_wrapper import monocle_trace_scope
 from monocle_apptrace.instrumentation.common.span_handler import SpanHandler
@@ -28,10 +25,6 @@ from monocle_apptrace.instrumentation.common.utils import (
     set_scope,
     set_scopes,
     with_tracer_wrapper,
-    set_scope,
-    remove_scope,
-    get_current_monocle_span,
-    set_monocle_span_in_context,
 )
 
 logger = logging.getLogger(__name__)
@@ -48,7 +41,7 @@ def get_auto_close_span(to_wrap, kwargs):
 
 def pre_process_span(name, tracer, handler, add_workflow_span, to_wrap, wrapped, instance, args, kwargs, span, source_path):
     SpanHandler.set_default_monocle_attributes(span, source_path)
-    if SpanHandler.is_root_span(span) or add_workflow_span:
+    if SpanHandler.is_root_span(span) or add_workflow_span or SpanHandler.is_remote_parent_span(span):
         # This is a direct API call of a non-framework type
         SpanHandler.set_workflow_properties(span, to_wrap)
     else:
@@ -113,12 +106,20 @@ def monocle_wrapper_span_processor(tracer: Tracer, handler: SpanHandler, to_wrap
     with start_as_monocle_span(tracer, name, auto_close_span) as span:
         pre_process_span(name, tracer, handler, add_workflow_span, to_wrap, wrapped, instance, args, kwargs, span, source_path)
         
-        if SpanHandler.is_root_span(span) or add_workflow_span:
+        if SpanHandler.is_root_span(span) or add_workflow_span or SpanHandler.is_remote_parent_span(span):
             # Recursive call for the actual span
-            return_value, span_status = monocle_wrapper_span_processor(tracer, handler, to_wrap, wrapped, instance, source_path, False, args, kwargs)
-            span.set_status(StatusCode.OK)
-            if not auto_close_span:
-                span.end()
+            try:
+                return_value, span_status = monocle_wrapper_span_processor(tracer, handler, to_wrap, wrapped, instance, source_path, False, args, kwargs)
+                span.set_status(StatusCode.OK)
+            except Exception as e:
+                # Record the failure on the workflow span and re-raise. Without this the
+                # workflow span is never ended/exported when the wrapped call raises and
+                # auto_close_span is False (e.g. streaming/agent inference spans).
+                span.set_status(StatusCode.ERROR, str(e))
+                raise
+            finally:
+                if not auto_close_span:
+                    span.end()
         else:
             ex:Exception = None
             to_wrap = get_wrapper_with_next_processor(to_wrap, handler, instance, span, parent_span, args, kwargs)
@@ -204,12 +205,20 @@ async def amonocle_wrapper_span_processor(tracer: Tracer, handler: SpanHandler, 
     with start_as_monocle_span(tracer, name, auto_close_span) as span:
         pre_process_span(name, tracer, handler, add_workflow_span, to_wrap, wrapped, instance, args, kwargs, span, source_path)
         
-        if SpanHandler.is_root_span(span) or add_workflow_span:
+        if SpanHandler.is_root_span(span) or add_workflow_span or SpanHandler.is_remote_parent_span(span):
             # Recursive call for the actual span
-            return_value, span_status = await amonocle_wrapper_span_processor(tracer, handler, to_wrap, wrapped, instance, source_path, False, args, kwargs)
-            span.set_status(StatusCode.OK)
-            if not auto_close_span:
-                span.end()
+            try:
+                return_value, span_status = await amonocle_wrapper_span_processor(tracer, handler, to_wrap, wrapped, instance, source_path, False, args, kwargs)
+                span.set_status(StatusCode.OK)
+            except Exception as e:
+                # Record the failure on the workflow span and re-raise. Without this the
+                # workflow span is never ended/exported when the wrapped call raises and
+                # auto_close_span is False (e.g. streaming/agent inference spans).
+                span.set_status(StatusCode.ERROR, str(e))
+                raise
+            finally:
+                if not auto_close_span:
+                    span.end()
         else:
             ex:Exception = None
             to_wrap = get_wrapper_with_next_processor(to_wrap, handler, instance, span, parent_span,args, kwargs)
@@ -268,17 +277,25 @@ async def amonocle_iter_wrapper_span_processor(tracer: Tracer, handler: SpanHand
     with start_as_monocle_span(tracer, name, auto_close_span) as span:
         pre_process_span(name, tracer, handler, add_workflow_span, to_wrap, wrapped, instance, args, kwargs, span, source_path)
 
-        if SpanHandler.is_root_span(span) or add_workflow_span:
+        if SpanHandler.is_root_span(span) or add_workflow_span or SpanHandler.is_remote_parent_span(span):
             # Recursive call for the actual span
-            async for item in amonocle_iter_wrapper_span_processor(tracer, handler, to_wrap, wrapped, instance, source_path, False, args, kwargs):
-                yield item
-                # Repair monocle context if inner generators leaked theirs (Python 3.11
-                # defers aclose() to GC for non-exhausted async generators).
-                if get_current_monocle_span() is not span:
-                    attach(set_monocle_span_in_context(span))
-            span.set_status(StatusCode.OK)
-            if not auto_close_span:
-                span.end()
+            try:
+                async for item in amonocle_iter_wrapper_span_processor(tracer, handler, to_wrap, wrapped, instance, source_path, False, args, kwargs):
+                    yield item
+                    # Repair monocle context if inner generators leaked theirs (Python 3.11
+                    # defers aclose() to GC for non-exhausted async generators).
+                    if get_current_monocle_span() is not span:
+                        attach(set_monocle_span_in_context(span))
+                span.set_status(StatusCode.OK)
+            except Exception as e:
+                # Record the failure on the workflow span and re-raise. Without this the
+                # workflow span is never ended/exported when the stream raises and
+                # auto_close_span is False (the common case for streaming inference).
+                span.set_status(StatusCode.ERROR, str(e))
+                raise
+            finally:
+                if not auto_close_span:
+                    span.end()
         else:
             ex:Exception = None
             to_wrap = get_wrapper_with_next_processor(to_wrap, handler, instance, span, parent_span, args, kwargs)

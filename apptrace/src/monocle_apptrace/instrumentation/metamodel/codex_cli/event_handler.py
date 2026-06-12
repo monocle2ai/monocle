@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Hook entry point. SessionStart sweeps stale state; Stop triggers replay."""
+"""Hook entry point. SessionStart sweeps stale state; Stop triggers replay.
+"""
 
 import json
 import logging
@@ -38,6 +39,10 @@ def main() -> None:
 
     if name == "SessionStart":
         sweep_stale_sessions()
+        return
+
+    if name == "UserPromptSubmit":
+        sys.stdout.write("{}")
         return
 
     if name == "Stop":

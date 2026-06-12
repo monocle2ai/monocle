@@ -4,6 +4,7 @@ from monocle_apptrace.instrumentation.common.span_handler import SpanHandler
 from opentelemetry.context import attach, get_current, set_value, Context
 from monocle_apptrace.instrumentation.common.constants import SPAN_START_TIME, SPAN_END_TIME, AGENT_SESSION, CODEX_TURN_SCOPE, CODEX_INVOCATION_SCOPE
 from monocle_apptrace.instrumentation.common.utils import set_scopes
+from monocle_apptrace.instrumentation.common.git_context import apply_to_span
 
 
 class CodexSpanHandler(SpanHandler):
@@ -35,3 +36,7 @@ class CodexSpanHandler(SpanHandler):
 
     def pre_tracing(self, to_wrap, wrapped, instance, args, kwargs):
         return self._prepare_span_context(kwargs), None
+
+    def pre_task_processing(self, to_wrap, wrapped, instance, args, kwargs, span):
+        super().pre_task_processing(to_wrap, wrapped, instance, args, kwargs, span)
+        apply_to_span(span, kwargs)

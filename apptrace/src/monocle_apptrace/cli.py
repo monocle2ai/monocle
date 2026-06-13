@@ -424,6 +424,13 @@ def cmd_validate(args):
 # =============================================================================
 
 
+def cmd_token_summary(args):
+    from monocle_apptrace.token_summary import format_table, summarize
+    rows = summarize(time_window=args.time_window)
+    print(format_table(rows))
+    return 0
+
+
 def cmd_reset(args):
     ui.header("Monocle reset")
 
@@ -531,6 +538,8 @@ def main(argv=None):
         return cmd_validate(args)
     if args.command == "reset":
         return cmd_reset(args)
+    if args.command == "token-summary":
+        return cmd_token_summary(args)
     return 1
 
 
@@ -573,6 +582,18 @@ def _build_parser():
                    default="selective", help="Validation level (default: selective)")
     v.add_argument("--fail-on-warning", action="store_true",
                    help="Treat warnings as errors (exit code 1)")
+
+    ts = sub.add_parser(
+        "token-summary",
+        help="Show daily token usage from local .monocle/ trace files",
+    )
+    ts.add_argument(
+        "time_window",
+        nargs="?",
+        default="all",
+        metavar="TIME_WINDOW",
+        help="today | 'this week' | '7 days' | '15 days' | all  (default: all)",
+    )
 
     return parser
 

@@ -159,6 +159,31 @@ monocle_trace_asserter.contains_input(
 )
 ```
 
+#### Count and aggregate assertions
+
+Assert specific or total invocation counts for agents and tools:
+
+```python
+# Exact count: retry agent called exactly 3 times
+monocle_trace_asserter.called_agent("retry_agent", count=3)
+
+# Range: worker agent called 2-5 times
+monocle_trace_asserter.called_agent("worker_agent", min_count=2, max_count=5)
+
+# Min only: search tool called at least once
+monocle_trace_asserter.called_tool("search_tool", min_count=1)
+
+# Max only: expensive API called at most twice
+monocle_trace_asserter.called_tool("expensive_api", max_count=2)
+
+# Total agent invocations across all agents
+monocle_trace_asserter.called_agents(count=10)  # Exactly 10 agent calls total
+monocle_trace_asserter.called_agents(min_count=5, max_count=15)  # Between 5-15 calls
+
+# Total tool invocations across all tools
+monocle_trace_asserter.called_tools(max_count=20)  # At most 20 tool calls total
+```
+
 ---
 
 ## Framework Examples
@@ -632,10 +657,12 @@ The `monocle_trace_asserter` fixture provides a `TraceAssertion` instance. All a
 
 | Method | Description |
 |---|---|
-| `called_tool(tool_name, agent_name=None)` | Assert a tool was called; narrows context to those spans |
+| `called_tool(tool_name, agent_name=None, count=None, min_count=None, max_count=None)` | Assert a tool was called; narrows context to those spans. Optional: `count` for exact count, `min_count`/`max_count` for range |
 | `does_not_call_tool(tool_name, agent_name=None)` | Assert a tool was NOT called |
-| `called_agent(agent_name)` | Assert an agent was called; narrows context to those spans |
+| `called_agent(agent_name, count=None, min_count=None, max_count=None)` | Assert an agent was called; narrows context to those spans. Optional: `count` for exact count, `min_count`/`max_count` for range |
 | `does_not_call_agent(agent_name)` | Assert an agent was NOT called |
+| `called_agents(count=None, min_count=None, max_count=None)` | Assert total number of agent invocations across all agents. Optional: `count` for exact count, `min_count`/`max_count` for range |
+| `called_tools(count=None, min_count=None, max_count=None)` | Assert total number of tool invocations across all tools. Optional: `count` for exact count, `min_count`/`max_count` for range |
 
 ### Input assertions
 

@@ -15,11 +15,30 @@ from monocle_apptrace.instrumentation.metamodel.github_copilot.trace_events impo
     sweep_stale_sessions,
 )
 from monocle_apptrace.instrumentation.metamodel.github_copilot._otel_tokens import prune_otel_file
+from monocle_apptrace.instrumentation.metamodel.github_copilot import git_context
 
 logger = logging.getLogger(__name__)
 
 _REPLAY_TRIGGERS = {"Stop"}
 _COMPACTION_TRIGGERS = {"PreCompact"}
+
+
+def _event_cwd(event_data: dict) -> str:
+    for key in (
+        "cwd",
+        "working_directory",
+        "workingDirectory",
+        "workspace_root",
+        "workspaceRoot",
+        "project_dir",
+        "projectDir",
+        "project_root",
+        "projectRoot",
+    ):
+        value = event_data.get(key)
+        if isinstance(value, str) and value:
+            return value
+    return ""
 
 
 def _normalize(event: dict) -> dict:
@@ -113,6 +132,9 @@ def main() -> None:
         agent_id = event_data.get("agent_id", "")
         if agent_id:
             mark_subagent_session(agent_id)
+
+    if event_name == "UserPromptSubmit" and not is_subagent_session(session_id):
+        git_context.capture_turn_baseline(session_id, cwd=_event_cwd(event_data) or None)
 
     if event_name in _REPLAY_TRIGGERS:
         if is_subagent_session(session_id):

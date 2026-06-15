@@ -22,7 +22,7 @@ from monocle_apptrace.instrumentation.metamodel.github_copilot.trace_events impo
     _sessions_dir,
 )
 from monocle_apptrace.instrumentation.metamodel.github_copilot.replay_handlers import ReplayHandler
-from monocle_apptrace.instrumentation.metamodel.github_copilot._otel_tokens import lookup_turn_tokens
+from monocle_apptrace.instrumentation.metamodel.github_copilot._otel_tokens import lookup_turn_tokens, prune_otel_file
 from monocle_apptrace.instrumentation.metamodel.github_copilot import git_context
 
 logger = logging.getLogger(__name__)
@@ -486,8 +486,6 @@ def _replay_session_locked(session_id: str) -> None:
         round_dict = _build_inference_round(interaction, prompt)
         turn_tokens = {}
         turn_model = interaction.get("model", "copilot")
-        # Token counts come from Copilot's own OTel export — both VS Code Chat and
-        # the CLI write it — anchored by trace id within the turn window.
         if round_dict:
             otel_tokens, otel_trace_id, otel_model = lookup_turn_tokens(
                 round_dict[SPAN_START_TIME],
@@ -495,6 +493,7 @@ def _replay_session_locked(session_id: str) -> None:
                 expected_model=round_dict.get("model", ""),
             )
             if otel_tokens:
+                prune_otel_file()
                 round_dict["tokens"] = otel_tokens
                 round_dict["otel_trace_id"] = otel_trace_id
                 if otel_model:
@@ -504,6 +503,8 @@ def _replay_session_locked(session_id: str) -> None:
             elif not session_ended:
                 logger.debug("Deferring Copilot turn %s until token telemetry flushes", iid)
                 continue
+            else:
+                prune_otel_file()
         try:
             handler.handle_turn(
                 prompt=prompt,

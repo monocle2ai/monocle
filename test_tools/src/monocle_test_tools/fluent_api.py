@@ -106,6 +106,28 @@ class TraceAssertion():
         self._filtered_spans = None
         TraceAssertion._assertion_errors = []
 
+    @staticmethod
+    def _validate_count_params(count: Optional[int], min_count: Optional[int], max_count: Optional[int]) -> None:
+        """Validate that count parameters are not conflicting."""
+        if count is not None and (min_count is not None or max_count is not None):
+            raise ValueError("Cannot specify both 'count' and 'min_count'/'max_count'")
+
+    def _check_aggregate_count(self, spans: list[Span], entity_type: str, count: Optional[int],
+                                min_count: Optional[int], max_count: Optional[int], message: Optional[str]) -> None:
+        """Helper to check count constraints for aggregate methods."""
+        actual_count = len(spans)
+        
+        if count is not None or min_count is not None or max_count is not None:
+            if count is not None and actual_count != count:
+                raise AssertionError(message or f"Found {actual_count} total {entity_type} invocations, expected exactly {count}")
+            if min_count is not None and actual_count < min_count:
+                raise AssertionError(message or f"Found {actual_count} total {entity_type} invocations, expected at least {min_count}")
+            if max_count is not None and actual_count > max_count:
+                raise AssertionError(message or f"Found {actual_count} total {entity_type} invocations, expected at most {max_count}")
+        else:
+            if actual_count == 0:
+                raise AssertionError(message or f"No {entity_type} invocations found")
+
     def run_agent(self, agent, agent_type:str, *args, **kwargs) -> any:
         """Run the given agent with provided args and kwargs."""
         return self.validator.run_agent(agent, agent_type, *args, mock_tools=self.mock_tools, **kwargs)
@@ -192,13 +214,24 @@ class TraceAssertion():
         return self
 
     @collect_assertions
-    def called_tool(self, tool_name:str, agent_name:Optional[str] = None, message:Optional[str] = None) -> 'TraceAssertion':
-        """Assert that the given tool was called, optionally by a specific agent."""
+    def called_tool(self, tool_name:str, agent_name:Optional[str] = None, count:Optional[int] = None,
+                    min_count:Optional[int] = None, max_count:Optional[int] = None, message:Optional[str] = None) -> 'TraceAssertion':
+        """Assert tool invocation with optional agent filter and count constraints (count, min_count, max_count)."""
+        TraceAssertion._validate_count_params(count, min_count, max_count)
         self._filtered_spans = self.validator._get_tool_invocation_spans(tool_name, agent_name, filtered_spans=self._filtered_spans)
-        if agent_name:
-            TraceAssertion._assert_on_spans(self._filtered_spans, f"Tool '{tool_name}' was not called by agent '{agent_name}'", custom_message=message)
+        actual_count = len(self._filtered_spans)
+        
+        if count is not None or min_count is not None or max_count is not None:
+            entity_prefix = f"Tool '{tool_name}' was called by agent '{agent_name}'" if agent_name else f"Tool '{tool_name}' was called"
+            if count is not None and actual_count != count:
+                raise AssertionError(message or f"{entity_prefix} {actual_count} times, expected exactly {count}")
+            if min_count is not None and actual_count < min_count:
+                raise AssertionError(message or f"{entity_prefix} {actual_count} times, expected at least {min_count}")
+            if max_count is not None and actual_count > max_count:
+                raise AssertionError(message or f"{entity_prefix} {actual_count} times, expected at most {max_count}")
         else:
-            TraceAssertion._assert_on_spans(self._filtered_spans, f"Tool '{tool_name}' was not called", custom_message=message)
+            not_called_msg = f"Tool '{tool_name}' was not called by agent '{agent_name}'" if agent_name else f"Tool '{tool_name}' was not called"
+            TraceAssertion._assert_on_spans(self._filtered_spans, not_called_msg, custom_message=message)
         return self
 
     @collect_assertions
@@ -212,10 +245,22 @@ class TraceAssertion():
         return self
 
     @collect_assertions
-    def called_agent(self, agent_name:str, message:Optional[str] = None) -> 'TraceAssertion':
-        """Assert that the given agent was called."""
+    def called_agent(self, agent_name:str, count:Optional[int] = None, min_count:Optional[int] = None, 
+                     max_count:Optional[int] = None, message:Optional[str] = None) -> 'TraceAssertion':
+        """Assert agent invocation with optional count constraints (count, min_count, max_count)."""
+        TraceAssertion._validate_count_params(count, min_count, max_count)
         self._filtered_spans = self.validator._get_agent_invocation_spans(agent_name, filtered_spans=self._filtered_spans)
-        TraceAssertion._assert_on_spans(self._filtered_spans, f"Agent '{agent_name}' was not called", custom_message=message)
+        actual_count = len(self._filtered_spans)
+        
+        if count is not None or min_count is not None or max_count is not None:
+            if count is not None and actual_count != count:
+                raise AssertionError(message or f"Agent '{agent_name}' was called {actual_count} times, expected exactly {count}")
+            if min_count is not None and actual_count < min_count:
+                raise AssertionError(message or f"Agent '{agent_name}' was called {actual_count} times, expected at least {min_count}")
+            if max_count is not None and actual_count > max_count:
+                raise AssertionError(message or f"Agent '{agent_name}' was called {actual_count} times, expected at most {max_count}")
+        else:
+            TraceAssertion._assert_on_spans(self._filtered_spans, f"Agent '{agent_name}' was not called", custom_message=message)
         return self
 
     @collect_assertions
@@ -223,6 +268,24 @@ class TraceAssertion():
         """Assert that the given agent was not called."""
         _filtered_spans = self.validator._get_agent_invocation_spans(agent_name, filtered_spans=self._filtered_spans)
         TraceAssertion._assert_on_spans(_filtered_spans, f"Agent '{agent_name}' was called", positive_test=False, custom_message=message)
+        return self
+
+    @collect_assertions
+    def called_agents(self, count:Optional[int] = None, min_count:Optional[int] = None,
+                      max_count:Optional[int] = None, message:Optional[str] = None) -> 'TraceAssertion':
+        """Assert total agent invocations across all agents with count constraints (count, min_count, max_count)."""
+        TraceAssertion._validate_count_params(count, min_count, max_count)
+        agent_spans = self.validator._get_all_agent_invocation_spans(filtered_spans=self._filtered_spans)
+        self._check_aggregate_count(agent_spans, "agent", count, min_count, max_count, message)
+        return self
+
+    @collect_assertions
+    def called_tools(self, count:Optional[int] = None, min_count:Optional[int] = None,
+                     max_count:Optional[int] = None, message:Optional[str] = None) -> 'TraceAssertion':
+        """Assert total tool invocations across all tools with count constraints (count, min_count, max_count)."""
+        TraceAssertion._validate_count_params(count, min_count, max_count)
+        tool_spans = self.validator._get_all_tool_invocation_spans(filtered_spans=self._filtered_spans)
+        self._check_aggregate_count(tool_spans, "tool", count, min_count, max_count, message)
         return self
 
     @collect_assertions

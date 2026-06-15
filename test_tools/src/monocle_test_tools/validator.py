@@ -934,33 +934,62 @@ class MonocleValidator:
                 return span
         return None
 
-    def _get_tool_invocation_spans(self, tool_name:str, agent_name:str = None,
-                                filtered_spans:Optional[list[Span]] = None) -> list:
-        tool_invocation_spans = []
+    def _filter_spans_by_type(self, span_type: str, filtered_spans: Optional[list[Span]] = None, 
+                             name_filter: Optional[str] = None, entity_key: str = "entity.1.name",
+                             parent_filter: Optional[str] = None, parent_key: str = "entity.2.name") -> list:
+        """Filter spans by type with optional name and parent filters."""
         spans_to_check = filtered_spans if filtered_spans is not None else self.spans
+        matching_spans = []
+        
         for span in spans_to_check:
             span_attributes = span.attributes
-            if (
-                "span.type" in span_attributes
-                and span_attributes["span.type"] == "agentic.tool.invocation"
-            ):
-                if span_attributes.get("entity.1.name","") == tool_name \
-                    and (agent_name is None or (agent_name is not None and span_attributes.get("entity.2.name","") == agent_name)):
-                    tool_invocation_spans.append(span)
-        return tool_invocation_spans
+            
+            if span_attributes.get("span.type") != span_type:
+                continue
+                
+            if name_filter is not None:
+                if span_attributes.get(entity_key, "") != name_filter:
+                    continue
+                    
+            if parent_filter is not None:
+                if span_attributes.get(parent_key, "") != parent_filter:
+                    continue
+                    
+            matching_spans.append(span)
+            
+        return matching_spans
 
-    def _get_agent_invocation_spans(self, agent_name:str, filtered_spans:Optional[list[Span]] = None) -> list:
-        agent_invocation_spans = []
-        spans_to_check = filtered_spans if filtered_spans is not None else self.spans
-        for span in spans_to_check:
-            span_attributes = span.attributes
-            if (
-                "span.type" in span_attributes
-                and span_attributes["span.type"] == "agentic.invocation"
-            ):
-                if span_attributes.get("entity.1.name","") == agent_name:
-                    agent_invocation_spans.append(span)
-        return agent_invocation_spans
+    def _get_tool_invocation_spans(self, tool_name: str, agent_name: str = None,
+                                   filtered_spans: Optional[list[Span]] = None) -> list:
+        """Get tool invocation spans, optionally filtered by agent."""
+        return self._filter_spans_by_type(
+            span_type="agentic.tool.invocation",
+            filtered_spans=filtered_spans,
+            name_filter=tool_name,
+            parent_filter=agent_name
+        )
+
+    def _get_agent_invocation_spans(self, agent_name: str, filtered_spans: Optional[list[Span]] = None) -> list:
+        """Get agent invocation spans for a specific agent."""
+        return self._filter_spans_by_type(
+            span_type="agentic.invocation",
+            filtered_spans=filtered_spans,
+            name_filter=agent_name
+        )
+
+    def _get_all_agent_invocation_spans(self, filtered_spans: Optional[list[Span]] = None) -> list:
+        """Get all agent invocation spans regardless of agent name."""
+        return self._filter_spans_by_type(
+            span_type="agentic.invocation",
+            filtered_spans=filtered_spans
+        )
+
+    def _get_all_tool_invocation_spans(self, filtered_spans: Optional[list[Span]] = None) -> list:
+        """Get all tool invocation spans regardless of tool or agent name."""
+        return self._filter_spans_by_type(
+            span_type="agentic.tool.invocation",
+            filtered_spans=filtered_spans
+        )
 
     def _agent_request_output(self, agent_request_span:Span,expect_error:bool = False, expect_warnings: bool = False) -> dict[str, str]:
         if agent_request_span is None:

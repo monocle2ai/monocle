@@ -79,10 +79,11 @@ class TestGenerator:
         # Add example trace file path
         if self.trace_file:
             code.append(f'    spans = JSONSpanLoader.from_json("{self.trace_file}")')
+            code.append('    monocle_trace_asserter.validator.add_remote_spans(spans)')
         else:
             code.append('    # spans = JSONSpanLoader.from_json("path/to/trace.json")')
+            code.append('    # monocle_trace_asserter.validator.add_remote_spans(spans)')
         code.extend([
-            '    # monocle_trace_asserter.validator.add_remote_spans(spans)',
             '',
             '    # Option 2: Load from Okahu',
             '    # from monocle_test_tools.span_loader import OkahuSpanLoader',

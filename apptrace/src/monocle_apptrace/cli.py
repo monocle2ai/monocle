@@ -426,7 +426,16 @@ def cmd_validate(args):
 
 def cmd_token_summary(args):
     from monocle_apptrace.token_summary import format_table, summarize
-    rows = summarize(time_window=args.time_window)
+    from pathlib import Path
+
+    if args.trace_dir_direct:
+        monocle_dir = Path(args.trace_dir_direct)
+    elif args.trace_dir:
+        monocle_dir = Path(args.trace_dir) / ".monocle"
+    else:
+        monocle_dir = None  # uses default ~/.monocle
+
+    rows = summarize(time_window=args.time_window, monocle_dir=monocle_dir)
     print(format_table(rows))
     return 0
 
@@ -593,6 +602,20 @@ def _build_parser():
         default="all",
         metavar="TIME_WINDOW",
         help="today | 'this week' | '7 days' | '15 days' | all  (default: all)",
+    )
+    ts.add_argument(
+        "--dir",
+        dest="trace_dir",
+        default=None,
+        metavar="DIR",
+        help="Project directory containing .monocle/ folder (default: current dir)",
+    )
+    ts.add_argument(
+        "--trace-dir",
+        dest="trace_dir_direct",
+        default=None,
+        metavar="TRACE_DIR",
+        help="Direct path to trace directory (overrides --dir)",
     )
 
     return parser

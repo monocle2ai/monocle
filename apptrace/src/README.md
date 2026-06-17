@@ -12,6 +12,38 @@ Spans are the individual steps executed by the application to perform a GenAI re
 
 Examples of spans include app retrieving vectors from DB, app querying LLM for inference etc. The span includes the type of operation, start time, duration and metadata relevant to that step eg Model name, parameters and model endpoint/server for an inference request.
 
+## Token Usage Summary
+
+The `token-summary` command reads local Monocle trace files and prints a daily summary of token usage per model.
+
+```bash
+# Summarize all trace files in the default location (~/.monocle)
+monocle-apptrace token-summary
+
+# Filter by time window
+monocle-apptrace token-summary today
+monocle-apptrace token-summary "this week"
+monocle-apptrace token-summary "7 days"
+monocle-apptrace token-summary "15 days"
+
+# Use traces from a specific project directory (reads <dir>/.monocle/)
+monocle-apptrace token-summary --dir /path/to/project
+
+# Use a specific trace directory directly
+monocle-apptrace token-summary --trace-dir /path/to/.monocle
+```
+
+Example output:
+
+```
++-----------+---------------------+-------+------------+--------------+--------+-------+
+| Date      | Model               | Input | Cache Read | Cache Create | Output | Total |
++-----------+---------------------+-------+------------+--------------+--------+-------+
+| 2025-11-30| claude-3-5-sonnet   | 1200  | 400        | 0            | 350    | 1950  |
+| 2025-11-30| gpt-4o              | 800   | 0          | 0            | 200    | 1000  |
++-----------+---------------------+-------+------------+--------------+--------+-------+
+```
+
 ## Contribute to Monocle 
 
 Monocle includes:

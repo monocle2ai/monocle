@@ -12,6 +12,7 @@
 </p>
 
 <p align="center">
+  <a href=https://discord.com/invite/D8vDbSUhJX><img src="https://dcbadge.limes.pink/api/server/https://discord.com/invite/D8vDbSUhJX?compact=true" alt"Join Monocle Discord"></a>
   <a href="https://github.com/monocle2ai/monocle/issues"><img src="https://img.shields.io/badge/Report%20a%20Bug-000000?style=for-the-badge&logo=github&logoColor=white" alt="Report a Bug" /></a>
   <a href="https://discord.gg/D8vDbSUhJX"><img src="https://img.shields.io/badge/Request%20a%20Feature-5865F2?style=for-the-badge&logo=github&logoColor=white" alt="Request a Feature" /></a>
 </p>

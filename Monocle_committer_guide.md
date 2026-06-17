@@ -7,7 +7,7 @@ This document provide details for Monocle committers tasks
   - The branch name should be release/<release-version>
 - Update the version number in pyprojects.toml in the artifacts being release (monocle_apptrace, monocle_test_tools, monocle_mcp)
 - [Run](Monocle_contributor_guide.md#testing) the unit and integration tests
-- If there are test failures, log a ticke to track it
+- If there are test failures, log a ticket to track it
 - Triage the test failures
   - If this is a regression, then it should be fixed. A new release shouldn't be published with know regressions
   - If this a new feature failures, then community can make the call to release with know limitation documented in the Git release notes    

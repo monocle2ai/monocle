@@ -20,7 +20,7 @@ Contributions to Monocle are welcome from everyone. The following are a set of g
 - Pull a request to implement the feature.
 
 #### If you are submitting a pull request in Monocle
-- Fork Monocle repo into your persona/org git organisation
+- Fork Monocle repo into your personal/org git organisation
 - Sync the repo with latest on Monocle main before you start making code changes.
 - Create a separate branch in your fork for the pull request off the main.
 - If this is a code changes, then add a test cases that validates the changes.

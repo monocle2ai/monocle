@@ -3,7 +3,7 @@ This document provide details for Monocle committers tasks
 
 ## Build and publishing python packages
 ### Prepare release
-- Creaet a release branch off main
+- Create a release branch off main
   - The branch name should be release/<release-version>
 - Update the version number in pyprojects.toml in the artifacts being release (monocle_apptrace, monocle_test_tools, monocle_mcp)
 - [Run](Monocle_contributor_guide.md#testing) the unit and integration tests

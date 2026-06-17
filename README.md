@@ -5,8 +5,7 @@
 <p align="center"><strong>Open-source tracing &amp; testing for GenAI apps and agents.</strong></p>
 
 <p align="center">
-  <img src="https://img.shields.io/pypi/v/monocle-apptrace.svg" alt="PyPI Version" />
-  <img src="https://img.shields.io/github/license/monocle2ai/monocle" alt="License" />
+  <img src="https://img.shields.io/badge/license-Apache--2.0-blue" alt="License" />
   <img src="https://img.shields.io/badge/runtime-Python-3776ab?logo=python&logoColor=white" alt="Python" />
   <img src="https://img.shields.io/badge/LF%20AI%20%26%20Data-project-0a7bba" alt="LF AI & Data" />
 </p>

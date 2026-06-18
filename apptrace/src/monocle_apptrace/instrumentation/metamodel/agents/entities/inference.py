@@ -1,7 +1,11 @@
 from monocle_apptrace.instrumentation.common.constants import AGENT_REQUEST_SPAN_NAME, SPAN_SUBTYPES, SPAN_TYPES
-from monocle_apptrace.instrumentation.common.utils import get_error_message
+from monocle_apptrace.instrumentation.common.utils import (
+    extract_from_agent_invocation_id,
+    extract_from_agent_name,
+    get_error_message,
+)
 from monocle_apptrace.instrumentation.metamodel.agents import _helper
-from monocle_apptrace.instrumentation.common.utils import get_error_message, extract_from_agent_name, extract_from_agent_invocation_id
+from monocle_apptrace.instrumentation.metamodel.agents.agents_stream_processor import process_agent_stream
 
 AGENT = {
     "type": SPAN_TYPES.AGENTIC_INVOCATION,
@@ -64,21 +68,6 @@ AGENT = {
                     "_comment": "this is response from Agent",
                     "attribute": "response",
                     "accessor": lambda arguments: _helper.extract_agent_response(
-                        arguments["result"]
-                    ),
-            },
-            {
-                "attribute": "error_code",
-                "accessor": lambda arguments: get_error_message(arguments)
-                }
-            ],
-        },
-        {
-            "name": "metadata",
-            "attributes": [
-                {
-                    "_comment": "this is metadata from Agent response",
-                    "accessor": lambda arguments: _helper.update_span_from_agent_response(
                         arguments["result"]
                     ),
                 }
@@ -144,15 +133,15 @@ TOOLS = {
             {
                 "_comment": "name of the tool",
                 "attribute": "name",
-                "accessor": lambda arguments: _helper.get_tool_name(
-                    arguments["instance"]
+                "accessor": lambda arguments: _helper.get_tool_name_from_arguments(
+                    arguments
                 ),
             },
             {
                 "_comment": "tool description",
                 "attribute": "description",
-                "accessor": lambda arguments: _helper.get_tool_description(
-                    arguments["instance"]
+                "accessor": lambda arguments: _helper.get_tool_description_from_arguments(
+                    arguments
                 ),
             },
         ],
@@ -222,4 +211,16 @@ AGENT_DELEGATION = {
             },
         ]
     ],
+}
+
+AGENT_REQUEST_STREAM = {
+    **AGENT_REQUEST,
+    "is_auto_close": lambda kwargs: False,
+    "response_processor": process_agent_stream,
+}
+
+AGENT_STREAM = {
+    **AGENT,
+    "is_auto_close": lambda kwargs: False,
+    "response_processor": process_agent_stream,
 }

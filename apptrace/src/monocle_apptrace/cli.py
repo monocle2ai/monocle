@@ -425,22 +425,7 @@ def cmd_validate(args):
 
 
 def cmd_token_summary(args):
-    from monocle_apptrace.token_summary import format_table, summarize
-    from pathlib import Path
-
-    if args.trace_dir_direct:
-        monocle_dir = Path(args.trace_dir_direct)
-    elif args.trace_dir:
-        monocle_dir = Path(args.trace_dir) / ".monocle"
-    else:
-        monocle_dir = None  # uses default ~/.monocle
-
-    rows = summarize(time_window=args.time_window, monocle_dir=monocle_dir)
-    print(format_table(rows))
-    return 0
-
-def cmd_session_token_summary(args):
-    from monocle_apptrace.session_token_summary import format_table, summarize
+    from monocle_apptrace.token_summary import format_table, format_session_table, summarize, summarize_by_session
     from pathlib import Path
 
     if getattr(args, "trace_dir_direct", None):
@@ -450,10 +435,13 @@ def cmd_session_token_summary(args):
     else:
         monocle_dir = None
 
-    rows = summarize(time_window=args.time_window, monocle_dir=monocle_dir)
-    print(format_table(rows))
+    if getattr(args, "by_session", False):
+        rows = summarize_by_session(time_window=args.time_window, monocle_dir=monocle_dir)
+        print(format_session_table(rows))
+    else:
+        rows = summarize(time_window=args.time_window, monocle_dir=monocle_dir)
+        print(format_table(rows))
     return 0
-
 
 def cmd_reset(args):
     ui.header("Monocle reset")
@@ -562,11 +550,10 @@ def main(argv=None):
         return cmd_validate(args)
     if args.command == "reset":
         return cmd_reset(args)
-    if args.command == "token-summary":
+    if args.command in ("token-summary", "session-token-summary"):
         return cmd_token_summary(args)
-    if args.command == "session-token-summary":
-        return cmd_session_token_summary(args)
     return 1
+   
 
 
 def _package_version():
@@ -613,6 +600,7 @@ def _build_parser():
         "token-summary",
         help="Show daily token usage from local .monocle/ trace files",
     )
+    ts.set_defaults(by_session=False)
     ts.add_argument(
         "time_window",
         nargs="?",
@@ -639,6 +627,7 @@ def _build_parser():
         "session-token-summary",
         help="Show per-session token usage from local .monocle/ trace files",
     )
+    sts.set_defaults(by_session=True)
     sts.add_argument(
         "time_window",
         nargs="?",

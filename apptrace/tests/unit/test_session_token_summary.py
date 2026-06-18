@@ -4,8 +4,7 @@ import json
 import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
-
-from monocle_apptrace.session_token_summary import format_table, summarize
+from monocle_apptrace.token_summary import format_session_table as format_table, summarize_by_session as summarize
 
 SESSION_ATTR = "scope.agentic.session"
 

@@ -45,7 +45,7 @@ def get_params(kwargs) -> dict:
 
 def get_body(kwargs) -> dict:
     if hasattr(kwargs['req'], 'get_body'):
-        response = kwargs.get_body()
+        response = kwargs['req'].get_body()
         if isinstance(response, bytes):
             response = response.decode('utf-8', errors='ignore')
     else:

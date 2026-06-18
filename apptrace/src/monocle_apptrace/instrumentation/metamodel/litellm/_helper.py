@@ -34,6 +34,25 @@ def extract_messages(kwargs):
         return []
 
 
+def extract_response_format(kwargs):
+    """Extract response_format from kwargs["optional_params"] (where litellm moves it)."""
+    try:
+        optional_params = kwargs.get("optional_params") or {}
+        response_format = optional_params.get("response_format")
+        if response_format is None:
+            return None
+        if isinstance(response_format, dict):
+            return get_json_dumps(response_format)
+        if hasattr(response_format, "model_json_schema"):
+            return get_json_dumps(response_format.model_json_schema())
+        if hasattr(response_format, "schema"):
+            return get_json_dumps(response_format.schema())
+        return str(response_format)
+    except Exception as e:
+        logger.warning("Warning: Error occurred in extract_response_format: %s", str(e))
+        return None
+
+
 def extract_assistant_message(arguments):
     try:
         messages = []

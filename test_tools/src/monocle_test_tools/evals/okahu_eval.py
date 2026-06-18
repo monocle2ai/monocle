@@ -4,6 +4,7 @@ import os
 from datetime import datetime, timezone
 from opentelemetry.sdk.trace import Span
 import requests
+from opentelemetry.baggage.propagation import W3CBaggagePropagator
 from monocle_apptrace.exporters.okahu import okahu_exporter
 from monocle_apptrace.exporters.okahu.okahu_eval_result_exporter import OkahuEvalResultExporter
 from monocle_test_tools.evals.base_eval import BaseEval
@@ -322,6 +323,8 @@ class OkahuEval(BaseEval):
             raise AssertionError(f"No fact IDs found in spans for fact_name='{fact_name}'.")
 
         headers = {"x-api-key": api_key}
+        # Propagate baggage for traceability
+        W3CBaggagePropagator().inject(headers)
         payload = {"template_name": eval_name}
         label = None
         explanation = ""

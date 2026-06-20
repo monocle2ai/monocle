@@ -23,7 +23,7 @@ from monocle_test_tools.file_span_loader import JSONSpanLoader
 from monocle_test_tools.gitutils import get_git_context, get_repo_name
 from monocle_test_tools.okahu_span_loader import OkahuSpanLoader
 from monocle_test_tools.schema import SpanType, TestSpan, TestCase, Evaluation, EvalInputs, MockTool
-from monocle_test_tools.constants import TEST_SCOPE_NAME, DEFAULT_WORKFLOW_NAME, TEST_STATUS_ATTRIBUTE, TEST_ASSERTION_ATTRIBUTE, TEST_WORKFLOW_ENV
+from monocle_test_tools.constants import TEST_SCOPE_NAME, DEFAULT_WORKFLOW_NAME, TEST_STATUS_ATTRIBUTE, TEST_ASSERTION_ATTRIBUTE, TEST_WORKFLOW_ENV, TEST_RUN_ATTRIBUTE
 from monocle_test_tools.comparer.base_comparer import BaseComparer
 from monocle_test_tools.runner.runner import get_agent_runner
 from monocle_test_tools import trace_utils
@@ -131,6 +131,7 @@ class MonocleValidator:
                         span._attributes[TEST_ASSERTION_ATTRIBUTE] = test_assertion_message
                 else:
                     span._attributes[TEST_STATUS_ATTRIBUTE] = "passed"
+                span._attributes[TEST_RUN_ATTRIBUTE] = True
                 exporter.export([span])
             if hasattr(exporter, "force_flush"):
                 exporter.force_flush()

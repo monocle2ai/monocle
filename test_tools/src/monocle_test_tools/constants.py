@@ -31,3 +31,5 @@ GITHUB_SHA: str = "GITHUB_SHA"
 
 # Local environment
 LOCAL_RUN_ID: str = "LOCAL_RUN_ID"
+
+TEST_RUN_ATTRIBUTE: str = "test.run"

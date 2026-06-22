@@ -1,5 +1,7 @@
 import logging
+from collections import deque
 from threading import local
+
 from monocle_apptrace.instrumentation.common.utils import extract_http_headers, clear_http_scopes, get_exception_status_code, with_tracer_wrapper
 from monocle_apptrace.instrumentation.common.wrapper import amonocle_wrapper
 from monocle_apptrace.instrumentation.common.span_handler import SpanHandler, HttpSpanHandler
@@ -12,6 +14,31 @@ import urllib.parse
 logger = logging.getLogger(__name__)
 MAX_DATA_LENGTH = 1000
 
+
+async def _buffer_request_body(scope, receive):
+    messages = []
+    body_chunks = []
+
+    while True:
+        message = await receive()
+        messages.append(message)
+        if message.get("type") != "http.request":
+            break
+
+        body_chunks.append(message.get("body", b""))
+        if not message.get("more_body", False):
+            break
+
+    scope["_request_body"] = b"".join(body_chunks)
+    replay_messages = deque(messages)
+
+    async def _receive():
+        if replay_messages:
+            return replay_messages.popleft()
+        return await receive()
+
+    return _receive
+
 @with_tracer_wrapper
 async def fastapi_atask_wrapper(tracer, handler, to_wrap, wrapped, instance,
                                source_path, args, kwargs):
@@ -19,15 +46,7 @@ async def fastapi_atask_wrapper(tracer, handler, to_wrap, wrapped, instance,
     similar to how Werkzeug stores request data in environ['werkzeug.request']."""
     scope, receive = args[0], args[1]
     if scope.get('method', 'GET') in ('POST', 'PUT', 'PATCH'):
-        chunks, orig = [], receive
-        async def _receive():
-            msg = await orig()
-            if msg.get('type') == 'http.request':
-                chunks.append(msg.get('body', b''))
-                if not msg.get('more_body', False):
-                    scope['_request_body'] = b''.join(chunks)
-            return msg
-        args = (scope, _receive) + args[2:]
+        args = (scope, await _buffer_request_body(scope, receive)) + args[2:]
     return await amonocle_wrapper(
         tracer, handler, to_wrap, wrapped, instance, source_path, args, kwargs
     )
@@ -40,6 +59,9 @@ def get_url(args) -> str:
     return f"{scheme}://{host}:{port}{path}"
 
 def get_route(scope) -> str:
+    route = scope.get('route')
+    if route is not None and getattr(route, 'path', None):
+        return route.path
     return scope.get('path', '')
 
 def get_method(scope) -> str:

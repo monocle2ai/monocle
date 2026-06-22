@@ -1,6 +1,5 @@
 import logging
 from collections import deque
-from threading import local
 
 from monocle_apptrace.instrumentation.common.utils import extract_http_headers, clear_http_scopes, get_exception_status_code, with_tracer_wrapper
 from monocle_apptrace.instrumentation.common.wrapper import amonocle_wrapper

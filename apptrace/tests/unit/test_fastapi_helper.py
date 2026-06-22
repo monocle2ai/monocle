@@ -30,10 +30,10 @@ async def test_buffer_request_body_replays_messages_and_stores_body():
 
 
 def test_get_route_prefers_fastapi_route_template():
-    route = type("Route", (), {"path": "/api/v1/ask_agent"})()
-    scope = {"route": route, "path": "/api/v1/ask_agent"}
+    route = type("Route", (), {"path": "/api/v1/items/{item_id}"})()
+    scope = {"route": route, "path": "/api/v1/items/123"}
 
-    assert _helper.get_route(scope) == "/api/v1/ask_agent"
+    assert _helper.get_route(scope) == "/api/v1/items/{item_id}"
 
 
 def test_get_params_reads_buffered_request_body():

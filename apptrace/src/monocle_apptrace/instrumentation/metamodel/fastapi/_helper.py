@@ -17,17 +17,39 @@ async def fastapi_atask_wrapper(tracer, handler, to_wrap, wrapped, instance,
                                source_path, args, kwargs):
     """Wraps APIRoute.handle to capture POST body into scope['_request_body'],
     similar to how Werkzeug stores request data in environ['werkzeug.request']."""
-    scope, receive = args[0], args[1]
-    if scope.get('method', 'GET') in ('POST', 'PUT', 'PATCH'):
-        chunks, orig = [], receive
+    receive_in_kwargs = 'receive' in kwargs
+    scope = kwargs.get('scope') if 'scope' in kwargs else (args[0] if len(args) > 0 else None)
+    receive = kwargs.get('receive') if receive_in_kwargs else (args[1] if len(args) > 1 else None)
+    if isinstance(scope, dict) and receive is not None and scope.get('method') is not None:
+        buffered, body = [], b''
+        try:
+            while True:
+                msg = await receive()
+                buffered.append(msg)
+                if msg.get('type') == 'http.request':
+                    body += msg.get('body', b'')
+                    if not msg.get('more_body', False):
+                        break
+                else:
+                    # http.disconnect or any non-body message; stop draining
+                    break
+            scope['_request_body'] = body
+        except Exception as e:
+            logger.warning(f"Error pre-reading request body: {e}")
+
+        idx = 0
         async def _receive():
-            msg = await orig()
-            if msg.get('type') == 'http.request':
-                chunks.append(msg.get('body', b''))
-                if not msg.get('more_body', False):
-                    scope['_request_body'] = b''.join(chunks)
-            return msg
-        args = (scope, _receive) + args[2:]
+            nonlocal idx
+            if idx < len(buffered):
+                msg = buffered[idx]
+                idx += 1
+                return msg
+            return await receive()
+
+        if receive_in_kwargs:
+            kwargs = {**kwargs, 'receive': _receive}
+        else:
+            args = (scope, _receive) + args[2:]
     return await amonocle_wrapper(
         tracer, handler, to_wrap, wrapped, instance, source_path, args, kwargs
     )
@@ -53,13 +75,28 @@ def get_params(args) -> dict:
         question = params.get('question', [''])[0]
         if question:
             return question
-        body = args.get('_request_body', b'')
-        if body:
-            return (body.decode('utf-8') if isinstance(body, bytes) else str(body))[:MAX_DATA_LENGTH]
-
+        return json.dumps(params) if params else ""
     except Exception as e:
         logger.warning(f"Error extracting params: {e}")
         return {}
+    
+def get_request_body(args) -> str:
+    try:
+        body = args.get('_request_body', b'')
+        if body:
+            data = json.loads(body.decode("utf-8"))
+            if isinstance(data, (dict, list)):
+                if not data:
+                    return ""
+                return json.dumps(data)[:MAX_DATA_LENGTH]
+            return data
+        else:
+            data = args.get('_request_body', b'').decode("utf-8")
+            return data[:MAX_DATA_LENGTH]
+    except Exception as e:
+        logger.warning(f"Error extracting request body: {e}")
+        return ""
+
 
 def extract_response(response) -> str:
     try:
@@ -85,7 +122,7 @@ def extract_status(arguments) -> str:
             error_message = extract_response(instance)
             raise MonocleSpanException(f"error: {status} - {error_message}", status)
     else:
-        status = "success"
+        status = "Unknown"
     return status
 
 def fastapi_pre_tracing(scope):

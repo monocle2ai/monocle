@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 import time
@@ -10,6 +11,7 @@ from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_t
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from tests.common.helpers import (
     find_spans_by_type,
+    get_span_event_by_name,
     verify_inference_span,
 )
 
@@ -105,6 +107,19 @@ def test_llm_openai(setup):
     assert (
             len(inference_spans) == 1
     ), "Expected exactly one inference span for the LLM call"
+
+    # Verify response_format (the Pydantic eval schema) is captured in data.input.
+   
+    data_input = get_span_event_by_name(inference_spans[0], "data.input")
+    rf = data_input.attributes.get("response_format")
+    assert rf is not None, "response_format missing from data.input span event"
+    schema = json.loads(rf)
+    properties = (
+        schema.get("properties")                                     
+        or schema.get("json_schema", {}).get("schema", {}).get("properties", {}) 
+    )
+    assert "label" in properties, "Expected 'label' field in response_format schema"
+    assert "explanation" in properties, "Expected 'explanation' field in response_format schema"
 
 
 

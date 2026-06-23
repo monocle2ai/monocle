@@ -1,7 +1,6 @@
 import pytest
 import os
-from opentelemetry.context import get_value
-from monocle_apptrace.instrumentation.common.constants import MONOCLE_WORKFLOW_NAME_KEY
+from monocle_apptrace.instrumentation.common.utils import get_workflow_name
 from monocle_test_tools import MonocleValidator
 TEST_WORKFLOW_NAME = "test_workflow"
 
@@ -15,4 +14,4 @@ def setup():
 def test_workflow_env(setup):
     #verify that the workflow name is set correctly in the validator
     validator = MonocleValidator()
-    assert get_value(MONOCLE_WORKFLOW_NAME_KEY) == TEST_WORKFLOW_NAME
+    assert get_workflow_name() == TEST_WORKFLOW_NAME

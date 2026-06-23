@@ -74,13 +74,20 @@ def get_params(args) -> dict:
         question = params.get('question', [''])[0]
         if question:
             return question
-        body = args.get('_request_body', b'')
-        if body:
-            return (body.decode('utf-8') if isinstance(body, bytes) else str(body))[:MAX_DATA_LENGTH]
 
     except Exception as e:
         logger.warning(f"Error extracting params: {e}")
         return {}
+
+def get_body(args) -> str:
+    try:
+        body = args.get('_request_body', b'')
+        if body:
+            return (body.decode('utf-8') if isinstance(body, bytes) else str(body))[:MAX_DATA_LENGTH]
+        return ""
+    except Exception as e:
+        logger.warning(f"Error extracting body: {e}")
+        return ""
 
 def extract_response(response) -> str:
     try:

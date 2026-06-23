@@ -36,7 +36,19 @@ def test_get_route_prefers_fastapi_route_template():
     assert _helper.get_route(scope) == "/api/v1/items/{item_id}"
 
 
-def test_get_params_reads_buffered_request_body():
+def test_get_body_reads_buffered_request_body():
     scope = {"query_string": b"", "_request_body": b'{"question":"hello"}'}
 
-    assert _helper.get_params(scope) == '{"question":"hello"}'
+    assert _helper.get_body(scope) == '{"question":"hello"}'
+
+
+def test_get_params_reads_question_query_param():
+    scope = {"query_string": b"question=hello", "_request_body": b'{"question":"body"}'}
+
+    assert _helper.get_params(scope) == "hello"
+
+
+def test_get_params_does_not_read_buffered_request_body():
+    scope = {"query_string": b"", "_request_body": b'{"question":"hello"}'}
+
+    assert _helper.get_params(scope) is None

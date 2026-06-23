@@ -43,39 +43,6 @@ async def fastapi_atask_wrapper(tracer, handler, to_wrap, wrapped, instance,
                                source_path, args, kwargs):
     """Wraps APIRoute.handle to capture POST body into scope['_request_body'],
     similar to how Werkzeug stores request data in environ['werkzeug.request']."""
-    receive_in_kwargs = 'receive' in kwargs
-    scope = kwargs.get('scope') if 'scope' in kwargs else (args[0] if len(args) > 0 else None)
-    receive = kwargs.get('receive') if receive_in_kwargs else (args[1] if len(args) > 1 else None)
-    if isinstance(scope, dict) and receive is not None and scope.get('method') is not None:
-        buffered, body = [], b''
-        try:
-            while True:
-                msg = await receive()
-                buffered.append(msg)
-                if msg.get('type') == 'http.request':
-                    body += msg.get('body', b'')
-                    if not msg.get('more_body', False):
-                        break
-                else:
-                    # http.disconnect or any non-body message; stop draining
-                    break
-            scope['_request_body'] = body
-        except Exception as e:
-            logger.warning(f"Error pre-reading request body: {e}")
-
-        idx = 0
-        async def _receive():
-            nonlocal idx
-            if idx < len(buffered):
-                msg = buffered[idx]
-                idx += 1
-                return msg
-            return await receive()
-
-        if receive_in_kwargs:
-            kwargs = {**kwargs, 'receive': _receive}
-        else:
-            args = (scope, _receive) + args[2:]
     scope, receive = args[0], args[1]
     if scope.get('method', 'GET') in ('POST', 'PUT', 'PATCH'):
         args = (scope, await _buffer_request_body(scope, receive)) + args[2:]

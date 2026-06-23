@@ -398,7 +398,8 @@ class OkahuEval(BaseEval):
                         job_id=job_id,
                         eval_result=eval_result,
                         template_name=eval_name,
-                        fact_name=fact_name
+                        fact_name=fact_name,
+                        template=template
                     )
 
         return label, explanation

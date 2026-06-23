@@ -286,33 +286,31 @@ class OkahuEval(BaseEval):
 
         return job_id, label, explanation, eval_result
 
-    def evaluate(self, filtered_spans: Optional[list[Span]] = [], eval_name: Optional[str] = "", fact_name: Optional[str] = "traces", eval_args: dict = {}) -> Union[str, dict]:
-        if not eval_name:
-            raise ValueError("eval_name is required for evaluation.")
-        
+    def evaluate(self, filtered_spans: Optional[list[Span]] = [], eval_name: Optional[str] = "", fact_name: Optional[str] = "traces", eval_args: dict = {}, template: Optional[dict] = None) -> Union[str, dict]:
+        if template:
+            eval_name = template.get("name", "custom_eval")
+        elif not eval_name:
+            raise ValueError("eval_name is required for evaluation (or provide a custom template).")
+
         if not filtered_spans:
             raise ValueError("No spans provided for evaluation.")
-        
-        # Validate and default fact_name if not provided
+
         if not fact_name:
             fact_name = "traces"
-        
-        # Map user-friendly fact name to Okahu fact name
+
         fact_name = self._map_fact_name(fact_name)
-        
-        # Get API credentials
+
         api_key = (os.getenv("OKAHU_API_KEY") or "").strip()
         if not api_key:
             raise AssertionError("OKAHU_API_KEY is not configured.")
 
-        # Export on first eval call only
         if not self._trace_exported:
             self.export_trace(filtered_spans)
-        
-        # Verify eval template exists before submitting job
-        self.verify_eval_template_exists(eval_name=eval_name, fact_name=fact_name)
 
-        # setting parameters, headers, payload for eval job submission
+        # Only verify template existence for standard Okahu templates
+        if not template:
+            self.verify_eval_template_exists(eval_name=eval_name, fact_name=fact_name)
+
         span = filtered_spans[0]
         workflow_name = span.attributes.get("workflow.name")
         base = os.getenv("OKAHU_EVALUATION_ENDPOINT", OKAHU_PROD_EVALUATION_ENDPOINT).rstrip("/")
@@ -323,9 +321,12 @@ class OkahuEval(BaseEval):
             raise AssertionError(f"No fact IDs found in spans for fact_name='{fact_name}'.")
 
         headers = {"x-api-key": api_key}
-        # Propagate baggage for traceability
         W3CBaggagePropagator().inject(headers)
-        payload = {"template_name": eval_name}
+
+        if template:
+            payload = {"template": template}
+        else:
+            payload = {"template_name": eval_name}
         label = None
         explanation = ""
 

@@ -5,6 +5,7 @@
 - feat(exporters): add `MONOCLE_CONSOLE` env var to enable console output alongside any configured exporter ([#577](https://github.com/monocle2ai/monocle/pull/577))
 - fix(test_tools): lazy-load `SentenceTransformer` to prevent crash at pytest collection time in network-restricted environments ([#576](https://github.com/monocle2ai/monocle/pull/576))
 
+## Version 0.8.5 (2026-06-23)
 ## Version 0.8.4 (2026-06-08)
 - feat: Copilot CLI and VS Code Copilot instrumentation ([#586](https://github.com/monocle2ai/monocle/pull/586))
 - feat: Instrument LiteLLM async methods

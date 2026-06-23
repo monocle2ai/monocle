@@ -1,5 +1,6 @@
 import logging
-from threading import local
+from collections import deque
+
 from monocle_apptrace.instrumentation.common.utils import extract_http_headers, clear_http_scopes, get_exception_status_code, with_tracer_wrapper
 from monocle_apptrace.instrumentation.common.wrapper import amonocle_wrapper
 from monocle_apptrace.instrumentation.common.span_handler import SpanHandler, HttpSpanHandler
@@ -12,44 +13,39 @@ import urllib.parse
 logger = logging.getLogger(__name__)
 MAX_DATA_LENGTH = 1000
 
+
+async def _buffer_request_body(scope, receive):
+    messages = []
+    body_chunks = []
+
+    while True:
+        message = await receive()
+        messages.append(message)
+        if message.get("type") != "http.request":
+            break
+
+        body_chunks.append(message.get("body", b""))
+        if not message.get("more_body", False):
+            break
+
+    scope["_request_body"] = b"".join(body_chunks)
+    replay_messages = deque(messages)
+
+    async def _receive():
+        if replay_messages:
+            return replay_messages.popleft()
+        return await receive()
+
+    return _receive
+
 @with_tracer_wrapper
 async def fastapi_atask_wrapper(tracer, handler, to_wrap, wrapped, instance,
                                source_path, args, kwargs):
     """Wraps APIRoute.handle to capture POST body into scope['_request_body'],
     similar to how Werkzeug stores request data in environ['werkzeug.request']."""
-    receive_in_kwargs = 'receive' in kwargs
-    scope = kwargs.get('scope') if 'scope' in kwargs else (args[0] if len(args) > 0 else None)
-    receive = kwargs.get('receive') if receive_in_kwargs else (args[1] if len(args) > 1 else None)
-    if isinstance(scope, dict) and receive is not None and scope.get('method') is not None:
-        buffered, body = [], b''
-        try:
-            while True:
-                msg = await receive()
-                buffered.append(msg)
-                if msg.get('type') == 'http.request':
-                    body += msg.get('body', b'')
-                    if not msg.get('more_body', False):
-                        break
-                else:
-                    # http.disconnect or any non-body message; stop draining
-                    break
-            scope['_request_body'] = body
-        except Exception as e:
-            logger.warning(f"Error pre-reading request body: {e}")
-
-        idx = 0
-        async def _receive():
-            nonlocal idx
-            if idx < len(buffered):
-                msg = buffered[idx]
-                idx += 1
-                return msg
-            return await receive()
-
-        if receive_in_kwargs:
-            kwargs = {**kwargs, 'receive': _receive}
-        else:
-            args = (scope, _receive) + args[2:]
+    scope, receive = args[0], args[1]
+    if scope.get('method', 'GET') in ('POST', 'PUT', 'PATCH'):
+        args = (scope, await _buffer_request_body(scope, receive)) + args[2:]
     return await amonocle_wrapper(
         tracer, handler, to_wrap, wrapped, instance, source_path, args, kwargs
     )
@@ -62,6 +58,9 @@ def get_url(args) -> str:
     return f"{scheme}://{host}:{port}{path}"
 
 def get_route(scope) -> str:
+    route = scope.get('route')
+    if route is not None and getattr(route, 'path', None):
+        return route.path
     return scope.get('path', '')
 
 def get_method(scope) -> str:
@@ -69,34 +68,25 @@ def get_method(scope) -> str:
 
 def get_params(args) -> dict:
     try:
-        query_bytes = args.get("query_string", "")
-        query_str = query_bytes.decode('utf-8')
-        params = urllib.parse.parse_qs(query_str)
-        question = params.get('question', [''])[0]
-        if question:
-            return question
-        return json.dumps(params) if params else ""
+        query_bytes = args.get("query_string", b"")
+        query_str = query_bytes.decode('utf-8') if isinstance(query_bytes, bytes) else str(query_bytes)
+        if query_str:
+            return urllib.parse.unquote(query_str)
+        return ""
+
     except Exception as e:
         logger.warning(f"Error extracting params: {e}")
         return {}
-    
-def get_request_body(args) -> str:
+
+def get_body(args) -> str:
     try:
         body = args.get('_request_body', b'')
         if body:
-            data = json.loads(body.decode("utf-8"))
-            if isinstance(data, (dict, list)):
-                if not data:
-                    return ""
-                return json.dumps(data)[:MAX_DATA_LENGTH]
-            return data
-        else:
-            data = args.get('_request_body', b'').decode("utf-8")
-            return data[:MAX_DATA_LENGTH]
-    except Exception as e:
-        logger.warning(f"Error extracting request body: {e}")
+            return (body.decode('utf-8') if isinstance(body, bytes) else str(body))[:MAX_DATA_LENGTH]
         return ""
-
+    except Exception as e:
+        logger.warning(f"Error extracting body: {e}")
+        return ""
 
 def extract_response(response) -> str:
     try:

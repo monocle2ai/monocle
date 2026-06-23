@@ -45,7 +45,20 @@ class LanggraphStreamProcessor(BaseStreamProcessor):
         return True
 
     def handle_chunk(self, item: Any, state: StreamState) -> bool:
-        """Handle dict-based chunks (all LangGraph v2 stream modes)."""
+        """Handle stream chunks and extract text and token usage."""
+        # LangGraph v1 streaming: (channel_keys, mode, data) e.g. ((), "values", {"messages": [...]})
+        if isinstance(item, tuple) and len(item) == 3:
+            _, mode, data = item
+            if mode in ("values", "updates") and isinstance(data, dict):
+                text = self._extract_text_from_data(data)
+                if text:
+                    state.update_first_token_time()
+                    state.accumulated_response = text
+                usage = self._extract_usage_from_data(data)
+                if usage:
+                    state.token_usage = usage
+            return True
+
         if not isinstance(item, dict):
             return False
 

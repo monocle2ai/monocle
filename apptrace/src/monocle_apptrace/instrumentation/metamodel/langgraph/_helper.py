@@ -174,7 +174,9 @@ def get_tool_description(instance) -> str:
     """Get the description of the tool."""
     return get_description(instance)
 
-def extract_thread_id(kwargs) -> str:
+def extract_thread_id(args, kwargs) -> str:
+    if 'config' not in kwargs and len(args) > 1:
+        kwargs = {**kwargs, 'config': args[1]}
     thread_id = None
     if 'config' in kwargs and 'configurable' in kwargs['config']:
         thread_id = kwargs['config']['configurable'].get('thread_id')

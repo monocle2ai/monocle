@@ -53,7 +53,7 @@ class LanggraphAgentHandler(SpanHandler):
                 agent_request_wrapper["output_processor_list"] = [AGENT_REQUEST, AGENT]
             else:
                 agent_request_wrapper["output_processor"] = AGENT_REQUEST
-            session_id = extract_thread_id(kwargs)
+            session_id = extract_thread_id(args, kwargs)
             if session_id is not None:
                 return start_scope(AGENT_SESSION, scope_value=session_id, context=context), agent_request_wrapper
             return attach(context), agent_request_wrapper

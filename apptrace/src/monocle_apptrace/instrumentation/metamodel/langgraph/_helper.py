@@ -1,5 +1,5 @@
 from opentelemetry.context import get_value
-from monocle_apptrace.instrumentation.common.utils import resolve_from_alias, get_json_dumps
+from monocle_apptrace.instrumentation.common.utils import resolve_from_alias, get_json_dumps, extract_content_text
 from monocle_apptrace.instrumentation.common.constants import AGENT_NAME_KEY, LAST_AGENT_INVOCATION_ID, LAST_AGENT_NAME
 import logging
 logger = logging.getLogger(__name__)
@@ -10,9 +10,20 @@ LANGGRAPTH_AGENT_NAME_KEY = "agent.langgraph"
 
 def extract_agent_response(response):
     try:
-        if response is not None and 'messages' in response:
-            output = response["messages"][-1]
-            return str(output.content)
+        if response is None:
+            return ""
+        # astream emits a checkpoint tuple ((), 'debug', {payload}) as its final item
+        if isinstance(response, tuple) and len(response) >= 3 and isinstance(response[2], dict):
+            values = response[2].get('payload', {}).get('values', {})
+            if 'messages' in values and values['messages']:
+                return extract_content_text(values['messages'][-1].content)
+            return ""
+        if isinstance(response, dict) and 'messages' in response:
+            return extract_content_text(response['messages'][-1].content)
+        if isinstance(response, dict):
+            for value in response.values():
+                if isinstance(value, dict) and 'messages' in value and value['messages']:
+                    return extract_content_text(value['messages'][-1].content)
     except Exception as e:
         logger.warning("Warning: Error occurred in handle_response: %s", str(e))
     return ""
@@ -39,12 +50,16 @@ def extract_agent_input(arguments):
                     messages.append(message.content)
                 elif isinstance(message, dict) and message.get('role') == "user" and 'content' in message:  # Check if it's a dict with role and content
                     messages.append(message['content'])
-        elif arguments['args'] is not None and len(arguments['args']) > 0 and 'messages' in arguments['args'][0]:
+                elif isinstance(message, dict) and message.get('type') == "human" and 'content' in message:
+                    messages.append(message['content'])
+        elif arguments['args'] is not None and len(arguments['args']) > 0 and isinstance(arguments['args'][0], dict) and 'messages' in arguments['args'][0]:
             history = arguments['args'][0]['messages']
             for message in history:
                 if hasattr(message, 'type') and message.type == "human":
                     messages.append(message.content)
                 elif isinstance(message, dict) and message.get('role') == "user" and 'content' in message:  # Check if it's a dict with role and content
+                    messages.append(message['content'])
+                elif isinstance(message, dict) and message.get('type') == "human" and 'content' in message:
                     messages.append(message['content'])
         return get_json_dumps(messages) if messages else ""
     except Exception as e:

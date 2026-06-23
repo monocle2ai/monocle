@@ -119,4 +119,7 @@ class LanggraphToolHandler(SpanHandler):
         # Filter out ParentCommand exceptions as they are LangGraph control flow mechanisms, not actual errors
         if ParentCommand is not None and isinstance(ex, ParentCommand):
             ex = None  # Suppress the ParentCommand exception from being recorded
+        # Use the tool's registered name as the span name rather than the wrapper class path
+        if hasattr(instance, "name") and instance.name:
+            span.update_name(instance.name)
         return super().hydrate_span(to_wrap, wrapped, instance, args, kwargs, result, span, parent_span, ex, is_post_exec)

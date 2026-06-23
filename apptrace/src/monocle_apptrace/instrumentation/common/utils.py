@@ -455,6 +455,16 @@ def get_json_dumps(obj) -> str:
     except TypeError as e:
         return str(obj)
 
+def extract_content_text(content) -> str:
+    """Extract plain text from a message content field.
+    Handles both plain strings and OpenAI-style content block lists
+    ([{'type': 'text', 'text': '...'}]).
+    """
+    if isinstance(content, list):
+        texts = [b.get('text', '') for b in content if isinstance(b, dict) and b.get('type') == 'text']
+        return ' '.join(texts)
+    return str(content)
+
 class Option(Generic[T]):
     def __init__(self, value: Optional[T]):
         self.value = value

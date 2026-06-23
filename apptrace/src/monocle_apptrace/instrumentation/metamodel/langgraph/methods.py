@@ -1,4 +1,4 @@
-from monocle_apptrace.instrumentation.common.wrapper import task_wrapper, atask_wrapper
+from monocle_apptrace.instrumentation.common.wrapper import task_wrapper, atask_wrapper, atask_iter_wrapper
 from monocle_apptrace.instrumentation.metamodel.langgraph.entities.inference import (
     AGENT,
     TOOLS,
@@ -19,6 +19,24 @@ LANGGRAPH_METHODS = [
         "object": "CompiledStateGraph",
         "method": "ainvoke",
         "wrapper_method": atask_wrapper,
+        "span_handler": "langgraph_agent_handler",
+        "scope_name": "agent.invocation",
+        "output_processor": AGENT,
+    },
+    {
+        "package": "langgraph.graph.state",
+        "object": "CompiledStateGraph",
+        "method": "astream",
+        "wrapper_method": atask_iter_wrapper,
+        "span_handler": "langgraph_agent_handler",
+        "scope_name": "agent.invocation",
+        "output_processor": AGENT,
+    },
+    {
+        "package": "langgraph.graph.state",
+        "object": "CompiledStateGraph",
+        "method": "astream_events",
+        "wrapper_method": atask_iter_wrapper,
         "span_handler": "langgraph_agent_handler",
         "scope_name": "agent.invocation",
         "output_processor": AGENT,

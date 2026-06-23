@@ -68,12 +68,11 @@ def get_method(scope) -> str:
 
 def get_params(args) -> dict:
     try:
-        query_bytes = args.get("query_string", "")
-        query_str = query_bytes.decode('utf-8')
-        params = urllib.parse.parse_qs(query_str)
-        question = params.get('question', [''])[0]
-        if question:
-            return question
+        query_bytes = args.get("query_string", b"")
+        query_str = query_bytes.decode('utf-8') if isinstance(query_bytes, bytes) else str(query_bytes)
+        if query_str:
+            return urllib.parse.unquote(query_str)
+        return ""
 
     except Exception as e:
         logger.warning(f"Error extracting params: {e}")

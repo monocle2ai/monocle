@@ -12,6 +12,10 @@ def extract_agent_response(response):
     try:
         if response is None:
             return ""
+        # stream processor result (SimpleNamespace with output_text from LanggraphStreamProcessor)
+        output_text = getattr(response, 'output_text', None)
+        if output_text:
+            return str(output_text)
         # astream emits a checkpoint tuple ((), 'debug', {payload}) as its final item
         if isinstance(response, tuple) and len(response) >= 3 and isinstance(response[2], dict):
             values = response[2].get('payload', {}).get('values', {})
@@ -47,20 +51,20 @@ def extract_agent_input(arguments):
             history = arguments['kwargs']['input']['messages']
             for message in history:
                 if hasattr(message, 'type') and message.type == "human":
-                    messages.append(message.content)
-                elif isinstance(message, dict) and message.get('role') == "user" and 'content' in message:  # Check if it's a dict with role and content
-                    messages.append(message['content'])
+                    messages.append(extract_content_text(message.content))
+                elif isinstance(message, dict) and message.get('role') == "user" and 'content' in message:
+                    messages.append(extract_content_text(message['content']))
                 elif isinstance(message, dict) and message.get('type') == "human" and 'content' in message:
-                    messages.append(message['content'])
+                    messages.append(extract_content_text(message['content']))
         elif arguments['args'] is not None and len(arguments['args']) > 0 and isinstance(arguments['args'][0], dict) and 'messages' in arguments['args'][0]:
             history = arguments['args'][0]['messages']
             for message in history:
                 if hasattr(message, 'type') and message.type == "human":
-                    messages.append(message.content)
-                elif isinstance(message, dict) and message.get('role') == "user" and 'content' in message:  # Check if it's a dict with role and content
-                    messages.append(message['content'])
+                    messages.append(extract_content_text(message.content))
+                elif isinstance(message, dict) and message.get('role') == "user" and 'content' in message:
+                    messages.append(extract_content_text(message['content']))
                 elif isinstance(message, dict) and message.get('type') == "human" and 'content' in message:
-                    messages.append(message['content'])
+                    messages.append(extract_content_text(message['content']))
         return get_json_dumps(messages) if messages else ""
     except Exception as e:
         logger.warning("Warning: Error occurred in extract_agent_input: %s", str(e))
@@ -86,15 +90,34 @@ def tools(instance):
 def update_span_from_llm_response(response):
     meta_dict = {}
     token_usage = None
-    if response is not None and "messages" in response:
+    if response is not None and "messages" in response and isinstance(response["messages"], list) and len(response["messages"]) > 0:
         token = response["messages"][-1]
         if token.response_metadata is not None:
-            token_usage = token.response_metadata["token_usage"]
+            token_usage = token.response_metadata.get("token_usage")
         if token_usage is not None:
             meta_dict.update({"completion_tokens": token_usage.get('completion_tokens')})
             meta_dict.update({"prompt_tokens": token_usage.get('prompt_tokens')})
             meta_dict.update({"total_tokens": token_usage.get('total_tokens')})
     return meta_dict
+
+def update_span_from_stream_response(response):
+    meta_dict = {}
+    try:
+        usage = getattr(response, 'usage', None)
+        if usage and isinstance(usage, dict):
+            meta_dict.update({
+                "completion_tokens": usage.get('completion_tokens', 0),
+                "prompt_tokens": usage.get('prompt_tokens', 0),
+                "total_tokens": usage.get('total_tokens', 0),
+            })
+    except Exception as e:
+        logger.warning("Warning: Error in update_span_from_stream_response: %s", str(e))
+    return meta_dict
+
+def update_span_from_response(response):
+    if response is not None and hasattr(response, 'usage'):
+        return update_span_from_stream_response(response)
+    return update_span_from_llm_response(response)
 
 def extract_tool_response(result):
     if result is not None and hasattr(result, 'content'):

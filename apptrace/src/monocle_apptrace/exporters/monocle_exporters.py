@@ -18,6 +18,7 @@ monocle_exporters: Dict[str, Any] = {
     "console": {"module": "opentelemetry.sdk.trace.export", "class": "ConsoleSpanExporter"},
     "otlp": {"module": "opentelemetry.exporter.otlp.proto.http.trace_exporter", "class": "OTLPSpanExporter"},
     "gcs" : {"module": "monocle_apptrace.exporters.gcp.gcs_exporter", "class": "GCSSpanExporter"},
+    "postgres": {"module": "monocle_apptrace.exporters.postgres.postgres_exporter", "class": "PostgresSpanExporter"},
     "paygentic": {"module": "monocle_apptrace.exporters.paygentic.paygentic_exporter", "class": "PaygenticSpanExporter"}
 }
 

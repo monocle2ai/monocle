@@ -132,3 +132,66 @@ class TestSpanBuffering(unittest.TestCase):
         with patch.object(self.exporter, "_insert_trace") as mock_insert:
             self.exporter._cleanup_expired_traces()
         mock_insert.assert_not_called()
+
+
+import psycopg2
+
+class TestInsert(unittest.TestCase):
+    def setUp(self):
+        os.environ["MONOCLE_POSTGRES_CONNECTION_URL"] = "postgresql://u:p@h/db"
+        with patch("psycopg2.connect"):
+            from importlib import reload
+            import monocle_apptrace.exporters.postgres.postgres_exporter as m
+            reload(m)
+            self.exporter = m.PostgresSpanExporter()
+        # Set up a reusable mock cursor as a context manager
+        self.mock_cursor = MagicMock()
+        self.exporter.connection.cursor.return_value.__enter__ = lambda s: self.mock_cursor
+        self.exporter.connection.cursor.return_value.__exit__ = MagicMock(return_value=False)
+
+    def tearDown(self):
+        os.environ.pop("MONOCLE_POSTGRES_CONNECTION_URL", None)
+
+    def test_insert_trace_calls_execute_values(self):
+        self.exporter.trace_spans[0xAABB] = ([_make_span()], datetime.datetime.now(), True)
+        with patch("psycopg2.extras.execute_values") as mock_ev:
+            self.exporter._insert_trace(0xAABB)
+        mock_ev.assert_called_once()
+        args = mock_ev.call_args[0]
+        self.assertEqual(args[0], self.mock_cursor)
+        self.assertIn("INSERT INTO traces", args[1])
+        self.assertEqual(len(args[2]), 1)
+
+    def test_insert_trace_removes_from_buffer(self):
+        self.exporter.trace_spans[0xAABB] = ([_make_span()], datetime.datetime.now(), True)
+        with patch("psycopg2.extras.execute_values"):
+            self.exporter._insert_trace(0xAABB)
+        self.assertNotIn(0xAABB, self.exporter.trace_spans)
+
+    def test_bad_span_skipped_good_span_inserted(self):
+        good_span = _make_span(span_id=0x1111)
+        bad_span  = _make_span(span_id=0x2222)
+        bad_span.to_json.side_effect = Exception("serialization error")
+        self.exporter.trace_spans[0xAABB] = ([good_span, bad_span],
+                                              datetime.datetime.now(), True)
+        with patch("psycopg2.extras.execute_values") as mock_ev:
+            self.exporter._insert_trace(0xAABB)
+        rows = mock_ev.call_args[0][2]
+        self.assertEqual(len(rows), 1)
+
+    @patch("psycopg2.connect")
+    def test_reconnects_and_retries_on_operational_error(self, mock_connect):
+        self.exporter.trace_spans[0xAABB] = ([_make_span()], datetime.datetime.now(), True)
+        call_count = {"n": 0}
+
+        def do_insert_side_effect(rows):
+            call_count["n"] += 1
+            if call_count["n"] == 1:
+                raise psycopg2.OperationalError("server closed connection")
+
+        with patch.object(self.exporter, "_do_insert", side_effect=do_insert_side_effect):
+            self.exporter._insert_trace(0xAABB)
+
+        mock_connect.assert_called()
+        self.assertEqual(call_count["n"], 2)
+        self.assertNotIn(0xAABB, self.exporter.trace_spans)

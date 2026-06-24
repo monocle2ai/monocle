@@ -85,8 +85,38 @@ class PostgresSpanExporter(SpanExporterBase):
         for trace_id in expired:
             self._insert_trace(trace_id)
 
+    def _reconnect(self) -> None:
+        try:
+            self.connection.close()
+        except Exception:
+            pass
+        self.connection = psycopg2.connect(self.connection_url)
+
+    def _do_insert(self, rows: list) -> None:
+        with self.connection.cursor() as cursor:
+            psycopg2.extras.execute_values(cursor, INSERT_SQL, rows)
+        self.connection.commit()
+
     def _insert_trace(self, trace_id: int) -> None:
-        raise NotImplementedError
+        if trace_id not in self.trace_spans:
+            return
+        spans, _, _ = self.trace_spans[trace_id]
+        rows = []
+        for span in spans:
+            if self.skip_export(span):
+                continue
+            try:
+                rows.append(self._build_row(span))
+            except Exception as e:
+                logger.warning(f"Error serializing span {span.context.span_id}: {e}")
+        if rows:
+            try:
+                self._do_insert(rows)
+            except psycopg2.OperationalError as e:
+                logger.warning(f"DB connection error, attempting reconnect: {e}")
+                self._reconnect()
+                self._do_insert(rows)
+        del self.trace_spans[trace_id]
 
     def export(self, spans: Sequence[ReadableSpan]) -> SpanExportResult:
         raise NotImplementedError

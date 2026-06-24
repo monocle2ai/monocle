@@ -243,3 +243,34 @@ class TestExport(unittest.TestCase):
 
         self.assertEqual(len(self.exporter.trace_spans), 0)
         mock_insert.assert_not_called()
+
+
+class TestFlushAndShutdown(unittest.TestCase):
+    def setUp(self):
+        os.environ["MONOCLE_POSTGRES_CONNECTION_URL"] = "postgresql://u:p@h/db"
+        with patch("psycopg2.connect"):
+            from importlib import reload
+            import monocle_apptrace.exporters.postgres.postgres_exporter as m
+            reload(m)
+            self.exporter = m.PostgresSpanExporter()
+
+    def tearDown(self):
+        os.environ.pop("MONOCLE_POSTGRES_CONNECTION_URL", None)
+
+    def test_force_flush_inserts_all_buffered_traces(self):
+        self.exporter.trace_spans[0xAAAA] = ([_make_span(trace_id=0xAAAA)],
+                                              datetime.datetime.now(), False)
+        self.exporter.trace_spans[0xBBBB] = ([_make_span(trace_id=0xBBBB)],
+                                              datetime.datetime.now(), False)
+        with patch.object(self.exporter, "_insert_trace") as mock_insert:
+            result = self.exporter.force_flush()
+        self.assertTrue(result)
+        self.assertEqual(mock_insert.call_count, 2)
+        called_ids = {c.args[0] for c in mock_insert.call_args_list}
+        self.assertEqual(called_ids, {0xAAAA, 0xBBBB})
+
+    def test_shutdown_flushes_then_closes_connection(self):
+        with patch.object(self.exporter, "force_flush") as mock_flush:
+            self.exporter.shutdown()
+        mock_flush.assert_called_once()
+        self.exporter.connection.close.assert_called()

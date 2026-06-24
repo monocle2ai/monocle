@@ -145,4 +145,17 @@ class PostgresSpanExporter(SpanExporterBase):
             return SpanExportResult.FAILURE
 
     def force_flush(self, timeout_millis: int = 30000) -> bool:
-        raise NotImplementedError
+        for trace_id in list(self.trace_spans.keys()):
+            try:
+                self._insert_trace(trace_id)
+            except Exception as e:
+                logger.error(f"Error flushing trace {format_trace_id_without_0x(trace_id)}: {e}")
+        return True
+
+    def shutdown(self) -> None:
+        self.force_flush()
+        try:
+            self.connection.close()
+        except Exception:
+            pass
+        logger.info("PostgresSpanExporter has been shut down.")

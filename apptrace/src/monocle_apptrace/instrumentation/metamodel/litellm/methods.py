@@ -31,5 +31,5 @@ LITELLM_METHODS = [
         "method": "acompletion",
         "wrapper_method": atask_wrapper,
         "output_processor": INFERENCE
-    }
+    },
 ]

@@ -10,6 +10,7 @@ import unittest
 from pydantic import BaseModel
 
 from monocle_apptrace.instrumentation.metamodel.litellm._helper import (
+    extract_messages,
     extract_response_format,
 )
 from monocle_apptrace.instrumentation.metamodel.litellm.entities.inference import (
@@ -101,6 +102,35 @@ class TestLiteLLMInferenceDataInput(unittest.TestCase):
         result = _run_data_input(_make_arguments(None))
         self.assertIn("response_format", result)
         self.assertIsNone(result["response_format"])
+
+
+class TestLiteLLMExtractMessages(unittest.TestCase):
+    """Input extraction must work for both the OpenAI and Azure LiteLLM call shapes.
+
+    OpenAI's (a)completion is invoked with messages=..., but Azure's async acompletion
+    receives the already-transformed request as data={"messages": [...]}. Both must yield
+    the same captured input so prod eval inference spans capture the input for Azure too.
+    """
+
+    def test_extract_messages_from_top_level_messages(self):
+        kwargs = {"messages": [{"role": "user", "content": "What is coffee?"}]}
+        self.assertEqual(extract_messages(kwargs), ['{"user": "What is coffee?"}'])
+
+    def test_extract_messages_from_azure_data_dict(self):
+        # Azure async acompletion shape: messages live under data["messages"].
+        kwargs = {"data": {"messages": [{"role": "user", "content": "What is coffee?"}]}}
+        self.assertEqual(extract_messages(kwargs), ['{"user": "What is coffee?"}'])
+
+    def test_extract_messages_top_level_takes_precedence(self):
+        kwargs = {
+            "messages": [{"role": "user", "content": "top level"}],
+            "data": {"messages": [{"role": "user", "content": "nested"}]},
+        }
+        self.assertEqual(extract_messages(kwargs), ['{"user": "top level"}'])
+
+    def test_extract_messages_empty_when_no_messages(self):
+        self.assertEqual(extract_messages({"data": {}}), [])
+        self.assertEqual(extract_messages({}), [])
 
 
 if __name__ == "__main__":

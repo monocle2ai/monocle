@@ -119,7 +119,30 @@ class PostgresSpanExporter(SpanExporterBase):
         del self.trace_spans[trace_id]
 
     def export(self, spans: Sequence[ReadableSpan]) -> SpanExportResult:
-        raise NotImplementedError
+        try:
+            self._cleanup_expired_traces()
+            spans_by_trace: Dict[int, List[ReadableSpan]] = {}
+            root_span_traces: set = set()
+
+            for span in spans:
+                if self.skip_export(span):
+                    continue
+                trace_id = span.context.trace_id
+                spans_by_trace.setdefault(trace_id, []).append(span)
+                if not span.parent:
+                    root_span_traces.add(trace_id)
+
+            for trace_id, trace_spans in spans_by_trace.items():
+                self._add_spans_to_trace(trace_id, trace_spans,
+                                          trace_id in root_span_traces)
+
+            for trace_id in root_span_traces:
+                self._insert_trace(trace_id)
+
+            return SpanExportResult.SUCCESS
+        except Exception as e:
+            logger.error(f"Error exporting spans to Postgres: {e}")
+            return SpanExportResult.FAILURE
 
     def force_flush(self, timeout_millis: int = 30000) -> bool:
         raise NotImplementedError

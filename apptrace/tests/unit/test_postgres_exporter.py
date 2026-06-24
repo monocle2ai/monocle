@@ -195,3 +195,51 @@ class TestInsert(unittest.TestCase):
         mock_connect.assert_called()
         self.assertEqual(call_count["n"], 2)
         self.assertNotIn(0xAABB, self.exporter.trace_spans)
+
+
+class TestExport(unittest.TestCase):
+    def setUp(self):
+        os.environ["MONOCLE_POSTGRES_CONNECTION_URL"] = "postgresql://u:p@h/db"
+        with patch("psycopg2.connect"):
+            from importlib import reload
+            import monocle_apptrace.exporters.postgres.postgres_exporter as m
+            reload(m)
+            self.exporter = m.PostgresSpanExporter()
+
+    def tearDown(self):
+        os.environ.pop("MONOCLE_POSTGRES_CONNECTION_URL", None)
+
+    def test_child_buffered_root_triggers_insert(self):
+        child = _make_span(span_id=0x2222, parent_span_id=0x1111)
+        root  = _make_span(span_id=0x1111)
+
+        with patch.object(self.exporter, "_insert_trace") as mock_insert, \
+             patch.object(self.exporter, "_cleanup_expired_traces"):
+            self.exporter.export([child])
+            mock_insert.assert_not_called()
+
+            self.exporter.export([root])
+            mock_insert.assert_called_once_with(0xAABBCCDD)
+
+    def test_export_returns_success(self):
+        with patch.object(self.exporter, "_insert_trace"), \
+             patch.object(self.exporter, "_cleanup_expired_traces"):
+            result = self.exporter.export([_make_span()])
+        self.assertEqual(result, SpanExportResult.SUCCESS)
+
+    def test_export_returns_failure_on_exception(self):
+        with patch.object(self.exporter, "_cleanup_expired_traces",
+                          side_effect=RuntimeError("boom")):
+            result = self.exporter.export([_make_span()])
+        self.assertEqual(result, SpanExportResult.FAILURE)
+
+    def test_non_monocle_span_not_buffered(self):
+        span = _make_span()
+        span.attributes.get.return_value = None  # triggers skip_export
+
+        with patch.object(self.exporter, "_insert_trace") as mock_insert, \
+             patch.object(self.exporter, "_cleanup_expired_traces"):
+            self.exporter.export([span])
+
+        self.assertEqual(len(self.exporter.trace_spans), 0)
+        mock_insert.assert_not_called()

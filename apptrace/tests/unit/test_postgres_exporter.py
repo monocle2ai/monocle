@@ -97,3 +97,38 @@ class TestBuildRow(unittest.TestCase):
     def test_metadata_is_none(self):
         row = self.exporter._build_row(_make_span())
         self.assertIsNone(row[9])
+
+
+class TestSpanBuffering(unittest.TestCase):
+    def setUp(self):
+        os.environ["MONOCLE_POSTGRES_CONNECTION_URL"] = "postgresql://u:p@h/db"
+        with patch("psycopg2.connect"):
+            from importlib import reload
+            import monocle_apptrace.exporters.postgres.postgres_exporter as m
+            reload(m)
+            self.exporter = m.PostgresSpanExporter()
+
+    def tearDown(self):
+        os.environ.pop("MONOCLE_POSTGRES_CONNECTION_URL", None)
+
+    def test_spans_accumulated_across_calls(self):
+        span1 = _make_span(span_id=0x1111)
+        span2 = _make_span(span_id=0x2222)
+        self.exporter._add_spans_to_trace(0xAABB, [span1], has_root=False)
+        self.exporter._add_spans_to_trace(0xAABB, [span2], has_root=True)
+        buffered_spans, _, has_root = self.exporter.trace_spans[0xAABB]
+        self.assertEqual(len(buffered_spans), 2)
+        self.assertTrue(has_root)
+
+    def test_expired_trace_flushed(self):
+        old_time = datetime.datetime.now() - datetime.timedelta(seconds=61)
+        self.exporter.trace_spans[0xAABB] = ([_make_span()], old_time, False)
+        with patch.object(self.exporter, "_insert_trace") as mock_insert:
+            self.exporter._cleanup_expired_traces()
+        mock_insert.assert_called_once_with(0xAABB)
+
+    def test_non_expired_trace_not_flushed(self):
+        self.exporter.trace_spans[0xAABB] = ([_make_span()], datetime.datetime.now(), False)
+        with patch.object(self.exporter, "_insert_trace") as mock_insert:
+            self.exporter._cleanup_expired_traces()
+        mock_insert.assert_not_called()

@@ -65,6 +65,29 @@ class PostgresSpanExporter(SpanExporterBase):
             None,   # metadata — reserved for future use
         )
 
+    def _add_spans_to_trace(self, trace_id: int, spans: List[ReadableSpan],
+                             has_root: bool = False) -> None:
+        if trace_id in self.trace_spans:
+            existing_spans, creation_time, existing_root = self.trace_spans[trace_id]
+            existing_spans.extend(spans)
+            self.trace_spans[trace_id] = (existing_spans, creation_time,
+                                           has_root or existing_root)
+        else:
+            self.trace_spans[trace_id] = (spans.copy(), datetime.datetime.now(), has_root)
+
+    def _cleanup_expired_traces(self) -> None:
+        current_time = datetime.datetime.now()
+        expired = [
+            trace_id
+            for trace_id, (_, creation_time, _) in self.trace_spans.items()
+            if (current_time - creation_time).total_seconds() > HANDLE_TIMEOUT_SECONDS
+        ]
+        for trace_id in expired:
+            self._insert_trace(trace_id)
+
+    def _insert_trace(self, trace_id: int) -> None:
+        raise NotImplementedError
+
     def export(self, spans: Sequence[ReadableSpan]) -> SpanExportResult:
         raise NotImplementedError
 

@@ -37,8 +37,12 @@ def extract_messages(kwargs):
     """Extract system and user messages"""
     try:
         messages = []
-        if 'messages' in kwargs and len(kwargs['messages']) > 0:
-            for msg in kwargs['messages']:
+        # Azure async passes messages under kwargs["data"]["messages"]; fall back to that.
+        raw_messages = kwargs.get('messages')
+        if not raw_messages and isinstance(kwargs.get('data'), dict):
+            raw_messages = kwargs['data'].get('messages')
+        if raw_messages and len(raw_messages) > 0:
+            for msg in raw_messages:
                 if msg.get('content') and msg.get('role'):
                     messages.append({msg['role']: msg['content']})
 
@@ -49,10 +53,38 @@ def extract_messages(kwargs):
 
 
 def extract_response_format(kwargs):
-    """Extract response_format from kwargs["optional_params"] (where litellm moves it)."""
+    """Extract response_format from LiteLLM kwargs.
+
+    Checks two locations:
+    1. optional_params["response_format"] — used by OpenAI and Azure sync paths.
+    2. data["tools"] json_tool_call — used by Azure async when a Pydantic model is passed.
+    """
     try:
+        # 1. optional_params dict — LiteLLM moves response_format here before
+        #    calling the provider (both OpenAI and Azure sync paths).
         optional_params = kwargs.get("optional_params") or {}
         response_format = optional_params.get("response_format")
+
+        # 2. Azure async path: Pydantic model was converted to a json_tool_call tool.
+        #    Detect by tool_choice == {"type": "function", "function": {"name": "json_tool_call"}}
+        if response_format is None:
+            data = kwargs.get("data") or {}
+            tool_choice = data.get("tool_choice")
+            if isinstance(tool_choice, dict):
+                chosen_name = (tool_choice.get("function") or {}).get("name")
+                if chosen_name == "json_tool_call":
+                    for tool in (data.get("tools") or []):
+                        fn = tool.get("function") or {}
+                        if fn.get("name") == "json_tool_call":
+                            params = fn.get("parameters")
+                            if params:
+                                # Wrap in json_schema envelope to match OpenAI's shape
+                                response_format = {
+                                    "type": "json_schema",
+                                    "json_schema": {"schema": params, "name": "response_format"},
+                                }
+                            break
+
         if response_format is None:
             return None
         if isinstance(response_format, dict):

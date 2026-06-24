@@ -15,6 +15,7 @@ __all__ = [
     "extract_tool_response",
     "should_skip_delegation",
     "should_skip_request",
+    "should_skip_stream_when_nested_under_call",
 ]
 
 
@@ -42,7 +43,23 @@ def extract_agent_input(arguments):
     return arguments['kwargs']['prompt']
 
 def extract_agent_response(result):
-    return result.message['content'][0]['text']
+    if result is None:
+        return ""
+
+    # stream_async yields dict events; final event is typically {"result": AgentResult}
+    if isinstance(result, dict) and "result" in result:
+        result = result.get("result")
+
+    # AgentResult object shape
+    if hasattr(result, "message") and result.message:
+        message = result.message
+        if isinstance(message, dict):
+            content = message.get("content", [])
+            if content and isinstance(content[0], dict) and "text" in content[0]:
+                return content[0]["text"]
+
+    # Fallback for unexpected shapes
+    return str(result)
 
 def get_tool_type(arguments):
     ## TODO: check for MCP type
@@ -72,3 +89,18 @@ def should_skip_request(arguments):
     if arguments.get('parent_span') and arguments.get('parent_span').attributes.get("span.type") in [SPAN_TYPES.AGENTIC_TOOL_INVOCATION, SPAN_TYPES.AGENTIC_REQUEST]:
         return True
     return False
+
+
+def should_skip_stream_when_nested_under_call(arguments):
+    """Skip stream_async agent spans only when stream_async is internally invoked by Agent.__call__."""
+    span = arguments.get("span")
+    parent_span = arguments.get("parent_span")
+
+    if span is None or parent_span is None:
+        return False
+
+    span_name = getattr(span, "name", "") or ""
+    parent_name = getattr(parent_span, "name", "") or ""
+
+    # __call__ internally invokes stream_async; instrumenting both creates duplicate turn/invocation spans.
+    return span_name.endswith("Agent.stream_async") and parent_name.endswith("Agent.__call__")

@@ -3,7 +3,7 @@ from opentelemetry.context import set_value, attach, detach, get_value
 from monocle_apptrace.instrumentation.common.constants import AGENT_PREFIX_KEY, SCOPE_NAME
 from monocle_apptrace.instrumentation.common.span_handler import SpanHandler
 from monocle_apptrace.instrumentation.metamodel.crew_ai._helper import (
-   DELEGATION_NAME_PREFIX, get_name, is_root_crew_name, is_delegation_task, CREW_AI_AGENT_NAME_KEY
+   DELEGATION_NAME_PREFIX, get_name, is_root_crew_name, is_delegation_task, CREW_AI_AGENT_NAME_KEY, is_streaming_mode
 )
 from monocle_apptrace.instrumentation.metamodel.crew_ai.entities.inference import (
     AGENT_DELEGATION, AGENT_REQUEST, AGENT
@@ -14,6 +14,14 @@ from monocle_apptrace.instrumentation.common.utils import is_scope_set
 logger = logging.getLogger(__name__)
 
 class CrewAIAgentHandler(SpanHandler):
+    def skip_span(self, to_wrap, wrapped, instance, args, kwargs) -> bool:
+        """Skip the initial kickoff span when streaming is enabled.
+        The actual execution will be traced through Task.execute_sync/execute_async"""
+        if is_streaming_mode(instance) and to_wrap.get('method') in ['kickoff', 'kickoff_async']:
+            logger.debug(f"Skipping span for streaming {to_wrap.get('method')} - tracing will happen at Task level")
+            return True
+        return False
+    
     def pre_tracing(self, to_wrap, wrapped, instance, args, kwargs):
         context = set_value(CREW_AI_AGENT_NAME_KEY, get_name(instance))
         context = set_value(AGENT_PREFIX_KEY, DELEGATION_NAME_PREFIX, context)

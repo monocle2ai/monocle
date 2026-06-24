@@ -41,6 +41,8 @@ def extract_messages(args):
                 messages.append({role: user_message})
             elif 'input' in args and 'text' in args['input']:
                 messages.append(args['input']['text'])
+            elif 'payload' in args:
+                messages.append(args['payload'])
         return [get_json_dumps(message) for message in messages]
     except Exception as e:
         logger.warning("Warning: Error occurred in extract_messages: %s", str(e))
@@ -95,6 +97,11 @@ def extract_assistant_message(arguments):
                 if hasattr(result_body, 'read'):
                     output = extract_invoke_model_response(arguments['result'])
                     messages.append(output)
+            if 'response' in arguments['result']:
+                result = arguments['result']['response']
+                if hasattr(result,'_raw_stream') and hasattr(result._raw_stream,'data'):
+                    output = result._raw_stream.data
+                    messages.append(output)
         else:
             if arguments["exception"] is not None:
                 return get_exception_message(arguments)
@@ -130,6 +137,8 @@ def get_model(kwargs):
         kb = kwargs['retrieveAndGenerateConfiguration']['knowledgeBaseConfiguration']
         if 'modelArn' in kb:
             return kb['modelArn'].split('/')[1]
+    if 'agentRuntimeArn' in kwargs:
+        return kwargs['agentRuntimeArn'].split('/')[1]
     return ''
 
 def get_vector_db(kwargs):

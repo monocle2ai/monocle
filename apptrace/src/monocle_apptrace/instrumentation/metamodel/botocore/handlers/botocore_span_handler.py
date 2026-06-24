@@ -11,7 +11,7 @@ class BotoCoreSpanHandler(SpanHandler):
         retrieval_methods = []
 
         # Methods that generate inference spans (default for most)
-        inference_methods = ["converse", "invoke_model", "invoke_data_automation_async", "invoke_endpoint"]
+        inference_methods = ["converse", "invoke_model", "invoke_data_automation_async", "invoke_endpoint","invoke_agent_runtime"]
 
         if method_name == "retrieve_and_generate":
             return [RETRIEVAL, INFERENCE]
@@ -31,6 +31,7 @@ class BotoCoreSpanHandler(SpanHandler):
             "bedrock-runtime": ["converse", "invoke_model"],
             "bedrock-agent-runtime": ["retrieve_and_generate"],
             "bedrock-data-automation-runtime": ["invoke_data_automation_async"],
+            "bedrock-agentcore": ["invoke_agent_runtime"],
         }
         if service_name in service_method_mapping:
             method_names = service_method_mapping[service_name]

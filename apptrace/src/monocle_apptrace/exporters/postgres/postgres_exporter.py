@@ -38,6 +38,33 @@ class PostgresSpanExporter(SpanExporterBase):
         self.connection = psycopg2.connect(self.connection_url)
         self.trace_spans: Dict[int, Tuple[List[ReadableSpan], datetime.datetime, bool]] = {}
 
+    def _build_row(self, span: ReadableSpan) -> tuple:
+        serialized = serialize_span(span)
+        start_time = datetime.datetime.fromtimestamp(
+            span.start_time / 1e9, tz=datetime.timezone.utc
+        )
+        end_time = datetime.datetime.fromtimestamp(
+            span.end_time / 1e9, tz=datetime.timezone.utc
+        )
+        span_id  = "0x" + format_span_id_without_0x(span.context.span_id)
+        trace_id = "0x" + format_trace_id_without_0x(span.context.trace_id)
+        parent_id = (
+            "0x" + format_span_id_without_0x(span.parent.span_id)
+            if span.parent else None
+        )
+        return (
+            span.name,
+            start_time,
+            end_time,
+            psycopg2.extras.Json(serialized.get("status")),
+            span_id,
+            trace_id,
+            parent_id,
+            psycopg2.extras.Json(serialized.get("attributes")),
+            psycopg2.extras.Json(serialized.get("events")),
+            None,   # metadata — reserved for future use
+        )
+
     def export(self, spans: Sequence[ReadableSpan]) -> SpanExportResult:
         raise NotImplementedError
 

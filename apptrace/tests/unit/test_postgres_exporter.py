@@ -58,3 +58,42 @@ class TestPostgresInit(unittest.TestCase):
         with self.assertRaises(ValueError):
             PostgresSpanExporter()
         mock_connect.assert_not_called()
+
+
+class TestBuildRow(unittest.TestCase):
+    def setUp(self):
+        os.environ["MONOCLE_POSTGRES_CONNECTION_URL"] = "postgresql://u:p@h/db"
+        with patch("psycopg2.connect"):
+            from importlib import reload
+            import monocle_apptrace.exporters.postgres.postgres_exporter as m
+            reload(m)
+            self.exporter = m.PostgresSpanExporter()
+
+    def tearDown(self):
+        os.environ.pop("MONOCLE_POSTGRES_CONNECTION_URL", None)
+
+    def test_span_id_has_0x_prefix(self):
+        row = self.exporter._build_row(_make_span(span_id=0xABCDEF0123456789))
+        self.assertEqual(row[4], "0xabcdef0123456789")
+
+    def test_trace_id_has_0x_prefix(self):
+        row = self.exporter._build_row(_make_span(trace_id=0xAABBCCDD11223344AABBCCDD11223344))
+        self.assertTrue(row[5].startswith("0x"))
+
+    def test_parent_id_is_none_for_root_span(self):
+        row = self.exporter._build_row(_make_span())  # no parent
+        self.assertIsNone(row[6])
+
+    def test_parent_id_has_0x_prefix_for_child_span(self):
+        row = self.exporter._build_row(_make_span(parent_span_id=0x1111222233334444))
+        self.assertEqual(row[6], "0x1111222233334444")
+
+    def test_timestamps_are_timezone_aware_datetimes(self):
+        row = self.exporter._build_row(_make_span())
+        self.assertIsInstance(row[1], datetime.datetime)
+        self.assertIsInstance(row[2], datetime.datetime)
+        self.assertIsNotNone(row[1].tzinfo)
+
+    def test_metadata_is_none(self):
+        row = self.exporter._build_row(_make_span())
+        self.assertIsNone(row[9])

@@ -1,5 +1,8 @@
-## 0.8.5 (2026-06-23)
+## Version 0.8.6 (2026-06-25)
+- fix: litellm input fix with AZURE OPENAI ([#656](https://github.com/monocle2ai/monocle/pull/656))
+- feat: capture FastAPI POST bodies in HTTP spans ([#643](https://github.com/monocle2ai/monocle/pull/643))
 
+## Version 0.8.5 (2026-06-23)
 - feat: propagate test scopes to eval service ([#640](https://github.com/monocle2ai/monocle/pull/640))
 - feat: add session-token-summary CLI command for local trace files ([#627](https://github.com/monocle2ai/monocle/pull/627))
 - fix: request body collection in HTTP spans ([#636](https://github.com/monocle2ai/monocle/pull/636))

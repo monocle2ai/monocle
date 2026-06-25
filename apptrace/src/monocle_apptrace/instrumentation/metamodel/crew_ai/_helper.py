@@ -38,10 +38,12 @@ def extract_request_agent_input(arguments):
     try:
         if arguments['kwargs'] is not None and 'inputs' in arguments['kwargs']:
             inputs = arguments['kwargs']['inputs']
+            # Stringify values: OpenTelemetry drops an event attribute whose value is a
+            # sequence containing a non-primitive (e.g. a dict), emptying data.input.
             if isinstance(inputs, dict):
-                return list(inputs.values())
+                return [str(value) for value in inputs.values()]
             elif isinstance(inputs, list):
-                return inputs
+                return [str(item) for item in inputs]
             else:
                 return [str(inputs)]
         return []

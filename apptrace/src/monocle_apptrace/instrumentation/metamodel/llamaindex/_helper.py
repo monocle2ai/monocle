@@ -109,6 +109,10 @@ def extract_tool_response(response):
             structured = response.raw_output.structuredContent
             if isinstance(structured, dict) and 'result' in structured:
                 return str(structured['result'])
+        # ToolOutput.content holds the serializable string result; raw_output may be a
+        # non-serializable object (e.g. a QueryEngine Response) that gets dropped.
+        if getattr(response, 'content', None):
+            return response.content
         return response.raw_output
     return ""
 
@@ -246,6 +250,21 @@ def extract_messages(args):
         logger.warning("Error in extract_messages: %s", str(e))
         return []
 
+def _extract_memory_messages(arg):
+    """Recover the agent's input messages from a LlamaIndex memory/buffer object."""
+    if hasattr(arg, 'get_all') and not isinstance(arg, (str, dict, list, tuple)):
+        try:
+            messages = arg.get_all()
+        except Exception:
+            return []
+        out = []
+        for msg in messages or []:
+            if hasattr(msg, 'content') and hasattr(msg, 'role') and msg.content:
+                role = getattr(msg.role, 'value', msg.role)
+                out.append(get_json_dumps({role: msg.content}))
+        return out
+    return []
+
 def extract_agent_input(args):
     if isinstance(args, (list, tuple)):
         input_args = []
@@ -254,6 +273,14 @@ def extract_agent_input(args):
                 input_args.append(arg)
             elif hasattr(arg, 'raw') and isinstance(arg.raw, str):
                 input_args.append(arg.raw)
+        if input_args:
+            return input_args
+        # Fallback: a handed-off agent's AgentOutput.raw is a non-string stream chunk,
+        # so recover its input from the chat memory passed to finalize.
+        for arg in args:
+            messages = _extract_memory_messages(arg)
+            if messages:
+                return messages
         return input_args
     elif isinstance(args, str):
         return [args]
@@ -272,6 +299,49 @@ def extract_agent_response(arguments):
             return get_exception_message(arguments)
         elif hasattr(arguments['result'], "error"):
             return arguments['result'].error
+
+def extract_step_input(args):
+    # FunctionAgent.take_step(ctx, llm_input, tools, memory); args excludes self.
+    # llm_input is the list of ChatMessages the agent reasons over.
+    if isinstance(args, (list, tuple)) and len(args) > 1:
+        return extract_messages((args[1],))
+    return ""
+
+def extract_step_output(arguments):
+    # take_step returns an AgentOutput: prefer its text, else summarize the tool calls
+    # it decided on (a tool-selecting step has no text content).
+    result = arguments.get('result')
+    if result is None:
+        return ""
+    response = getattr(result, 'response', None)
+    content = getattr(response, 'content', None) if response is not None else None
+    if content:
+        return content
+    tool_calls = getattr(result, 'tool_calls', None)
+    if tool_calls:
+        return get_json_dumps([
+            {"tool_name": getattr(tc, 'tool_name', None),
+             "tool_kwargs": getattr(tc, 'tool_kwargs', None)}
+            for tc in tool_calls
+        ])
+    return ""
+
+def extract_query_input(args):
+    # BaseQueryEngine.query/aquery(str_or_query_bundle); args excludes self.
+    if isinstance(args, (list, tuple)) and args:
+        query = args[0]
+        if isinstance(query, str):
+            return query
+        if hasattr(query, 'query_str'):
+            return query.query_str
+    return ""
+
+def extract_query_response(result):
+    if result is None:
+        return ""
+    if hasattr(result, 'response'):
+        return result.response if isinstance(result.response, str) else str(result.response)
+    return str(result)
 
 def extract_assistant_message(arguments):
     status = get_status_code(arguments)

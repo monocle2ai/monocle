@@ -179,3 +179,66 @@ AGENT_DELEGATION = {
         ]
       ]
 }
+
+# One reasoning step of an agent (FunctionAgent.take_step) -- the LLM round that
+# decides the next action. Carries the messages it reasoned over and the output it produced.
+AGENT_STEP = {
+    "type": SPAN_TYPES.GENERIC,
+    "attributes": [
+        [
+            {
+                "attribute": "type",
+                "accessor": lambda arguments: 'agent.llamaindex'
+            },
+            {
+                "attribute": "name",
+                "accessor": lambda arguments: _helper.get_agent_name(arguments['instance'])
+            }
+        ]
+    ],
+    "events": [
+        {
+            "name": "data.input",
+            "attributes": [
+                {
+                    "attribute": "input",
+                    "accessor": lambda arguments: _helper.extract_step_input(arguments['args'])
+                }
+            ]
+        },
+        {
+            "name": "data.output",
+            "attributes": [
+                {
+                    "attribute": "response",
+                    "accessor": lambda arguments: _helper.extract_step_output(arguments)
+                }
+            ]
+        }
+    ]
+}
+
+# A query-engine query (BaseQueryEngine.query/aquery) -- groups retrieval + synthesis.
+QUERY_ENGINE = {
+    "type": SPAN_TYPES.GENERIC,
+    "events": [
+        {
+            "name": "data.input",
+            "attributes": [
+                {
+                    "attribute": "input",
+                    "accessor": lambda arguments: _helper.extract_query_input(arguments['args'])
+                }
+            ]
+        },
+        {
+            "name": "data.output",
+            "attributes": [
+                {
+                    "attribute": "response",
+                    "accessor": lambda arguments: _helper.extract_query_response(arguments['result'])
+                }
+            ]
+        }
+    ]
+}

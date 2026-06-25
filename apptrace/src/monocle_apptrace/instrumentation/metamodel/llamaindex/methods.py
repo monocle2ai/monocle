@@ -2,7 +2,7 @@ from monocle_apptrace.instrumentation.common.wrapper import atask_wrapper, task_
 from monocle_apptrace.instrumentation.metamodel.llamaindex.entities.inference import (
     INFERENCE,
 )
-from monocle_apptrace.instrumentation.metamodel.llamaindex.entities.agent import AGENT, TOOLS, AGENT_REQUEST
+from monocle_apptrace.instrumentation.metamodel.llamaindex.entities.agent import AGENT, TOOLS, AGENT_REQUEST, AGENT_STEP, QUERY_ENGINE
 from monocle_apptrace.instrumentation.metamodel.llamaindex.entities.retrieval import (
     RETRIEVAL,
 )
@@ -27,13 +27,15 @@ LLAMAINDEX_METHODS = [
         "package": "llama_index.core.base.base_query_engine",
         "object": "BaseQueryEngine",
         "method": "query",
-        "wrapper_method": task_wrapper
+        "wrapper_method": task_wrapper,
+        "output_processor": QUERY_ENGINE
     },
     {
         "package": "llama_index.core.base.base_query_engine",
         "object": "BaseQueryEngine",
         "method": "aquery",
-        "wrapper_method": atask_wrapper
+        "wrapper_method": atask_wrapper,
+        "output_processor": QUERY_ENGINE
     },
     {
         "package": "llama_index.core.llms.custom",
@@ -107,7 +109,8 @@ LLAMAINDEX_METHODS = [
         "object": "FunctionAgent",
         "method": "take_step",
         "span_handler": "llamaindex_agent_handler",
-        "wrapper_method": atask_wrapper
+        "wrapper_method": atask_wrapper,
+        "output_processor": AGENT_STEP
     },
     {
         "package": "llama_index.core.tools.function_tool",

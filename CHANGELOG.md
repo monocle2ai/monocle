@@ -8,6 +8,11 @@
 ## Version 0.8.6 (2026-06-25)
 - fix: litellm input fix with AZURE OPENAI ([#656](https://github.com/monocle2ai/monocle/pull/656))
 - feat: capture FastAPI POST bodies in HTTP spans ([#643](https://github.com/monocle2ai/monocle/pull/643))
+- fix: Reset span mutation attribute before setting test status properties at the end of test execution ([#663](https://github.com/monocle2ai/monocle/pull/663))
+
+## Version 0.8.6 (2026-06-25)
+- fix: litellm input fix with AZURE OPENAI ([#656](https://github.com/monocle2ai/monocle/pull/656))
+- feat: capture FastAPI POST bodies in HTTP spans ([#643](https://github.com/monocle2ai/monocle/pull/643))
 
 ## Version 0.8.4 (2026-06-08)
 - feat: Copilot CLI and VS Code Copilot instrumentation ([#586](https://github.com/monocle2ai/monocle/pull/586))

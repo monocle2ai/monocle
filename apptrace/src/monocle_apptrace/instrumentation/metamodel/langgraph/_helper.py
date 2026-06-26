@@ -8,6 +8,25 @@ DELEGATION_NAME_PREFIX = 'transfer_to_'
 ROOT_AGENT_NAME = 'LangGraph'
 LANGGRAPTH_AGENT_NAME_KEY = "agent.langgraph"
 
+def _last_message_content_from_state(state) -> str:
+    """Last non-empty message content from a state dict, allowing custom '*messages' channels."""
+    if not isinstance(state, dict):
+        return ""
+    candidate_keys = []
+    if 'messages' in state:
+        candidate_keys.append('messages')
+    candidate_keys += [k for k in state
+                       if k != 'messages' and isinstance(k, str) and k.endswith('messages')]
+    candidate_keys += [k for k in state if k not in candidate_keys]
+    for k in candidate_keys:
+        v = state.get(k)
+        if isinstance(v, list) and v:
+            for msg in reversed(v):
+                content = getattr(msg, 'content', None)
+                if content:
+                    return extract_content_text(content)
+    return ""
+
 def extract_agent_response(response):
     try:
         if response is None:
@@ -19,15 +38,20 @@ def extract_agent_response(response):
         # astream emits a checkpoint tuple ((), 'debug', {payload}) as its final item
         if isinstance(response, tuple) and len(response) >= 3 and isinstance(response[2], dict):
             values = response[2].get('payload', {}).get('values', {})
-            if 'messages' in values and values['messages']:
-                return extract_content_text(values['messages'][-1].content)
-            return ""
-        if isinstance(response, dict) and 'messages' in response:
-            return extract_content_text(response['messages'][-1].content)
+            return _last_message_content_from_state(values)
+        # 2-tuple stream chunk (mode, data) from a nested subgraph astream
+        if isinstance(response, tuple) and len(response) == 2 and isinstance(response[1], dict):
+            return _last_message_content_from_state(response[1])
         if isinstance(response, dict):
+            text = _last_message_content_from_state(response)
+            if text:
+                return text
+            # node-keyed updates ({node: {state}})
             for value in response.values():
-                if isinstance(value, dict) and 'messages' in value and value['messages']:
-                    return extract_content_text(value['messages'][-1].content)
+                if isinstance(value, dict):
+                    text = _last_message_content_from_state(value)
+                    if text:
+                        return text
     except Exception as e:
         logger.warning("Warning: Error occurred in handle_response: %s", str(e))
     return ""
@@ -44,28 +68,41 @@ def is_single_agent_instance(instance) -> bool:
         return 'agent' in instance.builder.nodes or 'model' in instance.builder.nodes
     return False
 
+def _human_messages_from_state(state) -> list:
+    """Collect human/user message text across any '*messages' channel of a state dict."""
+    out = []
+    if not isinstance(state, dict):
+        return out
+    for k, v in state.items():
+        if not (k == 'messages' or (isinstance(k, str) and k.endswith('messages'))):
+            continue
+        if not isinstance(v, list):
+            continue
+        for message in v:
+            if hasattr(message, 'type') and message.type == "human":
+                out.append(extract_content_text(message.content))
+            elif isinstance(message, dict) and message.get('role') == "user" and 'content' in message:
+                out.append(extract_content_text(message['content']))
+            elif isinstance(message, dict) and message.get('type') == "human" and 'content' in message:
+                out.append(extract_content_text(message['content']))
+    return out
+
 def extract_agent_input(arguments):
     try:
-        messages = []
-        if arguments['kwargs'] is not None and 'input' in arguments['kwargs']:
-            history = arguments['kwargs']['input']['messages']
-            for message in history:
-                if hasattr(message, 'type') and message.type == "human":
-                    messages.append(extract_content_text(message.content))
-                elif isinstance(message, dict) and message.get('role') == "user" and 'content' in message:
-                    messages.append(extract_content_text(message['content']))
-                elif isinstance(message, dict) and message.get('type') == "human" and 'content' in message:
-                    messages.append(extract_content_text(message['content']))
-        elif arguments['args'] is not None and len(arguments['args']) > 0 and isinstance(arguments['args'][0], dict) and 'messages' in arguments['args'][0]:
-            history = arguments['args'][0]['messages']
-            for message in history:
-                if hasattr(message, 'type') and message.type == "human":
-                    messages.append(extract_content_text(message.content))
-                elif isinstance(message, dict) and message.get('role') == "user" and 'content' in message:
-                    messages.append(extract_content_text(message['content']))
-                elif isinstance(message, dict) and message.get('type') == "human" and 'content' in message:
-                    messages.append(extract_content_text(message['content']))
-        return get_json_dumps(messages) if messages else ""
+        input_obj = None
+        if arguments.get('kwargs') and 'input' in arguments['kwargs']:
+            input_obj = arguments['kwargs']['input']
+        elif arguments.get('args') and len(arguments['args']) > 0 and isinstance(arguments['args'][0], dict):
+            input_obj = arguments['args'][0]
+        if isinstance(input_obj, dict):
+            messages = _human_messages_from_state(input_obj)
+            if messages:
+                return get_json_dumps(messages)
+            # No human message (nested subgraph): fall back to last message content
+            text = _last_message_content_from_state(input_obj)
+            if text:
+                return get_json_dumps([text])
+        return ""
     except Exception as e:
         logger.warning("Warning: Error occurred in extract_agent_input: %s", str(e))
         return ""

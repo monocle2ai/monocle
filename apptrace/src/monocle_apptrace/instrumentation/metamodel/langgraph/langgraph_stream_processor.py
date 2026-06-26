@@ -46,9 +46,9 @@ class LanggraphStreamProcessor(BaseStreamProcessor):
 
     def handle_chunk(self, item: Any, state: StreamState) -> bool:
         """Handle stream chunks and extract text and token usage."""
-        # LangGraph v1 streaming: (channel_keys, mode, data) e.g. ((), "values", {"messages": [...]})
-        if isinstance(item, tuple) and len(item) == 3:
-            _, mode, data = item
+        # LangGraph stream tuple: 3-tuple (keys, mode, data) or 2-tuple (mode, data)
+        if isinstance(item, tuple) and len(item) in (2, 3) and isinstance(item[-1], dict):
+            mode, data = item[-2], item[-1]
             if mode in ("values", "updates") and isinstance(data, dict):
                 text = self._extract_text_from_data(data)
                 if text:
@@ -98,9 +98,10 @@ class LanggraphStreamProcessor(BaseStreamProcessor):
             return True
 
         for node_state in item.values():
-            if isinstance(node_state, dict) and "messages" in node_state:
-                msgs = node_state["messages"]
-                text = self._extract_latest_message_text(msgs)
+            if isinstance(node_state, dict) and any(
+                isinstance(k, str) and k.endswith("messages") for k in node_state
+            ):
+                text = self._extract_text_from_data(node_state)
                 if text:
                     state.update_first_token_time()
                     state.accumulated_response = text
@@ -109,8 +110,8 @@ class LanggraphStreamProcessor(BaseStreamProcessor):
                     state.token_usage = usage
                 return True
 
-        if "messages" in item:
-            text = self._extract_latest_message_text(item["messages"])
+        if any(isinstance(k, str) and k.endswith("messages") for k in item):
+            text = self._extract_text_from_data(item)
             if text:
                 state.update_first_token_time()
                 state.accumulated_response = text
@@ -159,6 +160,14 @@ class LanggraphStreamProcessor(BaseStreamProcessor):
                 return text
         return ""
 
+    def _message_channels(self, data: dict) -> Any:
+        """Yield message-list channels from a state dict (allows custom '*messages' keys)."""
+        if isinstance(data.get("messages"), list):
+            yield data["messages"]
+        for k, v in data.items():
+            if k != "messages" and isinstance(k, str) and k.endswith("messages") and isinstance(v, list):
+                yield v
+
     def _extract_text_from_data(self, data: Any) -> str:
         """Extract text from a LangGraph state data object."""
         if data is None:
@@ -166,16 +175,28 @@ class LanggraphStreamProcessor(BaseStreamProcessor):
         if isinstance(data, str):
             return data
         if isinstance(data, dict):
-            messages = data.get("messages")
-            if isinstance(messages, list):
-                return self._extract_latest_message_text(messages)
+            for messages in self._message_channels(data):
+                text = self._extract_latest_message_text(messages)
+                if text:
+                    return text
+            # node-keyed updates ({node: {state}}): descend one level
+            for v in data.values():
+                if isinstance(v, dict):
+                    for messages in self._message_channels(v):
+                        text = self._extract_latest_message_text(messages)
+                        if text:
+                            return text
         return ""
 
     def _extract_usage_from_data(self, data: Any) -> dict:
         """Extract token usage from a LangGraph state data dict."""
         if not isinstance(data, dict):
             return {}
-        messages = data.get("messages")
+        messages = None
+        for channel in self._message_channels(data):
+            if channel:
+                messages = channel
+                break
         if not isinstance(messages, list) or not messages:
             return {}
         last = messages[-1]

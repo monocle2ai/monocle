@@ -424,6 +424,25 @@ def cmd_validate(args):
 # =============================================================================
 
 
+def cmd_token_summary(args):
+    from monocle_apptrace.token_summary import format_table, format_session_table, summarize, summarize_by_session
+    from pathlib import Path
+
+    if getattr(args, "trace_dir_direct", None):
+        monocle_dir = Path(args.trace_dir_direct)
+    elif getattr(args, "trace_dir", None):
+        monocle_dir = Path(args.trace_dir) / ".monocle"
+    else:
+        monocle_dir = None
+
+    if getattr(args, "by_session", False):
+        rows = summarize_by_session(time_window=args.time_window, monocle_dir=monocle_dir)
+        print(format_session_table(rows))
+    else:
+        rows = summarize(time_window=args.time_window, monocle_dir=monocle_dir)
+        print(format_table(rows))
+    return 0
+
 def cmd_reset(args):
     ui.header("Monocle reset")
 
@@ -531,7 +550,10 @@ def main(argv=None):
         return cmd_validate(args)
     if args.command == "reset":
         return cmd_reset(args)
+    if args.command in ("token-summary", "session-token-summary"):
+        return cmd_token_summary(args)
     return 1
+   
 
 
 def _package_version():
@@ -573,6 +595,60 @@ def _build_parser():
                    default="selective", help="Validation level (default: selective)")
     v.add_argument("--fail-on-warning", action="store_true",
                    help="Treat warnings as errors (exit code 1)")
+
+    ts = sub.add_parser(
+        "token-summary",
+        help="Show daily token usage from local .monocle/ trace files",
+    )
+    ts.set_defaults(by_session=False)
+    ts.add_argument(
+        "time_window",
+        nargs="?",
+        default="all",
+        metavar="TIME_WINDOW",
+        help="today | 'this week' | '7 days' | '15 days' | all  (default: all)",
+    )
+    ts.add_argument(
+        "--dir",
+        dest="trace_dir",
+        default=None,
+        metavar="DIR",
+        help="Project directory containing .monocle/ folder (default: current dir)",
+    )
+    ts.add_argument(
+        "--trace-dir",
+        dest="trace_dir_direct",
+        default=None,
+        metavar="TRACE_DIR",
+        help="Direct path to trace directory (overrides --dir)",
+    )
+
+    sts = sub.add_parser(
+        "session-token-summary",
+        help="Show per-session token usage from local .monocle/ trace files",
+    )
+    sts.set_defaults(by_session=True)
+    sts.add_argument(
+        "time_window",
+        nargs="?",
+        default="all",
+        metavar="TIME_WINDOW",
+        help="today | 'this week' | '7 days' | '15 days' | all  (default: all)",
+    )
+    sts.add_argument(
+        "--dir",
+        dest="trace_dir",
+        default=None,
+        metavar="DIR",
+        help="Project directory containing .monocle/ folder (default: current dir)",
+    )
+    sts.add_argument(
+        "--trace-dir",
+        dest="trace_dir_direct",
+        default=None,
+        metavar="TRACE_DIR",
+        help="Direct path to trace directory (overrides --dir)",
+    )
 
     return parser
 

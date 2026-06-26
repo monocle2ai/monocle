@@ -1,5 +1,6 @@
 import logging
-from threading import local
+from collections import deque
+
 from monocle_apptrace.instrumentation.common.utils import extract_http_headers, clear_http_scopes, get_exception_status_code, with_tracer_wrapper
 from monocle_apptrace.instrumentation.common.wrapper import amonocle_wrapper
 from monocle_apptrace.instrumentation.common.span_handler import SpanHandler, HttpSpanHandler
@@ -12,6 +13,31 @@ import urllib.parse
 logger = logging.getLogger(__name__)
 MAX_DATA_LENGTH = 1000
 
+
+async def _buffer_request_body(scope, receive):
+    messages = []
+    body_chunks = []
+
+    while True:
+        message = await receive()
+        messages.append(message)
+        if message.get("type") != "http.request":
+            break
+
+        body_chunks.append(message.get("body", b""))
+        if not message.get("more_body", False):
+            break
+
+    scope["_request_body"] = b"".join(body_chunks)
+    replay_messages = deque(messages)
+
+    async def _receive():
+        if replay_messages:
+            return replay_messages.popleft()
+        return await receive()
+
+    return _receive
+
 @with_tracer_wrapper
 async def fastapi_atask_wrapper(tracer, handler, to_wrap, wrapped, instance,
                                source_path, args, kwargs):
@@ -19,15 +45,7 @@ async def fastapi_atask_wrapper(tracer, handler, to_wrap, wrapped, instance,
     similar to how Werkzeug stores request data in environ['werkzeug.request']."""
     scope, receive = args[0], args[1]
     if scope.get('method', 'GET') in ('POST', 'PUT', 'PATCH'):
-        chunks, orig = [], receive
-        async def _receive():
-            msg = await orig()
-            if msg.get('type') == 'http.request':
-                chunks.append(msg.get('body', b''))
-                if not msg.get('more_body', False):
-                    scope['_request_body'] = b''.join(chunks)
-            return msg
-        args = (scope, _receive) + args[2:]
+        args = (scope, await _buffer_request_body(scope, receive)) + args[2:]
     return await amonocle_wrapper(
         tracer, handler, to_wrap, wrapped, instance, source_path, args, kwargs
     )
@@ -40,6 +58,9 @@ def get_url(args) -> str:
     return f"{scheme}://{host}:{port}{path}"
 
 def get_route(scope) -> str:
+    route = scope.get('route')
+    if route is not None and getattr(route, 'path', None):
+        return route.path
     return scope.get('path', '')
 
 def get_method(scope) -> str:
@@ -47,19 +68,25 @@ def get_method(scope) -> str:
 
 def get_params(args) -> dict:
     try:
-        query_bytes = args.get("query_string", "")
-        query_str = query_bytes.decode('utf-8')
-        params = urllib.parse.parse_qs(query_str)
-        question = params.get('question', [''])[0]
-        if question:
-            return question
-        body = args.get('_request_body', b'')
-        if body:
-            return (body.decode('utf-8') if isinstance(body, bytes) else str(body))[:MAX_DATA_LENGTH]
+        query_bytes = args.get("query_string", b"")
+        query_str = query_bytes.decode('utf-8') if isinstance(query_bytes, bytes) else str(query_bytes)
+        if query_str:
+            return urllib.parse.unquote(query_str)
+        return ""
 
     except Exception as e:
         logger.warning(f"Error extracting params: {e}")
         return {}
+
+def get_body(args) -> str:
+    try:
+        body = args.get('_request_body', b'')
+        if body:
+            return (body.decode('utf-8') if isinstance(body, bytes) else str(body))[:MAX_DATA_LENGTH]
+        return ""
+    except Exception as e:
+        logger.warning(f"Error extracting body: {e}")
+        return ""
 
 def extract_response(response) -> str:
     try:
@@ -85,7 +112,7 @@ def extract_status(arguments) -> str:
             error_message = extract_response(instance)
             raise MonocleSpanException(f"error: {status} - {error_message}", status)
     else:
-        status = "success"
+        status = "Unknown"
     return status
 
 def fastapi_pre_tracing(scope):

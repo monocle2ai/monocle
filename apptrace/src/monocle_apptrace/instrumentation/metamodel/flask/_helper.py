@@ -1,14 +1,13 @@
+import io
+import json
 import logging
-from threading import local
-from monocle_apptrace.instrumentation.common.utils import extract_http_headers, clear_http_scopes, get_exception_status_code
+from urllib.parse import unquote
+from opentelemetry.trace import Span
+from monocle_apptrace.instrumentation.common.utils import extract_http_headers, clear_http_scopes, get_exception_status_code, with_tracer_wrapper
+from monocle_apptrace.instrumentation.common.wrapper import monocle_wrapper
 from monocle_apptrace.instrumentation.common.span_handler import SpanHandler, HttpSpanHandler
 from monocle_apptrace.instrumentation.common.constants import HTTP_SUCCESS_CODES
 from monocle_apptrace.instrumentation.common.utils import MonocleSpanException
-from urllib.parse import unquote
-import json
-from opentelemetry.context import get_current
-from opentelemetry.trace import Span, get_current_span
-from opentelemetry.trace.propagation import _SPAN_KEY
 
 logger = logging.getLogger(__name__)
 MAX_DATA_LENGTH = 1000
@@ -23,8 +22,8 @@ def get_params(args) -> dict:
     params = args[0]['QUERY_STRING'] if 'QUERY_STRING' in args[0] else ""
     if params:
         return unquote(params)
-    if 'werkzeug.request' in args[0] and hasattr(args[0]['werkzeug.request'],'data'):
-        return unquote(args[0]['werkzeug.request'].data)
+    if 'werkzeug.request' in args[0] and hasattr(args[0]['werkzeug.request'],'query_string'):
+        return unquote(args[0]['werkzeug.request'].query_string)
 
 
 def get_url(args) -> str:
@@ -35,8 +34,49 @@ def get_url(args) -> str:
 
     return url
 
-def get_body(args) -> dict:
-    return ""
+def get_body(args) -> str:
+    # The raw body is captured once in flask_task_wrapper and cached in
+    # environ['_request_body'] (wsgi.input is a consume-once stream, so it must
+    # not be read here or the Flask view loses the body).
+    environ = args[0] if args else {}
+    body = environ.get('_request_body', b'') if isinstance(environ, dict) else b''
+    if not body:
+        return ""
+    try:
+        text_body = body.decode('utf-8')
+    except Exception as e:
+        logger.warning(f"Error decoding request body: {e}")
+        return ""
+    try:
+        data = json.loads(text_body)
+        if isinstance(data, (dict, list)):
+            return json.dumps(data)[:MAX_DATA_LENGTH] if data else ""
+        return str(data)[:MAX_DATA_LENGTH]
+    except (json.JSONDecodeError, TypeError):
+        return unquote(text_body)[:MAX_DATA_LENGTH]
+
+@with_tracer_wrapper
+def flask_task_wrapper(tracer, handler, to_wrap, wrapped, instance, source_path, args, kwargs):
+    """Wraps Flask.wsgi_app to capture the request body into environ['_request_body']
+    BEFORE span hydration runs. wsgi.input is a consume-once stream, so reading it for
+    instrumentation would steal the body from the Flask view (causing 400s). We read it
+    eagerly, cache the bytes, and replace wsgi.input with a fresh BytesIO so the app can
+    still read it."""
+    environ = args[0] if args else None
+    if isinstance(environ, dict) and 'wsgi.input' in environ and '_request_body' not in environ:
+        try:
+            content_length = int(environ.get('CONTENT_LENGTH') or 0)
+        except (ValueError, TypeError):
+            content_length = 0
+        if content_length > 0:
+            try:
+                body = environ['wsgi.input'].read(content_length)
+                environ['_request_body'] = body
+                # rewind: hand the downstream app a fresh stream with the same bytes
+                environ['wsgi.input'] = io.BytesIO(body)
+            except Exception as e:
+                logger.warning(f"Error pre-reading request body: {e}")
+    return monocle_wrapper(tracer, handler, to_wrap, wrapped, instance, source_path, args, kwargs)
 
 def extract_response(instance) -> str:
     if hasattr(instance, 'data') and hasattr(instance, 'content_length'):
@@ -64,7 +104,7 @@ def extract_status(arguments) -> str:
             error_message = extract_response(instance)
             raise MonocleSpanException(f"error: {status} - {error_message}", status)
     else:
-        status = "success"
+        status = "Unknown"
     return status
 
 def flask_pre_tracing(args):

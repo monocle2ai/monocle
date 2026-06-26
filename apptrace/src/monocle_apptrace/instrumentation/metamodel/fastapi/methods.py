@@ -10,7 +10,7 @@ FASTAPI_METHODS = [
         "wrapper_method": fastapi_atask_wrapper,
         "span_name": "fastapi.request",
         "span_handler": "fastapi_handler",
-        "output_processor": FASTAPI_HTTP_PROCESSOR,
+        "output_processor": FASTAPI_HTTP_PROCESSOR
     },
     {
         "package": "starlette.responses",

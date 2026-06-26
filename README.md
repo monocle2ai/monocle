@@ -5,15 +5,16 @@
 <p align="center"><strong>Open-source tracing &amp; testing for GenAI apps and agents.</strong></p>
 
 <p align="center">
-  <img src="https://img.shields.io/pypi/v/monocle-apptrace.svg" alt="PyPI Version" />
-  <img src="https://img.shields.io/github/license/monocle2ai/monocle" alt="License" />
+  <img src="https://img.shields.io/badge/license-Apache--2.0-blue" alt="License" />
   <img src="https://img.shields.io/badge/runtime-Python-3776ab?logo=python&logoColor=white" alt="Python" />
   <img src="https://img.shields.io/badge/LF%20AI%20%26%20Data-project-0a7bba" alt="LF AI & Data" />
 </p>
 
 <p align="center">
+  <a href=https://discord.com/invite/D8vDbSUhJX><img src="https://dcbadge.limes.pink/api/server/https://discord.com/invite/D8vDbSUhJX?compact=true" alt"Join Monocle Discord"></a>
   <a href="https://github.com/monocle2ai/monocle/issues"><img src="https://img.shields.io/badge/Report%20a%20Bug-000000?style=for-the-badge&logo=github&logoColor=white" alt="Report a Bug" /></a>
   <a href="https://discord.gg/D8vDbSUhJX"><img src="https://img.shields.io/badge/Request%20a%20Feature-5865F2?style=for-the-badge&logo=github&logoColor=white" alt="Request a Feature" /></a>
+  <a href="https://www.bestpractices.dev/projects/9176"><img src="https://www.bestpractices.dev/projects/9176/badge"></a>
 </p>
 
 <h2 align="center">

@@ -45,7 +45,7 @@ def get_params(kwargs) -> dict:
 
 def get_body(kwargs) -> dict:
     if hasattr(kwargs['req'], 'get_body'):
-        response = kwargs.get_body()
+        response = kwargs['req'].get_body()
         if isinstance(response, bytes):
             response = response.decode('utf-8', errors='ignore')
     else:
@@ -71,7 +71,7 @@ def extract_status(arguments) -> str:
             error_message = extract_response(result)
             raise MonocleSpanException(f"error: {status} - {error_message}", status)
     else:
-        status = "success"
+        status = "Unknown"
     return status
 
 def azure_func_pre_tracing(kwargs):

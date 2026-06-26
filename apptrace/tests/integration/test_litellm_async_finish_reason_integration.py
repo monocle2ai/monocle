@@ -15,8 +15,9 @@ except ImportError:
     litellm = None
     acompletion = None
 
-@pytest.fixture(scope="module")
+@pytest.fixture()
 def setup():
+    instrumentor = None
     try:
         # Setup telemetry
         custom_exporter = CustomConsoleSpanExporter()
@@ -33,16 +34,26 @@ def setup():
 
 # Test with different providers available through LiteLLM
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
-ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY")
-AZURE_API_KEY = os.environ.get("AZURE_API_KEY")
-AZURE_API_BASE = os.environ.get("AZURE_API_BASE")
-AZURE_API_VERSION = os.environ.get("AZURE_API_VERSION", "2024-02-01")
-AZURE_DEPLOYMENT_NAME = os.environ.get("AZURE_OPENAI_API_DEPLOYMENT")
-
-# Use OpenAI through LiteLLM as the primary test provider
 MODEL = os.environ.get("LITELLM_MODEL", "gpt-4o-mini")
-FUNCTION_MODEL = os.environ.get("LITELLM_FUNCTION_MODEL", "gpt-4o-mini")
+OPENAI_AVAILABLE = bool(litellm and OPENAI_API_KEY)
+
+AZURE_API_KEY = os.environ.get("AZURE_OPENAI_API_KEY")
+AZURE_API_BASE = os.environ.get("AZURE_OPENAI_ENDPOINT")
+AZURE_API_VERSION = os.environ.get("AZURE_OPENAI_API_VERSION", "2024-02-01")
+AZURE_DEPLOYMENT_NAME = os.environ.get("AZURE_OPENAI_API_DEPLOYMENT")
 AZURE_MODEL = f"azure/{AZURE_DEPLOYMENT_NAME}" if AZURE_DEPLOYMENT_NAME else None
+AZURE_AVAILABLE = bool(litellm and AZURE_API_KEY and AZURE_API_BASE and AZURE_DEPLOYMENT_NAME)
+
+
+async def azure_acompletion(**kwargs):
+    """Invoke LiteLLM async completion against Azure OpenAI with shared credentials."""
+    return await acompletion(
+        model=AZURE_MODEL,
+        api_key=AZURE_API_KEY,
+        api_base=AZURE_API_BASE,
+        api_version=AZURE_API_VERSION,
+        **kwargs,
+    )
 
 def find_inference_span_and_event_attributes(spans, event_name="metadata"):
     """Find inference span and return event attributes."""
@@ -62,10 +73,10 @@ def find_inference_span_with_tool_call(spans):
                     return span.attributes, event.attributes
     return None , None
 
-@pytest.mark.skipif(not litellm or not OPENAI_API_KEY, reason="LiteLLM not installed or OPENAI_API_KEY not set")
+@pytest.mark.skipif(not OPENAI_AVAILABLE, reason="LiteLLM not installed or OPENAI_API_KEY not set")
 @pytest.mark.asyncio
 async def test_litellm_finish_reason_stop(setup):
-    """Test finish_reason == 'stop' for a normal completion via LiteLLM."""
+    """Test finish_reason == 'stop' for a normal completion via LiteLLM (OpenAI)."""
     
     response = await acompletion(
         model=MODEL,
@@ -86,7 +97,35 @@ async def test_litellm_finish_reason_stop(setup):
     assert output_event_attrs.get("finish_type") == "success"
 
 
-@pytest.mark.skipif(not litellm or not OPENAI_API_KEY, reason="LiteLLM not installed or OPENAI_API_KEY not set")
+@pytest.mark.skipif(not AZURE_AVAILABLE, reason="Azure OpenAI env vars not set (AZURE_OPENAI_API_KEY, AZURE_OPENAI_ENDPOINT, AZURE_OPENAI_API_DEPLOYMENT)")
+@pytest.mark.asyncio
+async def test_azure_litellm_finish_reason_stop(setup):
+    """Test finish_reason == 'stop' via Azure OpenAI; verifies data.input is captured."""
+    user_message = "Say hello."
+    response = await azure_acompletion(
+        messages=[{"role": "user", "content": user_message}],
+        max_tokens=10,
+    )
+    assert response.choices[0].finish_reason == "stop"
+
+    spans = setup.get_captured_spans()
+    assert spans, "No spans were exported"
+
+    # Verify input is captured — Azure async nests messages under data["messages"].
+    input_event_attrs = find_inference_span_and_event_attributes(spans, event_name="data.input")
+    assert input_event_attrs, "data.input event not found in inference span"
+    captured_input = input_event_attrs.get("input")
+    assert captured_input, "input not captured for Azure OpenAI inference span"
+    assert any(user_message in str(item) for item in captured_input), \
+        f"user message not found in captured input: {captured_input}"
+
+    output_event_attrs = find_inference_span_and_event_attributes(spans)
+    assert output_event_attrs, "metadata event not found in inference span"
+    assert output_event_attrs.get("finish_reason") == "stop"
+    assert output_event_attrs.get("finish_type") == "success"
+
+
+@pytest.mark.skipif(not OPENAI_AVAILABLE, reason="LiteLLM not installed or OPENAI_API_KEY not set")
 @pytest.mark.asyncio
 async def test_litellm_finish_reason_length(setup):
     """Test finish_reason == 'length' by setting a very low max_tokens via LiteLLM."""
@@ -109,7 +148,7 @@ async def test_litellm_finish_reason_length(setup):
     assert output_event_attrs.get("finish_type") == "truncated"
 
 
-@pytest.mark.skipif(not litellm or not OPENAI_API_KEY, reason="LiteLLM not installed or OPENAI_API_KEY not set")
+@pytest.mark.skipif(not OPENAI_AVAILABLE, reason="LiteLLM not installed or OPENAI_API_KEY not set")
 @pytest.mark.asyncio
 async def test_litellm_finish_reason_content_filter(setup):
     """Test finish_reason == 'content_filter' via LiteLLM (may not always trigger)."""
@@ -140,7 +179,7 @@ async def test_litellm_finish_reason_content_filter(setup):
         assert output_event_attrs.get("finish_type") == "success"
 
 
-@pytest.mark.skipif(not litellm or not OPENAI_API_KEY, reason="LiteLLM not installed or OPENAI_API_KEY not set")
+@pytest.mark.skipif(not OPENAI_AVAILABLE, reason="LiteLLM not installed or OPENAI_API_KEY not set")
 @pytest.mark.asyncio
 async def test_litellm_tool_call_with_entity_3_validation(setup):
     """Test function calling via LiteLLM and validate entity.3.name and entity.3.type."""
@@ -173,7 +212,7 @@ async def test_litellm_tool_call_with_entity_3_validation(setup):
     
     try:
         response = await acompletion(
-            model=FUNCTION_MODEL,
+            model=MODEL,
             messages=[{"role": "user", "content": "What's the weather like in Tokyo, Japan?"}],
             tools=tools,
             tool_choice="auto"
@@ -221,10 +260,7 @@ async def test_litellm_tool_call_with_entity_3_validation(setup):
         raise
 
 
-@pytest.mark.skipif(
-    not litellm or not AZURE_API_KEY or not AZURE_API_BASE or not AZURE_DEPLOYMENT_NAME, 
-    reason="LiteLLM not installed or Azure OpenAI environment variables not set (AZURE_API_KEY, AZURE_API_BASE, AZURE_DEPLOYMENT_NAME)"
-)
+@pytest.mark.skipif(not AZURE_AVAILABLE, reason="Azure OpenAI env vars not set (AZURE_OPENAI_API_KEY, AZURE_OPENAI_ENDPOINT, AZURE_OPENAI_API_DEPLOYMENT)")
 @pytest.mark.asyncio
 async def test_azure_openai_litellm_tool_call_with_entity_3_validation(setup):
     """Test function calling via Azure OpenAI using LiteLLM and validate entity.3.name and entity.3.type.

@@ -30,6 +30,10 @@ FASTAPI_RESPONSE_PROCESSOR = {
                 {
                     "attribute": "params",
                     "accessor": lambda arguments: _helper.get_params(arguments['args'][0])
+                },
+                {
+                    "attribute": "request_body",
+                    "accessor": lambda arguments: _helper.get_body(arguments['args'][0])
                 }
             ]
         },
@@ -37,7 +41,7 @@ FASTAPI_RESPONSE_PROCESSOR = {
             "name": "data.output",
             "attributes": [
                 {
-                    "attribute": "error_code",
+                    "attribute": "status_code",
                     "accessor": lambda arguments: _helper.extract_status(arguments)
                 },
                 {

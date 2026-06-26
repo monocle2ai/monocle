@@ -4,6 +4,12 @@ from monocle_apptrace.instrumentation.metamodel.langgraph import (
 )
 from monocle_apptrace.instrumentation.common.utils import get_error_message, extract_from_agent_name, extract_from_agent_invocation_id
 
+
+def process_stream(to_wrap, response, span_processor):
+    from monocle_apptrace.instrumentation.metamodel.langgraph.langgraph_stream_processor import LanggraphStreamProcessor
+    processor = LanggraphStreamProcessor()
+    return processor.process_stream(to_wrap, response, span_processor)
+
 AGENT = {
       "type": SPAN_TYPES.AGENTIC_INVOCATION,
       "subtype": SPAN_SUBTYPES.CONTENT_PROCESSING,
@@ -60,6 +66,15 @@ AGENT = {
                 "accessor": lambda arguments: _helper.extract_agent_response(arguments['result'])
             }
           ]
+        },
+        {
+          "name": "metadata",
+          "attributes": [
+            {
+                "_comment": "token usage — works for both streaming and non-streaming responses",
+                "accessor": lambda arguments: _helper.update_span_from_response(arguments['result'])
+            }
+          ]
         }
       ]
     }
@@ -94,6 +109,15 @@ AGENT_REQUEST = {
                 "_comment": "this is response from LLM",
                 "attribute": "response",
                 "accessor": lambda arguments: _helper.extract_agent_response(arguments['result'])
+            }
+          ]
+        },
+        {
+          "name": "metadata",
+          "attributes": [
+            {
+                "_comment": "token usage — works for both streaming and non-streaming responses",
+                "accessor": lambda arguments: _helper.update_span_from_response(arguments['result'])
             }
           ]
         }
@@ -181,4 +205,16 @@ AGENT_DELEGATION = {
               }
         ]
       ]
+}
+
+AGENT_STREAM = {
+    **AGENT,
+    "is_auto_close": lambda kwargs: False,
+    "response_processor": process_stream,
+}
+
+AGENT_REQUEST_STREAM = {
+    **AGENT_REQUEST,
+    "is_auto_close": lambda kwargs: False,
+    "response_processor": process_stream,
 }

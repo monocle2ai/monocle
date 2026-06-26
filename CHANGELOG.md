@@ -1,6 +1,7 @@
 ## Version 0.8.6 (2026-06-25)
 - fix: litellm input fix with AZURE OPENAI ([#656](https://github.com/monocle2ai/monocle/pull/656))
 - feat: capture FastAPI POST bodies in HTTP spans ([#643](https://github.com/monocle2ai/monocle/pull/643))
+- fix: Reset span mutation attribute before setting test status properties at the end of test execution ([#663](https://github.com/monocle2ai/monocle/pull/663))
 
 ## Version 0.8.5 (2026-06-23)
 - feat: propagate test scopes to eval service ([#640](https://github.com/monocle2ai/monocle/pull/640))

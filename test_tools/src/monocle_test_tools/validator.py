@@ -123,14 +123,27 @@ class MonocleValidator:
         # This is critical for failed tests where spans property may not have been accessed
         _ = self.spans
         span:Span = None
+        _span_immutable:bool = None
         for exporter in self.exporters:
             for span in self._test_all_up_spans:
+                _span_immutable = None
+                # If the span's attributes are made immutable, temporarily make them mutable to add test status attributes
+                try:
+                    _span_immutable = span._attributes._immutable
+                    span._attributes._immutable = False
+                except AttributeError:
+                    pass
                 if test_failed:
                     span._attributes[TEST_STATUS_ATTRIBUTE] = "failed"
                     if test_assertion_message is not None:
                         span._attributes[TEST_ASSERTION_ATTRIBUTE] = test_assertion_message
                 else:
                     span._attributes[TEST_STATUS_ATTRIBUTE] = "passed"
+                if _span_immutable is not None:
+                    try:
+                        span._attributes._immutable = _span_immutable
+                    except AttributeError:
+                        pass
                 exporter.export([span])
             if hasattr(exporter, "force_flush"):
                 exporter.force_flush()

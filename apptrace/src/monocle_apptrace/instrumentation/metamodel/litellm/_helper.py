@@ -38,51 +38,68 @@ def extract_messages(kwargs):
         return []
 
 
+def _find_json_tool_call_params(tools):
+    """Helper to find parameters from json_tool_call tool in a tools list."""
+    for tool in (tools or []):
+        fn = tool.get("function") or {}
+        if fn.get("name") == "json_tool_call":
+            return fn.get("parameters")
+    return None
+
+
+def _serialize_response_format(response_format):
+    """Convert response_format to JSON string representation."""
+    if response_format is None:
+        return None
+    if isinstance(response_format, dict):
+        return get_json_dumps(response_format)
+    if hasattr(response_format, "model_json_schema"):
+        return get_json_dumps(response_format.model_json_schema())
+    if hasattr(response_format, "schema"):
+        return get_json_dumps(response_format.schema())
+    return str(response_format)
+
+
 def extract_response_format(kwargs):
     """Extract response_format from LiteLLM kwargs.
 
-    Checks two locations:
+    Checks three locations:
     1. optional_params["response_format"] — used by OpenAI and Azure sync paths.
     2. data["tools"] json_tool_call — used by Azure async when a Pydantic model is passed.
+    3. optional_params["tools"] json_tool_call — used by Bedrock Converse (json_mode).
     """
     try:
-        # 1. optional_params dict — LiteLLM moves response_format here before
-        #    calling the provider (both OpenAI and Azure sync paths).
         optional_params = kwargs.get("optional_params") or {}
-        response_format = optional_params.get("response_format")
+        
+        # 1. Check optional_params for explicit response_format or response_json_schema
+        response_format = optional_params.get("response_format") or optional_params.get("response_json_schema")
+        if response_format is not None:
+            return _serialize_response_format(response_format)
 
-        if response_format is None:
-            response_format = optional_params.get("response_json_schema")
+        # 2. Azure async path: Pydantic model converted to json_tool_call tool
+        #    Detected by tool_choice == {"type": "function", "function": {"name": "json_tool_call"}}
+        data = kwargs.get("data") or {}
+        tool_choice = data.get("tool_choice")
+        if isinstance(tool_choice, dict):
+            chosen_name = (tool_choice.get("function") or {}).get("name")
+            if chosen_name == "json_tool_call":
+                params = _find_json_tool_call_params(data.get("tools"))
+                if params:
+                    return get_json_dumps({
+                        "type": "json_schema",
+                        "json_schema": {"schema": params, "name": "response_format"},
+                    })
 
-        # 2. Azure async path: Pydantic model was converted to a json_tool_call tool.
-        #    Detect by tool_choice == {"type": "function", "function": {"name": "json_tool_call"}}
-        if response_format is None:
-            data = kwargs.get("data") or {}
-            tool_choice = data.get("tool_choice")
-            if isinstance(tool_choice, dict):
-                chosen_name = (tool_choice.get("function") or {}).get("name")
-                if chosen_name == "json_tool_call":
-                    for tool in (data.get("tools") or []):
-                        fn = tool.get("function") or {}
-                        if fn.get("name") == "json_tool_call":
-                            params = fn.get("parameters")
-                            if params:
-                                # Wrap in json_schema envelope to match OpenAI's shape
-                                response_format = {
-                                    "type": "json_schema",
-                                    "json_schema": {"schema": params, "name": "response_format"},
-                                }
-                            break
+        # 3. Bedrock Converse path: json_tool_call in optional_params["tools"] with json_mode
+        if optional_params.get("json_mode"):
+            params = _find_json_tool_call_params(optional_params.get("tools"))
+            if params:
+                return get_json_dumps({
+                    "type": "json_schema",
+                    "json_schema": {"schema": params, "name": "response_format"},
+                })
 
-        if response_format is None:
-            return None
-        if isinstance(response_format, dict):
-            return get_json_dumps(response_format)
-        if hasattr(response_format, "model_json_schema"):
-            return get_json_dumps(response_format.model_json_schema())
-        if hasattr(response_format, "schema"):
-            return get_json_dumps(response_format.schema())
-        return str(response_format)
+        return None
     except Exception as e:
         logger.warning("Warning: Error occurred in extract_response_format: %s", str(e))
         return None

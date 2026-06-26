@@ -47,5 +47,21 @@ LITELLM_METHODS = [
         "method": "async_completion",
         "wrapper_method": atask_wrapper,
         "output_processor": INFERENCE
+    },
+    {
+        # AWS Bedrock — Claude, Nova, Llama, etc. route through the Converse API.
+        "package": "litellm.llms.bedrock.chat.converse_handler",
+        "object": "BedrockConverseLLM",
+        "method": "completion",
+        "wrapper_method": task_wrapper,
+        "output_processor": INFERENCE,
+        "span_handler": "litellm_sync_handler"
+    },
+    {
+        "package": "litellm.llms.bedrock.chat.converse_handler",
+        "object": "BedrockConverseLLM",
+        "method": "async_completion",
+        "wrapper_method": atask_wrapper,
+        "output_processor": INFERENCE
     }
 ]

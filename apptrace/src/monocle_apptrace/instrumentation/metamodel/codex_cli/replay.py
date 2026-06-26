@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Optional
 
 from monocle_apptrace.instrumentation.common.constants import AGENT_SESSION, CODEX_TURN_SCOPE, CODEX_INVOCATION_SCOPE, SPAN_START_TIME, SPAN_END_TIME
-from monocle_apptrace.instrumentation.common.git_context import _file_types_summary
+from monocle_apptrace.instrumentation.common.agent_edit_context import _file_types_summary
 from monocle_apptrace.instrumentation.metamodel.codex_cli._helper import find_subagent_transcript
 from monocle_apptrace.instrumentation.metamodel.codex_cli.replay_handlers import ReplayHandler
 from monocle_apptrace.instrumentation.metamodel.codex_cli import git_context

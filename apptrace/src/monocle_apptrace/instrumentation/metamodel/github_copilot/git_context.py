@@ -1,7 +1,7 @@
 from monocle_apptrace.instrumentation.common.agent_edit_context import GitContext
-from monocle_apptrace.instrumentation.metamodel.claude_cli.trace_events import _sessions_dir
+from monocle_apptrace.instrumentation.metamodel.github_copilot.trace_events import _sessions_dir
 
-_ctx = GitContext(_sessions_dir, "monocle_claude")
+_ctx = GitContext(_sessions_dir, "monocle_copilot")
 
 capture_turn_baseline = _ctx.capture_turn_baseline
 compute_scopes = _ctx.compute_scopes

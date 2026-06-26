@@ -123,14 +123,18 @@ def update_span_from_llm_response(response):
 def extract_tool_response(result):
     try:
         if result is not None:
-            if hasattr(result, 'output'):
-                return str(result.output)
-            elif hasattr(result, 'content'):
-                return str(result.content)
-            elif isinstance(result, str):
+            # Use .output/.content only when non-None: some tools (e.g. Exa SearchResponse)
+            # expose .output=None with the real payload elsewhere, so str(.output) ("None")
+            # would drop it — fall through to str(result) instead.
+            output = getattr(result, 'output', None)
+            if output is not None:
+                return str(output)
+            content = getattr(result, 'content', None)
+            if content is not None:
+                return str(content)
+            if isinstance(result, str):
                 return result
-            else:
-                return str(result)
+            return str(result)
     except Exception as e:
         logger.warning("Error extracting tool response: %s", str(e))
     return ""

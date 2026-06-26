@@ -41,9 +41,13 @@ def extract_messages(kwargs):
 def _find_json_tool_call_params(tools):
     """Helper to find parameters from json_tool_call tool in a tools list."""
     for tool in (tools or []):
+        # OpenAI / Bedrock / Azure shape: {"function": {"name": ..., "parameters": {...}}}
         fn = tool.get("function") or {}
         if fn.get("name") == "json_tool_call":
             return fn.get("parameters")
+        # Anthropic shape: {"name": ..., "input_schema": {...}}
+        if tool.get("name") == "json_tool_call":
+            return tool.get("input_schema")
     return None
 
 
@@ -66,7 +70,7 @@ def extract_response_format(kwargs):
     Checks three locations:
     1. optional_params["response_format"] — used by OpenAI and Azure sync paths.
     2. data["tools"] json_tool_call — used by Azure async when a Pydantic model is passed.
-    3. optional_params["tools"] json_tool_call — used by Bedrock Converse (json_mode).
+    3. optional_params["tools"] json_tool_call — used by Bedrock Converse and Anthropic (json_mode).
     """
     try:
         optional_params = kwargs.get("optional_params") or {}
@@ -90,7 +94,7 @@ def extract_response_format(kwargs):
                         "json_schema": {"schema": params, "name": "response_format"},
                     })
 
-        # 3. Bedrock Converse path: json_tool_call in optional_params["tools"] with json_mode
+        # 3. Bedrock Converse / Anthropic path: json_tool_call in optional_params["tools"] with json_mode
         if optional_params.get("json_mode"):
             params = _find_json_tool_call_params(optional_params.get("tools"))
             if params:

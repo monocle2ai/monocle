@@ -903,7 +903,7 @@ class MonocleValidator:
                 self._verify_agent_input_output(agent_name, expected_inputs, found_input, expected_outputs, found_output, positive_test)
         return candidate_spans
 
-    def _get_inference_spans(self) -> list[Span]:
+    def _get_inference_spans(self, expect_errors: bool = False, expect_warnings: bool = False) -> list[Span]:
         inferences: list[Span] = []
         for span in self.spans:
             span_attributes = span.attributes
@@ -911,6 +911,10 @@ class MonocleValidator:
                 "span.type" in span_attributes
                 and (span_attributes["span.type"] == "inference" or span_attributes["span.type"] == "inference.framework")
             ):
+                if self._span_has_error(span) != expect_errors:
+                    continue
+                if self._span_has_warning(span) != expect_warnings:
+                    continue
                 inferences.append(span)
         return inferences
 

@@ -73,6 +73,7 @@ llm_type_map = {
     "chatgooglegenerativeai": "gemini",
     "azurechatcompletion": "azure_openai",
     "openaichatcompletion": "openai",
+    "vertexllm": "gemini",
     "runtimeforbedrockdataautomation": "aws_bedrock",
     "agentsforbedrockruntime": "aws_bedrock",
 }

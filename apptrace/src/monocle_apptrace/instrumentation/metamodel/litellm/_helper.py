@@ -51,6 +51,9 @@ def extract_response_format(kwargs):
         optional_params = kwargs.get("optional_params") or {}
         response_format = optional_params.get("response_format")
 
+        if response_format is None:
+            response_format = optional_params.get("response_json_schema")
+
         # 2. Azure async path: Pydantic model was converted to a json_tool_call tool.
         #    Detect by tool_choice == {"type": "function", "function": {"name": "json_tool_call"}}
         if response_format is None:

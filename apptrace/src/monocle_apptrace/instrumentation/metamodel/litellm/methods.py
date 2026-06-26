@@ -31,5 +31,21 @@ LITELLM_METHODS = [
         "method": "acompletion",
         "wrapper_method": atask_wrapper,
         "output_processor": INFERENCE
+    },
+    {
+        # Gemini (Google AI Studio) and Vertex AI both route through VertexLLM.
+        "package": "litellm.llms.vertex_ai.gemini.vertex_and_google_ai_studio_gemini",
+        "object": "VertexLLM",
+        "method": "completion",
+        "wrapper_method": task_wrapper,
+        "output_processor": INFERENCE,
+        "span_handler": "litellm_sync_handler"
+    },
+    {
+        "package": "litellm.llms.vertex_ai.gemini.vertex_and_google_ai_studio_gemini",
+        "object": "VertexLLM",
+        "method": "async_completion",
+        "wrapper_method": atask_wrapper,
+        "output_processor": INFERENCE
     }
 ]

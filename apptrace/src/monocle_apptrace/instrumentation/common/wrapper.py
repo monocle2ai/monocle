@@ -137,6 +137,9 @@ def monocle_wrapper_span_processor(tracer: Tracer, handler: SpanHandler, to_wrap
                     raise
                 finally:
                     return_value = post_process_span(handler, to_wrap, wrapped, instance, args, kwargs, return_value, span, parent_span ,ex)
+                    # Close non-auto-close intermediate spans (leaf/root branches already do).
+                    if not auto_close_span:
+                        span.end()
             else:
                 try:
                     handler.hydrate_span(to_wrap, wrapped, instance, args, kwargs, None, span, parent_span, ex,
@@ -237,6 +240,9 @@ async def amonocle_wrapper_span_processor(tracer: Tracer, handler: SpanHandler, 
                     raise
                 finally:
                     return_value = post_process_span(handler, to_wrap, wrapped, instance, args, kwargs, return_value, span, parent_span ,ex)
+                    # Close non-auto-close intermediate spans (leaf/root branches already do).
+                    if not auto_close_span:
+                        span.end()
             else:
                 try:
                     handler.hydrate_span(to_wrap, wrapped, instance, args, kwargs, None, span, parent_span, ex,
@@ -317,6 +323,9 @@ async def amonocle_iter_wrapper_span_processor(tracer: Tracer, handler: SpanHand
                     raise
                 finally:
                     last_item = post_process_span(handler, to_wrap, wrapped, instance, args, kwargs, last_item, span, parent_span, ex)
+                    # Close non-auto-close intermediate spans (leaf/root branches already do).
+                    if not auto_close_span:
+                        span.end()
             else:
                 try:
                     handler.hydrate_span(to_wrap, wrapped, instance, args, kwargs, None, span, parent_span, ex,

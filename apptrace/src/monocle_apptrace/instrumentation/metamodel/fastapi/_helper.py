@@ -112,7 +112,7 @@ def extract_status(arguments) -> str:
             error_message = extract_response(instance)
             raise MonocleSpanException(f"error: {status} - {error_message}", status)
     else:
-        status = "success"
+        status = "Unknown"
     return status
 
 def fastapi_pre_tracing(scope):

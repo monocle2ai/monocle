@@ -4,7 +4,7 @@ from monocle_apptrace.instrumentation.common.span_handler import SpanHandler
 from opentelemetry.context import attach, get_current, set_value, Context
 from monocle_apptrace.instrumentation.common.constants import SPAN_START_TIME, SPAN_END_TIME, AGENT_SESSION
 from monocle_apptrace.instrumentation.common.utils import set_scopes
-from monocle_apptrace.instrumentation.common.git_context import apply_to_span
+from monocle_apptrace.instrumentation.common.agent_edit_context import apply_to_span
 
 
 class ClaudeSpanHandler(SpanHandler):

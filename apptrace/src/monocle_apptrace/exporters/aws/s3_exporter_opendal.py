@@ -4,6 +4,7 @@ import datetime
 import logging
 import asyncio
 import threading
+import warnings
 from typing import Sequence, Optional
 from opentelemetry.sdk.trace import ReadableSpan
 from opentelemetry.sdk.trace.export import SpanExportResult
@@ -22,7 +23,16 @@ class OpenDALS3Exporter(SpanExporterBase):
         DEFAULT_TIME_FORMAT = "%Y-%m-%d__%H.%M.%S"
         self.max_batch_size = 500
         self.export_interval = 1
-        self.file_prefix = DEFAULT_FILE_PREFIX
+        # See S3SpanExporter for the same rename: MONOCLE_S3_KEY_PREFIX → MONOCLE_S3_FILE_PREFIX.
+        new_prefix = os.getenv('MONOCLE_S3_FILE_PREFIX')
+        legacy_prefix = os.getenv('MONOCLE_S3_KEY_PREFIX')
+        if legacy_prefix is not None and new_prefix is None:
+            warnings.warn(
+                "MONOCLE_S3_KEY_PREFIX is deprecated; use MONOCLE_S3_FILE_PREFIX instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+        self.file_prefix = new_prefix or legacy_prefix or DEFAULT_FILE_PREFIX
         self.time_format = DEFAULT_TIME_FORMAT
         self.export_queue = []
         self.last_export_time = time.time()

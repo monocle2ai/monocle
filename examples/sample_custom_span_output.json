@@ -1,0 +1,158 @@
+{
+  "custom_span_with_input_output": {
+    "description": "Sample output from monocle_trace_method decorator showing captured inputs and outputs",
+    "span": {
+      "name": "add_numbers",
+      "context": {
+        "trace_id": "2ae00158486fe75e9330790c56962e9d",
+        "span_id": "f710f53ed48012d3",
+        "trace_state": "[]"
+      },
+      "kind": "SpanKind.INTERNAL",
+      "parent_id": "b02434c956917925",
+      "start_time": "2026-04-27T17:59:27.408526Z",
+      "end_time": "2026-04-27T17:59:27.408802Z",
+      "status": {
+        "status_code": "OK"
+      },
+      "attributes": {
+        "monocle_apptrace.version": "0.7.0",
+        "monocle_apptrace.language": "python",
+        "span_source": "/path/to/your/file.py:123",
+        "workflow.name": "my_workflow",
+        "span.type": "custom"
+      },
+      "events": [
+        {
+          "name": "data.input",
+          "timestamp": "2026-04-27T17:59:27.408757Z",
+          "attributes": {
+            "input": "{\"args\": [5, 10], \"kwargs\": {}}"
+          }
+        },
+        {
+          "name": "data.output",
+          "timestamp": "2026-04-27T17:59:27.408789Z",
+          "attributes": {
+            "error_code": "",
+            "response": "{\"result\": 15}"
+          }
+        }
+      ],
+      "links": [],
+      "resource": {
+        "attributes": {
+          "service.name": "my_workflow"
+        },
+        "schema_url": ""
+      }
+    }
+  },
+  "custom_span_with_kwargs": {
+    "description": "Example with keyword arguments",
+    "span": {
+      "name": "greet_user",
+      "attributes": {
+        "span.type": "custom"
+      },
+      "events": [
+        {
+          "name": "data.input",
+          "attributes": {
+            "input": "{\"args\": [\"Alice\"], \"kwargs\": {\"greeting\": \"Hi\"}}"
+          }
+        },
+        {
+          "name": "data.output",
+          "attributes": {
+            "error_code": "",
+            "response": "{\"result\": \"Hi, Alice!\"}"
+          }
+        }
+      ]
+    }
+  },
+  "custom_span_with_complex_types": {
+    "description": "Example with complex data types (dict and list)",
+    "span": {
+      "name": "process_data",
+      "attributes": {
+        "span.type": "custom"
+      },
+      "events": [
+        {
+          "name": "data.input",
+          "attributes": {
+            "input": "{\"args\": [{\"name\": \"test\", \"value\": 42}, [1, 2, 3, 4, 5]], \"kwargs\": {}}"
+          }
+        },
+        {
+          "name": "data.output",
+          "attributes": {
+            "error_code": "",
+            "response": "{\"result\": {\"processed\": true, \"count\": 5}}"
+          }
+        }
+      ]
+    }
+  },
+  "custom_span_with_error": {
+    "description": "Example when function raises an exception",
+    "span": {
+      "name": "divide_numbers",
+      "status": {
+        "status_code": "ERROR",
+        "description": "division by zero"
+      },
+      "attributes": {
+        "span.type": "custom"
+      },
+      "events": [
+        {
+          "name": "data.input",
+          "attributes": {
+            "input": "{\"args\": [10, 0], \"kwargs\": {}}"
+          }
+        },
+        {
+          "name": "data.output",
+          "attributes": {
+            "error_code": "error",
+            "response": "{\"error\": \"division by zero\"}"
+          }
+        }
+      ]
+    }
+  },
+  "async_custom_span": {
+    "description": "Example with async function",
+    "span": {
+      "name": "async_io_function",
+      "attributes": {
+        "span.type": "custom"
+      },
+      "events": [
+        {
+          "name": "data.input",
+          "attributes": {
+            "input": "{\"args\": [10], \"kwargs\": {\"multiplier\": 3}}"
+          }
+        },
+        {
+          "name": "data.output",
+          "attributes": {
+            "error_code": "",
+            "response": "{\"result\": 30}"
+          }
+        }
+      ]
+    }
+  },
+  "notes": {
+    "span_type": "All custom spans have span.type='custom'",
+    "input_event": "data.input event contains JSON-serialized args and kwargs",
+    "output_event": "data.output event contains error_code (empty string for success, 'error' for failures) and response with the result",
+    "error_handling": "When exceptions occur, error_code='error' and span.status.status_code='ERROR'",
+    "serialization": "Complex types (dicts, lists, objects) are automatically serialized up to 3 levels deep with max 100 items per collection"
+  }
+}

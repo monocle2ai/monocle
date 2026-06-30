@@ -2,7 +2,10 @@ from functools import wraps
 import inspect
 import os
 from typing import Optional, Union
+from monocle_apptrace.instrumentation.common.method_wrappers import monocle_trace_method
+from monocle_apptrace.instrumentation.common.utils import get_workflow_name
 from monocle_test_tools.schema import Evaluation
+from monocle_test_tools.span_loader import JSONSpanLoader, OkahuSpanLoader
 from .comparer.comparer_manager import get_comparer
 from .comparer.base_comparer import BaseComparer
 from .comparer.default_comparer import DefaultComparer
@@ -11,6 +14,7 @@ from .evals.eval_manager import get_evaluator
 from .evals.base_eval import BaseEval
 from .validator import MonocleValidator
 from .trace_utils import get_function_signature, get_caller_file_line
+from .schema import MockTool
 from opentelemetry.sdk.trace import Span
 
 def collect_assertions(func):
@@ -62,6 +66,8 @@ class TraceAssertion():
         self._filtered_spans = filtered_spans
         self.fluent_chain = fluent_chain
         self.is_assertion_failed = is_assertion_failed
+        self._skip_export = False
+        self.mock_tools: Optional[list[MockTool]] = []
         
     def record_assertion(self, e:AssertionError, fluent_chain:list[str]) -> None:
         """Record an assertion error with its fluent chain context."""
@@ -100,17 +106,46 @@ class TraceAssertion():
         self._filtered_spans = None
         TraceAssertion._assertion_errors = []
 
+    @staticmethod
+    def _validate_count_params(count: Optional[int], min_count: Optional[int], max_count: Optional[int]) -> None:
+        """Validate that count parameters are not conflicting."""
+        if count is not None and (min_count is not None or max_count is not None):
+            raise ValueError("Cannot specify both 'count' and 'min_count'/'max_count'")
+
+    def _check_aggregate_count(self, spans: list[Span], entity_type: str, count: Optional[int],
+                                min_count: Optional[int], max_count: Optional[int], message: Optional[str]) -> None:
+        """Helper to check count constraints for aggregate methods."""
+        actual_count = len(spans)
+        
+        if count is not None or min_count is not None or max_count is not None:
+            if count is not None and actual_count != count:
+                raise AssertionError(message or f"Found {actual_count} total {entity_type} invocations, expected exactly {count}")
+            if min_count is not None and actual_count < min_count:
+                raise AssertionError(message or f"Found {actual_count} total {entity_type} invocations, expected at least {min_count}")
+            if max_count is not None and actual_count > max_count:
+                raise AssertionError(message or f"Found {actual_count} total {entity_type} invocations, expected at most {max_count}")
+        else:
+            if actual_count == 0:
+                raise AssertionError(message or f"No {entity_type} invocations found")
+
     def run_agent(self, agent, agent_type:str, *args, **kwargs) -> any:
         """Run the given agent with provided args and kwargs."""
-        return self.validator.run_agent(agent, agent_type, *args, **kwargs)
+        return self.validator.run_agent(agent, agent_type, *args, mock_tools=self.mock_tools, **kwargs)
 
     async def run_agent_async(self, agent, agent_type:str, *args, session_id:str=None, **kwargs) -> any:
         """Run the given async agent with provided args and kwargs."""
-        return await self.validator.run_agent_async(agent, agent_type, *args, session_id=session_id, **kwargs)
+        return await self.validator.run_agent_async(agent, agent_type, *args, session_id=session_id, mock_tools=self.mock_tools, **kwargs)
 
-    def with_evaluation(self, eval:Union[str, BaseEval], eval_options:Optional[dict] = None) -> 'TraceAssertion':
+    def with_mock_tool(self, mock_tool:MockTool) -> 'TraceAssertion':
+        """Set mock tools to be used during agent execution."""
+        self.mock_tools.append(mock_tool)
+        return self
+
+    def with_evaluation(self, eval:Union[str, BaseEval], eval_options:Optional[dict] = {}) -> 'TraceAssertion':
         """Set the evaluation method for input/output comparisons."""
-        self._eval = get_evaluator(eval, eval_options)
+        updated_eval_options = eval_options.copy() if eval_options else {}
+        updated_eval_options['trace_source'] = self.validator._trace_source
+        self._eval = get_evaluator(eval, updated_eval_options)
         return self
 
     def with_comparer(self, comparer:Union[str, BaseComparer]) -> 'TraceAssertion':
@@ -118,14 +153,85 @@ class TraceAssertion():
         self._comparer = get_comparer(comparer)
         return self
 
-    @collect_assertions
-    def called_tool(self, tool_name:str, agent_name:Optional[str] = None, message:Optional[str] = None) -> 'TraceAssertion':
-        """Assert that the given tool was called, optionally by a specific agent."""
-        self._filtered_spans = self.validator._get_tool_invocation_spans(tool_name, agent_name, filtered_spans=self._filtered_spans)
-        if agent_name:
-            TraceAssertion._assert_on_spans(self._filtered_spans, f"Tool '{tool_name}' was not called by agent '{agent_name}'", custom_message=message)
+    def with_trace_source(self, source: str = "local", **kwargs) -> 'TraceAssertion':
+        """Configure trace source for assertions.
+
+        Args:
+            source: Trace source type:
+                - ``"local"`` (default) — Use traces from memory (current execution).
+                - ``"file"`` — Load traces from local .monocle/*.json files.
+                - ``"okahu"`` — Fetch traces from Okahu cloud.
+            **kwargs: Additional arguments passed to ``import_traces()`` when
+                source is "file" or "okahu". Common arguments:
+                - id (str): Trace/session/scope ID
+                - fact_name (str): "trace", "session", or "scope"
+                - scope_name (str): Custom scope name (when fact_name="scope")
+                - workflow_name (str): Okahu workflow name (required for "okahu")
+
+        Returns:
+            self for fluent chaining.
+
+        Examples:
+            # Use local/memory traces (default behavior)
+            asserter.with_trace_source("local").called_tool("search")
+
+            # Load from file
+            asserter.with_trace_source(
+                "file",
+                id="abc123"
+            ).called_tool("search")
+
+            # Load from Okahu by session
+            asserter.with_trace_source(
+                "okahu",
+                id="session_123",
+                fact_name="session",
+                workflow_name="my_app"
+            ).called_tool("search")
+
+            # Load from Okahu by custom scope
+            asserter.with_trace_source(
+                "okahu",
+                id="test_456",
+                fact_name="scope",
+                scope_name="test_id",
+                workflow_name="my_app"
+            ).called_tool("search")
+        """
+        if source == "local":
+            # Default behavior: use traces already in memory
+            # No action needed - validator already has spans from current execution
+            pass
+        elif source in ("file", "okahu"):
+            # Delegate to import_traces() for file and okahu sources
+            self.validator.import_traces(trace_source=source, **kwargs)
         else:
-            TraceAssertion._assert_on_spans(self._filtered_spans, f"Tool '{tool_name}' was not called", custom_message=message)
+            raise ValueError(
+                f"Unsupported trace source: '{source}'. "
+                "Supported sources: 'local', 'file', 'okahu'."
+            )
+
+        return self
+
+    @collect_assertions
+    def called_tool(self, tool_name:str, agent_name:Optional[str] = None, count:Optional[int] = None,
+                    min_count:Optional[int] = None, max_count:Optional[int] = None, message:Optional[str] = None) -> 'TraceAssertion':
+        """Assert tool invocation with optional agent filter and count constraints (count, min_count, max_count)."""
+        TraceAssertion._validate_count_params(count, min_count, max_count)
+        self._filtered_spans = self.validator._get_tool_invocation_spans(tool_name, agent_name, filtered_spans=self._filtered_spans)
+        actual_count = len(self._filtered_spans)
+        
+        if count is not None or min_count is not None or max_count is not None:
+            entity_prefix = f"Tool '{tool_name}' was called by agent '{agent_name}'" if agent_name else f"Tool '{tool_name}' was called"
+            if count is not None and actual_count != count:
+                raise AssertionError(message or f"{entity_prefix} {actual_count} times, expected exactly {count}")
+            if min_count is not None and actual_count < min_count:
+                raise AssertionError(message or f"{entity_prefix} {actual_count} times, expected at least {min_count}")
+            if max_count is not None and actual_count > max_count:
+                raise AssertionError(message or f"{entity_prefix} {actual_count} times, expected at most {max_count}")
+        else:
+            not_called_msg = f"Tool '{tool_name}' was not called by agent '{agent_name}'" if agent_name else f"Tool '{tool_name}' was not called"
+            TraceAssertion._assert_on_spans(self._filtered_spans, not_called_msg, custom_message=message)
         return self
 
     @collect_assertions
@@ -139,10 +245,22 @@ class TraceAssertion():
         return self
 
     @collect_assertions
-    def called_agent(self, agent_name:str, message:Optional[str] = None) -> 'TraceAssertion':
-        """Assert that the given agent was called."""
+    def called_agent(self, agent_name:str, count:Optional[int] = None, min_count:Optional[int] = None, 
+                     max_count:Optional[int] = None, message:Optional[str] = None) -> 'TraceAssertion':
+        """Assert agent invocation with optional count constraints (count, min_count, max_count)."""
+        TraceAssertion._validate_count_params(count, min_count, max_count)
         self._filtered_spans = self.validator._get_agent_invocation_spans(agent_name, filtered_spans=self._filtered_spans)
-        TraceAssertion._assert_on_spans(self._filtered_spans, f"Agent '{agent_name}' was not called", custom_message=message)
+        actual_count = len(self._filtered_spans)
+        
+        if count is not None or min_count is not None or max_count is not None:
+            if count is not None and actual_count != count:
+                raise AssertionError(message or f"Agent '{agent_name}' was called {actual_count} times, expected exactly {count}")
+            if min_count is not None and actual_count < min_count:
+                raise AssertionError(message or f"Agent '{agent_name}' was called {actual_count} times, expected at least {min_count}")
+            if max_count is not None and actual_count > max_count:
+                raise AssertionError(message or f"Agent '{agent_name}' was called {actual_count} times, expected at most {max_count}")
+        else:
+            TraceAssertion._assert_on_spans(self._filtered_spans, f"Agent '{agent_name}' was not called", custom_message=message)
         return self
 
     @collect_assertions
@@ -150,6 +268,24 @@ class TraceAssertion():
         """Assert that the given agent was not called."""
         _filtered_spans = self.validator._get_agent_invocation_spans(agent_name, filtered_spans=self._filtered_spans)
         TraceAssertion._assert_on_spans(_filtered_spans, f"Agent '{agent_name}' was called", positive_test=False, custom_message=message)
+        return self
+
+    @collect_assertions
+    def called_agents(self, count:Optional[int] = None, min_count:Optional[int] = None,
+                      max_count:Optional[int] = None, message:Optional[str] = None) -> 'TraceAssertion':
+        """Assert total agent invocations across all agents with count constraints (count, min_count, max_count)."""
+        TraceAssertion._validate_count_params(count, min_count, max_count)
+        agent_spans = self.validator._get_all_agent_invocation_spans(filtered_spans=self._filtered_spans)
+        self._check_aggregate_count(agent_spans, "agent", count, min_count, max_count, message)
+        return self
+
+    @collect_assertions
+    def called_tools(self, count:Optional[int] = None, min_count:Optional[int] = None,
+                     max_count:Optional[int] = None, message:Optional[str] = None) -> 'TraceAssertion':
+        """Assert total tool invocations across all tools with count constraints (count, min_count, max_count)."""
+        TraceAssertion._validate_count_params(count, min_count, max_count)
+        tool_spans = self.validator._get_all_tool_invocation_spans(filtered_spans=self._filtered_spans)
+        self._check_aggregate_count(tool_spans, "tool", count, min_count, max_count, message)
         return self
 
     @collect_assertions
@@ -329,7 +465,7 @@ class TraceAssertion():
 
     def load_spans(self, spans:list[Span]) -> None:
         """Load spans into the validator's memory exporter for assertions."""
-        self.validator.memory_exporter.export(spans)
+        self.validator.add_remote_spans(spans)
 
     def _verify_input_output(self, spans:list[Span], expected_inputs:Optional[list[str]], expected_outputs:Optional[list[str]],
                         comparer:BaseComparer, eval:Optional[Evaluation], positive_test:Optional[bool]=True,

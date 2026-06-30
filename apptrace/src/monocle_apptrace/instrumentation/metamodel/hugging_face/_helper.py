@@ -1,6 +1,7 @@
 import os
 import json
 import logging
+from contextlib import suppress
 from opentelemetry.context import get_value
 from monocle_apptrace.instrumentation.common.constants import (
     AGENT_PREFIX_KEY,
@@ -27,7 +28,6 @@ def _unwrap_result(payload):
 
 def update_input_span_events(kwargs):
     input_text = ""
-    print("DEBUG kwargs:", kwargs)
     if "inputs" in kwargs:
         if isinstance(kwargs["inputs"], list):
             input_text = " | ".join(str(i) for i in kwargs["inputs"])
@@ -150,13 +150,13 @@ def map_finish_reason_to_finish_type(finish_reason):
     return map_hf_finish_reason_to_finish_type(finish_reason)
 
 
-def agent_inference_type(result):
-    """
-    Simple agent inference type logic: if message contains AGENT_PREFIX_KEY,
-    mark as delegation; otherwise it's a normal turn_end.
-    """
+def agent_inference_type(arguments):
+    """Determine inference span subtype based on finish_reason (tool_call, delegation, or turn_end)."""
+    finish_type = map_finish_reason_to_finish_type(extract_finish_reason(arguments))
+    if finish_type == "tool_call":
+        return INFERENCE_TOOL_CALL
     try:
-        assistant_msg = extract_assistant_message(result)
+        assistant_msg = extract_assistant_message(arguments)
         if assistant_msg and AGENT_PREFIX_KEY in assistant_msg:
             return INFERENCE_AGENT_DELEGATION
     except Exception as e:
@@ -184,3 +184,35 @@ def extract_finish_reason(result):
         return None
 
 
+def _get_first_tool_call(response):
+    """Extract the first tool call from an OpenAI-compatible HuggingFace response."""
+    with suppress(AttributeError, IndexError, TypeError):
+        if response is not None and hasattr(response, "choices") and len(response.choices) > 0:
+            if hasattr(response.choices[0], "message") and hasattr(response.choices[0].message, "tool_calls"):
+                tool_calls = response.choices[0].message.tool_calls
+                if tool_calls and len(tool_calls) > 0:
+                    return tool_calls[0]
+    return None
+
+def extract_tool_name(arguments):
+    """Extract tool name from HuggingFace response when finish_type is tool_call."""
+    try:
+        finish_type = map_finish_reason_to_finish_type(extract_finish_reason(arguments))
+        if finish_type != "tool_call":
+            return None
+        tool_call = _get_first_tool_call(arguments.get("result"))
+        if tool_call:
+            return tool_call.function.name
+    except Exception as e:
+        logger.warning("Warning: Error occurred in extract_tool_name: %s", str(e))
+    return None
+
+def extract_tool_type(arguments):
+    """Extract tool type from HuggingFace response when finish_type is tool_call."""
+    try:
+        tool_call = _get_first_tool_call(arguments.get("result"))
+        if tool_call:
+            return "tool.huggingface"
+    except Exception as e:
+        logger.warning("Warning: Error occurred in extract_tool_type: %s", str(e))
+    return None

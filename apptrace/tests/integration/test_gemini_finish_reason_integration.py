@@ -80,6 +80,12 @@ def test_finish_reason_stop(setup):
     assert output_event_attrs, "metadata event not found in inference span"
     assert output_event_attrs.get("finish_reason") == "STOP"
     assert output_event_attrs.get("finish_type") == "success"
+    
+    # Verify span.subtype is set correctly
+    inference_span = [s for s in spans if s.attributes.get("span.type") == "inference"][-1]
+    assert "span.subtype" in inference_span.attributes, "Expected span.subtype attribute to be present"
+    assert inference_span.attributes.get("span.subtype") == "turn_end", \
+        f"Expected span.subtype='turn_end' for STOP finish_reason, got '{inference_span.attributes.get('span.subtype')}'"
 
 
 @pytest.mark.skipif(not GEMINI_API_KEY, reason="GEMINI_API_KEY not set")

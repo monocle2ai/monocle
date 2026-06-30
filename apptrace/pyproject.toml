@@ -30,6 +30,8 @@ dependencies = [
    "opentelemetry-api>=1.20.0,<2.0.0",
    "opentelemetry-sdk>=1.20.0,<2.0.0",
    "opentelemetry-instrumentation>=0.41b0",
+   "opentelemetry-exporter-otlp-proto-http>=1.20.0,<2.0.0",
+   "pyyaml>=6.0.2",
 ]
 
 [tool.pytest.ini_options]
@@ -139,8 +141,7 @@ dev = [
   'bedrock-agentcore==1.2.0',
   'opentelemetry-semantic-conventions==0.60b1',
   'opentelemetry-semantic-conventions-ai==0.4.13',
-  'azure_ai_agentserver_agentframework==1.0.0b12',
-  'agent-framework-core==1.0.0b260107',
+  'agent-framework-core==1.5.0',
 ]
 
 dev_tranformers = [
@@ -214,4 +215,5 @@ disable = [
 ]
 
 [project.scripts]
+monocle-apptrace = "monocle_apptrace.cli:main"
 monocle_apptrace = "monocle_apptrace.mcp_server:main"

@@ -9,6 +9,7 @@ from opentelemetry.sdk.trace.export import SpanProcessor, SimpleSpanProcessor
 from opentelemetry.sdk.trace.export import SpanExporter
 from opentelemetry.context import set_value, Context, detach, attach
 import pytest
+import requests
 #from sqlalchemy import func
 from monocle_apptrace.exporters.file_exporter import FileSpanExporter, DEFAULT_TRACE_FOLDER
 from monocle_apptrace.exporters.base_exporter import MonocleInMemorySpanExporter
@@ -18,9 +19,11 @@ import logging
 from monocle_apptrace.exporters.monocle_exporters import get_monocle_exporter
 from monocle_apptrace.instrumentation.common.instrumentor import MonocleInstrumentor, setup_monocle_telemetry, reset_span_processors, get_monocle_instrumentor
 from pydantic import BaseModel, ValidationError
+from monocle_test_tools.file_span_loader import JSONSpanLoader
 from monocle_test_tools.gitutils import get_git_context, get_repo_name
+from monocle_test_tools.okahu_span_loader import OkahuSpanLoader
 from monocle_test_tools.schema import SpanType, TestSpan, TestCase, Evaluation, EvalInputs, MockTool
-from monocle_test_tools.constants import TEST_SCOPE_NAME, DEFAULT_WORKFLOW_NAME, TEST_STATUS_ATTRIBUTE, TEST_ASSERTION_ATTRIBUTE
+from monocle_test_tools.constants import TEST_SCOPE_NAME, DEFAULT_WORKFLOW_NAME, TEST_STATUS_ATTRIBUTE, TEST_ASSERTION_ATTRIBUTE, TEST_WORKFLOW_ENV
 from monocle_test_tools.comparer.base_comparer import BaseComparer
 from monocle_test_tools.runner.runner import get_agent_runner
 from monocle_test_tools import trace_utils
@@ -28,12 +31,13 @@ from monocle_apptrace.instrumentation.metamodel.adk.methods import ADK_METHODS
 from monocle_apptrace.instrumentation.metamodel.adk.entities.tool import TOOL as ADK_TOOL
 from monocle_apptrace.instrumentation.metamodel.langgraph.methods import LANGGRAPH_METHODS
 from monocle_apptrace.instrumentation.metamodel.langgraph.entities.inference import TOOLS as LANGGRAPH_TOOL
-from monocle_apptrace.instrumentation.common.constants import MONOCLE_SKIP_EXECUTIONS, MONOCLE_WORKFLOW_NAME_KEY
-from monocle_apptrace.instrumentation.common.utils import set_workflow_name
+from monocle_apptrace.instrumentation.common.constants import MONOCLE_SKIP_EXECUTIONS, WORKFLOW_NAME_ENV
+from monocle_apptrace.instrumentation.common.utils import set_workflow_name, get_workflow_name
+
 logger = logging.getLogger(__name__)
+RETRY_TIMEOUT_SECONDS = 10
 
 class MonocleValidator:
-    _spans:Span = []
     memory_exporter:MonocleInMemorySpanExporter = None
     file_exporter:FileSpanExporter = None
     trace_id = None
@@ -55,6 +59,9 @@ class MonocleValidator:
             if exporter_list is not None:
                 raise ValueError("Exporter list can only be set during the first initialization of MonocleValidator.")
             return
+        self._spans:tuple[Span] = ()
+        self._test_all_up_spans:tuple[Span] = ()
+        self._trace_source: str = ""
         test_trace_path:str = os.path.join(".", DEFAULT_TRACE_FOLDER, "test_traces")
         os.environ["MONOCLE_TRACE_OUTPUT_PATH"] = test_trace_path
         if exporter_list is None:
@@ -64,7 +71,7 @@ class MonocleValidator:
         if export_failed_tests_only is None:
             export_failed_tests_only = os.getenv("MONOCLE_EXPORT_FAILED_TESTS_ONLY", "false").lower() == "true"
         if workflow_name is None:
-            workflow_name = os.getenv("MONOCLE_TEST_WORKFLOW_NAME")
+            workflow_name = os.getenv(TEST_WORKFLOW_ENV, os.getenv(WORKFLOW_NAME_ENV))
             if workflow_name is None:
                 workflow_name = get_repo_name() or DEFAULT_WORKFLOW_NAME
         self.export_failed_tests_only = export_failed_tests_only
@@ -86,7 +93,8 @@ class MonocleValidator:
 
     def cleanup(self):
         """Cleanup the validator state for a fresh test run."""
-        self._spans = []
+        self.clear_spans()
+        self._test_all_up_spans = ()
         if self.memory_exporter is not None:
             self.memory_exporter.clear()
         if self.file_exporter is not None:
@@ -97,21 +105,45 @@ class MonocleValidator:
     def spans(self):
         if len(self._spans) == 0 and self.memory_exporter is not None:
             self._spans = self.memory_exporter.get_finished_spans()
+            self._test_all_up_spans += self._spans
+            self.memory_exporter.clear()
         return self._spans
+
+    def clear_spans(self):
+        self._spans = ()
+
+    def add_remote_spans(self, spans:list[Span]):
+        self._spans = self.spans + tuple(spans)
 
     def flush_to_exporters(self, test_name:str, test_failed:bool, test_assertion_message:str = None):
         """Flush the current spans and prepare for validation."""
         if self.export_failed_tests_only and not test_failed:
             return
+        # Ensure any remaining spans in memory_exporter are moved to _test_all_up_spans
+        # This is critical for failed tests where spans property may not have been accessed
+        _ = self.spans
         span:Span = None
+        _span_immutable:bool = None
         for exporter in self.exporters:
-            for span in self.memory_exporter.get_finished_spans():
+            for span in self._test_all_up_spans:
+                _span_immutable = None
+                # If the span's attributes are made immutable, temporarily make them mutable to add test status attributes
+                try:
+                    _span_immutable = span._attributes._immutable
+                    span._attributes._immutable = False
+                except AttributeError:
+                    pass
                 if test_failed:
                     span._attributes[TEST_STATUS_ATTRIBUTE] = "failed"
                     if test_assertion_message is not None:
                         span._attributes[TEST_ASSERTION_ATTRIBUTE] = test_assertion_message
                 else:
                     span._attributes[TEST_STATUS_ATTRIBUTE] = "passed"
+                if _span_immutable is not None:
+                    try:
+                        span._attributes._immutable = _span_immutable
+                    except AttributeError:
+                        pass
                 exporter.export([span])
             if hasattr(exporter, "force_flush"):
                 exporter.force_flush()
@@ -130,9 +162,10 @@ class MonocleValidator:
         return token
 
     def post_test_cleanup(self, token:object, test_name:str, test_failed:bool,
-                        test_assertion_message:str = None) -> None:
+                        test_assertion_message:str = None, skip_export:bool = False) -> None:
         try:
-            self.flush_to_exporters(test_name, test_failed, test_assertion_message)
+            if not skip_export:
+                self.flush_to_exporters(test_name, test_failed, test_assertion_message)
         finally:
             self.cleanup()
             if token is not None:
@@ -163,7 +196,6 @@ class MonocleValidator:
             finally:
                 test_failed = validation_failed or (request.session.testsfailed > prior_test_failed_count)
                 self.post_test_cleanup(token, request.node.name, test_failed, validation_error_message)
-                self._spans = []
                 if token is not None:
                     stop_scope(token)
 
@@ -200,6 +232,7 @@ class MonocleValidator:
             workflow_func (callable): The workflow function to test.
             test_case (TestCase): The test case containing input and expected output.
         """
+        self.clear_spans()
         if isinstance(test_case, dict):
             test_case = TestCase.model_validate(test_case)
         result = None
@@ -217,6 +250,7 @@ class MonocleValidator:
             workflow_func (callable): The workflow function to test.
             test_case (TestCase): The test case containing input and expected output.
         """
+        self.clear_spans()
         if isinstance(test_case, dict):
             test_case = TestCase.model_validate(test_case)
         result = None
@@ -228,20 +262,40 @@ class MonocleValidator:
         self.validate_result(test_case, result)
         return result
 
-    @staticmethod
-    def run_agent(agent, agent_type:str, *args, **kwargs):
+    def run_agent(self, agent, agent_type:str, *args, mock_tools:list[MockTool]=[], **kwargs):
+        self.clear_spans()
         agent_runner = get_agent_runner(agent_type)
         if agent_runner is None:
             raise ValueError(f"Unsupported agent type: {agent_type}")
-        result = agent_runner.run_agent(agent, *args, **kwargs)
+        mock_tool_token = None
+        try:
+            context = self._set_wrapper_methods(mock_tools)
+            if context is not None:
+                mock_tool_token = attach(context)
+            result = agent_runner.run_agent(agent, *args, **kwargs)
+        finally:
+            if mock_tool_token is not None:
+                detach(mock_tool_token)
+        self._trace_source =  agent_runner.get_remote_traces_source()
+        self._fetch_remote_traces()
         return result
 
-    @staticmethod
-    async def run_agent_async(agent, agent_type:str, *args, session_id:str=None, **kwargs):
+    async def run_agent_async(self, agent, agent_type:str, *args, session_id:str=None, mock_tools:list[MockTool]=[], **kwargs):
+        self.clear_spans()
         agent_runner = get_agent_runner(agent_type)
         if agent_runner is None:
             raise ValueError(f"Unsupported agent type: {agent_type}")
-        result = await agent_runner.run_agent_async(agent, *args, session_id=session_id, **kwargs)
+        mock_tool_token = None
+        try:
+            context = self._set_wrapper_methods(mock_tools)
+            if context is not None:
+                mock_tool_token = attach(context)
+            result = await agent_runner.run_agent_async(agent, *args, session_id=session_id, **kwargs)
+        finally:
+            if mock_tool_token is not None:
+                detach(mock_tool_token)
+        self._trace_source = agent_runner.get_remote_traces_source()
+        self._fetch_remote_traces()
         return result
 
     async def test_agent_async(self, agent, agent_type:str, test_case:Union[TestCase, dict], session_id:str=None):
@@ -249,7 +303,7 @@ class MonocleValidator:
             test_case = TestCase.model_validate(test_case)
         result = None
         try:
-            result = await MonocleValidator.run_agent_async(agent, agent_type, *test_case.test_input, session_id=session_id)
+            result = await self.run_agent_async(agent, agent_type, *test_case.test_input, session_id=session_id)
         except Exception as e:
             if not test_case.expect_errors:
                 raise
@@ -261,12 +315,150 @@ class MonocleValidator:
             test_case = TestCase.model_validate(test_case)
         result = None
         try:
-            result = MonocleValidator.run_agent(agent, agent_type, *test_case.test_input)
+            result = self.run_agent(agent, agent_type, *test_case.test_input)
         except Exception as e:
             if not test_case.expect_errors:
                 raise
         self.validate_result(test_case, result)
         return result
+
+    def _fetch_remote_traces(self):
+        import time
+        deadline = time.monotonic() + RETRY_TIMEOUT_SECONDS
+        last_exc = None
+        while time.monotonic() < deadline:
+            try:
+                self.import_traces(self._trace_source)
+                return
+            except requests.exceptions.HTTPError | requests.HTTPError as e:
+                time.sleep(1)
+                last_exc = e
+            except ValueError as e:
+                return
+        if last_exc is not None:
+            raise last_exc
+
+    def import_traces(self, trace_source: str, id: Optional[str] = None,
+                      fact_name: Optional[str] = "trace",
+                      scope_name: Optional[str] = None,
+                      workflow_name: Optional[str] = None) -> None:
+        """Import traces from a source for assertion.
+
+        Loads previously exported trace spans into the asserter's memory
+        so assertions can be run against them without re-running the agent.
+
+        Args:
+            trace_source: Source type — ``"file"`` or ``"okahu"``.
+            id: Identifier whose meaning depends on *fact_name*:
+                - When fact_name is ``"trace"`` → a trace ID (hex string).
+                - When fact_name is ``"session"`` → an agent session ID.
+                - When fact_name is ``"scope"`` → any custom scope ID.
+            fact_name: What *id* represents.
+                ``"trace"`` (default) — *id* is a single trace ID.
+                ``"session"`` — *id* is a session ID (uses agent_sessions).
+                ``"scope"`` — *id* is a custom scope; requires *scope_name*.
+                For ``trace_source="file"`` only ``"trace"`` is supported.
+            scope_name: Name of custom scope/fact (e.g., "test_id", "my_scope").
+                Required when ``fact_name="scope"``. For fact_name="session",
+                defaults to "agent_sessions".
+            workflow_name: Okahu workflow / service name
+                (required when ``trace_source="okahu"``).
+
+        Returns:
+            self for fluent chaining.
+
+        Raises:
+            ValueError: If arguments are invalid or incomplete.
+            FileNotFoundError: If no local trace file is found (file source).
+            ConnectionError: If fetching from Okahu fails (okahu source).
+
+        Examples:
+            # Load by session (agent_sessions scope)
+            asserter.import_traces(
+                trace_source="okahu",
+                id="session_123",
+                fact_name="session",
+                workflow_name="my_app"
+            )
+
+            # Load by custom scope
+            asserter.import_traces(
+                trace_source="okahu",
+                id="test_456",
+                fact_name="scope",
+                scope_name="test_id",
+                workflow_name="my_app"
+            )
+
+            # Load by trace ID
+            asserter.import_traces(
+                trace_source="okahu",
+                id="abc123",
+                fact_name="trace",
+                workflow_name="my_app"
+            )
+        """
+        if trace_source not in ("file", "okahu"):
+            raise ValueError(
+                f"Unsupported trace_source: '{trace_source}'. "
+                "Supported sources: 'file', 'okahu'."
+            )
+        if not id:
+            id = self._get_current_trace_id()
+        if not id:
+            raise ValueError("'id' is required.")
+
+        if trace_source == "okahu":
+            if workflow_name is None:
+                workflow_name = get_workflow_name()
+            if not workflow_name:
+                raise ValueError("'workflow_name' is required for okahu trace source.")
+
+            if fact_name == "session":
+                # Session-based: use agent_sessions scope
+                spans = OkahuSpanLoader.load_by_scope(
+                    workflow_name=workflow_name,
+                    scope_name=OkahuSpanLoader.AGENT_SESSIONS_SCOPE,
+                    scope_id=id,
+                )
+            elif fact_name == "scope":
+                # Custom scope: requires scope_name
+                if not scope_name:
+                    raise ValueError("'scope_name' is required when fact_name='scope'.")
+                spans = OkahuSpanLoader.load_by_scope(
+                    workflow_name=workflow_name,
+                    scope_name=scope_name,
+                    scope_id=id,
+                )
+            else:
+                # Direct trace_id lookup
+                spans = OkahuSpanLoader.get_spans(
+                    workflow_name=workflow_name,
+                    trace_id=id,
+                )
+        else:
+            # File source — fact_name must be "trace"
+            if fact_name != "trace":
+                raise ValueError(
+                    "Only fact_name='trace' is supported for file trace source."
+                )
+            trace_file = JSONSpanLoader.find_trace_file(id)
+            if trace_file is None:
+                search_dir = os.path.join(".", ".monocle", "test_traces")
+                raise FileNotFoundError(
+                    f"No trace file found for trace_id '{id}' in '{search_dir}'")
+
+            spans = JSONSpanLoader.from_json(trace_file)
+
+        self.add_remote_spans(spans)
+        self._trace_source = trace_source
+        return None
+
+    def _get_current_trace_id(self) -> Optional[str]:
+        """Helper to get the current trace ID from the validator's spans."""
+        if self.spans and len(self.spans) > 0:
+            return format(self.spans[0].get_span_context().trace_id, '032x')
+        return None
 
     def _set_wrapper_methods(self, mock_tools: list[MockTool]) -> list[dict]:
         skip_exec: dict[str, dict] = {}
@@ -339,8 +531,6 @@ class MonocleValidator:
                 assert False, f"Expected request doesn't match"
             elif valid_input and not positive_test:
                 assert False, f"Request matched, but was not expected to be"
-        if eval is not None:
-            self._evaluate_span(agent_request_span, eval, positive_test)
 
     def verify_inference(self, test_span: TestSpan) -> bool:
         """Verify that the inference response matches the expected response or schema.
@@ -400,9 +590,6 @@ class MonocleValidator:
             assert False, f"No inference matched the expected response."
         elif expected_output is not None and verified_response and not positive_test:
             assert False, f"An inference matched the expected response, but was not expected to be."
-
-        if eval is not None and verified_response and verified_response_span is not None:
-            self._evaluate_span(verified_response_span, eval, positive_test)
 
         if max_output_tokens is not None:
             self.check_completion_token_limits(max_output_tokens, positive_test)
@@ -709,8 +896,6 @@ class MonocleValidator:
                     found_output = True
                     candidate_span = span
                 if candidate_span is not None:
-                    if eval is not None:
-                        self._evaluate_span(candidate_span, eval, positive_test)
                     candidate_spans.append(candidate_span)
             if tool_name is not None:
                 self._verify_tool_input_output(tool_name, agent_name, expected_inputs, found_input, expected_outputs, found_output, positive_test)
@@ -718,7 +903,7 @@ class MonocleValidator:
                 self._verify_agent_input_output(agent_name, expected_inputs, found_input, expected_outputs, found_output, positive_test)
         return candidate_spans
 
-    def _get_inference_spans(self) -> list[Span]:
+    def _get_inference_spans(self, expect_errors: bool = False, expect_warnings: bool = False) -> list[Span]:
         inferences: list[Span] = []
         for span in self.spans:
             span_attributes = span.attributes
@@ -726,6 +911,10 @@ class MonocleValidator:
                 "span.type" in span_attributes
                 and (span_attributes["span.type"] == "inference" or span_attributes["span.type"] == "inference.framework")
             ):
+                if self._span_has_error(span) != expect_errors:
+                    continue
+                if self._span_has_warning(span) != expect_warnings:
+                    continue
                 inferences.append(span)
         return inferences
 
@@ -762,33 +951,62 @@ class MonocleValidator:
                 return span
         return None
 
-    def _get_tool_invocation_spans(self, tool_name:str, agent_name:str = None,
-                                filtered_spans:Optional[list[Span]] = None) -> list:
-        tool_invocation_spans = []
+    def _filter_spans_by_type(self, span_type: str, filtered_spans: Optional[list[Span]] = None, 
+                             name_filter: Optional[str] = None, entity_key: str = "entity.1.name",
+                             parent_filter: Optional[str] = None, parent_key: str = "entity.2.name") -> list:
+        """Filter spans by type with optional name and parent filters."""
         spans_to_check = filtered_spans if filtered_spans is not None else self.spans
+        matching_spans = []
+        
         for span in spans_to_check:
             span_attributes = span.attributes
-            if (
-                "span.type" in span_attributes
-                and span_attributes["span.type"] == "agentic.tool.invocation"
-            ):
-                if span_attributes.get("entity.1.name","") == tool_name \
-                    and (agent_name is None or (agent_name is not None and span_attributes.get("entity.2.name","") == agent_name)):
-                    tool_invocation_spans.append(span)
-        return tool_invocation_spans
+            
+            if span_attributes.get("span.type") != span_type:
+                continue
+                
+            if name_filter is not None:
+                if span_attributes.get(entity_key, "") != name_filter:
+                    continue
+                    
+            if parent_filter is not None:
+                if span_attributes.get(parent_key, "") != parent_filter:
+                    continue
+                    
+            matching_spans.append(span)
+            
+        return matching_spans
 
-    def _get_agent_invocation_spans(self, agent_name:str, filtered_spans:Optional[list[Span]] = None) -> list:
-        agent_invocation_spans = []
-        spans_to_check = filtered_spans if filtered_spans is not None else self.spans
-        for span in spans_to_check:
-            span_attributes = span.attributes
-            if (
-                "span.type" in span_attributes
-                and span_attributes["span.type"] == "agentic.invocation"
-            ):
-                if span_attributes.get("entity.1.name","") == agent_name:
-                    agent_invocation_spans.append(span)
-        return agent_invocation_spans
+    def _get_tool_invocation_spans(self, tool_name: str, agent_name: str = None,
+                                   filtered_spans: Optional[list[Span]] = None) -> list:
+        """Get tool invocation spans, optionally filtered by agent."""
+        return self._filter_spans_by_type(
+            span_type="agentic.tool.invocation",
+            filtered_spans=filtered_spans,
+            name_filter=tool_name,
+            parent_filter=agent_name
+        )
+
+    def _get_agent_invocation_spans(self, agent_name: str, filtered_spans: Optional[list[Span]] = None) -> list:
+        """Get agent invocation spans for a specific agent."""
+        return self._filter_spans_by_type(
+            span_type="agentic.invocation",
+            filtered_spans=filtered_spans,
+            name_filter=agent_name
+        )
+
+    def _get_all_agent_invocation_spans(self, filtered_spans: Optional[list[Span]] = None) -> list:
+        """Get all agent invocation spans regardless of agent name."""
+        return self._filter_spans_by_type(
+            span_type="agentic.invocation",
+            filtered_spans=filtered_spans
+        )
+
+    def _get_all_tool_invocation_spans(self, filtered_spans: Optional[list[Span]] = None) -> list:
+        """Get all tool invocation spans regardless of tool or agent name."""
+        return self._filter_spans_by_type(
+            span_type="agentic.tool.invocation",
+            filtered_spans=filtered_spans
+        )
 
     def _agent_request_output(self, agent_request_span:Span,expect_error:bool = False, expect_warnings: bool = False) -> dict[str, str]:
         if agent_request_span is None:

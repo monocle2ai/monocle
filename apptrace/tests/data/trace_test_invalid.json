@@ -1,0 +1,22 @@
+[
+  {
+    "name": "inference_call",
+    "context": {
+      "trace_id": "0x7d675c7ccfcbecbc581510d4873bedca",
+      "span_id": "0x543b6c7c35b4f0bf"
+    },
+    "attributes": {
+      "span.type": "inference",
+      "entity.1.provider_name": "openai",
+      "entity.1.type": "inference.openai"
+    },
+    "events": [
+      {
+        "name": "metadata",
+        "attributes": {
+          "finish_reason": "stop"
+        }
+      }
+    ]
+  }
+]

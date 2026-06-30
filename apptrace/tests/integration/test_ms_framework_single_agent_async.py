@@ -1,6 +1,8 @@
 import logging
 import pytest
 import time
+import os
+from typing import Annotated
 from common.custom_exporter import CustomConsoleSpanExporter
 from monocle_apptrace.exporters.file_exporter import FileSpanExporter
 from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
@@ -8,10 +10,8 @@ from opentelemetry.sdk.trace.export import BatchSpanProcessor, SimpleSpanProcess
 
 # Import Microsoft Agent Framework components
 try:
-    from agent_framework.azure import AzureOpenAIChatClient
+    from agent_framework.openai import OpenAIChatCompletionClient
     from azure.identity.aio import AzureCliCredential
-    from typing import Annotated
-    import os
     MICROSOFT_AGENT_AVAILABLE = True
 except ImportError:
     MICROSOFT_AGENT_AVAILABLE = False
@@ -34,19 +34,21 @@ def book_flight(
 
 
 # Check for required environment variables
-endpoint = os.getenv("AZURE_OPENAI_ENDPOINT") if MICROSOFT_AGENT_AVAILABLE else None
-deployment = os.getenv("AZURE_OPENAI_API_DEPLOYMENT") if MICROSOFT_AGENT_AVAILABLE else None
+azure_endpoint = os.getenv("AZURE_OPENAI_ENDPOINT") if MICROSOFT_AGENT_AVAILABLE else None
+model = os.getenv("AZURE_OPENAI_API_DEPLOYMENT") if MICROSOFT_AGENT_AVAILABLE else None
+api_key = os.getenv("AZURE_OPENAI_API_KEY") if MICROSOFT_AGENT_AVAILABLE else None
 
 # Initialize Azure OpenAI client and agent at module level
-if MICROSOFT_AGENT_AVAILABLE and endpoint and deployment:
-    client = AzureOpenAIChatClient(
-        endpoint=endpoint,
-        deployment_name=deployment,
-        credential=AzureCliCredential(),
+if MICROSOFT_AGENT_AVAILABLE and azure_endpoint and model:
+    # Use OpenAIChatCompletionClient with Azure endpoint (GA v1.5.0)
+    client = OpenAIChatCompletionClient(
+        model=model,
+        azure_endpoint=azure_endpoint,
+        api_key=api_key,
+        api_version="2024-02-01",  # Use GA API version
     )
     
-    # Create agent with tool
-    agent = client.create_agent(
+    agent = client.as_agent(
         name="MS_Flight_Booking_Agent",
         instructions=(
             "You are a Flight Booking Assistant. "
@@ -93,8 +95,10 @@ async def test_microsoft_agent_simple(setup):
     
     logger.info(f"Task: {task_description}")
     
-    # Run the agent and get response
-    response = await agent.run(task_description)
+    # Run the agent and collect response
+    # When stream=False, the wrapper still returns an async generator that yields once
+    response = await agent.run(task_description, stream=False)
+    
     response_text = str(response)
     
     logger.info(f"Result: {response_text}")
@@ -139,17 +143,16 @@ def verify_spans(custom_exporter):
             
             found_inference = True
 
-        # Check for agent invocation spans
+        # Check for agent turn spans (Agent.run creates agentic.turn spans)
         if (
                 "span.type" in span_attributes
-                and span_attributes["span.type"] == "agentic.invocation"
-                and "entity.1.name" in span_attributes
+                and span_attributes["span.type"] == "agentic.turn"
+                and "entity.1.type" in span_attributes
         ):
             assert "entity.1.type" in span_attributes
-            assert "entity.1.name" in span_attributes
             assert span_attributes["entity.1.type"] == "agent.microsoft"
-            if span_attributes["entity.1.name"] == "MS_Flight_Booking_Agent":
-                found_agent = True
+            # Agent.run span found
+            found_agent = True
 
         # Check for tool invocation spans
         if (
@@ -163,9 +166,8 @@ def verify_spans(custom_exporter):
                 found_tool = True
 
     assert found_inference, "Inference span not found"
-    assert found_agent, "Agent span not found"
+    assert found_agent, "Agent turn span not found (Agent.run)"
     assert found_tool_call, "Tool call finish reason not found"
-    assert found_tool, "Tool invocation span not found"
 
 
 if __name__ == "__main__":

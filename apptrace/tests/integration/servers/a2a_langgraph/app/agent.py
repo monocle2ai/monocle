@@ -79,7 +79,8 @@ class CurrencyAgent:
     def __init__(self):
         model_source = os.getenv('model_source', 'google')
         if model_source == 'google':
-            self.model = ChatGoogleGenerativeAI(model='gemini-2.0-flash')
+            GOOGLE_GENAI_MODEL = os.getenv("GOOGLE_GENAI_MODEL", "gemini-3.5-flash-lite")
+            self.model = ChatGoogleGenerativeAI(model=GOOGLE_GENAI_MODEL)
         else:
             self.model = ChatOpenAI(
                 model=os.getenv('TOOL_LLM_NAME'),

@@ -7,8 +7,19 @@ from types import SimpleNamespace
 from monocle_apptrace.instrumentation.metamodel.finish_types import (
     LLAMAINDEX_FINISH_REASON_MAPPING,
 )
+from unittest.mock import MagicMock
+
+from monocle_apptrace.instrumentation.common.constants import (
+    INFERENCE_TOOL_CALL,
+    INFERENCE_TURN_END,
+    TOOL_TYPE,
+)
 from monocle_apptrace.instrumentation.metamodel.llamaindex._helper import (
+    _get_first_tool_call,
+    agent_inference_type,
     extract_finish_reason,
+    extract_tool_name,
+    extract_tool_type,
     map_finish_reason_to_finish_type,
 )
 
@@ -395,6 +406,136 @@ class TestLlamaIndexFinishReasonHelpers(unittest.TestCase):
         arguments = {"exception": None, "result": truncated_response}
         self.assertEqual(extract_finish_reason(arguments), "length")
         self.assertEqual(map_finish_reason_to_finish_type("length"), "truncated")
+
+
+def _args(result=None, exception=None):
+    return {"result": result, "exception": exception}
+
+
+def _tool_call_response(tool_name="get_weather"):
+    """LlamaIndex-style response with a tool call in raw.choices."""
+    fn = SimpleNamespace(name=tool_name, arguments='{"city": "Paris"}')
+    tool_call = SimpleNamespace(function=fn, id="call_abc", type="function")
+    message = SimpleNamespace(tool_calls=[tool_call], content=None, role="assistant")
+    choice = SimpleNamespace(message=message, finish_reason="tool_calls")
+    raw = SimpleNamespace(choices=[choice])
+    return SimpleNamespace(raw=raw, finish_reason="tool_calls")
+
+
+def _plain_response(finish_reason="stop"):
+    return SimpleNamespace(finish_reason=finish_reason)
+
+
+class TestAgentInferenceType(unittest.TestCase):
+
+    def test_returns_tool_call_for_tool_calls_finish_reason(self):
+        self.assertEqual(agent_inference_type(_args(_tool_call_response())), INFERENCE_TOOL_CALL)
+
+    def test_returns_tool_call_for_function_call_finish_reason(self):
+        self.assertEqual(agent_inference_type(_args(_plain_response("function_call"))), INFERENCE_TOOL_CALL)
+
+    def test_returns_turn_end_for_stop(self):
+        self.assertEqual(agent_inference_type(_args(_plain_response("stop"))), INFERENCE_TURN_END)
+
+    def test_returns_turn_end_for_end_turn(self):
+        self.assertEqual(agent_inference_type(_args(_plain_response("end_turn"))), INFERENCE_TURN_END)
+
+    def test_returns_turn_end_for_length(self):
+        self.assertEqual(agent_inference_type(_args(_plain_response("length"))), INFERENCE_TURN_END)
+
+    def test_returns_turn_end_when_no_finish_reason(self):
+        self.assertEqual(agent_inference_type(_args(SimpleNamespace())), INFERENCE_TURN_END)
+
+    def test_returns_turn_end_when_result_is_none(self):
+        self.assertEqual(agent_inference_type(_args(None)), INFERENCE_TURN_END)
+
+    def test_returns_turn_end_on_exception(self):
+        self.assertEqual(agent_inference_type(_args(exception=RuntimeError("boom"))), INFERENCE_TURN_END)
+
+
+class TestGetFirstToolCall(unittest.TestCase):
+
+    def test_extracts_tool_call_from_raw_object(self):
+        tc = _get_first_tool_call(_tool_call_response("get_weather"))
+        self.assertIsNotNone(tc)
+        self.assertEqual(tc.function.name, "get_weather")
+
+    def test_returns_none_when_no_raw(self):
+        self.assertIsNone(_get_first_tool_call(_plain_response("stop")))
+
+    def test_returns_none_when_raw_has_no_choices(self):
+        self.assertIsNone(_get_first_tool_call(SimpleNamespace(raw=SimpleNamespace())))
+
+    def test_returns_none_when_tool_calls_empty(self):
+        message = SimpleNamespace(tool_calls=[], content="hi")
+        choice = SimpleNamespace(message=message, finish_reason="stop")
+        response = SimpleNamespace(raw=SimpleNamespace(choices=[choice]))
+        self.assertIsNone(_get_first_tool_call(response))
+
+    def test_returns_none_for_none_response(self):
+        self.assertIsNone(_get_first_tool_call(None))
+
+    def test_returns_first_of_multiple_tool_calls(self):
+        fn1 = SimpleNamespace(name="tool_a", arguments="{}")
+        fn2 = SimpleNamespace(name="tool_b", arguments="{}")
+        tc1 = SimpleNamespace(function=fn1, id="c1", type="function")
+        tc2 = SimpleNamespace(function=fn2, id="c2", type="function")
+        message = SimpleNamespace(tool_calls=[tc1, tc2], content=None)
+        choice = SimpleNamespace(message=message, finish_reason="tool_calls")
+        response = SimpleNamespace(raw=SimpleNamespace(choices=[choice]))
+        self.assertEqual(_get_first_tool_call(response).function.name, "tool_a")
+
+
+class TestExtractToolName(unittest.TestCase):
+
+    def test_extracts_name_when_tool_call(self):
+        self.assertEqual(extract_tool_name(_args(_tool_call_response("get_weather"))), "get_weather")
+
+    def test_returns_none_when_finish_reason_is_stop(self):
+        self.assertIsNone(extract_tool_name(_args(_plain_response("stop"))))
+
+    def test_returns_none_when_result_is_none(self):
+        self.assertIsNone(extract_tool_name(_args(None)))
+
+    def test_returns_none_when_no_tool_call_object(self):
+        # finish_reason signals tool_calls but raw has no actual tool call
+        self.assertIsNone(extract_tool_name(_args(SimpleNamespace(finish_reason="tool_calls", raw=SimpleNamespace()))))
+
+    def test_extracts_different_tool_names(self):
+        for name in ("search_web", "run_code", "send_email"):
+            with self.subTest(tool_name=name):
+                self.assertEqual(extract_tool_name(_args(_tool_call_response(name))), name)
+
+
+class TestExtractToolType(unittest.TestCase):
+
+    def test_returns_tool_type_constant_when_tool_call(self):
+        self.assertEqual(extract_tool_type(_args(_tool_call_response())), TOOL_TYPE)
+
+    def test_tool_type_value_is_tool_function(self):
+        self.assertEqual(TOOL_TYPE, "tool.function")
+
+    def test_returns_none_when_finish_reason_is_stop(self):
+        self.assertIsNone(extract_tool_type(_args(_plain_response("stop"))))
+
+    def test_returns_none_when_result_is_none(self):
+        self.assertIsNone(extract_tool_type(_args(None)))
+
+
+class TestInferenceTypeToolNameRoundTrip(unittest.TestCase):
+    """subtype, tool name, and tool type must be consistent for the same response."""
+
+    def test_tool_call_response_is_fully_consistent(self):
+        args = _args(_tool_call_response("get_weather"))
+        self.assertEqual(agent_inference_type(args), INFERENCE_TOOL_CALL)
+        self.assertEqual(extract_tool_name(args), "get_weather")
+        self.assertEqual(extract_tool_type(args), TOOL_TYPE)
+
+    def test_turn_end_response_has_no_tool_info(self):
+        args = _args(_plain_response("stop"))
+        self.assertEqual(agent_inference_type(args), INFERENCE_TURN_END)
+        self.assertIsNone(extract_tool_name(args))
+        self.assertIsNone(extract_tool_type(args))
 
 
 if __name__ == "__main__":

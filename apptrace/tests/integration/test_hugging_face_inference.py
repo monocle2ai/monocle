@@ -22,7 +22,7 @@ from config.conftest import temporary_env_var
 logger = logging.getLogger(__name__)
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="function")
 def setup():
     custom_exporter = CustomConsoleSpanExporter()
     file_exporter = FileSpanExporter()
@@ -234,6 +234,175 @@ async def test_huggingface_api_async_streaming_sample(setup):
     assert workflow_span.attributes["entity.1.name"] == "generic_hf_1"
     assert workflow_span.attributes["workflow.name"] == "generic_hf_1"
     assert workflow_span.attributes["entity.1.type"] == "workflow.huggingface"
+
+
+# ---------------------------------------------------------------------------
+# span.subtype tests
+# ---------------------------------------------------------------------------
+
+HF_API_KEY = os.getenv("HUGGING_FACE_API_KEY")
+HF_MODEL = os.getenv("HUGGING_FACE_MODEL", "openai/gpt-oss-120b")
+
+WEATHER_TOOL = {
+    "type": "function",
+    "function": {
+        "name": "get_weather",
+        "description": "Get the current weather for a city",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "city": {"type": "string", "description": "The city name"},
+            },
+            "required": ["city"],
+        },
+    },
+}
+
+
+@pytest.mark.skipif(not HF_API_KEY, reason="HUGGING_FACE_API_KEY not set")
+def test_hf_subtype_tool_call(setup):
+    """Inference span gets span.subtype='tool_call' when the HF model calls a tool."""
+    baseline_count = len(setup.get_captured_spans())
+    client = InferenceClient(api_key=HF_API_KEY)
+    
+    client.chat_completion(
+        model=HF_MODEL,
+        messages=[{"role": "user", "content": "What's the weather like in Paris?"}],
+        tools=[WEATHER_TOOL],
+        tool_choice="auto",
+        max_tokens=100,
+    )
+    
+    time.sleep(2)
+    spans = setup.get_captured_spans()[baseline_count:]
+    assert spans, "No spans captured"
+
+    inference_spans = [
+        s for s in spans
+        if s.attributes.get("span.type") == "inference"
+    ]
+    assert inference_spans, "No inference spans captured"
+
+    tool_call_spans = [
+        s for s in inference_spans
+        if s.attributes.get("span.subtype") == "tool_call"
+    ]
+    assert tool_call_spans, (
+        "Expected at least one inference span with span.subtype='tool_call'. "
+        f"Got subtypes: {[s.attributes.get('span.subtype') for s in inference_spans]}"
+    )
+
+    span = tool_call_spans[0]
+    assert span.attributes.get("entity.3.name") == "get_weather", (
+        f"Expected entity.3.name='get_weather', got '{span.attributes.get('entity.3.name')}'"
+    )
+    assert span.attributes.get("entity.3.type") == "tool.huggingface", (
+        f"Expected entity.3.type='tool.huggingface', got '{span.attributes.get('entity.3.type')}'"
+    )
+    logger.info("✓ HuggingFace: span.subtype='tool_call' and entity.3 verified")
+
+
+@pytest.mark.skipif(not HF_API_KEY, reason="HUGGING_FACE_API_KEY not set")
+def test_hf_subtype_turn_end(setup):
+    """Inference span gets span.subtype='turn_end' when HF model responds without a tool call."""
+    baseline_count = len(setup.get_captured_spans())
+    client = InferenceClient(api_key=HF_API_KEY)
+    
+    client.chat_completion(
+        model=HF_MODEL,
+        messages=[
+            {"role": "system", "content": "You are a concise assistant."},
+            {"role": "user", "content": "Say hello in one word."},
+        ],
+        max_tokens=10,
+    )
+
+    time.sleep(2)
+    spans = setup.get_captured_spans()[baseline_count:]
+    assert spans, "No spans captured"
+
+    inference_spans = [
+        s for s in spans
+        if s.attributes.get("span.type") == "inference"
+    ]
+    assert inference_spans, "No inference spans captured"
+
+    span = inference_spans[-1]
+    assert "span.subtype" in span.attributes, "span.subtype attribute must be present"
+    assert span.attributes.get("span.subtype") == "turn_end", (
+        f"Expected span.subtype='turn_end', got '{span.attributes.get('span.subtype')}'"
+    )
+    logger.info("✓ HuggingFace: span.subtype='turn_end' verified")
+
+
+@pytest.mark.skipif(not HF_API_KEY, reason="HUGGING_FACE_API_KEY not set")
+def test_hf_entity3_absent_on_turn_end(setup):
+    """entity.3.name should not be set when the HF model does not call a tool."""
+    baseline_count = len(setup.get_captured_spans())
+    client = InferenceClient(api_key=HF_API_KEY)
+    
+    client.chat_completion(
+        model=HF_MODEL,
+        messages=[{"role": "user", "content": "What is 2 + 2?"}],
+        max_tokens=20,
+    )
+
+    time.sleep(2)
+    spans = setup.get_captured_spans()[baseline_count:]
+    assert spans, "No spans captured"
+
+    turn_end_spans = [
+        s for s in spans
+        if s.attributes.get("span.type") == "inference"
+        and s.attributes.get("span.subtype") == "turn_end"
+    ]
+    assert turn_end_spans, "Expected a turn_end inference span"
+    assert turn_end_spans[0].attributes.get("entity.3.name") is None, (
+        "entity.3.name should not be set when there is no tool call"
+    )
+    logger.info("✓ entity.3.name correctly absent on turn_end inference span")
+
+
+@pytest.mark.asyncio
+@pytest.mark.skipif(not HF_API_KEY, reason="HUGGING_FACE_API_KEY not set")
+async def test_hf_async_subtype_tool_call(setup):
+    """Async: inference span gets span.subtype='tool_call' when HF model calls a tool."""
+    baseline_count = len(setup.get_captured_spans())
+    client = AsyncInferenceClient(api_key=HF_API_KEY)
+    
+    await client.chat_completion(
+        model=HF_MODEL,
+        messages=[{"role": "user", "content": "What's the weather in Tokyo?"}],
+        tools=[WEATHER_TOOL],
+        tool_choice="auto",
+        max_tokens=100,
+    )
+
+    time.sleep(2)
+    spans = setup.get_captured_spans()[baseline_count:]
+    assert spans, "No spans captured"
+
+    inference_spans = [
+        s for s in spans
+        if s.attributes.get("span.type") == "inference"
+    ]
+    assert inference_spans, "No inference spans captured"
+
+    tool_call_spans = [
+        s for s in inference_spans
+        if s.attributes.get("span.subtype") == "tool_call"
+    ]
+    assert tool_call_spans, (
+        "Expected at least one inference span with span.subtype='tool_call'. "
+        f"Got subtypes: {[s.attributes.get('span.subtype') for s in inference_spans]}"
+    )
+
+    span = tool_call_spans[0]
+    assert span.attributes.get("entity.3.name") == "get_weather", (
+        f"Expected entity.3.name='get_weather', got '{span.attributes.get('entity.3.name')}'"
+    )
+    logger.info("✓ HuggingFace async: span.subtype='tool_call' and entity.3.name verified")
+
 
 if __name__ == "__main__":
     pytest.main([__file__, "-s", "--tb=short"])

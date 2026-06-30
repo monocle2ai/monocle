@@ -59,7 +59,7 @@ def setup_chain():
     # Retrieve and generate using the relevant snippets of the blog.
     retriever = vectorstore.as_retriever()
     client = Client()
-    prompt = client.pull_prompt("rlm/rag-prompt")
+    prompt = client.pull_prompt("rlm/rag-prompt", dangerously_pull_public_prompt=True)
 
     def format_docs(docs):
         return "\n\n".join(doc.page_content for doc in docs)

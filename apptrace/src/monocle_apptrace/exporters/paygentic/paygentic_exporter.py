@@ -5,6 +5,8 @@ so each provider/span kind gets its own type automatically.
 
 Extends SpanExporterBase for consistency with other monocle exporters
 and reuses its retry_with_backoff decorator for transient-error resilience.
+
+See https://docs.paygentic.io/integrations/monocle for setup and usage.
 """
 from __future__ import annotations
 

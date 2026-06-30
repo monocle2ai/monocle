@@ -91,6 +91,13 @@ INFERENCE = {
                     "accessor": lambda arguments: _helper.extract_messages(
                         arguments["kwargs"]
                     ),
+                },
+                {
+                    "_comment": "response_format requested for structured output",
+                    "attribute": "response_format",
+                    "accessor": lambda arguments: _helper.extract_response_format(
+                        arguments["kwargs"]
+                    ),
                 }
             ],
         },

@@ -58,6 +58,34 @@ class TestHandler(unittest.TestCase):
         os.environ.clear()
 
 
+    def test_monocle_console_adds_console_exporter(self):
+        """MONOCLE_CONSOLE=true appends ConsoleSpanExporter alongside the primary exporter."""
+        os.environ["MONOCLE_EXPORTER"] = "file"
+        os.environ["MONOCLE_CONSOLE"] = "true"
+        exporters = get_monocle_exporter()
+        class_names = [e.__class__.__name__ for e in exporters]
+        assert "FileSpanExporter" in class_names
+        assert "ConsoleSpanExporter" in class_names
+        os.environ.clear()
+
+    def test_monocle_console_no_duplicate(self):
+        """MONOCLE_CONSOLE=true does not add a second ConsoleSpanExporter when console is already configured."""
+        os.environ["MONOCLE_EXPORTER"] = "console"
+        os.environ["MONOCLE_CONSOLE"] = "true"
+        exporters = get_monocle_exporter()
+        console_count = sum(1 for e in exporters if e.__class__.__name__ == "ConsoleSpanExporter")
+        assert console_count == 1
+        os.environ.clear()
+
+    def test_monocle_console_unset_no_effect(self):
+        """Without MONOCLE_CONSOLE, no extra ConsoleSpanExporter is added."""
+        os.environ["MONOCLE_EXPORTER"] = "file"
+        exporters = get_monocle_exporter()
+        class_names = [e.__class__.__name__ for e in exporters]
+        assert "ConsoleSpanExporter" not in class_names
+        os.environ.clear()
+
+
 if __name__ == "__main__":
     handler = TestHandler()
     handler.test_default_exporter()

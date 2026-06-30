@@ -10,7 +10,7 @@ import threading
 from urllib.parse import urlparse
 from opentelemetry.sdk.trace import Span
 from opentelemetry.context import get_value
-from monocle_apptrace.instrumentation.common.constants import TOOL_TYPE
+from monocle_apptrace.instrumentation.common.constants import TOOL_TYPE, INFERENCE_TOOL_CALL, INFERENCE_TURN_END
 from monocle_apptrace.instrumentation.common.utils import (
     Option,
     get_json_dumps,
@@ -489,6 +489,13 @@ def extract_finish_reason(arguments):
 def map_finish_reason_to_finish_type(finish_reason):
     """Map LlamaIndex finish_reason to finish_type."""
     return map_llamaindex_finish_reason_to_finish_type(finish_reason)
+
+def agent_inference_type(arguments):
+    """Determine inference span subtype based on finish_reason (tool_call or turn_end)."""
+    finish_type = map_finish_reason_to_finish_type(extract_finish_reason(arguments))
+    if finish_type == "tool_call":
+        return INFERENCE_TOOL_CALL
+    return INFERENCE_TURN_END
 
 def extract_agent_request_input(kwargs):
     if "user_msg" in kwargs:

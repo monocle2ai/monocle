@@ -73,6 +73,9 @@ llm_type_map = {
     "chatgooglegenerativeai": "gemini",
     "azurechatcompletion": "azure_openai",
     "openaichatcompletion": "openai",
+    "vertexllm": "gemini",
+    "bedrockconversellm": "aws_bedrock",
+    "anthropicchatcompletion": "anthropic",
     "runtimeforbedrockdataautomation": "aws_bedrock",
     "agentsforbedrockruntime": "aws_bedrock",
 }
@@ -91,6 +94,9 @@ META_DATA = "metadata"
 MONOCLE_SCOPE_NAME_PREFIX = "monocle.scope."
 SCOPE_METHOD_LIST = "MONOCLE_SCOPE_METHODS"
 SCOPE_METHOD_FILE = "monocle_scopes.json"
+CUSTOM_INSTRUMENTATION_FILE_NAME = "custom_instrumentation.yaml"
+CUSTOM_INSTRUMENTATION_FILE_PATH_ENV = "MONOCLE_CUSTOM_INSTRUMENTATION_FILE_PATH"
+WORKFLOW_NAME_ENV = "MONOCLE_WORKFLOW_NAME"
 SCOPE_CONFIG_PATH = "MONOCLE_SCOPE_CONFIG_PATH"
 TRACE_PROPOGATION_URLS = "MONOCLE_TRACE_PROPAGATATION_URLS"
 WORKFLOW_TYPE_KEY = "monocle.workflow_type"
@@ -126,6 +132,8 @@ AGENT_INVOCATION_SPAN_NAME = "agentic.invocation"
 AGENT_REQUEST_SPAN_NAME = "agentic.turn"
 AGENT_SESSION = "agentic.session"
 AGENT_EXECUTION_ID = "agentic.executionId"
+CODEX_TURN_SCOPE = "codex.turn"
+CODEX_INVOCATION_SCOPE = "codex.invocation"
 LAST_INFERENCE = "last.inference"
 INFERENCE_DECISION = "inference.decision.span.id"
 
@@ -244,3 +252,6 @@ PROVIDER_BASE_URLS = {
     "deepseek": "https://api.deepseek.com",
     # Add more providers here later
 }
+
+SPAN_START_TIME:str = "monocle_span_start_time"
+SPAN_END_TIME:str = "monocle_span_end_time"

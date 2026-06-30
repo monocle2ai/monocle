@@ -1,5 +1,6 @@
 #pylint: disable=consider-using-with
 
+import json
 from os import linesep, path
 from io import TextIOWrapper
 from datetime import datetime
@@ -8,24 +9,26 @@ from typing import Optional, Callable, Sequence, Dict, Tuple
 from opentelemetry.sdk.trace import ReadableSpan
 from opentelemetry.sdk.trace.export import SpanExporter, SpanExportResult
 from opentelemetry.sdk.resources import SERVICE_NAME
-from monocle_apptrace.exporters.base_exporter import SpanExporterBase, format_trace_id_without_0x
+from monocle_apptrace.exporters.base_exporter import SpanExporterBase, format_trace_id_without_0x, serialize_span
 from monocle_apptrace.exporters.exporter_processor import ExportTaskProcessor
 
 DEFAULT_FILE_PREFIX:str = "monocle_trace_"
 DEFAULT_TIME_FORMAT:str = "%Y-%m-%d_%H.%M.%S"
 HANDLE_TIMEOUT_SECONDS: int = 60  # 1 minute timeout
 DEFAULT_TRACE_FOLDER = ".monocle"
+# Sentinel so we can tell "caller passed nothing" apart from "caller passed default".
+_UNSET = object()
 
 class FileSpanExporter(SpanExporterBase):
     def __init__(
         self,
         service_name: Optional[str] = None,
         out_path:str = path.join(".", DEFAULT_TRACE_FOLDER),
-        file_prefix = DEFAULT_FILE_PREFIX,
+        file_prefix = _UNSET,
         time_format = DEFAULT_TIME_FORMAT,
         formatter: Callable[
             [ReadableSpan], str
-        ] = lambda span: span.to_json(indent = 4)
+        ] = lambda span: json.dumps(serialize_span(span), indent=4)
         + linesep,
         task_processor: Optional[ExportTaskProcessor] = None
     ):
@@ -37,7 +40,11 @@ class FileSpanExporter(SpanExporterBase):
         self.output_path = os.getenv("MONOCLE_TRACE_OUTPUT_PATH", out_path)
         if not os.path.exists(self.output_path):
             os.makedirs(self.output_path)
-        self.file_prefix = file_prefix
+        # Precedence: explicit constructor arg > MONOCLE_FILE_PREFIX env var > default.
+        if file_prefix is _UNSET:
+            self.file_prefix = os.getenv("MONOCLE_FILE_PREFIX", DEFAULT_FILE_PREFIX)
+        else:
+            self.file_prefix = file_prefix
         self.time_format = time_format
         self.task_processor = task_processor
         self.is_first_span_in_file = True  # Track if this is the first span in the current file
@@ -47,8 +54,13 @@ class FileSpanExporter(SpanExporterBase):
         self.last_trace_id = None
         self._root_span_seen: set = set()  # traces where root arrived but child hasn't yet
 
+    @staticmethod
+    def _is_root_span(span: ReadableSpan) -> bool:
+        """Return True if the span has no parent (i.e. it is a root span)."""
+        return (not span.parent) or (span.attributes.get("span.type") == "workflow")
+
     def export(self, spans: Sequence[ReadableSpan]) -> SpanExportResult:
-        is_root_span = any(not span.parent for span in spans)
+        is_root_span = any(FileSpanExporter._is_root_span(span) for span in spans)
         if self.task_processor is not None and callable(getattr(self.task_processor, 'queue_task', None)):
             # Check if any span is a root span (no parent)
             self.task_processor.queue_task(
@@ -112,6 +124,12 @@ class FileSpanExporter(SpanExporterBase):
                 self.last_file_processed = file_path
                 self.last_trace_id = trace_id
 
+    def _is_first_span(self, trace_id: int) -> bool:
+        """Return True if no spans have been written yet for this trace (still the first span)."""
+        if trace_id in self.file_handles:
+            return self.file_handles[trace_id][3]
+        return True
+
     def _mark_span_written(self, trace_id: int) -> None:
         """Mark that a span has been written for this trace (no longer first span)."""
         if trace_id in self.file_handles:
@@ -133,7 +151,7 @@ class FileSpanExporter(SpanExporterBase):
             spans_by_trace[trace_id].append(span)
             
             # Check if this span is a root span
-            if not span.parent:
+            if FileSpanExporter._is_root_span(span):
                 root_span_traces.add(trace_id)
         
         # Process spans for each trace
@@ -168,7 +186,10 @@ class FileSpanExporter(SpanExporterBase):
         traces_to_close = set()
         for trace_id in root_span_traces:
             has_child_spans = any(s.parent for s in spans_by_trace.get(trace_id, []))
-            if has_child_spans:
+            children_already_written = (
+                trace_id in self.file_handles and not self._is_first_span(trace_id)
+            )
+            if has_child_spans or children_already_written:
                 # Root + child in same batch: complete trace, close now
                 traces_to_close.add(trace_id)
                 self._root_span_seen.discard(trace_id)

@@ -61,7 +61,33 @@ class OkahuEval(BaseEval):
                 f"Invalid fact_name '{fact_name}'. Supported values: {', '.join(sorted(set(mapping.keys())))}"
             )
         return mapped
-    
+
+    @staticmethod
+    def _raise_for_eval_response(response, exc):
+        """Translate an HTTPError on a POST to /v1/eval/jobs into a clean AssertionError.
+
+        - 404 → "Trace not found ..." (the trace wasn't ingested before check_eval)
+        - 400 → "Custom template validation failed: <reason>" (server-side template
+          validation rejected the submitted custom template — the reason comes from
+          the API's `error` field when the body is JSON, else the raw text)
+        - any other status → generic "Evaluation service returned HTTP <code>: <body>"
+        """
+        status_code = response.status_code
+        if status_code == 404:
+            raise AssertionError(
+                "Trace not found in evaluation service. Confirm the span data was ingested before running check_eval."
+            ) from exc
+        if status_code == 400:
+            try:
+                error_msg = response.json().get("error", response.text)
+            except ValueError:
+                error_msg = response.text or "<empty body>"
+            raise AssertionError(f"Custom template validation failed: {error_msg}") from exc
+        response_body = response.text or "<empty body>"
+        raise AssertionError(
+            f"Evaluation service returned HTTP {status_code}: {response_body}"
+        ) from exc
+
     def export_trace(self, filtered_spans: list[Span]) -> str:
         """Export trace to Okahu evaluation service once per test."""
         if not filtered_spans:
@@ -364,13 +390,7 @@ class OkahuEval(BaseEval):
             try:
                 response.raise_for_status()
             except requests.HTTPError as exc:
-                status_code = response.status_code
-                if status_code == 404:
-                    raise AssertionError(
-                        "Trace not found in evaluation service. Confirm the span data was ingested before running check_eval."
-                    ) from exc
-                response_body = response.text or "<empty body>"
-                raise AssertionError(f"Evaluation service returned HTTP {status_code}: {response_body}") from exc
+                self._raise_for_eval_response(response, exc)
             content_type = response.headers.get("Content-Type", "").lower()
             if "application/json" not in content_type:
                 raise AssertionError(f"Evaluation service returned non-JSON response: {response.text}")

@@ -33,7 +33,7 @@ class FileSpanExporter(SpanExporterBase):
         task_processor: Optional[ExportTaskProcessor] = None
     ):
         super().__init__()
-        # Dictionary to store file handles: {trace_id: (file_handle, file_path, creation_time, first_span)}
+        # Dictionary to store file handles: {trace_id: (file_handle, file_path, last_activity, first_span)}
         self.file_handles: Dict[int, Tuple[TextIOWrapper, str, datetime, bool]] = {}
         self.formatter = formatter
         self.service_name = service_name
@@ -76,12 +76,17 @@ class FileSpanExporter(SpanExporterBase):
         self.service_name = service_name
 
     def _cleanup_expired_handles(self) -> None:
-        """Close and remove file handles that have exceeded the timeout."""
+        """Close handles for traces that have been idle past the timeout.
+
+        Idle (time since the last span was written), not age since creation, so a
+        long-running trace that keeps producing spans stays in one file while a
+        genuinely stalled trace is still cleaned up.
+        """
         current_time = datetime.now()
         expired_trace_ids = []
-        
-        for trace_id, (handle, file_path, creation_time, _) in self.file_handles.items():
-            if (current_time - creation_time).total_seconds() > HANDLE_TIMEOUT_SECONDS:
+
+        for trace_id, (handle, file_path, last_activity, _) in self.file_handles.items():
+            if (current_time - last_activity).total_seconds() > HANDLE_TIMEOUT_SECONDS:
                 expired_trace_ids.append(trace_id)
         
         for trace_id in expired_trace_ids:
@@ -133,8 +138,14 @@ class FileSpanExporter(SpanExporterBase):
     def _mark_span_written(self, trace_id: int) -> None:
         """Mark that a span has been written for this trace (no longer first span)."""
         if trace_id in self.file_handles:
-            handle, file_path, creation_time, _ = self.file_handles[trace_id]
-            self.file_handles[trace_id] = (handle, file_path, creation_time, False)
+            handle, file_path, last_activity, _ = self.file_handles[trace_id]
+            self.file_handles[trace_id] = (handle, file_path, last_activity, False)
+
+    def _touch_handle(self, trace_id: int) -> None:
+        """Refresh the idle timer after writing spans, so an active trace isn't expired mid-run."""
+        if trace_id in self.file_handles:
+            handle, file_path, _, first_span = self.file_handles[trace_id]
+            self.file_handles[trace_id] = (handle, file_path, datetime.now(), first_span)
 
     def _process_spans(self, spans: Sequence[ReadableSpan], is_root_span: bool = False) -> SpanExportResult:
         # Group spans by trace_id for efficient processing
@@ -181,6 +192,8 @@ class FileSpanExporter(SpanExporterBase):
                 except Exception as e:
                     print(f"Error formatting span {span.context.span_id}: {e}")
                     continue
+
+            self._touch_handle(trace_id)
         
         # Close handles for traces that are complete (have both root and child spans)
         traces_to_close = set()

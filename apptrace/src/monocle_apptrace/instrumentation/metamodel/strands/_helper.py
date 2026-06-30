@@ -27,6 +27,13 @@ def extract_session_id(instance,kwargs):
     if "session_manager" in kwargs and hasattr(kwargs["session_manager"],'session_id'):
         return kwargs["session_manager"].session_id
 
+    # Agents without a session_manager commonly carry a session id in trace_attributes
+    trace_attributes = getattr(instance, "trace_attributes", None)
+    if isinstance(trace_attributes, dict):
+        for key in ("session.id", "session_id"):
+            if trace_attributes.get(key):
+                return trace_attributes[key]
+
     return None
 
 

@@ -1,6 +1,8 @@
 from functools import wraps
 import inspect
+import json
 import os
+from pathlib import Path
 from typing import Optional, Union
 from monocle_apptrace.instrumentation.common.method_wrappers import monocle_trace_method
 from monocle_apptrace.instrumentation.common.utils import get_workflow_name
@@ -703,18 +705,328 @@ class TraceAssertion():
         return self
 
     @collect_assertions
-    def check_eval(self, eval_name:Optional[str] = None, expected:Optional[Union[str, list[str]]] = None, not_expected:Optional[Union[str, list[str]]] = None, fact_name:Optional[str] = "traces", message:Optional[str] = None, template:Optional[dict] = None) -> 'TraceAssertion':
+    def has_scope(self, scope_name:str, expected_value:Optional[str] = None, message:Optional[str] = None) -> 'TraceAssertion':
+        """Assert that at least one filtered span has the specified scope.
+
+        Args:
+            scope_name: Name of the scope (e.g., 'tenant_id', 'subscriptionId')
+            expected_value: Expected value for the scope. If omitted, only the
+                presence of the scope is checked, regardless of its value.
+            message: Optional custom error message
+
+        Example:
+            asserter.has_scope("tenant_id", "customer-123")  # value check
+            asserter.has_scope("tenant_id")                   # existence check
+        """
+        expected_values = None if expected_value is None else [expected_value]
+        self._verify_scope(self._filtered_spans, scope_name, expected_values,
+                          comparer=self._comparer, positive_test=True, custom_message=message)
+        return self
+
+    @collect_assertions
+    def has_any_scope(self, scope_name:str, *expected_values:str, message:Optional[str] = None) -> 'TraceAssertion':
+        """Assert that spans have the specified scope with any of the expected values.
+        
+        Args:
+            scope_name: Name of the scope (e.g., 'tenant_id')
+            expected_values: One or more expected values for the scope
+            message: Optional custom error message
+            
+        Example:
+            asserter.has_any_scope("tenant_id", "customer-123", "customer-456")
+        """
+        if not expected_values:
+            raise ValueError("At least one expected_value is required")
+        self._verify_scope(self._filtered_spans, scope_name, list(expected_values),
+                          comparer=self._comparer, positive_test=True, custom_message=message)
+        return self
+
+    @collect_assertions
+    def does_not_have_scope(self, scope_name:str, unexpected_value:Optional[str] = None, message:Optional[str] = None) -> 'TraceAssertion':
+        """Assert that no filtered span has the specified scope.
+
+        Args:
+            scope_name: Name of the scope (e.g., 'tenant_id')
+            unexpected_value: Value that should not be present. If omitted, the
+                scope must be entirely absent, regardless of its value.
+            message: Optional custom error message
+
+        Example:
+            asserter.does_not_have_scope("tenant_id", "customer-999")  # value check
+            asserter.does_not_have_scope("tenant_id")                   # absence check
+        """
+        unexpected_values = None if unexpected_value is None else [unexpected_value]
+        self._verify_scope(self._filtered_spans, scope_name, unexpected_values,
+                          comparer=self._comparer, positive_test=False, custom_message=message)
+        return self
+
+    @collect_assertions
+    def does_not_have_any_scope(self, scope_name:str, *unexpected_values:str, message:Optional[str] = None) -> 'TraceAssertion':
+        """Assert that spans do not have the specified scope with any of the given values.
+        
+        Args:
+            scope_name: Name of the scope (e.g., 'tenant_id')
+            unexpected_values: Values that should not be present
+            message: Optional custom error message
+            
+        Example:
+            asserter.does_not_have_any_scope("tenant_id", "customer-999", "customer-000")
+        """
+        if not unexpected_values:
+            raise ValueError("At least one unexpected_value is required")
+        self._verify_scope(self._filtered_spans, scope_name, list(unexpected_values),
+                          comparer=self._comparer, positive_test=False, custom_message=message)
+        return self
+
+    @collect_assertions
+    def contains_scope(self, scope_name:str, expected_substring:str, message:Optional[str] = None) -> 'TraceAssertion':
+        """Assert that the scope value contains the expected substring.
+        
+        Args:
+            scope_name: Name of the scope (e.g., 'tenant_id')
+            expected_substring: Substring that should be present in the scope value
+            message: Optional custom error message
+            
+        Example:
+            asserter.contains_scope("tenant_id", "customer")
+        """
+        self._verify_scope(self._filtered_spans, scope_name, [expected_substring],
+                          comparer=TokenMatchComparer(), positive_test=True, custom_message=message)
+        return self
+
+    @collect_assertions
+    def contains_any_scope(self, scope_name:str, *expected_substrings:str, message:Optional[str] = None) -> 'TraceAssertion':
+        """Assert that the scope value contains any of the expected substrings.
+        
+        Args:
+            scope_name: Name of the scope (e.g., 'tenant_id')
+            expected_substrings: Substrings to search for
+            message: Optional custom error message
+            
+        Example:
+            asserter.contains_any_scope("tenant_id", "customer", "client")
+        """
+        if not expected_substrings:
+            raise ValueError("At least one expected_substring is required")
+        self._verify_scope(self._filtered_spans, scope_name, list(expected_substrings),
+                          comparer=TokenMatchComparer(), positive_test=True, custom_message=message)
+        return self
+
+    @collect_assertions
+    def does_not_contain_scope(self, scope_name:str, unexpected_substring:str, message:Optional[str] = None) -> 'TraceAssertion':
+        """Assert that the scope value does not contain the given substring.
+        
+        Args:
+            scope_name: Name of the scope (e.g., 'tenant_id')
+            unexpected_substring: Substring that should not be present
+            message: Optional custom error message
+            
+        Example:
+            asserter.does_not_contain_scope("tenant_id", "admin")
+        """
+        self._verify_scope(self._filtered_spans, scope_name, [unexpected_substring],
+                          comparer=TokenMatchComparer(), positive_test=False, custom_message=message)
+        return self
+
+    @collect_assertions
+    def does_not_contain_any_scope(self, scope_name:str, *unexpected_substrings:str, message:Optional[str] = None) -> 'TraceAssertion':
+        """Assert that the scope value does not contain any of the given substrings.
+        
+        Args:
+            scope_name: Name of the scope (e.g., 'tenant_id')
+            unexpected_substrings: Substrings that should not be present
+            message: Optional custom error message
+            
+        Example:
+            asserter.does_not_contain_any_scope("tenant_id", "admin", "root")
+        """
+        if not unexpected_substrings:
+            raise ValueError("At least one unexpected_substring is required")
+        self._verify_scope(self._filtered_spans, scope_name, list(unexpected_substrings),
+                          comparer=TokenMatchComparer(), positive_test=False, custom_message=message)
+        return self
+
+    @collect_assertions
+    def has_scope(self, scope_name:str, expected_value:Optional[str] = None, message:Optional[str] = None) -> 'TraceAssertion':
+        """Assert that at least one filtered span has the specified scope.
+
+        Args:
+            scope_name: Name of the scope (e.g., 'tenant_id', 'subscriptionId')
+            expected_value: Expected value for the scope. If omitted, only the
+                presence of the scope is checked, regardless of its value.
+            message: Optional custom error message
+
+        Example:
+            asserter.has_scope("tenant_id", "customer-123")  # value check
+            asserter.has_scope("tenant_id")                   # existence check
+        """
+        expected_values = None if expected_value is None else [expected_value]
+        self._verify_scope(self._filtered_spans, scope_name, expected_values,
+                          comparer=self._comparer, positive_test=True, custom_message=message)
+        return self
+
+    @collect_assertions
+    def has_any_scope(self, scope_name:str, *expected_values:str, message:Optional[str] = None) -> 'TraceAssertion':
+        """Assert that spans have the specified scope with any of the expected values.
+        
+        Args:
+            scope_name: Name of the scope (e.g., 'tenant_id')
+            expected_values: One or more expected values for the scope
+            message: Optional custom error message
+            
+        Example:
+            asserter.has_any_scope("tenant_id", "customer-123", "customer-456")
+        """
+        if not expected_values:
+            raise ValueError("At least one expected_value is required")
+        self._verify_scope(self._filtered_spans, scope_name, list(expected_values),
+                          comparer=self._comparer, positive_test=True, custom_message=message)
+        return self
+
+    @collect_assertions
+    def does_not_have_scope(self, scope_name:str, unexpected_value:Optional[str] = None, message:Optional[str] = None) -> 'TraceAssertion':
+        """Assert that no filtered span has the specified scope.
+
+        Args:
+            scope_name: Name of the scope (e.g., 'tenant_id')
+            unexpected_value: Value that should not be present. If omitted, the
+                scope must be entirely absent, regardless of its value.
+            message: Optional custom error message
+
+        Example:
+            asserter.does_not_have_scope("tenant_id", "customer-999")  # value check
+            asserter.does_not_have_scope("tenant_id")                   # absence check
+        """
+        unexpected_values = None if unexpected_value is None else [unexpected_value]
+        self._verify_scope(self._filtered_spans, scope_name, unexpected_values,
+                          comparer=self._comparer, positive_test=False, custom_message=message)
+        return self
+
+    @collect_assertions
+    def does_not_have_any_scope(self, scope_name:str, *unexpected_values:str, message:Optional[str] = None) -> 'TraceAssertion':
+        """Assert that spans do not have the specified scope with any of the given values.
+        
+        Args:
+            scope_name: Name of the scope (e.g., 'tenant_id')
+            unexpected_values: Values that should not be present
+            message: Optional custom error message
+            
+        Example:
+            asserter.does_not_have_any_scope("tenant_id", "customer-999", "customer-000")
+        """
+        if not unexpected_values:
+            raise ValueError("At least one unexpected_value is required")
+        self._verify_scope(self._filtered_spans, scope_name, list(unexpected_values),
+                          comparer=self._comparer, positive_test=False, custom_message=message)
+        return self
+
+    @collect_assertions
+    def contains_scope(self, scope_name:str, expected_substring:str, message:Optional[str] = None) -> 'TraceAssertion':
+        """Assert that the scope value contains the expected substring.
+        
+        Args:
+            scope_name: Name of the scope (e.g., 'tenant_id')
+            expected_substring: Substring that should be present in the scope value
+            message: Optional custom error message
+            
+        Example:
+            asserter.contains_scope("tenant_id", "customer")
+        """
+        self._verify_scope(self._filtered_spans, scope_name, [expected_substring],
+                          comparer=TokenMatchComparer(), positive_test=True, custom_message=message)
+        return self
+
+    @collect_assertions
+    def contains_any_scope(self, scope_name:str, *expected_substrings:str, message:Optional[str] = None) -> 'TraceAssertion':
+        """Assert that the scope value contains any of the expected substrings.
+        
+        Args:
+            scope_name: Name of the scope (e.g., 'tenant_id')
+            expected_substrings: Substrings to search for
+            message: Optional custom error message
+            
+        Example:
+            asserter.contains_any_scope("tenant_id", "customer", "client")
+        """
+        if not expected_substrings:
+            raise ValueError("At least one expected_substring is required")
+        self._verify_scope(self._filtered_spans, scope_name, list(expected_substrings),
+                          comparer=TokenMatchComparer(), positive_test=True, custom_message=message)
+        return self
+
+    @collect_assertions
+    def does_not_contain_scope(self, scope_name:str, unexpected_substring:str, message:Optional[str] = None) -> 'TraceAssertion':
+        """Assert that the scope value does not contain the given substring.
+        
+        Args:
+            scope_name: Name of the scope (e.g., 'tenant_id')
+            unexpected_substring: Substring that should not be present
+            message: Optional custom error message
+            
+        Example:
+            asserter.does_not_contain_scope("tenant_id", "admin")
+        """
+        self._verify_scope(self._filtered_spans, scope_name, [unexpected_substring],
+                          comparer=TokenMatchComparer(), positive_test=False, custom_message=message)
+        return self
+
+    @collect_assertions
+    def does_not_contain_any_scope(self, scope_name:str, *unexpected_substrings:str, message:Optional[str] = None) -> 'TraceAssertion':
+        """Assert that the scope value does not contain any of the given substrings.
+        
+        Args:
+            scope_name: Name of the scope (e.g., 'tenant_id')
+            unexpected_substrings: Substrings that should not be present
+            message: Optional custom error message
+            
+        Example:
+            asserter.does_not_contain_any_scope("tenant_id", "admin", "root")
+        """
+        if not unexpected_substrings:
+            raise ValueError("At least one unexpected_substring is required")
+        self._verify_scope(self._filtered_spans, scope_name, list(unexpected_substrings),
+                          comparer=TokenMatchComparer(), positive_test=False, custom_message=message)
+        return self
+
+    @collect_assertions
+    def check_eval(self, eval_name:Optional[str] = None, expected:Optional[Union[str, list[str]]] = None, not_expected:Optional[Union[str, list[str]]] = None, fact_name:Optional[str] = "traces", message:Optional[str] = None, template_path:Optional[str] = None) -> 'TraceAssertion':
         """Validate evaluation results for the current filtered spans.
 
-        Use eval_name for standard Okahu templates, or template for custom evaluation templates
-        loaded from a JSON file. These are mutually exclusive — provide one or the other.
+        Provide exactly one of:
+          - eval_name: name of a standard Okahu eval template (e.g. "hallucination")
+          - template_path: filesystem path to a custom-template JSON file. The file
+            is loaded and the parsed dict is sent to the eval service. Server-side
+            validation errors (HTTP 400) surface as AssertionError with the prefix
+            'Custom template validation failed: <reason>'.
         """
-        if eval_name and template:
-            raise ValueError("Provide either 'eval_name' or 'template', not both.")
-        if not eval_name and not template:
-            raise ValueError("Provide either 'eval_name' (for Okahu templates) or 'template' (for custom templates).")
+        if eval_name and template_path:
+            raise ValueError("Provide either 'eval_name' or 'template_path', not both.")
+        if not eval_name and not template_path:
+            raise ValueError("Provide either 'eval_name' (for Okahu templates) or 'template_path' (for custom templates).")
 
-        if template:
+        template = None
+        if template_path:
+            path_obj = Path(template_path)
+            if not path_obj.is_file():
+                raise AssertionError(f"Custom template file not found: {template_path}")
+            try:
+                loaded = json.loads(path_obj.read_text(encoding="utf-8"))
+            except json.JSONDecodeError as exc:
+                raise AssertionError(
+                    f"Custom template file is not valid JSON: {template_path} — {exc}"
+                ) from exc
+            # Accept either the inner template ({"name": ..., "eval_prompt": ..., ...})
+            # or the API-request-body shape ({"template": {...inner...}}). Unwrap the
+            # outer "template" key when present so evaluate() gets the inner dict —
+            # evaluate() will re-wrap once for the HTTP payload.
+            if (
+                isinstance(loaded, dict)
+                and set(loaded.keys()) == {"template"}
+                and isinstance(loaded["template"], dict)
+            ):
+                template = loaded["template"]
+            else:
+                template = loaded
             eval_name = template.get("name", "custom_eval")
 
         if expected is None and not_expected is None:

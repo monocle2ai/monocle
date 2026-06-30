@@ -81,6 +81,17 @@ CREW_AI_METHODS = [
         "output_processor": TOOLS,
     },
     {
+        # The @tool decorator yields a Tool(BaseTool) whose own run() shadows BaseTool.run
+        # and does not call super(), so the BaseTool.run wrapper never fires for decorator
+        # tools (the idiomatic way to write custom CrewAI tools).
+        "package": "crewai.tools.base_tool",
+        "object": "Tool",
+        "method": "run",
+        "wrapper_method": task_wrapper,
+        "span_handler": "crew_ai_tool_handler",
+        "output_processor": TOOLS,
+    },
+    {
         "package": "crewai.tools.structured_tool",
         "object": "CrewStructuredTool",
         "method": "invoke",

@@ -56,19 +56,24 @@ def extract_agent_input(arguments):
         # Check kwargs first (CrewAI passes task in kwargs)
         if arguments['kwargs'] is not None:
             kwargs = arguments['kwargs']
-            
+
             # Extract task description if available
             if 'task' in kwargs and hasattr(kwargs['task'], 'description'):
                 return [kwargs['task'].description]
-            
+
             # Fallback to any other string values in kwargs
             input_values = []
+            # Task.execute_sync carries its prompt on the instance, not in kwargs; without
+            # this the first task (no prior-task context) would have an empty data.input.
+            instance = arguments.get('instance')
+            if instance is not None and getattr(instance, 'description', None):
+                input_values.append(instance.description)
             for key, value in kwargs.items():
                 if isinstance(value, str) and value.strip():
                     input_values.append(f"{key}: {value}")
                 elif hasattr(value, 'description') and value.description:
                     input_values.append(value.description)
-            
+
             if input_values:
                 return input_values
         

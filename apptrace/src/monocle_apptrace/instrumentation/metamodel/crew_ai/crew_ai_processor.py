@@ -1,6 +1,6 @@
 import logging
 from opentelemetry.context import set_value, attach, detach, get_value, get_current
-from monocle_apptrace.instrumentation.common.constants import AGENT_PREFIX_KEY, SCOPE_NAME
+from monocle_apptrace.instrumentation.common.constants import AGENT_PREFIX_KEY, SCOPE_NAME, AGENT_SESSION
 from monocle_apptrace.instrumentation.common.span_handler import SpanHandler
 from monocle_apptrace.instrumentation.metamodel.crew_ai._helper import (
    DELEGATION_NAME_PREFIX, get_name, is_root_crew_name, is_delegation_task, CREW_AI_AGENT_NAME_KEY
@@ -21,6 +21,11 @@ class CrewAIAgentHandler(SpanHandler):
         if not is_scope_set(scope_name):
             agent_request_wrapper = to_wrap.copy()
             agent_request_wrapper["output_processor"] = AGENT_REQUEST
+            # CrewAI has no thread/session id of its own; anchor the whole run under one
+            # auto-generated agentic.session scope so its traces (incl. async-task threads)
+            # share a session. Only at the outermost call, and never override a caller's.
+            if not is_scope_set(AGENT_SESSION):
+                return start_scope(AGENT_SESSION, context=context), agent_request_wrapper
             return attach(context), agent_request_wrapper
         else:
             return attach(context), None

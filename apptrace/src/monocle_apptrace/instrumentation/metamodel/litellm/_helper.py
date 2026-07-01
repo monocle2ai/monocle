@@ -271,11 +271,17 @@ def _get_first_tool_call(response):
 def extract_tool_name(arguments):
     """Extract tool name from LiteLLM response when finish_type is tool_call"""
     try:
+        response = arguments.get("result")
+        
+        if response is not None and hasattr(response, 'tools') and response.tools:
+            if len(response.tools) > 0:
+                return response.tools[0].get("name")
+        
         finish_type = map_finish_reason_to_finish_type(extract_finish_reason(arguments))
         if finish_type != "tool_call":
             return None
 
-        tool_call = _get_first_tool_call(arguments["result"])
+        tool_call = _get_first_tool_call(response)
         if not tool_call:
             return None
 
@@ -297,10 +303,6 @@ def extract_tool_name(arguments):
 def extract_tool_type(arguments):
     """Extract tool type from LiteLLM response when finish_type is tool_call"""
     try:
-        finish_type = map_finish_reason_to_finish_type(extract_finish_reason(arguments))
-        if finish_type != "tool_call":
-            return None
-
         tool_name = extract_tool_name(arguments)
         if tool_name:
             return TOOL_TYPE

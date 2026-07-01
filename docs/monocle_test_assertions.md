@@ -60,3 +60,18 @@ This document provides a comprehensive reference for all assertions supported by
 | `contains_any_output()` | `*expected_output_substrings` | **Asserts:** The output contains at least one of the specified substrings. Fails if none are found. |
 | `does_not_contain_output()` | `unexpected_output_substring` | **Asserts:** The output does NOT contain the specified substring. Fails if substring is found. |
 | `does_not_contain_any_output()` | `*unexpected_output_substrings` | **Asserts:** The output contains none of the specified substrings. Fails if any are found. |
+
+## Scope Assertions
+
+Scopes are contextual tags attached to spans (stored as the `scope.<name>` span attribute). These assertions check the value of a named scope across the currently filtered spans. A positive assertion passes when **at least one** filtered span satisfies it.
+
+| Method | Parameters | Description |
+|--------|-----------|-------------|
+| `has_scope()` | `scope_name`, `expected_value` (optional) | **Asserts:** A span has the scope with the expected value. If `expected_value` is omitted, only the scope's presence is checked. Fails if no span matches. |
+| `has_any_scope()` | `scope_name`, `*expected_values` | **Asserts:** The scope value matches at least one of the provided values. Fails if it matches none. |
+| `does_not_have_scope()` | `scope_name`, `unexpected_value` (optional) | **Asserts:** No span has the scope with the specified value. If `unexpected_value` is omitted, the scope must be entirely absent. Fails if any span matches. |
+| `does_not_have_any_scope()` | `scope_name`, `*unexpected_values` | **Asserts:** No span has the scope with any of the specified values. Fails if any span matches. |
+| `contains_scope()` | `scope_name`, `expected_substring` | **Asserts:** The scope value contains the substring (case-insensitive). Fails if not found. |
+| `contains_any_scope()` | `scope_name`, `*expected_substrings` | **Asserts:** The scope value contains at least one of the substrings (case-insensitive). Fails if none are found. |
+| `does_not_contain_scope()` | `scope_name`, `unexpected_substring` | **Asserts:** The scope value does NOT contain the substring. Fails if found. |
+| `does_not_contain_any_scope()` | `scope_name`, `*unexpected_substrings` | **Asserts:** The scope value contains none of the substrings. Fails if any are found. |

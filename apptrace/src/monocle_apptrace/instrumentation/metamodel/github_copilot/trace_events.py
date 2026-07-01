@@ -69,6 +69,8 @@ def is_subagent_session(session_id):
 def cleanup_session(session_id):
     """Delete the per-session JSONL log + state file. Called from SessionEnd
     (Copilot CLI fires it; VS Code Copilot Chat doesn't)."""
+    from monocle_apptrace.instrumentation.metamodel.github_copilot import git_context
+
     log = _session_log(session_id)
     state = log.with_suffix(".state.json")
     for f in (log, state):
@@ -78,6 +80,7 @@ def cleanup_session(session_id):
             pass
         except Exception as e:
             logger.debug("cleanup_session: skip %s (%s)", f, e)
+    git_context.cleanup(session_id)
 
 
 def sweep_stale_sessions():

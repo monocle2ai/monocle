@@ -277,7 +277,7 @@ This flexibility is especially useful when platform teams want to inject tracing
 | **LLM inference** | 🟢 OpenAI · 🟢 Azure OpenAI · 🟢 Azure AI · 🟢 Nvidia Triton · 🟢 AWS Bedrock · 🟢 AWS Sagemaker · 🟢 Google Vertex · 🟢 Google Gemini · 🟢 Hugging Face · 🟢 Deepseek · 🟢 Anthropic · 🟢 Mistral · 🟢 LiteLLM · 🔜 Azure ML |
 | **AI coding assistants** | 🟢 Claude CLI · 🟢 OpenAI Codex CLI · 🟢 GitHub Copilot (CLI + VS Code Chat) |
 | **Vector stores** | 🟢 FAISS · 🔜 OpenSearch · 🔜 Milvus |
-| **Exporters** | 🟢 stdout · 🟢 file · 🟢 Memory · 🟢 Azure Blob Storage · 🟢 AWS S3 · 🟢 Okahu cloud · 🟢 OTEL collectors · 🟢 Google Cloud Storage |
+| **Exporters** | 🟢 stdout · 🟢 file · 🟢 Memory · 🟢 Azure Blob Storage · 🟢 AWS S3 · 🟢 Okahu cloud · 🟢 OTEL collectors · 🟢 Google Cloud Storage  · 🟢 [Paygentic](https://docs.paygentic.io/integrations/monocle) |
 
 ## IDEs, ADK, and ecosystem integrations
 

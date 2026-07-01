@@ -20,27 +20,34 @@ FLASK_HTTP_PROCESSOR = {
                 "accessor": lambda arguments: _helper.get_url(arguments['args'])
             },
         ]
+    ],
+    "events": [
+        {
+            "name": "data.input",
+            "attributes": [
+                {
+                    "_comment": "request body",
+                    "attribute": "request_body",
+                    "accessor": lambda arguments: _helper.get_body(arguments['args'])
+                },
+                {
+                    "_comment": "route params",
+                    "attribute": "params",
+                    "accessor": lambda arguments: _helper.get_params(arguments['args'])
+                }
+            ]
+        },
     ]
 }
 
 FLASK_RESPONSE_PROCESSOR = {
     "events": [
         {
-            "name": "data.input",
-            "attributes": [
-                {
-                    "_comment": "route params",
-                    "attribute": "params",
-                    "accessor": lambda arguments: _helper.get_params(arguments['args'])
-                }
-         ]
-         },
-        {
             "name": "data.output",
             "attributes": [
                 {
                     "_comment": "status from HTTP response",
-                    "attribute": "error_code",
+                    "attribute": "status_code",
                     "accessor": lambda arguments: _helper.extract_status(arguments)
                 },
                 {

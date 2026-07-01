@@ -212,6 +212,73 @@ class TestHandler(MonocleTestBase):
             os.environ.pop(test_input_infra)
             os.environ.pop(test_input_infra_identifier, None)
 
+class TestLangGraphHelpers(unittest.TestCase):
+    """Unit tests for LangGraph streaming helper functions."""
+
+    # ------------------------------------------------------------------ #
+    # extract_content_text                                                 #
+    # ------------------------------------------------------------------ #
+
+    def test_extract_content_text_plain_string(self):
+        from monocle_apptrace.instrumentation.common.utils import extract_content_text
+        self.assertEqual(extract_content_text("hello"), "hello")
+
+    def test_extract_content_text_openai_content_blocks(self):
+        from monocle_apptrace.instrumentation.common.utils import extract_content_text
+        blocks = [{"type": "text", "text": "hello world"}]
+        self.assertEqual(extract_content_text(blocks), "hello world")
+
+    def test_extract_content_text_ignores_non_text_blocks(self):
+        from monocle_apptrace.instrumentation.common.utils import extract_content_text
+        blocks = [{"type": "thinking", "text": "reasoning"}, {"type": "text", "text": "answer"}]
+        self.assertEqual(extract_content_text(blocks), "answer")
+
+    # ------------------------------------------------------------------ #
+    # extract_agent_response                                               #
+    # ------------------------------------------------------------------ #
+
+    def test_extract_agent_response_none(self):
+        from monocle_apptrace.instrumentation.metamodel.langgraph._helper import extract_agent_response
+        self.assertEqual(extract_agent_response(None), "")
+
+    def test_extract_agent_response_astream_checkpoint_tuple(self):
+        from unittest.mock import MagicMock
+        from monocle_apptrace.instrumentation.metamodel.langgraph._helper import extract_agent_response
+        msg = MagicMock()
+        msg.content = "final answer"
+        payload = {"type": "checkpoint", "values": {"messages": [msg]}}
+        self.assertEqual(extract_agent_response(((), "debug", {"payload": payload})), "final answer")
+
+    def test_extract_agent_response_ainvoke_flat_dict(self):
+        from unittest.mock import MagicMock
+        from monocle_apptrace.instrumentation.metamodel.langgraph._helper import extract_agent_response
+        msg = MagicMock()
+        msg.content = "hello"
+        self.assertEqual(extract_agent_response({"messages": [msg]}), "hello")
+
+    # ------------------------------------------------------------------ #
+    # extract_agent_input                                                  #
+    # ------------------------------------------------------------------ #
+
+    def test_extract_agent_input_type_human_dict(self):
+        """LangGraph Studio sends {'type': 'human'} dicts — must be detected."""
+        from monocle_apptrace.instrumentation.metamodel.langgraph._helper import extract_agent_input
+        args = {"args": [], "kwargs": {"input": {"messages": [{"type": "human", "content": "hi"}]}}}
+        self.assertEqual(json.loads(extract_agent_input(args)), ["hi"])
+
+    def test_extract_agent_input_role_user_dict(self):
+        from monocle_apptrace.instrumentation.metamodel.langgraph._helper import extract_agent_input
+        args = {"args": [], "kwargs": {"input": {"messages": [{"role": "user", "content": "hi"}]}}}
+        self.assertEqual(json.loads(extract_agent_input(args)), ["hi"])
+
+    def test_extract_agent_input_non_dict_args_is_safe(self):
+        """isinstance guard: args[0] is a graph object, not an input dict."""
+        from unittest.mock import MagicMock
+        from monocle_apptrace.instrumentation.metamodel.langgraph._helper import extract_agent_input
+        args = {"args": [MagicMock()], "kwargs": {}}
+        self.assertEqual(extract_agent_input(args), "")
+
+
 if __name__ == '__main__':
     unittest.main()
     

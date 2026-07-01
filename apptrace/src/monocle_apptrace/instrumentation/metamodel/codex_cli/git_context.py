@@ -1,4 +1,4 @@
-from monocle_apptrace.instrumentation.common.git_context import GitContext
+from monocle_apptrace.instrumentation.common.agent_edit_context import GitContext
 from monocle_apptrace.instrumentation.metamodel.codex_cli.trace_events import _sessions_dir
 
 # Codex only needs the live git snapshot (repo/branch/uncommitted/ahead-behind).

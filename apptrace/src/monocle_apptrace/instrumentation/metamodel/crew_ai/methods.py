@@ -49,20 +49,11 @@ CREW_AI_METHODS = [
         "output_processor": AGENT,
     },
     
-    # Tool execution - public interface
+    # Tool execution - public interface (run() calls _run() internally; instrument only run)
     {
         "package": "crewai.tools.base_tool",
-        "object": "BaseTool", 
+        "object": "BaseTool",
         "method": "run",
-        "wrapper_method": task_wrapper,
-        "span_handler": "crew_ai_tool_handler",
-        "output_processor": TOOLS,
-    },
-    # Tool execution - implementation method
-    {
-        "package": "crewai.tools.base_tool",
-        "object": "BaseTool", 
-        "method": "_run",
         "wrapper_method": task_wrapper,
         "span_handler": "crew_ai_tool_handler",
         "output_processor": TOOLS,

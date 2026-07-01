@@ -1119,6 +1119,40 @@ class MonocleValidator:
                     return True
         return False
 
+    def _check_scope(self, spans: list[Span], scope_name: str, expected_values: Optional[list[str]],
+                     comparer: BaseComparer, positive_test: Optional[bool] = True) -> list[Span]:
+        """Check if spans have a specific scope with expected value(s).
+        
+        Args:
+            spans: List of spans to check
+            scope_name: Name of the scope (e.g., 'tenant_id', 'subscriptionId')
+            expected_values: List of expected values for the scope (None to just check existence)
+            comparer: Comparer to use for value matching
+            positive_test: True for positive assertion, False for negative
+            
+        Returns:
+            List of spans matching the scope criteria
+        """
+        candidate_spans = []
+        scope_attr_name = f"scope.{scope_name}"
+        
+        for span in spans:
+            scope_value = span.attributes.get(scope_attr_name)
+            
+            # If just checking existence (no expected values)
+            if expected_values is None or len(expected_values) == 0:
+                if scope_value is not None:
+                    candidate_spans.append(span)
+            else:
+                # Check if scope value matches any expected value
+                if scope_value is not None:
+                    for expected_value in expected_values:
+                        if comparer.compare(expected_value, scope_value):
+                            candidate_spans.append(span)
+                            break
+        
+        return candidate_spans
+
     def _evaluate_span(self, span:Span, evaluation:Evaluation,  positive_test:bool) -> None:
         eval_args = {}
         for arg in evaluation.args:

@@ -1,0 +1,232 @@
+[
+  {
+    "description": "Example 1: Basic feedback span with only required fields (session_id and feedback)",
+    "span": {
+      "name": "workflow",
+      "context": {
+        "trace_id": "a5aa6b4a8d93e8bad950b072caa30a5f",
+        "span_id": "b5ff636d4a0c990b",
+        "trace_state": "[]"
+      },
+      "kind": "SpanKind.INTERNAL",
+      "parent_id": null,
+      "start_time": "2026-04-21T12:51:51.889377Z",
+      "end_time": "2026-04-21T12:51:51.889430Z",
+      "status": {
+        "status_code": "UNSET"
+      },
+      "attributes": {
+        "monocle_apptrace.version": "0.7.0",
+        "monocle_apptrace.language": "python",
+        "span_source": "",
+        "workflow.name": "kahu_agent_feedback",
+        "entity.1.name": "kahu_agent_feedback",
+        "entity.1.type": "feedback.monocle",
+        "entity.1.session_id": "session_abc123",
+        "entity.2.type": "app_hosting.generic",
+        "entity.2.name": "generic",
+        "span.type": "monocle.feedback"
+      },
+      "events": [
+        {
+          "name": "data.output",
+          "timestamp": "2026-04-21T12:51:51.889424Z",
+          "attributes": {
+            "feedback": "The agent response was very helpful and accurate"
+          }
+        }
+      ],
+      "links": [],
+      "resource": {
+        "attributes": {
+          "service.name": "kahu_agent_feedback"
+        },
+        "schema_url": ""
+      }
+    }
+  },
+  {
+    "description": "Example 2: Feedback span with optional turn_id field",
+    "span": {
+      "name": "workflow",
+      "context": {
+        "trace_id": "a48a8cf26e1b5135569c982986bc1edc",
+        "span_id": "16db6820fcafab1b",
+        "trace_state": "[]"
+      },
+      "kind": "SpanKind.INTERNAL",
+      "parent_id": null,
+      "start_time": "2026-04-21T12:51:51.889474Z",
+      "end_time": "2026-04-21T12:51:51.889505Z",
+      "status": {
+        "status_code": "UNSET"
+      },
+      "attributes": {
+        "monocle_apptrace.version": "0.7.0",
+        "monocle_apptrace.language": "python",
+        "span_source": "",
+        "workflow.name": "kahu_agent_feedback",
+        "entity.1.name": "kahu_agent_feedback",
+        "entity.1.type": "feedback.monocle",
+        "entity.1.session_id": "session_abc123",
+        "entity.1.turn_id": "turn_5",
+        "entity.2.type": "app_hosting.generic",
+        "entity.2.name": "generic",
+        "span.type": "monocle.feedback"
+      },
+      "events": [
+        {
+          "name": "data.output",
+          "timestamp": "2026-04-21T12:51:51.889501Z",
+          "attributes": {
+            "feedback": "Great explanation of the concept"
+          }
+        }
+      ],
+      "links": [],
+      "resource": {
+        "attributes": {
+          "service.name": "kahu_agent_feedback"
+        },
+        "schema_url": ""
+      }
+    }
+  },
+  {
+    "description": "Example 3: Multiple feedback spans in a conversation session",
+    "spans": [
+      {
+        "name": "workflow",
+        "context": {
+          "trace_id": "612ad16a4cefbdcecf118e2e7e5b5a20",
+          "span_id": "6c0c2b78b6985a4d",
+          "trace_state": "[]"
+        },
+        "kind": "SpanKind.INTERNAL",
+        "parent_id": null,
+        "start_time": "2026-04-21T12:51:51.889577Z",
+        "end_time": "2026-04-21T12:51:51.889598Z",
+        "status": {
+          "status_code": "UNSET"
+        },
+        "attributes": {
+          "monocle_apptrace.version": "0.7.0",
+          "monocle_apptrace.language": "python",
+          "span_source": "",
+          "workflow.name": "kahu_agent_feedback",
+          "entity.1.name": "kahu_agent_feedback",
+          "entity.1.type": "feedback.monocle",
+          "entity.1.session_id": "session_chatbot_001",
+          "entity.1.turn_id": "turn_1",
+          "entity.2.type": "app_hosting.generic",
+          "entity.2.name": "generic",
+          "span.type": "monocle.feedback"
+        },
+        "events": [
+          {
+            "name": "data.output",
+            "timestamp": "2026-04-21T12:51:51.889596Z",
+            "attributes": {
+              "feedback": "Clear and concise explanation"
+            }
+          }
+        ],
+        "links": [],
+        "resource": {
+          "attributes": {
+            "service.name": "kahu_agent_feedback"
+          },
+          "schema_url": ""
+        }
+      },
+      {
+        "name": "workflow",
+        "context": {
+          "trace_id": "4a82764ae682416dac970d77d390ed1d",
+          "span_id": "f2e6537aeec883a1",
+          "trace_state": "[]"
+        },
+        "kind": "SpanKind.INTERNAL",
+        "parent_id": null,
+        "start_time": "2026-04-21T12:51:51.889619Z",
+        "end_time": "2026-04-21T12:51:51.889641Z",
+        "status": {
+          "status_code": "UNSET"
+        },
+        "attributes": {
+          "monocle_apptrace.version": "0.7.0",
+          "monocle_apptrace.language": "python",
+          "span_source": "",
+          "workflow.name": "kahu_agent_feedback",
+          "entity.1.name": "kahu_agent_feedback",
+          "entity.1.type": "feedback.monocle",
+          "entity.1.session_id": "session_chatbot_001",
+          "entity.1.turn_id": "turn_2",
+          "entity.2.type": "app_hosting.generic",
+          "entity.2.name": "generic",
+          "span.type": "monocle.feedback"
+        },
+        "events": [
+          {
+            "name": "data.output",
+            "timestamp": "2026-04-21T12:51:51.889638Z",
+            "attributes": {
+              "feedback": "Good example, very relatable"
+            }
+          }
+        ],
+        "links": [],
+        "resource": {
+          "attributes": {
+            "service.name": "kahu_agent_feedback"
+          },
+          "schema_url": ""
+        }
+      },
+      {
+        "name": "workflow",
+        "context": {
+          "trace_id": "1e7c08662737d04af9f0282ebec4756e",
+          "span_id": "4b0c63f93337cbf3",
+          "trace_state": "[]"
+        },
+        "kind": "SpanKind.INTERNAL",
+        "parent_id": null,
+        "start_time": "2026-04-21T12:51:51.889656Z",
+        "end_time": "2026-04-21T12:51:51.889676Z",
+        "status": {
+          "status_code": "UNSET"
+        },
+        "attributes": {
+          "monocle_apptrace.version": "0.7.0",
+          "monocle_apptrace.language": "python",
+          "span_source": "",
+          "workflow.name": "kahu_agent_feedback",
+          "entity.1.name": "kahu_agent_feedback",
+          "entity.1.type": "feedback.monocle",
+          "entity.1.session_id": "session_chatbot_001",
+          "entity.1.turn_id": "turn_3",
+          "entity.2.type": "app_hosting.generic",
+          "entity.2.name": "generic",
+          "span.type": "monocle.feedback"
+        },
+        "events": [
+          {
+            "name": "data.output",
+            "timestamp": "2026-04-21T12:51:51.889674Z",
+            "attributes": {
+              "feedback": "Too technical, didn't fully understand"
+            }
+          }
+        ],
+        "links": [],
+        "resource": {
+          "attributes": {
+            "service.name": "kahu_agent_feedback"
+          },
+          "schema_url": ""
+        }
+      }
+    ]
+  }
+]

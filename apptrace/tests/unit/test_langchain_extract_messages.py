@@ -61,5 +61,33 @@ class TestExtractMessagesSelfInArgs(unittest.TestCase):
         self.assertEqual(out, [])
 
 
+class TestExtractMessagesInputShapes(unittest.TestCase):
+    """LanguageModelInput also arrives as a raw string or OpenAI-style dict messages
+    ([{"role", "content"}]); both must populate data.input, not be dropped."""
+
+    def test_string_input(self):
+        # llm.invoke("...") / with_structured_output(...).ainvoke("...")
+        self.assertEqual(extract_messages(("say ok in one word",)), ["say ok in one word"])
+
+    def test_string_input_not_iterated_per_character(self):
+        # Regression: a str must not fall through to per-character iteration (empty result).
+        self.assertNotEqual(extract_messages(("hello",)), [])
+
+    def test_dict_messages(self):
+        out = extract_messages(([{"role": "system", "content": "sys"},
+                                 {"role": "user", "content": "hi"}],))
+        self.assertIn('{"system": "sys"}', out)
+        self.assertIn('{"user": "hi"}', out)
+
+    def test_dict_messages_not_dropped(self):
+        self.assertNotEqual(extract_messages(([{"role": "user", "content": "hi"}],)), [])
+
+    def test_prompt_value_text(self):
+        self.assertEqual(extract_messages((SimpleNamespace(text="hello prompt"),)), ["hello prompt"])
+
+    def test_empty_args(self):
+        self.assertEqual(extract_messages(()), [])
+
+
 if __name__ == "__main__":
     unittest.main()

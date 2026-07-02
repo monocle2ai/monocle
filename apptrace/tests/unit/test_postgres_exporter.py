@@ -5,6 +5,7 @@ import unittest
 from unittest.mock import MagicMock, patch
 from opentelemetry.sdk.trace import ReadableSpan
 from opentelemetry.sdk.trace.export import SpanExportResult
+import psycopg2.errors
 
 
 def _make_span(name="test-span", trace_id=0xAABBCCDD, span_id=0x1111,
@@ -274,3 +275,51 @@ class TestFlushAndShutdown(unittest.TestCase):
             self.exporter.shutdown()
         mock_flush.assert_called_once()
         self.exporter.connection.close.assert_called()
+
+
+class TestEnsureTable(unittest.TestCase):
+    def setUp(self):
+        os.environ["MONOCLE_POSTGRES_CONNECTION_URL"] = "postgresql://u:p@h/db"
+
+    def tearDown(self):
+        os.environ.pop("MONOCLE_POSTGRES_CONNECTION_URL", None)
+
+    def _make_mock_connection(self, cursor_execute_side_effect=None):
+        mock_conn = MagicMock()
+        mock_cursor = MagicMock()
+        if cursor_execute_side_effect:
+            mock_cursor.execute.side_effect = cursor_execute_side_effect
+        mock_conn.cursor.return_value.__enter__ = MagicMock(return_value=mock_cursor)
+        mock_conn.cursor.return_value.__exit__ = MagicMock(return_value=False)
+        return mock_conn, mock_cursor
+
+    @patch("psycopg2.connect")
+    def test_create_table_called_on_init(self, mock_connect):
+        mock_conn, mock_cursor = self._make_mock_connection()
+        mock_connect.return_value = mock_conn
+
+        from importlib import reload
+        import monocle_apptrace.exporters.postgres.postgres_exporter as m
+        reload(m)
+        m.PostgresSpanExporter()
+
+        mock_cursor.execute.assert_called_once()
+        self.assertIn("CREATE TABLE IF NOT EXISTS traces",
+                      mock_cursor.execute.call_args[0][0])
+        mock_conn.commit.assert_called()
+
+    @patch("psycopg2.connect")
+    def test_permission_error_on_insufficient_privilege(self, mock_connect):
+        mock_conn, _ = self._make_mock_connection(
+            cursor_execute_side_effect=psycopg2.errors.InsufficientPrivilege("permission denied")
+        )
+        mock_connect.return_value = mock_conn
+
+        from importlib import reload
+        import monocle_apptrace.exporters.postgres.postgres_exporter as m
+        reload(m)
+
+        with self.assertRaises(PermissionError) as ctx:
+            m.PostgresSpanExporter()
+        self.assertIn("lacks CREATE TABLE permission", str(ctx.exception))
+        mock_conn.rollback.assert_called_once()

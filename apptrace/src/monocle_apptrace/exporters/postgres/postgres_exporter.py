@@ -4,6 +4,7 @@ import datetime
 from typing import Dict, List, Sequence, Tuple
 
 import psycopg2
+import psycopg2.errors
 import psycopg2.extras
 
 from opentelemetry.sdk.trace import ReadableSpan
@@ -19,6 +20,22 @@ from monocle_apptrace.exporters.base_exporter import (
 logger = logging.getLogger(__name__)
 
 HANDLE_TIMEOUT_SECONDS = 60
+
+CREATE_TABLE_SQL = """
+    CREATE TABLE IF NOT EXISTS traces (
+        id          BIGSERIAL PRIMARY KEY,
+        name        TEXT NOT NULL,
+        start_time  TIMESTAMPTZ,
+        end_time    TIMESTAMPTZ,
+        status      JSONB,
+        span_id     TEXT,
+        trace_id    TEXT,
+        parent_id   TEXT,
+        attributes  JSONB,
+        events      JSONB,
+        metadata    JSONB
+    )
+"""
 
 INSERT_SQL = """
     INSERT INTO traces
@@ -36,7 +53,21 @@ class PostgresSpanExporter(SpanExporterBase):
         if not self.connection_url:
             raise ValueError("MONOCLE_POSTGRES_CONNECTION_URL environment variable is required")
         self.connection = psycopg2.connect(self.connection_url)
+        self._ensure_table()
         self.trace_spans: Dict[int, Tuple[List[ReadableSpan], datetime.datetime, bool]] = {}
+
+    def _ensure_table(self) -> None:
+        try:
+            with self.connection.cursor() as cursor:
+                cursor.execute(CREATE_TABLE_SQL)
+            self.connection.commit()
+        except psycopg2.errors.InsufficientPrivilege as e:
+            self.connection.rollback()
+            raise PermissionError(
+                "PostgresSpanExporter could not create the 'traces' table — "
+                "the database user lacks CREATE TABLE permission. "
+                "Pre-create the table manually or grant the required privilege."
+            ) from e
 
     def _build_row(self, span: ReadableSpan) -> tuple:
         serialized = serialize_span(span)

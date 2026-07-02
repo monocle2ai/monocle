@@ -1,3 +1,6 @@
+## Version 0.8.7 (2026-07-01)
+- fix: Add direct file read for span loader ([676](https://github.com/monocle2ai/monocle/pull/676))
+
 ## Version 0.8.6 (2026-06-25)
 - fix: litellm input fix with AZURE OPENAI ([#656](https://github.com/monocle2ai/monocle/pull/656))
 - feat: capture FastAPI POST bodies in HTTP spans ([#643](https://github.com/monocle2ai/monocle/pull/643))

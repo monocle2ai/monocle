@@ -47,7 +47,7 @@ class LanggraphAgentHandler(SpanHandler):
         context = set_value(AGENT_NAME_KEY, get_name(instance))
         context = set_value(AGENT_PREFIX_KEY, DELEGATION_NAME_PREFIX, context)
         scope_name = AGENT_REQUEST.get("type")
-        is_streaming_call = to_wrap.get("method") in ["astream"]
+        is_streaming_call = to_wrap.get("method") in ["astream", "stream"]
         if not is_scope_set(scope_name):
             agent_request_wrapper = to_wrap.copy()
             if is_single_agent_instance(instance):

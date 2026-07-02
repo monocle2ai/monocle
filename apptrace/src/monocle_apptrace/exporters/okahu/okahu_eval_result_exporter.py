@@ -46,39 +46,45 @@ class OkahuEvalResultExporter:
         job_id: str,
         eval_result: Any,
         template_name: str,
-        fact_name: str = "traces"
+        fact_name: str = "traces",
+        template: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
         """
         Export evaluation results to Okahu.
-        
+
         Args:
             job_id: The evaluation job ID from Okahu.
             eval_result: The evaluation results to export.
             template_name: The name of the evaluation template.
             fact_name: The name of the fact being evaluated.
+            template: Optional custom template dict. When provided, sends the
+                template instead of template_name to the store endpoint.
         Returns:
             Response data from Okahu.
-            
+
         Raises:
             ValueError: If exporter is closed or parameters are invalid.
             AssertionError: If the request fails.
         """
         if self._closed:
             raise ValueError("Exporter is closed. Cannot export results.")
-        
+
         if not job_id:
             raise ValueError("job_id is required.")
         if not template_name:
             raise ValueError("template_name is required.")
         if not fact_name:
             raise ValueError("fact_name is required.")
-        
+
         url = f"{self.endpoint}/v1/eval/jobs/{job_id}/results"
         payload = {
             "evaluation_results": eval_result,
-            "template_name": template_name,
             "fact_name": fact_name
         }
+        if template:
+            payload["template"] = template
+        else:
+            payload["template_name"] = template_name
         
         try:
             response = self.session.post(

@@ -339,6 +339,7 @@ class MonocleValidator:
             raise last_exc
 
     def import_traces(self, trace_source: str, id: Optional[str] = None,
+                      trace_path: Optional[str] = None,
                       fact_name: Optional[str] = "trace",
                       scope_name: Optional[str] = None,
                       workflow_name: Optional[str] = None) -> None:
@@ -405,10 +406,10 @@ class MonocleValidator:
             )
         if not id:
             id = self._get_current_trace_id()
-        if not id:
-            raise ValueError("'id' is required.")
 
         if trace_source == "okahu":
+            if not id:
+                raise ValueError("'id' is required.")
             if workflow_name is None:
                 workflow_name = get_workflow_name()
             if not workflow_name:
@@ -442,9 +443,17 @@ class MonocleValidator:
                 raise ValueError(
                     "Only fact_name='trace' is supported for file trace source."
                 )
-            trace_file = JSONSpanLoader.find_trace_file(id)
+            # if the trace_path is a file, use it directly; otherwise, search for the trace file in the directory
+            if trace_path and os.path.isfile(trace_path):
+                if id and id.replace("0x", "") not in trace_path:
+                    raise ValueError(f"Provided trace_path '{trace_path}' does not match the given trace_id '{id}'.")
+                trace_file = trace_path
+            else:
+                if not id:
+                    raise ValueError("'id' is required.")
+                trace_file = JSONSpanLoader.find_trace_file(id, trace_dir=trace_path)
             if trace_file is None:
-                search_dir = os.path.join(".", ".monocle", "test_traces")
+                search_dir = trace_path if trace_path else os.path.join(".", ".monocle", "test_traces")
                 raise FileNotFoundError(
                     f"No trace file found for trace_id '{id}' in '{search_dir}'")
 

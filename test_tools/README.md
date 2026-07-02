@@ -279,11 +279,10 @@ Run assertions against saved trace JSON files without invoking live agents. This
 
 ```python
 from monocle_test_tools import TraceAssertion
-from monocle_test_tools.span_loader import JSONSpanLoader
 
 def test_tool_invocation_from_trace(monocle_trace_asserter):
     # Load spans from a saved trace file
-    monocle_trace_asserter.load_spans(JSONSpanLoader.from_json("traces/trace1.json"))
+    monocle_trace_asserter.with_trace_source(source="file", trace_path="traces/trace1.json")
 
     monocle_trace_asserter \
         .called_tool("adk_book_hotel", "adk_hotel_booking_agent") \
@@ -294,15 +293,19 @@ def test_tool_invocation_from_trace(monocle_trace_asserter):
         .does_not_contain_input("Delhi") \
         .does_not_contain_output("failed")
 
-def test_agent_invocation_from_trace(monocle_trace_asserter):
-    monocle_trace_asserter.load_spans(JSONSpanLoader.from_json("traces/trace1.json"))
+    monocle_trace_asserter.with_evaluation("okahu").check_eval("hallucination", "major_hallucination")
 
+def test_agent_invocation_from_okahu(monocle_trace_asserter):
+        monocle_trace_asserter.with_trace_source(
+            source = "okahu", id="642dbd9d0dfcfdbdc8849f67f34c8a19", workflow_name=WORKFLOW_CC
+        ).with_evaluation("okahu").check_eval("hallucination", "major_hallucination")
     monocle_trace_asserter \
         .called_agent("adk_hotel_booking_agent") \
         .has_input("Book a flight from San Francisco...") \
         .contains_output("I have booked a stay at Marriot Intercontinental") \
         .does_not_have_output("cancel the booking")
 ```
+
 
 You can also use `MonocleValidator` directly for programmatic validation:
 

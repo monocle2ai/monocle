@@ -30,27 +30,13 @@ AGENTS_METHODS = [
         "span_handler": "agents_agent_handler",
         "output_processor": AGENT_REQUEST,
     },
+    # Per-agent invocation. openai-agents>=0.16 moved this from
+    # AgentRunner._run_single_turn to the module-level agents.run.run_single_turn.
     {
         "package": "agents.run",
-        "object": "Runner",
-        "method": "run_streamed",
-        "wrapper_method": task_wrapper,
-        "span_handler": "agents_agent_handler",
-        "output_processor_list": [AGENT_REQUEST_STREAM, AGENT_STREAM],
-    },
-    # Turn-level internals for richer agentic spans in new SDK.
-    {
-        "package": "agents.run_internal.run_loop",
-        "object": "",
+        "object": None,  # module-level function; span_name set since the default joins package.object.method
         "method": "run_single_turn",
-        "wrapper_method": atask_wrapper,
-        "span_handler": "agents_agent_handler",
-        "output_processor": AGENT,
-    },
-    {
-        "package": "agents.run_internal.run_loop",
-        "object": "",
-        "method": "run_single_turn_streamed",
+        "span_name": "agents.run.run_single_turn",
         "wrapper_method": atask_wrapper,
         "span_handler": "agents_agent_handler",
         "output_processor": AGENT,

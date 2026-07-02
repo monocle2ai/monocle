@@ -105,9 +105,22 @@ def extract_agent_input(arguments):
     return []
 
 
+def resolve_agent_instance(args, kwargs):
+    """Resolve the Agent from args[0] (Runner.run), kwargs['agent'] (legacy), or
+    kwargs['bindings'].execution_agent (run_single_turn, openai-agents>=0.16)."""
+    if args and len(args) > 0:
+        return args[0]
+    if kwargs.get("agent") is not None:
+        return kwargs.get("agent")
+    bindings = kwargs.get("bindings")
+    if bindings is not None:
+        return getattr(bindings, "execution_agent", None) or getattr(bindings, "agent", None)
+    return None
+
+
 def get_agent_name(args, kwargs) -> str:
     """Get the name of an agent."""
-    instance = _find_agent_instance(args, kwargs)
+    instance = resolve_agent_instance(args, kwargs)
     if instance is None:
         return "Unknown Agent"
     return get_name(instance)
@@ -115,7 +128,7 @@ def get_agent_name(args, kwargs) -> str:
 
 def get_agent_description(arguments) -> str:
     """Get the description of an agent."""
-    instance = _find_agent_instance(arguments["args"], arguments["kwargs"])
+    instance = resolve_agent_instance(arguments["args"], arguments["kwargs"])
     if instance is None:
         return ""
     return get_description(instance)
@@ -123,7 +136,7 @@ def get_agent_description(arguments) -> str:
 
 def get_agent_instructions(arguments) -> str:
     """Get the instructions of an agent."""
-    instance = _find_agent_instance(arguments["args"], arguments["kwargs"])
+    instance = resolve_agent_instance(arguments["args"], arguments["kwargs"])
     if instance is None:
         return ""
     if hasattr(instance, "instructions"):

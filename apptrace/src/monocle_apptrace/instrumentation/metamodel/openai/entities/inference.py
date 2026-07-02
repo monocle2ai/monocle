@@ -42,7 +42,8 @@ def process_stream(to_wrap, response, span_processor):
 INFERENCE = {
     "type": SPAN_TYPES.INFERENCE,
     "subtype": lambda arguments: _helper.agent_inference_type(arguments),
-    "is_auto_close": lambda kwargs: kwargs.get("stream", False) is False,
+    # truthiness, not `is False`: the Omit()/NotGiven stream sentinel is falsy but not False
+    "is_auto_close": lambda kwargs: not kwargs.get("stream", False),
     "response_processor": process_stream,
     "attributes": [
         [

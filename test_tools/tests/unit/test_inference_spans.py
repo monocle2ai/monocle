@@ -13,6 +13,7 @@ def create_test_span(name, attributes, has_error=False, has_warning=False):
     tracer = tracer_provider.get_tracer(__name__)
 
     with tracer.start_as_current_span(name) as span:
+        span.set_attribute("monocle_apptrace.version", "test")
         for key, value in attributes.items():
             span.set_attribute(key, value)
 

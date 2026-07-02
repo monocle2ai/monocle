@@ -82,6 +82,43 @@ class TestLiteLLMResponseFormatHelper(unittest.TestCase):
             extract_response_format({"response_format": {"type": "json_object"}})
         )
 
+    def test_bedrock_json_tool_call_response_format(self):
+        # Bedrock Converse converts a Pydantic response_format into a json_tool_call
+        # tool placed in optional_params["tools"] (with json_mode=true).
+        kwargs = {
+            "optional_params": {
+                "json_mode": True,
+                "tools": [
+                    {
+                        "type": "function",
+                        "function": {
+                            "name": "json_tool_call",
+                            "parameters": {"properties": {"label": {"type": "string"}}},
+                        },
+                    }
+                ],
+            }
+        }
+        schema = json.loads(extract_response_format(kwargs))
+        self.assertIn("label", schema["json_schema"]["schema"]["properties"])
+
+    def test_anthropic_json_tool_call_response_format(self):
+        # Anthropic converts a Pydantic response_format into a json_tool_call tool in
+        # optional_params["tools"], but with its own shape: {"name", "input_schema"}.
+        kwargs = {
+            "optional_params": {
+                "json_mode": True,
+                "tools": [
+                    {
+                        "name": "json_tool_call",
+                        "input_schema": {"properties": {"label": {"type": "string"}}},
+                    }
+                ],
+            }
+        }
+        schema = json.loads(extract_response_format(kwargs))
+        self.assertIn("label", schema["json_schema"]["schema"]["properties"])
+
 
 class TestLiteLLMInferenceDataInput(unittest.TestCase):
     """Coverage through the live INFERENCE output processor."""

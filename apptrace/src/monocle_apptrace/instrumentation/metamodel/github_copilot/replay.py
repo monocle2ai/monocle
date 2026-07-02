@@ -22,7 +22,8 @@ from monocle_apptrace.instrumentation.metamodel.github_copilot.trace_events impo
     _sessions_dir,
 )
 from monocle_apptrace.instrumentation.metamodel.github_copilot.replay_handlers import ReplayHandler
-from monocle_apptrace.instrumentation.metamodel.github_copilot._otel_tokens import lookup_turn_tokens
+from monocle_apptrace.instrumentation.metamodel.github_copilot._otel_tokens import lookup_turn_tokens, prune_otel_file
+from monocle_apptrace.instrumentation.metamodel.github_copilot import git_context
 
 logger = logging.getLogger(__name__)
 
@@ -40,6 +41,40 @@ def _configure_telemetry():
     workflow_name = get_monocle_env_value("MONOCLE_WORKFLOW_NAME") or Path.cwd().name
     setup_monocle_telemetry(workflow_name=workflow_name)
     _telemetry_ready = True
+
+
+def _event_cwd(event: dict) -> str:
+    for key in (
+        "cwd",
+        "working_directory",
+        "workingDirectory",
+        "workspace_root",
+        "workspaceRoot",
+        "project_dir",
+        "projectDir",
+        "project_root",
+        "projectRoot",
+    ):
+        value = event.get(key)
+        if isinstance(value, str) and value:
+            return value
+    return ""
+
+
+def _latest_cwd(hook_events: list) -> str:
+    for event in reversed(hook_events):
+        cwd = _event_cwd(event)
+        if cwd:
+            return cwd
+    return ""
+
+
+def _session_ended_after(hook_events: list, ts: str) -> bool:
+    return any(
+        event.get("hook_event_name") == "SessionEnd"
+        and event.get("timestamp", "") >= ts
+        for event in hook_events
+    )
 
 
 @contextmanager
@@ -247,6 +282,11 @@ def _walk_interactions(transcript_events: list, subagent_intervals: list) -> lis
             container = _container_for_ts(ts)
             if container is None:
                 continue
+            message_model = data.get("model")
+            if message_model:
+                container["model"] = message_model
+                if container is current:
+                    current_model = message_model
             container.setdefault("assistant_messages", []).append({
                 "content": data.get("content", "") or "",
                 "reasoning": data.get("reasoningText", "") or "",
@@ -292,9 +332,6 @@ def _walk_interactions(transcript_events: list, subagent_intervals: list) -> lis
 
     if current:
         interactions.append(current)
-    for itr in interactions:
-        if not itr["assistant_messages"]:
-            itr["interrupted"] = True
     return interactions
 
 
@@ -419,10 +456,11 @@ def _replay_session_locked(session_id: str) -> None:
 
     state = _load_state(session_id)
     already = set(state.get("interactions_processed", []))
-    # Skip interactions with no assistant response and not flagged interrupted (still mid-flight).
+    # Skip interactions with no assistant response; Copilot can fire Stop before
+    # the transcript has flushed the assistant/tool events for the current turn.
     new_interactions = [
         i for i in interactions
-        if i["id"] not in already and (i.get("assistant_messages") or i.get("interrupted"))
+        if i["id"] not in already and i.get("assistant_messages")
     ]
 
     if not new_interactions:
@@ -431,12 +469,14 @@ def _replay_session_locked(session_id: str) -> None:
     parent_outputs, subagent_outputs = _index_tool_outputs(hook_events, subagent_intervals)
     _configure_telemetry()
     handler = ReplayHandler()
+    cwd = _latest_cwd(hook_events) or None
 
     for interaction in new_interactions:
         iid = interaction["id"]
         prompt = interaction["prompt"]
         turn_start = interaction.get("turn_start", "")
         turn_end = interaction.get("turn_end", turn_start)
+        session_ended = _session_ended_after(hook_events, turn_end)
         tool_calls = _convert_tool_calls(interaction.get("tool_calls", []), parent_outputs)
         subagents = _build_subagent_records(interaction, subagent_outputs)
         response = next(
@@ -446,19 +486,25 @@ def _replay_session_locked(session_id: str) -> None:
         round_dict = _build_inference_round(interaction, prompt)
         turn_tokens = {}
         turn_model = interaction.get("model", "copilot")
-        # Token counts come from Copilot's own OTel export — both VS Code Chat and
-        # the CLI write it — anchored by trace id within the turn window.
         if round_dict:
             otel_tokens, otel_trace_id, otel_model = lookup_turn_tokens(
-                round_dict[SPAN_START_TIME], round_dict[SPAN_END_TIME]
+                round_dict[SPAN_START_TIME],
+                round_dict[SPAN_END_TIME],
+                expected_model=round_dict.get("model", ""),
             )
             if otel_tokens:
+                prune_otel_file()
                 round_dict["tokens"] = otel_tokens
                 round_dict["otel_trace_id"] = otel_trace_id
                 if otel_model:
                     round_dict["model"] = otel_model
                 turn_tokens = otel_tokens
                 turn_model = round_dict["model"]
+            elif not session_ended:
+                logger.debug("Deferring Copilot turn %s until token telemetry flushes", iid)
+                continue
+            else:
+                prune_otel_file()
         try:
             handler.handle_turn(
                 prompt=prompt,
@@ -468,6 +514,7 @@ def _replay_session_locked(session_id: str) -> None:
                 inference_rounds=[round_dict] if round_dict else [],
                 model=turn_model,
                 tokens=turn_tokens,
+                git_scopes=git_context.compute_scopes(session_id, cwd=cwd),
                 _turn_start=turn_start,
                 _turn_end=turn_end,
                 **{SPAN_START_TIME: turn_start, SPAN_END_TIME: turn_end, AGENT_SESSION: session_id},

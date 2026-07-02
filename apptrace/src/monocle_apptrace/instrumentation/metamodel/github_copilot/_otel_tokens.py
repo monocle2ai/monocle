@@ -1,23 +1,4 @@
-"""Token usage from Microsoft Copilot's native OTel JSONL export.
-
-Copilot doesn't surface token counts through hooks, but its OTel file export does —
-as metadata, so no `captureContent` (hence no content-policy permission) is needed.
-Two surfaces write to that file in different OTel signal shapes:
-
-  - VS Code Copilot Chat → an inference *log event*
-    (`gen_ai.client.inference.operation.details`); trace id under `spanContext`,
-    time in `hrTime`.
-  - Copilot CLI → a *chat span* (`type: "span"`, `gen_ai.operation.name: "chat"`);
-    trace id at top level, time in `startTime`.
-
-Both carry identical `gen_ai.usage.*` attributes. `_normalize_record` is the single
-point that collapses either shape into one canonical record; everything downstream
-works on that normalized stream and is surface-agnostic.
-
-Correlation is anchored on the **trace id**: find the inference records whose
-timestamp falls in the turn window, take the dominant trace id, then sum every
-record sharing it. Utility calls (title/summary) carry no trace id and drop out.
-"""
+"""Token usage from GitHub Copilot's native OTel JSONL export."""
 
 import json
 import logging
@@ -30,177 +11,193 @@ from pathlib import Path
 logger = logging.getLogger(__name__)
 
 _INFERENCE_EVENT = "gen_ai.client.inference.operation.details"
-_WINDOW_SLACK_S = 5.0  # tolerate clock/flush skew between hook timestamps and OTel hrTime
-# Copilot's OTel exporter flushes the file asynchronously, so the turn's inference
-# event can land a beat after the Stop hook fires. Poll briefly for it to appear.
-_FLUSH_WAIT_S = 6.0
-_FLUSH_POLL_INTERVAL_S = 0.5
-
-# Keep ~1 day of records, pruned on SessionStart, so the append-only OTel file
-# can't grow unbounded (matches trace_events._TTL_SECONDS).
-_OTEL_TTL_SECONDS = 24 * 60 * 60
+_WINDOW_SLACK_S = 5.0
+_METRIC_FLUSH_SLACK_S = 15.0
 
 
 def _otel_file() -> Path:
-    """Where both Copilot surfaces write their OTel export — a FIXED root path,
-    ~/.monocle/.copilot_otel/copilot.jsonl. VS Code only reliably file-exports to a
-    stable outfile, so this must not move per-project. The CLI passes the path via
-    env (wins when present); the recorded env-file value is a secondary fallback."""
     env = os.environ.get("COPILOT_OTEL_FILE_EXPORTER_PATH")
     if env:
         return Path(env)
     from monocle_apptrace.instrumentation.common.utils import get_monocle_env_value
-    configured = get_monocle_env_value("MONOCLE_COPILOT_OTEL_FILE")
-    if configured:
-        return Path(configured)
-    return Path.home() / ".monocle" / ".copilot_otel" / "copilot.jsonl"
+    return Path(get_monocle_env_value("MONOCLE_COPILOT_OTEL_FILE") or Path.home() / ".monocle" / ".copilot_otel" / "copilot.jsonl")
 
-
-def _iso_to_epoch(ts: str):
-    if not ts:
-        return None
+def _iso_to_epoch(ts):
     try:
-        return datetime.fromisoformat(ts.replace("Z", "+00:00")).timestamp()
+        return datetime.fromisoformat(ts.replace("Z", "+00:00")).timestamp() if ts else None
     except ValueError:
         return None
 
-
-def _hrtime_to_epoch(hrtime):
-    """OTel SDK records time as [seconds, nanoseconds]."""
-    if not isinstance(hrtime, list) or len(hrtime) != 2:
-        return None
+def _hrtime_to_epoch(value):
     try:
-        return float(hrtime[0]) + float(hrtime[1]) / 1e9
+        return float(value[0]) + float(value[1]) / 1e9 if isinstance(value, list) and len(value) == 2 else None
     except (TypeError, ValueError):
         return None
 
+def _as_int(value):
+    try:
+        return int(value or 0)
+    except (TypeError, ValueError):
+        return 0
 
-def _normalize_record(rec: dict):
-    """The single normalization point: map either Copilot OTel envelope — VS Code
-    Chat's inference *log event* or the CLI's *chat span* — into one canonical token
-    record, or None if the record isn't an inference. Both envelopes carry the same
-    `gen_ai.usage.*` attributes; only the trace-id and timestamp locations differ.
-    """
-    if not isinstance(rec, dict):
+def _tokens(input_tokens, output_tokens, trace_id="", model="", cache=0, reasoning=0):
+    if not input_tokens and not output_tokens:
         return None
-    attrs = rec.get("attributes") or {}
-    is_chat_log = attrs.get("event.name") == _INFERENCE_EVENT                        # VS Code Copilot Chat
-    is_chat_span = rec.get("type") == "span" and attrs.get("gen_ai.operation.name") == "chat"  # Copilot CLI
-    if not (is_chat_log or is_chat_span):
-        return None
-    return {
-        "trace_id": rec.get("traceId") or (rec.get("spanContext") or {}).get("traceId") or "",
-        "epoch": _hrtime_to_epoch(rec.get("startTime") or rec.get("hrTime")),
-        "response_id": attrs.get("gen_ai.response.id") or "",
-        "input": attrs.get("gen_ai.usage.input_tokens", 0) or 0,
-        "output": attrs.get("gen_ai.usage.output_tokens", 0) or 0,
-        "cache_read": attrs.get("gen_ai.usage.cache_read.input_tokens", 0) or 0,
-        "reasoning": attrs.get("gen_ai.usage.reasoning.output_tokens", 0) or 0,
-        "model": attrs.get("gen_ai.response.model") or attrs.get("gen_ai.request.model") or "",
+    result = {
+        "prompt_tokens": input_tokens,
+        "completion_tokens": output_tokens,
+        "total_tokens": input_tokens + output_tokens,
     }
+    if cache:
+        result["cache_read_tokens"] = cache
+    if reasoning:
+        result["reasoning_tokens"] = reasoning
+    return result, trace_id, model
 
-
-def _load_inference_events(path: Path) -> list:
-    """Read the OTel JSONL and return the normalized inference records (both surfaces)."""
+def _load_records(path):
+    direct, metrics = [], []
     if not path.exists():
-        return []
+        return direct, metrics
     try:
         lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
     except OSError as e:
         logger.debug("Cannot read Copilot OTel file %s: %s", path, e)
-        return []
-    events = []
+        return direct, metrics
+
     for line in lines:
-        line = line.strip()
-        if not line:
+        if "gen_ai.usage" not in line and "gen_ai.client.token.usage" not in line:
             continue
         try:
             rec = json.loads(line)
         except json.JSONDecodeError:
             continue
-        norm = _normalize_record(rec)
-        if norm is not None:
-            events.append(norm)
-    return events
 
+        attrs = rec.get("attributes") or {}
+        if attrs.get("event.name") == _INFERENCE_EVENT or (rec.get("type") == "span" and attrs.get("gen_ai.operation.name") == "chat"):
+            direct.append({
+                "epoch": _hrtime_to_epoch(rec.get("startTime") or rec.get("hrTime")),
+                "trace_id": rec.get("traceId") or (rec.get("spanContext") or {}).get("traceId") or "",
+                "response_id": attrs.get("gen_ai.response.id") or "",
+                "model": attrs.get("gen_ai.response.model") or attrs.get("gen_ai.request.model") or "",
+                "input": _as_int(attrs.get("gen_ai.usage.input_tokens")),
+                "output": _as_int(attrs.get("gen_ai.usage.output_tokens")),
+                "cache": _as_int(attrs.get("gen_ai.usage.cache_read.input_tokens")),
+                "reasoning": _as_int(attrs.get("gen_ai.usage.reasoning.output_tokens")),
+            })
 
-def _resolve_trace_id(events: list, start, end) -> str:
-    """The dominant trace id among events whose timestamp is inside the turn window."""
+        try:
+            session_id = dict((rec.get("resource") or {}).get("_rawAttributes") or []).get("session.id", "")
+        except (TypeError, ValueError):
+            session_id = ""
+        grouped = {}
+        for scope in rec.get("scopeMetrics") or []:
+            scope_name = (scope.get("scope") or {}).get("name", "")
+            for metric in scope.get("metrics") or []:
+                if (metric.get("descriptor") or {}).get("name") != "gen_ai.client.token.usage":
+                    continue
+                for point in metric.get("dataPoints") or []:
+                    attrs = point.get("attributes") or {}
+                    token_type = attrs.get("gen_ai.token.type")
+                    epoch = _hrtime_to_epoch(point.get("endTime"))
+                    if attrs.get("gen_ai.operation.name") != "chat" or token_type not in ("input", "output") or epoch is None:
+                        continue
+                    model = attrs.get("gen_ai.response.model") or attrs.get("gen_ai.request.model") or ""
+                    key = (session_id, scope_name, attrs.get("gen_ai.provider.name", ""), model)
+                    snap = grouped.setdefault(key, {
+                        "epoch": epoch, "start_epoch": _hrtime_to_epoch(point.get("startTime")),
+                        "session_id": session_id, "scope": scope_name, "model": model,
+                        "input_sum": 0, "input_count": 0, "output_sum": 0, "output_count": 0,
+                    })
+                    snap["epoch"] = max(snap["epoch"], epoch)
+                    start_epoch = _hrtime_to_epoch(point.get("startTime"))
+                    starts = [v for v in (snap["start_epoch"], start_epoch) if v is not None]
+                    snap["start_epoch"] = min(starts) if starts else None
+                    value = point.get("value") or {}
+                    snap[f"{token_type}_sum"] = _as_int(value.get("sum"))
+                    snap[f"{token_type}_count"] = _as_int(value.get("count"))
+        metrics.extend(grouped.values())
+    return direct, metrics
+
+def _direct_tokens(records, start, end, expected_model=""):
     in_window = [
-        e for e in events
-        if e["trace_id"] and e["epoch"] is not None
-        and (start is None or e["epoch"] >= start - _WINDOW_SLACK_S)
-        and (end is None or e["epoch"] <= end + _WINDOW_SLACK_S)
+        r for r in records
+        if r["epoch"] is not None
+        and (start is None or r["epoch"] >= start - _WINDOW_SLACK_S)
+        and (end is None or r["epoch"] <= end + _WINDOW_SLACK_S)
+        and (not expected_model or not r["model"] or r["model"] == expected_model)
     ]
     if not in_window:
-        return ""
-    return Counter(e["trace_id"] for e in in_window).most_common(1)[0][0]
+        return None
+
+    trace_ids = [r["trace_id"] for r in in_window if r["trace_id"]]
+    trace_id = Counter(trace_ids).most_common(1)[0][0] if trace_ids else ""
+    seen, deduped = set(), []
+    for record in ([r for r in records if r["trace_id"] == trace_id] if trace_id else in_window):
+        key = (record["response_id"], record["input"], record["output"])
+        if key not in seen:
+            seen.add(key)
+            deduped.append(record)
+
+    models = Counter(r["model"] for r in deduped if r["model"])
+    return _tokens(
+        sum(r["input"] for r in deduped),
+        sum(r["output"] for r in deduped),
+        trace_id,
+        models.most_common(1)[0][0] if models else "",
+        sum(r["cache"] for r in deduped),
+        sum(r["reasoning"] for r in deduped),
+    )
 
 
-def lookup_turn_tokens(turn_start: str, turn_end: str, wait_s: float = _FLUSH_WAIT_S):
-    """Return (tokens_dict, trace_id, model) for the turn, or ({}, "", "").
-
-    tokens_dict uses Monocle's canonical keys. trace_id is returned so the caller
-    can stamp it on the span (provenance for the correlation).
-
-    Polls the OTel file for up to wait_s seconds: Copilot's exporter flushes
-    asynchronously, so at Stop-hook time the turn's inference event may not be on
-    disk yet. We re-read until an event in the turn window appears (or we give up).
-    """
-    start = _iso_to_epoch(turn_start)
-    end = _iso_to_epoch(turn_end)
-    deadline = time.monotonic() + max(0.0, wait_s)
-    events = []
-    trace_id = ""
-    while True:
-        events = _load_inference_events(_otel_file())
-        trace_id = _resolve_trace_id(events, start, end) if events else ""
-        if trace_id or time.monotonic() >= deadline:
-            break
-        time.sleep(_FLUSH_POLL_INTERVAL_S)
-
-    if not trace_id:
-        return {}, "", ""
-
-    group = [e for e in events if e["trace_id"] == trace_id]
-    # Drop byte-identical duplicate emissions of the same call (same response id
-    # AND same counts); keep distinct rounds even when a response id repeats.
-    seen = set()
-    deduped = []
-    for e in group:
-        key = (e["response_id"], e["input"], e["output"])
-        if key in seen:
+def _metric_tokens(snapshots, start, end, expected_model=""):
+    latest_before, first_after = {}, {}
+    for snap in snapshots:
+        if expected_model and snap["model"] and snap["model"] != expected_model:
             continue
-        seen.add(key)
-        deduped.append(e)
+        key = (snap["session_id"], snap["scope"], snap["model"])
+        if start is None or snap["epoch"] <= start:
+            if key not in latest_before or snap["epoch"] > latest_before[key]["epoch"]:
+                latest_before[key] = snap
+        if end is None or end <= snap["epoch"] <= end + _METRIC_FLUSH_SLACK_S:
+            if key not in first_after or snap["epoch"] < first_after[key]["epoch"]:
+                first_after[key] = snap
 
-    inp = sum(e["input"] for e in deduped)
-    out = sum(e["output"] for e in deduped)
-    cache = sum(e["cache_read"] for e in deduped)
-    reasoning = sum(e["reasoning"] for e in deduped)
-    if not inp and not out:
-        return {}, trace_id, ""
+    candidates = []
+    for key, after in first_after.items():
+        before = latest_before.get(key)
+        if before is None:
+            if after["start_epoch"] is None or start is None or after["start_epoch"] < start - _WINDOW_SLACK_S:
+                continue
+            before = {"input_sum": 0, "input_count": 0, "output_sum": 0, "output_count": 0}
+        if after["input_count"] <= before["input_count"] and after["output_count"] <= before["output_count"]:
+            continue
+        result = _tokens(
+            max(0, after["input_sum"] - before["input_sum"]),
+            max(0, after["output_sum"] - before["output_sum"]),
+            model=after["model"],
+        )
+        if result:
+            candidates.append(result)
+    return max(candidates, key=lambda item: item[0]["total_tokens"]) if candidates else None
 
-    tokens = {"prompt_tokens": inp, "completion_tokens": out, "total_tokens": inp + out}
-    if cache:
-        tokens["cache_read_tokens"] = cache
-    if reasoning:
-        tokens["reasoning_tokens"] = reasoning
 
-    models = Counter(e["model"] for e in deduped if e["model"])
-    model = models.most_common(1)[0][0] if models else ""
-    return tokens, trace_id, model
+def lookup_turn_tokens(turn_start, turn_end, wait_s=6.0, expected_model=""):
+    start, end = _iso_to_epoch(turn_start), _iso_to_epoch(turn_end)
+    deadline = time.monotonic() + max(0.0, wait_s)
+    while True:
+        direct, metrics = _load_records(_otel_file())
+        result = _direct_tokens(direct, start, end, expected_model) or _metric_tokens(metrics, start, end, expected_model)
+        if result or time.monotonic() >= deadline:
+            return result or ({}, "", "")
+        time.sleep(0.5)
 
 
-def prune_otel_file(ttl_seconds: float = _OTEL_TTL_SECONDS) -> int:
-    """Drop records older than ttl_seconds from the append-only OTel file so it can't
-    grow unbounded. Pruned by record time, not mtime (the file is always being
-    appended to). Called on SessionStart; returns the number of records dropped."""
+def prune_otel_file(ttl_seconds=10 * 60):
     path = _otel_file()
     if not path.exists():
         return 0
-    cutoff = time.time() - ttl_seconds
-    kept, dropped = [], 0
+
+    cutoff, kept, dropped = time.time() - ttl_seconds, [], 0
     try:
         for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
             if not line.strip():
@@ -208,17 +205,28 @@ def prune_otel_file(ttl_seconds: float = _OTEL_TTL_SECONDS) -> int:
             try:
                 rec = json.loads(line)
             except json.JSONDecodeError:
-                kept.append(line)  # keep lines we can't parse rather than lose them
+                kept.append(line)
                 continue
+
             epoch = _hrtime_to_epoch(rec.get("startTime") or rec.get("hrTime"))
+            if epoch is None:
+                epochs = [
+                    _hrtime_to_epoch(point.get("endTime"))
+                    for scope in rec.get("scopeMetrics") or []
+                    for metric in scope.get("metrics") or []
+                    if (metric.get("descriptor") or {}).get("name") == "gen_ai.client.token.usage"
+                    for point in metric.get("dataPoints") or []
+                ]
+                epoch = max((e for e in epochs if e is not None), default=None)
             if epoch is not None and epoch < cutoff:
                 dropped += 1
             else:
                 kept.append(line)
+
         if dropped:
             tmp = path.with_name(path.name + ".tmp")
             tmp.write_text("\n".join(kept) + ("\n" if kept else ""), encoding="utf-8")
-            tmp.replace(path)  # atomic swap; a reader never sees a partial file
+            tmp.replace(path)
     except OSError as e:
         logger.debug("prune_otel_file: %s", e)
     return dropped

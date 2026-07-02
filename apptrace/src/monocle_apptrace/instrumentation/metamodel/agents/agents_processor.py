@@ -2,11 +2,14 @@ import logging
 from types import SimpleNamespace
 from opentelemetry.context import attach, set_value, detach
 from opentelemetry.trace import Tracer
-from monocle_apptrace.instrumentation.common.constants import AGENT_NAME_KEY, AGENT_PREFIX_KEY
+from monocle_apptrace.instrumentation.common.constants import AGENT_NAME_KEY, AGENT_PREFIX_KEY, SPAN_TYPES
 from monocle_apptrace.instrumentation.common.span_handler import (
     SpanHandler as BaseSpanHandler,
 )
-from monocle_apptrace.instrumentation.common.utils import with_tracer_wrapper, propogate_agent_name_to_parent_span
+from monocle_apptrace.instrumentation.common.utils import with_tracer_wrapper, propogate_agent_name_to_parent_span, get_scopes
+
+# Scope an app opens to collapse its many Runner.run calls into one turn (see skip_span).
+AGENT_TURN_SCOPE = "agentic.turn"
 from monocle_apptrace.instrumentation.common.wrapper import atask_wrapper
 from monocle_apptrace.instrumentation.metamodel.agents._helper import (
     AGENTS_AGENT_NAME_KEY,
@@ -130,6 +133,16 @@ class AgentsSpanHandler(BaseSpanHandler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.agent_context_token = None
+
+    def skip_span(self, to_wrap, wrapped, instance, args, kwargs) -> bool:
+        """Skip the Runner.run turn span when an agentic.turn scope is already open, so
+        an app's many Runner.run calls nest as invocations under one turn. Only the turn
+        entry is skipped (run_single_turn invocations are not); inert without the scope."""
+        output_processor = to_wrap.get("output_processor") or {}
+        is_turn = output_processor.get("type") == SPAN_TYPES.AGENTIC_REQUEST
+        if is_turn and AGENT_TURN_SCOPE in get_scopes():
+            return True
+        return super().skip_span(to_wrap, wrapped, instance, args, kwargs)
 
     def _get_agent_name(self, to_wrap, wrapped, instance, args, kwargs):
         """Set the agent context for tracking across calls."""

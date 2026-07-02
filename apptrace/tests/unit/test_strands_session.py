@@ -8,8 +8,9 @@ from monocle_apptrace.instrumentation.metamodel.strands.strands_processor import
 class Agent:
     """Minimal stand-in for strands.Agent that exposes a session_manager."""
 
-    def __init__(self, session_manager=None):
+    def __init__(self, session_manager=None, trace_attributes=None):
         self._session_manager = session_manager
+        self.trace_attributes = trace_attributes if trace_attributes is not None else {}
         self.name = "travel_agent"
         self.description = "Travel booking agent"
 
@@ -52,4 +53,22 @@ def test_strands_handler_ignores_missing_session():
     assert (
         get_scopes().get(AGENT_SESSION) == previous_scope
     ), "agentic.session scope should remain unchanged when no session exists"
+
+
+def test_strands_handler_uses_trace_attributes_session():
+    handler = StrandsSpanHandler()
+    # No session_manager; session carried in trace_attributes (the common case)
+    agent = Agent(trace_attributes={"session.id": "trace-session-1"})
+    previous_scope = get_scopes().get(AGENT_SESSION)
+
+    token, _ = handler.pre_tracing({}, None, agent, (), {})
+
+    assert token is not None, "Expected set_scope token from trace_attributes session id"
+    assert get_scopes().get(AGENT_SESSION) == "trace-session-1"
+
+    from monocle_apptrace.instrumentation.common.utils import remove_scope
+    if token:
+        remove_scope(token)
+
+    assert get_scopes().get(AGENT_SESSION) == previous_scope
 

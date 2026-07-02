@@ -321,19 +321,15 @@ You can add additional output fields beyond `label` (e.g., `explanation`, `categ
 
 ### Usage
 
+Pass the path to your template JSON file directly — `check_eval()` loads, parses, and submits it for you.
+
 ```python
-import json
-
-# Load the template from a JSON file
-with open("path/to/my_custom_eval.json") as f:
-    custom_template = json.load(f)["template"]
-
-# Use template= instead of eval_name
+# Point check_eval at the template file — no manual JSON loading required
 monocle_trace_asserter.with_evaluation("okahu") \
-    .check_eval(template=custom_template, expected="good")
+    .check_eval(template_path="path/to/my_custom_eval.json", expected="good")
 ```
 
-`template` and `eval_name` are mutually exclusive — use one or the other in a single `check_eval()` call. You can mix both styles in the same test:
+`template_path` and `eval_name` are mutually exclusive — use one or the other in a single `check_eval()` call. You can mix both styles in the same test:
 
 ```python
 # Built-in evaluation
@@ -341,8 +337,15 @@ monocle_trace_asserter.with_evaluation("okahu") \
     .check_eval("sentiment", expected="positive")
 
 # Custom evaluation in the same test
-monocle_trace_asserter.check_eval(template=custom_template, expected="good")
+monocle_trace_asserter.check_eval(template_path="path/to/my_custom_eval.json", expected="good")
 ```
+
+**Template file shape.** The file can be authored either as the inner template (top-level `name`/`eval_prompt`/`structure_output`) or wrapped as the full API request body (`{"template": {...inner...}}`). `check_eval()` auto-unwraps the outer `"template"` key when it's the sole top-level key.
+
+**Error handling.**
+- File not found → `AssertionError: Custom template file not found: <path>`
+- Invalid JSON → `AssertionError: Custom template file is not valid JSON: <path> — <details>`
+- API-side template validation failure → `AssertionError: Custom template validation failed: <server error>` (surfaces the exact reason from the evaluation service so you know what to fix in the template)
 
 
 ## 8. Cost and Performance Testing
@@ -503,19 +506,19 @@ check_eval(fact_name, eval_name, expected=None, not_expected=None, message=None)
 
 **Custom template evaluation:**
 ```python
-check_eval(template=my_template, expected=None, not_expected=None, message=None)
+check_eval(template_path="path/to/template.json", expected=None, not_expected=None, message=None)
 ```
 
 **Parameters:**
-- `eval_name`: **(Optional)** The metric/evaluation name (e.g., "sentiment", "bias", "hallucination"). Required unless `template` is provided.
-- `template`: **(Optional)** A custom evaluation template dict loaded from a JSON file. Required unless `eval_name` is provided.
+- `eval_name`: **(Optional)** The metric/evaluation name (e.g., "sentiment", "bias", "hallucination"). Required unless `template_path` is provided.
+- `template_path`: **(Optional)** Filesystem path to a custom-template JSON file. `check_eval()` loads the file, parses it, and submits it to the evaluation service. Required unless `eval_name` is provided.
 - `fact_name`: **(Optional)** The fact type to evaluate (traces, agentic_sessions, agentic_turns, inferences). Defaults to "traces" if omitted.
 - `expected`: **(Optional)** Accepts a **string** or **list of strings** for values that should match
 - `not_expected`: **(Optional)** Accepts a **string** or **list of strings** for values that should NOT match
 - `message`: **(Optional)** Custom message to display on evaluation failure
 
 **Important:**
-- `eval_name` and `template` are mutually exclusive — provide one or the other, never both
+- `eval_name` and `template_path` are mutually exclusive — provide one or the other, never both
 - At least one of `expected` or `not_expected` must be provided — omitting both will raise a `ValueError`
 - Both parameters can be used together for comprehensive validation
 - The method validates that there's no overlap between `expected` and `not_expected`

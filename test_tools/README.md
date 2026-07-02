@@ -72,7 +72,9 @@ agent_test_cases: list[dict] = [
                 "entities": [
                     {"type": "tool", "name": "adk_book_flight"},
                     {"type": "agent", "name": "adk_flight_booking_agent"}
-                ]
+                ],
+                # Verify expected attributes on the matched span
+                "attributes": {"entity.1.type": "tool.adk"}
             }
         ]
     },

@@ -445,7 +445,7 @@ class MonocleValidator:
                 )
             # if the trace_path is a file, use it directly; otherwise, search for the trace file in the directory
             if trace_path and os.path.isfile(trace_path):
-                if id and id not in trace_path:
+                if id and id.replace("0x", "") not in trace_path:
                     raise ValueError(f"Provided trace_path '{trace_path}' does not match the given trace_id '{id}'.")
                 trace_file = trace_path
             else:

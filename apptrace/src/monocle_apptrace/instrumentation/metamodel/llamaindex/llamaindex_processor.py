@@ -1,7 +1,7 @@
 from opentelemetry.context import attach, detach, get_current, get_value, set_value
-from monocle_apptrace.instrumentation.common.constants import AGENT_PREFIX_KEY, AGENT_SESSION
+from monocle_apptrace.instrumentation.common.constants import AGENT_PREFIX_KEY, AGENT_REQUEST_SPAN_NAME, AGENT_SESSION
 from monocle_apptrace.instrumentation.common.span_handler import SpanHandler
-from monocle_apptrace.instrumentation.common.utils import set_scope
+from monocle_apptrace.instrumentation.common.utils import is_scope_set, set_scope
 from monocle_apptrace.instrumentation.metamodel.llamaindex._helper import (
     LLAMAINDEX_AGENT_NAME_KEY,
     is_delegation_tool, 
@@ -68,6 +68,34 @@ class LlamaIndexSingleAgenttToolHandlerWrapper(DelegationHandler):
         if get_value(TOOL_INVOCATION_STARTED) == True:
             return True
         return super().skip_span(to_wrap, wrapped, instance, args, kwargs)
+
+class LlamaIndexWorkflowHandler(SpanHandler):
+    """Opens one agentic.turn span + session scope for a plain ``Workflow.run``.
+
+    Without it, each leaf LLM/tool call in a custom ``@step`` workflow starts its
+    own trace. ``AgentWorkflow`` has its own run span, so it is skipped here.
+    """
+
+    def skip_span(self, to_wrap, wrapped, instance, args, kwargs) -> bool:
+        # AgentWorkflow has its own run span; don't double-handle it.
+        try:
+            from llama_index.core.agent.workflow.multi_agent_workflow import AgentWorkflow
+            if isinstance(instance, AgentWorkflow):
+                return True
+        except Exception:
+            pass
+        # Avoid nested duplicate turns (e.g. a workflow that runs a sub-workflow).
+        if is_scope_set(AGENT_REQUEST_SPAN_NAME):
+            return True
+        return super().skip_span(to_wrap, wrapped, instance, args, kwargs)
+
+    def pre_tracing(self, to_wrap, wrapped, instance, args, kwargs):
+        # Anchor a session so all spans (and any traces) from this run correlate.
+        # A plain workflow carries no session id, so set_scope auto-generates one.
+        session_id = extract_session_id(kwargs)
+        session_token = set_scope(AGENT_SESSION, session_id)
+        return session_token, None
+
 
 class LlamaIndexAgentHandler(SpanHandler):
     def pre_tracing(self, to_wrap, wrapped, instance, args, kwargs):

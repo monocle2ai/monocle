@@ -27,6 +27,14 @@ def _last_message_content_from_state(state) -> str:
                     return extract_content_text(content)
     return ""
 
+def _serialize_state(state) -> str:
+    """Faithful fallback for custom (non message-based) StateGraph I/O: serialize the state itself."""
+    if state is None or state == {}:
+        return ""
+    if isinstance(state, str):
+        return state
+    return get_json_dumps(state)
+
 def extract_agent_response(response):
     try:
         if response is None:
@@ -38,10 +46,10 @@ def extract_agent_response(response):
         # astream emits a checkpoint tuple ((), 'debug', {payload}) as its final item
         if isinstance(response, tuple) and len(response) >= 3 and isinstance(response[2], dict):
             values = response[2].get('payload', {}).get('values', {})
-            return _last_message_content_from_state(values)
+            return _last_message_content_from_state(values) or _serialize_state(values)
         # 2-tuple stream chunk (mode, data) from a nested subgraph astream
         if isinstance(response, tuple) and len(response) == 2 and isinstance(response[1], dict):
-            return _last_message_content_from_state(response[1])
+            return _last_message_content_from_state(response[1]) or _serialize_state(response[1])
         if isinstance(response, dict):
             text = _last_message_content_from_state(response)
             if text:
@@ -52,6 +60,8 @@ def extract_agent_response(response):
                     text = _last_message_content_from_state(value)
                     if text:
                         return text
+            # custom StateGraph with no message channel: serialize the final state
+            return _serialize_state(response)
     except Exception as e:
         logger.warning("Warning: Error occurred in handle_response: %s", str(e))
     return ""
@@ -102,6 +112,8 @@ def extract_agent_input(arguments):
             text = _last_message_content_from_state(input_obj)
             if text:
                 return get_json_dumps([text])
+            # custom StateGraph with no message channel: serialize the input state
+            return _serialize_state(input_obj)
         return ""
     except Exception as e:
         logger.warning("Warning: Error occurred in extract_agent_input: %s", str(e))

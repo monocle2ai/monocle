@@ -6,6 +6,7 @@ from monocle_apptrace.instrumentation.common.stream_processor import (
     BaseStreamProcessor,
     StreamState,
 )
+from monocle_apptrace.instrumentation.common.utils import get_json_dumps
 
 
 class LanggraphStreamProcessor(BaseStreamProcessor):
@@ -125,6 +126,22 @@ class LanggraphStreamProcessor(BaseStreamProcessor):
     def handle_completion(self, item: Any, state: StreamState) -> bool:
         """LangGraph does not emit a separate completion chunk; unused."""
         return False
+
+    def assemble_data(self, state: StreamState) -> None:
+        """Custom (non message-based) StateGraph: fall back to the last streamed state snapshot."""
+        if state.accumulated_response:
+            return
+        for item in reversed(state.raw_items):
+            snapshot = self._chunk_state(item)
+            if snapshot:
+                state.accumulated_response = get_json_dumps(snapshot)
+                return
+
+    def _chunk_state(self, item: Any) -> Any:
+        """Return the state dict carried by a values/updates stream chunk, if any."""
+        if isinstance(item, tuple) and len(item) in (2, 3) and isinstance(item[-1], dict):
+            item = item[-1]
+        return item if isinstance(item, dict) and item else None
 
     def _extract_message_content(self, message: Any) -> str:
         """Extract text from a LangChain message, handling str and list content."""

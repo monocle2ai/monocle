@@ -339,6 +339,7 @@ class MonocleValidator:
             raise last_exc
 
     def import_traces(self, trace_source: str, id: Optional[str] = None,
+                      trace_path: Optional[str] = None,
                       fact_name: Optional[str] = "trace",
                       scope_name: Optional[str] = None,
                       workflow_name: Optional[str] = None) -> None:
@@ -405,10 +406,10 @@ class MonocleValidator:
             )
         if not id:
             id = self._get_current_trace_id()
-        if not id:
-            raise ValueError("'id' is required.")
 
         if trace_source == "okahu":
+            if not id:
+                raise ValueError("'id' is required.")
             if workflow_name is None:
                 workflow_name = get_workflow_name()
             if not workflow_name:
@@ -442,9 +443,17 @@ class MonocleValidator:
                 raise ValueError(
                     "Only fact_name='trace' is supported for file trace source."
                 )
-            trace_file = JSONSpanLoader.find_trace_file(id)
+            # if the trace_path is a file, use it directly; otherwise, search for the trace file in the directory
+            if trace_path and os.path.isfile(trace_path):
+                if id and id.replace("0x", "") not in trace_path:
+                    raise ValueError(f"Provided trace_path '{trace_path}' does not match the given trace_id '{id}'.")
+                trace_file = trace_path
+            else:
+                if not id:
+                    raise ValueError("'id' is required.")
+                trace_file = JSONSpanLoader.find_trace_file(id, trace_dir=trace_path)
             if trace_file is None:
-                search_dir = os.path.join(".", ".monocle", "test_traces")
+                search_dir = trace_path if trace_path else os.path.join(".", ".monocle", "test_traces")
                 raise FileNotFoundError(
                     f"No trace file found for trace_id '{id}' in '{search_dir}'")
 
@@ -1055,6 +1064,40 @@ class MonocleValidator:
                 if finish_type != "success":
                     return True
         return False
+
+    def _check_scope(self, spans: list[Span], scope_name: str, expected_values: Optional[list[str]],
+                     comparer: BaseComparer, positive_test: Optional[bool] = True) -> list[Span]:
+        """Check if spans have a specific scope with expected value(s).
+        
+        Args:
+            spans: List of spans to check
+            scope_name: Name of the scope (e.g., 'tenant_id', 'subscriptionId')
+            expected_values: List of expected values for the scope (None to just check existence)
+            comparer: Comparer to use for value matching
+            positive_test: True for positive assertion, False for negative
+            
+        Returns:
+            List of spans matching the scope criteria
+        """
+        candidate_spans = []
+        scope_attr_name = f"scope.{scope_name}"
+        
+        for span in spans:
+            scope_value = span.attributes.get(scope_attr_name)
+            
+            # If just checking existence (no expected values)
+            if expected_values is None or len(expected_values) == 0:
+                if scope_value is not None:
+                    candidate_spans.append(span)
+            else:
+                # Check if scope value matches any expected value
+                if scope_value is not None:
+                    for expected_value in expected_values:
+                        if comparer.compare(expected_value, scope_value):
+                            candidate_spans.append(span)
+                            break
+        
+        return candidate_spans
 
     def _evaluate_span(self, span:Span, evaluation:Evaluation,  positive_test:bool) -> None:
         eval_args = {}

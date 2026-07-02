@@ -281,7 +281,74 @@ AssertionError: Evaluation 'sentiment' did not match expected result.
 Expected positive. Received negative.
 ```
 
-## 7. Cost and Performance Testing
+## 7. Custom Evaluation Templates
+
+In addition to the built-in evaluation metrics, you can define your own evaluation criteria using custom templates. A custom template lets you write your own evaluation prompt and define the output structure the evaluator should return.
+
+### Template Format
+
+Create a JSON file with the following structure:
+
+```json
+{
+    "template": {
+        "name": "my_custom_eval",
+        "eval_prompt": "Your evaluation instructions here...",
+        "structure_output": {
+            "label": {
+                "description": "The classification result.",
+                "enums": ["good", "neutral", "bad"]
+            },
+            "explanation": {
+                "description": "Reasoning for the classification."
+            }
+        }
+    }
+}
+```
+
+**Required fields:**
+
+| Field | Description |
+|-------|-------------|
+| `name` | A unique name for your template. Alphanumeric and underscores only, max 50 characters. |
+| `eval_prompt` | The evaluation instructions. Should describe the task, what to examine, and the classification criteria matching your `label` enums. |
+| `structure_output` | Defines the fields the evaluator will return. Must include at least a `label` field. |
+
+The `label` field in `structure_output` is what `check_eval()` uses for assertions (`expected` / `not_expected`). Include `enums` to define the allowed classification values. Your `eval_prompt` should describe criteria for each enum value so the evaluator knows how to classify.
+
+You can add additional output fields beyond `label` (e.g., `explanation`, `category`, or any domain-specific field). These are evaluated and stored but `check_eval()` only asserts on `label`.
+
+### Usage
+
+Pass the path to your template JSON file directly — `check_eval()` loads, parses, and submits it for you.
+
+```python
+# Point check_eval at the template file — no manual JSON loading required
+monocle_trace_asserter.with_evaluation("okahu") \
+    .check_eval(template_path="path/to/my_custom_eval.json", expected="good")
+```
+
+`template_path` and `eval_name` are mutually exclusive — use one or the other in a single `check_eval()` call. You can mix both styles in the same test:
+
+```python
+# Built-in evaluation
+monocle_trace_asserter.with_evaluation("okahu") \
+    .check_eval("sentiment", expected="positive")
+
+# Custom evaluation in the same test
+monocle_trace_asserter.check_eval(template_path="path/to/my_custom_eval.json", expected="good")
+```
+
+**Template file shape.** The file can be authored either as the inner template (top-level `name`/`eval_prompt`/`structure_output`) or wrapped as the full API request body (`{"template": {...inner...}}`). `check_eval()` auto-unwraps the outer `"template"` key when it's the sole top-level key.
+
+**Error handling.**
+- File not found → `AssertionError: Custom template file not found: <path>`
+- Invalid JSON → `AssertionError: Custom template file is not valid JSON: <path> — <details>`
+- API-side template validation failure → `AssertionError: Custom template validation failed: <server error>` (surfaces the exact reason from the evaluation service so you know what to fix in the template)
+
+
+## 8. Cost and Performance Testing
 
 The `monocle_trace_asserter` fixture provides methods for validating performance metrics such as token consumption and execution time. These assertions help ensure your AI agents stay within acceptable cost and latency boundaries.
 
@@ -427,28 +494,35 @@ AssertionError: Duration limit exceeded for tool 'book_flight': tool_invocation 
 
 ### check_eval() Method Signatures
 
-**Simple syntax (defaults to "traces" fact):**
+**Built-in evaluation (defaults to "traces" fact):**
 ```python
 check_eval(eval_name, expected=None, not_expected=None, message=None)
 ```
 
-**Explicit syntax (with fact_name):**
+**Built-in evaluation (with fact_name):**
 ```python
 check_eval(fact_name, eval_name, expected=None, not_expected=None, message=None)
 ```
 
+**Custom template evaluation:**
+```python
+check_eval(template_path="path/to/template.json", expected=None, not_expected=None, message=None)
+```
+
 **Parameters:**
+- `eval_name`: **(Optional)** The metric/evaluation name (e.g., "sentiment", "bias", "hallucination"). Required unless `template_path` is provided.
+- `template_path`: **(Optional)** Filesystem path to a custom-template JSON file. `check_eval()` loads the file, parses it, and submits it to the evaluation service. Required unless `eval_name` is provided.
 - `fact_name`: **(Optional)** The fact type to evaluate (traces, agentic_sessions, agentic_turns, inferences). Defaults to "traces" if omitted.
-- `eval_name`: **(Required)** The metric/evaluation name (e.g., "sentiment", "bias", "hallucination")
 - `expected`: **(Optional)** Accepts a **string** or **list of strings** for values that should match
 - `not_expected`: **(Optional)** Accepts a **string** or **list of strings** for values that should NOT match
 - `message`: **(Optional)** Custom message to display on evaluation failure
 
 **Important:**
+- `eval_name` and `template_path` are mutually exclusive — provide one or the other, never both
 - At least one of `expected` or `not_expected` must be provided — omitting both will raise a `ValueError`
 - Both parameters can be used together for comprehensive validation
 - The method validates that there's no overlap between `expected` and `not_expected`
-- Each metric supports specific fact names — using an unsupported combination will raise an error (see "Supported Fact Names" column in the metrics table)
+- Each built-in metric supports specific fact names — using an unsupported combination will raise an error (see "Supported Fact Names" column in the metrics table)
 
 ### Chaining and Pytest
 - Multiple evaluations can be chained: `.check_eval("sentiment", "positive").check_eval("bias", "unbiased")`

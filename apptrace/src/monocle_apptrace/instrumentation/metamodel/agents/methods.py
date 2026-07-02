@@ -28,11 +28,13 @@ AGENTS_METHODS = [
         "span_handler": "agents_agent_handler",
         "output_processor": AGENT_REQUEST,
     },
-    # AgentRunner class methods (internal runner)
+    # Per-agent invocation. openai-agents>=0.16 moved this from
+    # AgentRunner._run_single_turn to the module-level agents.run.run_single_turn.
     {
         "package": "agents.run",
-        "object": "AgentRunner",
-        "method": "_run_single_turn",
+        "object": None,  # module-level function; span_name set since the default joins package.object.method
+        "method": "run_single_turn",
+        "span_name": "agents.run.run_single_turn",
         "wrapper_method": atask_wrapper,
         "span_handler": "agents_agent_handler",
         "output_processor": AGENT,

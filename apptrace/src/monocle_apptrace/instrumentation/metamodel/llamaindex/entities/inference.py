@@ -63,7 +63,7 @@ INFERENCE = {
              {
                  "_comment": "this is instruction and user query to LLM",
                  "attribute": "input",
-                 "accessor": lambda arguments: _helper.extract_messages(arguments['args'])
+                 "accessor": lambda arguments: _helper.extract_messages(arguments['args'] if arguments['args'] else arguments['kwargs'])
              }
          ]
          },

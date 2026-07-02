@@ -8,6 +8,7 @@ from monocle_apptrace.instrumentation.common.constants import (
     AGENT_SESSION,
 )
 from monocle_apptrace.instrumentation.common.utils import set_scope
+from monocle_apptrace.instrumentation.common.agent_edit_context import apply_to_span
 
 
 class GitHubCopilotSpanHandler(SpanHandler):
@@ -34,3 +35,7 @@ class GitHubCopilotSpanHandler(SpanHandler):
 
     def pre_tracing(self, to_wrap, wrapped, instance, args, kwargs):
         return self._set_span_times(kwargs), None
+
+    def pre_task_processing(self, to_wrap, wrapped, instance, args, kwargs, span):
+        super().pre_task_processing(to_wrap, wrapped, instance, args, kwargs, span)
+        apply_to_span(span, kwargs)

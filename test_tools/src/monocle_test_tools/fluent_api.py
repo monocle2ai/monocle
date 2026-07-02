@@ -1,6 +1,8 @@
 from functools import wraps
 import inspect
+import json
 import os
+from pathlib import Path
 from typing import Optional, Union
 from monocle_apptrace.instrumentation.common.method_wrappers import monocle_trace_method
 from monocle_apptrace.instrumentation.common.utils import get_workflow_name
@@ -607,28 +609,62 @@ class TraceAssertion():
         return self
 
     @collect_assertions
-    def check_eval(self, eval_name:str, expected:Optional[Union[str, list[str]]] = None, not_expected:Optional[Union[str, list[str]]] = None, fact_name:Optional[str] = "traces", message:Optional[str] = None) -> 'TraceAssertion':
-        """Validate evaluation results for the current filtered spans."""
-        #verify expected and not_expected aren't empty
+    def check_eval(self, eval_name:Optional[str] = None, expected:Optional[Union[str, list[str]]] = None, not_expected:Optional[Union[str, list[str]]] = None, fact_name:Optional[str] = "traces", message:Optional[str] = None, template_path:Optional[str] = None) -> 'TraceAssertion':
+        """Validate evaluation results for the current filtered spans.
+
+        Provide exactly one of:
+          - eval_name: name of a standard Okahu eval template (e.g. "hallucination")
+          - template_path: filesystem path to a custom-template JSON file. The file
+            is loaded and the parsed dict is sent to the eval service. Server-side
+            validation errors (HTTP 400) surface as AssertionError with the prefix
+            'Custom template validation failed: <reason>'.
+        """
+        if eval_name and template_path:
+            raise ValueError("Provide either 'eval_name' or 'template_path', not both.")
+        if not eval_name and not template_path:
+            raise ValueError("Provide either 'eval_name' (for Okahu templates) or 'template_path' (for custom templates).")
+
+        template = None
+        if template_path:
+            path_obj = Path(template_path)
+            if not path_obj.is_file():
+                raise AssertionError(f"Custom template file not found: {template_path}")
+            try:
+                loaded = json.loads(path_obj.read_text(encoding="utf-8"))
+            except json.JSONDecodeError as exc:
+                raise AssertionError(
+                    f"Custom template file is not valid JSON: {template_path} — {exc}"
+                ) from exc
+            # Accept either the inner template ({"name": ..., "eval_prompt": ..., ...})
+            # or the API-request-body shape ({"template": {...inner...}}). Unwrap the
+            # outer "template" key when present so evaluate() gets the inner dict —
+            # evaluate() will re-wrap once for the HTTP payload.
+            if (
+                isinstance(loaded, dict)
+                and set(loaded.keys()) == {"template"}
+                and isinstance(loaded["template"], dict)
+            ):
+                template = loaded["template"]
+            else:
+                template = loaded
+            eval_name = template.get("name", "custom_eval")
+
         if expected is None and not_expected is None:
             raise ValueError("At least one of 'expected' or 'not_expected' must be provided")
-        # Convert strings to lists for uniform processing
         positive = [expected] if isinstance(expected, str) else expected if expected is not None else []
         negative = [not_expected] if isinstance(not_expected, str) else not_expected if not_expected is not None else []
-        
-        # Check for overlapping instances in expected and not_expected
+
         if negative:
             overlap = set(positive) & set(negative)
             if overlap:
                 raise ValueError(f"Overlapping evaluation results found in 'expected' and 'not_expected': {overlap}. Please ensure they are mutually exclusive.")
-        
+
         if self._eval is None:
             raise AssertionError(message if message else "No evaluator configured. Call with_evaluation before check_eval.")
         if not self._filtered_spans:
             raise AssertionError(message if message else "No spans available for evaluation. Chain a span selector before check_eval.")
-        eval_result, explanation = self._eval.evaluate(filtered_spans=self._filtered_spans, eval_name=eval_name, fact_name=fact_name)        
-        
-        # Check expectations
+        eval_result, explanation = self._eval.evaluate(filtered_spans=self._filtered_spans, eval_name=eval_name, fact_name=fact_name, template=template)
+
         if (positive and eval_result not in positive) or (negative and eval_result in negative):
             if message:
                 raise AssertionError(message)
@@ -636,7 +672,7 @@ class TraceAssertion():
                 raise AssertionError(f"Evaluation '{eval_name}' did not match expected result. Expected one of {positive}. Received '{eval_result}'. \n Explanation: {explanation}")
             else:
                 raise AssertionError(f"Evaluation '{eval_name}' matched an unexpected result. Should not be any of {negative}. Received '{eval_result}'. \n Explanation: {explanation}")
-        
+
         return self
 
     @collect_assertions

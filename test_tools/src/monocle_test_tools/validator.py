@@ -503,6 +503,9 @@ class MonocleValidator:
             elif test_span.span_type == SpanType.INFERENCE:
                 self.verify_inference(test_span)
 
+            if test_span.attributes:
+                self.verify_span_attributes(test_span)
+
         if test_case.expect_errors:
             self._has_errors(test_case.expect_errors)
         if test_case.expect_warnings:
@@ -694,6 +697,66 @@ class MonocleValidator:
 
         if positive_test and not found_delegation:
             assert False, f"Agent '{to_agent}' was not delegated by '{from_agent}'."
+        return True
+
+    def verify_span_attributes(self, test_span: TestSpan) -> bool:
+        """Verify that a span of the test span's type carries the expected attributes.
+
+        Selects the spans matching the test span's type (and entities, where
+        applicable) and asserts that at least one of them has every expected
+        attribute key/value. For a negative test, asserts that none of them do.
+
+         Args:
+            test_span (TestSpan): The test span whose ``attributes`` are verified.
+         """
+        expected_attributes: dict = test_span.attributes
+        if not expected_attributes:
+            return True
+        positive_test: bool = test_span.positive_test
+        comparer: BaseComparer = test_span.comparer
+
+        candidate_spans = self._select_spans_for_test_span(test_span)
+        matched = any(
+            self._span_matches_attributes(span, expected_attributes, comparer)
+            for span in candidate_spans
+        )
+
+        if positive_test and not matched:
+            assert False, f"No '{test_span.span_type.value}' span found with expected attributes {expected_attributes}."
+        elif not positive_test and matched:
+            assert False, f"A '{test_span.span_type.value}' span matched attributes {expected_attributes}, but was not expected to."
+        return True
+
+    def _select_spans_for_test_span(self, test_span: TestSpan) -> list[Span]:
+        """Select the candidate spans that a test span's attributes apply to."""
+        span_type = test_span.span_type
+        if span_type == SpanType.TOOL_INVOCATION:
+            tool_name = test_span.entities[0].name
+            agent_name = test_span.entities[1].name if len(test_span.entities) > 1 else None
+            return self._get_tool_invocation_spans(tool_name, agent_name)
+        if span_type == SpanType.AGENTIC_INVOCATION:
+            return self._get_agent_invocation_spans(test_span.entities[0].name)
+        if span_type == SpanType.AGENTIC_REQUEST:
+            return self._filter_spans_by_type("agentic.turn")
+        if span_type == SpanType.AGENTIC_DELEGATION:
+            return self._filter_spans_by_type("agentic.delegation")
+        if span_type == SpanType.INFERENCE:
+            return (self._filter_spans_by_type("inference")
+                    + self._filter_spans_by_type("inference.framework"))
+        return []
+
+    def _span_matches_attributes(self, span: Span, expected_attributes: dict, comparer: BaseComparer) -> bool:
+        """Return True if the span has every expected attribute key/value."""
+        span_attributes = span.attributes
+        for key, expected_value in expected_attributes.items():
+            actual_value = span_attributes.get(key)
+            if actual_value is None:
+                return False
+            if isinstance(expected_value, str) and isinstance(actual_value, str):
+                if not comparer.compare(expected_value, actual_value):
+                    return False
+            elif expected_value != actual_value:
+                return False
         return True
 
     def check_completion_token_limits(self, max_output_tokens:int, positive_test:bool = True,

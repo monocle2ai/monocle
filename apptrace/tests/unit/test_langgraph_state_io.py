@@ -1,3 +1,4 @@
+import dataclasses
 import json
 import unittest
 
@@ -12,6 +13,22 @@ class _Msg:
     def __init__(self, content, type="ai"):
         self.content = content
         self.type = type
+
+
+@dataclasses.dataclass
+class _DataclassState:
+    messages: list
+    tool_iterations: int = 0
+
+
+class _PydanticLikeState:
+    """Stands in for a Pydantic BaseModel-based StateGraph schema (v1 or v2)."""
+
+    model_fields = {"messages", "task"}
+
+    def __init__(self, messages=None, task=None):
+        self.messages = messages or []
+        self.task = task
 
 
 class TestLanggraphMessageStateIO(unittest.TestCase):
@@ -47,6 +64,35 @@ class TestLanggraphCustomStateIO(unittest.TestCase):
     def test_empty_state_returns_empty(self):
         self.assertEqual(_helper.extract_agent_input({"kwargs": {"input": {}}, "args": []}), "")
         self.assertEqual(_helper.extract_agent_response({}), "")
+
+
+class TestLanggraphDataclassAndPydanticStateIO(unittest.TestCase):
+    """Custom StateGraphs commonly use a dataclass or Pydantic BaseModel schema instead of a
+    TypedDict. A nested sub-agent graph called with such a state (e.g. `self._graph.ainvoke(state)`
+    where state is a @dataclass) must still have its human message / state extracted, not silently
+    dropped because extract_agent_input only recognized plain dicts."""
+
+    def test_dataclass_state_message_extracted(self):
+        state = _DataclassState(messages=[_Msg("hello", type="human")])
+        out = _helper.extract_agent_input({"kwargs": {}, "args": [state]})
+        self.assertEqual(json.loads(out), ["hello"])
+
+    def test_pydantic_like_state_message_extracted(self):
+        state = _PydanticLikeState(messages=[_Msg("hello", type="human")])
+        out = _helper.extract_agent_input({"kwargs": {}, "args": [state]})
+        self.assertEqual(json.loads(out), ["hello"])
+
+    def test_dataclass_state_without_human_message_serialized(self):
+        state = _DataclassState(messages=[_Msg("assistant reply", type="ai")], tool_iterations=2)
+        out = _helper.extract_agent_input({"kwargs": {}, "args": [state]})
+        self.assertEqual(json.loads(out), ["assistant reply"])
+
+    def test_plain_object_state_returns_empty_not_crash(self):
+        class _NotAState:
+            pass
+
+        out = _helper.extract_agent_input({"kwargs": {}, "args": [_NotAState()]})
+        self.assertEqual(out, "")
 
 
 class TestLanggraphStreamFallback(unittest.TestCase):

@@ -1,6 +1,7 @@
 from opentelemetry.context import get_value
 from monocle_apptrace.instrumentation.common.utils import resolve_from_alias, get_json_dumps, extract_content_text
 from monocle_apptrace.instrumentation.common.constants import AGENT_NAME_KEY, LAST_AGENT_INVOCATION_ID, LAST_AGENT_NAME
+import dataclasses
 import logging
 logger = logging.getLogger(__name__)
 
@@ -8,9 +9,21 @@ DELEGATION_NAME_PREFIX = 'transfer_to_'
 ROOT_AGENT_NAME = 'LangGraph'
 LANGGRAPTH_AGENT_NAME_KEY = "agent.langgraph"
 
+def _as_state_dict(state):
+    """Shallowly normalize a dataclass/Pydantic StateGraph state to a dict for channel introspection."""
+    if isinstance(state, dict):
+        return state
+    if dataclasses.is_dataclass(state) and not isinstance(state, type):
+        return {f.name: getattr(state, f.name) for f in dataclasses.fields(state)}
+    model_fields = getattr(type(state), "model_fields", None) or getattr(type(state), "__fields__", None)
+    if model_fields:
+        return {name: getattr(state, name) for name in model_fields}
+    return None
+
 def _last_message_content_from_state(state) -> str:
     """Last non-empty message content from a state dict, allowing custom '*messages' channels."""
-    if not isinstance(state, dict):
+    state = _as_state_dict(state)
+    if state is None:
         return ""
     candidate_keys = []
     if 'messages' in state:
@@ -81,7 +94,8 @@ def is_single_agent_instance(instance) -> bool:
 def _human_messages_from_state(state) -> list:
     """Collect human/user message text across any '*messages' channel of a state dict."""
     out = []
-    if not isinstance(state, dict):
+    state = _as_state_dict(state)
+    if state is None:
         return out
     for k, v in state.items():
         if not (k == 'messages' or (isinstance(k, str) and k.endswith('messages'))):
@@ -101,9 +115,9 @@ def extract_agent_input(arguments):
     try:
         input_obj = None
         if arguments.get('kwargs') and 'input' in arguments['kwargs']:
-            input_obj = arguments['kwargs']['input']
-        elif arguments.get('args') and len(arguments['args']) > 0 and isinstance(arguments['args'][0], dict):
-            input_obj = arguments['args'][0]
+            input_obj = _as_state_dict(arguments['kwargs']['input'])
+        elif arguments.get('args') and len(arguments['args']) > 0:
+            input_obj = _as_state_dict(arguments['args'][0])
         if isinstance(input_obj, dict):
             messages = _human_messages_from_state(input_obj)
             if messages:

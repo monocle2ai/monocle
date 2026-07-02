@@ -22,9 +22,20 @@ from contextlib import suppress
 logger = logging.getLogger(__name__)
 
 
-def extract_messages(args):
+def extract_messages(args, instance=None):
     """Extract system and user messages"""
     try:
+        # Some callers invoke the class method unbound, leaking the model itself into args[0].
+        if args and isinstance(args, (list, tuple)) and len(args) > 1:
+            leading = args[0]
+            is_self_like = leading is instance or (
+                not isinstance(leading, (list, tuple))
+                and not hasattr(leading, 'text')
+                and not hasattr(leading, 'messages')
+                and hasattr(leading, 'ainvoke') and hasattr(leading, 'invoke')
+            )
+            if is_self_like:
+                args = args[1:]
         messages = []
         if args and isinstance(args, (list, tuple)) and hasattr(args[0], 'text'):
             return [args[0].text]

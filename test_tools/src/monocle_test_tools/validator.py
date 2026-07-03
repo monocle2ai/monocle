@@ -752,10 +752,7 @@ class MonocleValidator:
             actual_value = span_attributes.get(key)
             if actual_value is None:
                 return False
-            if isinstance(expected_value, str) and isinstance(actual_value, str):
-                if not comparer.compare(expected_value, actual_value):
-                    return False
-            elif expected_value != actual_value:
+            if expected_value != actual_value:
                 return False
         return True
 

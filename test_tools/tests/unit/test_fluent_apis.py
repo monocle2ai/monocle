@@ -23,7 +23,8 @@ def test_agent_invocation(monocle_trace_asserter:TraceAssertion):
         .does_not_have_output("failed")
 
 def test_span_attribute_assertions(monocle_trace_asserter:TraceAssertion):
-    monocle_trace_asserter.load_spans(JSONSpanLoader.load_spans("traces/trace1.json"))
+    trace_path = os.path.join(os.path.dirname(__file__), "traces/trace1.json")
+    monocle_trace_asserter.with_trace_source(source="file", trace_path=trace_path)
     monocle_trace_asserter.called_tool("adk_book_hotel_5", "adk_hotel_booking_agent_5") \
         .has_attribute("entity.1.type", "tool.adk") \
         .has_attribute("workflow.name") \

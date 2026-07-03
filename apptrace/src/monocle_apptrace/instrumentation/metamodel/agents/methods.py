@@ -30,6 +30,17 @@ AGENTS_METHODS = [
         "span_handler": "agents_agent_handler",
         "output_processor": AGENT_REQUEST,
     },
+    # Streaming entrypoint. run_streamed returns synchronously with a
+    # RunResultStreaming; the turn + invocation spans stay open (is_auto_close=False)
+    # and are finalized by process_agent_stream once the caller consumes the stream.
+    {
+        "package": "agents.run",
+        "object": "Runner",
+        "method": "run_streamed",
+        "wrapper_method": task_wrapper,
+        "span_handler": "agents_agent_handler",
+        "output_processor_list": [AGENT_REQUEST_STREAM, AGENT_STREAM],
+    },
     # Per-agent invocation. openai-agents>=0.16 moved this from
     # AgentRunner._run_single_turn to the module-level agents.run.run_single_turn.
     {
@@ -37,6 +48,18 @@ AGENTS_METHODS = [
         "object": None,  # module-level function; span_name set since the default joins package.object.method
         "method": "run_single_turn",
         "span_name": "agents.run.run_single_turn",
+        "wrapper_method": atask_wrapper,
+        "span_handler": "agents_agent_handler",
+        "output_processor": AGENT,
+    },
+    # Streaming per-turn internal. Defined and called within agents.run_internal.run_loop
+    # (not the agents.run namespace). skip_span drops this when it runs under run_streamed,
+    # since run_streamed already emits the invocation span; kept registered to cover any
+    # direct call path.
+    {
+        "package": "agents.run_internal.run_loop",
+        "object": "",
+        "method": "run_single_turn_streamed",
         "wrapper_method": atask_wrapper,
         "span_handler": "agents_agent_handler",
         "output_processor": AGENT,

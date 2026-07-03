@@ -90,10 +90,12 @@ def verify_streaming_agent_spans(memory_exporter):
     time.sleep(2)
     spans = memory_exporter.get_finished_spans()
 
+    turn_spans = [s for s in spans if s.attributes.get("span.type") == "agentic.turn"]
     inference_spans = [s for s in spans if s.attributes.get("span.type") in {"inference", "inference.framework", "inference.modelapi"}]
     agent_spans = [s for s in spans if s.attributes.get("span.type") == "agentic.invocation"]
     tool_spans = [s for s in spans if s.attributes.get("span.type") == "agentic.tool.invocation"]
 
+    assert turn_spans, "Turn span (agentic.turn) not found"
     assert inference_spans, "Inference span not found"
     assert agent_spans, "Agent invocation span not found"
     assert tool_spans, "Tool span not found"

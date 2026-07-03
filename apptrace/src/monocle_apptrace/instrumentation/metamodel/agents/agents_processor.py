@@ -6,7 +6,7 @@ from monocle_apptrace.instrumentation.common.constants import AGENT_NAME_KEY, AG
 from monocle_apptrace.instrumentation.common.span_handler import (
     SpanHandler as BaseSpanHandler,
 )
-from monocle_apptrace.instrumentation.common.utils import with_tracer_wrapper, propogate_agent_name_to_parent_span, get_scopes
+from monocle_apptrace.instrumentation.common.utils import with_tracer_wrapper, propogate_agent_name_to_parent_span, get_scopes, get_current_monocle_span
 
 # Scope an app opens to collapse its many Runner.run calls into one turn (see skip_span).
 AGENT_TURN_SCOPE = "agentic.turn"
@@ -136,9 +136,23 @@ class AgentsSpanHandler(BaseSpanHandler):
         self.agent_context_token = None
 
     def skip_span(self, to_wrap, wrapped, instance, args, kwargs) -> bool:
-        """Skip the Runner.run turn span when an agentic.turn scope is already open, so
-        an app's many Runner.run calls nest as invocations under one turn. Only the turn
-        entry is skipped (run_single_turn invocations are not); inert without the scope."""
+        """Skip spans that would otherwise be duplicated.
+
+        1. Streaming dedup: run_streamed already emits the turn + invocation spans via
+           its output_processor_list, and internally calls run_single_turn_streamed.
+           Skip that inner call so the invocation isn't traced twice.
+        2. Turn-collapse: skip the Runner.run turn span when an agentic.turn scope is
+           already open, so an app's many Runner.run calls nest as invocations under one
+           turn. Only the turn entry is skipped (run_single_turn invocations are not);
+           inert without the scope.
+        """
+        method_name = to_wrap.get("method", "")
+        if method_name == "run_single_turn_streamed":
+            parent_span = get_current_monocle_span()
+            parent_name = getattr(parent_span, "name", "") if parent_span else ""
+            if parent_name.endswith("run_streamed"):
+                return True
+
         output_processor = to_wrap.get("output_processor") or {}
         is_turn = output_processor.get("type") == SPAN_TYPES.AGENTIC_REQUEST
         if is_turn and AGENT_TURN_SCOPE in get_scopes():
@@ -191,19 +205,3 @@ class AgentsSpanHandler(BaseSpanHandler):
             logger.debug(f"Could not copy invocation response to turn span: {e}")
 
         super().post_task_processing(to_wrap, wrapped, instance, args, kwargs, result, ex, span, parent_span)
-
-    def skip_span(self, to_wrap, wrapped, instance, args, kwargs) -> bool:
-        """Skip nested streaming spans to avoid duplicates.
-        
-        When run_streamed is called, it internally calls run_single_turn_streamed,
-        which would create duplicate spans. Skip the inner call when parent is outer.
-        """
-        method_name = to_wrap.get("method", "")
-        
-        if method_name == "run_single_turn_streamed":
-            parent_span = get_current_monocle_span()
-            parent_name = getattr(parent_span, "name", "") if parent_span else ""
-            if parent_name.endswith("run_streamed"):
-                return True
-        
-        return False

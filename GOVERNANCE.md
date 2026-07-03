@@ -1,6 +1,6 @@
 
 # Project Monocle  Governance
-This document defines the governance structure and technical decision-making processes for the [Project Name] project.The project operates transparently, openly, and collaboratively, governed by the community. Participation is open to all individuals and organizations, provided they agree to abide by the guidelines in this document.
+This document defines the governance structure and technical decision-making processes for the Monocle project.The project operates transparently, openly, and collaboratively, governed by the community. Participation is open to all individuals and organizations, provided they agree to abide by the guidelines in this document.
 
 ## Code of Conduct 
 Monocle project adheres to [Code of conduct](CODE_OF_CONDUCT.md)

@@ -1,11 +1,17 @@
+# pylint: disable=protected-access
 import os
 import json
 import datetime
 import unittest
+from importlib import reload
 from unittest.mock import MagicMock, patch
 from opentelemetry.sdk.trace import ReadableSpan
 from opentelemetry.sdk.trace.export import SpanExportResult
+import psycopg2
 import psycopg2.errors
+import monocle_apptrace.exporters.postgres.postgres_exporter as pg_mod
+from monocle_apptrace.exporters.postgres.postgres_exporter import PostgresSpanExporter
+from monocle_apptrace.exporters.monocle_exporters import monocle_exporters
 
 
 def _make_span(name="test-span", trace_id=0xAABBCCDD, span_id=0x1111,
@@ -35,7 +41,6 @@ def _make_span(name="test-span", trace_id=0xAABBCCDD, span_id=0x1111,
 
 class TestPostgresRegistry(unittest.TestCase):
     def test_postgres_in_registry(self):
-        from monocle_apptrace.exporters.monocle_exporters import monocle_exporters
         self.assertIn("postgres", monocle_exporters)
         entry = monocle_exporters["postgres"]
         self.assertEqual(entry["module"], "monocle_apptrace.exporters.postgres.postgres_exporter")
@@ -46,7 +51,6 @@ class TestPostgresInit(unittest.TestCase):
     @patch("psycopg2.connect")
     def test_reads_connection_url_from_env(self, mock_connect):
         os.environ["MONOCLE_POSTGRES_CONNECTION_URL"] = "postgresql://user:pass@localhost/db"
-        from monocle_apptrace.exporters.postgres.postgres_exporter import PostgresSpanExporter
         exporter = PostgresSpanExporter()
         mock_connect.assert_called_once_with("postgresql://user:pass@localhost/db")
         self.assertIsNotNone(exporter.connection)
@@ -55,7 +59,6 @@ class TestPostgresInit(unittest.TestCase):
     @patch("psycopg2.connect")
     def test_raises_when_url_missing(self, mock_connect):
         os.environ.pop("MONOCLE_POSTGRES_CONNECTION_URL", None)
-        from monocle_apptrace.exporters.postgres.postgres_exporter import PostgresSpanExporter
         with self.assertRaises(ValueError):
             PostgresSpanExporter()
         mock_connect.assert_not_called()
@@ -65,10 +68,8 @@ class TestBuildRow(unittest.TestCase):
     def setUp(self):
         os.environ["MONOCLE_POSTGRES_CONNECTION_URL"] = "postgresql://u:p@h/db"
         with patch("psycopg2.connect"):
-            from importlib import reload
-            import monocle_apptrace.exporters.postgres.postgres_exporter as m
-            reload(m)
-            self.exporter = m.PostgresSpanExporter()
+            reload(pg_mod)
+            self.exporter = pg_mod.PostgresSpanExporter()
 
     def tearDown(self):
         os.environ.pop("MONOCLE_POSTGRES_CONNECTION_URL", None)
@@ -104,10 +105,8 @@ class TestSpanBuffering(unittest.TestCase):
     def setUp(self):
         os.environ["MONOCLE_POSTGRES_CONNECTION_URL"] = "postgresql://u:p@h/db"
         with patch("psycopg2.connect"):
-            from importlib import reload
-            import monocle_apptrace.exporters.postgres.postgres_exporter as m
-            reload(m)
-            self.exporter = m.PostgresSpanExporter()
+            reload(pg_mod)
+            self.exporter = pg_mod.PostgresSpanExporter()
 
     def tearDown(self):
         os.environ.pop("MONOCLE_POSTGRES_CONNECTION_URL", None)
@@ -128,6 +127,11 @@ class TestSpanBuffering(unittest.TestCase):
             self.exporter._cleanup_expired_traces()
         mock_insert.assert_called_once_with(0xAABB)
 
+    def test_timeout_configurable_via_env(self):
+        with patch.dict(os.environ, {"MONOCLE_POSTGRESEXPORTER_HANDLE_TIMEOUT_SECONDS": "120"}):
+            reload(pg_mod)
+            self.assertEqual(pg_mod.POSTGRESEXPORTER_HANDLE_TIMEOUT_SECONDS, 120)
+
     def test_non_expired_trace_not_flushed(self):
         self.exporter.trace_spans[0xAABB] = ([_make_span()], datetime.datetime.now(tz=datetime.timezone.utc), False)
         with patch.object(self.exporter, "_insert_trace") as mock_insert:
@@ -135,16 +139,12 @@ class TestSpanBuffering(unittest.TestCase):
         mock_insert.assert_not_called()
 
 
-import psycopg2
-
 class TestInsert(unittest.TestCase):
     def setUp(self):
         os.environ["MONOCLE_POSTGRES_CONNECTION_URL"] = "postgresql://u:p@h/db"
         with patch("psycopg2.connect"):
-            from importlib import reload
-            import monocle_apptrace.exporters.postgres.postgres_exporter as m
-            reload(m)
-            self.exporter = m.PostgresSpanExporter()
+            reload(pg_mod)
+            self.exporter = pg_mod.PostgresSpanExporter()
         # Set up a reusable mock cursor as a context manager
         self.mock_cursor = MagicMock()
         self.exporter.connection.cursor.return_value.__enter__ = lambda s: self.mock_cursor
@@ -185,7 +185,7 @@ class TestInsert(unittest.TestCase):
         self.exporter.trace_spans[0xAABB] = ([_make_span()], datetime.datetime.now(tz=datetime.timezone.utc), True)
         call_count = {"n": 0}
 
-        def do_insert_side_effect(rows):
+        def do_insert_side_effect(_rows):
             call_count["n"] += 1
             if call_count["n"] == 1:
                 raise psycopg2.OperationalError("server closed connection")
@@ -202,10 +202,8 @@ class TestExport(unittest.TestCase):
     def setUp(self):
         os.environ["MONOCLE_POSTGRES_CONNECTION_URL"] = "postgresql://u:p@h/db"
         with patch("psycopg2.connect"):
-            from importlib import reload
-            import monocle_apptrace.exporters.postgres.postgres_exporter as m
-            reload(m)
-            self.exporter = m.PostgresSpanExporter()
+            reload(pg_mod)
+            self.exporter = pg_mod.PostgresSpanExporter()
 
     def tearDown(self):
         os.environ.pop("MONOCLE_POSTGRES_CONNECTION_URL", None)
@@ -250,10 +248,8 @@ class TestFlushAndShutdown(unittest.TestCase):
     def setUp(self):
         os.environ["MONOCLE_POSTGRES_CONNECTION_URL"] = "postgresql://u:p@h/db"
         with patch("psycopg2.connect"):
-            from importlib import reload
-            import monocle_apptrace.exporters.postgres.postgres_exporter as m
-            reload(m)
-            self.exporter = m.PostgresSpanExporter()
+            reload(pg_mod)
+            self.exporter = pg_mod.PostgresSpanExporter()
 
     def tearDown(self):
         os.environ.pop("MONOCLE_POSTGRES_CONNECTION_URL", None)
@@ -298,10 +294,8 @@ class TestEnsureTable(unittest.TestCase):
         mock_conn, mock_cursor = self._make_mock_connection()
         mock_connect.return_value = mock_conn
 
-        from importlib import reload
-        import monocle_apptrace.exporters.postgres.postgres_exporter as m
-        reload(m)
-        m.PostgresSpanExporter()
+        reload(pg_mod)
+        pg_mod.PostgresSpanExporter()
 
         mock_cursor.execute.assert_called_once()
         self.assertIn("CREATE TABLE IF NOT EXISTS traces",
@@ -311,15 +305,13 @@ class TestEnsureTable(unittest.TestCase):
     @patch("psycopg2.connect")
     def test_permission_error_on_insufficient_privilege(self, mock_connect):
         mock_conn, _ = self._make_mock_connection(
-            cursor_execute_side_effect=psycopg2.errors.InsufficientPrivilege("permission denied")
+            cursor_execute_side_effect=psycopg2.errors.InsufficientPrivilege("permission denied")  # pylint: disable=no-member
         )
         mock_connect.return_value = mock_conn
 
-        from importlib import reload
-        import monocle_apptrace.exporters.postgres.postgres_exporter as m
-        reload(m)
+        reload(pg_mod)
 
         with self.assertRaises(PermissionError) as ctx:
-            m.PostgresSpanExporter()
+            pg_mod.PostgresSpanExporter()
         self.assertIn("lacks CREATE TABLE permission", str(ctx.exception))
         mock_conn.rollback.assert_called_once()

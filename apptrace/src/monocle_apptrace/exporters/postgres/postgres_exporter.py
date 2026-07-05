@@ -63,7 +63,7 @@ class PostgresSpanExporter(SpanExporterBase):
             with self.connection.cursor() as cursor:
                 cursor.execute(CREATE_TABLE_SQL)
             self.connection.commit()
-        except psycopg2.errors.InsufficientPrivilege as e:
+        except psycopg2.errors.InsufficientPrivilege as e:  # pylint: disable=no-member
             self.connection.rollback()
             raise PermissionError(
                 "PostgresSpanExporter could not create the 'traces' table — "

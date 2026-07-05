@@ -19,7 +19,9 @@ from monocle_apptrace.exporters.base_exporter import (
 
 logger = logging.getLogger(__name__)
 
-HANDLE_TIMEOUT_SECONDS = 60
+POSTGRESEXPORTER_HANDLE_TIMEOUT_SECONDS = int(
+    os.environ.get("MONOCLE_POSTGRESEXPORTER_HANDLE_TIMEOUT_SECONDS", 60)
+)
 
 CREATE_TABLE_SQL = """
     CREATE TABLE IF NOT EXISTS traces (
@@ -111,7 +113,7 @@ class PostgresSpanExporter(SpanExporterBase):
         expired = [
             trace_id
             for trace_id, (_, creation_time, _) in self.trace_spans.items()
-            if (current_time - creation_time).total_seconds() > HANDLE_TIMEOUT_SECONDS
+            if (current_time - creation_time).total_seconds() > POSTGRESEXPORTER_HANDLE_TIMEOUT_SECONDS
         ]
         for trace_id in expired:
             self._insert_trace(trace_id)

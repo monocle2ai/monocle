@@ -22,7 +22,7 @@ from monocle_apptrace.instrumentation.common.instrumentor import (
     set_context_properties,
     setup_monocle_telemetry,
 )
-from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from opentelemetry.sdk.trace.export import BatchSpanProcessor, SimpleSpanProcessor
 
 logger = logging.getLogger(__name__)
 
@@ -40,7 +40,7 @@ def setup():
             workflow_name="langchain_app_1",
             span_processors=[
                 BatchSpanProcessor(pg_exporter),
-                BatchSpanProcessor(custom_exporter),
+                SimpleSpanProcessor(custom_exporter),
             ],
             wrapper_methods=[],
         )
@@ -155,7 +155,9 @@ def test_langchain_sample_postgres(setup):
             assert span_attributes["entity.1.name"] == "langchain_app_1"
             assert span_attributes["entity.1.type"] == "workflow.langchain"
 
-    # Assert rows actually landed in Postgres (S3/blob cannot do this)
+    # Assert rows actually landed in Postgres
+    from opentelemetry import trace as otel_trace
+    otel_trace.get_tracer_provider().force_flush()
     pg_exporter.force_flush()
     trace_id = f"0x{spans[0].context.trace_id:032x}"
     conn = psycopg2.connect(os.getenv("MONOCLE_POSTGRES_CONNECTION_URL"))

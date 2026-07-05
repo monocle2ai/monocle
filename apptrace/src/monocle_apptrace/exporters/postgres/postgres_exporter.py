@@ -141,12 +141,12 @@ class PostgresSpanExporter(SpanExporterBase):
             try:
                 rows.append(self._build_row(span))
             except Exception as e:
-                logger.warning(f"Error serializing span {span.context.span_id}: {e}")
+                logger.warning("Error serializing span %s: %s", span.context.span_id, e)
         if rows:
             try:
                 self._do_insert(rows)
             except psycopg2.OperationalError as e:
-                logger.warning(f"DB connection error, attempting reconnect: {e}")
+                logger.warning("DB connection error, attempting reconnect: %s", e)
                 self._reconnect()
                 self._do_insert(rows)
         del self.trace_spans[trace_id]
@@ -174,7 +174,7 @@ class PostgresSpanExporter(SpanExporterBase):
 
             return SpanExportResult.SUCCESS
         except Exception as e:
-            logger.error(f"Error exporting spans to Postgres: {e}")
+            logger.error("Error exporting spans to Postgres: %s", e)
             return SpanExportResult.FAILURE
 
     def force_flush(self, timeout_millis: int = 30000) -> bool:
@@ -182,7 +182,7 @@ class PostgresSpanExporter(SpanExporterBase):
             try:
                 self._insert_trace(trace_id)
             except Exception as e:
-                logger.error(f"Error flushing trace {format_trace_id_without_0x(trace_id)}: {e}")
+                logger.error("Error flushing trace %s: %s", format_trace_id_without_0x(trace_id), e)
         return True
 
     def shutdown(self) -> None:

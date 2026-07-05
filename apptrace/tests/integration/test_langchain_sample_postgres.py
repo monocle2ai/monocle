@@ -17,12 +17,13 @@ from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.runnables import RunnablePassthrough
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
+from opentelemetry import trace as otel_trace
+from opentelemetry.sdk.trace.export import BatchSpanProcessor, SimpleSpanProcessor
 from monocle_apptrace.exporters.postgres.postgres_exporter import PostgresSpanExporter
 from monocle_apptrace.instrumentation.common.instrumentor import (
     set_context_properties,
     setup_monocle_telemetry,
 )
-from opentelemetry.sdk.trace.export import BatchSpanProcessor, SimpleSpanProcessor
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +36,7 @@ def setup():
         pytest.skip("MONOCLE_POSTGRES_CONNECTION_URL not set")
     pg_exporter = PostgresSpanExporter()
     custom_exporter = CustomConsoleSpanExporter()
+    instrumentor = None
     try:
         instrumentor = setup_monocle_telemetry(
             workflow_name="langchain_app_1",
@@ -156,7 +158,6 @@ def test_langchain_sample_postgres(setup):
             assert span_attributes["entity.1.type"] == "workflow.langchain"
 
     # Assert rows actually landed in Postgres
-    from opentelemetry import trace as otel_trace
     otel_trace.get_tracer_provider().force_flush()
     pg_exporter.force_flush()
     trace_id = f"0x{spans[0].context.trace_id:032x}"
@@ -169,4 +170,4 @@ def test_langchain_sample_postgres(setup):
         conn.close()
 
     assert count > 0, f"No rows found in traces table for trace_id {trace_id}"
-    logger.info(f"Verified {count} row(s) in Postgres for trace {trace_id}")
+    logger.info("Verified %s row(s) in Postgres for trace %s", count, trace_id)

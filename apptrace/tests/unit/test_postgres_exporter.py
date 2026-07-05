@@ -122,14 +122,14 @@ class TestSpanBuffering(unittest.TestCase):
         self.assertTrue(has_root)
 
     def test_expired_trace_flushed(self):
-        old_time = datetime.datetime.now() - datetime.timedelta(seconds=61)
+        old_time = datetime.datetime.now(tz=datetime.timezone.utc) - datetime.timedelta(seconds=61)
         self.exporter.trace_spans[0xAABB] = ([_make_span()], old_time, False)
         with patch.object(self.exporter, "_insert_trace") as mock_insert:
             self.exporter._cleanup_expired_traces()
         mock_insert.assert_called_once_with(0xAABB)
 
     def test_non_expired_trace_not_flushed(self):
-        self.exporter.trace_spans[0xAABB] = ([_make_span()], datetime.datetime.now(), False)
+        self.exporter.trace_spans[0xAABB] = ([_make_span()], datetime.datetime.now(tz=datetime.timezone.utc), False)
         with patch.object(self.exporter, "_insert_trace") as mock_insert:
             self.exporter._cleanup_expired_traces()
         mock_insert.assert_not_called()
@@ -154,7 +154,7 @@ class TestInsert(unittest.TestCase):
         os.environ.pop("MONOCLE_POSTGRES_CONNECTION_URL", None)
 
     def test_insert_trace_calls_execute_values(self):
-        self.exporter.trace_spans[0xAABB] = ([_make_span()], datetime.datetime.now(), True)
+        self.exporter.trace_spans[0xAABB] = ([_make_span()], datetime.datetime.now(tz=datetime.timezone.utc), True)
         with patch("psycopg2.extras.execute_values") as mock_ev:
             self.exporter._insert_trace(0xAABB)
         mock_ev.assert_called_once()
@@ -164,7 +164,7 @@ class TestInsert(unittest.TestCase):
         self.assertEqual(len(args[2]), 1)
 
     def test_insert_trace_removes_from_buffer(self):
-        self.exporter.trace_spans[0xAABB] = ([_make_span()], datetime.datetime.now(), True)
+        self.exporter.trace_spans[0xAABB] = ([_make_span()], datetime.datetime.now(tz=datetime.timezone.utc), True)
         with patch("psycopg2.extras.execute_values"):
             self.exporter._insert_trace(0xAABB)
         self.assertNotIn(0xAABB, self.exporter.trace_spans)
@@ -174,7 +174,7 @@ class TestInsert(unittest.TestCase):
         bad_span  = _make_span(span_id=0x2222)
         bad_span.to_json.side_effect = Exception("serialization error")
         self.exporter.trace_spans[0xAABB] = ([good_span, bad_span],
-                                              datetime.datetime.now(), True)
+                                              datetime.datetime.now(tz=datetime.timezone.utc), True)
         with patch("psycopg2.extras.execute_values") as mock_ev:
             self.exporter._insert_trace(0xAABB)
         rows = mock_ev.call_args[0][2]
@@ -182,7 +182,7 @@ class TestInsert(unittest.TestCase):
 
     @patch("psycopg2.connect")
     def test_reconnects_and_retries_on_operational_error(self, mock_connect):
-        self.exporter.trace_spans[0xAABB] = ([_make_span()], datetime.datetime.now(), True)
+        self.exporter.trace_spans[0xAABB] = ([_make_span()], datetime.datetime.now(tz=datetime.timezone.utc), True)
         call_count = {"n": 0}
 
         def do_insert_side_effect(rows):
@@ -260,9 +260,9 @@ class TestFlushAndShutdown(unittest.TestCase):
 
     def test_force_flush_inserts_all_buffered_traces(self):
         self.exporter.trace_spans[0xAAAA] = ([_make_span(trace_id=0xAAAA)],
-                                              datetime.datetime.now(), False)
+                                              datetime.datetime.now(tz=datetime.timezone.utc), False)
         self.exporter.trace_spans[0xBBBB] = ([_make_span(trace_id=0xBBBB)],
-                                              datetime.datetime.now(), False)
+                                              datetime.datetime.now(tz=datetime.timezone.utc), False)
         with patch.object(self.exporter, "_insert_trace") as mock_insert:
             result = self.exporter.force_flush()
         self.assertTrue(result)

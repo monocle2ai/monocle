@@ -106,10 +106,10 @@ class PostgresSpanExporter(SpanExporterBase):
             self.trace_spans[trace_id] = (existing_spans, creation_time,
                                            has_root or existing_root)
         else:
-            self.trace_spans[trace_id] = (spans.copy(), datetime.datetime.now(), has_root)
+            self.trace_spans[trace_id] = (spans.copy(), datetime.datetime.now(tz=datetime.timezone.utc), has_root)
 
     def _cleanup_expired_traces(self) -> None:
-        current_time = datetime.datetime.now()
+        current_time = datetime.datetime.now(tz=datetime.timezone.utc)
         expired = [
             trace_id
             for trace_id, (_, creation_time, _) in self.trace_spans.items()

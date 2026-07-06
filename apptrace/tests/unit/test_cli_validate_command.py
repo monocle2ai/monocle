@@ -1,4 +1,5 @@
 import unittest
+from argparse import Namespace
 from pathlib import Path
 from monocle_apptrace.cli import cmd_validate
 
@@ -17,7 +18,8 @@ class TestCLIValidateCommand(unittest.TestCase):
         if not self.trace_valid.exists():
             self.skipTest(f"Valid trace file not found: {self.trace_valid}")
 
-        exit_code = cmd_validate(str(self.trace_valid))
+        args = Namespace(trace_file=str(self.trace_valid), fail_on_warning=False, level='selective')
+        exit_code = cmd_validate(args)
         # May return 0 if only warnings, which is ok
         self.assertIn(exit_code, [0, 1])
 
@@ -26,7 +28,8 @@ class TestCLIValidateCommand(unittest.TestCase):
         if not self.trace_invalid.exists():
             self.skipTest(f"Invalid trace file not found: {self.trace_invalid}")
 
-        exit_code = cmd_validate(str(self.trace_invalid))
+        args = Namespace(trace_file=str(self.trace_invalid), fail_on_warning=False, level='selective')
+        exit_code = cmd_validate(args)
         self.assertEqual(exit_code, 1, "Invalid trace should return exit code 1")
 
     def test_validate_invalid_trace_with_fail_on_warning(self):
@@ -34,13 +37,15 @@ class TestCLIValidateCommand(unittest.TestCase):
         if not self.trace_valid.exists():
             self.skipTest(f"Valid trace file not found: {self.trace_valid}")
 
-        exit_code = cmd_validate(str(self.trace_valid), fail_on_warning=True)
+        args = Namespace(trace_file=str(self.trace_valid), fail_on_warning=True, level='selective')
+        exit_code = cmd_validate(args)
         # If there are warnings, should return 1
         self.assertEqual(exit_code, 1, "Should fail on warning when flag is set")
 
     def test_validate_nonexistent_file(self):
         """Test handling of nonexistent trace file"""
-        exit_code = cmd_validate("/nonexistent/trace.json")
+        args = Namespace(trace_file="/nonexistent/trace.json", fail_on_warning=False, level='selective')
+        exit_code = cmd_validate(args)
         self.assertEqual(exit_code, 1, "Should return 1 for nonexistent file")
 
     def test_validate_with_selective_level(self):
@@ -48,7 +53,8 @@ class TestCLIValidateCommand(unittest.TestCase):
         if not self.trace_valid.exists():
             self.skipTest(f"Valid trace file not found: {self.trace_valid}")
 
-        exit_code = cmd_validate(str(self.trace_valid), level="selective")
+        args = Namespace(trace_file=str(self.trace_valid), fail_on_warning=False, level='selective')
+        exit_code = cmd_validate(args)
         # Should complete without crashing
         self.assertIn(exit_code, [0, 1])
 
@@ -57,7 +63,8 @@ class TestCLIValidateCommand(unittest.TestCase):
         if not self.trace_valid.exists():
             self.skipTest(f"Valid trace file not found: {self.trace_valid}")
 
-        exit_code = cmd_validate(str(self.trace_valid), level="strict")
+        args = Namespace(trace_file=str(self.trace_valid), fail_on_warning=False, level='strict')
+        exit_code = cmd_validate(args)
         # Should complete without crashing
         self.assertIn(exit_code, [0, 1])
 

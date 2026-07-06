@@ -96,7 +96,7 @@ async def test_agents_sdk_multi_agent(setup):
 
         # Create MCP server for weather
         weather_mcp_server = MCPServerStreamableHttp(
-            params={"url": "http://localhost:8001/weather/mcp/"}
+            params={"url": "http://localhost:8001/weather/mcp"}
         )
         
         await weather_mcp_server.connect()
@@ -237,7 +237,7 @@ async def test_agents_sdk_mcp_server(setup):
 
         # Create MCP server for weather
         weather_mcp_server = MCPServerStreamableHttp(
-            params={"url": "http://localhost:8001/weather/mcp/"}
+            params={"url": "http://localhost:8001/weather/mcp"}
         )
         await weather_mcp_server.connect()
 
@@ -276,7 +276,7 @@ async def test_invalid_api_key_error_code_in_span(setup):
 
                 # Create MCP server for weather
                 weather_mcp_server = MCPServerStreamableHttp(
-                    params={"url": "http://localhost:8001/weather/mcp/"}
+                    params={"url": "http://localhost:8001/weather/mcp"}
                 )
                 await weather_mcp_server.connect()
 

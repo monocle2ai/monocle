@@ -22,13 +22,28 @@ from contextlib import suppress
 logger = logging.getLogger(__name__)
 
 
-def extract_messages(args):
+def extract_messages(args, instance=None):
     """Extract system and user messages"""
     try:
+        # Some callers invoke the class method unbound, leaking the model itself into args[0].
+        if args and isinstance(args, (list, tuple)) and len(args) > 1:
+            leading = args[0]
+            is_self_like = leading is instance or (
+                not isinstance(leading, (list, tuple))
+                and not hasattr(leading, 'text')
+                and not hasattr(leading, 'messages')
+                and hasattr(leading, 'ainvoke') and hasattr(leading, 'invoke')
+            )
+            if is_self_like:
+                args = args[1:]
         messages = []
         if args and isinstance(args, (list, tuple)) and hasattr(args[0], 'text'):
             return [args[0].text]
         if args and isinstance(args, (list, tuple)) and len(args) > 0:
+            if isinstance(args[0], str):
+                # A model invoked with a raw string prompt (e.g. llm.invoke("...")
+                # or with_structured_output(...).ainvoke("..."))
+                return [args[0]]
             if isinstance(args[0], list) and len(args[0]) > 0:
                 first_msg = args[0][0]
                 if hasattr(first_msg, 'content') and hasattr(first_msg, 'type') and first_msg.type == "human":
@@ -39,7 +54,10 @@ def extract_messages(args):
                         messages.append({msg.type: msg.content})
             else:
                 for msg in args[0]:
-                    if hasattr(msg, 'content') and hasattr(msg, 'type') and msg.content:
+                    if isinstance(msg, dict) and msg.get('content'):
+                        # OpenAI-style dict message: {"role": ..., "content": ...}
+                        messages.append({msg.get('role') or msg.get('type') or 'user': msg['content']})
+                    elif hasattr(msg, 'content') and hasattr(msg, 'type') and msg.content:
                         messages.append({msg.type: msg.content})
                     elif hasattr(msg, 'tool_calls') and msg.tool_calls:
                         messages.append({msg.type: get_json_dumps(msg.tool_calls)})

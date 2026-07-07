@@ -63,7 +63,7 @@ jobs:
           pytest -rfEs tests/unit/test*.py --tb=short | tee unitresult.log
           EXIT_CODE=${PIPESTATUS[0]}
           echo "APPTRACE_UNIT_EXIT=$EXIT_CODE" >> $GITHUB_ENV
-          grep -E '^(FAILED|ERROR)' unitresult.log | cut -d ':' -f 1 | sort | uniq > unitfailed_files.txt
+          grep -E '^(FAILED|ERROR) .*\.py' unitresult.log | cut -d ':' -f 1 | sort | uniq > unitfailed_files.txt
           echo "" >> failed_files.txt
           echo "Failed unit test files:"
           echo "Failed unit test files:" >> failed_files.txt
@@ -128,7 +128,7 @@ jobs:
           pytest -rfEs tests/unit/test*.py --tb=short | tee unitresult.log
           EXIT_CODE=${PIPESTATUS[0]}
           echo "TEST_TOOLS_UNIT_EXIT=$EXIT_CODE" >> $GITHUB_ENV
-          grep -E '^(FAILED|ERROR)' unitresult.log | cut -d ':' -f 1 | sort | uniq > unitfailed_files.txt
+          grep -E '^(FAILED|ERROR) .*\.py' unitresult.log | cut -d ':' -f 1 | sort | uniq > unitfailed_files.txt
           echo "" >> failed_files.txt
           echo "Failed test_tools unit test files:"
           echo "Failed test_tools unit test files:" >> failed_files.txt

@@ -26,6 +26,11 @@ http_span_counter = CyclicCounter(HEALTH_RESET_COUNTER)
 WORKFLOW_TYPE_MAP = {
     "llama_index.core.agent.workflow": WORKFLOW_TYPE_GENERIC,
     "llama_index": "workflow.llamaindex",
+    "langchain_openai": "workflow.langchain",
+    "langchain_anthropic": "workflow.langchain",
+    "langchain_google_genai": "workflow.langchain",
+    "langchain_community": "workflow.langchain",
+    "langchain_core": "workflow.langchain",
     "langchain": "workflow.langchain",
     "haystack": "workflow.haystack",
     "teams.ai": "workflow.teams_ai",

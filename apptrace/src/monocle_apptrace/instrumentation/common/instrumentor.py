@@ -141,8 +141,11 @@ class MonocleInstrumentor(BaseInstrumentor):
 
     def _instrument(self, **kwargs):
         tracer_provider: TracerProvider = kwargs.get("tracer_provider")
-        set_tracer_provider(tracer_provider)
-        tracer = get_tracer(instrumenting_module_name=MONOCLE_INSTRUMENTOR, tracer_provider=tracer_provider)
+        if tracer_provider is not None:
+            set_tracer_provider(tracer_provider)
+        # Always bind the instrumented tracer to monocle's own provider so spans
+        # flow through the monocle span processor regardless of the global provider.
+        tracer = get_tracer(instrumenting_module_name=MONOCLE_INSTRUMENTOR, tracer_provider=get_tracer_provider())
 
         final_method_list = []
         if self.union_with_default_methods is True:
@@ -331,11 +334,19 @@ def setup_monocle_telemetry(
             get_tracer_provider().add_span_processor(processor)
     if is_proxy_provider:
         trace.set_tracer_provider(get_tracer_provider())
+    else:
+        # Use existing global provider since set_tracer_provider() only honors the first call.
+        # Update monocle's bookkeeping to point at the active processor that receives spans.
+        set_tracer_provider(tracer_provider_default)
+        active_processor = getattr(tracer_provider_default, "_active_span_processor", None)
+        # Track the active processor so reset_span_processors() operates on the right one.
+        if isinstance(active_processor, SynchronousMultiSpanProcessor):
+            set_monocle_span_processor(active_processor)
     instrumentor = MonocleInstrumentor(user_wrapper_methods=wrapper_methods or [], exporters=exporters,
                                        handlers=span_handlers, union_with_default_methods = union_with_default_methods)
     # instrumentor.app_name = workflow_name
     if not instrumentor.is_instrumented_by_opentelemetry:
-        instrumentor.instrument(trace_provider=get_tracer_provider())
+        instrumentor.instrument(tracer_provider=get_tracer_provider())
         set_monocle_instrumentor(instrumentor)
 
     set_monocle_setup_signature(current_signature)
@@ -345,7 +356,18 @@ def setup_monocle_telemetry(
 def reset_span_processors(span_processors:list[SpanProcessor]):
     monocle_span_processor = get_monocle_span_processor()
     if monocle_span_processor:
-        monocle_span_processor.clear_span_processors()
+        clear = getattr(monocle_span_processor, "clear_span_processors", None)
+        if callable(clear):
+            clear()
+        else:
+            # The tracked processor may be a plain SynchronousMultiSpanProcessor (e.g. when the
+            # global provider was installed outside monocle). Flush, shut down, and drop its
+            # child processors the same way clear_span_processors does.
+            with monocle_span_processor._lock:
+                for sp in monocle_span_processor._span_processors:
+                    sp.force_flush()
+                    sp.shutdown()
+                monocle_span_processor._span_processors = ()
         for span_processor in span_processors:
             monocle_span_processor.add_span_processor(span_processor)
 

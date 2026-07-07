@@ -247,6 +247,10 @@ def get_response_from_scope(scope) -> str:
         # Try to parse as JSON for regular responses
         try:
             parsed = json.loads(decoded)
+            # Treat empty containers (e.g. health-check responses that return {})
+            # as no response so they are not recorded and can be sampled out.
+            if isinstance(parsed, (dict, list)) and not parsed:
+                return ""
             return json.dumps(parsed)[:MAX_DATA_LENGTH]
         except (json.JSONDecodeError, TypeError):
             return decoded[:MAX_DATA_LENGTH]

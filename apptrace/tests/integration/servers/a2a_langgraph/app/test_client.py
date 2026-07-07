@@ -10,16 +10,6 @@ from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_t
 
 logger = logging.getLogger(__name__)
 
-# Set up memory exporter and file export
-os.environ["MONOCLE_EXPORTER"] = "file"
-
-
-setup_monocle_telemetry(
-    workflow_name="a2a_client_integration_test",
-    span_processors=[
-    ],
-)
-
 
 from a2a.client import A2ACardResolver, A2AClient
 from a2a.types import (
@@ -39,6 +29,14 @@ async def main() -> None:
     # Configure logging to show INFO level messages
     logging.basicConfig(level=logging.WARNING)
     logger = logging.getLogger(__name__)  # Get a logger instance
+
+    # Setup here (not at import) to avoid leaking global telemetry into other tests.
+    os.environ["MONOCLE_EXPORTER"] = "file"
+    setup_monocle_telemetry(
+        workflow_name="a2a_client_integration_test",
+        span_processors=[
+        ],
+    )
 
     # --8<-- [start:A2ACardResolver]
 

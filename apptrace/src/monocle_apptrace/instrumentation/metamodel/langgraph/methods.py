@@ -1,6 +1,7 @@
 from monocle_apptrace.instrumentation.common.wrapper import task_wrapper, atask_wrapper, atask_iter_wrapper, task_iter_wrapper
 from monocle_apptrace.instrumentation.metamodel.langgraph.entities.inference import (
     AGENT,
+    AGENT_REQUEST_STREAM,
     AGENT_STREAM,
     TOOLS,
 )

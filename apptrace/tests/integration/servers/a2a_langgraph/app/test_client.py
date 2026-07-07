@@ -174,7 +174,7 @@ async def main() -> None:
         print(response.model_dump(mode='json', exclude_none=True))
 
         task_id = response.root.result.id
-        contextId = response.root.result.contextId
+        contextId = response.root.result.context_id
 
         second_send_message_payload_multiturn: dict[str, Any] = {
             'message': {

@@ -1,10 +1,25 @@
-#MAINTAINERS
-Following is the current list of maintainers on this project
 
-The maintainers are listed in alphabetical order.
+## TSC
+Following is the current list of TSC members on this project.
 
-- [@prasad-okahu] (https://github.com/prasad-okahu) (Prasad Mujumdar)
-- [@oi-raanne] (https://github.com/oi-raanne) (Ravi Anne)
-- [@akshay-okahu](https://github.com/akshay-okahu) (Akshay Yadav)
-- [@anshul7665] (https://github.com/anshul7665) (Anshul Sharma)
-- [@kshitiz-okahu] (https://github.com/kshitiz-okahu) (Kshitiz Vijayvargiya)
+| ID | Name | Affiliation
+|---|---|---|
+| [@prasad-okahu](https://github.com/prasad-okahu) | Prasad Mujumdar | Okahu |
+| [@oi-raanne](https://github.com/oi-raanne) | Ravi Anne | no affiliation |
+| [@akshay-okahu](https://github.com/akshay-okahu) | Akshay Yadav | Okahu |
+| [@anshul7665](https://github.com/anshul7665) | Anshul Sharma | Okahu |
+| [@kshitiz-okahu](https://github.com/kshitiz-okahu) | Kshitiz Vijayvargiya | Further AI |
+
+### TSC Chair
+TBD
+
+## MAINTAINERS
+Following is the current list of maintainers on this project.
+| ID | Name |
+|---|---|
+| [@prasad-okahu](https://github.com/prasad-okahu) | Prasad Mujumdar | Okahu |
+| [@oi-raanne](https://github.com/oi-raanne) | Ravi Anne | no affiliation |
+| [@akshay-okahu](https://github.com/akshay-okahu) | Akshay Yadav | Okahu |
+| [@anshul7665](https://github.com/anshul7665) | Anshul Sharma | Okahu |
+| [@kshitiz-okahu](https://github.com/kshitiz-okahu) | Kshitiz Vijayvargiya | Further AI |
+

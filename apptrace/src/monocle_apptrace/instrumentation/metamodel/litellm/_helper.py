@@ -76,7 +76,9 @@ def extract_response_format(kwargs):
         optional_params = kwargs.get("optional_params") or {}
         
         # 1. Check optional_params for explicit response_format or response_json_schema
-        response_format = optional_params.get("response_format") or optional_params.get("response_json_schema")
+        response_format = (optional_params.get("response_format") or 
+                          optional_params.get("response_json_schema") or
+                          optional_params.get("response_schema"))
         if response_format is not None:
             return _serialize_response_format(response_format)
 

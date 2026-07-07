@@ -45,6 +45,15 @@ LANGGRAPH_METHODS = [
     {
         "package": "langgraph.graph.state",
         "object": "CompiledStateGraph",
+        "method": "stream",
+        "wrapper_method": task_wrapper,
+        "span_handler": "langgraph_agent_handler",
+        "scope_name": "agent.invocation",
+        "output_processor_list": [AGENT_REQUEST_STREAM, AGENT_STREAM],
+    },
+    {
+        "package": "langgraph.graph.state",
+        "object": "CompiledStateGraph",
         "method": "astream_events",
         "wrapper_method": atask_iter_wrapper,
         "span_handler": "langgraph_agent_handler",

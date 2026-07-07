@@ -30,10 +30,22 @@ AGENTS_METHODS = [
     },
     # Per-agent invocation. openai-agents>=0.16 moved this from
     # AgentRunner._run_single_turn to the module-level agents.run.run_single_turn.
+    # Register both targets so instrumentation works across SDK versions; the target that
+    # does not exist in the installed version is skipped (logged) rather than fatal.
     {
         "package": "agents.run",
         "object": None,  # module-level function; span_name set since the default joins package.object.method
         "method": "run_single_turn",
+        "span_name": "agents.run.run_single_turn",
+        "wrapper_method": atask_wrapper,
+        "span_handler": "agents_agent_handler",
+        "output_processor": AGENT,
+    },
+    {
+        # openai-agents<0.16: AgentRunner._run_single_turn (class method).
+        "package": "agents.run",
+        "object": "AgentRunner",
+        "method": "_run_single_turn",
         "span_name": "agents.run.run_single_turn",
         "wrapper_method": atask_wrapper,
         "span_handler": "agents_agent_handler",

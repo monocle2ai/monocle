@@ -21,6 +21,8 @@ jobs:
   release:
     environment: ArtifactPublish
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write
     steps:
       - run: |
           if [[ $GITHUB_REF_NAME != release/* ]]; then
@@ -28,7 +30,7 @@ jobs:
             exit 1
           fi
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install toml
         run: pip install toml
@@ -70,15 +72,15 @@ jobs:
 
       # check out main branch to verify there won't be problems with merging the change log
       # at the end of this workflow
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: main
 
         # back to the release branch
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
         # next few steps publish to pypi
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: '3.13'
 
@@ -121,10 +123,6 @@ jobs:
           echo "Distribution files collected:"
           ls -la dist/
 
-      - name: Install twine
-        run: |
-          pip install twine
-
       # The step below publishes to testpypi in order to catch any issues
       # with the package configuration that would cause a failure to upload
       # to pypi. One example of such a failure is if a classifier is
@@ -132,18 +130,19 @@ jobs:
       # middle of the package upload causing the action to fail, and certain packages
       # might have already been updated, this would be bad.
       - name: Publish to TestPyPI
-        env:
-          TWINE_USERNAME: '__token__'
-          TWINE_PASSWORD: ${{ secrets.TEST_PYPI_TOKEN }}
-        run: |
-          twine upload --repository testpypi --skip-existing --verbose dist/*
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
+          skip-existing: true
+          packages-dir: dist/
+          print-hash: true
 
       - name: Publish to PyPI
-        env:
-          TWINE_USERNAME: '__token__'
-          TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
-        run: |
-          twine upload --skip-existing --verbose dist/*
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          skip-existing: true
+          packages-dir: dist/
+          print-hash: true
 
       - name: Generate release notes
         env:
@@ -182,7 +181,7 @@ jobs:
                               v$STABLE_VERSION
           fi
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           # the step below is creating a pull request against main
           ref: main

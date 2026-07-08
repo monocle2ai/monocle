@@ -5,7 +5,7 @@ from monocle_test_tools import (
 )
 from span_loader import JSONSpanLoader
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="function")
 def setup():
     """Fixture to create a MonocleValidator instance for testing."""
     validator = MonocleValidator()

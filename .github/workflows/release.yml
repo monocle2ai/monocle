@@ -137,6 +137,11 @@ jobs:
           packages-dir: dist/
           print-hash: true
 
+      - name: Clean up attestation files before PyPI publish
+        run: |
+          find dist/ -name "*.publish.attestation" -delete
+          echo "Cleaned up attestation files"
+
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
         with:

@@ -8,6 +8,7 @@
   - Branch name should be release/<version-number>
 - Update the project.toml files to update the new artifact versions
 - Update CHANGELOG.md to list out the changes/RPs included in the release
-- Commit the changes to release branch and create PR
+- Commit the changes to release branch
+- Create a tag for the top of the release branch and create PR
 - Request other TSC members to approve the PR
-- Execute the github release action to publish the release
+- Execute the github release action to publish the release off the tag

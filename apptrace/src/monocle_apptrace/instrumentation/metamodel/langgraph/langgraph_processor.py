@@ -43,6 +43,17 @@ class ParentCommandFilterSpan:
             return self.original_record_exception(exception, attributes, timestamp, escaped)
 
 class LanggraphAgentHandler(SpanHandler):
+    def skip_span(self, to_wrap, wrapped, instance, args, kwargs):
+        """Skip span creation for internal stream/astream calls made by invoke/ainvoke"""
+        method = to_wrap.get("method")
+        if method in ["stream", "astream"]:
+            # Check if we're already in an agentic.invocation scope
+            # This happens when invoke() internally calls stream()
+            if is_scope_set("agentic.invocation"):
+                logger.debug(f"Skipping internal {method}() call within invoke() - preventing duplicate agentic.invocation span")
+                return True
+        return super().skip_span(to_wrap, wrapped, instance, args, kwargs)
+
     def pre_tracing(self, to_wrap, wrapped, instance, args, kwargs):
         context = set_value(AGENT_NAME_KEY, get_name(instance))
         context = set_value(AGENT_PREFIX_KEY, DELEGATION_NAME_PREFIX, context)

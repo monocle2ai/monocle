@@ -1,9 +1,17 @@
-## Unreleased
-
-- feat(exporters): configurable file-name prefix for file and Azure Blob exporters via `MONOCLE_FILE_PREFIX` and `MONOCLE_BLOB_FILE_PREFIX`; S3 `MONOCLE_S3_KEY_PREFIX` renamed to `MONOCLE_S3_FILE_PREFIX` (old name still works with deprecation warning) ([#149](https://github.com/monocle2ai/monocle/issues/149))
-- chore(deps): add `opentelemetry-exporter-otlp-proto-http` as a default dependency so the OTLP exporter works out of the box ([#570](https://github.com/monocle2ai/monocle/issues/570))
-- feat(exporters): add `MONOCLE_CONSOLE` env var to enable console output alongside any configured exporter ([#577](https://github.com/monocle2ai/monocle/pull/577))
-- fix(test_tools): lazy-load `SentenceTransformer` to prevent crash at pytest collection time in network-restricted environments ([#576](https://github.com/monocle2ai/monocle/pull/576))
+## Version 0.8.8 (2026-07-08)
+- fix: LangGraph skip_span fix preventing duplicate agentic.invocation span ([#695](https://github.com/monocle2ai/monocle/pull/695))
+- chore: Update the release process steps to make release off a tag ([#693](https://github.com/monocle2ai/monocle/pull/693))
+- test: Added unit tests yml ([#689](https://github.com/monocle2ai/monocle/pull/689))
+- fix: Fix for unit and integration test failures ([#691](https://github.com/monocle2ai/monocle/pull/691))
+- fix: Fix import for AGENT_REQUEST_STREAM ([#688](https://github.com/monocle2ai/monocle/pull/688))
+- feat: LangGraph custom-StateGraph I/O + non-primitive scope coercion + idle-based trace files + langchain string/dict data.input + sync CompiledStateGraph.stream ([#673](https://github.com/monocle2ai/monocle/pull/673))
+- test: Verify expected attributes are present on the matched tool invocation ([#679](https://github.com/monocle2ai/monocle/pull/679))
+- test: Integration test fixes for litellm and langgraph ([#684](https://github.com/monocle2ai/monocle/pull/684))
+- docs: Monocle2AI project governance proposal ([#681](https://github.com/monocle2ai/monocle/pull/681))
+- feat: Custom templates ([#655](https://github.com/monocle2ai/monocle/pull/655))
+- feat: LlamaIndex event-driven Workflow.run instrumentation + close agentic I/O gaps ([#665](https://github.com/monocle2ai/monocle/pull/665))
+- feat: OpenAI Agents SDK (0.17.x): restore inference + invocation spans, add turn-collapse rule ([#664](https://github.com/monocle2ai/monocle/pull/664))
+- feat: CrewAI turn data.input + async_execution task tracing + @tool spans & agentic.session anchor ([#661](https://github.com/monocle2ai/monocle/pull/661))
 
 ## Version 0.8.7 (2026-07-02)
 - fix: Add direct file read for span loader ([676](https://github.com/monocle2ai/monocle/pull/676))

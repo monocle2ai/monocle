@@ -25,8 +25,12 @@ jobs:
       id-token: write
     steps:
       - run: |
-          if [[ $GITHUB_REF_NAME != anshul/* ]]; then
-            echo this workflow should only be run against release branches
+          if [[ $GITHUB_REF_NAME == release/* ]]; then
+            echo "running against release branch $GITHUB_REF_NAME"
+          elif [[ $GITHUB_REF_TYPE == tag && $GITHUB_REF_NAME =~ ^v[0-9]+\.[0-9]+\.[0-9]+([a-z]+[0-9]+)?$ ]]; then
+            echo "running against release tag $GITHUB_REF_NAME"
+          else
+            echo "this workflow should only be run against a release branch (release/*) or a release tag (v-<release-number>)"
             exit 1
           fi
 

@@ -23,6 +23,9 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       id-token: write
+      contents: write
+      pull-requests: write
+      discussions: write
     steps:
       - run: |
           if [[ $GITHUB_REF_NAME == release/* ]]; then
@@ -30,7 +33,7 @@ jobs:
           elif [[ $GITHUB_REF_TYPE == tag && $GITHUB_REF_NAME =~ ^v[0-9]+\.[0-9]+\.[0-9]+([a-z]+[0-9]+)?$ ]]; then
             echo "running against release tag $GITHUB_REF_NAME"
           else
-            echo "this workflow should only be run against a release branch (release/*) or a release tag (v-<release-number>)"
+            echo "this workflow should only be run against a release branch (release/*) or a release tag (v<release-number>)"
             exit 1
           fi
 
@@ -183,10 +186,15 @@ jobs:
           if gh release view v$STABLE_VERSION &> /dev/null; then
             echo "Release v$STABLE_VERSION already exists. Skipping release creation."
           else
-            gh release create --target $GITHUB_REF_NAME \
+            # Only pass --target when running from a branch
+            target_flag=""
+            if [[ $GITHUB_REF_TYPE == "branch" ]]; then
+              target_flag="--target $GITHUB_REF_NAME"
+            fi
+            gh release create $target_flag \
                               --title "Version ${STABLE_VERSION}" \
                               --notes-file /tmp/release-notes.txt \
-                              --discussion-category announcements \
+                              --discussion-category "Announcements" \
                               v$STABLE_VERSION
           fi
 

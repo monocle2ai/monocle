@@ -193,7 +193,7 @@ jobs:
             gh release create $target_flag \
                               --title "Version ${STABLE_VERSION}" \
                               --notes-file /tmp/release-notes.txt \
-                              --discussion-category announcements \
+                              --discussion-category "Announcements" \
                               v$STABLE_VERSION
           fi
 

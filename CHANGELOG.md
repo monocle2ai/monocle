@@ -5,6 +5,7 @@
 - feat(exporters): add `MONOCLE_CONSOLE` env var to enable console output alongside any configured exporter ([#577](https://github.com/monocle2ai/monocle/pull/577))
 - fix(test_tools): lazy-load `SentenceTransformer` to prevent crash at pytest collection time in network-restricted environments ([#576](https://github.com/monocle2ai/monocle/pull/576))
 
+## Version 0.8.7b1 (2026-07-09)
 ## Version 0.8.7 (2026-07-02)
 - fix: Add direct file read for span loader ([676](https://github.com/monocle2ai/monocle/pull/676))
 

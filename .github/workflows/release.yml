@@ -25,6 +25,7 @@ jobs:
       id-token: write
       contents: write
       pull-requests: write
+      discussions: write
     steps:
       - run: |
           if [[ $GITHUB_REF_NAME == release/* ]]; then

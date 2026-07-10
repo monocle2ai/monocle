@@ -111,6 +111,35 @@ def extract_response_format(kwargs):
         return None
 
 
+def extract_temperature(kwargs):
+    """Extract the request `temperature` from LiteLLM kwargs.
+
+    Like `response_format`, generation params are not a top-level kwarg by the
+    time the instrumented provider backend is called: LiteLLM moves them into
+    `optional_params` (see `transform_request`, which spreads `**optional_params`
+    into the request body). Checks, in order:
+    1. optional_params["temperature"] — OpenAI/Azure sync and most providers.
+    2. data["temperature"] — Azure async, which passes an already-built request.
+    3. top-level kwargs["temperature"] — defensive fallback.
+
+    Returns None when no temperature was supplied (matching the convention of
+    the langchain/llamaindex/botocore/haystack metamodels).
+    """
+    try:
+        optional_params = kwargs.get("optional_params") or {}
+        if optional_params.get("temperature") is not None:
+            return optional_params["temperature"]
+
+        data = kwargs.get("data") or {}
+        if isinstance(data, dict) and data.get("temperature") is not None:
+            return data["temperature"]
+
+        return kwargs.get("temperature")
+    except Exception as e:
+        logger.warning("Warning: Error occurred in extract_temperature: %s", str(e))
+        return None
+
+
 def extract_assistant_message(arguments):
     try:
         messages = []

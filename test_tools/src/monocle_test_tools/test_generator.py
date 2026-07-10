@@ -1,38 +1,78 @@
-from typing import List, Set, Dict
+import math
+from typing import List, Optional, Set, Dict
 from opentelemetry.sdk.trace import ReadableSpan
+
+
+# Allowed values for the ``trace_source`` argument. When set, only the loader
+# code for that specific source is generated.
+SUPPORTED_TRACE_SOURCES = ("file", "okahu")
 
 
 class TestGenerator:
     """Generates test code by analyzing trace spans."""
-    
-    def __init__(self, spans: List[ReadableSpan], trace_file: str = None):
-        """Initialize with a list of spans to analyze."""
+
+    def __init__(self, spans: List[ReadableSpan], trace_file: str = None,
+                 trace_source: Optional[str] = None, trace_id: Optional[str] = None,
+                 workflow_name: Optional[str] = None):
+        """Initialize with a list of spans to analyze.
+
+        Args:
+            spans: Spans to analyze.
+            trace_file: Path to the trace file the spans were loaded from (if any).
+            trace_source: Optional loader to generate code for. One of
+                ``"file"`` or ``"okahu"``. When ``None`` (default), loader code
+                for all supported sources is emitted.
+            trace_id: Trace id, used when generating "okahu" loader code.
+            workflow_name: Okahu workflow name, used when generating "okahu" loader code.
+        """
+        if trace_source is not None and trace_source not in SUPPORTED_TRACE_SOURCES:
+            raise ValueError(
+                f"Unsupported trace_source: '{trace_source}'. "
+                f"Supported values: {', '.join(SUPPORTED_TRACE_SOURCES)}."
+            )
         self.spans = spans
         self.trace_file = trace_file
+        self.trace_source = trace_source
+        self.trace_id = trace_id
+        self.workflow_name = workflow_name
         self.agents: Set[str] = set()
         self.tools: Dict[str, str] = {}  # tool_name -> agent_name
         self.agent_outputs: Dict[str, List[str]] = {}  # agent_name -> outputs
         self.has_workflow = False
-        
+        self.total_tokens = 0  # total tokens across inference spans in the turn
+        self.turn_duration = 0.0  # max agentic.turn duration in seconds
+
     @classmethod
-    def from_json_file(cls, filepath: str):
+    def from_json_file(cls, filepath: str, trace_source: Optional[str] = None):
         """Create generator from a trace JSON file."""
         from monocle_test_tools.span_loader import JSONSpanLoader
         spans = JSONSpanLoader.from_json(filepath)
-        return cls(spans, trace_file=filepath)
-    
+        return cls(spans, trace_file=filepath, trace_source=trace_source)
+
     @classmethod
-    def from_okahu(cls, trace_id: str, workflow_name: str):
+    def from_okahu(cls, trace_id: str, workflow_name: str, trace_source: Optional[str] = None):
         """Create generator from an Okahu trace."""
         from monocle_test_tools.span_loader import OkahuSpanLoader
         spans = OkahuSpanLoader.load_by_trace_id(
             trace_id=trace_id,
             workflow_name=workflow_name
         )
-        return cls(spans, trace_file=None)
-    
+        return cls(spans, trace_file=None, trace_source=trace_source,
+                   trace_id=trace_id, workflow_name=workflow_name)
+
     def analyze(self):
-        """Scan spans and extract agents, tools, and outputs."""
+        """Scan spans and extract agents, tools, outputs, tokens and duration.
+
+        Idempotent: resets accumulated state on each call so running it more than
+        once (e.g. explicitly and again from generate_test_code) does not double
+        token totals or duplicate outputs.
+        """
+        self.agents = set()
+        self.tools = {}
+        self.agent_outputs = {}
+        self.has_workflow = False
+        self.total_tokens = 0
+        self.turn_duration = 0.0
         for span in self.spans:
             span_type = span.attributes.get("span.type", "")
             
@@ -58,7 +98,61 @@ class TestGenerator:
             
             elif span_type == "workflow":
                 self.has_workflow = True
-    
+
+            # Accumulate total tokens across inference spans in the turn.
+            if span_type in ("inference", "inference.framework"):
+                for event in getattr(span, 'events', []):
+                    if event.name == "metadata":
+                        self.total_tokens += event.attributes.get("total_tokens", 0) or 0
+
+            # Track the duration of the agentic turn.
+            if span_type == "agentic.turn" and span.start_time and span.end_time:
+                duration = (span.end_time - span.start_time) / 1e9
+                self.turn_duration = max(self.turn_duration, duration)
+
+    def _generate_loading_lines(self) -> List[str]:
+        """Generate the trace-loading section using the with_trace_source API.
+
+        Honors ``self.trace_source``: when set to "file" or "okahu", only the
+        loader for that source is emitted (as active code). When ``None``, all
+        supported loaders are shown with the file loader active (if a trace file
+        is known) and the rest commented out.
+        """
+        file_line = (
+            f'    monocle_trace_asserter.with_trace_source("file", trace_path="{self.trace_file}")'
+            if self.trace_file
+            else '    monocle_trace_asserter.with_trace_source("file", trace_path="path/to/trace.json")'
+        )
+        okahu_id = self.trace_id or "your_trace_id"
+        okahu_workflow = self.workflow_name or "your_workflow"
+        okahu_line = (
+            f'    monocle_trace_asserter.with_trace_source("okahu", '
+            f'id="{okahu_id}", workflow_name="{okahu_workflow}")'
+        )
+
+        if self.trace_source == "file":
+            return ['    # Load traces from a local trace file', file_line]
+
+        if self.trace_source == "okahu":
+            return ['    # Load traces from Okahu', okahu_line]
+
+        # Default: emit all options, file loader active when available.
+        lines = ['    # Option 1: Load from a local trace file']
+        if self.trace_file:
+            lines.append(file_line)
+        else:
+            lines.append('    # ' + file_line.strip())
+        lines.extend([
+            '',
+            '    # Option 2: Load from Okahu',
+            '    # ' + okahu_line.strip(),
+            '',
+            '    # Option 3: Run agent directly',
+            '    # from your_module import your_agent',
+            '    # await monocle_trace_asserter.run_agent_async(your_agent, "framework_name", "user input")',
+        ])
+        return lines
+
     def generate_test_code(self, test_name: str = "test_generated") -> str:
         """Generate Python test code with assertions."""
         
@@ -67,32 +161,17 @@ class TestGenerator:
         code = [
             'import pytest',
             'from monocle_test_tools import TraceAssertion',
-            'from monocle_test_tools.span_loader import JSONSpanLoader',
             '',
             '',
             f'def {test_name}(monocle_trace_asserter: TraceAssertion):',
             '    """Auto-generated test from trace analysis."""',
             '',
-            '    # Option 1: Load from JSON file',
         ]
-        
-        # Add example trace file path
-        if self.trace_file:
-            code.append(f'    spans = JSONSpanLoader.from_json("{self.trace_file}")')
-            code.append('    monocle_trace_asserter.validator.add_remote_spans(spans)')
-        else:
-            code.append('    # spans = JSONSpanLoader.from_json("path/to/trace.json")')
-            code.append('    # monocle_trace_asserter.validator.add_remote_spans(spans)')
+
+        # Trace loading via the with_trace_source API.
+        code.extend(self._generate_loading_lines())
+
         code.extend([
-            '',
-            '    # Option 2: Load from Okahu',
-            '    # from monocle_test_tools.span_loader import OkahuSpanLoader',
-            '    # spans = OkahuSpanLoader.get_spans(workflow_name="your_workflow", trace_id="trace_id")',
-            '    # monocle_trace_asserter.validator.add_remote_spans(spans)',
-            '',
-            '    # Option 3: Run agent directly',
-            '    # from your_module import your_agent',
-            '    # await monocle_trace_asserter.run_agent_async(your_agent, "framework_name", "user input")',
             '',
             '    asserter = monocle_trace_asserter',
             '',
@@ -119,7 +198,21 @@ class TestGenerator:
                 else:
                     code.append(f'    asserter.called_tool("{tool_name}")')
             code.append('')
-        
+
+        # Cost check: total tokens in the turn
+        if self.total_tokens > 0:
+            code.append('    # Cost check: total tokens in the turn (derived from trace; adjust as needed)')
+            code.append(f'    asserter.under_token_limit({self.total_tokens})')
+            code.append('')
+
+        # Performance check: duration of the turn
+        if self.turn_duration > 0:
+            # Round the limit up so the generated test passes against the source trace.
+            duration_limit = math.ceil(self.turn_duration * 10) / 10
+            code.append('    # Performance check: duration of the turn (derived from trace; adjust as needed)')
+            code.append(f'    asserter.under_duration({duration_limit}, units="seconds", span_type="agent_turn")')
+            code.append('')
+
         return '\n'.join(code)
     
     def write_to_file(self, filepath: str):

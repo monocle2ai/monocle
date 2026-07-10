@@ -354,42 +354,62 @@ python -m monocle_test_tools.generate_test trace.json
 # With custom test name
 python -m monocle_test_tools.generate_test trace.json --test-name test_my_agent
 
+# Only generate the loader for a specific trace source (file | okahu)
+python -m monocle_test_tools.generate_test trace.json --trace-source file
+
 # Save to file
 python -m monocle_test_tools.generate_test trace.json > test_generated.py
 ```
 
+By default the generated test includes loader options for every supported trace
+source (file, Okahu, live agent run). Passing `--trace-source file` or
+`--trace-source okahu` emits only that loader (as active code).
+
 ### Example Output
+
+Generated tests load traces through the `with_trace_source` API and include
+cost (total tokens) and performance (turn duration) checks derived from the trace:
 
 ```python
 import pytest
 from monocle_test_tools import TraceAssertion
-from monocle_test_tools.span_loader import JSONSpanLoader
+
 
 def test_generated(monocle_trace_asserter: TraceAssertion):
     """Auto-generated test from trace analysis."""
-    
-    # Option 1: Load from JSON file
-    spans = JSONSpanLoader.from_json("path/to/trace.json")
-    # monocle_trace_asserter.validator.add_remote_spans(spans)
-    
+
+    # Option 1: Load from a local trace file
+    monocle_trace_asserter.with_trace_source("file", trace_path="path/to/trace.json")
+
     # Option 2: Load from Okahu
-    # from monocle_test_tools.span_loader import OkahuSpanLoader
-    # spans = OkahuSpanLoader.get_spans(workflow_name="your_workflow", trace_id="trace_id")
-    # monocle_trace_asserter.validator.add_remote_spans(spans)
-    
+    # monocle_trace_asserter.with_trace_source("okahu", id="your_trace_id", workflow_name="your_workflow")
+
     # Option 3: Run agent directly
     # from your_module import your_agent
     # await monocle_trace_asserter.run_agent_async(your_agent, "framework_name", "user input")
-    
+
     asserter = monocle_trace_asserter
-    
+
     # Agent invocations with output checks
     asserter.called_agent("travel_agent").contains_output("Successfully booked")
     asserter.called_agent("hotel_agent").contains_output("Marriott reservation confirmed")
-    
+
     # Tool invocations
     asserter.called_tool("book_flight", "travel_agent")
     asserter.called_tool("book_hotel", "hotel_agent")
+
+    # Cost check: total tokens in the turn (derived from trace; adjust as needed)
+    asserter.under_token_limit(1204)
+
+    # Performance check: duration of the turn (derived from trace; adjust as needed)
+    asserter.under_duration(5.2, units="seconds", span_type="agent_turn")
+```
+
+With `--trace-source file`, only the file loader line is emitted:
+
+```python
+    # Load traces from a local trace file
+    monocle_trace_asserter.with_trace_source("file", trace_path="path/to/trace.json")
 ```
 
 ### Python API
@@ -402,6 +422,10 @@ generator = TestGenerator.from_json_file("trace.json")
 test_code = generator.generate_test_code(test_name="test_my_agent")
 print(test_code)
 
+# Only generate the file loader
+generator = TestGenerator.from_json_file("trace.json", trace_source="file")
+print(generator.generate_test_code())
+
 # Write to file
 generator.write_to_file("test_my_agent.py")
 
@@ -413,6 +437,8 @@ print(generator.generate_test_code())
 The generator extracts:
 - **Agent invocations** with output checks (first 80 chars as key phrase)
 - **Tool invocations** with parent agent references
+- **Total token usage** for the turn, emitted as an `under_token_limit()` check
+- **Turn duration**, emitted as an `under_duration(..., span_type="agent_turn")` check
 - **Sorted by invocation order** for readability
 
 ---

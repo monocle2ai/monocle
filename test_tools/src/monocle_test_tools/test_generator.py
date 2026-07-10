@@ -123,8 +123,8 @@ class TestGenerator:
             if self.trace_file
             else '    monocle_trace_asserter.with_trace_source("file", trace_path="path/to/trace.json")'
         )
-        okahu_id = self.trace_id or "your_trace_id"
-        okahu_workflow = self.workflow_name or "your_workflow"
+        okahu_id = self.trace_id or "TRACE_ID"
+        okahu_workflow = self.workflow_name or "WORKFLOW_NAME"
         okahu_line = (
             f'    monocle_trace_asserter.with_trace_source("okahu", '
             f'id="{okahu_id}", workflow_name="{okahu_workflow}")'

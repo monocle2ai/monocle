@@ -382,7 +382,7 @@ def test_generated(monocle_trace_asserter: TraceAssertion):
     monocle_trace_asserter.with_trace_source("file", trace_path="path/to/trace.json")
 
     # Option 2: Load from Okahu
-    # monocle_trace_asserter.with_trace_source("okahu", id="your_trace_id", workflow_name="your_workflow")
+    # monocle_trace_asserter.with_trace_source("okahu", id="TRACE_ID", workflow_name="WORKFLOW_NAME")
 
     # Option 3: Run agent directly
     # from your_module import your_agent
@@ -410,28 +410,6 @@ With `--trace-source file`, only the file loader line is emitted:
 ```python
     # Load traces from a local trace file
     monocle_trace_asserter.with_trace_source("file", trace_path="path/to/trace.json")
-```
-
-### Python API
-
-```python
-from monocle_test_tools.test_generator import TestGenerator
-
-# From local file
-generator = TestGenerator.from_json_file("trace.json")
-test_code = generator.generate_test_code(test_name="test_my_agent")
-print(test_code)
-
-# Only generate the file loader
-generator = TestGenerator.from_json_file("trace.json", trace_source="file")
-print(generator.generate_test_code())
-
-# Write to file
-generator.write_to_file("test_my_agent.py")
-
-# From Okahu
-generator = TestGenerator.from_okahu(trace_id="abc123", workflow_name="my_app")
-print(generator.generate_test_code())
 ```
 
 The generator extracts:

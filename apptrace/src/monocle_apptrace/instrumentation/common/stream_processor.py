@@ -71,6 +71,15 @@ class StreamState:
         """Mark stream as closed with current timestamp."""
         self.stream_closed_time = time.time_ns()
 
+    def fire_close_once(self) -> bool:
+        """Return True exactly once; guards span_processor against re-firing
+        when an exhausted stream is iterated again (span.end()/hydrate on an
+        already-ended span, duplicated assemble_data)."""
+        if getattr(self, "_close_fired", False):
+            return False
+        self._close_fired = True
+        return True
+
 
 class BaseStreamProcessor(ABC):
     """Base class for streaming processors using Template Method pattern.
@@ -289,21 +298,47 @@ class BaseStreamProcessor(ABC):
         original_iter = response.__iter__
 
         def new_iter(self_iter):
+            # Claim ownership so a simultaneously patched __next__ (below)
+            # doesn't double-process items pulled through this generator.
+            state.iter_owner = "iter"
             iterator = original_iter()
-            while True:
-                try:
-                    item = next(iterator)
-                    self.process_fragment(item, state)
-                    yield item
-                except StopIteration:
-                    if span_processor:
-                        ret_val = self.create_span_result(state, stream_start_time)
-                        span_processor(ret_val)
-                    break
+            try:
+                while True:
+                    try:
+                        item = next(iterator)
+                        self.process_fragment(item, state)
+                        yield item
+                    except StopIteration:
+                        if span_processor and state.fire_close_once():
+                            ret_val = self.create_span_result(state, stream_start_time)
+                            span_processor(ret_val)
+                        break
+            finally:
+                # Consumer abandoned the loop early: release ownership so a
+                # direct __next__ drain can resume processing and close.
+                state.iter_owner = None
 
         if not patch_instance_method(response, "__iter__", new_iter):
             # Native C-level generator — return a wrapper object instead
             return self._create_sync_generator_wrapper(response, state, stream_start_time, span_processor)
+        # Some consumers (e.g. litellm's CustomStreamWrapper) pull items via a
+        # direct __next__/next() call and never go through __iter__ — cover
+        # that entry point too, gated on the ownership flag.
+        if hasattr(response, "__next__"):
+            original_next = response.__next__
+
+            def new_next(self_iter):
+                try:
+                    item = original_next()
+                    if getattr(state, "iter_owner", None) != "iter":
+                        self.process_fragment(item, state)
+                    return item
+                except StopIteration:
+                    if getattr(state, "iter_owner", None) != "iter" and span_processor and state.fire_close_once():
+                        span_processor(self.create_span_result(state, stream_start_time))
+                    raise
+
+            patch_instance_method(response, "__next__", new_next)
         return None
     
     def _wrap_async_iterator(self, response: Any, state: StreamState,
@@ -316,21 +351,47 @@ class BaseStreamProcessor(ABC):
         original_iter = response.__aiter__
 
         async def new_aiter(self_iter):
+            # Claim ownership so a simultaneously patched __anext__ (below)
+            # doesn't double-process items pulled through this generator.
+            state.iter_owner = "aiter"
             iterator = original_iter()
-            while True:
-                try:
-                    item = await anext(iterator)
-                    self.process_fragment(item, state)
-                    yield item
-                except StopAsyncIteration:
-                    if span_processor:
-                        ret_val = self.create_span_result(state, stream_start_time)
-                        span_processor(ret_val)
-                    break
+            try:
+                while True:
+                    try:
+                        item = await anext(iterator)
+                        self.process_fragment(item, state)
+                        yield item
+                    except StopAsyncIteration:
+                        if span_processor and state.fire_close_once():
+                            ret_val = self.create_span_result(state, stream_start_time)
+                            span_processor(ret_val)
+                        break
+            finally:
+                # Consumer abandoned the loop early: release ownership so a
+                # direct __anext__ drain can resume processing and close.
+                state.iter_owner = None
 
         if not patch_instance_method(response, "__aiter__", new_aiter):
             # Native C-level async_generator — return a wrapper object instead
             return self._create_async_generator_wrapper(response, state, stream_start_time, span_processor)
+        # Some consumers (e.g. litellm's CustomStreamWrapper) pull items via a
+        # direct __anext__ attribute call and never go through __aiter__ —
+        # cover that entry point too, gated on the ownership flag.
+        if hasattr(response, "__anext__"):
+            original_anext = response.__anext__
+
+            async def new_anext(self_iter):
+                try:
+                    item = await original_anext()
+                    if getattr(state, "iter_owner", None) != "aiter":
+                        self.process_fragment(item, state)
+                    return item
+                except StopAsyncIteration:
+                    if getattr(state, "iter_owner", None) != "aiter" and span_processor and state.fire_close_once():
+                        span_processor(self.create_span_result(state, stream_start_time))
+                    raise
+
+            patch_instance_method(response, "__anext__", new_anext)
         return None
 
     def _wrap_sync_next(self, response: Any, state: StreamState,
@@ -344,7 +405,7 @@ class BaseStreamProcessor(ABC):
                 self.process_fragment(item, state)
                 return item
             except StopIteration:
-                if span_processor:
+                if span_processor and state.fire_close_once():
                     ret_val = self.create_span_result(state, stream_start_time)
                     span_processor(ret_val)
                 raise
@@ -362,7 +423,7 @@ class BaseStreamProcessor(ABC):
                 self.process_fragment(item, state)
                 return item
             except StopAsyncIteration:
-                if span_processor:
+                if span_processor and state.fire_close_once():
                     ret_val = self.create_span_result(state, stream_start_time)
                     span_processor(ret_val)
                 raise

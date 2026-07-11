@@ -2,14 +2,32 @@ from monocle_apptrace.instrumentation.common.constants import SPAN_TYPES
 from monocle_apptrace.instrumentation.metamodel.litellm import (
     _helper,
 )
+from monocle_apptrace.instrumentation.metamodel.openai.openai_stream_processor import (
+    OpenAIStreamProcessor,
+)
 from monocle_apptrace.instrumentation.common.utils import (
     get_error_message,
     resolve_from_alias,
     get_llm_type,
 )
+
+def _is_streaming(kwargs):
+    # Provider handlers receive stream inside optional_params, not top-level
+    return bool((kwargs.get("optional_params") or {}).get("stream"))
+
+
+def process_stream(to_wrap, response, span_processor):
+    # Provider handlers return the provider SDK's native stream; the
+    # OpenAI-format chunk processor covers the OpenAI/Azure handlers.
+    processor = OpenAIStreamProcessor()
+    return processor.process_stream(to_wrap, response, span_processor)
+
+
 INFERENCE = {
     "type": SPAN_TYPES.INFERENCE,
     "subtype": lambda arguments: _helper.agent_inference_type(arguments),
+    "is_auto_close": lambda kwargs: not _is_streaming(kwargs),
+    "response_processor": process_stream,
     "attributes": [
         [
             {
@@ -146,4 +164,11 @@ INFERENCE = {
             ],
         },
     ],
+}
+
+# streaming/async_streaming are unconditionally streaming; `stream` is not in
+# their optional_params (litellm sets data["stream"] internally).
+INFERENCE_STREAMING = {
+    **INFERENCE,
+    "is_auto_close": lambda kwargs: False,
 }

@@ -1,7 +1,24 @@
 from monocle_apptrace.instrumentation.common.wrapper import atask_wrapper, task_wrapper
-from monocle_apptrace.instrumentation.metamodel.litellm.entities.inference import INFERENCE
+from monocle_apptrace.instrumentation.metamodel.litellm.entities.inference import INFERENCE, INFERENCE_STREAMING
+from monocle_apptrace.instrumentation.metamodel.litellm.entities.responses import RESPONSES
 
 LITELLM_METHODS = [
+    {
+        # OpenAI Responses API (and compatible providers) via litellm's HTTP handler
+        "package": "litellm.llms.custom_httpx.llm_http_handler",
+        "object": "BaseLLMHTTPHandler",
+        "method": "response_api_handler",
+        "wrapper_method": task_wrapper,
+        "output_processor": RESPONSES,
+        "span_handler": "litellm_sync_handler"
+    },
+    {
+        "package": "litellm.llms.custom_httpx.llm_http_handler",
+        "object": "BaseLLMHTTPHandler",
+        "method": "async_response_api_handler",
+        "wrapper_method": atask_wrapper,
+        "output_processor": RESPONSES
+    },
     {
         "package": "litellm.llms.openai.openai",
         "object": "OpenAIChatCompletion",
@@ -24,6 +41,14 @@ LITELLM_METHODS = [
         "method": "acompletion",
         "wrapper_method": atask_wrapper,
         "output_processor": INFERENCE
+    },
+    {
+        # Async streaming bypasses acompletion and routes here
+        "package": "litellm.llms.openai.openai",
+        "object": "OpenAIChatCompletion",
+        "method": "async_streaming",
+        "wrapper_method": atask_wrapper,
+        "output_processor": INFERENCE_STREAMING
     },
     {
         "package": "litellm.llms.azure.azure",

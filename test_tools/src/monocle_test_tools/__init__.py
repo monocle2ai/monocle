@@ -22,6 +22,7 @@ from .schema import (
 
 from .evals import ( BaseEval, BertScorerEval, OkahuEval)
 from .comparer import ( BaseComparer, BertScoreComparer, DefaultComparer)
+from .span_loader import ( file_span_loader, okahu_span_loader, JSONSpanLoader, OkahuSpanLoader)
 from . import trace_utils
 from .runner import AgentRunner, get_agent_runner
 from .fluent_api import TraceAssertion
@@ -50,5 +51,9 @@ __all__ = [
     "TraceAssertion",
     "TestGenerator",
     "pytest_plugin",
-    "gitutils"
+    "gitutils",
+    "JSONSpanLoader",
+    "OkahuSpanLoader",
+    "file_span_loader",
+    "okahu_span_loader",
 ]

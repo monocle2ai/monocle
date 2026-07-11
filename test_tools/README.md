@@ -186,9 +186,9 @@ monocle_trace_asserter.called_agents(min_count=5, max_count=15)  # Between 5-15 
 monocle_trace_asserter.called_tools(max_count=20)  # At most 20 tool calls total
 ```
 
-#### Scope and attribute assertions
+#### Scope, attribute, and event assertions
 
-Assert on monocle scopes and span attributes. Both `has_scope` and `has_attribute` narrow the context to matching spans:
+Assert on monocle scopes, span attributes, and span events. `has_scope`, `has_attribute`, and `has_event` narrow the context to matching spans:
 
 ```python
 # Scope carried by the trace (value check, existence check, and substring check)
@@ -199,6 +199,11 @@ monocle_trace_asserter.contains_scope("tenant_id", "customer")
 # Any-of and negative scope assertions
 monocle_trace_asserter.has_any_scope("tenant_id", "customer-123", "customer-456")
 monocle_trace_asserter.does_not_have_scope("tenant_id", "customer-999")
+
+# Match any span carrying an attribute, then verify one of its events
+monocle_trace_asserter \
+    .has_attribute("span.type", "inference") \
+    .has_event("metadata", attribute_name="total_tokens", expected=229)
 
 # Verify a span attribute on the matched tool invocation
 monocle_trace_asserter \

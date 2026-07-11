@@ -197,6 +197,14 @@ class MonocleInstrumentor(BaseInstrumentor):
                 if target_package == "agents.run" and target_method in ("run_single_turn", "_run_single_turn"):
                     logger.debug(f"method {target_method} not found in {target_package} (SDK version compatibility)")
                     continue
+                # openhands-sdk added the async API (arun/astep/_arun_safe) after 1.21
+                if (
+                    isinstance(ex, AttributeError)
+                    and target_package.startswith("openhands.sdk")
+                    and target_method in ("arun", "astep", "_arun_safe")
+                ):
+                    logger.debug(f"method {target_method} not found in {target_package} (SDK version compatibility)")
+                    continue
                 logger.error(f"""_instrument wrap exception: {str(ex)}
                             for package: {target_package},
                             object:{target_object},

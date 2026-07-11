@@ -1,7 +1,7 @@
 import os
 import logging
 import datetime
-from typing import Dict, List, Sequence, Tuple
+from typing import Sequence
 
 import psycopg2
 import psycopg2.errors
@@ -18,10 +18,6 @@ from monocle_apptrace.exporters.base_exporter import (
 )
 
 logger = logging.getLogger(__name__)
-
-POSTGRESEXPORTER_HANDLE_TIMEOUT_SECONDS = int(
-    os.environ.get("MONOCLE_POSTGRESEXPORTER_HANDLE_TIMEOUT_SECONDS", 60)
-)
 
 CREATE_TABLE_SQL = """
     CREATE TABLE IF NOT EXISTS traces (
@@ -56,7 +52,6 @@ class PostgresSpanExporter(SpanExporterBase):
             raise ValueError("MONOCLE_POSTGRES_CONNECTION_URL environment variable is required")
         self.connection = psycopg2.connect(self.connection_url)
         self._ensure_table()
-        self.trace_spans: Dict[int, Tuple[List[ReadableSpan], datetime.datetime, bool]] = {}
 
     def _ensure_table(self) -> None:
         try:
@@ -98,26 +93,6 @@ class PostgresSpanExporter(SpanExporterBase):
             None,   # metadata — reserved for future use
         )
 
-    def _add_spans_to_trace(self, trace_id: int, spans: List[ReadableSpan],
-                             has_root: bool = False) -> None:
-        if trace_id in self.trace_spans:
-            existing_spans, creation_time, existing_root = self.trace_spans[trace_id]
-            existing_spans.extend(spans)
-            self.trace_spans[trace_id] = (existing_spans, creation_time,
-                                           has_root or existing_root)
-        else:
-            self.trace_spans[trace_id] = (spans.copy(), datetime.datetime.now(tz=datetime.timezone.utc), has_root)
-
-    def _cleanup_expired_traces(self) -> None:
-        current_time = datetime.datetime.now(tz=datetime.timezone.utc)
-        expired = [
-            trace_id
-            for trace_id, (_, creation_time, _) in self.trace_spans.items()
-            if (current_time - creation_time).total_seconds() > POSTGRESEXPORTER_HANDLE_TIMEOUT_SECONDS
-        ]
-        for trace_id in expired:
-            self._insert_trace(trace_id)
-
     def _reconnect(self) -> None:
         try:
             self.connection.close()
@@ -130,47 +105,24 @@ class PostgresSpanExporter(SpanExporterBase):
             psycopg2.extras.execute_values(cursor, INSERT_SQL, rows)
         self.connection.commit()
 
-    def _insert_trace(self, trace_id: int) -> None:
-        if trace_id not in self.trace_spans:
-            return
-        spans, _, _ = self.trace_spans[trace_id]
-        rows = []
-        for span in spans:
-            if self.skip_export(span):
-                continue
-            try:
-                rows.append(self._build_row(span))
-            except Exception as e:
-                logger.warning("Error serializing span %s: %s", span.context.span_id, e)
-        if rows:
-            try:
-                self._do_insert(rows)
-            except psycopg2.OperationalError as e:
-                logger.warning("DB connection error, attempting reconnect: %s", e)
-                self._reconnect()
-                self._do_insert(rows)
-        del self.trace_spans[trace_id]
-
     def export(self, spans: Sequence[ReadableSpan]) -> SpanExportResult:
         try:
-            self._cleanup_expired_traces()
-            spans_by_trace: Dict[int, List[ReadableSpan]] = {}
-            root_span_traces: set = set()
-
+            rows = []
             for span in spans:
                 if self.skip_export(span):
                     continue
-                trace_id = span.context.trace_id
-                spans_by_trace.setdefault(trace_id, []).append(span)
-                if not span.parent:
-                    root_span_traces.add(trace_id)
+                try:
+                    rows.append(self._build_row(span))
+                except Exception as e:
+                    logger.warning("Error serializing span %s: %s", span.context.span_id, e)
 
-            for trace_id, trace_spans in spans_by_trace.items():
-                self._add_spans_to_trace(trace_id, trace_spans,
-                                          trace_id in root_span_traces)
-
-            for trace_id in root_span_traces:
-                self._insert_trace(trace_id)
+            if rows:
+                try:
+                    self._do_insert(rows)
+                except psycopg2.OperationalError as e:
+                    logger.warning("DB connection error, attempting reconnect: %s", e)
+                    self._reconnect()
+                    self._do_insert(rows)
 
             return SpanExportResult.SUCCESS
         except Exception as e:
@@ -178,15 +130,9 @@ class PostgresSpanExporter(SpanExporterBase):
             return SpanExportResult.FAILURE
 
     def force_flush(self, timeout_millis: int = 30000) -> bool:
-        for trace_id in list(self.trace_spans.keys()):
-            try:
-                self._insert_trace(trace_id)
-            except Exception as e:
-                logger.error("Error flushing trace %s: %s", format_trace_id_without_0x(trace_id), e)
         return True
 
     def shutdown(self) -> None:
-        self.force_flush()
         try:
             self.connection.close()
         except Exception:

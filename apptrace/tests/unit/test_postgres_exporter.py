@@ -101,45 +101,7 @@ class TestBuildRow(unittest.TestCase):
         self.assertIsNone(row[9])
 
 
-class TestSpanBuffering(unittest.TestCase):
-    def setUp(self):
-        os.environ["MONOCLE_POSTGRES_CONNECTION_URL"] = "postgresql://u:p@h/db"
-        with patch("psycopg2.connect"):
-            reload(pg_mod)
-            self.exporter = pg_mod.PostgresSpanExporter()
-
-    def tearDown(self):
-        os.environ.pop("MONOCLE_POSTGRES_CONNECTION_URL", None)
-
-    def test_spans_accumulated_across_calls(self):
-        span1 = _make_span(span_id=0x1111)
-        span2 = _make_span(span_id=0x2222)
-        self.exporter._add_spans_to_trace(0xAABB, [span1], has_root=False)
-        self.exporter._add_spans_to_trace(0xAABB, [span2], has_root=True)
-        buffered_spans, _, has_root = self.exporter.trace_spans[0xAABB]
-        self.assertEqual(len(buffered_spans), 2)
-        self.assertTrue(has_root)
-
-    def test_expired_trace_flushed(self):
-        old_time = datetime.datetime.now(tz=datetime.timezone.utc) - datetime.timedelta(seconds=61)
-        self.exporter.trace_spans[0xAABB] = ([_make_span()], old_time, False)
-        with patch.object(self.exporter, "_insert_trace") as mock_insert:
-            self.exporter._cleanup_expired_traces()
-        mock_insert.assert_called_once_with(0xAABB)
-
-    def test_timeout_configurable_via_env(self):
-        with patch.dict(os.environ, {"MONOCLE_POSTGRESEXPORTER_HANDLE_TIMEOUT_SECONDS": "120"}):
-            reload(pg_mod)
-            self.assertEqual(pg_mod.POSTGRESEXPORTER_HANDLE_TIMEOUT_SECONDS, 120)
-
-    def test_non_expired_trace_not_flushed(self):
-        self.exporter.trace_spans[0xAABB] = ([_make_span()], datetime.datetime.now(tz=datetime.timezone.utc), False)
-        with patch.object(self.exporter, "_insert_trace") as mock_insert:
-            self.exporter._cleanup_expired_traces()
-        mock_insert.assert_not_called()
-
-
-class TestInsert(unittest.TestCase):
+class TestExport(unittest.TestCase):
     def setUp(self):
         os.environ["MONOCLE_POSTGRES_CONNECTION_URL"] = "postgresql://u:p@h/db"
         with patch("psycopg2.connect"):
@@ -153,36 +115,49 @@ class TestInsert(unittest.TestCase):
     def tearDown(self):
         os.environ.pop("MONOCLE_POSTGRES_CONNECTION_URL", None)
 
-    def test_insert_trace_calls_execute_values(self):
-        self.exporter.trace_spans[0xAABB] = ([_make_span()], datetime.datetime.now(tz=datetime.timezone.utc), True)
+    def test_export_calls_execute_values_once_per_batch(self):
+        child = _make_span(span_id=0x2222, parent_span_id=0x1111)
+        root = _make_span(span_id=0x1111)
+
         with patch("psycopg2.extras.execute_values") as mock_ev:
-            self.exporter._insert_trace(0xAABB)
+            result = self.exporter.export([child, root])
+
+        self.assertEqual(result, SpanExportResult.SUCCESS)
         mock_ev.assert_called_once()
         args = mock_ev.call_args[0]
         self.assertEqual(args[0], self.mock_cursor)
         self.assertIn("INSERT INTO traces", args[1])
-        self.assertEqual(len(args[2]), 1)
+        self.assertEqual(len(args[2]), 2)
+        self.exporter.connection.commit.assert_called()
 
-    def test_insert_trace_removes_from_buffer(self):
-        self.exporter.trace_spans[0xAABB] = ([_make_span()], datetime.datetime.now(tz=datetime.timezone.utc), True)
-        with patch("psycopg2.extras.execute_values"):
-            self.exporter._insert_trace(0xAABB)
-        self.assertNotIn(0xAABB, self.exporter.trace_spans)
+    def test_export_does_not_insert_when_no_rows(self):
+        span = _make_span()
+        span.attributes.get.return_value = None  # triggers skip_export
+
+        with patch("psycopg2.extras.execute_values") as mock_ev:
+            result = self.exporter.export([span])
+
+        self.assertEqual(result, SpanExportResult.SUCCESS)
+        mock_ev.assert_not_called()
+
+    def test_export_returns_failure_on_exception(self):
+        with patch.object(self.exporter, "skip_export", side_effect=RuntimeError("boom")):
+            result = self.exporter.export([_make_span()])
+        self.assertEqual(result, SpanExportResult.FAILURE)
 
     def test_bad_span_skipped_good_span_inserted(self):
         good_span = _make_span(span_id=0x1111)
-        bad_span  = _make_span(span_id=0x2222)
+        bad_span = _make_span(span_id=0x2222)
         bad_span.to_json.side_effect = Exception("serialization error")
-        self.exporter.trace_spans[0xAABB] = ([good_span, bad_span],
-                                              datetime.datetime.now(tz=datetime.timezone.utc), True)
+
         with patch("psycopg2.extras.execute_values") as mock_ev:
-            self.exporter._insert_trace(0xAABB)
+            self.exporter.export([good_span, bad_span])
+
         rows = mock_ev.call_args[0][2]
         self.assertEqual(len(rows), 1)
 
     @patch("psycopg2.connect")
     def test_reconnects_and_retries_on_operational_error(self, mock_connect):
-        self.exporter.trace_spans[0xAABB] = ([_make_span()], datetime.datetime.now(tz=datetime.timezone.utc), True)
         call_count = {"n": 0}
 
         def do_insert_side_effect(_rows):
@@ -191,60 +166,14 @@ class TestInsert(unittest.TestCase):
                 raise psycopg2.OperationalError("server closed connection")
 
         with patch.object(self.exporter, "_do_insert", side_effect=do_insert_side_effect):
-            self.exporter._insert_trace(0xAABB)
+            result = self.exporter.export([_make_span()])
 
         mock_connect.assert_called()
         self.assertEqual(call_count["n"], 2)
-        self.assertNotIn(0xAABB, self.exporter.trace_spans)
-
-
-class TestExport(unittest.TestCase):
-    def setUp(self):
-        os.environ["MONOCLE_POSTGRES_CONNECTION_URL"] = "postgresql://u:p@h/db"
-        with patch("psycopg2.connect"):
-            reload(pg_mod)
-            self.exporter = pg_mod.PostgresSpanExporter()
-
-    def tearDown(self):
-        os.environ.pop("MONOCLE_POSTGRES_CONNECTION_URL", None)
-
-    def test_child_buffered_root_triggers_insert(self):
-        child = _make_span(span_id=0x2222, parent_span_id=0x1111)
-        root  = _make_span(span_id=0x1111)
-
-        with patch.object(self.exporter, "_insert_trace") as mock_insert, \
-             patch.object(self.exporter, "_cleanup_expired_traces"):
-            self.exporter.export([child])
-            mock_insert.assert_not_called()
-
-            self.exporter.export([root])
-            mock_insert.assert_called_once_with(0xAABBCCDD)
-
-    def test_export_returns_success(self):
-        with patch.object(self.exporter, "_insert_trace"), \
-             patch.object(self.exporter, "_cleanup_expired_traces"):
-            result = self.exporter.export([_make_span()])
         self.assertEqual(result, SpanExportResult.SUCCESS)
 
-    def test_export_returns_failure_on_exception(self):
-        with patch.object(self.exporter, "_cleanup_expired_traces",
-                          side_effect=RuntimeError("boom")):
-            result = self.exporter.export([_make_span()])
-        self.assertEqual(result, SpanExportResult.FAILURE)
 
-    def test_non_monocle_span_not_buffered(self):
-        span = _make_span()
-        span.attributes.get.return_value = None  # triggers skip_export
-
-        with patch.object(self.exporter, "_insert_trace") as mock_insert, \
-             patch.object(self.exporter, "_cleanup_expired_traces"):
-            self.exporter.export([span])
-
-        self.assertEqual(len(self.exporter.trace_spans), 0)
-        mock_insert.assert_not_called()
-
-
-class TestFlushAndShutdown(unittest.TestCase):
+class TestShutdown(unittest.TestCase):
     def setUp(self):
         os.environ["MONOCLE_POSTGRES_CONNECTION_URL"] = "postgresql://u:p@h/db"
         with patch("psycopg2.connect"):
@@ -254,22 +183,8 @@ class TestFlushAndShutdown(unittest.TestCase):
     def tearDown(self):
         os.environ.pop("MONOCLE_POSTGRES_CONNECTION_URL", None)
 
-    def test_force_flush_inserts_all_buffered_traces(self):
-        self.exporter.trace_spans[0xAAAA] = ([_make_span(trace_id=0xAAAA)],
-                                              datetime.datetime.now(tz=datetime.timezone.utc), False)
-        self.exporter.trace_spans[0xBBBB] = ([_make_span(trace_id=0xBBBB)],
-                                              datetime.datetime.now(tz=datetime.timezone.utc), False)
-        with patch.object(self.exporter, "_insert_trace") as mock_insert:
-            result = self.exporter.force_flush()
-        self.assertTrue(result)
-        self.assertEqual(mock_insert.call_count, 2)
-        called_ids = {c.args[0] for c in mock_insert.call_args_list}
-        self.assertEqual(called_ids, {0xAAAA, 0xBBBB})
-
-    def test_shutdown_flushes_then_closes_connection(self):
-        with patch.object(self.exporter, "force_flush") as mock_flush:
-            self.exporter.shutdown()
-        mock_flush.assert_called_once()
+    def test_shutdown_closes_connection(self):
+        self.exporter.shutdown()
         self.exporter.connection.close.assert_called()
 
 

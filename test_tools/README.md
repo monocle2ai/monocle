@@ -200,11 +200,6 @@ monocle_trace_asserter.contains_scope("tenant_id", "customer")
 monocle_trace_asserter.has_any_scope("tenant_id", "customer-123", "customer-456")
 monocle_trace_asserter.does_not_have_scope("tenant_id", "customer-999")
 
-# Match any span carrying an attribute, then verify one of its events
-monocle_trace_asserter \
-    .has_attribute("span.type", "inference") \
-    .has_event("metadata", attribute_name="total_tokens", expected=229)
-
 # Verify a span attribute on the matched tool invocation
 monocle_trace_asserter \
     .called_tool("adk_book_flight") \

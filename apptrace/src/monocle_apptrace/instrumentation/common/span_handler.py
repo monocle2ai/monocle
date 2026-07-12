@@ -26,6 +26,11 @@ http_span_counter = CyclicCounter(HEALTH_RESET_COUNTER)
 WORKFLOW_TYPE_MAP = {
     "llama_index.core.agent.workflow": WORKFLOW_TYPE_GENERIC,
     "llama_index": "workflow.llamaindex",
+    "langchain_openai": "workflow.langchain",
+    "langchain_anthropic": "workflow.langchain",
+    "langchain_google_genai": "workflow.langchain",
+    "langchain_community": "workflow.langchain",
+    "langchain_core": "workflow.langchain",
     "langchain": "workflow.langchain",
     "haystack": "workflow.haystack",
     "teams.ai": "workflow.teams_ai",
@@ -86,13 +91,25 @@ class SpanHandler:
             logger.warning("Warning: Error occurred in pre_task_processing: %s", str(e))
 
     @staticmethod
+    def _coerce_scope_value(value):
+        # OTEL only accepts primitives (or sequences of them) as attribute values;
+        # scope ids derived from app objects (e.g. a UUID thread_id) get dropped otherwise.
+        if isinstance(value, (bool, str, bytes, int, float)):
+            return value
+        if isinstance(value, (list, tuple)) and all(
+            isinstance(item, (bool, str, bytes, int, float)) for item in value
+        ):
+            return value
+        return str(value)
+
+    @staticmethod
     def set_default_monocle_attributes(span: Span, source_path = "" ):
         """ Set default monocle attributes for all spans """
         span.set_attribute(MONOCLE_SDK_VERSION, get_monocle_version())
         span.set_attribute(MONOCLE_SDK_LANGUAGE, "python")
         span.set_attribute("span_source", source_path)
         for scope_key, scope_value in get_scopes().items():
-            span.set_attribute(f"scope.{scope_key}", scope_value)
+            span.set_attribute(f"scope.{scope_key}", SpanHandler._coerce_scope_value(scope_value))
         workflow_name = SpanHandler.get_workflow_name(span=span)
         if workflow_name:
             span.set_attribute("workflow.name", workflow_name)
@@ -186,7 +203,7 @@ class SpanHandler:
         # set scopes as attributes by calling get_scopes()
         # scopes is a Mapping[str:object], iterate directly with .items()
         for scope_key, scope_value in get_scopes().items():
-            span.set_attribute(f"scope.{scope_key}", scope_value)
+            span.set_attribute(f"scope.{scope_key}", SpanHandler._coerce_scope_value(scope_value))
 
         if span_index > 0:
             span.set_attribute("entity.count", span_index)

@@ -13,7 +13,11 @@ from monocle_apptrace.exporters.file_exporter import FileSpanExporter
 from integration.servers.mcp.weather_server import app as weather_app
 from langchain_mcp_adapters.client import MultiServerMCPClient
 
-WEATHER_MCP_URL = "http://127.0.0.1:8086/weather/mcp/"
+# Share the weather MCP server on port 8001 with the other MCP integration tests.
+# Using a distinct port would let this test start the shared server singleton on a second
+# port, and StreamableHTTPSessionManager.run() is single-use per instance -- the second
+# start raises and breaks whichever test runs next. On one port only the first bind wins.
+WEATHER_MCP_URL = "http://127.0.0.1:8001/weather/mcp/"
 
 @pytest.fixture(scope="module")
 def in_memory_exporter():
@@ -24,7 +28,7 @@ def in_memory_exporter():
 def start_weather_server():
     """Start the Weather MCP server in a background thread for the test module."""
     def run_server():
-        uvicorn.run(weather_app, host="127.0.0.1", port=8086, log_level="error")
+        uvicorn.run(weather_app, host="127.0.0.1", port=8001, log_level="error")
     server_thread = threading.Thread(target=run_server, daemon=True)
     server_thread.start()
     time.sleep(2)  # Wait for server to start

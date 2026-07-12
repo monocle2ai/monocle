@@ -28,6 +28,13 @@ This document provides a comprehensive reference for all assertions supported by
 | `with_evaluation()` | `eval`, `eval_options=None` | Configures the evaluation method for input/output comparisons (e.g., LLM-based) |
 | `with_comparer()` | `comparer` | Sets the comparison strategy for input/output matching (e.g., exact, token-based) |
 
+## Attribute Assertions
+
+| Method | Parameters | Description |
+|--------|-----------|-------------|
+| `has_attribute()` | `key`, `value=None` | **Asserts:** A span carries the given attribute (and, when `value` is provided, that it equals `value`). Narrows the filtered spans to the matches for further chaining. Fails if no span has the attribute/value. |
+| `does_not_have_attribute()` | `key`, `value=None` | **Asserts:** No span carries the given attribute (or the given attribute/value pair when `value` is provided). Fails if a matching span is found. |
+
 ## Input Assertions
 
 | Method | Parameters | Description |

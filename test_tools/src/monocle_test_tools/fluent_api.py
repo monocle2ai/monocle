@@ -291,6 +291,52 @@ class TraceAssertion():
         return self
 
     @collect_assertions
+    def has_attribute(self, key:str, value:Optional[any] = None, message:Optional[str] = None) -> 'TraceAssertion':
+        """Assert that a span carries the given attribute (optionally with a specific value).
+
+        Filters the current spans down to those matching, so subsequent chained
+        assertions operate on the matching subset. When ``value`` is None, only the
+        presence of the attribute is checked.
+        """
+        matching_spans = self._filter_spans_by_attribute(self._filtered_spans, key, value)
+        self._filtered_spans = matching_spans
+        if not matching_spans:
+            if message:
+                raise AssertionError(message)
+            if value is None:
+                raise AssertionError(f"No span found with attribute '{key}'")
+            raise AssertionError(f"No span found with attribute '{key}' == '{value}'")
+        return self
+
+    @collect_assertions
+    def does_not_have_attribute(self, key:str, value:Optional[any] = None, message:Optional[str] = None) -> 'TraceAssertion':
+        """Assert that no span carries the given attribute (optionally with a specific value)."""
+        matching_spans = self._filter_spans_by_attribute(self._filtered_spans, key, value)
+        if matching_spans:
+            if message:
+                raise AssertionError(message)
+            if value is None:
+                raise AssertionError(f"Span found with attribute '{key}', but was not expected")
+            raise AssertionError(f"Span found with attribute '{key}' == '{value}', but was not expected")
+        return self
+
+    def _filter_spans_by_attribute(self, spans:Optional[list[Span]], key:str, value:Optional[any]) -> list[Span]:
+        """Return spans whose attribute ``key`` is present (and equals ``value`` when given)."""
+        matching_spans = []
+        for span in spans or []:
+            actual_value = span.attributes.get(key)
+            if actual_value is None:
+                continue
+            if value is None:
+                matching_spans.append(span)
+            elif isinstance(value, str) and isinstance(actual_value, str):
+                if self._comparer.compare(value, actual_value):
+                    matching_spans.append(span)
+            elif actual_value == value:
+                matching_spans.append(span)
+        return matching_spans
+
+    @collect_assertions
     def has_input(self, expected_input:str, message:Optional[str] = None) -> 'TraceAssertion':
         """Assert that the input matches the expected input."""
         self._verify_input_output(self._filtered_spans, expected_inputs=[expected_input],

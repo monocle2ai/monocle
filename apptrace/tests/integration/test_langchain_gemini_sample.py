@@ -31,7 +31,11 @@ def test_langchain_gemini_sample(setup):
     llm = ChatGoogleGenerativeAI(
         model="gemini-2.5-pro",
         temperature=0,
-        max_output_tokens=1024,
+        # gemini-2.5-pro is a thinking model: reasoning tokens count against
+        # max_output_tokens. 1024 is consumed entirely by "thoughts", so the call
+        # truncates (finish_reason=MAX_TOKENS) with 0 completion tokens. Give enough
+        # budget for reasoning + the actual answer so completion_tokens is produced.
+        max_output_tokens=8192,
         google_api_key=os.getenv("GEMINI_API_KEY"),
     )
 

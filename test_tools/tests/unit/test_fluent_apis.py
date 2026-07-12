@@ -30,5 +30,26 @@ def test_span_attribute_assertions(monocle_trace_asserter:TraceAssertion):
         .has_attribute("workflow.name") \
         .does_not_have_attribute("entity.1.type", "tool.openai")
 
+def test_generic_span_event_assertions(monocle_trace_asserter:TraceAssertion):
+    trace_path = os.path.join(os.path.dirname(__file__), "traces/trace1.json")
+    loaded = monocle_trace_asserter.with_trace_source(source="file", trace_path=trace_path)
+
+    matching = loaded.has_event(
+        event_name="metadata", attribute_name="total_tokens", expected=229
+    ).has_attribute("span.type", "inference")
+
+    assert matching._filtered_spans is not None
+    assert len(matching._filtered_spans) == 1
+
+def test_event_filter_distinguishes_missing_and_non_matching_values(monocle_trace_asserter:TraceAssertion):
+    trace_path = os.path.join(os.path.dirname(__file__), "traces/trace1.json")
+    loaded = monocle_trace_asserter.with_trace_source(source="file", trace_path=trace_path)
+    spans = loaded.validator.spans
+
+    assert spans is not None
+    assert loaded._filter_spans_by_event(spans, "metadata", "total_tokens", 229)
+    assert not loaded._filter_spans_by_event(spans, "metadata", "missing", None)
+    assert not loaded._filter_spans_by_event(spans, "metadata", "total_tokens", "229")
+
 if __name__ == "__main__":
     pytest.main([__file__])

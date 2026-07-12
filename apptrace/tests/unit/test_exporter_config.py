@@ -2,6 +2,7 @@ import logging
 import os
 import unittest
 import warnings
+from unittest.mock import patch
 
 from monocle_apptrace.exporters.monocle_exporters import get_monocle_exporter
 
@@ -56,6 +57,24 @@ class TestHandler(unittest.TestCase):
         default_exporter = get_monocle_exporter()
         assert default_exporter[0].__class__.__name__ == "OTLPSpanExporter"
         os.environ.clear()
+
+    def test_otlp_exporter_supports_authenticated_headers(self):
+        with patch.dict(
+            os.environ,
+            {
+                "MONOCLE_EXPORTER": "otlp",
+                "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT": "https://example.test/v1/traces",
+                "OTEL_EXPORTER_OTLP_TRACES_HEADERS": (
+                    "Authorization=Bearer%20test-token,X-Tenant-ID=test-tenant"
+                ),
+            },
+            clear=True,
+        ):
+            exporter = get_monocle_exporter()[0]
+
+            assert exporter._endpoint == "https://example.test/v1/traces"
+            assert exporter._session.headers["authorization"] == "Bearer test-token"
+            assert exporter._session.headers["x-tenant-id"] == "test-tenant"
 
 
     def test_monocle_console_adds_console_exporter(self):

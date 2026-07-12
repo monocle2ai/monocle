@@ -143,6 +143,50 @@ export OTEL_EXPORTER_OTLP_HEADERS="api-key=your-api-key"
 export OTEL_EXPORTER_OTLP_TIMEOUT=15000
 ```
 
+Header names and values use the standard OTLP environment-variable format. Percent-encode spaces and other reserved
+characters in header values. For example, an authenticated backend with a tenant header can be configured as:
+
+```bash
+export MONOCLE_EXPORTER=otlp
+export OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=https://observability.example.com/v1/traces
+export OTEL_EXPORTER_OTLP_TRACES_HEADERS="Authorization=Bearer%20your-token,X-Tenant-ID=your-tenant"
+```
+
+Monocle can export to Okahu and an OTLP backend simultaneously:
+
+```bash
+export MONOCLE_EXPORTER=okahu,otlp
+```
+
+#### OpenTelemetry GenAI semantic conventions
+
+When the built-in `otlp` exporter is configured, Monocle automatically adds OpenTelemetry `gen_ai.*` attributes
+alongside its existing metamodel attributes. Control this behavior with:
+
+```bash
+# Default: enable when the built-in OTLP exporter is configured
+export MONOCLE_OTEL_GENAI_SEMCONV=auto
+
+# Explicit overrides, including custom SpanProcessor configurations
+export MONOCLE_OTEL_GENAI_SEMCONV=true
+export MONOCLE_OTEL_GENAI_SEMCONV=false
+```
+
+The same override is available programmatically:
+
+```python
+setup_monocle_telemetry(
+    workflow_name="my_app",
+    otel_genai_semconv=True,
+)
+```
+
+Monocle isolates automatically instrumented spans from non-Monocle OpenTelemetry spans by default. To include both in one parent/child trace hierarchy, set this before importing Monocle:
+
+```bash
+export MONOCLE_ISOLATE_SPANS=false
+```
+
 #### Example with OpenTelemetry Collector
 ```bash
 # Run OpenTelemetry Collector locally

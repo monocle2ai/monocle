@@ -239,6 +239,7 @@ def build_setup_signature(
         wrapper_methods: Optional[list] = None,
         union_with_default_methods: bool = True,
         monocle_exporters_list: str = None,
+        otel_genai_semconv: object = None,
 ) -> dict:
     return {
         "workflow_name": workflow_name,
@@ -250,6 +251,7 @@ def build_setup_signature(
         ),
         "union_with_default_methods": _normalize_bool(union_with_default_methods),
         "monocle_exporters_list": _normalize_exporters_list(monocle_exporters_list),
+        "otel_genai_semconv": otel_genai_semconv,
     }
 
 def changed_setup_fields(previous: dict, current: dict) -> list[str]:

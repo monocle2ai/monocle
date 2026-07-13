@@ -22,7 +22,7 @@
        ```         
 - (Optionally) Modify config to alter where traces are sent
 
-See [Monocle user guide](Monocle_User_Guide.md) for more details.
+See [Monocle user guide](../docs/Monocle_User_Guide.md) for more details.
 
 ## Claude Code Instrumentation
 

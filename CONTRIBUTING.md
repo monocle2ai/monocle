@@ -39,6 +39,6 @@ Contributions to Monocle are welcome from everyone. The following are a set of g
 - Instruct newcomers in the community to complete the PR process.
 
 If you want to become a contributor of Monocle, submit your pull requests. All contributions to this project must be accompanied by acknowledgment of, and agreement to, the [Developer Certificate of Origin](https://github.com/apps/dco). All submissions will be reviewed as quickly as possible.
-Please refer to [Monocle Contributor Guide](Monocle_contributor_guide.md) for more details.
+Please refer to [Monocle Contributor Guide](docs/Monocle_contributor_guide.md) for more details.
 
 

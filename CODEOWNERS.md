@@ -11,7 +11,7 @@ Following is the current list of TSC members on this project.
 | [@kshitiz-okahu](https://github.com/kshitiz-okahu) | Kshitiz Vijayvargiya | Further AI |
 
 ### TSC Chair
-TBD
+Prasad Mujumdar [@prasad-okahu](https://github.com/prasad-okahu)
 
 ## MAINTAINERS
 Following is the current list of maintainers on this project.

@@ -253,6 +253,46 @@ setup_monocle_telemetry(
 
 ```
 
+#### Custom instrumentation without code (YAML)
+
+Instead of passing `wrapper_methods=[...]` in code, you can declare the same methods in a YAML file that Monocle reads automatically at `setup_monocle_telemetry()` time. This lets you instrument methods in your own code or in third-party libraries without any Python changes.
+
+By default Monocle looks for the file at `<cwd>/.monocle/custom_instrumentation.yaml`. To use a different directory, set the `MONOCLE_CUSTOM_INSTRUMENTATION_FILE_PATH` environment variable (the file name `custom_instrumentation.yaml` is fixed; the env var overrides only the directory, resolved relative to the current working directory):
+
+```bash
+export MONOCLE_CUSTOM_INSTRUMENTATION_FILE_PATH=config/monocle
+# → config/monocle/custom_instrumentation.yaml
+```
+
+The file is optional — if it is missing, custom instrumentation is silently skipped.
+
+```yaml
+instrument:
+  - package: myapp.services       # importable module path (required)
+    class: PaymentService         # class holding the method (required)
+    method: charge                # method to wrap (required)
+    span_name: payment.charge     # optional span name (defaults to Monocle's convention)
+    sync: true                    # optional; false for async methods (default: true)
+
+  - package: myapp.agents
+    class: ResearchAgent
+    method: run_async
+    span_name: agent.research
+    sync: false                   # wrapped with the async task wrapper
+```
+
+| Field | Required | Description |
+|---|---|---|
+| `package` | Yes | Importable module path where the class lives |
+| `class` | Yes | Class name whose method will be instrumented |
+| `method` | Yes | Method name to wrap |
+| `span_name` | No | Custom span name; falls back to the default naming if omitted |
+| `sync` | No | `true` (default) wraps a synchronous method; `false` wraps an `async` method |
+
+Each valid entry is wrapped with Monocle's generic span processor, so spans carry the standard captured attributes (`instance`, `args`, `kwargs`, `output`). Entries missing any of `package`, `class`, or `method` are skipped with a warning. These wrappers are merged with the built-in framework methods and any `wrapper_methods=[...]` you pass programmatically.
+
+> **Note:** Loading requires `pyyaml`. It is imported lazily and only needed when the config file is actually present.
+
 ### Going beyond supported genAI components
 - If you are using an application framework, model hosting service/infra etc. that's not currently supported by Monocle, please submit a github issue to add that support. 
 - Monocle community is working on adding an SDK to enable applications to generate their own traces.  

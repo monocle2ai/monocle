@@ -48,6 +48,7 @@ jobs:
           pip install -e '.[azure]'
           pip install -e '.[aws]'
           pip install -e '.[gcp]'
+          pip install -e '.[postgres]'
 
       - name: Install test_tools package and dependencies
         run: |

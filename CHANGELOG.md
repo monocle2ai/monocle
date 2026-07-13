@@ -1,3 +1,7 @@
+## Version 0.8.9 (2026-07-13)
+Packages: monocle_test_tools
+- fix: Improve test generator to add additional types of assertions [#704](https://github.com/monocle2ai/monocle/pull/704) 
+
 ## Version 0.8.8 (2026-07-08)
 - fix: LangGraph skip_span fix preventing duplicate agentic.invocation span ([#695](https://github.com/monocle2ai/monocle/pull/695))
 - chore: Update the release process steps to make release off a tag ([#693](https://github.com/monocle2ai/monocle/pull/693))

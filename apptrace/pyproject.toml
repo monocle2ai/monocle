@@ -99,7 +99,7 @@ dev = [
   'mistral-haystack==0.0.2',
   'langchain-aws>=0.3.0',
   'azure-storage-blob==12.22.0', # this is for blob exporter
-  'boto3==1.40.52', # this is for aws exporter
+  'boto3==1.42.86', # this is for aws exporter (>=1.42.86 required by bedrock-agentcore 1.6.1)
   'llama-index-vector-stores-opensearch==0.6.0',
   'haystack-ai==2.21.0',
   'llama-index-llms-azure-openai==0.4.0',
@@ -163,7 +163,7 @@ azure = [
 ]
 
 aws = [
-    'boto3==1.40.52',
+    'boto3==1.42.86',
 ]
 
 opentelemetry-exporter = [

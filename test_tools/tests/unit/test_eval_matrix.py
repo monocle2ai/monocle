@@ -1,4 +1,6 @@
-from monocle_test_tools.eval_matrix import build_eval_matrix_row
+from unittest.mock import Mock, patch
+from monocle_test_tools.eval_matrix import build_eval_matrix_row, reset_records, record_eval_row_for, get_records
+from monocle_test_tools.fluent_api import TraceAssertion
 
 
 def test_build_eval_matrix_row_pass_includes_tokens():
@@ -91,3 +93,84 @@ def test_build_eval_matrix_row_is_none_safe_for_missing_judge_output_keys():
     assert row["entity_match_check"] == ""
     # explanation is passed through as-is from last_eval (no forced fallback)
     assert row["explanation"] is None
+
+
+def test_recorder_does_not_bleed_stale_eval_between_tests():
+    """Regression test: verify that _last_eval state doesn't leak from scenario A to scenario B.
+
+    This tests the fragile class-level _last_eval attribute isolation: if a test
+    never populated _last_eval, it should record NO row and NOT inherit a previous
+    scenario's _last_eval.
+    """
+    reset_records()
+
+    # Scenario A: test with _last_eval set
+    asserter_a = TraceAssertion.get_trace_asserter()
+    # At this point, cleanup() has been called, so _last_eval is None
+    assert TraceAssertion._last_eval is None
+
+    # Manually set _last_eval (simulating what check_eval would do)
+    TraceAssertion._last_eval = {
+        "trace_id": "t1",
+        "expected": "major_hallucination",
+        "fact_name": "traces",
+        "label": "major_hallucination",
+        "explanation": "e",
+        "judge_output": {},
+        "total_tokens": 10,
+    }
+
+    # Record scenario A
+    mock_config_a = Mock()
+    mock_config_a.getoption.return_value = "test-matrix.json"
+    mock_node_a = Mock()
+    mock_node_a.name = "test_scenario_a"
+    mock_node_a.callspec = None
+    mock_rep_call_a = Mock()
+    mock_rep_call_a.passed = True
+    mock_node_a.rep_call = mock_rep_call_a
+    mock_request_a = Mock()
+    mock_request_a.config = mock_config_a
+    mock_request_a.node = mock_node_a
+
+    record_eval_row_for(mock_config_a, mock_request_a, asserter_a)
+
+    # Cleanup A (resets _last_eval to None)
+    asserter_a.cleanup()
+    assert TraceAssertion._last_eval is None
+
+    # Scenario B: test without _last_eval set
+    asserter_b = TraceAssertion.get_trace_asserter()
+    # Cleanup has reset _last_eval, so it should be None
+    assert TraceAssertion._last_eval is None
+
+    # Do NOT set _last_eval for scenario B
+
+    # Try to record scenario B
+    mock_config_b = Mock()
+    mock_config_b.getoption.return_value = "test-matrix.json"
+    mock_node_b = Mock()
+    mock_node_b.name = "test_scenario_b"
+    mock_node_b.callspec = None
+    mock_rep_call_b = Mock()
+    mock_rep_call_b.passed = True
+    mock_node_b.rep_call = mock_rep_call_b
+    mock_request_b = Mock()
+    mock_request_b.config = mock_config_b
+    mock_request_b.node = mock_node_b
+
+    record_eval_row_for(mock_config_b, mock_request_b, asserter_b)
+
+    # Cleanup B
+    asserter_b.cleanup()
+
+    # Verify: exactly ONE row recorded (from scenario A only)
+    records = get_records()
+    assert len(records) == 1, f"Expected 1 record, got {len(records)}: {records}"
+
+    # Verify the one row is from scenario A
+    row_a = records[0]
+    assert row_a["scenario"] == "test_scenario_a"
+    assert row_a["trace_id"] == "t1"
+    assert row_a["actual"] == "major_hallucination"
+    assert row_a["total_tokens"] == 10

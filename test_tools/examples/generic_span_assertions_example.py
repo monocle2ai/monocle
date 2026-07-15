@@ -9,15 +9,14 @@ which is useful for:
 """
 
 from monocle_test_tools import TraceAssertion
-from monocle_test_tools.span_loader import JSONSpanLoader
 
 
 def example_basic_attribute_assertions():
     """Basic attribute assertions using has_attribute()"""
     asserter = TraceAssertion.get_trace_asserter()
     
-    # Load test trace
-    asserter.load_spans(JSONSpanLoader.load_spans("traces/trace1.json"))
+    # Load test trace from file
+    asserter.with_trace_source(source="file", trace_path="traces/trace1.json")
     
     # Assert a span has a specific attribute with expected value
     asserter.has_attribute(attribute_name="span.type", expected="inference")
@@ -34,7 +33,7 @@ def example_basic_attribute_assertions():
 def example_event_assertions():
     """Event assertions using has_event()"""
     asserter = TraceAssertion.get_trace_asserter()
-    asserter.load_spans(JSONSpanLoader.load_spans("traces/trace1.json"))
+    asserter.with_trace_source(source="file", trace_path="traces/trace1.json")
     
     # Assert a span has an event with a specific attribute value
     asserter.has_event(
@@ -52,7 +51,7 @@ def example_event_assertions():
 def example_chaining_assertions():
     """Chain multiple assertions to narrow down spans"""
     asserter = TraceAssertion.get_trace_asserter()
-    asserter.load_spans(JSONSpanLoader.load_spans("traces/trace1.json"))
+    asserter.with_trace_source(source="file", trace_path="traces/trace1.json")
     
     # Chain attribute and event assertions
     # This filters to spans that match ALL criteria
@@ -66,7 +65,7 @@ def example_chaining_assertions():
 def example_where_generic_selector():
     """Use where() for complex multi-criteria filtering"""
     asserter = TraceAssertion.get_trace_asserter()
-    asserter.load_spans(JSONSpanLoader.load_spans("traces/trace1.json"))
+    asserter.with_trace_source(source="file", trace_path="traces/trace1.json")
     
     # Combine attribute and event criteria in one call
     asserter.where(
@@ -100,7 +99,7 @@ def example_validate_monocle_instrumentation():
     Real-world example: Validate Monocle's instrumentation of a tool call
     """
     asserter = TraceAssertion.get_trace_asserter()
-    asserter.load_spans(JSONSpanLoader.load_spans("traces/trace1.json"))
+    asserter.with_trace_source(source="file", trace_path="traces/trace1.json")
     
     # Validate tool invocation has correct Monocle attributes
     asserter \
@@ -118,7 +117,7 @@ def example_validate_agentic_turn():
     Validate an agentic turn has correct metadata
     """
     asserter = TraceAssertion.get_trace_asserter()
-    asserter.load_spans(JSONSpanLoader.load_spans("traces/trace1.json"))
+    asserter.with_trace_source(source="file", trace_path="traces/trace1.json")
     
     # Find all agentic turns with token metadata
     asserter.where(

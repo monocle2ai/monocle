@@ -15,6 +15,7 @@ _OPERATION_BY_SPAN_TYPE = {
 }
 
 OTEL_GENAI_SEMCONV_ENV = "MONOCLE_OTEL_GENAI_SEMCONV"
+OTEL_GENAI_SEMCONV_EXPORTER = "otlp-genai-semconv"
 _otel_genai_semconv_enabled = False
 
 
@@ -33,7 +34,7 @@ def configure_otel_genai_semconv(
     else:
         normalized = str(value).strip().lower()
         if normalized == "auto":
-            enabled = "otlp" in exporter_names
+            enabled = OTEL_GENAI_SEMCONV_EXPORTER in exporter_names
         elif normalized in {"true", "1", "yes", "on"}:
             enabled = True
         elif normalized in {"false", "0", "no", "off"}:

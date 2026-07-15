@@ -115,22 +115,23 @@ def test_non_ai_span_is_unchanged():
     assert span.attributes == attributes
 
 
-def test_auto_mode_follows_builtin_otlp_exporter():
+def test_auto_mode_only_follows_genai_semconv_exporter():
     with patch.dict("os.environ", {}, clear=True):
-        assert configure_otel_genai_semconv(None, ("okahu", "otlp")) is True
+        assert configure_otel_genai_semconv(None, ("okahu", "otlp-genai-semconv")) is True
+        assert configure_otel_genai_semconv(None, ("okahu", "otlp")) is False
         assert configure_otel_genai_semconv(None, ("okahu",)) is False
 
 
 def test_environment_can_override_auto_mode():
     with patch.dict("os.environ", {"MONOCLE_OTEL_GENAI_SEMCONV": "false"}, clear=True):
-        assert configure_otel_genai_semconv(None, ("otlp",)) is False
+        assert configure_otel_genai_semconv(None, ("otlp-genai-semconv",)) is False
 
     with patch.dict("os.environ", {"MONOCLE_OTEL_GENAI_SEMCONV": "true"}, clear=True):
-        assert configure_otel_genai_semconv(None, ("file",)) is True
+        assert configure_otel_genai_semconv(None, ("otlp",)) is True
 
 
 def test_disabled_semantic_conventions_leave_ai_span_unchanged():
-    configure_otel_genai_semconv(False, ("otlp",))
+    configure_otel_genai_semconv(False, ("otlp-genai-semconv",))
     attributes = {"span.type": "inference"}
     span = FakeSpan("inference", attributes)
 

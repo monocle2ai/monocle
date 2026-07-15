@@ -58,6 +58,13 @@ class TestHandler(unittest.TestCase):
         assert default_exporter[0].__class__.__name__ == "OTLPSpanExporter"
         os.environ.clear()
 
+    def test_otlp_genai_semconv_exporter(self):
+        os.environ['MONOCLE_EXPORTER'] = "otlp-genai-semconv"
+        os.environ['OTEL_EXPORTER_OTLP_ENDPOINT'] = "http://localhost:4318"
+        default_exporter = get_monocle_exporter()
+        assert default_exporter[0].__class__.__name__ == "OTLPSpanExporter"
+        os.environ.clear()
+
     def test_otlp_exporter_supports_authenticated_headers(self):
         with patch.dict(
             os.environ,
@@ -113,3 +120,4 @@ if __name__ == "__main__":
     handler.test_memory_exporter()
     handler.test_console_exporter()
     handler.test_otlp_exporter()
+    handler.test_otlp_genai_semconv_exporter()

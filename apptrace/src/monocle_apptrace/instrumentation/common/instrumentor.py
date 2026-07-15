@@ -288,13 +288,14 @@ def setup_monocle_telemetry(
         If False, only use the provided wrapper_methods.
     monocle_exporters_list : str, optional
         Comma-separated list of exporters to use. This will override the env setting MONOCLE_EXPORTER.
-        Supported exporters are: s3, blob, okahu, file, memory, console, otlp.
+        Supported exporters are: s3, blob, okahu, file, memory, console, otlp, otlp-genai-semconv.
         For OTLP exporter, configure the endpoint via OTEL_EXPORTER_OTLP_ENDPOINT environment variable.
         This can't be combined with `span_processors`.
     otel_genai_semconv : str or bool, optional
         Controls OpenTelemetry GenAI semantic attributes. ``None`` or ``auto`` enables them when the built-in
-        ``otlp`` exporter is configured. ``True`` and ``False`` explicitly enable or disable them. The
-        MONOCLE_OTEL_GENAI_SEMCONV environment variable provides the same auto/true/false control.
+        ``otlp-genai-semconv`` exporter is configured. The existing ``otlp`` exporter leaves them disabled by
+        default. ``True`` and ``False`` explicitly enable or disable them. The MONOCLE_OTEL_GENAI_SEMCONV
+        environment variable provides the same auto/true/false control.
     """
     # workflow_name is determined in the following order of precedence:
     # 1. Argument passed to this function

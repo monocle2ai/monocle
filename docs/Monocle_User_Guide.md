@@ -101,6 +101,7 @@ Supported exporters:
 - `blob` - Upload traces to Azure Blob Storage
 - `okahu` - Send traces to Okahu observability platform
 - `otlp` - Send traces to any OTLP-compatible backend (e.g., Jaeger, Zipkin, Grafana Tempo, OpenTelemetry Collector)
+- `otlp-genai-semconv` - Send traces over OTLP and add OpenTelemetry `gen_ai.*` semantic attributes
 
 Examples:
 ```bash
@@ -112,6 +113,9 @@ export MONOCLE_EXPORTER=console
 
 # Use OTLP exporter
 export MONOCLE_EXPORTER=otlp
+
+# Use OTLP exporter with GenAI semantic attributes
+export MONOCLE_EXPORTER=otlp-genai-semconv
 
 # Use multiple exporters (file and console)
 export MONOCLE_EXPORTER=file,console
@@ -160,11 +164,18 @@ export MONOCLE_EXPORTER=okahu,otlp
 
 #### OpenTelemetry GenAI semantic conventions
 
-When the built-in `otlp` exporter is configured, Monocle automatically adds OpenTelemetry `gen_ai.*` attributes
-alongside its existing metamodel attributes. Control this behavior with:
+The existing `otlp` exporter preserves Monocle's original span attributes. To add OpenTelemetry `gen_ai.*`
+attributes alongside the existing Monocle metamodel attributes, select the `otlp-genai-semconv` exporter:
 
 ```bash
-# Default: enable when the built-in OTLP exporter is configured
+export MONOCLE_EXPORTER=otlp-genai-semconv
+```
+
+Both exporter names use the same OTLP endpoint, headers, and timeout configuration. Control semantic-convention
+enrichment explicitly with:
+
+```bash
+# Default: enable only when otlp-genai-semconv is configured
 export MONOCLE_OTEL_GENAI_SEMCONV=auto
 
 # Explicit overrides, including custom SpanProcessor configurations

@@ -5,7 +5,7 @@ from monocle_test_tools import (
 )
 from span_loader import JSONSpanLoader
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="function")
 def setup():
     """Fixture to create a MonocleValidator instance for testing."""
     validator = MonocleValidator()
@@ -64,6 +64,62 @@ def test_agent_invocation(setup):
         }]
     )
 
+    setup.validate(test_case)
+
+def test_span_attributes_positive(setup):
+    """Verify expected attributes are present on the matched tool invocation span."""
+    test_case = TestCase(
+        test_spans=[
+            TestSpan(span_type="agentic.tool.invocation",
+                entities=[
+                    Entity(type="tool", name="adk_book_hotel_5"),
+                    Entity(type="agent", name="adk_hotel_booking_agent_5")
+                ],
+                attributes={
+                    "entity.1.type": "tool.adk",
+                    "workflow.name": "adk-travel-agent",
+                },
+            )
+        ]
+    )
+    setup.validate(test_case)
+
+def test_span_attributes_missing_fails(setup):
+    """A non-existent attribute value should fail the positive assertion."""
+    test_case = TestCase(
+        test_spans=[
+            TestSpan(span_type="agentic.tool.invocation",
+                entities=[
+                    Entity(type="tool", name="adk_book_hotel_5"),
+                ],
+                attributes={"entity.1.type": "tool.openai"},
+            )
+        ]
+    )
+    with pytest.raises(AssertionError):
+        setup.validate(test_case)
+
+def test_span_attributes_negative(setup):
+    """Negative test passes when no span of the type carries the given attribute value."""
+    test_case = TestCase(
+        test_spans=[
+            TestSpan(span_type="inference",
+                attributes={"entity.1.provider_name": "openai"},
+                test_type="negative",
+            )
+        ]
+    )
+    setup.validate(test_case)
+
+def test_inference_span_attributes(setup):
+    """Verify attributes on an inference span."""
+    test_case = TestCase(
+        test_spans=[
+            TestSpan(span_type="inference",
+                attributes={"entity.1.provider_name": "gcp"},
+            )
+        ]
+    )
     setup.validate(test_case)
 
 if __name__ == "__main__":

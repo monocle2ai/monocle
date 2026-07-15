@@ -111,8 +111,7 @@ class MonocleValidator:
         rules.append(TokenCountRule())
 
         # Rule 3: Tool metadata
-        ### Temporarily skipping tool metadata rule. Need to refactor as a follow up patch.
-        ## rules.append(ToolMetadataRule())
+        rules.append(ToolMetadataRule())
 
         # Rule 4: Naming convention
         rules.append(NamingConventionRule())

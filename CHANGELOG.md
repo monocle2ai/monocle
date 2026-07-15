@@ -5,6 +5,9 @@
 - feat(exporters): add `MONOCLE_CONSOLE` env var to enable console output alongside any configured exporter ([#577](https://github.com/monocle2ai/monocle/pull/577))
 - fix(test_tools): lazy-load `SentenceTransformer` to prevent crash at pytest collection time in network-restricted environments ([#576](https://github.com/monocle2ai/monocle/pull/576))
 
+## Version 0.8.7 (2026-07-02)
+- fix: Add direct file read for span loader ([676](https://github.com/monocle2ai/monocle/pull/676))
+
 ## Version 0.8.6 (2026-06-25)
 - fix: litellm input fix with AZURE OPENAI ([#656](https://github.com/monocle2ai/monocle/pull/656))
 - feat: capture FastAPI POST bodies in HTTP spans ([#643](https://github.com/monocle2ai/monocle/pull/643))

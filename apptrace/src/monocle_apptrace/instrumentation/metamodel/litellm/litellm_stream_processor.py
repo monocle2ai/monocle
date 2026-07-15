@@ -2,42 +2,23 @@
 
 from typing import Any
 
-from monocle_apptrace.instrumentation.common.stream_processor import (
-    BaseStreamProcessor,
-    StreamState,
+from monocle_apptrace.instrumentation.common.stream_processor import StreamState
+from monocle_apptrace.instrumentation.metamodel.openai.openai_stream_processor import (
+    OpenAIStreamProcessor,
 )
 
 
-class LiteLLMStreamProcessor(BaseStreamProcessor):
+class LiteLLMStreamProcessor(OpenAIStreamProcessor):
     """Stream processor for LiteLLM streaming responses.
 
-    LiteLLM streaming yields response chunks where:
-    - Each chunk has partial text in choices[0].delta.content
-    - The final chunk carries finish_reason in choices[0].finish_reason
-    - Token usage is typically not available in stream chunks
-    - Both text and finish_reason can appear in the same (final) chunk
+    LiteLLM mirrors OpenAI's streaming format (chunks with partial text in
+    choices[0].delta, tool-call fragments across chunks, finish_reason on a
+    terminal chunk), so chunk/event handling and tool-call assembly are
+    inherited from the OpenAI-format processor. The overrides below keep the
+    LiteLLM-specific behaviors: usage normalization across provider key names
+    (OpenAI/Anthropic/Vertex), and processing text + completion metadata that
+    can arrive on the same (final) chunk.
     """
-
-    def handle_event(self, item: Any, state: StreamState) -> bool:
-        # LiteLLM does not use SSE-style response.* events
-        return False
-
-    def handle_chunk(self, item: Any, state: StreamState) -> bool:
-        """Extract partial text from a LiteLLM streaming chunk.
-
-        Tool calls are NOT assembled here — they arrive as fragments across
-        multiple chunks and are reconstructed in assemble_data() after the
-        stream completes.
-        """
-        if not (hasattr(item, "choices") and item.choices):
-            return False
-
-        choice = item.choices[0]
-        if not (hasattr(choice, "delta") and hasattr(choice.delta, "content") and choice.delta.content):
-            return False
-
-        state.add_content(choice.delta.content)
-        return True
 
     def handle_completion(self, item: Any, state: StreamState) -> bool:
         """Capture finish_reason and token usage from final LiteLLM chunks."""
@@ -85,45 +66,6 @@ class LiteLLMStreamProcessor(BaseStreamProcessor):
                 found = True
 
         return found
-
-    def assemble_data(self, state: StreamState) -> None:
-        """Assemble tool call name/args from fragmented streaming chunks.
-
-        LiteLLM mirrors OpenAI's streaming format: function name arrives in the
-        first tool_call delta; arguments accumulate across subsequent deltas.
-        We iterate raw_items here to reconstruct each tool call correctly.
-        """
-        tool_call_map: dict = {}  # index -> {name, args_parts}
-        for item in state.raw_items:
-            try:
-                if not (hasattr(item, "choices") and item.choices):
-                    continue
-                choice = item.choices[0]
-                if not (hasattr(choice, "delta") and hasattr(choice.delta, "tool_calls") and choice.delta.tool_calls):
-                    continue
-                for tool_call in choice.delta.tool_calls:
-                    idx = getattr(tool_call, "index", 0)
-                    if idx not in tool_call_map:
-                        tool_call_map[idx] = {"name": "", "args_parts": []}
-                    if hasattr(tool_call, "function") and tool_call.function:
-                        func = tool_call.function
-                        if getattr(func, "name", None):
-                            tool_call_map[idx]["name"] = func.name
-                        if getattr(func, "arguments", None):
-                            tool_call_map[idx]["args_parts"].append(func.arguments)
-                # Capture finish_reason
-                finish_reason = getattr(choice, "finish_reason", None)
-                if finish_reason:
-                    state.finish_reason = finish_reason
-            except Exception as e:
-                self.logger.warning("Warning: Error assembling tool call data: %s", str(e))
-
-        if tool_call_map:
-            # Replace any partially assembled tools with fully assembled ones
-            state.tools = [
-                {"name": tc["name"], "args": "".join(tc["args_parts"])}
-                for tc in tool_call_map.values()
-            ]
 
     def try_framework_specific_processing(self, item: Any, state: StreamState) -> bool:
         """Override to allow both text extraction AND finish_reason capture on the same chunk."""

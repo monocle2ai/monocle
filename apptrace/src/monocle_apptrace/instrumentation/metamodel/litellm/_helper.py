@@ -164,7 +164,8 @@ def extract_assistant_message(arguments):
             if hasattr(response, 'tools') and response.tools:
                 role = "assistant"
                 tool = response.tools[0]
-                messages.append({role: f'"tool_name": "{tool.get("name", "")}", "arguments": {tool.get("args", {})}'})
+                tool_arguments = tool.get("arguments", tool.get("args", ""))
+                messages.append({role: f'"tool_name": "{tool.get("name", "")}", "arguments": {tool_arguments}'})
             elif response.output_text:
                 role = getattr(response, 'role', 'assistant') or 'assistant'
                 messages.append({role: response.output_text})
@@ -175,12 +176,21 @@ def extract_assistant_message(arguments):
         if status == 'success' or status == 'completed':
             if (response is not None and hasattr(response, "choices") and len(response.choices) > 0):
                 if hasattr(response.choices[0], "message"):
-                    role = (
-                        response.choices[0].message.role
-                        if hasattr(response.choices[0].message, "role")
-                        else "assistant"
-                    )
-                    messages.append({role: response.choices[0].message.content})
+                    message = response.choices[0].message
+                    role = getattr(message, "role", None) or "assistant"
+                    # tool-call responses carry null content; surface the tool
+                    # calls instead (mirrors the openai metamodel helper)
+                    if getattr(message, "tool_calls", None):
+                        tools = []
+                        for tool in message.tool_calls:
+                            tools.append({
+                                "tool_id": getattr(tool, "id", ""),
+                                "tool_name": getattr(getattr(tool, "function", None), "name", "") or "",
+                                "tool_arguments": getattr(getattr(tool, "function", None), "arguments", "") or "",
+                            })
+                        messages.append({role: tools})
+                    else:
+                        messages.append({role: message.content})
             return get_json_dumps(messages[0]) if messages else ""
         else:
             if arguments["exception"] is not None:
@@ -342,3 +352,104 @@ def extract_tool_type(arguments):
         logger.warning("Warning: Error occurred in extract_tool_type: %s", str(e))
     
     return None
+
+def _item_attr(item, key):
+    if isinstance(item, dict):
+        return item.get(key)
+    return getattr(item, key, None)
+
+
+def extract_responses_input(kwargs):
+    """Extract input messages for the Responses API path (kwargs['input'])."""
+    try:
+        raw_input = kwargs.get("input")
+        if raw_input is None:
+            return []
+        if isinstance(raw_input, str):
+            return [get_json_dumps({"user": raw_input})]
+        messages = []
+        for item in raw_input:
+            role = _item_attr(item, "role")
+            content = _item_attr(item, "content")
+            if role and content is not None:
+                messages.append({role: content})
+            elif isinstance(item, dict):
+                messages.append(item)
+            else:
+                messages.append(str(item))
+        return [get_json_dumps(message) for message in messages]
+    except Exception as e:
+        logger.warning("Warning: Error occurred in extract_responses_input: %s", str(e))
+        return []
+
+
+def extract_responses_output(arguments):
+    """Extract assistant message/tool calls from a ResponsesAPIResponse."""
+    try:
+        if arguments.get("exception") is not None:
+            return get_exception_message(arguments)
+        response = arguments["result"]
+        if response is None:
+            return ""
+        messages = []
+        tools = []
+        texts = []
+        # Assembled streaming result (SimpleNamespace from the stream processor)
+        if hasattr(response, "output_text"):
+            for tool in getattr(response, "tools", None) or []:
+                tools.append({
+                    "tool_id": tool.get("id", ""),
+                    "tool_name": tool.get("name", ""),
+                    "tool_arguments": tool.get("arguments", tool.get("args", "")),
+                })
+            if response.output_text:
+                texts.append(response.output_text)
+        else:
+            for item in getattr(response, "output", None) or []:
+                item_type = _item_attr(item, "type")
+                if item_type == "function_call":
+                    tools.append({
+                        "tool_id": _item_attr(item, "call_id") or "",
+                        "tool_name": _item_attr(item, "name") or "",
+                        "tool_arguments": _item_attr(item, "arguments") or "",
+                    })
+                elif item_type == "message":
+                    for part in _item_attr(item, "content") or []:
+                        text = _item_attr(part, "text")
+                        if text:
+                            texts.append(text)
+        if tools:
+            messages.append({"tools": tools})
+        if texts:
+            messages.append({"assistant": "\n".join(texts)})
+        return get_json_dumps(messages[0]) if messages else ""
+    except Exception as e:
+        logger.warning("Warning: Error occurred in extract_responses_output: %s", str(e))
+        return None
+
+
+def extract_responses_finish_reason(arguments):
+    """Finish reason for the Responses API: tool_calls beat plain completion status."""
+    try:
+        if arguments.get("exception") is not None:
+            return "error"
+        response = arguments.get("result")
+        if response is None:
+            return None
+        if hasattr(response, "output_text"):
+            if getattr(response, "tools", None):
+                return "tool_calls"
+            return getattr(response, "finish_reason", None) or "completed"
+        for item in getattr(response, "output", None) or []:
+            if _item_attr(item, "type") == "function_call":
+                return "tool_calls"
+        return getattr(response, "status", None)
+    except Exception as e:
+        logger.warning("Warning: Error occurred in extract_responses_finish_reason: %s", str(e))
+        return None
+
+
+def responses_inference_type(arguments):
+    if extract_responses_finish_reason(arguments) == "tool_calls":
+        return INFERENCE_TOOL_CALL
+    return INFERENCE_TURN_END

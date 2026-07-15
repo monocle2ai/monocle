@@ -16,7 +16,18 @@ class OpenAIStreamProcessor(BaseStreamProcessor):
         
         state.update_first_token_time()
         
-        if item.type == StreamEventTypes.RESPONSE_OUTPUT_TEXT_DELTA:
+        if item.type == "response.output_item.added":
+            output_item = getattr(item, "item", None)
+            if getattr(output_item, "type", None) == "function_call":
+                state.tools.append({
+                    "id": getattr(output_item, "call_id", None) or getattr(output_item, "id", "") or "",
+                    "name": getattr(output_item, "name", "") or "",
+                    "arguments": getattr(output_item, "arguments", "") or "",
+                })
+        elif item.type == "response.function_call_arguments.delta":
+            if state.tools and getattr(item, "delta", None):
+                state.tools[-1]["arguments"] += item.delta
+        elif item.type == StreamEventTypes.RESPONSE_OUTPUT_TEXT_DELTA:
             state.accumulated_response += item.delta
         elif item.type == StreamEventTypes.RESPONSE_TEXT_DELTA:
             state.accumulated_response += item.delta
@@ -48,6 +59,13 @@ class OpenAIStreamProcessor(BaseStreamProcessor):
         if hasattr(delta, "refusal") and delta.refusal:
             state.refusal = delta.refusal
 
+        # Some providers (e.g. litellm's CustomStreamWrapper) attach usage to a
+        # chunk that still carries an empty delta, so it never reaches
+        # handle_completion — capture it here too.
+        if hasattr(item, "usage") and item.usage:
+            state.token_usage = item.usage
+            state.close_stream()
+
         return True
 
     def handle_completion(self, item: Any, state: StreamState) -> bool:
@@ -68,6 +86,9 @@ class OpenAIStreamProcessor(BaseStreamProcessor):
 
     def assemble_data(self, state: StreamState) -> None:
         """Assemble tool calls and completion data from fragmented streaming chunks."""
+        # A tool call streams as one id/name-bearing fragment followed by
+        # id-less fragments carrying argument deltas; accumulate by index.
+        tools_by_index = {}
         for item in state.raw_items:
             try:
                 if (hasattr(item, "choices") and item.choices and
@@ -80,14 +101,25 @@ class OpenAIStreamProcessor(BaseStreamProcessor):
                         choice.delta.tool_calls):
 
                         for tool_call in choice.delta.tool_calls:
-                            if (hasattr(tool_call, "id") and tool_call.id and
-                                hasattr(tool_call, "function") and tool_call.function):
-
-                                state.tools.append({
+                            index = getattr(tool_call, "index", None)
+                            if index is None:
+                                # id-less argument fragments without an index
+                                # belong to the most recently started call
+                                index = max(tools_by_index) if tools_by_index and not getattr(tool_call, "id", None) else len(tools_by_index)
+                            if getattr(tool_call, "id", None) and getattr(tool_call, "function", None) is not None:
+                                tools_by_index[index] = {
                                     "id": tool_call.id,
-                                    "name": tool_call.function.name,
-                                    "arguments": getattr(tool_call.function, "arguments", ""),
-                                })
+                                    "name": getattr(tool_call.function, "name", None) or "",
+                                    "arguments": "",
+                                }
+                            entry = tools_by_index.get(index)
+                            function = getattr(tool_call, "function", None)
+                            if entry is not None and function is not None:
+                                if not entry["name"] and getattr(function, "name", None):
+                                    entry["name"] = function.name
+                                arguments_piece = getattr(function, "arguments", None)
+                                if arguments_piece:
+                                    entry["arguments"] += arguments_piece
 
                     # Extract finish_reason
                     if hasattr(choice, "finish_reason") and choice.finish_reason:
@@ -97,3 +129,4 @@ class OpenAIStreamProcessor(BaseStreamProcessor):
                 self.logger.warning(
                     "Warning: Error occurred while processing tool calls: %s", str(e)
                 )
+        state.tools.extend(tools_by_index[index] for index in sorted(tools_by_index))

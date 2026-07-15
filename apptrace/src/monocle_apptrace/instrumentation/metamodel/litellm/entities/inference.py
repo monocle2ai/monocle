@@ -154,3 +154,10 @@ INFERENCE = {
         },
     ],
 }
+
+# streaming/async_streaming are unconditionally streaming; `stream` is not in
+# their optional_params (litellm sets data["stream"] internally).
+INFERENCE_STREAMING = {
+    **INFERENCE,
+    "is_auto_close": lambda kwargs: False,
+}

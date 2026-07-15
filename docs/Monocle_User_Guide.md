@@ -101,6 +101,7 @@ Supported exporters:
 - `blob` - Upload traces to Azure Blob Storage
 - `okahu` - Send traces to Okahu observability platform
 - `otlp` - Send traces to any OTLP-compatible backend (e.g., Jaeger, Zipkin, Grafana Tempo, OpenTelemetry Collector)
+- `otlp-genai-semconv` - Send traces over OTLP and add OpenTelemetry `gen_ai.*` semantic attributes
 
 Examples:
 ```bash
@@ -112,6 +113,9 @@ export MONOCLE_EXPORTER=console
 
 # Use OTLP exporter
 export MONOCLE_EXPORTER=otlp
+
+# Use OTLP exporter with GenAI semantic attributes
+export MONOCLE_EXPORTER=otlp-genai-semconv
 
 # Use multiple exporters (file and console)
 export MONOCLE_EXPORTER=file,console
@@ -141,6 +145,57 @@ export OTEL_EXPORTER_OTLP_HEADERS="api-key=your-api-key"
 
 # Optional: Configure timeout (in milliseconds, default: 10000)
 export OTEL_EXPORTER_OTLP_TIMEOUT=15000
+```
+
+Header names and values use the standard OTLP environment-variable format. Percent-encode spaces and other reserved
+characters in header values. For example, an authenticated backend with a tenant header can be configured as:
+
+```bash
+export MONOCLE_EXPORTER=otlp
+export OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=https://observability.example.com/v1/traces
+export OTEL_EXPORTER_OTLP_TRACES_HEADERS="Authorization=Bearer%20your-token,X-Tenant-ID=your-tenant"
+```
+
+Monocle can export to Okahu and an OTLP backend simultaneously:
+
+```bash
+export MONOCLE_EXPORTER=okahu,otlp
+```
+
+#### OpenTelemetry GenAI semantic conventions
+
+The existing `otlp` exporter preserves Monocle's original span attributes. To add OpenTelemetry `gen_ai.*`
+attributes alongside the existing Monocle metamodel attributes, select the `otlp-genai-semconv` exporter:
+
+```bash
+export MONOCLE_EXPORTER=otlp-genai-semconv
+```
+
+Both exporter names use the same OTLP endpoint, headers, and timeout configuration. Control semantic-convention
+enrichment explicitly with:
+
+```bash
+# Default: enable only when otlp-genai-semconv is configured
+export MONOCLE_OTEL_GENAI_SEMCONV=auto
+
+# Explicit overrides, including custom SpanProcessor configurations
+export MONOCLE_OTEL_GENAI_SEMCONV=true
+export MONOCLE_OTEL_GENAI_SEMCONV=false
+```
+
+The same override is available programmatically:
+
+```python
+setup_monocle_telemetry(
+    workflow_name="my_app",
+    otel_genai_semconv=True,
+)
+```
+
+Monocle isolates automatically instrumented spans from non-Monocle OpenTelemetry spans by default. To include both in one parent/child trace hierarchy, set this before importing Monocle:
+
+```bash
+export MONOCLE_ISOLATE_SPANS=false
 ```
 
 #### Example with OpenTelemetry Collector

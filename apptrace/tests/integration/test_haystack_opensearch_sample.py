@@ -1,4 +1,4 @@
-from asyncio import subprocess
+import subprocess
 import logging
 import os
 import sys

@@ -164,26 +164,6 @@ pip install monocle_test_tools
   ```
 </details>
 
-<details>
-  <summary><b>Example: assert on pre-recorded traces (offline)</b></summary>
-
-  Load a saved Monocle trace JSON and assert against it — no live agent run, no API keys.
-
-  ```python
-  from monocle_test_tools.span_loader import JSONSpanLoader
-
-  def test_from_saved_trace(monocle_trace_asserter):
-      monocle_trace_asserter.load_spans(
-          JSONSpanLoader.from_json("monocle/monocle_trace_my_app_abc123.json")
-      )
-
-      monocle_trace_asserter \
-          .called_agent("summarizer_agent") \
-          .contains_output("revenue")
-
-      monocle_trace_asserter.does_not_call_tool("delete_record")
-  ```
-</details>
 
 <details>
   <summary><b>Example: multi-turn session evaluation</b></summary>
@@ -309,7 +289,7 @@ These integrations make it easy to go from **local debug** → **CI/CD testing**
 
 | Resource | Description |
 | --- | --- |
-| **[User Guide](Monocle_User_Guide.md)** | Installation, configuration, and how traces are structured |
+| **[User Guide](docs/Monocle_User_Guide.md)** | Installation, configuration, and how traces are structured |
 | **[Trace API](docs/monocle_trace_api.md)** | `monocle_trace` / `amonocle_trace` and low-level `start_trace` / `stop_trace` |
 | **[Scope API](docs/monocle_scope_api.md)** | `monocle_trace_scope` helpers to attach scopes across spans |
 | **[Test Assertions](docs/monocle_test_assertions.md)** | Complete reference for all fluent API assertions in `monocle-test-tools` |

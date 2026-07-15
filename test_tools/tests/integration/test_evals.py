@@ -119,6 +119,5 @@ async def test_v1_invalid_template_wrong_fact_name_frustration(monocle_trace_ass
     monocle_trace_asserter.with_evaluation("okahu").check_eval(fact_name="inferences", eval_name="frustration", expected="ok")
 
 
-
 if __name__ == "__main__":
     pytest.main([__file__]) 

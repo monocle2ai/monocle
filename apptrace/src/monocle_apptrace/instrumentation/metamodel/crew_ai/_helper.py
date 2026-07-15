@@ -38,10 +38,12 @@ def extract_request_agent_input(arguments):
     try:
         if arguments['kwargs'] is not None and 'inputs' in arguments['kwargs']:
             inputs = arguments['kwargs']['inputs']
+            # Stringify values: OpenTelemetry drops an event attribute whose value is a
+            # sequence containing a non-primitive (e.g. a dict), emptying data.input.
             if isinstance(inputs, dict):
-                return list(inputs.values())
+                return [str(value) for value in inputs.values()]
             elif isinstance(inputs, list):
-                return inputs
+                return [str(item) for item in inputs]
             else:
                 return [str(inputs)]
         return []
@@ -54,19 +56,24 @@ def extract_agent_input(arguments):
         # Check kwargs first (CrewAI passes task in kwargs)
         if arguments['kwargs'] is not None:
             kwargs = arguments['kwargs']
-            
+
             # Extract task description if available
             if 'task' in kwargs and hasattr(kwargs['task'], 'description'):
                 return [kwargs['task'].description]
-            
+
             # Fallback to any other string values in kwargs
             input_values = []
+            # Task.execute_sync carries its prompt on the instance, not in kwargs; without
+            # this the first task (no prior-task context) would have an empty data.input.
+            instance = arguments.get('instance')
+            if instance is not None and getattr(instance, 'description', None):
+                input_values.append(instance.description)
             for key, value in kwargs.items():
                 if isinstance(value, str) and value.strip():
                     input_values.append(f"{key}: {value}")
                 elif hasattr(value, 'description') and value.description:
                     input_values.append(value.description)
-            
+
             if input_values:
                 return input_values
         
@@ -121,14 +128,18 @@ def update_span_from_llm_response(response):
 def extract_tool_response(result):
     try:
         if result is not None:
-            if hasattr(result, 'output'):
-                return str(result.output)
-            elif hasattr(result, 'content'):
-                return str(result.content)
-            elif isinstance(result, str):
+            # Use .output/.content only when non-None: some tools (e.g. Exa SearchResponse)
+            # expose .output=None with the real payload elsewhere, so str(.output) ("None")
+            # would drop it — fall through to str(result) instead.
+            output = getattr(result, 'output', None)
+            if output is not None:
+                return str(output)
+            content = getattr(result, 'content', None)
+            if content is not None:
+                return str(content)
+            if isinstance(result, str):
                 return result
-            else:
-                return str(result)
+            return str(result)
     except Exception as e:
         logger.warning("Error extracting tool response: %s", str(e))
     return ""

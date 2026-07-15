@@ -12,6 +12,14 @@ STRAND_METHODS = [
         "output_processor_list": [AGENT_REQUEST, AGENT]
     },
     {
+        "package": "strands.agent.agent",
+        "object": "Agent",
+        "method": "stream_async",
+        "wrapper_method": atask_iter_wrapper,
+        "span_handler": "strands_handler",
+        "output_processor_list": [AGENT_REQUEST, AGENT]
+    },
+    {
         "package": "strands.tools.executors.concurrent",
         "object": "ConcurrentToolExecutor",
         "method": "_execute",

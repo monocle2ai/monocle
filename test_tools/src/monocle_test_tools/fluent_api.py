@@ -51,6 +51,14 @@ class TraceAssertion():
     _eval:Optional[Union[str, BaseEval]]  = None
     _comparer: Union[str, BaseComparer] = DefaultComparer()
     _assertion_errors: list[dict[str, any]] = []
+    # Per-test eval-result-matrix stash (see check_eval). Class-level like
+    # _assertion_errors above: @collect_assertions returns a *new*
+    # TraceAssertion for every fluent call, so instance attributes set
+    # inside a chained method are invisible to the fixture's original
+    # asserter. Reassign only via `TraceAssertion._last_eval = ...`
+    # (class-qualified) and otherwise mutate in place (`.update(...)`) so
+    # the fixture's `traceAssertion.__last_eval` sees the same object.
+    _last_eval: Optional[dict[str, Any]] = None
 
     @staticmethod
     def get_trace_asserter():
@@ -107,6 +115,7 @@ class TraceAssertion():
         self.validator.cleanup()
         self._filtered_spans = None
         TraceAssertion._assertion_errors = []
+        TraceAssertion._last_eval = None
 
     @staticmethod
     def _validate_count_params(count: Optional[int], min_count: Optional[int], max_count: Optional[int]) -> None:
@@ -718,7 +727,38 @@ class TraceAssertion():
             raise AssertionError(message if message else "No evaluator configured. Call with_evaluation before check_eval.")
         if not self._filtered_spans:
             raise AssertionError(message if message else "No spans available for evaluation. Chain a span selector before check_eval.")
+
+        # Stash a per-call eval-result-matrix record on the asserter (additive,
+        # opt-in recorder in pytest_plugin.py reads this via `_last_eval`).
+        # Populated up-front so trace_id/expected survive even if evaluate()
+        # raises; updated below once a label/explanation are obtained.
+        try:
+            trace_id = format(self._filtered_spans[0].get_span_context().trace_id, "032x")
+        except Exception:
+            trace_id = ""
+        # Class-qualified (not `self._last_eval = ...`): @collect_assertions
+        # hands check_eval a fresh TraceAssertion instance per call, so a
+        # plain `self._last_eval = ...` would only shadow this one
+        # throwaway instance and never reach the fixture's original
+        # asserter. See the class-attribute comment above.
+        TraceAssertion._last_eval = {
+            "trace_id": trace_id,
+            "expected": expected,
+            "fact_name": fact_name,
+            "label": None,
+            "explanation": "",
+            "judge_output": {},
+            "total_tokens": None,
+        }
+
         eval_result, explanation = self._eval.evaluate(filtered_spans=self._filtered_spans, eval_name=eval_name, fact_name=fact_name, template=template)
+
+        self._last_eval.update(
+            label=eval_result,
+            explanation=explanation,
+            judge_output=getattr(self._eval, "last_judge_output", {}) or {},
+            total_tokens=getattr(self._eval, "last_total_tokens", None),
+        )
 
         if (positive and eval_result not in positive) or (negative and eval_result in negative):
             if message:

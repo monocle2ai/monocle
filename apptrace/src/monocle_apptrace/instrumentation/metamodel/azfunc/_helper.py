@@ -71,7 +71,7 @@ def extract_status(arguments) -> str:
             error_message = extract_response(result)
             raise MonocleSpanException(f"error: {status} - {error_message}", status)
     else:
-        status = "success"
+        status = "Unknown"
     return status
 
 def azure_func_pre_tracing(kwargs):

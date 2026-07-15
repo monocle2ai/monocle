@@ -123,14 +123,27 @@ class MonocleValidator:
         # This is critical for failed tests where spans property may not have been accessed
         _ = self.spans
         span:Span = None
+        _span_immutable:bool = None
         for exporter in self.exporters:
             for span in self._test_all_up_spans:
+                _span_immutable = None
+                # If the span's attributes are made immutable, temporarily make them mutable to add test status attributes
+                try:
+                    _span_immutable = span._attributes._immutable
+                    span._attributes._immutable = False
+                except AttributeError:
+                    pass
                 if test_failed:
                     span._attributes[TEST_STATUS_ATTRIBUTE] = "failed"
                     if test_assertion_message is not None:
                         span._attributes[TEST_ASSERTION_ATTRIBUTE] = test_assertion_message
                 else:
                     span._attributes[TEST_STATUS_ATTRIBUTE] = "passed"
+                if _span_immutable is not None:
+                    try:
+                        span._attributes._immutable = _span_immutable
+                    except AttributeError:
+                        pass
                 exporter.export([span])
             if hasattr(exporter, "force_flush"):
                 exporter.force_flush()
@@ -326,6 +339,7 @@ class MonocleValidator:
             raise last_exc
 
     def import_traces(self, trace_source: str, id: Optional[str] = None,
+                      trace_path: Optional[str] = None,
                       fact_name: Optional[str] = "trace",
                       scope_name: Optional[str] = None,
                       workflow_name: Optional[str] = None) -> None:
@@ -392,10 +406,10 @@ class MonocleValidator:
             )
         if not id:
             id = self._get_current_trace_id()
-        if not id:
-            raise ValueError("'id' is required.")
 
         if trace_source == "okahu":
+            if not id:
+                raise ValueError("'id' is required.")
             if workflow_name is None:
                 workflow_name = get_workflow_name()
             if not workflow_name:
@@ -429,9 +443,17 @@ class MonocleValidator:
                 raise ValueError(
                     "Only fact_name='trace' is supported for file trace source."
                 )
-            trace_file = JSONSpanLoader.find_trace_file(id)
+            # if the trace_path is a file, use it directly; otherwise, search for the trace file in the directory
+            if trace_path and os.path.isfile(trace_path):
+                if id and id.replace("0x", "") not in trace_path:
+                    raise ValueError(f"Provided trace_path '{trace_path}' does not match the given trace_id '{id}'.")
+                trace_file = trace_path
+            else:
+                if not id:
+                    raise ValueError("'id' is required.")
+                trace_file = JSONSpanLoader.find_trace_file(id, trace_dir=trace_path)
             if trace_file is None:
-                search_dir = os.path.join(".", ".monocle", "test_traces")
+                search_dir = trace_path if trace_path else os.path.join(".", ".monocle", "test_traces")
                 raise FileNotFoundError(
                     f"No trace file found for trace_id '{id}' in '{search_dir}'")
 
@@ -480,6 +502,9 @@ class MonocleValidator:
                 self.verify_agent_delegated(from_agent, to_agent, test_span.positive_test, test_span.expect_errors, test_span.expect_warnings)
             elif test_span.span_type == SpanType.INFERENCE:
                 self.verify_inference(test_span)
+
+            if test_span.attributes:
+                self.verify_span_attributes(test_span)
 
         if test_case.expect_errors:
             self._has_errors(test_case.expect_errors)
@@ -672,6 +697,63 @@ class MonocleValidator:
 
         if positive_test and not found_delegation:
             assert False, f"Agent '{to_agent}' was not delegated by '{from_agent}'."
+        return True
+
+    def verify_span_attributes(self, test_span: TestSpan) -> bool:
+        """Verify that a span of the test span's type carries the expected attributes.
+
+        Selects the spans matching the test span's type (and entities, where
+        applicable) and asserts that at least one of them has every expected
+        attribute key/value. For a negative test, asserts that none of them do.
+
+         Args:
+            test_span (TestSpan): The test span whose ``attributes`` are verified.
+         """
+        expected_attributes: dict = test_span.attributes
+        if not expected_attributes:
+            return True
+        positive_test: bool = test_span.positive_test
+        comparer: BaseComparer = test_span.comparer
+
+        candidate_spans = self._select_spans_for_test_span(test_span)
+        matched = any(
+            self._span_matches_attributes(span, expected_attributes, comparer)
+            for span in candidate_spans
+        )
+
+        if positive_test and not matched:
+            assert False, f"No '{test_span.span_type.value}' span found with expected attributes {expected_attributes}."
+        elif not positive_test and matched:
+            assert False, f"A '{test_span.span_type.value}' span matched attributes {expected_attributes}, but was not expected to."
+        return True
+
+    def _select_spans_for_test_span(self, test_span: TestSpan) -> list[Span]:
+        """Select the candidate spans that a test span's attributes apply to."""
+        span_type = test_span.span_type
+        if span_type == SpanType.TOOL_INVOCATION:
+            tool_name = test_span.entities[0].name
+            agent_name = test_span.entities[1].name if len(test_span.entities) > 1 else None
+            return self._get_tool_invocation_spans(tool_name, agent_name)
+        if span_type == SpanType.AGENTIC_INVOCATION:
+            return self._get_agent_invocation_spans(test_span.entities[0].name)
+        if span_type == SpanType.AGENTIC_REQUEST:
+            return self._filter_spans_by_type("agentic.turn")
+        if span_type == SpanType.AGENTIC_DELEGATION:
+            return self._filter_spans_by_type("agentic.delegation")
+        if span_type == SpanType.INFERENCE:
+            return (self._filter_spans_by_type("inference")
+                    + self._filter_spans_by_type("inference.framework"))
+        return []
+
+    def _span_matches_attributes(self, span: Span, expected_attributes: dict, comparer: BaseComparer) -> bool:
+        """Return True if the span has every expected attribute key/value."""
+        span_attributes = span.attributes
+        for key, expected_value in expected_attributes.items():
+            actual_value = span_attributes.get(key)
+            if actual_value is None:
+                return False
+            if expected_value != actual_value:
+                return False
         return True
 
     def check_completion_token_limits(self, max_output_tokens:int, positive_test:bool = True,
@@ -890,7 +972,7 @@ class MonocleValidator:
                 self._verify_agent_input_output(agent_name, expected_inputs, found_input, expected_outputs, found_output, positive_test)
         return candidate_spans
 
-    def _get_inference_spans(self) -> list[Span]:
+    def _get_inference_spans(self, expect_errors: bool = False, expect_warnings: bool = False) -> list[Span]:
         inferences: list[Span] = []
         for span in self.spans:
             span_attributes = span.attributes
@@ -898,6 +980,10 @@ class MonocleValidator:
                 "span.type" in span_attributes
                 and (span_attributes["span.type"] == "inference" or span_attributes["span.type"] == "inference.framework")
             ):
+                if self._span_has_error(span) != expect_errors:
+                    continue
+                if self._span_has_warning(span) != expect_warnings:
+                    continue
                 inferences.append(span)
         return inferences
 
@@ -1038,6 +1124,40 @@ class MonocleValidator:
                 if finish_type != "success":
                     return True
         return False
+
+    def _check_scope(self, spans: list[Span], scope_name: str, expected_values: Optional[list[str]],
+                     comparer: BaseComparer, positive_test: Optional[bool] = True) -> list[Span]:
+        """Check if spans have a specific scope with expected value(s).
+        
+        Args:
+            spans: List of spans to check
+            scope_name: Name of the scope (e.g., 'tenant_id', 'subscriptionId')
+            expected_values: List of expected values for the scope (None to just check existence)
+            comparer: Comparer to use for value matching
+            positive_test: True for positive assertion, False for negative
+            
+        Returns:
+            List of spans matching the scope criteria
+        """
+        candidate_spans = []
+        scope_attr_name = f"scope.{scope_name}"
+        
+        for span in spans:
+            scope_value = span.attributes.get(scope_attr_name)
+            
+            # If just checking existence (no expected values)
+            if expected_values is None or len(expected_values) == 0:
+                if scope_value is not None:
+                    candidate_spans.append(span)
+            else:
+                # Check if scope value matches any expected value
+                if scope_value is not None:
+                    for expected_value in expected_values:
+                        if comparer.compare(expected_value, scope_value):
+                            candidate_spans.append(span)
+                            break
+        
+        return candidate_spans
 
     def _evaluate_span(self, span:Span, evaluation:Evaluation,  positive_test:bool) -> None:
         eval_args = {}

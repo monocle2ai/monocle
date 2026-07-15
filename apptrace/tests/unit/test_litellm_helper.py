@@ -10,7 +10,9 @@ import unittest
 from pydantic import BaseModel
 
 from monocle_apptrace.instrumentation.metamodel.litellm._helper import (
+    extract_messages,
     extract_response_format,
+    extract_temperature,
 )
 from monocle_apptrace.instrumentation.metamodel.litellm.entities.inference import (
     INFERENCE,
@@ -42,6 +44,18 @@ def _run_data_input(arguments):
         if event["name"] == "data.input":
             for attr in event["attributes"]:
                 out[attr["attribute"]] = attr["accessor"](arguments)
+    return out
+
+
+def _run_metadata(arguments):
+    """Run the named metadata accessors from the live INFERENCE metamodel."""
+    out = {}
+    for event in INFERENCE["events"]:
+        if event["name"] == "metadata":
+            for attr in event["attributes"]:
+                # The usage accessor has no "attribute" key; skip it here.
+                if "attribute" in attr:
+                    out[attr["attribute"]] = attr["accessor"](arguments)
     return out
 
 
@@ -81,6 +95,43 @@ class TestLiteLLMResponseFormatHelper(unittest.TestCase):
             extract_response_format({"response_format": {"type": "json_object"}})
         )
 
+    def test_bedrock_json_tool_call_response_format(self):
+        # Bedrock Converse converts a Pydantic response_format into a json_tool_call
+        # tool placed in optional_params["tools"] (with json_mode=true).
+        kwargs = {
+            "optional_params": {
+                "json_mode": True,
+                "tools": [
+                    {
+                        "type": "function",
+                        "function": {
+                            "name": "json_tool_call",
+                            "parameters": {"properties": {"label": {"type": "string"}}},
+                        },
+                    }
+                ],
+            }
+        }
+        schema = json.loads(extract_response_format(kwargs))
+        self.assertIn("label", schema["json_schema"]["schema"]["properties"])
+
+    def test_anthropic_json_tool_call_response_format(self):
+        # Anthropic converts a Pydantic response_format into a json_tool_call tool in
+        # optional_params["tools"], but with its own shape: {"name", "input_schema"}.
+        kwargs = {
+            "optional_params": {
+                "json_mode": True,
+                "tools": [
+                    {
+                        "name": "json_tool_call",
+                        "input_schema": {"properties": {"label": {"type": "string"}}},
+                    }
+                ],
+            }
+        }
+        schema = json.loads(extract_response_format(kwargs))
+        self.assertIn("label", schema["json_schema"]["schema"]["properties"])
+
 
 class TestLiteLLMInferenceDataInput(unittest.TestCase):
     """Coverage through the live INFERENCE output processor."""
@@ -101,6 +152,91 @@ class TestLiteLLMInferenceDataInput(unittest.TestCase):
         result = _run_data_input(_make_arguments(None))
         self.assertIn("response_format", result)
         self.assertIsNone(result["response_format"])
+
+
+class TestLiteLLMExtractMessages(unittest.TestCase):
+    """Input extraction must work for both the OpenAI and Azure LiteLLM call shapes.
+
+    OpenAI's (a)completion is invoked with messages=..., but Azure's async acompletion
+    receives the already-transformed request as data={"messages": [...]}. Both must yield
+    the same captured input so prod eval inference spans capture the input for Azure too.
+    """
+
+    def test_extract_messages_from_top_level_messages(self):
+        kwargs = {"messages": [{"role": "user", "content": "What is coffee?"}]}
+        self.assertEqual(extract_messages(kwargs), ['{"user": "What is coffee?"}'])
+
+    def test_extract_messages_from_azure_data_dict(self):
+        # Azure async acompletion shape: messages live under data["messages"].
+        kwargs = {"data": {"messages": [{"role": "user", "content": "What is coffee?"}]}}
+        self.assertEqual(extract_messages(kwargs), ['{"user": "What is coffee?"}'])
+
+    def test_extract_messages_top_level_takes_precedence(self):
+        kwargs = {
+            "messages": [{"role": "user", "content": "top level"}],
+            "data": {"messages": [{"role": "user", "content": "nested"}]},
+        }
+        self.assertEqual(extract_messages(kwargs), ['{"user": "top level"}'])
+
+    def test_extract_messages_empty_when_no_messages(self):
+        self.assertEqual(extract_messages({"data": {}}), [])
+        self.assertEqual(extract_messages({}), [])
+
+
+class TestLiteLLMExtractTemperature(unittest.TestCase):
+    """temperature is moved into optional_params by the time the backend is called."""
+
+    def test_temperature_from_optional_params(self):
+        kwargs = {"optional_params": {"temperature": 0.7, "extra_body": {}}}
+        self.assertEqual(extract_temperature(kwargs), 0.7)
+
+    def test_temperature_zero_is_captured(self):
+        # temperature=0 (deterministic judge) is falsy but must NOT be treated as absent.
+        kwargs = {"optional_params": {"temperature": 0}}
+        self.assertEqual(extract_temperature(kwargs), 0)
+
+    def test_temperature_from_azure_data_dict(self):
+        # Azure async passes an already-built request under data.
+        kwargs = {"data": {"temperature": 0.2}}
+        self.assertEqual(extract_temperature(kwargs), 0.2)
+
+    def test_optional_params_takes_precedence_over_data(self):
+        kwargs = {"optional_params": {"temperature": 0}, "data": {"temperature": 0.9}}
+        self.assertEqual(extract_temperature(kwargs), 0)
+
+    def test_top_level_kwarg_fallback(self):
+        self.assertEqual(extract_temperature({"temperature": 0.5}), 0.5)
+
+    def test_absent_temperature_returns_none(self):
+        self.assertIsNone(extract_temperature({"optional_params": {"extra_body": {}}}))
+        self.assertIsNone(extract_temperature({}))
+
+    def test_none_optional_params_returns_none(self):
+        self.assertIsNone(extract_temperature({"optional_params": None}))
+
+
+class TestLiteLLMInferenceMetadata(unittest.TestCase):
+    """Coverage through the live INFERENCE metadata processor."""
+
+    def test_temperature_attribute_present(self):
+        arguments = {
+            "kwargs": {"optional_params": {"temperature": 0}},
+            "result": None,
+            "exception": None,
+        }
+        result = _run_metadata(arguments)
+        self.assertIn("temperature", result)
+        self.assertEqual(result["temperature"], 0)
+
+    def test_temperature_attribute_none_when_absent(self):
+        arguments = {
+            "kwargs": {"optional_params": {"extra_body": {}}},
+            "result": None,
+            "exception": None,
+        }
+        result = _run_metadata(arguments)
+        self.assertIn("temperature", result)
+        self.assertIsNone(result["temperature"])
 
 
 if __name__ == "__main__":

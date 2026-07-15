@@ -23,8 +23,12 @@ def extract_messages(kwargs):
     """Extract system and user messages"""
     try:
         messages = []
-        if 'messages' in kwargs and len(kwargs['messages']) > 0:
-            for msg in kwargs['messages']:
+        # Azure async passes messages under kwargs["data"]["messages"]; fall back to that.
+        raw_messages = kwargs.get('messages')
+        if not raw_messages and isinstance(kwargs.get('data'), dict):
+            raw_messages = kwargs['data'].get('messages')
+        if raw_messages and len(raw_messages) > 0:
+            for msg in raw_messages:
                 if msg.get('content') and msg.get('role'):
                     messages.append({msg['role']: msg['content']})
 
@@ -34,22 +38,105 @@ def extract_messages(kwargs):
         return []
 
 
+def _find_json_tool_call_params(tools):
+    """Helper to find parameters from json_tool_call tool in a tools list."""
+    for tool in (tools or []):
+        # OpenAI / Bedrock / Azure shape: {"function": {"name": ..., "parameters": {...}}}
+        fn = tool.get("function") or {}
+        if fn.get("name") == "json_tool_call":
+            return fn.get("parameters")
+        # Anthropic shape: {"name": ..., "input_schema": {...}}
+        if tool.get("name") == "json_tool_call":
+            return tool.get("input_schema")
+    return None
+
+
+def _serialize_response_format(response_format):
+    """Convert response_format to JSON string representation."""
+    if response_format is None:
+        return None
+    if isinstance(response_format, dict):
+        return get_json_dumps(response_format)
+    if hasattr(response_format, "model_json_schema"):
+        return get_json_dumps(response_format.model_json_schema())
+    if hasattr(response_format, "schema"):
+        return get_json_dumps(response_format.schema())
+    return str(response_format)
+
+
 def extract_response_format(kwargs):
-    """Extract response_format from kwargs["optional_params"] (where litellm moves it)."""
+    """Extract response_format from LiteLLM kwargs.
+
+    Checks three locations:
+    1. optional_params["response_format"] — used by OpenAI and Azure sync paths.
+    2. data["tools"] json_tool_call — used by Azure async when a Pydantic model is passed.
+    3. optional_params["tools"] json_tool_call — used by Bedrock Converse and Anthropic (json_mode).
+    """
     try:
         optional_params = kwargs.get("optional_params") or {}
-        response_format = optional_params.get("response_format")
-        if response_format is None:
-            return None
-        if isinstance(response_format, dict):
-            return get_json_dumps(response_format)
-        if hasattr(response_format, "model_json_schema"):
-            return get_json_dumps(response_format.model_json_schema())
-        if hasattr(response_format, "schema"):
-            return get_json_dumps(response_format.schema())
-        return str(response_format)
+        
+        # 1. Check optional_params for explicit response_format or response_json_schema
+        response_format = (optional_params.get("response_format") or 
+                          optional_params.get("response_json_schema") or
+                          optional_params.get("response_schema"))
+        if response_format is not None:
+            return _serialize_response_format(response_format)
+
+        # 2. Azure async path: Pydantic model converted to json_tool_call tool
+        #    Detected by tool_choice == {"type": "function", "function": {"name": "json_tool_call"}}
+        data = kwargs.get("data") or {}
+        tool_choice = data.get("tool_choice")
+        if isinstance(tool_choice, dict):
+            chosen_name = (tool_choice.get("function") or {}).get("name")
+            if chosen_name == "json_tool_call":
+                params = _find_json_tool_call_params(data.get("tools"))
+                if params:
+                    return get_json_dumps({
+                        "type": "json_schema",
+                        "json_schema": {"schema": params, "name": "response_format"},
+                    })
+
+        # 3. Bedrock Converse / Anthropic path: json_tool_call in optional_params["tools"] with json_mode
+        if optional_params.get("json_mode"):
+            params = _find_json_tool_call_params(optional_params.get("tools"))
+            if params:
+                return get_json_dumps({
+                    "type": "json_schema",
+                    "json_schema": {"schema": params, "name": "response_format"},
+                })
+
+        return None
     except Exception as e:
         logger.warning("Warning: Error occurred in extract_response_format: %s", str(e))
+        return None
+
+
+def extract_temperature(kwargs):
+    """Extract the request `temperature` from LiteLLM kwargs.
+
+    Like `response_format`, generation params are not a top-level kwarg by the
+    time the instrumented provider backend is called: LiteLLM moves them into
+    `optional_params` (see `transform_request`, which spreads `**optional_params`
+    into the request body). Checks, in order:
+    1. optional_params["temperature"] — OpenAI/Azure sync and most providers.
+    2. data["temperature"] — Azure async, which passes an already-built request.
+    3. top-level kwargs["temperature"] — defensive fallback.
+
+    Returns None when no temperature was supplied (matching the convention of
+    the langchain/llamaindex/botocore/haystack metamodels).
+    """
+    try:
+        optional_params = kwargs.get("optional_params") or {}
+        if optional_params.get("temperature") is not None:
+            return optional_params["temperature"]
+
+        data = kwargs.get("data") or {}
+        if isinstance(data, dict) and data.get("temperature") is not None:
+            return data["temperature"]
+
+        return kwargs.get("temperature")
+    except Exception as e:
+        logger.warning("Warning: Error occurred in extract_temperature: %s", str(e))
         return None
 
 

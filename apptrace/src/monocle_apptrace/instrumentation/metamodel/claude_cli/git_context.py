@@ -1,4 +1,4 @@
-from monocle_apptrace.instrumentation.common.git_context import GitContext
+from monocle_apptrace.instrumentation.common.agent_edit_context import GitContext
 from monocle_apptrace.instrumentation.metamodel.claude_cli.trace_events import _sessions_dir
 
 _ctx = GitContext(_sessions_dir, "monocle_claude")

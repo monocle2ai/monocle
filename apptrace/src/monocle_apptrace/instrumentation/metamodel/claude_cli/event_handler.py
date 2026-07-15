@@ -29,6 +29,14 @@ _REPLAY_TRIGGERS = {"Stop", "StopFailure"}
 _COMPACTION_TRIGGERS = {"PostCompact"}
 
 
+def _event_cwd(event_data: dict) -> str:
+    for key in ("cwd", "working_directory", "workspace_root", "project_dir", "project_root"):
+        value = event_data.get(key)
+        if isinstance(value, str) and value:
+            return value
+    return ""
+
+
 def record_event(event_data: dict) -> None:
     session_id = event_data.get("session_id", "unknown")
     entry = {"timestamp": datetime.now(timezone.utc).isoformat(), **event_data}
@@ -53,7 +61,7 @@ def main() -> None:
 
     # Subagent submits share the parent's working tree
     if event_name == "UserPromptSubmit" and not is_subagent_session(session_id):
-        git_context.capture_turn_baseline(session_id)
+        git_context.capture_turn_baseline(session_id, cwd=_event_cwd(event_data) or None)
 
     # Track subagent sessions so we don't emit duplicate top-level turns for them
     if event_name == "SubagentStart":

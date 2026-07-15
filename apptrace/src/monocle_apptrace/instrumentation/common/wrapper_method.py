@@ -11,7 +11,7 @@ from monocle_apptrace.instrumentation.metamodel.langchain.methods import (
     LANGCHAIN_METHODS,
 )
 from monocle_apptrace.instrumentation.metamodel.llamaindex.methods import (LLAMAINDEX_METHODS, )
-from monocle_apptrace.instrumentation.metamodel.llamaindex.llamaindex_processor import LlamaIndexToolHandler, LlamaIndexAgentHandler, LlamaIndexSingleAgenttToolHandlerWrapper
+from monocle_apptrace.instrumentation.metamodel.llamaindex.llamaindex_processor import LlamaIndexToolHandler, LlamaIndexAgentHandler, LlamaIndexSingleAgenttToolHandlerWrapper, LlamaIndexWorkflowHandler
 from monocle_apptrace.instrumentation.metamodel.haystack.methods import (HAYSTACK_METHODS, )
 from monocle_apptrace.instrumentation.metamodel.openai.methods import (OPENAI_METHODS,)
 from monocle_apptrace.instrumentation.metamodel.openai.openai_processor import ( OpenAISpanHandler, OpenAIAgentsSpanHandler)
@@ -165,6 +165,7 @@ MONOCLE_SPAN_HANDLERS: Dict[str, SpanHandler] = {
     "agents_agent_handler": AgentsSpanHandler(),
     "llamaindex_tool_handler": LlamaIndexToolHandler(),
     "llamaindex_agent_handler": LlamaIndexAgentHandler(),
+    "llamaindex_workflow_handler": LlamaIndexWorkflowHandler(),
     "llamaindex_single_agent_tool_handler": LlamaIndexSingleAgenttToolHandlerWrapper(),
     "lambda_func_handler": lambdaSpanHandler(),
     "adk_handler": AdkSpanHandler(),

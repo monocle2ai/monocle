@@ -47,7 +47,7 @@ AZFUNC_HTTP_PROCESSOR = {
             "attributes": [
                 {
                     "_comment": "status from HTTP response",
-                    "attribute": "error_code",
+                    "attribute": "status_code",
                     "accessor": lambda arguments: _helper.extract_status(arguments)
                 },
                 {

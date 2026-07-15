@@ -92,10 +92,14 @@ async def test_with_message(monocle_trace_asserter):
 
 ### Available Fact Names
 
+The following fact names are available for use in your evaluations:
+
 - **`traces`** (default) - Evaluates the entire trace from start to finish
-- **`agent_sessions`** - Evaluates individual agent session spans
-- **`conversations`** - Evaluates conversation-level interactions
+- **`agentic_sessions`** - Evaluates complete agent conversation sessions
+- **`agentic_turns`** - Evaluates individual agent-user interaction turns
 - **`inferences`** - Evaluates individual LLM inference calls
+
+**Note:** Always use these exact fact names in your tests. Using unsupported or misspelled fact names will raise a clear error message.
 
 ### When to Specify Fact Names
 
@@ -112,10 +116,10 @@ async def test_with_message(monocle_trace_asserter):
 .check_eval(fact_name="inferences", eval_name="sentiment", not_expected="negative")
 
 # Evaluate hallucination on agent sessions
-.check_eval(fact_name="agent_sessions", eval_name="hallucination", expected="no_hallucination")
+.check_eval(fact_name="agentic_sessions", eval_name="hallucination", expected="no_hallucination")
 
-# Evaluate frustration on conversations
-.check_eval(fact_name="conversations", eval_name="frustration", expected="ok")
+# Evaluate sentiment on agent turns
+.check_eval(fact_name="agentic_turns", eval_name="sentiment", not_expected="negative")
 ```
 
 **Important:** Each metric supports specific fact names. Using an unsupported combination will raise an error. Refer to the "Supported Fact Names" column in the table below to see which fact names each metric supports.
@@ -126,24 +130,25 @@ All metrics provided by the "okahu" evaluator:
 
 | Metric | Possible Values | Supported Fact Names |
 |--------|-----------------|----------------------|
-| `answer_relevancy` | yes / no / idk | traces |
-| `argument_correctness` | correct / incorrect / partially_correct | traces |
-| `bias` | unbiased / biased / potentially_biased | traces |
+| `answer_relevancy` | yes / no / idk | traces, agentic_turns, agentic_sessions |
+| `argument_correctness` | correct / incorrect / partially_correct | traces, agentic_turns |
+| `bias` | unbiased / biased / potentially_biased | traces, agentic_turns, agentic_sessions |
 | `contextual_precision` | high_precision / medium_precision / low_precision | traces |
 | `contextual_recall` | high_recall / medium_recall / low_recall | traces |
-| `contextual_relevancy` | highly_relevant / moderately_relevant / slightly_relevant / irrelevant | traces, agent_sessions |
+| `contextual_relevancy` | highly_relevant / moderately_relevant / slightly_relevant / irrelevant | traces, agentic_sessions |
 | `conversation_completeness` | complete / mostly_complete / partially_complete / incomplete | traces |
-| `frustration` | frustrated / ok | traces, conversations |
-| `hallucination` | no_hallucination / minor_hallucination / major_hallucination | traces, agent_sessions |
-| `knowledge_retention` | excellent_retention / good_retention / poor_retention / no_retention | traces |
-| `mcp_task_completion` | completed / partially_completed / failed / not_attempted | traces, agent_sessions |
-| `misuse` | no_misuse / potential_misuse / clear_misuse | traces, agent_sessions |
-| `offtopic` | on_topic / off_topic | conversations |
-| `pii_leakage` | no_pii / potential_pii / pii_leakage | traces, agent_sessions |
-| `role_adherence` | excellent_adherence / good_adherence / poor_adherence / no_adherence | traces, agent_sessions |
-| `sentiment` | negative / positive / neutral | traces, conversations, agent_sessions, inferences |
-| `summarization` | excellent / good / fair / poor | traces |
-| `toxicity` | non_toxic / mildly_toxic / moderately_toxic / highly_toxic | traces, agent_sessions |
+| `correctness` | correct / partially_correct / incorrect | agentic_sessions |
+| `frustration` | frustrated / ok | traces |
+| `hallucination` | no_hallucination / minor_hallucination / major_hallucination | traces, agentic_turns, agentic_sessions |
+| `knowledge_retention` | excellent_retention / good_retention / poor_retention / no_retention | traces, agentic_sessions |
+| `mcp_task_completion` | completed / partially_completed / failed / not_attempted | traces, agentic_sessions |
+| `misuse` | no_misuse / potential_misuse / clear_misuse | traces, agentic_sessions |
+| `offtopic` | on_topic / off_topic | agentic_turns |
+| `pii_leakage` | no_pii / potential_pii / pii_leakage | traces, agentic_turns, agentic_sessions |
+| `role_adherence` | excellent_adherence / good_adherence / poor_adherence / no_adherence | traces, agentic_sessions |
+| `sentiment` | negative / positive / neutral | traces, agentic_turns, agentic_sessions, inferences |
+| `summarization` | excellent / good / fair / poor | traces, agentic_sessions |
+| `toxicity` | non_toxic / mildly_toxic / moderately_toxic / highly_toxic | traces, agentic_turns, agentic_sessions |
 
 ## 4. Using Positive and Negative Expectations
 
@@ -179,9 +184,9 @@ Each parameter accepts either:
 | **Simple - Multiple not expected** | `.check_eval("toxicity", not_expected=["highly_toxic", "moderately_toxic"])` | Multiple not_expected values (AND logic), defaults to traces fact |
 | **Simple - Both parameters** | `.check_eval("sentiment", expected=["positive", "neutral"], not_expected="negative")` | Combine expected and not_expected, defaults to traces fact |
 | **Explicit - With fact_name** | `.check_eval(fact_name="inferences", eval_name="sentiment", not_expected="negative")` | Specify fact type explicitly |
-| **Explicit - Multiple expected** | `.check_eval(fact_name="agent_sessions", eval_name="sentiment", expected=["positive", "neutral"])` | Multiple expected values on specific fact |
-| **Explicit - Multiple not expected** | `.check_eval(fact_name="agent_sessions", eval_name="toxicity", not_expected=["highly_toxic", "moderately_toxic"])` | Multiple not_expected values on specific fact |
-| **Explicit - Both parameters** | `.check_eval(fact_name="conversations", eval_name="sentiment", expected=["positive", "neutral"], not_expected="negative")` | Combine expected and not_expected on specific fact |
+| **Explicit - Multiple expected** | `.check_eval(fact_name="agentic_sessions", eval_name="sentiment", expected=["positive", "neutral"])` | Multiple expected values on specific fact |
+| **Explicit - Multiple not expected** | `.check_eval(fact_name="agentic_sessions", eval_name="toxicity", not_expected=["highly_toxic", "moderately_toxic"])` | Multiple not_expected values on specific fact |
+| **Explicit - Both parameters** | `.check_eval(fact_name="agentic_turns", eval_name="sentiment", expected=["positive", "neutral"], not_expected="negative")` | Combine expected and not_expected on specific fact |
 
 ### Comprehensive Examples
 
@@ -208,32 +213,32 @@ async def test_inferences_sentiment(monocle_trace_asserter):
         .check_eval(fact_name="inferences", eval_name="sentiment", not_expected="negative")
 ```
 
-**Example 3: Conversations with multiple evaluations**
+**Example 3: Agentic turns with multiple evaluations**
 ```python
 @pytest.mark.asyncio
-async def test_conversations_evaluation(monocle_trace_asserter):
+async def test_agentic_turns_evaluation(monocle_trace_asserter):
     await monocle_trace_asserter.run_agent_async(root_agent, "google_adk", "query")
     
-    # Evaluate conversation-level metrics
+    # Evaluate turn-level metrics
     monocle_trace_asserter.with_evaluation("okahu")\
-        .check_eval(fact_name="conversations", eval_name="frustration", not_expected="frustrated")
-    monocle_trace_asserter.check_eval(fact_name="conversations", eval_name="offtopic", expected="on_topic")
+        .check_eval(fact_name="agentic_turns", eval_name="sentiment", not_expected="negative")
+    monocle_trace_asserter.check_eval(fact_name="agentic_turns", eval_name="offtopic", expected="on_topic")
 ```
 
 **Example 4: Agent sessions with combined expected and not_expected**
 ```python
 @pytest.mark.asyncio
-async def test_agent_sessions_quality(monocle_trace_asserter):
+async def test_agentic_sessions_quality(monocle_trace_asserter):
     await monocle_trace_asserter.run_agent_async(root_agent, "google_adk", "query")
     
     # Role adherence must be excellent or good, NOT poor or none
     monocle_trace_asserter.with_evaluation("okahu")\
-        .check_eval(fact_name="agent_sessions", eval_name="role_adherence",
+        .check_eval(fact_name="agentic_sessions", eval_name="role_adherence",
                    expected=["excellent_adherence", "good_adherence"],
                    not_expected=["poor_adherence", "no_adherence"])
     
     # Task must be completed or partially completed, NOT failed
-    monocle_trace_asserter.check_eval(fact_name="agent_sessions", eval_name="mcp_task_completion", 
+    monocle_trace_asserter.check_eval(fact_name="agentic_sessions", eval_name="mcp_task_completion", 
                    expected=["completed", "partially_completed"], not_expected="failed")
 ```
 
@@ -245,7 +250,7 @@ async def test_toxicity_check(monocle_trace_asserter):
     
     # Agent sessions must NOT be toxic at any level
     monocle_trace_asserter.with_evaluation("okahu")\
-        .check_eval(fact_name="agent_sessions", eval_name="toxicity", 
+        .check_eval(fact_name="agentic_sessions", eval_name="toxicity", 
                    not_expected=["highly_toxic", "moderately_toxic", "mildly_toxic"])
 ```
 
@@ -276,7 +281,74 @@ AssertionError: Evaluation 'sentiment' did not match expected result.
 Expected positive. Received negative.
 ```
 
-## 7. Cost and Performance Testing
+## 7. Custom Evaluation Templates
+
+In addition to the built-in evaluation metrics, you can define your own evaluation criteria using custom templates. A custom template lets you write your own evaluation prompt and define the output structure the evaluator should return.
+
+### Template Format
+
+Create a JSON file with the following structure:
+
+```json
+{
+    "template": {
+        "name": "my_custom_eval",
+        "eval_prompt": "Your evaluation instructions here...",
+        "structure_output": {
+            "label": {
+                "description": "The classification result.",
+                "enums": ["good", "neutral", "bad"]
+            },
+            "explanation": {
+                "description": "Reasoning for the classification."
+            }
+        }
+    }
+}
+```
+
+**Required fields:**
+
+| Field | Description |
+|-------|-------------|
+| `name` | A unique name for your template. Alphanumeric and underscores only, max 50 characters. |
+| `eval_prompt` | The evaluation instructions. Should describe the task, what to examine, and the classification criteria matching your `label` enums. |
+| `structure_output` | Defines the fields the evaluator will return. Must include at least a `label` field. |
+
+The `label` field in `structure_output` is what `check_eval()` uses for assertions (`expected` / `not_expected`). Include `enums` to define the allowed classification values. Your `eval_prompt` should describe criteria for each enum value so the evaluator knows how to classify.
+
+You can add additional output fields beyond `label` (e.g., `explanation`, `category`, or any domain-specific field). These are evaluated and stored but `check_eval()` only asserts on `label`.
+
+### Usage
+
+Pass the path to your template JSON file directly — `check_eval()` loads, parses, and submits it for you.
+
+```python
+# Point check_eval at the template file — no manual JSON loading required
+monocle_trace_asserter.with_evaluation("okahu") \
+    .check_eval(template_path="path/to/my_custom_eval.json", expected="good")
+```
+
+`template_path` and `eval_name` are mutually exclusive — use one or the other in a single `check_eval()` call. You can mix both styles in the same test:
+
+```python
+# Built-in evaluation
+monocle_trace_asserter.with_evaluation("okahu") \
+    .check_eval("sentiment", expected="positive")
+
+# Custom evaluation in the same test
+monocle_trace_asserter.check_eval(template_path="path/to/my_custom_eval.json", expected="good")
+```
+
+**Template file shape.** The file can be authored either as the inner template (top-level `name`/`eval_prompt`/`structure_output`) or wrapped as the full API request body (`{"template": {...inner...}}`). `check_eval()` auto-unwraps the outer `"template"` key when it's the sole top-level key.
+
+**Error handling.**
+- File not found → `AssertionError: Custom template file not found: <path>`
+- Invalid JSON → `AssertionError: Custom template file is not valid JSON: <path> — <details>`
+- API-side template validation failure → `AssertionError: Custom template validation failed: <server error>` (surfaces the exact reason from the evaluation service so you know what to fix in the template)
+
+
+## 8. Cost and Performance Testing
 
 The `monocle_trace_asserter` fixture provides methods for validating performance metrics such as token consumption and execution time. These assertions help ensure your AI agents stay within acceptable cost and latency boundaries.
 
@@ -422,30 +494,40 @@ AssertionError: Duration limit exceeded for tool 'book_flight': tool_invocation 
 
 ### check_eval() Method Signatures
 
-**Simple syntax (defaults to "traces" fact):**
+**Built-in evaluation (defaults to "traces" fact):**
 ```python
 check_eval(eval_name, expected=None, not_expected=None, message=None)
 ```
 
-**Explicit syntax (with fact_name):**
+**Built-in evaluation (with fact_name):**
 ```python
 check_eval(fact_name, eval_name, expected=None, not_expected=None, message=None)
 ```
 
+**Custom template evaluation:**
+```python
+check_eval(template_path="path/to/template.json", expected=None, not_expected=None, message=None)
+```
+
 **Parameters:**
-- `fact_name`: **(Optional)** The fact type to evaluate (traces, agent_sessions, conversations, inferences). Defaults to "traces" if omitted.
-- `eval_name`: **(Required)** The metric/evaluation name (e.g., "sentiment", "bias", "hallucination")
+- `eval_name`: **(Optional)** The metric/evaluation name (e.g., "sentiment", "bias", "hallucination"). Required unless `template_path` is provided.
+- `template_path`: **(Optional)** Filesystem path to a custom-template JSON file. `check_eval()` loads the file, parses it, and submits it to the evaluation service. Required unless `eval_name` is provided.
+- `fact_name`: **(Optional)** The fact type to evaluate (traces, agentic_sessions, agentic_turns, inferences). Defaults to "traces" if omitted.
 - `expected`: **(Optional)** Accepts a **string** or **list of strings** for values that should match
 - `not_expected`: **(Optional)** Accepts a **string** or **list of strings** for values that should NOT match
 - `message`: **(Optional)** Custom message to display on evaluation failure
 
 **Important:**
+- `eval_name` and `template_path` are mutually exclusive — provide one or the other, never both
 - At least one of `expected` or `not_expected` must be provided — omitting both will raise a `ValueError`
 - Both parameters can be used together for comprehensive validation
 - The method validates that there's no overlap between `expected` and `not_expected`
-- Each metric supports specific fact names — using an unsupported combination will raise an error (see "Supported Fact Names" column in the metrics table)
+- Each built-in metric supports specific fact names — using an unsupported combination will raise an error (see "Supported Fact Names" column in the metrics table)
 
 ### Chaining and Pytest
 - Multiple evaluations can be chained: `.check_eval("sentiment", "positive").check_eval("bias", "unbiased")`
 - Test files and functions must start with `test_` for pytest discovery
 - Evaluation results are sent to the Okahu UI portal when `MONOCLE_EXPORTER` is properly configured
+
+
+**Note:** The names that aren't supported will raise a `ValueError` with a helpful message showing the supported fact names.

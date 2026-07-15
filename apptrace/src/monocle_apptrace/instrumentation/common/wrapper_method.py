@@ -5,12 +5,13 @@ from monocle_apptrace.instrumentation.common.span_handler import SpanHandler, No
 from monocle_apptrace.instrumentation.metamodel.azureaiinference.methods import AZURE_AI_INFERENCE_METHODS
 from monocle_apptrace.instrumentation.metamodel.botocore.methods import BOTOCORE_METHODS
 from monocle_apptrace.instrumentation.metamodel.botocore.handlers.botocore_span_handler import BotoCoreSpanHandler
+from monocle_apptrace.instrumentation.metamodel.claude_cli.claude_span_handler import ClaudeSpanHandler
 from monocle_apptrace.instrumentation.metamodel.hugging_face.methods import HUGGING_FACE_METHODS
 from monocle_apptrace.instrumentation.metamodel.langchain.methods import (
     LANGCHAIN_METHODS,
 )
 from monocle_apptrace.instrumentation.metamodel.llamaindex.methods import (LLAMAINDEX_METHODS, )
-from monocle_apptrace.instrumentation.metamodel.llamaindex.llamaindex_processor import LlamaIndexToolHandler, LlamaIndexAgentHandler, LlamaIndexSingleAgenttToolHandlerWrapper
+from monocle_apptrace.instrumentation.metamodel.llamaindex.llamaindex_processor import LlamaIndexToolHandler, LlamaIndexAgentHandler, LlamaIndexSingleAgenttToolHandlerWrapper, LlamaIndexWorkflowHandler
 from monocle_apptrace.instrumentation.metamodel.haystack.methods import (HAYSTACK_METHODS, )
 from monocle_apptrace.instrumentation.metamodel.openai.methods import (OPENAI_METHODS,)
 from monocle_apptrace.instrumentation.metamodel.openai.openai_processor import ( OpenAISpanHandler, OpenAIAgentsSpanHandler)
@@ -42,12 +43,18 @@ from monocle_apptrace.instrumentation.metamodel.mcp.methods import MCP_METHODS
 from monocle_apptrace.instrumentation.metamodel.mcp.mcp_processor import MCPAgentHandler
 from monocle_apptrace.instrumentation.metamodel.a2a.methods import A2A_CLIENT_METHODS
 from monocle_apptrace.instrumentation.metamodel.litellm.methods import LITELLM_METHODS
+from monocle_apptrace.instrumentation.metamodel.litellm.litellm_span_handler import LiteLLMSyncSpanHandler
 from monocle_apptrace.instrumentation.metamodel.adk.methods import ADK_METHODS
 from monocle_apptrace.instrumentation.metamodel.adk.adk_handler import AdkSpanHandler
 from monocle_apptrace.instrumentation.metamodel.mistral.methods import MISTRAL_METHODS
 from monocle_apptrace.instrumentation.metamodel.strands.methods import STRAND_METHODS
 from monocle_apptrace.instrumentation.metamodel.strands.strands_processor import StrandsSpanHandler
 from monocle_apptrace.instrumentation.metamodel.agentcore.methods import AGENTCORE_METHODS
+from monocle_apptrace.instrumentation.metamodel.claude_cli.methods import CLAUDE_CLI_PROXY_METHODS
+from monocle_apptrace.instrumentation.metamodel.codex_cli.codex_span_handler import CodexSpanHandler
+from monocle_apptrace.instrumentation.metamodel.codex_cli.methods import CODEX_CLI_PROXY_METHODS
+from monocle_apptrace.instrumentation.metamodel.github_copilot.github_copilot_span_handler import GitHubCopilotSpanHandler
+from monocle_apptrace.instrumentation.metamodel.github_copilot.methods import GITHUB_COPILOT_PROXY_METHODS
 
 class WrapperMethod:
     def __init__(
@@ -125,7 +132,10 @@ DEFAULT_METHODS_LIST = (
     MISTRAL_METHODS +
     HUGGING_FACE_METHODS +
     STRAND_METHODS +
-    AGENTCORE_METHODS
+    AGENTCORE_METHODS +
+    CLAUDE_CLI_PROXY_METHODS +
+    CODEX_CLI_PROXY_METHODS +
+    GITHUB_COPILOT_PROXY_METHODS
 )
 
 MONOCLE_SPAN_HANDLERS: Dict[str, SpanHandler] = {
@@ -155,8 +165,13 @@ MONOCLE_SPAN_HANDLERS: Dict[str, SpanHandler] = {
     "agents_agent_handler": AgentsSpanHandler(),
     "llamaindex_tool_handler": LlamaIndexToolHandler(),
     "llamaindex_agent_handler": LlamaIndexAgentHandler(),
+    "llamaindex_workflow_handler": LlamaIndexWorkflowHandler(),
     "llamaindex_single_agent_tool_handler": LlamaIndexSingleAgenttToolHandlerWrapper(),
     "lambda_func_handler": lambdaSpanHandler(),
     "adk_handler": AdkSpanHandler(),
-    "strands_handler": StrandsSpanHandler()
+    "strands_handler": StrandsSpanHandler(),
+    "claude_handler": ClaudeSpanHandler(),
+    "codex_handler": CodexSpanHandler(),
+    "github_copilot_handler": GitHubCopilotSpanHandler(),
+    "litellm_sync_handler": LiteLLMSyncSpanHandler()
 }

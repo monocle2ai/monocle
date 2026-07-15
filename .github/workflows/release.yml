@@ -21,14 +21,23 @@ jobs:
   release:
     environment: ArtifactPublish
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: write
+      pull-requests: write
+      discussions: write
     steps:
       - run: |
-          if [[ $GITHUB_REF_NAME != release/* ]]; then
-            echo this workflow should only be run against release branches
+          if [[ $GITHUB_REF_NAME == release/* ]]; then
+            echo "running against release branch $GITHUB_REF_NAME"
+          elif [[ $GITHUB_REF_TYPE == tag && $GITHUB_REF_NAME =~ ^v[0-9]+\.[0-9]+\.[0-9]+([a-z]+[0-9]+)?$ ]]; then
+            echo "running against release tag $GITHUB_REF_NAME"
+          else
+            echo "this workflow should only be run against a release branch (release/*) or a release tag (v<release-number>)"
             exit 1
           fi
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install toml
         run: pip install toml
@@ -70,15 +79,15 @@ jobs:
 
       # check out main branch to verify there won't be problems with merging the change log
       # at the end of this workflow
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: main
 
         # back to the release branch
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
         # next few steps publish to pypi
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: '3.13'
 
@@ -121,10 +130,6 @@ jobs:
           echo "Distribution files collected:"
           ls -la dist/
 
-      - name: Install twine
-        run: |
-          pip install twine
-
       # The step below publishes to testpypi in order to catch any issues
       # with the package configuration that would cause a failure to upload
       # to pypi. One example of such a failure is if a classifier is
@@ -132,18 +137,24 @@ jobs:
       # middle of the package upload causing the action to fail, and certain packages
       # might have already been updated, this would be bad.
       - name: Publish to TestPyPI
-        env:
-          TWINE_USERNAME: '__token__'
-          TWINE_PASSWORD: ${{ secrets.TEST_PYPI_TOKEN }}
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
+          skip-existing: true
+          packages-dir: dist/
+          print-hash: true
+
+      - name: Clean up attestation files before PyPI publish
         run: |
-          twine upload --repository testpypi --skip-existing --verbose dist/*
+          find dist/ -name "*.publish.attestation" -delete
+          echo "Cleaned up attestation files"
 
       - name: Publish to PyPI
-        env:
-          TWINE_USERNAME: '__token__'
-          TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
-        run: |
-          twine upload --skip-existing --verbose dist/*
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          skip-existing: true
+          packages-dir: dist/
+          print-hash: true
 
       - name: Generate release notes
         env:
@@ -175,14 +186,19 @@ jobs:
           if gh release view v$STABLE_VERSION &> /dev/null; then
             echo "Release v$STABLE_VERSION already exists. Skipping release creation."
           else
-            gh release create --target $GITHUB_REF_NAME \
+            # Only pass --target when running from a branch
+            target_flag=""
+            if [[ $GITHUB_REF_TYPE == "branch" ]]; then
+              target_flag="--target $GITHUB_REF_NAME"
+            fi
+            gh release create $target_flag \
                               --title "Version ${STABLE_VERSION}" \
                               --notes-file /tmp/release-notes.txt \
-                              --discussion-category announcements \
+                              --discussion-category "Announcements" \
                               v$STABLE_VERSION
           fi
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           # the step below is creating a pull request against main
           ref: main

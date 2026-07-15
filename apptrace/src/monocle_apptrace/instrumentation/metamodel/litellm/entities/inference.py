@@ -91,6 +91,13 @@ INFERENCE = {
                     "accessor": lambda arguments: _helper.extract_messages(
                         arguments["kwargs"]
                     ),
+                },
+                {
+                    "_comment": "response_format requested for structured output",
+                    "attribute": "response_format",
+                    "accessor": lambda arguments: _helper.extract_response_format(
+                        arguments["kwargs"]
+                    ),
                 }
             ],
         },
@@ -116,6 +123,13 @@ INFERENCE = {
                     "_comment": "this is metadata usage from LLM",
                     "accessor": lambda arguments: _helper.update_span_from_llm_response(
                         arguments["result"]
+                    ),
+                },
+                {
+                    "_comment": "requested generation temperature (parity with langchain/llamaindex/botocore/haystack)",
+                    "attribute": "temperature",
+                    "accessor": lambda arguments: _helper.extract_temperature(
+                        arguments["kwargs"]
                     ),
                 },
                 {

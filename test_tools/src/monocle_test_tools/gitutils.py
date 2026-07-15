@@ -5,7 +5,9 @@ from datetime import datetime, timezone
 from git import Repo
 
 from .constants import (
+    GIT_BRANCH_ATTRIBUTE,
     GIT_COMMIT_HASH_ATTRIBUTE,
+    GIT_REPO_ATTRIBUTE,
     GIT_RUN_ID_ATTRIBUTE,
     GIT_WORKFLOW_NAME_ATTRIBUTE,
     GITHUB_RUN_ID,
@@ -15,6 +17,7 @@ from .constants import (
     JENKINS_BUILD_NUMBER,
     JENKINS_BUILD_URL,
     JENKINS_BUILD_URL_ATTRIBUTE,
+    JENKINS_GIT_BRANCH,
     JENKINS_GIT_COMMIT,
     JENKINS_JOB_NAME,
     JENKINS_NODE_NAME,
@@ -68,6 +71,26 @@ def get_git_run_id() -> str:
     return run_id
 
 
+def get_git_branch() -> str:
+    """Get the current git branch name."""
+    # Check Jenkins Git plugin environment variable first
+    jenkins_branch = os.getenv(JENKINS_GIT_BRANCH)
+    if jenkins_branch:
+        return jenkins_branch
+
+    # Check GitHub Actions (GITHUB_HEAD_REF for PRs, GITHUB_REF_NAME for pushes)
+    github_branch = os.getenv("GITHUB_HEAD_REF") or os.getenv("GITHUB_REF_NAME")
+    if github_branch:
+        return github_branch
+
+    # Fallback to local git repo
+    try:
+        repo = Repo(os.getcwd(), search_parent_directories=True)
+        return repo.active_branch.name
+    except Exception:
+        return "unknown"
+
+
 def get_git_workflow_name() -> str:
     """Get the current git workflow name (GitHub Actions workflow, Jenkins job, or local)."""
     # Check for Jenkins job name
@@ -89,12 +112,19 @@ def get_git_context() -> dict[str, str]:
     commit_hash = get_commit_hash()
     run_id = get_git_run_id()
     workflow_name = get_git_workflow_name()
+    branch = get_git_branch()
 
     context = {
         GIT_COMMIT_HASH_ATTRIBUTE: commit_hash,
         GIT_RUN_ID_ATTRIBUTE: run_id,
         GIT_WORKFLOW_NAME_ATTRIBUTE: workflow_name,
+        GIT_BRANCH_ATTRIBUTE: branch,
     }
+
+    # Include repo name if available
+    repo_name = get_repo_name()
+    if repo_name:
+        context[GIT_REPO_ATTRIBUTE] = repo_name
 
     # Add Jenkins-specific metadata if running in Jenkins
     jenkins_url = os.getenv(JENKINS_URL)

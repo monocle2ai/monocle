@@ -1,0 +1,97 @@
+# Monocle Hook Setup Guide
+
+This guide covers setting up Monocle tracing for Claude Code, Codex CLI, and GitHub Copilot (Copilot CLI + VS Code Copilot Chat).
+
+## Setup
+
+### 1. Install the Monocle Package
+
+```bash
+# Install uv (if not already installed)
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+uv tool install monocle_apptrace
+```
+
+### 2. Register Hooks
+
+**Claude Code:**
+```bash
+monocle-apptrace claude-setup
+```
+
+**Codex CLI:**
+```bash
+monocle-apptrace codex-setup
+```
+
+**GitHub Copilot** (covers both Copilot CLI and VS Code Copilot Chat):
+```bash
+monocle-apptrace copilot-setup
+```
+
+All commands prompt for your Okahu API key and save it to `~/.monocle/.env`. Leave blank to export to a local file only.
+
+**Optional overrides** — add to `~/.zshrc` or `~/.bashrc` if you need them:
+
+```bash
+export MONOCLE_EXPORTER="okahu,file"        # okahu | file (combinable)
+export MONOCLE_WORKFLOW_NAME="my-project"   # defaults to current directory name
+```
+
+Start a new session — traces flow automatically.
+
+---
+
+## How It Works
+
+```
+Agent session event fires
+           │
+           ▼
+monocle-apptrace {claude,codex,copilot}-hook
+           │  (reads event JSON from stdin)
+           ▼
+Event Handler — records event to per-session JSONL log
+           │
+           │  (on Stop event only)
+           ▼
+Replay Session — reconstructs turns, emits OTel spans
+           │
+           ▼
+Exporters — Okahu / file / console
+```
+
+**Claude Code hooks** (all 11 events):
+`SessionStart`, `UserPromptSubmit`, `PreToolUse`, `PostToolUse`,
+`SubagentStart`, `SubagentStop`, `Stop`, `StopFailure`,
+`PreCompact`, `PostCompact`, `SessionEnd`
+
+**Codex hooks:** `SessionStart`, `SessionStop`
+
+**GitHub Copilot hooks** (10 events, shared by Copilot CLI + VS Code Copilot Chat):
+`SessionStart`, `UserPromptSubmit`, `PreToolUse`, `PostToolUse`,
+`PostToolUseFailure`, `SubagentStart`, `SubagentStop`,
+`PreCompact`, `Stop`, `SessionEnd`
+
+#### Token instrumentation via OTel file export
+
+GitHub Copilot does not surface token counts through its hook payload. `copilot-setup`
+compensates by enabling Copilot's native OpenTelemetry file exporter, which records
+`gen_ai.usage.*` attributes to a local JSONL file. Monocle correlates those records to the active turn at `Stop` time using the OTel trace ID and attaches the token data to the emitted spans.
+
+`copilot-setup` enables the following automatically:
+
+- **VS Code Copilot Chat** — OTel file export is turned on in your VS Code settings (`github.copilot.chat.otel.enabled`, `exporterType`, `outfile`).
+- **Copilot CLI** — the equivalent `COPILOT_OTEL_*` environment variables are added to your shell rc.
+
+All telemetry is written to `~/.monocle/.copilot_otel/copilot.jsonl`. No conversation content is captured — only usage metadata.
+
+**Spans emitted per turn:**
+- `agentic.turn` — the full user turn (prompt → response)
+- `inference` — one per LLM inference round
+- `agentic.tool.invocation` — one per tool call
+- `agentic.mcp.invocation` — one per MCP tool call
+- `agentic.invocation` — one per sub-agent spawned
+
+---

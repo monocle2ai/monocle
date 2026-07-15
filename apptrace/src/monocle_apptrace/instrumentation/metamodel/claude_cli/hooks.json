@@ -1,0 +1,136 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "monocle-apptrace claude-hook",
+            "statusMessage": "Monocle telemetry"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "monocle-apptrace claude-hook",
+            "statusMessage": "Monocle telemetry"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "monocle-apptrace claude-hook",
+            "statusMessage": "Monocle telemetry"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "monocle-apptrace claude-hook",
+            "statusMessage": "Monocle telemetry"
+          }
+        ]
+      }
+    ],
+    "PostToolUseFailure": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "monocle-apptrace claude-hook",
+            "statusMessage": "Monocle telemetry"
+          }
+        ]
+      }
+    ],
+    "SubagentStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "monocle-apptrace claude-hook",
+            "statusMessage": "Monocle telemetry"
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "monocle-apptrace claude-hook",
+            "statusMessage": "Monocle telemetry"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "monocle-apptrace claude-hook",
+            "statusMessage": "Monocle telemetry"
+          }
+        ]
+      }
+    ],
+    "StopFailure": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "monocle-apptrace claude-hook",
+            "statusMessage": "Monocle telemetry"
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "monocle-apptrace claude-hook",
+            "statusMessage": "Monocle telemetry"
+          }
+        ]
+      }
+    ],
+    "PostCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "monocle-apptrace claude-hook",
+            "statusMessage": "Monocle telemetry"
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "monocle-apptrace claude-hook",
+            "statusMessage": "Monocle telemetry"
+          }
+        ]
+      }
+    ]
+  }
+}

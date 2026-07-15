@@ -6,6 +6,7 @@ from monocle_apptrace.instrumentation.common.utils import get_error_message, res
 
 INFERENCE = {
     "type": SPAN_TYPES.INFERENCE_FRAMEWORK,
+    "subtype": lambda arguments: _helper.agent_inference_type(arguments),
     "attributes": [
         [
             {
@@ -62,7 +63,7 @@ INFERENCE = {
              {
                  "_comment": "this is instruction and user query to LLM",
                  "attribute": "input",
-                 "accessor": lambda arguments: _helper.extract_messages(arguments['args'])
+                 "accessor": lambda arguments: _helper.extract_messages(arguments['args'] if arguments['args'] else arguments['kwargs'])
              }
          ]
          },

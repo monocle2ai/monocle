@@ -26,6 +26,11 @@ http_span_counter = CyclicCounter(HEALTH_RESET_COUNTER)
 WORKFLOW_TYPE_MAP = {
     "llama_index.core.agent.workflow": WORKFLOW_TYPE_GENERIC,
     "llama_index": "workflow.llamaindex",
+    "langchain_openai": "workflow.langchain",
+    "langchain_anthropic": "workflow.langchain",
+    "langchain_google_genai": "workflow.langchain",
+    "langchain_community": "workflow.langchain",
+    "langchain_core": "workflow.langchain",
     "langchain": "workflow.langchain",
     "haystack": "workflow.haystack",
     "teams.ai": "workflow.teams_ai",
@@ -80,10 +85,22 @@ class SpanHandler:
 
     def pre_task_processing(self, to_wrap, wrapped, instance, args,kwargs, span):
         try:
-            if "pipeline" in to_wrap['package']:
+            if 'package' in to_wrap and "pipeline" in to_wrap['package']:
                 set_attribute(QUERY, args[0]['prompt_builder']['question'])
         except Exception as e:
             logger.warning("Warning: Error occurred in pre_task_processing: %s", str(e))
+
+    @staticmethod
+    def _coerce_scope_value(value):
+        # OTEL only accepts primitives (or sequences of them) as attribute values;
+        # scope ids derived from app objects (e.g. a UUID thread_id) get dropped otherwise.
+        if isinstance(value, (bool, str, bytes, int, float)):
+            return value
+        if isinstance(value, (list, tuple)) and all(
+            isinstance(item, (bool, str, bytes, int, float)) for item in value
+        ):
+            return value
+        return str(value)
 
     @staticmethod
     def set_default_monocle_attributes(span: Span, source_path = "" ):
@@ -92,7 +109,7 @@ class SpanHandler:
         span.set_attribute(MONOCLE_SDK_LANGUAGE, "python")
         span.set_attribute("span_source", source_path)
         for scope_key, scope_value in get_scopes().items():
-            span.set_attribute(f"scope.{scope_key}", scope_value)
+            span.set_attribute(f"scope.{scope_key}", SpanHandler._coerce_scope_value(scope_value))
         workflow_name = SpanHandler.get_workflow_name(span=span)
         if workflow_name:
             span.set_attribute("workflow.name", workflow_name)
@@ -186,7 +203,7 @@ class SpanHandler:
         # set scopes as attributes by calling get_scopes()
         # scopes is a Mapping[str:object], iterate directly with .items()
         for scope_key, scope_value in get_scopes().items():
-            span.set_attribute(f"scope.{scope_key}", scope_value)
+            span.set_attribute(f"scope.{scope_key}", SpanHandler._coerce_scope_value(scope_value))
 
         if span_index > 0:
             span.set_attribute("entity.count", span_index)
@@ -207,8 +224,14 @@ class SpanHandler:
             if subtype:
                 if callable(subtype):
                     try:
-                        subtype_result = subtype(arguments)
-                        span.set_attribute("span.subtype", subtype_result)
+                        # For inference spans, only evaluate subtype during post-execution when result is available
+                        span_type = span.attributes.get("span.type") if span.attributes else None
+                        if span_type == "inference" and not is_post_exec:
+                            # Skip subtype evaluation for inference during pre-execution
+                            pass  
+                        else:
+                            subtype_result = subtype(arguments)
+                            span.set_attribute("span.subtype", subtype_result)
                     except Exception as e:
                         logger.debug(f"Error processing subtype: {e}")
                 else:
@@ -330,6 +353,18 @@ class SpanHandler:
                 return curr_span.parent is None
         except Exception as e:
             logger.warning(f"Error finding root span: {e}")
+
+    @staticmethod
+    def is_remote_parent_span(curr_span: Span) -> bool:
+        """True when this span's parent lives in another process (W3C context
+        was extracted by *any* layer, not just monocle's extract_http_headers).
+        Used to emit a workflow span for a propagated trace fragment."""
+        try:
+            parent = getattr(curr_span, "parent", None)
+            return parent is not None and getattr(parent, "is_remote", False) is True
+        except Exception as e:
+            logger.warning(f"Error checking remote parent span: {e}")
+            return False
 
     @staticmethod
     def attach_workflow_type(to_wrap=None, context=None): 

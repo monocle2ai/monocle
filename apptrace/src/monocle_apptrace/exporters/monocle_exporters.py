@@ -5,6 +5,7 @@ from importlib import import_module
 from opentelemetry.sdk.trace.export import SpanExporter, ConsoleSpanExporter
 from monocle_apptrace.exporters.exporter_processor import LambdaExportTaskProcessor, is_aws_lambda_environment
 from monocle_apptrace.exporters.file_exporter import FileSpanExporter
+from monocle_apptrace.exporters.okahu.okahu_exporter import _get_monocle_exporter
 
 logger = logging.getLogger(__name__)
 
@@ -17,6 +18,7 @@ monocle_exporters: Dict[str, Any] = {
     "console": {"module": "opentelemetry.sdk.trace.export", "class": "ConsoleSpanExporter"},
     "otlp": {"module": "opentelemetry.exporter.otlp.proto.http.trace_exporter", "class": "OTLPSpanExporter"},
     "gcs" : {"module": "monocle_apptrace.exporters.gcp.gcs_exporter", "class": "GCSSpanExporter"},
+    "postgres": {"module": "monocle_apptrace.exporters.postgres.postgres_exporter", "class": "PostgresSpanExporter"},
     "paygentic": {"module": "monocle_apptrace.exporters.paygentic.paygentic_exporter", "class": "PaygenticSpanExporter"}
 }
 
@@ -26,7 +28,7 @@ def get_monocle_exporter(exporters_list:str=None) -> List[SpanExporter]:
     if exporters_list:
         exporter_names = exporters_list.split(",")
     else:
-        exporter_names = os.environ.get("MONOCLE_EXPORTER", "file").split(",")
+        exporter_names = (_get_monocle_exporter() or "file").split(",")
     exporters = []
     
     # Create task processor for AWS Lambda environment
@@ -57,5 +59,11 @@ def get_monocle_exporter(exporters_list:str=None) -> List[SpanExporter]:
     if not exporters:
         logger.debug("No valid Monocle span exporters configured. Defaulting to FileSpanExporter.")
         exporters.append(FileSpanExporter())
+
+    # MONOCLE_CONSOLE=true adds ConsoleSpanExporter alongside whatever is configured
+    if os.environ.get("MONOCLE_CONSOLE", "").lower() in ("1", "true", "yes"):
+        if not any(isinstance(e, ConsoleSpanExporter) for e in exporters):
+            exporters.append(ConsoleSpanExporter())
+            logger.debug("MONOCLE_CONSOLE is set: added ConsoleSpanExporter.")
 
     return exporters

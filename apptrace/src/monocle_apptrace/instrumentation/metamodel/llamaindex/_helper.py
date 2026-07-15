@@ -10,7 +10,7 @@ import threading
 from urllib.parse import urlparse
 from opentelemetry.sdk.trace import Span
 from opentelemetry.context import get_value
-from monocle_apptrace.instrumentation.common.constants import TOOL_TYPE
+from monocle_apptrace.instrumentation.common.constants import TOOL_TYPE, INFERENCE_TOOL_CALL, INFERENCE_TURN_END
 from monocle_apptrace.instrumentation.common.utils import (
     Option,
     get_json_dumps,
@@ -89,19 +89,42 @@ def get_tool_description(arguments):
             return arguments['instance'].metadata.description
         return ""
 
+def _coerce_tool_arg(value):
+    # Keep scalars and JSON-native containers (e.g. a structured-output list arg);
+    # stringify anything else. Non-scalars were previously dropped from data.input.
+    if value is None:
+        return None
+    if isinstance(value, (str, int, float, bool, list, dict)):
+        return value
+    return str(value)
+
 def extract_tool_args(arguments):
     tool_args = {}
-    if len(arguments['args']) > 1:
-        for key, value in arguments['args'][2].items():
-            # check if value is builtin type or a string
-            if value is not None and isinstance(value, (str, int, float, bool)):
-                tool_args[key] = value
+    if len(arguments['args']) > 1 and isinstance(arguments['args'][2], dict):
+        source = arguments['args'][2]
     else:
-        for key, value in arguments['kwargs'].items():
-            # check if value is builtin type or a string
-            if value is not None and isinstance(value, (str, int, float, bool)):
-                tool_args[key] = value
+        source = arguments['kwargs']
+    for key, value in source.items():
+        coerced = _coerce_tool_arg(value)
+        if coerced is not None:
+            tool_args[key] = coerced
     return get_json_dumps(tool_args)
+
+def _stringify_tool_output(value):
+    # Tool raw_output is often a Pydantic model / dict; OTEL drops non-str
+    # attribute values, so serialize to a string here to avoid empty data.output.
+    if value is None:
+        return ""
+    if isinstance(value, str):
+        return value
+    if hasattr(value, "model_dump_json"):  # pydantic BaseModel
+        try:
+            return value.model_dump_json()
+        except Exception:
+            pass
+    if isinstance(value, (dict, list)):
+        return get_json_dumps(value)
+    return str(value)
 
 def extract_tool_response(response):
     if hasattr(response, 'raw_output'):
@@ -109,7 +132,10 @@ def extract_tool_response(response):
             structured = response.raw_output.structuredContent
             if isinstance(structured, dict) and 'result' in structured:
                 return str(structured['result'])
-        return response.raw_output
+        serialized = _stringify_tool_output(response.raw_output)
+        if serialized:
+            return serialized
+        return getattr(response, "content", "") or ""  # fall back to string content
     return ""
 
 def is_delegation_tool(args, instance) -> bool:
@@ -246,17 +272,50 @@ def extract_messages(args):
         logger.warning("Error in extract_messages: %s", str(e))
         return []
 
-def extract_agent_input(args):
+def _extract_user_msg_from_memory(memory):
+    # finalize(ctx, output, memory) carries the query in memory, not its args.
+    # Return the most recent user message for the invocation's data.input.
+    try:
+        if memory is None or not hasattr(memory, "get_all"):
+            return None
+        msgs = memory.get_all()
+        if not msgs:
+            return None
+        for msg in reversed(msgs):
+            role = getattr(msg, "role", None)
+            role = getattr(role, "value", role)
+            if role == "user":
+                content = getattr(msg, "content", None)
+                if content:
+                    return content
+    except Exception as e:
+        logger.warning("Warning: Error reading agent memory input: %s", str(e))
+    return None
+
+def extract_agent_input(args, kwargs=None):
+    input_args = []
     if isinstance(args, (list, tuple)):
-        input_args = []
         for arg in args:
             if isinstance(arg, (str, dict)):
                 input_args.append(arg)
             elif hasattr(arg, 'raw') and isinstance(arg.raw, str):
                 input_args.append(arg.raw)
-        return input_args
     elif isinstance(args, str):
-        return [args]
+        input_args = [args]
+    if input_args:
+        return input_args
+    # Fallback: workflow agents pass the query via chat memory, not positionally.
+    memory = None
+    if isinstance(args, (list, tuple)):
+        for arg in args:
+            if hasattr(arg, "get_all"):
+                memory = arg
+                break
+    if memory is None and isinstance(kwargs, dict):
+        memory = kwargs.get("memory")
+    user_msg = _extract_user_msg_from_memory(memory)
+    if user_msg:
+        return [user_msg]
     return ""
 
 def extract_agent_response(arguments):
@@ -489,6 +548,56 @@ def extract_finish_reason(arguments):
 def map_finish_reason_to_finish_type(finish_reason):
     """Map LlamaIndex finish_reason to finish_type."""
     return map_llamaindex_finish_reason_to_finish_type(finish_reason)
+
+def agent_inference_type(arguments):
+    """Determine inference span subtype based on finish_reason (tool_call or turn_end)."""
+    finish_type = map_finish_reason_to_finish_type(extract_finish_reason(arguments))
+    if finish_type == "tool_call":
+        return INFERENCE_TOOL_CALL
+    return INFERENCE_TURN_END
+
+def extract_workflow_input(args, kwargs):
+    # Workflow.run is usually called as wf.run(input=...); prefer that key,
+    # else fall back to scalar kwargs / a positional string.
+    try:
+        if isinstance(kwargs, dict) and kwargs:
+            if "input" in kwargs:
+                val = kwargs["input"]
+                return val if isinstance(val, str) else get_json_dumps(val)
+            simple = {k: v for k, v in kwargs.items()
+                      if isinstance(v, (str, int, float, bool))}
+            if simple:
+                return get_json_dumps(simple)
+        if isinstance(args, (list, tuple)):
+            for arg in args:
+                if isinstance(arg, str):
+                    return arg
+    except Exception as e:
+        logger.warning("Warning: Error occurred in extract_workflow_input: %s", str(e))
+    return ""
+
+def extract_workflow_output(arguments):
+    # Result arrives via the deferred-completion callback (StopEvent result):
+    # usually a dict/str or an object with a .result / .response attribute.
+    try:
+        if arguments.get("exception") is not None:
+            return get_exception_message(arguments)
+        result = arguments.get("result")
+        if result is None:
+            return ""
+        if isinstance(result, str):
+            return result
+        if hasattr(result, "result"):
+            result = result.result
+        if isinstance(result, (dict, list)):
+            return get_json_dumps(result)
+        if hasattr(result, "response"):
+            resp = result.response
+            return resp if isinstance(resp, str) else str(resp)
+        return str(result)
+    except Exception as e:
+        logger.warning("Warning: Error occurred in extract_workflow_output: %s", str(e))
+        return ""
 
 def extract_agent_request_input(kwargs):
     if "user_msg" in kwargs:

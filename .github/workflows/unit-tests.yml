@@ -1,0 +1,189 @@
+name: Run Monocle Unit Tests
+
+on:
+  push:
+    branches:
+      - "main"
+  pull_request:
+    branches:
+      - "main"
+  workflow_dispatch:
+
+# Define concurrency group based on workflow name
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false # Set to true if you want to cancel running workflows instead of queuing
+
+jobs:
+  Unit-Test:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: 'read'
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+
+      - name: Install build dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install build setuptools wheel toml
+
+      - name: Build wheels
+        run: |
+          chmod +x ./.github/scripts/build-all.sh
+          ./.github/scripts/build-all.sh
+
+      - name: Install package and dev dependencies
+        run: |
+          pip install --upgrade pip
+          cd apptrace
+          pip install -e '.[dev]'
+          pip install -e '.[azure]'
+          pip install -e '.[aws]'
+          pip install -e '.[gcp]'
+          pip install -e '.[postgres]'
+
+      - name: Install test_tools package and dependencies
+        run: |
+          cd test_tools
+          pip install -e '.[dev]'
+
+      - name: Run Apptrace Unit tests
+        id: run-apptrace-unit-tests
+        run: |
+          cd apptrace
+          export PYTHONPATH=./src:./tests
+          set +e
+          pytest -rfEs tests/unit/test*.py --tb=short | tee unitresult.log
+          EXIT_CODE=${PIPESTATUS[0]}
+          echo "APPTRACE_UNIT_EXIT=$EXIT_CODE" >> $GITHUB_ENV
+          grep -E '^(FAILED|ERROR) .*\.py' unitresult.log | cut -d ':' -f 1 | sort | uniq > unitfailed_files.txt
+          echo "" >> failed_files.txt
+          echo "Failed unit test files:"
+          echo "Failed unit test files:" >> failed_files.txt
+          cat ./unitfailed_files.txt
+          cat ./unitfailed_files.txt >> failed_files.txt
+          echo "" >> failed_files.txt
+          LINE_NUM=$(grep -nE "===== .*((failed|passed|skipped|warnings|error).*)+ in .* ======" unitresult.log | tail -1 | cut -d: -f1)
+          tail -n +$LINE_NUM ./unitresult.log > unittest_summary.txt
+          echo "" >> test_summary.txt
+          echo "Unit Test Summary:" >> test_summary.txt
+          cat ./unittest_summary.txt >> test_summary.txt
+          echo "" >> test_summary.txt
+          exit $EXIT_CODE
+
+      - name: Add Apptrace Test Summary to Summary (Table)
+        if: always()
+        run: |
+          cd apptrace
+          if [[ -s ./unittest_summary.txt ]]; then
+            {
+              echo "### Apptrace Unit Test Summary"
+              echo ""
+              echo "| Apptrace Unit Test Summary |"
+              echo "|-----------------------------|"
+              while read -r file; do
+                echo "| $file |"
+              done < unittest_summary.txt
+            } >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Add Apptrace Failed Files to Summary (Table)
+        if: always()
+        run: |
+          cd apptrace
+          if [[ "${APPTRACE_UNIT_EXIT}" == "0" ]]; then
+            echo "### ✅ All apptrace unit tests passed!" >> $GITHUB_STEP_SUMMARY
+          elif [[ -s ./unitfailed_files.txt ]]; then
+            {
+              echo "### ❌ Failed Apptrace Unit Test Files (pytest exit code ${APPTRACE_UNIT_EXIT})"
+              echo ""
+              echo "| Failed Apptrace Unit Test File Path |"
+              echo "|--------------------------------------|"
+              while read -r file; do
+                echo "| $file |"
+              done < unitfailed_files.txt
+            } >> $GITHUB_STEP_SUMMARY
+          else
+            {
+              echo "### ❌ Apptrace unit tests FAILED (pytest exit code ${APPTRACE_UNIT_EXIT})"
+              echo ""
+              echo "No failed test files were captured — pytest did not run to completion (e.g. a collection/import error from a missing dependency). Check the \"Run Apptrace Unit tests\" step logs."
+            } >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Run test_tools Unit tests
+        if: always()
+        id: run-test-tools-unit-tests
+        run: |
+          cd test_tools
+          export PYTHONPATH=./src:./tests
+          set +e
+          pytest -rfEs tests/unit/test*.py --tb=short | tee unitresult.log
+          EXIT_CODE=${PIPESTATUS[0]}
+          echo "TEST_TOOLS_UNIT_EXIT=$EXIT_CODE" >> $GITHUB_ENV
+          grep -E '^(FAILED|ERROR) .*\.py' unitresult.log | cut -d ':' -f 1 | sort | uniq > unitfailed_files.txt
+          echo "" >> failed_files.txt
+          echo "Failed test_tools unit test files:"
+          echo "Failed test_tools unit test files:" >> failed_files.txt
+          cat ./unitfailed_files.txt
+          cat ./unitfailed_files.txt >> failed_files.txt
+          echo "" >> failed_files.txt
+          LINE_NUM=$(grep -nE "===== .*((failed|passed|skipped|warnings|error).*)+ in .* ======" unitresult.log | tail -1 | cut -d: -f1)
+          if [[ -n "${LINE_NUM}" ]]; then
+            tail -n +"${LINE_NUM}" ./unitresult.log > unittest_summary.txt
+          else
+            cp unitresult.log unittest_summary.txt
+          fi
+          echo "" >> test_summary.txt
+          echo "test_tools Unit Test Summary:" >> test_summary.txt
+          cat ./unittest_summary.txt >> test_summary.txt
+          echo "" >> test_summary.txt
+          exit $EXIT_CODE
+
+      - name: Add test_tools Test Summary to Summary (Table)
+        if: always()
+        run: |
+          cd test_tools
+          if [[ -s ./unittest_summary.txt ]]; then
+            {
+              echo "### test_tools Unit Test Summary"
+              echo ""
+              echo "| test_tools Unit Test Summary |"
+              echo "|-------------------------------|"
+              while read -r file; do
+                echo "| $file |"
+              done < unittest_summary.txt
+            } >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Add test_tools Failed Files to Summary (Table)
+        if: always()
+        run: |
+          cd test_tools
+          if [[ "${TEST_TOOLS_UNIT_EXIT}" == "0" ]]; then
+            echo "### ✅ All test_tools unit tests passed!" >> $GITHUB_STEP_SUMMARY
+          elif [[ -s ./unitfailed_files.txt ]]; then
+            {
+              echo "### ❌ Failed test_tools Unit Test Files (pytest exit code ${TEST_TOOLS_UNIT_EXIT})"
+              echo ""
+              echo "| Failed test_tools Unit Test File Path |"
+              echo "|----------------------------------------|"
+              while read -r file; do
+                echo "| $file |"
+              done < unitfailed_files.txt
+            } >> $GITHUB_STEP_SUMMARY
+          else
+            {
+              echo "### ❌ test_tools unit tests FAILED (pytest exit code ${TEST_TOOLS_UNIT_EXIT})"
+              echo ""
+              echo "No failed test files were captured — pytest did not run to completion (e.g. a collection/import error from a missing dependency). Check the \"Run test_tools Unit tests\" step logs."
+            } >> $GITHUB_STEP_SUMMARY
+          fi

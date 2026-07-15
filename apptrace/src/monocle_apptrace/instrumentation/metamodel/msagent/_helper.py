@@ -56,6 +56,18 @@ def get_agent_name(instance: Any) -> str:
         return "UnknownAgent"
 
 
+def get_agent_executor_name(instance: Any) -> str:
+    """Return the agent name, preferring AgentExecutor identity (_id/id) over chat client fallback."""
+    try:
+        if hasattr(instance, "_id"):
+            return str(instance._id)
+        if instance.__class__.__name__ == "AgentExecutor" and hasattr(instance, "id"):
+            return str(instance.id)
+    except Exception as e:
+        logger.warning(f"Error getting agent executor name: {e}")
+    return get_chat_client_name(instance)
+
+
 def get_agent_name_from_context() -> str:
     """
     Get agent name from OpenTelemetry context.
@@ -359,6 +371,8 @@ def extract_tool_response(result: Any, span: Any = None) -> str:
             return result
         elif isinstance(result, dict):
             return str(result)
+        elif isinstance(result, list) and len(result) > 0 and hasattr(result[0], "text"):
+            return result[0].text
         elif isinstance(result, (list, tuple)):
             return str(result)
         else:
@@ -882,6 +896,27 @@ def _response_contains_tool_calls(response):
         if response is None:
             return False
 
+        # Check direct finish_reason first
+        direct_finish_reason = _get_field(response, "finish_reason")
+        if direct_finish_reason:
+            fr_str = direct_finish_reason.value if hasattr(direct_finish_reason, "value") else str(direct_finish_reason)
+            if fr_str in ("tool_calls", "function_call"):
+                return True
+        
+        # Check via choices array (most common path)
+        choices = _as_list(_get_field(response, "choices"))
+        if choices:
+            choice_finish_reason = _get_field(choices[0], "finish_reason")
+            if choice_finish_reason:
+                fr_str = (
+                    choice_finish_reason.value
+                    if hasattr(choice_finish_reason, "value")
+                    else str(choice_finish_reason)
+                )
+                if fr_str in ("tool_calls", "function_call"):
+                    return True
+
+        # Legacy checks for beta API and other formats
         if _as_list(_get_field(response, "tools")):
             return True
 
@@ -910,9 +945,6 @@ def _response_contains_tool_calls(response):
                     return True
 
         for choice in _as_list(_get_field(response, "choices")):
-            finish_reason = _get_field(choice, "finish_reason")
-            if finish_reason in ("tool_calls", "function_call"):
-                return True
             if _as_list(_get_field(_get_field(choice, "message"), "tool_calls")):
                 return True
             if _as_list(_get_field(_get_field(choice, "delta"), "tool_calls")):

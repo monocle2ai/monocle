@@ -37,7 +37,9 @@ logger = logging.getLogger(__name__)
 embedding_model_context = {}
 scope_id_generator = id_generator.RandomIdGenerator()
 http_scopes:dict[str:str] = {}
-monocle_workflow_name: str = None
+monocle_workflow_name: contextvars.ContextVar[Optional[str]] = contextvars.ContextVar(
+    "_monocle_workflow_name", default=None
+)
 
 try:
     monocle_sdk_version = version("monocle_apptrace")
@@ -209,7 +211,7 @@ def load_scopes() -> dict:
     return scope_methods
 
 
-def _normalize_exporters_list(monocle_exporters_list: str | None):
+def _normalize_exporters_list(monocle_exporters_list: Optional[str]):
     if monocle_exporters_list is None:
         return None
     exporters = [item.strip().lower() for item in monocle_exporters_list.split(",") if item.strip()]
@@ -232,9 +234,9 @@ def _normalize_bool(value) -> bool:
 
 def build_setup_signature(
         workflow_name: str,
-        span_processors: list | None = None,
-        span_handlers: dict | None = None,
-        wrapper_methods: list | None = None,
+        span_processors: Optional[list] = None,
+        span_handlers: Optional[dict] = None,
+        wrapper_methods: Optional[list] = None,
         union_with_default_methods: bool = True,
         monocle_exporters_list: str = None,
 ) -> dict:
@@ -256,7 +258,7 @@ def changed_setup_fields(previous: dict, current: dict) -> list[str]:
 
 def check_duplicate_setup(
         workflow_name: str,
-        previous_signature: dict | None,
+        previous_signature: Optional[dict],
         current_signature: dict,
         instrumentor_exists: bool,
 ) -> bool:
@@ -441,7 +443,7 @@ def get_monocle_version() -> str:
 def add_monocle_trace_state(headers:dict[str:str]) -> None:
     if headers is None:
         return
-    monocle_trace_state = f"{MONOCLE_SDK_VERSION}={get_monocle_version()}"
+    monocle_trace_state = f"{MONOCLE_SDK_VERSION.replace('.', '_')}={get_monocle_version()}"
     if 'tracestate' in headers:
         headers['tracestate'] = f"{headers['tracestate']},{monocle_trace_state}"
     else:
@@ -452,6 +454,16 @@ def get_json_dumps(obj) -> str:
         return json.dumps(obj)
     except TypeError as e:
         return str(obj)
+
+def extract_content_text(content) -> str:
+    """Extract plain text from a message content field.
+    Handles both plain strings and OpenAI-style content block lists
+    ([{'type': 'text', 'text': '...'}]).
+    """
+    if isinstance(content, list):
+        texts = [b.get('text', '') for b in content if isinstance(b, dict) and b.get('type') == 'text']
+        return ' '.join(texts)
+    return str(content)
 
 class Option(Generic[T]):
     def __init__(self, value: Optional[T]):
@@ -765,3 +777,33 @@ def get_workflow_name() -> str:
 def get_span_id(span: Span) -> str:
     """Get the span ID as a hex string without 0x prefix."""
     return format(span.context.span_id, '016x')
+
+def get_monocle_env_value(key: str) -> Optional[str]:
+    """Look up a Monocle config value from the environment or .env files.
+    """
+    env_value = os.environ.get(key)
+    if env_value:
+        return env_value
+    candidates = (
+        os.path.join(os.getcwd(), ".env.monocle"),
+        os.path.join(os.path.expanduser("~"), ".monocle", ".env"),
+    )
+    for env_file_path in candidates:
+        try:
+            with open(env_file_path, "r", encoding="utf-8") as env_file:
+                for line in env_file:
+                    line = line.strip()
+                    if not line or line.startswith("#"):
+                        continue
+                    if line.startswith("export "):
+                        line = line[len("export "):].strip()
+                    if not line.startswith(f"{key}="):
+                        continue
+                    value = line.split("=", 1)[1].strip()
+                    if value.startswith(('"', "'")):
+                        value = value[1:-1].strip()
+                    if value:
+                        return value
+        except OSError:
+            continue
+    return None

@@ -9,6 +9,7 @@ class AgentTypes(str, Enum):
     LLAMAINDEX = "llamaindex"
     STRANDS = "strands"
     MSAGENT = "msagent"
+    HTTP_WITH_OKAHU = "http_with_okahu"
     
 def get_agent_runner(runner_type: str) -> AgentRunner:
     if runner_type == AgentTypes.GOOGLE_ADK:
@@ -32,5 +33,8 @@ def get_agent_runner(runner_type: str) -> AgentRunner:
     elif runner_type == AgentTypes.MSAGENT:
         from .msagent_runner import MSAgentRunner
         return MSAgentRunner()
+    elif runner_type == AgentTypes.HTTP_WITH_OKAHU:
+        from .http_runner import HttpRunner
+        return HttpRunner()
     else:
         raise ValueError(f"Unknown runner type: {runner_type}")

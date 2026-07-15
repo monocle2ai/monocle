@@ -2,6 +2,7 @@ import os
 import datetime
 import logging
 import asyncio
+import warnings
 import boto3
 from botocore.exceptions import ClientError
 from botocore.exceptions import (
@@ -46,7 +47,19 @@ class S3SpanExporter(SpanExporterBase):
                 region_name=region_name,
             )
         self.bucket_name = bucket_name or os.getenv('MONOCLE_S3_BUCKET_NAME','default-bucket')
-        self.file_prefix = os.getenv('MONOCLE_S3_KEY_PREFIX', DEFAULT_FILE_PREFIX)
+        # MONOCLE_S3_KEY_PREFIX is deprecated in favour of MONOCLE_S3_FILE_PREFIX —
+        # the new name is consistent across exporters (file/blob/s3) and is not
+        # confused with S3 access key configuration. The old name still wins if it
+        # is set on its own, so existing deployments keep working.
+        new_prefix = os.getenv('MONOCLE_S3_FILE_PREFIX')
+        legacy_prefix = os.getenv('MONOCLE_S3_KEY_PREFIX')
+        if legacy_prefix is not None and new_prefix is None:
+            warnings.warn(
+                "MONOCLE_S3_KEY_PREFIX is deprecated; use MONOCLE_S3_FILE_PREFIX instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+        self.file_prefix = new_prefix or legacy_prefix or DEFAULT_FILE_PREFIX
         self.time_format = DEFAULT_TIME_FORMAT
         self.task_processor = task_processor
         if self.task_processor is not None:
@@ -138,12 +151,10 @@ class S3SpanExporter(SpanExporterBase):
         try:
             # Run the asynchronous export logic in an event loop
             logger.info(f"Exporting {len(spans)} spans to S3.")
-            try:
-                # Try to get the running event loop
-                loop = asyncio.get_running_loop()
+            if self._is_running_in_event_loop():
                 # If we're already in an event loop, create a task
                 asyncio.create_task(self.__export_async(spans))
-            except RuntimeError:
+            else:
                 # No event loop is running, so we can use asyncio.run()
                 asyncio.run(self.__export_async(spans))
             return SpanExportResult.SUCCESS
@@ -233,7 +244,7 @@ class S3SpanExporter(SpanExporterBase):
         )
         logger.debug(f"Trace {format_trace_id_without_0x(trace_id)} uploaded to AWS S3 as {file_name}.")
 
-    async def force_flush(self, timeout_millis: int = 30000) -> bool:
+    def force_flush(self, timeout_millis: int = 30000) -> bool:
         """Flush all pending traces to S3."""
         trace_ids_to_upload = list(self.trace_spans.keys())
         for trace_id in trace_ids_to_upload:

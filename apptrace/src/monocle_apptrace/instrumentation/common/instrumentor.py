@@ -1,6 +1,7 @@
 import logging
 import inspect
-from typing import Collection, Dict, List, Union
+import os
+from typing import Collection, Dict, List, Union, Optional
 import uuid
 import inspect
 from opentelemetry import trace
@@ -21,7 +22,7 @@ from monocle_apptrace.instrumentation.common.wrapper_method import (
     WrapperMethod,
     MONOCLE_SPAN_HANDLERS
 )
-from monocle_apptrace.instrumentation.common.wrapper import scope_wrapper, ascope_wrapper, monocle_wrapper, amonocle_wrapper
+from monocle_apptrace.instrumentation.common.wrapper import scope_wrapper, ascope_wrapper, monocle_wrapper, amonocle_wrapper, task_wrapper, atask_wrapper
 from monocle_apptrace.instrumentation.common.utils import (
     load_scopes,
     setup_readablespan_patch,
@@ -29,7 +30,11 @@ from monocle_apptrace.instrumentation.common.utils import (
     build_setup_signature,
     check_duplicate_setup,
 )
-from monocle_apptrace.instrumentation.common.constants import MONOCLE_INSTRUMENTOR, MONOCLE_WORKFLOW_NAME_KEY
+from monocle_apptrace.instrumentation.common.constants import ( 
+    MONOCLE_INSTRUMENTOR, MONOCLE_WORKFLOW_NAME_KEY, CUSTOM_INSTRUMENTATION_FILE_NAME,
+    CUSTOM_INSTRUMENTATION_FILE_PATH_ENV, WORKFLOW_NAME_ENV
+)
+from monocle_apptrace.instrumentation.common.custom_span_processor import CUSTOM_SPAN_PROCESSOR
 from functools import wraps
 
 logger = logging.getLogger(__name__)
@@ -38,10 +43,43 @@ SESSION_PROPERTIES_KEY = "session"
 
 _instruments = ()
 
+
+def load_custom_instrumentation() -> List[WrapperMethod]:
+    """Load wrapper methods from .monocle/custom_instrumentation.yaml (if present).
+
+    The directory containing the YAML file can be overridden via the
+    MONOCLE_CUSTOM_INSTRUMENTATION_FILE_PATH env var (default: ``.monocle``,
+    resolved relative to the current working directory).
+    """
+    config_dir = os.getenv(CUSTOM_INSTRUMENTATION_FILE_PATH_ENV, ".monocle")
+    config_path = os.path.join(os.getcwd(), config_dir, CUSTOM_INSTRUMENTATION_FILE_NAME)
+    wrapper_methods: List[WrapperMethod] = []
+    try:
+        with open(config_path) as f:
+            import yaml  # local import: pyyaml is an optional dep, only needed when the config file exists
+            config = yaml.safe_load(f) or {}
+        for entry in config.get("instrument", []) or []:
+            if not entry.get("package") or not entry.get("method") or not entry.get("class"):
+                logger.warning(f"Skipping invalid instrumentation entry in {config_path}: {entry}")
+                continue
+            wrapper_methods.append(WrapperMethod(
+                package=entry.get("package"),
+                object_name=entry.get("class"),
+                method=entry.get("method"),
+                span_name=entry.get("span_name"),
+                wrapper_method=task_wrapper if entry.get("sync", True) else atask_wrapper,
+                output_processor=CUSTOM_SPAN_PROCESSOR
+            ))
+    except FileNotFoundError:
+        pass
+    except Exception as ex:
+        logger.debug(f"Error loading custom instrumentation from {config_path}: {ex}")
+    return wrapper_methods
+
 monocle_tracer_provider: TracerProvider = None
 monocle_instrumentor: 'MonocleInstrumentor' = None
 monocle_span_processor:'MonocleSynchronousMultiSpanProcessor' = None
-monocle_setup_signature: dict | None = None
+monocle_setup_signature: Optional[dict] = None
 
 class MonocleSynchronousMultiSpanProcessor(SynchronousMultiSpanProcessor):
     def clear_span_processors(self) -> None:
@@ -103,8 +141,11 @@ class MonocleInstrumentor(BaseInstrumentor):
 
     def _instrument(self, **kwargs):
         tracer_provider: TracerProvider = kwargs.get("tracer_provider")
-        set_tracer_provider(tracer_provider)
-        tracer = get_tracer(instrumenting_module_name=MONOCLE_INSTRUMENTOR, tracer_provider=tracer_provider)
+        if tracer_provider is not None:
+            set_tracer_provider(tracer_provider)
+        # Always bind the instrumented tracer to monocle's own provider so spans
+        # flow through the monocle span processor regardless of the global provider.
+        tracer = get_tracer(instrumenting_module_name=MONOCLE_INSTRUMENTOR, tracer_provider=get_tracer_provider())
 
         final_method_list = []
         if self.union_with_default_methods is True:
@@ -115,6 +156,9 @@ class MonocleInstrumentor(BaseInstrumentor):
                 final_method_list.append(method)
             elif isinstance(method, WrapperMethod):
                 final_method_list.append(method.to_dict())
+
+        for method in load_custom_instrumentation():
+            final_method_list.append(method.to_dict())
 
         for method in load_scopes():
             if method.get('async', False):
@@ -148,6 +192,10 @@ class MonocleInstrumentor(BaseInstrumentor):
             except Exception as ex:
                 if target_package == "agent_framework._tools":
                     logger.debug("ignoring wrap exception for package: agent_framework._tools")
+                    continue
+                # For openai-agents SDK, method availability varies by version; log as debug
+                if target_package == "agents.run" and target_method in ("run_single_turn", "_run_single_turn"):
+                    logger.debug(f"method {target_method} not found in {target_package} (SDK version compatibility)")
                     continue
                 logger.error(f"""_instrument wrap exception: {str(ex)}
                             for package: {target_package},
@@ -198,16 +246,16 @@ def get_monocle_span_processor() -> MonocleSynchronousMultiSpanProcessor:
     global monocle_span_processor
     return monocle_span_processor
 
-def set_monocle_setup_signature(signature: dict | None):
+def set_monocle_setup_signature(signature: Optional[dict]):
     global monocle_setup_signature
     monocle_setup_signature = signature
 
-def get_monocle_setup_signature() -> dict | None:
+def get_monocle_setup_signature() -> Optional[dict]:
     global monocle_setup_signature
     return monocle_setup_signature
 
 def setup_monocle_telemetry(
-        workflow_name: str,
+        workflow_name: str = None,
         span_processors: List[SpanProcessor] = None,
         span_handlers: Dict[str,SpanHandler] = None,
         wrapper_methods: List[Union[dict,WrapperMethod]] = None,
@@ -236,6 +284,17 @@ def setup_monocle_telemetry(
         For OTLP exporter, configure the endpoint via OTEL_EXPORTER_OTLP_ENDPOINT environment variable.
         This can't be combined with `span_processors`.
     """
+    # workflow_name is determined in the following order of precedence:
+    # 1. Argument passed to this function
+    # 2. Environment variable MONOCLE_WORKFLOW_NAME
+    # 3. filename of the file containing the main module
+    if not workflow_name:
+        workflow_name = os.getenv(WORKFLOW_NAME_ENV)
+    if not workflow_name:
+        try:
+            workflow_name = os.path.basename(inspect.stack()[-1].filename).split(".")[0]
+        except Exception:
+            workflow_name = "monocle_workflow"
     current_signature = build_setup_signature(
         workflow_name=workflow_name,
         span_processors=span_processors,
@@ -279,11 +338,19 @@ def setup_monocle_telemetry(
             get_tracer_provider().add_span_processor(processor)
     if is_proxy_provider:
         trace.set_tracer_provider(get_tracer_provider())
+    else:
+        # Use existing global provider since set_tracer_provider() only honors the first call.
+        # Update monocle's bookkeeping to point at the active processor that receives spans.
+        set_tracer_provider(tracer_provider_default)
+        active_processor = getattr(tracer_provider_default, "_active_span_processor", None)
+        # Track the active processor so reset_span_processors() operates on the right one.
+        if isinstance(active_processor, SynchronousMultiSpanProcessor):
+            set_monocle_span_processor(active_processor)
     instrumentor = MonocleInstrumentor(user_wrapper_methods=wrapper_methods or [], exporters=exporters,
                                        handlers=span_handlers, union_with_default_methods = union_with_default_methods)
     # instrumentor.app_name = workflow_name
     if not instrumentor.is_instrumented_by_opentelemetry:
-        instrumentor.instrument(trace_provider=get_tracer_provider())
+        instrumentor.instrument(tracer_provider=get_tracer_provider())
         set_monocle_instrumentor(instrumentor)
 
     set_monocle_setup_signature(current_signature)
@@ -293,7 +360,18 @@ def setup_monocle_telemetry(
 def reset_span_processors(span_processors:list[SpanProcessor]):
     monocle_span_processor = get_monocle_span_processor()
     if monocle_span_processor:
-        monocle_span_processor.clear_span_processors()
+        clear = getattr(monocle_span_processor, "clear_span_processors", None)
+        if callable(clear):
+            clear()
+        else:
+            # The tracked processor may be a plain SynchronousMultiSpanProcessor (e.g. when the
+            # global provider was installed outside monocle). Flush, shut down, and drop its
+            # child processors the same way clear_span_processors does.
+            with monocle_span_processor._lock:
+                for sp in monocle_span_processor._span_processors:
+                    sp.force_flush()
+                    sp.shutdown()
+                monocle_span_processor._span_processors = ()
         for span_processor in span_processors:
             monocle_span_processor.add_span_processor(span_processor)
 

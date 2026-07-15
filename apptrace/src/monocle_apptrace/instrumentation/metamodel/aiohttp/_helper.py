@@ -31,8 +31,26 @@ def get_params(args) -> dict:
     params: Option[str] = try_option(getattr, args[0], 'query_string')
     return unquote(params.unwrap_or(""))
 
-def get_body(args) -> dict:
-    return ""
+def get_body(args) -> str:
+    if len(args) == 0:
+        return ""
+    request = args[0]
+    # Use proper aiohttp API to check if body exists and can be read
+    if not getattr(request, 'body_exists', False) or not getattr(request, 'can_read_body', False):
+        return ""
+    content = getattr(request, 'content', None)
+    if content is None or not hasattr(content, '_buffer'):
+        return ""
+    buffer = content._buffer
+    if not buffer:
+        return ""
+    try:
+        # _buffer is a deque of bytes chunks; join all chunks
+        charset = getattr(request, 'charset', None) or 'utf-8'
+        raw = b''.join(buffer)
+        return raw.decode(charset, errors='replace')[0:MAX_DATA_LENGTH]
+    except Exception:
+        return ""
 
 def extract_response(result) -> str:
     if hasattr(result, 'text'):

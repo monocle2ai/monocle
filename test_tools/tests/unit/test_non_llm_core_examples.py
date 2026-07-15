@@ -1,3 +1,4 @@
+import os
 import pytest
 from monocle_test_tools import MonocleValidator
 from test_common.adk_travel_agent_litellm_openai import root_agent
@@ -56,5 +57,6 @@ agent_test_cases = [
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("monocle_test_case", agent_test_cases)
+@pytest.mark.skipif(not os.getenv("OPENAI_API_KEY"), reason="OPENAI_API_KEY environment variable not set")
 async def test_run_agents(monocle_test_case):
     await MonocleValidator().test_agent_async(root_agent, "google_adk", monocle_test_case)

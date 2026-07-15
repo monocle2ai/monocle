@@ -92,6 +92,9 @@ class LlamaIndexWorkflowHandler(SpanHandler):
     def pre_tracing(self, to_wrap, wrapped, instance, args, kwargs):
         # Anchor a session so all spans (and any traces) from this run correlate.
         # A plain workflow carries no session id, so set_scope auto-generates one.
+        # Skip nested runs to avoid clobbering parent's session with auto-generated one.
+        if is_scope_set(AGENT_SESSION):
+            return None, None
         session_id = extract_session_id(kwargs)
         session_token = set_scope(AGENT_SESSION, session_id)
         return session_token, None

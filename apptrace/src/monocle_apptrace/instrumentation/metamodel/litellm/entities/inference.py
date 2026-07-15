@@ -133,6 +133,13 @@ INFERENCE = {
                     ),
                 },
                 {
+                    "_comment": "requested generation temperature (parity with langchain/llamaindex/botocore/haystack)",
+                    "attribute": "temperature",
+                    "accessor": lambda arguments: _helper.extract_temperature(
+                        arguments["kwargs"]
+                    ),
+                },
+                {
                     "_comment": "finish reason from LiteLLM response",
                     "attribute": "finish_reason",
                     "accessor": lambda arguments: _helper.extract_finish_reason(arguments)

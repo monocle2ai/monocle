@@ -10,7 +10,7 @@ commands = [
 
 [project]
 name = "monocle_test_tools"
-version = "0.7.0"
+version = "0.8.7b1"
 authors = [
   { name="Okahu Inc.", email="okahu-pypi@okahu.ai" },
 ]
@@ -39,7 +39,7 @@ with-no-comparer= [
     "monocle_apptrace>=0.5.0",
 
     # git
-    "GitPython==3.1.45"
+    "GitPython==3.1.50"
 ]
 
 dependencies = [
@@ -58,7 +58,7 @@ dependencies = [
     "sentence-transformers==3.3.0",
 
     # git
-    "GitPython==3.1.45"
+    "GitPython==3.1.50"
 ]
 
 [project.optional-dependencies]

@@ -289,7 +289,7 @@ These integrations make it easy to go from **local debug** → **CI/CD testing**
 
 | Resource | Description |
 | --- | --- |
-| **[User Guide](Monocle_User_Guide.md)** | Installation, configuration, and how traces are structured |
+| **[User Guide](docs/Monocle_User_Guide.md)** | Installation, configuration, and how traces are structured |
 | **[Trace API](docs/monocle_trace_api.md)** | `monocle_trace` / `amonocle_trace` and low-level `start_trace` / `stop_trace` |
 | **[Scope API](docs/monocle_scope_api.md)** | `monocle_trace_scope` helpers to attach scopes across spans |
 | **[Test Assertions](docs/monocle_test_assertions.md)** | Complete reference for all fluent API assertions in `monocle-test-tools` |

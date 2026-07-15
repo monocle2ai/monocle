@@ -21,6 +21,8 @@ class OkahuEval(BaseEval):
         self._trace_exported = self._trace_source == "okahu"  # Only export if using okahu trace source, otherwise assume already exported
         self._current_trace_id = None
         self._fact_map_cache = None
+        self.last_judge_output: dict = {}
+        self.last_total_tokens = None
     
     @staticmethod
     def _map_fact_name(fact_name: str) -> str:
@@ -404,6 +406,8 @@ class OkahuEval(BaseEval):
                 parsed = json.loads(eval_result[0].get("result"))
                 label = parsed.get("label")
                 explanation = parsed.get("explanation")
+                self.last_judge_output = parsed
+                self.last_total_tokens = parsed.get("total_tokens")
             except AssertionError:
                 raise
             except Exception as exc:

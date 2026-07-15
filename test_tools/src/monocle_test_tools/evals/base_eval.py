@@ -1,8 +1,9 @@
 from typing import Optional, Union
 from opentelemetry.sdk.trace import Span
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 class BaseEval(BaseModel):
+    model_config = ConfigDict(extra='allow')
     eval_options: Optional[dict] = {}
     def __init__(self, **data):       
         super().__init__(**data)

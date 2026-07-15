@@ -14,6 +14,9 @@ logger = logging.getLogger(__name__)
 OKAHU_PROD_EVALUATION_ENDPOINT = "https://eval.okahu.co/api"
 
 class OkahuEval(BaseEval):
+    last_judge_output: dict = {}
+    last_total_tokens: Optional[int] = None
+
     def __init__(self, **data):
         eval_options = data.get("eval_options")
         super().__init__(eval_options=eval_options)

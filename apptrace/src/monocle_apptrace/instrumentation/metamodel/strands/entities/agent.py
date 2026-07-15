@@ -56,7 +56,7 @@ AGENT = {
 
 AGENT_REQUEST = {
       "type": SPAN_TYPES.AGENTIC_REQUEST,
-      "subtype": SPAN_SUBTYPES.PLANNING,
+      "subtype": SPAN_SUBTYPES.TURN,
       "should_skip": lambda arguments: _helper.should_skip_request(arguments),
       "attributes": [
         [
@@ -97,7 +97,7 @@ AGENT_REQUEST = {
 
 TOOLS = {
       "type": SPAN_TYPES.AGENTIC_TOOL_INVOCATION,
-      "subtype": SPAN_SUBTYPES.ROUTING,
+      "subtype": SPAN_SUBTYPES.CONTENT_GENERATION,
       "attributes": [
         [
               {

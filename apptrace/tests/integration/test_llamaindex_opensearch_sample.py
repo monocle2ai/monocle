@@ -6,10 +6,12 @@ import pytest
 from llama_index.core import SimpleDirectoryReader, StorageContext, VectorStoreIndex
 from llama_index.vector_stores.opensearch import (
     OpensearchVectorClient,
-    OpensearchVectorStore,
+    OpensearchVectorStore
 )
 from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
+from opensearchpy import RequestsHttpConnection
+from requests_aws4auth import AWS4Auth
 
 logger = logging.getLogger(__name__)
 
@@ -41,18 +43,20 @@ def test_llamaindex_opensearch_sample(setup):
     text_field = "content"
     # OpensearchVectorClient stores embeddings in this field by default
     embedding_field = "embedding"
+    aws_auth = AWS4Auth(os.environ["AWS_ACCESS_KEY_ID"], os.environ["AWS_SECRET_ACCESS_KEY"], 'us-east-1', 'aoss',)
     # OpensearchVectorClient encapsulates logic for a
     # single opensearch index with vector search enabled
     client = OpensearchVectorClient(
         endpoint, idx, 1536, embedding_field=embedding_field, text_field=text_field,
-        http_auth=(os.getenv("OPEN_SEARCH_AUTH_USER"), os.getenv("OPEN_SEARCH_AUTH_PASSWORD"))
+        http_auth=aws_auth,
+        connection_class=RequestsHttpConnection
     )
     # initialize vector store
     vector_store = OpensearchVectorStore(client)
     storage_context = StorageContext.from_defaults(vector_store=vector_store)
     # initialize an index using our sample data and the client we just created
     index = VectorStoreIndex.from_documents(
-        documents=documents, storage_context=storage_context
+        documents=documents, storage_context=storage_context, connection_class=RequestsHttpConnection, timeout=30
     )
 
     # run query

@@ -1,0 +1,456 @@
+[{
+    "name": "openai.resources.chat.completions.AsyncCompletions.create",
+    "context": {
+        "trace_id": "cc69e45939b9ff868b73ad7b725797ed",
+        "span_id": "1e3c17d8544dd007",
+        "trace_state": "[]"
+    },
+    "kind": "SpanKind.INTERNAL",
+    "parent_id": "cf0661acf4a64153",
+    "start_time": "2026-01-09T03:11:13.467672Z",
+    "end_time": "2026-01-09T03:11:16.357894Z",
+    "status": {
+        "status_code": "OK"
+    },
+    "attributes": {
+        "monocle_apptrace.version": "0.7.0",
+        "monocle_apptrace.language": "python",
+        "span_source": "/Users/devika/Desktop/Monocle_2/monocle/.venv/lib/python3.11/site-packages/agent_framework/openai/_chat_client.py:110",
+        "workflow.name": "ms_agent_multi_agent_stream_tools",
+        "entity.1.type": "inference.azure_openai",
+        "entity.1.provider_name": "okahu-openai-dev.openai.azure.com",
+        "entity.1.inference_endpoint": "https://okahu-openai-dev.openai.azure.com/openai/deployments/kshitiz-gpt/",
+        "entity.2.name": "kshitiz-gpt",
+        "entity.2.type": "model.llm.kshitiz-gpt",
+        "span.type": "inference",
+        "scope.agentic.turn": "982153de0a4bd3d380ff962f63d50973",
+        "scope.agentic.invocation": "bcd0cde0d5edb1d3d5f9bfdb452feee9",
+        "entity.count": 2,
+        "span.subtype": "tool_call"
+    },
+    "events": [
+        {
+            "name": "data.input",
+            "timestamp": "2026-01-09T03:11:13.467761Z",
+            "attributes": {
+                "input": [
+                    "{\"system\": [{\"type\": \"text\", \"text\": \"You are a Travel Supervisor that coordinates complete travel bookings. You have access to flight and hotel booking tools. When a user requests travel arrangements: 1. Use book_flight tool for flight bookings 2. Use book_hotel tool for hotel bookings 3. Provide a consolidated summary of all bookings. Process flight bookings first, then hotel bookings.\"}]}",
+                    "{\"user\": [{\"type\": \"text\", \"text\": \"Book a flight from BOM to JFK for December 15th and also book a stay at the Marriott for 3 days.\"}]}"
+                ]
+            }
+        },
+        {
+            "name": "data.output",
+            "timestamp": "2026-01-09T03:11:14.463441Z",
+            "attributes": {
+                "response": "{\"tools\": [{\"tool_id\": \"call_Sodp3BEqljRtCmPOaHiivsra\", \"tool_name\": \"book_flight\", \"tool_arguments\": \"\"}]}"
+            }
+        },
+        {
+            "name": "metadata",
+            "timestamp": "2026-01-09T03:11:16.356003Z",
+            "attributes": {
+                "completion_tokens": 26,
+                "prompt_tokens": 266,
+                "total_tokens": 292,
+                "finish_reason": "tool_calls",
+                "finish_type": "tool_call"
+            }
+        }
+    ],
+    "links": [],
+    "resource": {
+        "attributes": {
+            "service.name": "ms_agent_multi_agent_stream_tools"
+        },
+        "schema_url": ""
+    }
+}
+,{
+    "name": "agent_framework._tools.AIFunction.invoke",
+    "context": {
+        "trace_id": "cc69e45939b9ff868b73ad7b725797ed",
+        "span_id": "9a86af228e07b07a",
+        "trace_state": "[]"
+    },
+    "kind": "SpanKind.INTERNAL",
+    "parent_id": "cf0661acf4a64153",
+    "start_time": "2026-01-09T03:11:16.359683Z",
+    "end_time": "2026-01-09T03:11:16.360473Z",
+    "status": {
+        "status_code": "OK"
+    },
+    "attributes": {
+        "monocle_apptrace.version": "0.7.0",
+        "monocle_apptrace.language": "python",
+        "span_source": "/Users/devika/Desktop/Monocle_2/monocle/.venv/lib/python3.11/site-packages/agent_framework/_tools.py:1476",
+        "workflow.name": "ms_agent_multi_agent_stream_tools",
+        "entity.1.type": "tool.microsoft",
+        "entity.1.name": "book_flight",
+        "entity.1.description": "Book a flight from one airport to another",
+        "entity.2.name": "MS_Delegating_Supervisor",
+        "entity.2.type": "agent.microsoft",
+        "span.type": "agentic.tool.invocation",
+        "scope.agentic.turn": "982153de0a4bd3d380ff962f63d50973",
+        "scope.agentic.invocation": "bcd0cde0d5edb1d3d5f9bfdb452feee9",
+        "entity.count": 2,
+        "span.subtype": "content_generation"
+    },
+    "events": [
+        {
+            "name": "data.input",
+            "timestamp": "2026-01-09T03:11:16.359840Z",
+            "attributes": {
+                "input": "{'from_airport': 'BOM', 'to_airport': 'JFK'}"
+            }
+        },
+        {
+            "name": "data.output",
+            "timestamp": "2026-01-09T03:11:16.360437Z",
+            "attributes": {
+                "response": "FLIGHT BOOKING CONFIRMED #FL990647: BOM to JFK - $768"
+            }
+        }
+    ],
+    "links": [],
+    "resource": {
+        "attributes": {
+            "service.name": "ms_agent_multi_agent_stream_tools"
+        },
+        "schema_url": ""
+    }
+}
+,{
+    "name": "openai.resources.chat.completions.AsyncCompletions.create",
+    "context": {
+        "trace_id": "cc69e45939b9ff868b73ad7b725797ed",
+        "span_id": "9e7ebd72e3b9cf59",
+        "trace_state": "[]"
+    },
+    "kind": "SpanKind.INTERNAL",
+    "parent_id": "cf0661acf4a64153",
+    "start_time": "2026-01-09T03:11:16.362161Z",
+    "end_time": "2026-01-09T03:11:17.055075Z",
+    "status": {
+        "status_code": "OK"
+    },
+    "attributes": {
+        "monocle_apptrace.version": "0.7.0",
+        "monocle_apptrace.language": "python",
+        "span_source": "/Users/devika/Desktop/Monocle_2/monocle/.venv/lib/python3.11/site-packages/agent_framework/openai/_chat_client.py:110",
+        "workflow.name": "ms_agent_multi_agent_stream_tools",
+        "entity.1.type": "inference.azure_openai",
+        "entity.1.provider_name": "okahu-openai-dev.openai.azure.com",
+        "entity.1.inference_endpoint": "https://okahu-openai-dev.openai.azure.com/openai/deployments/kshitiz-gpt/",
+        "entity.2.name": "kshitiz-gpt",
+        "entity.2.type": "model.llm.kshitiz-gpt",
+        "span.type": "inference",
+        "scope.agentic.turn": "982153de0a4bd3d380ff962f63d50973",
+        "scope.agentic.invocation": "bcd0cde0d5edb1d3d5f9bfdb452feee9",
+        "entity.count": 2,
+        "span.subtype": "tool_call"
+    },
+    "events": [
+        {
+            "name": "data.input",
+            "timestamp": "2026-01-09T03:11:16.362407Z",
+            "attributes": {
+                "input": [
+                    "{\"system\": [{\"type\": \"text\", \"text\": \"You are a Travel Supervisor that coordinates complete travel bookings. You have access to flight and hotel booking tools. When a user requests travel arrangements: 1. Use book_flight tool for flight bookings 2. Use book_hotel tool for hotel bookings 3. Provide a consolidated summary of all bookings. Process flight bookings first, then hotel bookings.\"}]}",
+                    "{\"user\": [{\"type\": \"text\", \"text\": \"Book a flight from BOM to JFK for December 15th and also book a stay at the Marriott for 3 days.\"}]}",
+                    "{\"assistant\": [\"{\\\"tool_function\\\": \\\"book_flight\\\", \\\"tool_arguments\\\": \\\"{\\\\\\\"from_airport\\\\\\\":\\\\\\\"BOM\\\\\\\",\\\\\\\"to_airport\\\\\\\":\\\\\\\"JFK\\\\\\\"}\\\"}\"]}",
+                    "{\"tool\": \"FLIGHT BOOKING CONFIRMED #FL990647: BOM to JFK - $768\"}"
+                ]
+            }
+        },
+        {
+            "name": "data.output",
+            "timestamp": "2026-01-09T03:11:16.850286Z",
+            "attributes": {
+                "response": "{\"tools\": [{\"tool_id\": \"call_5SDEdwMtOHPjbZKptvGNOnSN\", \"tool_name\": \"book_hotel\", \"tool_arguments\": \"\"}]}"
+            }
+        },
+        {
+            "name": "metadata",
+            "timestamp": "2026-01-09T03:11:17.054471Z",
+            "attributes": {
+                "completion_tokens": 28,
+                "prompt_tokens": 326,
+                "total_tokens": 354,
+                "finish_reason": "tool_calls",
+                "finish_type": "tool_call"
+            }
+        }
+    ],
+    "links": [],
+    "resource": {
+        "attributes": {
+            "service.name": "ms_agent_multi_agent_stream_tools"
+        },
+        "schema_url": ""
+    }
+}
+,{
+    "name": "agent_framework._tools.AIFunction.invoke",
+    "context": {
+        "trace_id": "cc69e45939b9ff868b73ad7b725797ed",
+        "span_id": "57fec1fef1d51cc9",
+        "trace_state": "[]"
+    },
+    "kind": "SpanKind.INTERNAL",
+    "parent_id": "cf0661acf4a64153",
+    "start_time": "2026-01-09T03:11:17.057884Z",
+    "end_time": "2026-01-09T03:11:17.058321Z",
+    "status": {
+        "status_code": "OK"
+    },
+    "attributes": {
+        "monocle_apptrace.version": "0.7.0",
+        "monocle_apptrace.language": "python",
+        "span_source": "/Users/devika/Desktop/Monocle_2/monocle/.venv/lib/python3.11/site-packages/agent_framework/_tools.py:1476",
+        "workflow.name": "ms_agent_multi_agent_stream_tools",
+        "entity.1.type": "tool.microsoft",
+        "entity.1.name": "book_hotel",
+        "entity.1.description": "Book a hotel reservation",
+        "entity.2.name": "MS_Delegating_Supervisor",
+        "entity.2.type": "agent.microsoft",
+        "span.type": "agentic.tool.invocation",
+        "scope.agentic.turn": "982153de0a4bd3d380ff962f63d50973",
+        "scope.agentic.invocation": "bcd0cde0d5edb1d3d5f9bfdb452feee9",
+        "entity.count": 2,
+        "span.subtype": "content_generation"
+    },
+    "events": [
+        {
+            "name": "data.input",
+            "timestamp": "2026-01-09T03:11:17.057984Z",
+            "attributes": {
+                "input": "{'hotel_name': 'Marriott', 'city': 'New York', 'nights': 3}"
+            }
+        },
+        {
+            "name": "data.output",
+            "timestamp": "2026-01-09T03:11:17.058300Z",
+            "attributes": {
+                "response": "HOTEL BOOKING CONFIRMED #HT131460: Marriott in New York for 3 nights - $450"
+            }
+        }
+    ],
+    "links": [],
+    "resource": {
+        "attributes": {
+            "service.name": "ms_agent_multi_agent_stream_tools"
+        },
+        "schema_url": ""
+    }
+}
+,{
+    "name": "openai.resources.chat.completions.AsyncCompletions.create",
+    "context": {
+        "trace_id": "cc69e45939b9ff868b73ad7b725797ed",
+        "span_id": "d292af6f0e0a4d70",
+        "trace_state": "[]"
+    },
+    "kind": "SpanKind.INTERNAL",
+    "parent_id": "cf0661acf4a64153",
+    "start_time": "2026-01-09T03:11:17.059268Z",
+    "end_time": "2026-01-09T03:11:18.284330Z",
+    "status": {
+        "status_code": "OK"
+    },
+    "attributes": {
+        "monocle_apptrace.version": "0.7.0",
+        "monocle_apptrace.language": "python",
+        "span_source": "/Users/devika/Desktop/Monocle_2/monocle/.venv/lib/python3.11/site-packages/agent_framework/openai/_chat_client.py:110",
+        "workflow.name": "ms_agent_multi_agent_stream_tools",
+        "entity.1.type": "inference.azure_openai",
+        "entity.1.provider_name": "okahu-openai-dev.openai.azure.com",
+        "entity.1.inference_endpoint": "https://okahu-openai-dev.openai.azure.com/openai/deployments/kshitiz-gpt/",
+        "entity.2.name": "kshitiz-gpt",
+        "entity.2.type": "model.llm.kshitiz-gpt",
+        "span.type": "inference",
+        "scope.agentic.turn": "982153de0a4bd3d380ff962f63d50973",
+        "scope.agentic.invocation": "bcd0cde0d5edb1d3d5f9bfdb452feee9",
+        "entity.count": 2,
+        "span.subtype": "turn_end"
+    },
+    "events": [
+        {
+            "name": "data.input",
+            "timestamp": "2026-01-09T03:11:17.059393Z",
+            "attributes": {
+                "input": [
+                    "{\"system\": [{\"type\": \"text\", \"text\": \"You are a Travel Supervisor that coordinates complete travel bookings. You have access to flight and hotel booking tools. When a user requests travel arrangements: 1. Use book_flight tool for flight bookings 2. Use book_hotel tool for hotel bookings 3. Provide a consolidated summary of all bookings. Process flight bookings first, then hotel bookings.\"}]}",
+                    "{\"user\": [{\"type\": \"text\", \"text\": \"Book a flight from BOM to JFK for December 15th and also book a stay at the Marriott for 3 days.\"}]}",
+                    "{\"assistant\": [\"{\\\"tool_function\\\": \\\"book_flight\\\", \\\"tool_arguments\\\": \\\"{\\\\\\\"from_airport\\\\\\\":\\\\\\\"BOM\\\\\\\",\\\\\\\"to_airport\\\\\\\":\\\\\\\"JFK\\\\\\\"}\\\"}\"]}",
+                    "{\"tool\": \"FLIGHT BOOKING CONFIRMED #FL990647: BOM to JFK - $768\"}",
+                    "{\"assistant\": [\"{\\\"tool_function\\\": \\\"book_hotel\\\", \\\"tool_arguments\\\": \\\"{\\\\\\\"hotel_name\\\\\\\":\\\\\\\"Marriott\\\\\\\",\\\\\\\"city\\\\\\\":\\\\\\\"New York\\\\\\\",\\\\\\\"nights\\\\\\\":3}\\\"}\"]}",
+                    "{\"tool\": \"HOTEL BOOKING CONFIRMED #HT131460: Marriott in New York for 3 nights - $450\"}"
+                ]
+            }
+        },
+        {
+            "name": "data.output",
+            "timestamp": "2026-01-09T03:11:18.250002Z",
+            "attributes": {
+                "response": "{\"assistant\": \"Your flight from BOM to JFK on December 15th has been booked successfully. Additionally, your stay at the Marriott in New York for 3 nights is confirmed. If you need any more assistance, please let me know!\"}"
+            }
+        },
+        {
+            "name": "metadata",
+            "timestamp": "2026-01-09T03:11:18.283838Z",
+            "attributes": {
+                "completion_tokens": 47,
+                "prompt_tokens": 393,
+                "total_tokens": 440,
+                "finish_reason": "stop",
+                "finish_type": "success"
+            }
+        }
+    ],
+    "links": [],
+    "resource": {
+        "attributes": {
+            "service.name": "ms_agent_multi_agent_stream_tools"
+        },
+        "schema_url": ""
+    }
+}
+,{
+    "name": "agent_framework.azure._chat_client.AzureOpenAIChatClient.get_streaming_response",
+    "context": {
+        "trace_id": "cc69e45939b9ff868b73ad7b725797ed",
+        "span_id": "cf0661acf4a64153",
+        "trace_state": "[]"
+    },
+    "kind": "SpanKind.INTERNAL",
+    "parent_id": "433111c80c08d712",
+    "start_time": "2026-01-09T03:11:13.466598Z",
+    "end_time": "2026-01-09T03:11:18.284719Z",
+    "status": {
+        "status_code": "OK"
+    },
+    "attributes": {
+        "monocle_apptrace.version": "0.7.0",
+        "monocle_apptrace.language": "python",
+        "span_source": "/Users/devika/Desktop/Monocle_2/monocle/.venv/lib/python3.11/site-packages/agent_framework/_agents.py:1033",
+        "workflow.name": "ms_agent_multi_agent_stream_tools",
+        "entity.1.type": "agent.microsoft",
+        "entity.1.name": "MS_Delegating_Supervisor",
+        "entity.1.description": "unknown_model",
+        "last.inference": "d292af6f0e0a4d70:*",
+        "span.type": "agentic.invocation",
+        "scope.agentic.turn": "982153de0a4bd3d380ff962f63d50973",
+        "scope.agentic.invocation": "bcd0cde0d5edb1d3d5f9bfdb452feee9",
+        "entity.count": 1,
+        "span.subtype": "content_processing"
+    },
+    "events": [
+        {
+            "name": "data.input",
+            "timestamp": "2026-01-09T03:11:13.466639Z",
+            "attributes": {
+                "input": "Book a flight from BOM to JFK for December 15th and also book a stay at the Marriott for 3 days."
+            }
+        },
+        {
+            "name": "data.output",
+            "timestamp": "2026-01-09T03:11:18.284693Z",
+            "attributes": {}
+        }
+    ],
+    "links": [],
+    "resource": {
+        "attributes": {
+            "service.name": "ms_agent_multi_agent_stream_tools"
+        },
+        "schema_url": ""
+    }
+}
+,{
+    "name": "agent_framework.ChatAgent.run_stream",
+    "context": {
+        "trace_id": "cc69e45939b9ff868b73ad7b725797ed",
+        "span_id": "433111c80c08d712",
+        "trace_state": "[]"
+    },
+    "kind": "SpanKind.INTERNAL",
+    "parent_id": "6f7c8c5fd23c3658",
+    "start_time": "2026-01-09T03:11:13.465945Z",
+    "end_time": "2026-01-09T03:11:18.285225Z",
+    "status": {
+        "status_code": "OK"
+    },
+    "attributes": {
+        "monocle_apptrace.version": "0.7.0",
+        "monocle_apptrace.language": "python",
+        "span_source": "/Users/devika/Desktop/Monocle_2/monocle/apptrace/tests/integration/test_ms_framework_multi_stream_agents_as_tools.py:145",
+        "workflow.name": "ms_agent_multi_agent_stream_tools",
+        "entity.1.type": "agent.microsoft",
+        "monocle.last.agent.invocation.id": "cf0661acf4a64153",
+        "monocle.last.agent.name": "MS_Delegating_Supervisor",
+        "last.inference": "d292af6f0e0a4d70:*",
+        "span.type": "agentic.turn",
+        "scope.agentic.turn": "982153de0a4bd3d380ff962f63d50973",
+        "entity.count": 1,
+        "span.subtype": "turn"
+    },
+    "events": [
+        {
+            "name": "data.input",
+            "timestamp": "2026-01-09T03:11:13.465984Z",
+            "attributes": {
+                "input": "Book a flight from BOM to JFK for December 15th and also book a stay at the Marriott for 3 days."
+            }
+        },
+        {
+            "name": "data.output",
+            "timestamp": "2026-01-09T03:11:18.285207Z",
+            "attributes": {}
+        }
+    ],
+    "links": [],
+    "resource": {
+        "attributes": {
+            "service.name": "ms_agent_multi_agent_stream_tools"
+        },
+        "schema_url": ""
+    }
+}
+,{
+    "name": "workflow",
+    "context": {
+        "trace_id": "cc69e45939b9ff868b73ad7b725797ed",
+        "span_id": "6f7c8c5fd23c3658",
+        "trace_state": "[]"
+    },
+    "kind": "SpanKind.INTERNAL",
+    "parent_id": null,
+    "start_time": "2026-01-09T03:11:13.465892Z",
+    "end_time": "2026-01-09T03:11:18.285368Z",
+    "status": {
+        "status_code": "OK"
+    },
+    "attributes": {
+        "monocle_apptrace.version": "0.7.0",
+        "monocle_apptrace.language": "python",
+        "span_source": "/Users/devika/Desktop/Monocle_2/monocle/apptrace/tests/integration/test_ms_framework_multi_stream_agents_as_tools.py:145",
+        "scope.agentic.turn": "982153de0a4bd3d380ff962f63d50973",
+        "workflow.name": "ms_agent_multi_agent_stream_tools",
+        "span.type": "workflow",
+        "entity.1.name": "ms_agent_multi_agent_stream_tools",
+        "entity.1.type": "workflow.generic",
+        "entity.2.type": "app_hosting.generic",
+        "entity.2.name": "generic",
+        "last.inference": "d292af6f0e0a4d70:*"
+    },
+    "events": [],
+    "links": [],
+    "resource": {
+        "attributes": {
+            "service.name": "ms_agent_multi_agent_stream_tools"
+        },
+        "schema_url": ""
+    }
+}
+]

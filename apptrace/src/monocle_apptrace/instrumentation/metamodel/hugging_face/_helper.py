@@ -1,6 +1,7 @@
 import os
 import json
 import logging
+from contextlib import suppress
 from opentelemetry.context import get_value
 from monocle_apptrace.instrumentation.common.constants import (
     AGENT_PREFIX_KEY,
@@ -18,9 +19,15 @@ from monocle_apptrace.instrumentation.metamodel.finish_types import map_hf_finis
 
 logger = logging.getLogger(__name__)
 
+
+def _unwrap_result(payload):
+    """Return traced result whether accessor received full arguments dict or raw result."""
+    if isinstance(payload, dict) and "result" in payload:
+        return payload.get("result")
+    return payload
+
 def update_input_span_events(kwargs):
     input_text = ""
-    print("DEBUG kwargs:", kwargs)
     if "inputs" in kwargs:
         if isinstance(kwargs["inputs"], list):
             input_text = " | ".join(str(i) for i in kwargs["inputs"])
@@ -59,18 +66,34 @@ def extract_messages(kwargs):
 
 def extract_assistant_message(arguments):
     """
-    Extract the assistant message from a Mistral response or stream chunks.
+    Extract the assistant message from a HF response or stream result.
     Returns a JSON string like {"assistant": "<text>"}.
     """
     try:
-        result = arguments.get("result") if isinstance(arguments, dict) else arguments
+        result = _unwrap_result(arguments)
         if result is None:
             return ""
+
+        # Handle stream result (SimpleNamespace produced by HFStreamProcessor)
+        if hasattr(result, "output_text") and result.output_text:
+            role = getattr(result, "role", "assistant")
+            return get_json_dumps({role: result.output_text})
 
         # Handle full response
         if hasattr(result, "choices") and result.choices:
             msg_obj = result.choices[0].message
-            return get_json_dumps({msg_obj.role: msg_obj.content})
+            role = getattr(msg_obj, "role", "assistant")
+            content = getattr(msg_obj, "content", "")
+            # Some providers return list content parts.
+            if isinstance(content, list):
+                normalized_parts = []
+                for part in content:
+                    if isinstance(part, dict):
+                        normalized_parts.append(str(part.get("text", "")))
+                    else:
+                        normalized_parts.append(str(part))
+                content = "".join(normalized_parts)
+            return get_json_dumps({role: content})
 
         # Handle streaming: result might be a list of CompletionEvent chunks
         if isinstance(result, list):
@@ -89,10 +112,22 @@ def extract_assistant_message(arguments):
         return ""
     
 def update_span_from_llm_response(result, include_token_counts=False):
+    result = _unwrap_result(result)
+    usage = getattr(result, "usage", None) if result is not None else None
+
+    if isinstance(usage, dict):
+        completion_tokens = usage.get("completion_tokens", 0)
+        prompt_tokens = usage.get("prompt_tokens", 0)
+        total_tokens = usage.get("total_tokens", 0)
+    else:
+        completion_tokens = getattr(usage, "completion_tokens", 0)
+        prompt_tokens = getattr(usage, "prompt_tokens", 0)
+        total_tokens = getattr(usage, "total_tokens", 0)
+
     tokens = {
-        "completion_tokens": getattr(result.usage, "completion_tokens", 0),
-        "prompt_tokens": getattr(result.usage, "prompt_tokens", 0),
-        "total_tokens": getattr(result.usage, "total_tokens", 0),
+        "completion_tokens": completion_tokens,
+        "prompt_tokens": prompt_tokens,
+        "total_tokens": total_tokens,
     } if include_token_counts else {}
     # Add other metadata fields like finish_reason, etc.
     return {**tokens}
@@ -115,13 +150,13 @@ def map_finish_reason_to_finish_type(finish_reason):
     return map_hf_finish_reason_to_finish_type(finish_reason)
 
 
-def agent_inference_type(result):
-    """
-    Simple agent inference type logic: if message contains AGENT_PREFIX_KEY,
-    mark as delegation; otherwise it's a normal turn_end.
-    """
+def agent_inference_type(arguments):
+    """Determine inference span subtype based on finish_reason (tool_call, delegation, or turn_end)."""
+    finish_type = map_finish_reason_to_finish_type(extract_finish_reason(arguments))
+    if finish_type == "tool_call":
+        return INFERENCE_TOOL_CALL
     try:
-        assistant_msg = extract_assistant_message(result)
+        assistant_msg = extract_assistant_message(arguments)
         if assistant_msg and AGENT_PREFIX_KEY in assistant_msg:
             return INFERENCE_AGENT_DELEGATION
     except Exception as e:
@@ -130,9 +165,54 @@ def agent_inference_type(result):
 
 
 def extract_finish_reason(result):
+    result = _unwrap_result(result)
+    if result is None:
+        return None
+
     try:
+        if hasattr(result, "choices") and result.choices:
+            first_choice = result.choices[0]
+            if isinstance(first_choice, dict):
+                return first_choice.get("finish_reason")
+            return getattr(first_choice, "finish_reason", None)
+
+        if isinstance(result, dict):
+            return result.get("finish_reason")
+
         return getattr(result, "finish_reason", None)
     except Exception:
         return None
 
 
+def _get_first_tool_call(response):
+    """Extract the first tool call from an OpenAI-compatible HuggingFace response."""
+    with suppress(AttributeError, IndexError, TypeError):
+        if response is not None and hasattr(response, "choices") and len(response.choices) > 0:
+            if hasattr(response.choices[0], "message") and hasattr(response.choices[0].message, "tool_calls"):
+                tool_calls = response.choices[0].message.tool_calls
+                if tool_calls and len(tool_calls) > 0:
+                    return tool_calls[0]
+    return None
+
+def extract_tool_name(arguments):
+    """Extract tool name from HuggingFace response when finish_type is tool_call."""
+    try:
+        finish_type = map_finish_reason_to_finish_type(extract_finish_reason(arguments))
+        if finish_type != "tool_call":
+            return None
+        tool_call = _get_first_tool_call(arguments.get("result"))
+        if tool_call:
+            return tool_call.function.name
+    except Exception as e:
+        logger.warning("Warning: Error occurred in extract_tool_name: %s", str(e))
+    return None
+
+def extract_tool_type(arguments):
+    """Extract tool type from HuggingFace response when finish_type is tool_call."""
+    try:
+        tool_call = _get_first_tool_call(arguments.get("result"))
+        if tool_call:
+            return "tool.huggingface"
+    except Exception as e:
+        logger.warning("Warning: Error occurred in extract_tool_type: %s", str(e))
+    return None

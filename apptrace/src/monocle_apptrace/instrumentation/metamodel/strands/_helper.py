@@ -1,6 +1,42 @@
 
 from monocle_apptrace.instrumentation.common.constants import SPAN_TYPES
 
+__all__ = [
+    "extract_session_id",
+    "get_agent_name",
+    "get_agent_description",
+    "extract_agent_input",
+    "extract_agent_response",
+    "get_tool_type",
+    "get_tool_name",
+    "get_tool_description",
+    "get_source_agent",
+    "extract_tool_input",
+    "extract_tool_response",
+    "should_skip_delegation",
+    "should_skip_request",
+    "should_skip_stream_when_nested_under_call",
+]
+
+
+def extract_session_id(instance,kwargs):
+    # AWS Strands manages sessions through a session_manager object
+    # The session_id is typically accessible via instance.session_manager.session_id
+    if hasattr(instance, '_session_manager') and instance._session_manager is not None:
+        if hasattr(instance._session_manager, 'session_id'):
+            return instance._session_manager.session_id
+    if "session_manager" in kwargs and hasattr(kwargs["session_manager"],'session_id'):
+        return kwargs["session_manager"].session_id
+
+    # Agents without a session_manager commonly carry a session id in trace_attributes
+    trace_attributes = getattr(instance, "trace_attributes", None)
+    if isinstance(trace_attributes, dict):
+        for key in ("session.id", "session_id"):
+            if trace_attributes.get(key):
+                return trace_attributes[key]
+
+    return None
+
 
 def get_agent_name(instance):
     return instance.name
@@ -9,10 +45,28 @@ def get_agent_description(instance):
     return instance.description
 
 def extract_agent_input(arguments):
-    return arguments['args'][0]
+    if len(arguments['args'])>0:
+        return arguments['args'][0]
+    return arguments['kwargs']['prompt']
 
 def extract_agent_response(result):
-    return result.message['content'][0]['text']
+    if result is None:
+        return ""
+
+    # stream_async yields dict events; final event is typically {"result": AgentResult}
+    if isinstance(result, dict) and "result" in result:
+        result = result.get("result")
+
+    # AgentResult object shape
+    if hasattr(result, "message") and result.message:
+        message = result.message
+        if isinstance(message, dict):
+            content = message.get("content", [])
+            if content and isinstance(content[0], dict) and "text" in content[0]:
+                return content[0]["text"]
+
+    # Fallback for unexpected shapes
+    return str(result)
 
 def get_tool_type(arguments):
     ## TODO: check for MCP type
@@ -42,3 +96,18 @@ def should_skip_request(arguments):
     if arguments.get('parent_span') and arguments.get('parent_span').attributes.get("span.type") in [SPAN_TYPES.AGENTIC_TOOL_INVOCATION, SPAN_TYPES.AGENTIC_REQUEST]:
         return True
     return False
+
+
+def should_skip_stream_when_nested_under_call(arguments):
+    """Skip stream_async agent spans only when stream_async is internally invoked by Agent.__call__."""
+    span = arguments.get("span")
+    parent_span = arguments.get("parent_span")
+
+    if span is None or parent_span is None:
+        return False
+
+    span_name = getattr(span, "name", "") or ""
+    parent_name = getattr(parent_span, "name", "") or ""
+
+    # __call__ internally invokes stream_async; instrumenting both creates duplicate turn/invocation spans.
+    return span_name.endswith("Agent.stream_async") and parent_name.endswith("Agent.__call__")

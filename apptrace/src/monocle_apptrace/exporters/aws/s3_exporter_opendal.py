@@ -3,6 +3,8 @@ import time
 import datetime
 import logging
 import asyncio
+import threading
+import warnings
 from typing import Sequence, Optional
 from opentelemetry.sdk.trace import ReadableSpan
 from opentelemetry.sdk.trace.export import SpanExportResult
@@ -21,7 +23,16 @@ class OpenDALS3Exporter(SpanExporterBase):
         DEFAULT_TIME_FORMAT = "%Y-%m-%d__%H.%M.%S"
         self.max_batch_size = 500
         self.export_interval = 1
-        self.file_prefix = DEFAULT_FILE_PREFIX
+        # See S3SpanExporter for the same rename: MONOCLE_S3_KEY_PREFIX → MONOCLE_S3_FILE_PREFIX.
+        new_prefix = os.getenv('MONOCLE_S3_FILE_PREFIX')
+        legacy_prefix = os.getenv('MONOCLE_S3_KEY_PREFIX')
+        if legacy_prefix is not None and new_prefix is None:
+            warnings.warn(
+                "MONOCLE_S3_KEY_PREFIX is deprecated; use MONOCLE_S3_FILE_PREFIX instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+        self.file_prefix = new_prefix or legacy_prefix or DEFAULT_FILE_PREFIX
         self.time_format = DEFAULT_TIME_FORMAT
         self.export_queue = []
         self.last_export_time = time.time()
@@ -44,8 +55,12 @@ class OpenDALS3Exporter(SpanExporterBase):
     def export(self, spans: Sequence[ReadableSpan]) -> SpanExportResult:
         """Synchronous export method that internally handles async logic."""
         try:
-            # Run the asynchronous export logic in an event loop
-            asyncio.run(self.__export_async(spans))
+            if self._is_running_in_event_loop():
+                # If we're already in an event loop, create a task
+                asyncio.create_task(self.__export_async(spans))
+            else:
+                # No event loop is running, so we can use asyncio.run()
+                asyncio.run(self.__export_async(spans))
             return SpanExportResult.SUCCESS
         except Exception as e:
             logger.error(f"Error exporting spans: {e}")
@@ -96,7 +111,11 @@ class OpenDALS3Exporter(SpanExporterBase):
         is_root_span = any(not span.parent for span in batch_to_export)
         
         if self.task_processor is not None and callable(getattr(self.task_processor, 'queue_task', None)):
-            self.task_processor.queue_task(self.__upload_to_s3, serialized_data, is_root_span)
+            self.task_processor.queue_task(
+                self.__upload_to_s3,
+                kwargs={'span_data_batch': serialized_data, 'is_root_span': is_root_span},
+                is_root_span=is_root_span
+            )
         else:
             try:
                 self.__upload_to_s3(serialized_data, is_root_span)
@@ -127,8 +146,29 @@ class OpenDALS3Exporter(SpanExporterBase):
                 raise e
 
 
-    async def force_flush(self, timeout_millis: int = 30000) -> bool:
-        await self.__export_spans()
+    def force_flush(self, timeout_millis: int = 30000) -> bool:
+        timeout_secs = timeout_millis / 1000.0
+        worker_error = {}
+
+        def _run_flush():
+            try:
+                asyncio.run(self.__export_spans())
+            except Exception as exc:
+                worker_error["exception"] = exc
+
+        if self._is_running_in_event_loop():
+            t = threading.Thread(target=_run_flush)
+            t.start()
+            t.join(timeout=timeout_secs)
+            if t.is_alive():
+                logger.warning("force_flush timed out waiting for export to complete.")
+                return False
+        else:
+            asyncio.run(self.__export_spans())
+
+        if "exception" in worker_error:
+            logger.error(f"Error during force_flush: {worker_error['exception']}")
+            return False
         return True
 
     def shutdown(self) -> None:

@@ -2,11 +2,16 @@ from monocle_apptrace.instrumentation.common.constants import AGENT_REQUEST_SPAN
 from monocle_apptrace.instrumentation.metamodel.langgraph import (
     _helper
 )
-from monocle_apptrace.instrumentation.common.utils import get_error_message
+from monocle_apptrace.instrumentation.common.utils import get_error_message, extract_from_agent_name, extract_from_agent_invocation_id
+
+def process_stream(to_wrap, response, span_processor):
+    from monocle_apptrace.instrumentation.metamodel.langgraph.langgraph_stream_processor import LanggraphStreamProcessor
+    processor = LanggraphStreamProcessor()
+    return processor.process_stream(to_wrap, response, span_processor)
 
 AGENT = {
       "type": SPAN_TYPES.AGENTIC_INVOCATION,
-      "subtype": SPAN_SUBTYPES.ROUTING,
+      "subtype": SPAN_SUBTYPES.CONTENT_PROCESSING,
       "attributes": [
         [
               {
@@ -23,7 +28,17 @@ AGENT = {
                 "_comment": "agent description",
                 "attribute": "description",
                 "accessor": lambda arguments: _helper.get_agent_description(arguments['instance'])
-              }
+              },
+              {
+                "_comment": "delegating agent name",
+                "attribute": "from_agent",
+                "accessor": lambda arguments: extract_from_agent_name(arguments['parent_span'])
+              },
+              {
+                "_comment": "from_agent invocation id",
+                "attribute": "from_agent_span_id",
+                "accessor": lambda arguments: extract_from_agent_invocation_id(arguments['parent_span'])
+              }   
         ]
       ],
       "events": [
@@ -56,7 +71,7 @@ AGENT = {
 
 AGENT_REQUEST = {
       "type": SPAN_TYPES.AGENTIC_REQUEST,
-      "subtype": SPAN_SUBTYPES.PLANNING,
+      "subtype": SPAN_SUBTYPES.TURN,
       "attributes": [
         [
               {
@@ -73,7 +88,7 @@ AGENT_REQUEST = {
             {
                 "_comment": "this is Agent input",
                 "attribute": "input",
-                "accessor": lambda arguments: _helper.extract_request_agent_input(arguments)
+                "accessor": lambda arguments: _helper.extract_agent_input(arguments)
             }
           ]
         },
@@ -92,7 +107,7 @@ AGENT_REQUEST = {
 
 TOOLS = {
       "type": SPAN_TYPES.AGENTIC_TOOL_INVOCATION,
-      "subtype": SPAN_SUBTYPES.ROUTING,
+      "subtype": SPAN_SUBTYPES.CONTENT_GENERATION,
       "attributes": [
         [
               {
@@ -171,4 +186,15 @@ AGENT_DELEGATION = {
               }
         ]
       ]
+}
+AGENT_STREAM = {
+    **AGENT,
+    "is_auto_close": lambda kwargs: False,
+    "response_processor": process_stream,
+}
+
+AGENT_REQUEST_STREAM = {
+    **AGENT_REQUEST,
+    "is_auto_close": lambda kwargs: False,
+    "response_processor": process_stream,
 }

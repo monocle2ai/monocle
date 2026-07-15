@@ -8,14 +8,18 @@ import uvicorn
 from common.chain_exec import exec_chain
 from fastapi import FastAPI, Request
 
+from monocle_apptrace.instrumentation.common.scope_wrapper import start_scope, stop_scope
+
 PORT = 8096
 app = FastAPI()
 server_process = None
-
+CONVERSATION_SCOPE_NAME = "discussion"
+CONVERSATION_SCOPE_VALUE = "conv1234"
 logger = logging.getLogger(__name__)
 
 def route_executer(request: Request):
     try:
+        token = start_scope(CONVERSATION_SCOPE_NAME, CONVERSATION_SCOPE_VALUE)
         client_id = request.headers["client-id"]
         question = request.query_params["question"]
         response = exec_chain(question)
@@ -23,10 +27,30 @@ def route_executer(request: Request):
     except Exception as e:
         logger.error(f"Error in route execution: {e}")
         return {"Status": "Failure --- some error occurred"}
+    finally:
+        stop_scope(token)
 
 @app.get("/chat")
 def message_chat(request: Request):
     return route_executer(request)
+
+@app.post("/api/v1/ask_agent")
+async def ask_agent(request: Request):
+    try:
+        token = start_scope(CONVERSATION_SCOPE_NAME, CONVERSATION_SCOPE_VALUE)
+        body = await request.json()
+        question = body.get("question", "")
+        response = exec_chain(question)
+        return {"answer": response}
+    except Exception as e:
+        logger.error(f"Error in ask_agent: {e}")
+        return {"Status": "Failure --- some error occurred"}
+    finally:
+        stop_scope(token)
+
+@app.get("/")
+def health_check():
+    return {}
 
 @app.get("/hello")
 def hello():

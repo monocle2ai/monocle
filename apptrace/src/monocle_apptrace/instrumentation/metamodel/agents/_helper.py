@@ -1,4 +1,5 @@
 from opentelemetry.context import get_value
+from monocle_apptrace.instrumentation.common.constants import AGENT_NAME_KEY
 from monocle_apptrace.instrumentation.common.utils import (
     resolve_from_alias,
     get_json_dumps,
@@ -67,14 +68,22 @@ def extract_agent_input(arguments):
     return []
 
 
-def get_agent_name(arguments) -> str:
+def resolve_agent_instance(args, kwargs):
+    """Resolve the Agent from args[0] (Runner.run), kwargs['agent'] (legacy), or
+    kwargs['bindings'].execution_agent (run_single_turn, openai-agents>=0.16)."""
+    if args and len(args) > 0:
+        return args[0]
+    if kwargs.get("agent") is not None:
+        return kwargs.get("agent")
+    bindings = kwargs.get("bindings")
+    if bindings is not None:
+        return getattr(bindings, "execution_agent", None) or getattr(bindings, "agent", None)
+    return None
+
+
+def get_agent_name(args, kwargs) -> str:
     """Get the name of an agent."""
-    instance = None
-    # For Runner methods, the agent is passed as an argument, not instance
-    if arguments["args"] and len(arguments["args"]) > 0:
-        instance = arguments["args"][0]
-    else:
-        instance = arguments["kwargs"].get("agent")
+    instance = resolve_agent_instance(args, kwargs)
     if instance is None:
         return "Unknown Agent"
     return get_name(instance)
@@ -82,12 +91,7 @@ def get_agent_name(arguments) -> str:
 
 def get_agent_description(arguments) -> str:
     """Get the description of an agent."""
-    instance = None
-    # For Runner methods, the agent is passed as an argument, not instance
-    if arguments["args"] and len(arguments["args"]) > 0:
-        instance = arguments["args"][0]
-    else:
-        instance = arguments["kwargs"].get("agent")
+    instance = resolve_agent_instance(arguments["args"], arguments["kwargs"])
     if instance is None:
         return ""
     return get_description(instance)
@@ -95,12 +99,7 @@ def get_agent_description(arguments) -> str:
 
 def get_agent_instructions(arguments) -> str:
     """Get the instructions of an agent."""
-    instance = None
-    # For Runner methods, the agent is passed as an argument, not instance
-    if arguments["args"] and len(arguments["args"]) > 0:
-        instance = arguments["args"][0]
-    else:
-        instance = arguments["kwargs"].get("agent")
+    instance = resolve_agent_instance(arguments["args"], arguments["kwargs"])
     if instance is None:
         return ""
     if hasattr(instance, "instructions"):
@@ -176,7 +175,7 @@ def is_root_agent_name(instance) -> bool:
 
 def get_source_agent() -> str:
     """Get the name of the agent that initiated the request."""
-    from_agent = get_value(AGENTS_AGENT_NAME_KEY)
+    from_agent = get_value(AGENT_NAME_KEY)
     return from_agent if from_agent is not None else ""
 
 

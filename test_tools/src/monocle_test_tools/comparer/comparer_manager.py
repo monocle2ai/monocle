@@ -16,6 +16,9 @@ def get_comparer(comparer: Optional[Union[str, BaseComparer]]) -> BaseComparer:
         elif comparer == "metric":
             from monocle_test_tools.comparer.metric_comparer import MetricComparer
             comparer = MetricComparer()
+        elif comparer == "token_match":
+            from monocle_test_tools.comparer.token_match_comparer import TokenMatch
+            comparer = TokenMatch()
         else:
             try:
                 # instantiate comparer class from string

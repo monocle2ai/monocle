@@ -1,0 +1,55 @@
+import pytest
+import os
+from monocle_test_tools import TraceAssertion
+from span_loader import JSONSpanLoader
+os.environ["MONOCLE_EXPORT_FAILED_TESTS_ONLY"] = "true"
+
+def test_tool_invocation_span(monocle_trace_asserter:TraceAssertion):
+    monocle_trace_asserter.load_spans(JSONSpanLoader.load_spans("traces/trace1.json"))
+    monocle_trace_asserter.called_tool("adk_book_hotel_5", "adk_hotel_booking_agent_5") \
+        .has_input("{'city': 'Mumbai', 'hotel_name': 'Marriot Intercontinental'}") \
+        .has_output("{'status': 'success', 'message': 'Successfully booked a stay at Marriot Intercontinental in Mumbai.'}") \
+        .contains_input("Mumbai") \
+        .contains_output("Successfully booked") \
+        .does_not_contain_input("Delhi") \
+        .does_not_contain_output("failed")
+
+def test_agent_invocation(monocle_trace_asserter:TraceAssertion):
+    monocle_trace_asserter.load_spans(JSONSpanLoader.load_spans("traces/trace1.json"))
+    monocle_trace_asserter.called_agent("adk_hotel_booking_agent_5") \
+        .has_input("Book a flight from San Francisco to Mumbai for 26th Nov 2025. Book a two queen room at Marriot Intercontinental at Juhu, Mumbai for 27th Nov 2025 for 4 nights.") \
+        .contains_output("I have booked a stay at Marriot Intercontinental in Mumbai.") \
+        .does_not_have_output("cancel the booking") \
+        .does_not_have_output("failed")
+
+def test_span_attribute_assertions(monocle_trace_asserter:TraceAssertion):
+    trace_path = os.path.join(os.path.dirname(__file__), "traces/trace1.json")
+    monocle_trace_asserter.with_trace_source(source="file", trace_path=trace_path)
+    monocle_trace_asserter.called_tool("adk_book_hotel_5", "adk_hotel_booking_agent_5") \
+        .has_attribute("entity.1.type", "tool.adk") \
+        .has_attribute("workflow.name") \
+        .does_not_have_attribute("entity.1.type", "tool.openai")
+
+def test_generic_span_event_assertions(monocle_trace_asserter:TraceAssertion):
+    trace_path = os.path.join(os.path.dirname(__file__), "traces/trace1.json")
+    loaded = monocle_trace_asserter.with_trace_source(source="file", trace_path=trace_path)
+
+    matching = loaded.has_event(
+        event_name="metadata", attribute_name="total_tokens", expected=229
+    ).has_attribute("span.type", "inference")
+
+    assert matching._filtered_spans is not None
+    assert len(matching._filtered_spans) == 1
+
+def test_event_filter_distinguishes_missing_and_non_matching_values(monocle_trace_asserter:TraceAssertion):
+    trace_path = os.path.join(os.path.dirname(__file__), "traces/trace1.json")
+    loaded = monocle_trace_asserter.with_trace_source(source="file", trace_path=trace_path)
+    spans = loaded.validator.spans
+
+    assert spans is not None
+    assert loaded._filter_spans_by_event(spans, "metadata", "total_tokens", 229)
+    assert not loaded._filter_spans_by_event(spans, "metadata", "missing", None)
+    assert not loaded._filter_spans_by_event(spans, "metadata", "total_tokens", "229")
+
+if __name__ == "__main__":
+    pytest.main([__file__])

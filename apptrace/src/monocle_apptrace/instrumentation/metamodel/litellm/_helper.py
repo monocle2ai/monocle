@@ -4,6 +4,8 @@ and assistant messages from various input formats.
 """
 import json
 import logging
+import re
+from monocle_apptrace.instrumentation.common.constants import INFERENCE_TOOL_CALL, INFERENCE_TURN_END, TOOL_TYPE
 from monocle_apptrace.instrumentation.common.utils import (
     Option,
     get_json_dumps,
@@ -11,6 +13,8 @@ from monocle_apptrace.instrumentation.common.utils import (
     get_exception_message,
     get_status_code,
 )
+from monocle_apptrace.instrumentation.metamodel.finish_types import map_litellm_finish_reason_to_finish_type
+from contextlib import suppress
 
 logger = logging.getLogger(__name__)
 
@@ -19,8 +23,12 @@ def extract_messages(kwargs):
     """Extract system and user messages"""
     try:
         messages = []
-        if 'messages' in kwargs and len(kwargs['messages']) > 0:
-            for msg in kwargs['messages']:
+        # Azure async passes messages under kwargs["data"]["messages"]; fall back to that.
+        raw_messages = kwargs.get('messages')
+        if not raw_messages and isinstance(kwargs.get('data'), dict):
+            raw_messages = kwargs['data'].get('messages')
+        if raw_messages and len(raw_messages) > 0:
+            for msg in raw_messages:
                 if msg.get('content') and msg.get('role'):
                     messages.append({msg['role']: msg['content']})
 
@@ -28,6 +36,108 @@ def extract_messages(kwargs):
     except Exception as e:
         logger.warning("Warning: Error occurred in extract_messages: %s", str(e))
         return []
+
+
+def _find_json_tool_call_params(tools):
+    """Helper to find parameters from json_tool_call tool in a tools list."""
+    for tool in (tools or []):
+        # OpenAI / Bedrock / Azure shape: {"function": {"name": ..., "parameters": {...}}}
+        fn = tool.get("function") or {}
+        if fn.get("name") == "json_tool_call":
+            return fn.get("parameters")
+        # Anthropic shape: {"name": ..., "input_schema": {...}}
+        if tool.get("name") == "json_tool_call":
+            return tool.get("input_schema")
+    return None
+
+
+def _serialize_response_format(response_format):
+    """Convert response_format to JSON string representation."""
+    if response_format is None:
+        return None
+    if isinstance(response_format, dict):
+        return get_json_dumps(response_format)
+    if hasattr(response_format, "model_json_schema"):
+        return get_json_dumps(response_format.model_json_schema())
+    if hasattr(response_format, "schema"):
+        return get_json_dumps(response_format.schema())
+    return str(response_format)
+
+
+def extract_response_format(kwargs):
+    """Extract response_format from LiteLLM kwargs.
+
+    Checks three locations:
+    1. optional_params["response_format"] — used by OpenAI and Azure sync paths.
+    2. data["tools"] json_tool_call — used by Azure async when a Pydantic model is passed.
+    3. optional_params["tools"] json_tool_call — used by Bedrock Converse and Anthropic (json_mode).
+    """
+    try:
+        optional_params = kwargs.get("optional_params") or {}
+        
+        # 1. Check optional_params for explicit response_format or response_json_schema
+        response_format = (optional_params.get("response_format") or 
+                          optional_params.get("response_json_schema") or
+                          optional_params.get("response_schema"))
+        if response_format is not None:
+            return _serialize_response_format(response_format)
+
+        # 2. Azure async path: Pydantic model converted to json_tool_call tool
+        #    Detected by tool_choice == {"type": "function", "function": {"name": "json_tool_call"}}
+        data = kwargs.get("data") or {}
+        tool_choice = data.get("tool_choice")
+        if isinstance(tool_choice, dict):
+            chosen_name = (tool_choice.get("function") or {}).get("name")
+            if chosen_name == "json_tool_call":
+                params = _find_json_tool_call_params(data.get("tools"))
+                if params:
+                    return get_json_dumps({
+                        "type": "json_schema",
+                        "json_schema": {"schema": params, "name": "response_format"},
+                    })
+
+        # 3. Bedrock Converse / Anthropic path: json_tool_call in optional_params["tools"] with json_mode
+        if optional_params.get("json_mode"):
+            params = _find_json_tool_call_params(optional_params.get("tools"))
+            if params:
+                return get_json_dumps({
+                    "type": "json_schema",
+                    "json_schema": {"schema": params, "name": "response_format"},
+                })
+
+        return None
+    except Exception as e:
+        logger.warning("Warning: Error occurred in extract_response_format: %s", str(e))
+        return None
+
+
+def extract_temperature(kwargs):
+    """Extract the request `temperature` from LiteLLM kwargs.
+
+    Like `response_format`, generation params are not a top-level kwarg by the
+    time the instrumented provider backend is called: LiteLLM moves them into
+    `optional_params` (see `transform_request`, which spreads `**optional_params`
+    into the request body). Checks, in order:
+    1. optional_params["temperature"] — OpenAI/Azure sync and most providers.
+    2. data["temperature"] — Azure async, which passes an already-built request.
+    3. top-level kwargs["temperature"] — defensive fallback.
+
+    Returns None when no temperature was supplied (matching the convention of
+    the langchain/llamaindex/botocore/haystack metamodels).
+    """
+    try:
+        optional_params = kwargs.get("optional_params") or {}
+        if optional_params.get("temperature") is not None:
+            return optional_params["temperature"]
+
+        data = kwargs.get("data") or {}
+        if isinstance(data, dict) and data.get("temperature") is not None:
+            return data["temperature"]
+
+        return kwargs.get("temperature")
+    except Exception as e:
+        logger.warning("Warning: Error occurred in extract_temperature: %s", str(e))
+        return None
 
 
 def extract_assistant_message(arguments):
@@ -87,3 +197,107 @@ def update_span_from_llm_response(response):
             meta_dict.update({"prompt_tokens": getattr(token_usage, "prompt_tokens", None) or getattr(token_usage, "input_tokens", None)})
             meta_dict.update({"total_tokens": getattr(token_usage, "total_tokens")})
     return meta_dict
+
+def agent_inference_type(arguments):
+    """Extract agent inference type from LiteLLM response, following OpenAI pattern"""
+
+    finish_type = map_finish_reason_to_finish_type(extract_finish_reason(arguments))
+    if finish_type == "tool_call":
+        return INFERENCE_TOOL_CALL
+
+    return INFERENCE_TURN_END
+
+def extract_finish_reason(arguments):
+    """Extract finish_reason from LiteLLM response"""
+    try:
+        if arguments.get("exception") is not None:
+            return "error"
+            
+        response = arguments.get("result")
+        
+        # Handle LiteLLM response structure (similar to OpenAI)
+        if response is not None and hasattr(response, "choices") and len(response.choices) > 0:
+            finish_reason = None
+            if hasattr(response.choices[0], "finish_reason"):
+                finish_reason = response.choices[0].finish_reason
+            
+            # Check if response contains ReAct-style tool calls (Action: tool_name pattern),frameworks like CrewAI that use text-based tool calling
+            if finish_reason == "stop" and hasattr(response.choices[0], "message"):
+                message = response.choices[0].message
+                if hasattr(message, "content") and message.content:
+                    content = str(message.content)
+                    if "\nAction:" in content or "\naction:" in content:
+                        action_pattern = r'\n[Aa]ction:\s*([^\n]+)'
+                        match = re.search(action_pattern, content)
+                        if match:
+                            action = match.group(1).strip()
+                            # Filter out ReAct agent termination phrases to distinguish from actual tool calls:
+                            # - 'final answer': Used by ReAct agents to signal completion (e.g., "Action: Final Answer: <result>")
+                            # - 'i now know': Indicates the agent has gathered sufficient information to conclude
+                            # These patterns appear in frameworks like CrewAI that use text-based ReAct reasoning, where "Action:" is followed by either a tool name OR a termination signal.
+                            if action and not any(keyword in action.lower() for keyword in ['final answer', 'i now know']):
+                                return "tool_calls"
+            
+            return finish_reason
+                
+    except (IndexError, AttributeError) as e:
+        logger.warning("Warning: Error occurred in extract_finish_reason: %s", str(e))
+        return None
+    return None
+
+def map_finish_reason_to_finish_type(finish_reason):
+    """Map LiteLLM finish_reason to finish_type using dedicated LiteLLM mapping"""
+    return map_litellm_finish_reason_to_finish_type(finish_reason)
+
+def _get_first_tool_call(response):
+
+    with suppress(AttributeError, IndexError, TypeError):
+        if response is not None and hasattr(response, "choices") and len(response.choices) > 0:
+            if hasattr(response.choices[0], "message") and hasattr(response.choices[0].message, "tool_calls"):
+                tool_calls = response.choices[0].message.tool_calls
+                if tool_calls and len(tool_calls) > 0:
+                    return tool_calls[0]
+
+    return None
+
+def extract_tool_name(arguments):
+    """Extract tool name from LiteLLM response when finish_type is tool_call"""
+    try:
+        finish_type = map_finish_reason_to_finish_type(extract_finish_reason(arguments))
+        if finish_type != "tool_call":
+            return None
+
+        tool_call = _get_first_tool_call(arguments["result"])
+        if not tool_call:
+            return None
+
+        # Try different name extraction approaches
+        for getter in [
+            lambda tc: tc.function.name,  # dict with name key
+        ]:
+            try:
+                return getter(tool_call)
+            except (KeyError, AttributeError, TypeError):
+                continue
+
+                    
+    except Exception as e:
+        logger.warning("Warning: Error occurred in extract_tool_name: %s (type: %s)", str(e), type(e).__name__)
+    
+    return None
+
+def extract_tool_type(arguments):
+    """Extract tool type from LiteLLM response when finish_type is tool_call"""
+    try:
+        finish_type = map_finish_reason_to_finish_type(extract_finish_reason(arguments))
+        if finish_type != "tool_call":
+            return None
+
+        tool_name = extract_tool_name(arguments)
+        if tool_name:
+            return TOOL_TYPE
+
+    except Exception as e:
+        logger.warning("Warning: Error occurred in extract_tool_type: %s", str(e))
+    
+    return None

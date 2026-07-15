@@ -15,11 +15,6 @@ AZFUNC_HTTP_PROCESSOR = {
                 "accessor": lambda arguments: _helper.get_route(arguments['kwargs'])
             },
             {
-                "_comment": "request method, request URI",
-                "attribute": "body",
-                "accessor": lambda arguments: _helper.get_body(arguments['kwargs'])
-            },
-            {
                 "_comment": "request function name",
                 "attribute": "function_name",
                 "accessor": lambda arguments: _helper.get_function_name(arguments['kwargs'])
@@ -36,6 +31,11 @@ AZFUNC_HTTP_PROCESSOR = {
             "name": "data.input",
             "attributes": [
                 {
+                "_comment": "request body",
+                "attribute": "request_body",
+                "accessor": lambda arguments: _helper.get_body(arguments['kwargs'])
+                },
+                {
                     "_comment": "route params",
                     "attribute": "params",
                     "accessor": lambda arguments: _helper.get_params(arguments['kwargs'])
@@ -47,7 +47,7 @@ AZFUNC_HTTP_PROCESSOR = {
             "attributes": [
                 {
                     "_comment": "status from HTTP response",
-                    "attribute": "error_code",
+                    "attribute": "status_code",
                     "accessor": lambda arguments: _helper.extract_status(arguments)
                 },
                 {

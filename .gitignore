@@ -1,20 +1,105 @@
 # Python
-*~
-*.log
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
 *.pyc
 *.pyo
 *.pyt
 *.pytc
-*.egg-info
-.*.swp
-storage
-traces.txt
-dist
-.tox
-.DS_Store
+*~
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual Environment
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+.venv/
+pipenv/
 Pipfile**
+Pipfile.lock
+
+# Testing
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.log
+.pytest_cache/
+htmlcov/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.*.swp
+.DS_Store
 launch.json
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Monocle specific
+apptrace/monocle_traces/
+test_tools/monocle_traces/
+*.ndjson
+monocle_traces/
+storage/
+traces.txt
 monocle_trace**.json
+
+# Temporary files
+*.tmp
+*.bak
+*.orig
+
+# OS
+Thumbs.db
+
+# Documentation builds
+docs/_build/
+docs/.doctrees/
+
+# Package files
+*.whl
+*.tar.gz
+
+# Logs
+logs/
+
+# Local test configurations
+.local/
+local_config.py
 
 # Ignore LICENSE files in specific subdirectories
 apptrace/LICENSE

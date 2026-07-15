@@ -6,6 +6,7 @@ from monocle_apptrace.instrumentation.common.utils import get_error_message, get
 
 INFERENCE = {
     "type": SPAN_TYPES.INFERENCE_FRAMEWORK,
+    "subtype": lambda arguments: _helper.agent_inference_type(arguments),
     "attributes": [
         [
             {
@@ -43,6 +44,20 @@ INFERENCE = {
                 "accessor": lambda arguments: 'model.llm.' + _helper.resolve_from_alias(arguments['instance'].__dict__,
                                                                                         ['model', 'model_name','_model_name'])
             }
+        ],
+        [
+            {
+                "_comment": "Tool name when finish_type is tool_call",
+                "attribute": "name",
+                "phase": "post_execution",
+                "accessor": lambda arguments: _helper.extract_tool_name(arguments),
+            },
+            {
+                "_comment": "Tool type when finish_type is tool_call", 
+                "attribute": "type",
+                "phase": "post_execution",
+                "accessor": lambda arguments: _helper.extract_tool_type(arguments),
+            },
         ]
     ],
     "events": [

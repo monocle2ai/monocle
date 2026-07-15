@@ -20,14 +20,14 @@ LANGCHAIN_METHODS = [
         "wrapper_method": atask_wrapper
     },
     {
-        "package": "langchain.chat_models.base",
+        "package": "langchain_core.language_models.chat_models",
         "object": "BaseChatModel",
         "method": "invoke",
         "wrapper_method": task_wrapper,
         "output_processor": INFERENCE
     },
     {
-        "package": "langchain.chat_models.base",
+        "package": "langchain_core.language_models.chat_models",
         "object": "BaseChatModel",
         "method": "ainvoke",
         "wrapper_method": atask_wrapper,
@@ -91,12 +91,14 @@ LANGCHAIN_METHODS = [
     {
         "package": "langchain.schema.runnable",
         "object": "RunnableSequence",
+        "span_name": "Orchestrator",
         "method": "invoke",
         "wrapper_method": task_wrapper
     },
     {
         "package": "langchain.schema.runnable",
         "object": "RunnableSequence",
+        "span_name": "Orchestrator",
         "method": "ainvoke",
         "wrapper_method": atask_wrapper
     }

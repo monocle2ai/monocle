@@ -13,7 +13,7 @@ import os
 
 import pytest
 from common.custom_exporter import CustomConsoleSpanExporter
-from langchain.schema import HumanMessage, SystemMessage
+from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_anthropic import ChatAnthropic
 from langchain_openai import ChatOpenAI as LangChainOpenAI
 from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
@@ -136,7 +136,7 @@ def test_langchain_openai_finish_reason_length(setup):
 def test_langchain_anthropic_finish_reason(setup):
     """Test finish_reason with LangChain Anthropic integration."""
     chat = ChatAnthropic(
-        model="claude-3-haiku-20240307",
+        model="claude-haiku-4-5-20251001",
         api_key=ANTHROPIC_API_KEY,
         max_tokens=50
     )
@@ -169,7 +169,7 @@ def test_langchain_anthropic_finish_reason(setup):
 def test_langchain_anthropic_finish_reason_max_tokens(setup):
     """Test finish_reason when hitting max_tokens with LangChain Anthropic."""
     chat = ChatAnthropic(
-        model="claude-3-haiku-20240307",
+        model="claude-haiku-4-5-20251001",
         api_key=ANTHROPIC_API_KEY,
         max_tokens=1  # Very low limit
     )
@@ -484,7 +484,7 @@ def test_langchain_openai_finish_reason_content_filter(setup):
 def test_langchain_anthropic_finish_reason_content_filter(setup):
     """Test finish_reason for content filtering with LangChain Anthropic."""
     chat = ChatAnthropic(
-        model="claude-3-haiku-20240307",
+        model="claude-haiku-4-5-20251001",
         api_key=ANTHROPIC_API_KEY,
         max_tokens=100
     )

@@ -1,0 +1,327 @@
+[{
+    "name": "openai.resources.chat.completions.AsyncCompletions.create",
+    "context": {
+        "trace_id": "e1fb6f2f286deb015104dd49b87b5c1e",
+        "span_id": "fd0f507355da8529",
+        "trace_state": "[]"
+    },
+    "kind": "SpanKind.INTERNAL",
+    "parent_id": "a221107019d9a814",
+    "start_time": "2026-01-04T00:20:24.574986Z",
+    "end_time": "2026-01-04T00:20:25.119444Z",
+    "status": {
+        "status_code": "OK"
+    },
+    "attributes": {
+        "monocle_apptrace.version": "0.7.0",
+        "monocle_apptrace.language": "python",
+        "span_source": "/Users/devika/Desktop/Monocle_2/monocle/.venv/lib/python3.11/site-packages/agent_framework/openai/_chat_client.py:110",
+        "workflow.name": "microsoft_agent_simple_test",
+        "entity.1.type": "inference.azure_openai",
+        "entity.1.provider_name": "okahu-openai-dev.openai.azure.com",
+        "entity.1.inference_endpoint": "https://okahu-openai-dev.openai.azure.com/openai/deployments/kshitiz-gpt/",
+        "entity.2.name": "kshitiz-gpt",
+        "entity.2.type": "model.llm.kshitiz-gpt",
+        "span.type": "inference",
+        "scope.agentic.turn": "8964dfbf9f3ffc2a446b8b972f15cfcc",
+        "scope.agentic.invocation": "79d98e8207922e3e244e5945f327b687",
+        "entity.count": 2,
+        "span.subtype": "tool_call"
+    },
+    "events": [
+        {
+            "name": "data.input",
+            "timestamp": "2026-01-04T00:20:24.575069Z",
+            "attributes": {
+                "input": [
+                    "{\"system\": [{\"type\": \"text\", \"text\": \"You are a Flight Booking Assistant. Your goal is to help users book flights between any two cities or airports. You are a reliable flight booking assistant helping users plan their air travel efficiently.\"}]}",
+                    "{\"user\": [{\"type\": \"text\", \"text\": \"Book a flight from JFK to SFO for the user.\"}]}"
+                ]
+            }
+        },
+        {
+            "name": "data.output",
+            "timestamp": "2026-01-04T00:20:25.005883Z",
+            "attributes": {
+                "response": "{\"tools\": [{\"tool_id\": \"call_hCKDXdwsEUTDFbFw0Gna0443\", \"tool_name\": \"book_flight\", \"tool_arguments\": \"\"}]}"
+            }
+        },
+        {
+            "name": "metadata",
+            "timestamp": "2026-01-04T00:20:25.117570Z",
+            "attributes": {
+                "completion_tokens": 26,
+                "prompt_tokens": 145,
+                "total_tokens": 171,
+                "finish_reason": "tool_calls",
+                "finish_type": "tool_call"
+            }
+        }
+    ],
+    "links": [],
+    "resource": {
+        "attributes": {
+            "service.name": "microsoft_agent_simple_test"
+        },
+        "schema_url": ""
+    }
+}
+,{
+    "name": "agent_framework._tools.AIFunction.invoke",
+    "context": {
+        "trace_id": "e1fb6f2f286deb015104dd49b87b5c1e",
+        "span_id": "08c75e22074ac7ff",
+        "trace_state": "[]"
+    },
+    "kind": "SpanKind.INTERNAL",
+    "parent_id": "a221107019d9a814",
+    "start_time": "2026-01-04T00:20:25.121563Z",
+    "end_time": "2026-01-04T00:20:25.121939Z",
+    "status": {
+        "status_code": "OK"
+    },
+    "attributes": {
+        "monocle_apptrace.version": "0.7.0",
+        "monocle_apptrace.language": "python",
+        "span_source": "/Users/devika/Desktop/Monocle_2/monocle/.venv/lib/python3.11/site-packages/agent_framework/_tools.py:1476",
+        "workflow.name": "microsoft_agent_simple_test",
+        "entity.1.type": "tool.microsoft",
+        "entity.1.name": "book_flight",
+        "entity.1.description": "Book a flight from one airport to another",
+        "entity.2.name": "MS_Flight_Booking_Agent",
+        "entity.2.type": "agent.microsoft",
+        "span.type": "agentic.tool.invocation",
+        "scope.agentic.turn": "8964dfbf9f3ffc2a446b8b972f15cfcc",
+        "scope.agentic.invocation": "79d98e8207922e3e244e5945f327b687",
+        "entity.count": 2,
+        "span.subtype": "content_generation"
+    },
+    "events": [
+        {
+            "name": "data.input",
+            "timestamp": "2026-01-04T00:20:25.121795Z",
+            "attributes": {
+                "input": "{'from_airport': 'JFK', 'to_airport': 'SFO'}"
+            }
+        },
+        {
+            "name": "data.output",
+            "timestamp": "2026-01-04T00:20:25.121900Z",
+            "attributes": {
+                "response": "<coroutine object AIFunction.invoke at 0x10ef6d7a0>"
+            }
+        }
+    ],
+    "links": [],
+    "resource": {
+        "attributes": {
+            "service.name": "microsoft_agent_simple_test"
+        },
+        "schema_url": ""
+    }
+}
+,{
+    "name": "openai.resources.chat.completions.AsyncCompletions.create",
+    "context": {
+        "trace_id": "e1fb6f2f286deb015104dd49b87b5c1e",
+        "span_id": "77342e42074511a6",
+        "trace_state": "[]"
+    },
+    "kind": "SpanKind.INTERNAL",
+    "parent_id": "a221107019d9a814",
+    "start_time": "2026-01-04T00:20:25.124241Z",
+    "end_time": "2026-01-04T00:20:25.716639Z",
+    "status": {
+        "status_code": "OK"
+    },
+    "attributes": {
+        "monocle_apptrace.version": "0.7.0",
+        "monocle_apptrace.language": "python",
+        "span_source": "/Users/devika/Desktop/Monocle_2/monocle/.venv/lib/python3.11/site-packages/agent_framework/openai/_chat_client.py:110",
+        "workflow.name": "microsoft_agent_simple_test",
+        "entity.1.type": "inference.azure_openai",
+        "entity.1.provider_name": "okahu-openai-dev.openai.azure.com",
+        "entity.1.inference_endpoint": "https://okahu-openai-dev.openai.azure.com/openai/deployments/kshitiz-gpt/",
+        "entity.2.name": "kshitiz-gpt",
+        "entity.2.type": "model.llm.kshitiz-gpt",
+        "span.type": "inference",
+        "scope.agentic.turn": "8964dfbf9f3ffc2a446b8b972f15cfcc",
+        "scope.agentic.invocation": "79d98e8207922e3e244e5945f327b687",
+        "entity.count": 2,
+        "span.subtype": "turn_end"
+    },
+    "events": [
+        {
+            "name": "data.input",
+            "timestamp": "2026-01-04T00:20:25.124667Z",
+            "attributes": {
+                "input": [
+                    "{\"system\": [{\"type\": \"text\", \"text\": \"You are a Flight Booking Assistant. Your goal is to help users book flights between any two cities or airports. You are a reliable flight booking assistant helping users plan their air travel efficiently.\"}]}",
+                    "{\"user\": [{\"type\": \"text\", \"text\": \"Book a flight from JFK to SFO for the user.\"}]}",
+                    "{\"tool\": \"Successfully booked flight #FL105199 from JFK to SFO.\"}"
+                ]
+            }
+        },
+        {
+            "name": "data.output",
+            "timestamp": "2026-01-04T00:20:25.708567Z",
+            "attributes": {
+                "response": "{\"assistant\": \"Your flight from JFK to SFO has been successfully booked. If you need any further assistance, feel free to ask!\"}"
+            }
+        },
+        {
+            "name": "metadata",
+            "timestamp": "2026-01-04T00:20:25.715605Z",
+            "attributes": {
+                "completion_tokens": 26,
+                "prompt_tokens": 200,
+                "total_tokens": 226,
+                "finish_reason": "stop",
+                "finish_type": "success"
+            }
+        }
+    ],
+    "links": [],
+    "resource": {
+        "attributes": {
+            "service.name": "microsoft_agent_simple_test"
+        },
+        "schema_url": ""
+    }
+}
+,{
+    "name": "agent_framework.azure._chat_client.AzureOpenAIChatClient.get_streaming_response",
+    "context": {
+        "trace_id": "e1fb6f2f286deb015104dd49b87b5c1e",
+        "span_id": "a221107019d9a814",
+        "trace_state": "[]"
+    },
+    "kind": "SpanKind.INTERNAL",
+    "parent_id": "0054cf6a528a0f5e",
+    "start_time": "2026-01-04T00:20:24.573999Z",
+    "end_time": "2026-01-04T00:20:25.717349Z",
+    "status": {
+        "status_code": "OK"
+    },
+    "attributes": {
+        "monocle_apptrace.version": "0.7.0",
+        "monocle_apptrace.language": "python",
+        "span_source": "/Users/devika/Desktop/Monocle_2/monocle/.venv/lib/python3.11/site-packages/agent_framework/_agents.py:1033",
+        "workflow.name": "microsoft_agent_simple_test",
+        "entity.1.type": "agent.microsoft",
+        "entity.1.name": "MS_Flight_Booking_Agent",
+        "entity.1.description": "unknown_model",
+        "last.inference": "77342e42074511a6:*",
+        "span.type": "agentic.invocation",
+        "scope.agentic.turn": "8964dfbf9f3ffc2a446b8b972f15cfcc",
+        "scope.agentic.invocation": "79d98e8207922e3e244e5945f327b687",
+        "entity.count": 1,
+        "span.subtype": "content_processing"
+    },
+    "events": [
+        {
+            "name": "data.input",
+            "timestamp": "2026-01-04T00:20:24.574043Z",
+            "attributes": {
+                "input": "<agent_framework._types.ChatMessage object at 0x10eedc7d0>"
+            }
+        },
+        {
+            "name": "data.output",
+            "timestamp": "2026-01-04T00:20:25.717309Z",
+            "attributes": {}
+        }
+    ],
+    "links": [],
+    "resource": {
+        "attributes": {
+            "service.name": "microsoft_agent_simple_test"
+        },
+        "schema_url": ""
+    }
+}
+,{
+    "name": "agent_framework.ChatAgent.run_stream",
+    "context": {
+        "trace_id": "e1fb6f2f286deb015104dd49b87b5c1e",
+        "span_id": "0054cf6a528a0f5e",
+        "trace_state": "[]"
+    },
+    "kind": "SpanKind.INTERNAL",
+    "parent_id": "46b46511b0b8dab8",
+    "start_time": "2026-01-04T00:20:24.573419Z",
+    "end_time": "2026-01-04T00:20:25.718214Z",
+    "status": {
+        "status_code": "OK"
+    },
+    "attributes": {
+        "monocle_apptrace.version": "0.7.0",
+        "monocle_apptrace.language": "python",
+        "span_source": "/Users/devika/Desktop/Monocle_2/monocle/apptrace/tests/integration/test_microsoft_agent_single_agent.py:98",
+        "workflow.name": "microsoft_agent_simple_test",
+        "entity.1.type": "agent.microsoft",
+        "last.inference": "77342e42074511a6:*",
+        "span.type": "agentic.turn",
+        "scope.agentic.turn": "8964dfbf9f3ffc2a446b8b972f15cfcc",
+        "entity.count": 1,
+        "span.subtype": "turn"
+    },
+    "events": [
+        {
+            "name": "data.input",
+            "timestamp": "2026-01-04T00:20:24.573466Z",
+            "attributes": {
+                "input": "Book a flight from JFK to SFO for the user."
+            }
+        },
+        {
+            "name": "data.output",
+            "timestamp": "2026-01-04T00:20:25.718186Z",
+            "attributes": {}
+        }
+    ],
+    "links": [],
+    "resource": {
+        "attributes": {
+            "service.name": "microsoft_agent_simple_test"
+        },
+        "schema_url": ""
+    }
+}
+,{
+    "name": "workflow",
+    "context": {
+        "trace_id": "e1fb6f2f286deb015104dd49b87b5c1e",
+        "span_id": "46b46511b0b8dab8",
+        "trace_state": "[]"
+    },
+    "kind": "SpanKind.INTERNAL",
+    "parent_id": null,
+    "start_time": "2026-01-04T00:20:24.573372Z",
+    "end_time": "2026-01-04T00:20:25.718406Z",
+    "status": {
+        "status_code": "OK"
+    },
+    "attributes": {
+        "monocle_apptrace.version": "0.7.0",
+        "monocle_apptrace.language": "python",
+        "span_source": "/Users/devika/Desktop/Monocle_2/monocle/apptrace/tests/integration/test_microsoft_agent_single_agent.py:98",
+        "scope.agentic.turn": "8964dfbf9f3ffc2a446b8b972f15cfcc",
+        "workflow.name": "microsoft_agent_simple_test",
+        "span.type": "workflow",
+        "entity.1.name": "microsoft_agent_simple_test",
+        "entity.1.type": "workflow.generic",
+        "entity.2.type": "app_hosting.generic",
+        "entity.2.name": "generic",
+        "last.inference": "77342e42074511a6:*"
+    },
+    "events": [],
+    "links": [],
+    "resource": {
+        "attributes": {
+            "service.name": "microsoft_agent_simple_test"
+        },
+        "schema_url": ""
+    }
+}
+]

@@ -13,7 +13,7 @@ from monocle_test_tools.comparer.comparer_manager import get_comparer
 class SpanType(str, Enum):
     TOOL_INVOCATION = "agentic.tool.invocation"
     AGENTIC_INVOCATION = "agentic.invocation"
-    AGENTIC_REQUEST = "agentic.request"
+    AGENTIC_REQUEST = "agentic.turn"
     AGENTIC_DELEGATION = "agentic.delegation"
     INFERENCE = "inference"
 
@@ -63,6 +63,7 @@ class TestSpan(BaseModel):
         entities: List of entities (tools, agents) involved in this interaction
         input: Input provided to this interaction
         output: Expected output from this interaction
+        attributes: Expected span attributes (key/value pairs) to verify on the matched span
         test_type: Whether this is a "positive" (expected to succeed) or "negative" (expected to fail) test
         eval: Evaluation method to apply to the span's results
         expect_errors: Flag indicating whether errors are expected during this span
@@ -73,6 +74,7 @@ class TestSpan(BaseModel):
     entities: Optional[list[Entity]] = Field(None, description="List of entities involved in the span.")
     input: Optional[Union[str, dict]] = Field(None, description="Input for the span.")
     output: Optional[Union[str, dict]] = Field(None, description="Output for the span.")
+    attributes: Optional[dict] = Field(None, description="Expected span attributes (key/value) to verify on the matched span.")
     test_type: Optional[str] = Field("positive", description="Whether the test is positive or negative, default is positive.")
     eval: Optional[Evaluation] = Field(None, description="Evaluation method for the span.")
     expect_errors: Optional[bool] = Field(False, description="Whether to expect errors during the test.")

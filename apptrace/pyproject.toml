@@ -10,7 +10,7 @@ commands = [
 
 [project]
 name = "monocle_apptrace"
-version = "0.6.0"
+version = "0.8.7b1"
 authors = [
   { name="Okahu Inc.", email="okahu-pypi@okahu.ai" },
 ]
@@ -24,12 +24,14 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 dependencies = [
-   'requests',
-   'wrapt>=1.14.0',
-   'rfc3986>=2.0.0',
-   'opentelemetry-api>=1.21.0',
-   'opentelemetry-sdk>=1.21.0',
-   'opentelemetry-instrumentation',
+   "requests",
+   "wrapt>=1.14.0",
+   "rfc3986>=2.0.0",
+   "opentelemetry-api>=1.20.0,<2.0.0",
+   "opentelemetry-sdk>=1.20.0,<2.0.0",
+   "opentelemetry-instrumentation>=0.41b0",
+   "opentelemetry-exporter-otlp-proto-http>=1.20.0,<2.0.0",
+   "pyyaml>=6.0.2",
 ]
 
 [tool.pytest.ini_options]
@@ -58,7 +60,7 @@ pythonpath = [
 #ignore = [
 #  "tests/integration/test_langchain_bedrock_sample.py",
 #  "tests/integration/test_anthropic_*.py",
-#  "tests/integration/test_azure_*.py", 
+#  "tests/integration/test_azure_*.py",
 #  "tests/integration/test_openai_*.py",
 #  "tests/unit/*_processor_test.py",
 #]
@@ -75,16 +77,16 @@ ai_test = [
 ]
 
 dev = [
-  'langchain-openai==0.3.18',
-  'langchain-chroma==0.2.4',
-  'langchain-community==0.3.24',
-  'langchain==0.3.25',
+  'langchain-openai',
+  'langchain-chroma>=0.2.5',
+  'langchain-community>=0.4.1',
+  'langchain==1.2.15',
   'datasets==4.3.0',
   'numpy==1.26.4',
   'types-requests==2.31.0.20240106',
   'InstructorEmbedding==1.0.1',
   'faiss-cpu==1.8.0',
-  'pytest==8.3.5',
+  'pytest>=8.0.0',
   'pytest-venv',
   'llama-index==0.13.0',
   'llama-index-llms-openai==0.5.0',
@@ -93,49 +95,57 @@ dev = [
   'llama-index-vector-stores-chroma==0.5.0',
   'parameterized==0.9.0',
   'llama-index-llms-mistralai==0.7.0',
-  'langchain-mistralai==0.2.10',
+  'langchain-mistralai>=0.3.0',
   'mistral-haystack==0.0.2',
-  'langchain-aws==0.2.23',
+  'langchain-aws>=0.3.0',
   'azure-storage-blob==12.22.0', # this is for blob exporter
-  'boto3==1.39.0', # this is for aws exporter
+  'boto3==1.42.86', # this is for aws exporter (>=1.42.86 required by bedrock-agentcore 1.6.1)
   'llama-index-vector-stores-opensearch==0.6.0',
-  'haystack-ai==2.3.0',
+  'haystack-ai==2.21.0',
   'llama-index-llms-azure-openai==0.4.0',
   'requests-aws4auth==1.2.3',
   'opensearch-haystack==1.2.0',
   'langchainhub==0.1.21',
-  'chromadb==1.0.15',
+  'chromadb>=1.0.0,<2.0.0',
   'flask',
   'opentelemetry-instrumentation-flask',
-  'langgraph==0.5.4',
-  'langgraph-supervisor==0.0.28',
+  'langgraph==1.1.5',
+  'langgraph-supervisor==0.0.31',
   'opendal==0.45.14',
-  'anthropic==0.57.1',
-  'anthropic-haystack',
-  'pytest-asyncio==0.26.0',
+  'anthropic>=0.75.0',
+  'anthropic-haystack==4.6.0',
+  'pytest-asyncio>=0.26.0',
   'llama-index-llms-anthropic==0.8.1',
-  'langchain-anthropic==0.3.13',
-  'langchain-mcp-adapters==0.1.8',
-  'mcp==1.12.1',
+  'langchain-anthropic>=0.3.20',
+  'langchain-mcp-adapters==0.2.1',
+  'mcp==1.27.0',
   'a2a-sdk==0.3.6',
   'httpx==0.28.1',
-  'fastapi>=0.115.0',
+  'fastapi==0.135.3',
   'pydantic==2.11.7',
-  'uvicorn==0.35.0',
+  'uvicorn==0.44.0',
   'click==8.2.1',
-  'python-dotenv>=1.1.0',
-  'langchain-google-genai==2.0.10',
-  'google-adk==1.10.0',
-  'google-generativeai==0.8.5',
-  'openai-agents==0.2.6',
+  'python-dotenv>=1.2.2',
+  'langchain-google-genai',
+  'google-generativeai',
   'mistralai==1.9.9',
   'huggingface_hub==0.35.3',
   'litellm==1.77.5',
-  'google-ai-haystack'
+  'google-ai-haystack',
+  'crewai==0.95.0',
+  'fastmcp==2.14.1',
+  'google-adk',
+  'openai-agents',
+  'azure-identity',
+  'agent-framework-azure-ai',
+  'bedrock-agentcore==1.6.1',
+  'opentelemetry-semantic-conventions==0.60b1',
+  'opentelemetry-semantic-conventions-ai==0.4.13',
+  'agent-framework-core==1.5.0',
 ]
 
 dev_tranformers = [
-    'sentence-transformers==3.3.0'
+  'sentence-transformers==5.2.0'
 ]
 
 dev_gemini = [
@@ -153,8 +163,21 @@ azure = [
 ]
 
 aws = [
-    'boto3==1.37.24',
+    'boto3==1.42.86',
 ]
+
+opentelemetry-exporter = [
+  'opentelemetry-exporter-otlp-proto-http'
+]
+
+gcp = [
+    'google-cloud-storage==2.18.0',
+]
+
+postgres = [
+    'psycopg2-binary',
+]
+
 
 [project.urls]
 Homepage = "https://github.com/monocle2ai/monocle"
@@ -196,4 +219,5 @@ disable = [
 ]
 
 [project.scripts]
+monocle-apptrace = "monocle_apptrace.cli:main"
 monocle_apptrace = "monocle_apptrace.mcp_server:main"

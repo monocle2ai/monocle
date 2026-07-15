@@ -83,6 +83,32 @@ def get_url(arguments):
 
     return url
 
+@with_tracer_wrapper
+async def mcp_initialize_wrapper(tracer, handler, to_wrap, wrapped, instance, source_path, args, kwargs):
+    """Wrapper for ClientSession.initialize to capture server info."""
+    try:
+        # Call the original async initialize method
+        init_result = await wrapped(*args, **kwargs)
+        
+        # The initialize response contains serverInfo
+        if hasattr(init_result, 'serverInfo'):
+            server_info = init_result.serverInfo
+            if hasattr(server_info, 'name'):
+                # Attach server name to context for later retrieval
+                # Don't detach - let it persist for the session lifetime
+                attach(set_value("mcp.server_name", server_info.name))
+        
+        return init_result
+    except Exception as e:
+        logger.error(f"Error in mcp_initialize_wrapper: {e}", exc_info=True)
+        return await wrapped(*args, **kwargs)
+
+def get_server_name(arguments):
+    """Get the server name from MCP server info."""
+    # Get from context (set by mcp_initialize_wrapper)
+    server_name = get_value("mcp.server_name", None)
+    return server_name
+
 # this extracts the url from the langchain mcp adapter tools and attaches it to the context.
 @with_tracer_wrapper
 def langchain_mcp_wrapper(

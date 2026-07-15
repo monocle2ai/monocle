@@ -63,8 +63,8 @@ LLAMAINDEX_FINISH_REASON_MAPPING = {
     "truncated": FinishType.TRUNCATED.value,
     
     # Tool/function calling
-    "tool_calls": FinishType.SUCCESS.value,
-    "function_call": FinishType.SUCCESS.value,
+    "tool_calls": FinishType.TOOL_CALL.value,
+    "function_call": FinishType.TOOL_CALL.value,
     "agent_finish": FinishType.SUCCESS.value,
     
     # Content filtering and safety
@@ -249,8 +249,9 @@ HAYSTACK_FINISH_REASON_MAPPING = {
     "token_limit": FinishType.TRUNCATED.value,
 
     # Tool/function calling
-    "tool_calls": FinishType.SUCCESS.value,
-    "function_call": FinishType.SUCCESS.value,
+    "tool_calls": FinishType.TOOL_CALL.value,
+    "function_call": FinishType.TOOL_CALL.value,
+    "tool_use": FinishType.TOOL_CALL.value,  # Anthropic tool use finish reason
 
     # Content filtering and safety
     "content_filter": FinishType.CONTENT_FILTER.value,
@@ -297,11 +298,43 @@ HUGGING_FACE_FINISH_REASON_MAPPING = {
 
 ADK_FINISH_REASON_MAPPING = GEMINI_FINISH_REASON_MAPPING
 
+LITELLM_FINISH_REASON_MAPPING = {
+    "stop": FinishType.SUCCESS.value,
+    "tool_calls": FinishType.TOOL_CALL.value,
+    "function_call": FinishType.TOOL_CALL.value,
+    "length": FinishType.TRUNCATED.value,
+    "content_filter": FinishType.CONTENT_FILTER.value
+}
+
+# Microsoft Agent Framework finish reason mapping
+# MS Agent Framework uses Azure OpenAI Assistants API which may not populate finish_reason in streaming
+MSAGENT_FINISH_REASON_MAPPING = {
+    "stop": FinishType.SUCCESS.value,
+    "completed": FinishType.SUCCESS.value,
+    "tool_calls": FinishType.TOOL_CALL.value,
+    "function_call": FinishType.TOOL_CALL.value,
+    "length": FinishType.TRUNCATED.value,
+    "max_tokens": FinishType.TRUNCATED.value,
+    "content_filter": FinishType.CONTENT_FILTER.value,
+    "content_filtered": FinishType.CONTENT_FILTER.value,
+}
+
 def map_openai_finish_reason_to_finish_type(finish_reason):
     """Map OpenAI finish_reason to standardized finish_type."""
     if not finish_reason:
         return None
     return OPENAI_FINISH_REASON_MAPPING.get(finish_reason, None)
+
+
+def map_msagent_finish_reason_to_finish_type(finish_reason):
+    """Map Microsoft Agent Framework finish_reason to standardized finish_type.
+    
+    Note: Azure OpenAI Assistants API often returns None for finish_reason in streaming responses.
+    Callers should provide a default finish_reason like 'stop' when None is encountered.
+    """
+    if not finish_reason:
+        return None
+    return MSAGENT_FINISH_REASON_MAPPING.get(finish_reason, None)
 
 
 def map_anthropic_finish_reason_to_finish_type(finish_reason):
@@ -496,3 +529,9 @@ def map_hf_finish_reason_to_finish_type(finish_reason):
     if not finish_reason:
         return None
     return HUGGING_FACE_FINISH_REASON_MAPPING.get(finish_reason, None)
+
+def map_litellm_finish_reason_to_finish_type(finish_reason):
+    """Map LiteLLM finish_reason to standardized finish_type."""
+    if not finish_reason:
+        return None
+    return LITELLM_FINISH_REASON_MAPPING.get(finish_reason, None)

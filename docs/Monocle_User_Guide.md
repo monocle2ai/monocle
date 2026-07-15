@@ -89,6 +89,178 @@ For Azure:
 
 For AWS:
     Install the AWS support as shown in the setup section, then use  ```S3SpanExporter()``` to upload the traces to an S3 bucket.
+
+### Using Environment Variables to Configure Exporters
+Monocle supports configuring exporters through the `MONOCLE_EXPORTER` environment variable. This allows you to specify one or more exporters without modifying your code. You can specify multiple exporters by separating them with commas.
+
+Supported exporters:
+- `file` - Write traces to local JSON files (default)
+- `console` - Print traces to console output
+- `memory` - Store traces in memory (useful for testing)
+- `s3` - Upload traces to AWS S3 bucket
+- `blob` - Upload traces to Azure Blob Storage
+- `okahu` - Send traces to Okahu observability platform
+- `otlp` - Send traces to any OTLP-compatible backend (e.g., Jaeger, Zipkin, Grafana Tempo, OpenTelemetry Collector)
+- `otlp-genai-semconv` - Send traces over OTLP and add OpenTelemetry `gen_ai.*` semantic attributes
+
+Examples:
+```bash
+# Use default file exporter
+export MONOCLE_EXPORTER=file
+
+# Use console exporter
+export MONOCLE_EXPORTER=console
+
+# Use OTLP exporter
+export MONOCLE_EXPORTER=otlp
+
+# Use OTLP exporter with GenAI semantic attributes
+export MONOCLE_EXPORTER=otlp-genai-semconv
+
+# Use multiple exporters (file and console)
+export MONOCLE_EXPORTER=file,console
+
+# Use OTLP and file exporters
+export MONOCLE_EXPORTER=otlp,file
+```
+
+### Using OTLP Exporter for OpenTelemetry-Compatible Backends
+The OTLP (OpenTelemetry Protocol) exporter allows you to send traces to any OTLP-compatible collectors.
+
+#### Configuration
+Set the `MONOCLE_EXPORTER` environment variable to `otlp` and configure the endpoint:
+
+```bash
+# Set the exporter to OTLP
+export MONOCLE_EXPORTER=otlp
+
+# Configure the OTLP endpoint (default: http://localhost:4318)
+export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318
+
+# Optional: Set specific traces endpoint
+export OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=http://localhost:4318/v1/traces
+
+# Optional: Configure authentication headers
+export OTEL_EXPORTER_OTLP_HEADERS="api-key=your-api-key"
+
+# Optional: Configure timeout (in milliseconds, default: 10000)
+export OTEL_EXPORTER_OTLP_TIMEOUT=15000
+```
+
+Header names and values use the standard OTLP environment-variable format. Percent-encode spaces and other reserved
+characters in header values. For example, an authenticated backend with a tenant header can be configured as:
+
+```bash
+export MONOCLE_EXPORTER=otlp
+export OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=https://observability.example.com/v1/traces
+export OTEL_EXPORTER_OTLP_TRACES_HEADERS="Authorization=Bearer%20your-token,X-Tenant-ID=your-tenant"
+```
+
+Monocle can export to Okahu and an OTLP backend simultaneously:
+
+```bash
+export MONOCLE_EXPORTER=okahu,otlp
+```
+
+#### OpenTelemetry GenAI semantic conventions
+
+The existing `otlp` exporter preserves Monocle's original span attributes. To add OpenTelemetry `gen_ai.*`
+attributes alongside the existing Monocle metamodel attributes, select the `otlp-genai-semconv` exporter:
+
+```bash
+export MONOCLE_EXPORTER=otlp-genai-semconv
+```
+
+Both exporter names use the same OTLP endpoint, headers, and timeout configuration. Control semantic-convention
+enrichment explicitly with:
+
+```bash
+# Default: enable only when otlp-genai-semconv is configured
+export MONOCLE_OTEL_GENAI_SEMCONV=auto
+
+# Explicit overrides, including custom SpanProcessor configurations
+export MONOCLE_OTEL_GENAI_SEMCONV=true
+export MONOCLE_OTEL_GENAI_SEMCONV=false
+```
+
+The same override is available programmatically:
+
+```python
+setup_monocle_telemetry(
+    workflow_name="my_app",
+    otel_genai_semconv=True,
+)
+```
+
+Monocle isolates automatically instrumented spans from non-Monocle OpenTelemetry spans by default. To include both in one parent/child trace hierarchy, set this before importing Monocle:
+
+```bash
+export MONOCLE_ISOLATE_SPANS=false
+```
+
+#### Example with OpenTelemetry Collector
+```bash
+# Run OpenTelemetry Collector locally
+docker run -p 4318:4318 \
+  -v $(pwd)/otel-collector-config.yaml:/etc/otel-collector-config.yaml \
+  otel/opentelemetry-collector:latest \
+  --config=/etc/otel-collector-config.yaml
+
+# Configure Monocle to use OTLP exporter
+export MONOCLE_EXPORTER=otlp
+export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318
+
+# Run your application
+python your_app.py
+```
+
+#### Example with Jaeger
+```bash
+# Run Jaeger all-in-one with OTLP support
+docker run -d --name jaeger \
+  -e COLLECTOR_OTLP_ENABLED=true \
+  -p 16686:16686 \
+  -p 4318:4318 \
+  jaegertracing/all-in-one:latest
+
+# Configure Monocle
+export MONOCLE_EXPORTER=otlp
+export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318
+
+# Run your application
+python your_app.py
+
+# View traces at http://localhost:16686
+```
+
+#### Example with Grafana Tempo
+```bash
+# Configure Monocle to send traces to Grafana Tempo
+export MONOCLE_EXPORTER=otlp
+export OTEL_EXPORTER_OTLP_ENDPOINT=http://tempo:4318
+export OTEL_EXPORTER_OTLP_HEADERS="Authorization=Basic your-base64-credentials"
+```
+
+#### Programmatic Configuration
+You can also configure the OTLP exporter programmatically:
+
+```python
+from monocle_apptrace.instrumentor import setup_monocle_telemetry
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+
+# Configure OTLP exporter with custom settings
+otlp_exporter = OTLPSpanExporter(
+    endpoint="http://localhost:4318/v1/traces",
+    headers={"api-key": "your-api-key"},
+    timeout=15  # timeout in seconds
+)
+
+setup_monocle_telemetry(
+    workflow_name="my_genai_app",
+    span_processors=[BatchSpanProcessor(otlp_exporter)]
+)
+```
  
 ### Leveraging Monocle's extensibility to handle customization 
 When the out of box features from app frameworks are not sufficent, the app developers have to add custom code. For example, if you are extending a LLM class in LlamaIndex to use a model hosted in NVIDIA Triton. This new class is not know to Monocle. You can specify this new class method part of Monocle enabling API and it will be able to trace it.
@@ -135,6 +307,46 @@ setup_monocle_telemetry(
         ])
 
 ```
+
+#### Custom instrumentation without code (YAML)
+
+Instead of passing `wrapper_methods=[...]` in code, you can declare the same methods in a YAML file that Monocle reads automatically at `setup_monocle_telemetry()` time. This lets you instrument methods in your own code or in third-party libraries without any Python changes.
+
+By default Monocle looks for the file at `<cwd>/.monocle/custom_instrumentation.yaml`. To use a different directory, set the `MONOCLE_CUSTOM_INSTRUMENTATION_FILE_PATH` environment variable (the file name `custom_instrumentation.yaml` is fixed; the env var overrides only the directory, resolved relative to the current working directory):
+
+```bash
+export MONOCLE_CUSTOM_INSTRUMENTATION_FILE_PATH=config/monocle
+# → config/monocle/custom_instrumentation.yaml
+```
+
+The file is optional — if it is missing, custom instrumentation is silently skipped.
+
+```yaml
+instrument:
+  - package: myapp.services       # importable module path (required)
+    class: PaymentService         # class holding the method (required)
+    method: charge                # method to wrap (required)
+    span_name: payment.charge     # optional span name (defaults to Monocle's convention)
+    sync: true                    # optional; false for async methods (default: true)
+
+  - package: myapp.agents
+    class: ResearchAgent
+    method: run_async
+    span_name: agent.research
+    sync: false                   # wrapped with the async task wrapper
+```
+
+| Field | Required | Description |
+|---|---|---|
+| `package` | Yes | Importable module path where the class lives |
+| `class` | Yes | Class name whose method will be instrumented |
+| `method` | Yes | Method name to wrap |
+| `span_name` | No | Custom span name; falls back to the default naming if omitted |
+| `sync` | No | `true` (default) wraps a synchronous method; `false` wraps an `async` method |
+
+Each valid entry is wrapped with Monocle's generic span processor, so spans carry the standard captured attributes (`instance`, `args`, `kwargs`, `output`). Entries missing any of `package`, `class`, or `method` are skipped with a warning. These wrappers are merged with the built-in framework methods and any `wrapper_methods=[...]` you pass programmatically.
+
+> **Note:** Loading requires `pyyaml`. It is imported lazily and only needed when the config file is actually present.
 
 ### Going beyond supported genAI components
 - If you are using an application framework, model hosting service/infra etc. that's not currently supported by Monocle, please submit a github issue to add that support. 

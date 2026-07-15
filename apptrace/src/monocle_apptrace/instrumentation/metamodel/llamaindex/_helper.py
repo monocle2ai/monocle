@@ -5,9 +5,12 @@ and assistant messages from various input formats.
 
 from ast import arguments
 import logging
+import time
+import threading
 from urllib.parse import urlparse
 from opentelemetry.sdk.trace import Span
 from opentelemetry.context import get_value
+from monocle_apptrace.instrumentation.common.constants import TOOL_TYPE, INFERENCE_TOOL_CALL, INFERENCE_TURN_END
 from monocle_apptrace.instrumentation.common.utils import (
     Option,
     get_json_dumps,
@@ -18,6 +21,7 @@ from monocle_apptrace.instrumentation.common.utils import (
     get_status_code,
 )
 from monocle_apptrace.instrumentation.metamodel.finish_types import map_llamaindex_finish_reason_to_finish_type
+from contextlib import suppress
 
 LLAMAINDEX_AGENT_NAME_KEY = "_active_agent_name"
 
@@ -26,6 +30,17 @@ import threading
 _thread_local = threading.local()
 
 logger = logging.getLogger(__name__)
+
+
+def extract_session_id(kwargs):
+    # LlamaIndex passes memory via 'memory' kwarg
+    memory = kwargs.get('memory')
+    if memory is not None:
+        if hasattr(memory, 'session_id') and memory.session_id:
+            return memory.session_id
+        if hasattr(memory, 'chat_store_key') and memory.chat_store_key:
+            return memory.chat_store_key
+    return None
 
 def get_status(result):
     if result is not None and hasattr(result, 'status'):
@@ -48,6 +63,12 @@ def extract_tools(instance):
                 tools.append(tool_name)
     return tools
 
+def get_tool_type(span):
+    if (span.attributes.get("is_mcp", False)):
+        return "tool.mcp"
+    else:
+        return "tool.llamaindex"
+    
 def get_tool_name(args, instance):
     if len(args) > 1:
         if hasattr(args[1], 'metadata') and hasattr(args[1].metadata, 'name'):
@@ -68,23 +89,53 @@ def get_tool_description(arguments):
             return arguments['instance'].metadata.description
         return ""
 
+def _coerce_tool_arg(value):
+    # Keep scalars and JSON-native containers (e.g. a structured-output list arg);
+    # stringify anything else. Non-scalars were previously dropped from data.input.
+    if value is None:
+        return None
+    if isinstance(value, (str, int, float, bool, list, dict)):
+        return value
+    return str(value)
+
 def extract_tool_args(arguments):
     tool_args = {}
-    if len(arguments['args']) > 1:
-        for key, value in arguments['args'][2].items():
-            # check if value is builtin type or a string
-            if value is not None and isinstance(value, (str, int, float, bool)):
-                tool_args[key] = value
+    if len(arguments['args']) > 1 and isinstance(arguments['args'][2], dict):
+        source = arguments['args'][2]
     else:
-        for key, value in arguments['kwargs'].items():
-            # check if value is builtin type or a string
-            if value is not None and isinstance(value, (str, int, float, bool)):
-                tool_args[key] = value
+        source = arguments['kwargs']
+    for key, value in source.items():
+        coerced = _coerce_tool_arg(value)
+        if coerced is not None:
+            tool_args[key] = coerced
     return get_json_dumps(tool_args)
+
+def _stringify_tool_output(value):
+    # Tool raw_output is often a Pydantic model / dict; OTEL drops non-str
+    # attribute values, so serialize to a string here to avoid empty data.output.
+    if value is None:
+        return ""
+    if isinstance(value, str):
+        return value
+    if hasattr(value, "model_dump_json"):  # pydantic BaseModel
+        try:
+            return value.model_dump_json()
+        except Exception:
+            pass
+    if isinstance(value, (dict, list)):
+        return get_json_dumps(value)
+    return str(value)
 
 def extract_tool_response(response):
     if hasattr(response, 'raw_output'):
-        return response.raw_output
+        if hasattr(response.raw_output, 'structuredContent'):
+            structured = response.raw_output.structuredContent
+            if isinstance(structured, dict) and 'result' in structured:
+                return str(structured['result'])
+        serialized = _stringify_tool_output(response.raw_output)
+        if serialized:
+            return serialized
+        return getattr(response, "content", "") or ""  # fall back to string content
     return ""
 
 def is_delegation_tool(args, instance) -> bool:
@@ -104,13 +155,78 @@ def get_agent_description(instance) -> str:
 def get_name(instance):
     return instance.name if hasattr(instance, 'name') else ""
 
-def set_current_agent(agent_name: str):
-    """Set the current agent name in thread-local storage."""
+def set_current_agent(agent_name: str, agent_span_id: str = None):
+    """Store current agent name and span_id in thread-local storage."""
     _thread_local.current_agent = agent_name
+    if agent_span_id:
+        _thread_local.current_agent_span_id = agent_span_id
 
 def get_current_agent() -> str:
     """Get the current agent name from thread-local storage."""
     return getattr(_thread_local, 'current_agent', '')
+
+def get_current_agent_span_id() -> str:
+    """Get current agent span_id from thread-local storage."""
+    return getattr(_thread_local, 'current_agent_span_id', '')
+
+def set_from_agent_info(from_agent: str, from_agent_span_id: str):
+    """Store from_agent information in thread-local storage for the current agent span."""
+    _thread_local.from_agent = from_agent
+    _thread_local.from_agent_span_id = from_agent_span_id
+
+def get_from_agent_name() -> str:
+    """Get the from_agent name from thread-local storage."""
+    return getattr(_thread_local, 'from_agent', None)
+
+def get_from_agent_span_id() -> str:
+    """Get the from_agent_span_id from thread-local storage."""
+    return getattr(_thread_local, 'from_agent_span_id', None)
+
+# def clear_from_agent_info():
+#     """Clear from_agent information from thread-local storage."""
+#     if hasattr(_thread_local, 'from_agent'):
+#         delattr(_thread_local, 'from_agent')
+#     if hasattr(_thread_local, 'from_agent_span_id'):
+#         delattr(_thread_local, 'from_agent_span_id')
+
+# Thread-safe store for tracking delegation in concurrent workflows
+_delegation_store = {}
+_delegation_store_lock = threading.Lock()
+
+def set_delegation_info(target_agent: str, from_agent: str, from_agent_span_id: str):
+    """Store delegation information for concurrent workflows."""
+    with _delegation_store_lock:
+        _delegation_store[target_agent] = {
+            'from_agent': from_agent,
+            'from_agent_span_id': from_agent_span_id,
+            'timestamp': time.time()
+        }
+    logger.debug(f"set_delegation_info: target={target_agent}, from_agent={from_agent}, span_id={from_agent_span_id}")
+
+def update_delegations_with_span_id(from_agent: str, span_id: str):
+    """Update all delegations FROM this agent with the confirmed span_id."""
+    with _delegation_store_lock:
+        for target_agent, info in _delegation_store.items():
+            # Find delegations from this agent that don't have a span_id yet
+            if info['from_agent'] == from_agent and (not info['from_agent_span_id'] or info['from_agent_span_id'] == 'N/A'):
+                # Check if still recent
+                if time.time() - info['timestamp'] < 5.0:
+                    info['from_agent_span_id'] = span_id
+                    
+def get_delegation_info(agent_name: str) -> dict:
+    """Retrieve and clear delegation information for an agent."""
+    with _delegation_store_lock:
+        info = _delegation_store.pop(agent_name, None)
+        if info:
+            # Check if the delegation info is still recent (within 5 seconds)
+            if time.time() - info['timestamp'] < 5.0:
+                logger.debug(f"get_delegation_info: agent={agent_name}, found info={info}")
+                return info
+            else:
+                logger.debug(f"get_delegation_info: agent={agent_name}, info expired")
+        else:
+            logger.debug(f"get_delegation_info: agent={agent_name}, no info found")
+        return None
 
 def get_source_agent() -> str:
     """Get the name of the agent that initiated the request."""
@@ -156,17 +272,50 @@ def extract_messages(args):
         logger.warning("Error in extract_messages: %s", str(e))
         return []
 
-def extract_agent_input(args):
+def _extract_user_msg_from_memory(memory):
+    # finalize(ctx, output, memory) carries the query in memory, not its args.
+    # Return the most recent user message for the invocation's data.input.
+    try:
+        if memory is None or not hasattr(memory, "get_all"):
+            return None
+        msgs = memory.get_all()
+        if not msgs:
+            return None
+        for msg in reversed(msgs):
+            role = getattr(msg, "role", None)
+            role = getattr(role, "value", role)
+            if role == "user":
+                content = getattr(msg, "content", None)
+                if content:
+                    return content
+    except Exception as e:
+        logger.warning("Warning: Error reading agent memory input: %s", str(e))
+    return None
+
+def extract_agent_input(args, kwargs=None):
+    input_args = []
     if isinstance(args, (list, tuple)):
-        input_args = []
         for arg in args:
             if isinstance(arg, (str, dict)):
                 input_args.append(arg)
             elif hasattr(arg, 'raw') and isinstance(arg.raw, str):
                 input_args.append(arg.raw)
-        return input_args
     elif isinstance(args, str):
-        return [args]
+        input_args = [args]
+    if input_args:
+        return input_args
+    # Fallback: workflow agents pass the query via chat memory, not positionally.
+    memory = None
+    if isinstance(args, (list, tuple)):
+        for arg in args:
+            if hasattr(arg, "get_all"):
+                memory = arg
+                break
+    if memory is None and isinstance(kwargs, dict):
+        memory = kwargs.get("memory")
+    user_msg = _extract_user_msg_from_memory(memory)
+    if user_msg:
+        return [user_msg]
     return ""
 
 def extract_agent_response(arguments):
@@ -400,6 +549,56 @@ def map_finish_reason_to_finish_type(finish_reason):
     """Map LlamaIndex finish_reason to finish_type."""
     return map_llamaindex_finish_reason_to_finish_type(finish_reason)
 
+def agent_inference_type(arguments):
+    """Determine inference span subtype based on finish_reason (tool_call or turn_end)."""
+    finish_type = map_finish_reason_to_finish_type(extract_finish_reason(arguments))
+    if finish_type == "tool_call":
+        return INFERENCE_TOOL_CALL
+    return INFERENCE_TURN_END
+
+def extract_workflow_input(args, kwargs):
+    # Workflow.run is usually called as wf.run(input=...); prefer that key,
+    # else fall back to scalar kwargs / a positional string.
+    try:
+        if isinstance(kwargs, dict) and kwargs:
+            if "input" in kwargs:
+                val = kwargs["input"]
+                return val if isinstance(val, str) else get_json_dumps(val)
+            simple = {k: v for k, v in kwargs.items()
+                      if isinstance(v, (str, int, float, bool))}
+            if simple:
+                return get_json_dumps(simple)
+        if isinstance(args, (list, tuple)):
+            for arg in args:
+                if isinstance(arg, str):
+                    return arg
+    except Exception as e:
+        logger.warning("Warning: Error occurred in extract_workflow_input: %s", str(e))
+    return ""
+
+def extract_workflow_output(arguments):
+    # Result arrives via the deferred-completion callback (StopEvent result):
+    # usually a dict/str or an object with a .result / .response attribute.
+    try:
+        if arguments.get("exception") is not None:
+            return get_exception_message(arguments)
+        result = arguments.get("result")
+        if result is None:
+            return ""
+        if isinstance(result, str):
+            return result
+        if hasattr(result, "result"):
+            result = result.result
+        if isinstance(result, (dict, list)):
+            return get_json_dumps(result)
+        if hasattr(result, "response"):
+            resp = result.response
+            return resp if isinstance(resp, str) else str(resp)
+        return str(result)
+    except Exception as e:
+        logger.warning("Warning: Error occurred in extract_workflow_output: %s", str(e))
+        return ""
+
 def extract_agent_request_input(kwargs):
     if "user_msg" in kwargs:
         return kwargs["user_msg"]
@@ -413,3 +612,64 @@ def extract_agent_request_output(arguments):
     elif hasattr(arguments['result'], 'raw_output'):
         return arguments['result'].raw_output
     return ""
+
+def _get_first_tool_call(response):
+    """Helper function to extract the first tool call from various LangChain response formats"""
+
+    with suppress(AttributeError, IndexError, TypeError):
+        if hasattr(response, "raw") and response.raw:
+            raw_response = response.raw
+
+            if hasattr(raw_response, "choices") and raw_response.choices:
+                choice = raw_response.choices[0]
+                if hasattr(choice, "message") and hasattr(choice.message, "tool_calls"):
+                    tool_calls = choice.message.tool_calls
+                    if tool_calls and len(tool_calls) > 0:
+                        return tool_calls[0]
+
+    return None
+
+def extract_tool_name(arguments):
+    """Extract tool name from LlamaIndex response when finish_type is tool_call"""
+    try:
+        finish_reason = extract_finish_reason(arguments)
+        finish_type = map_finish_reason_to_finish_type(finish_reason)
+        
+        if finish_type != "tool_call":
+            return None
+
+        tool_call = _get_first_tool_call(arguments["result"])
+        if not tool_call:
+            return None
+
+        for getter in [
+            lambda tc: tc['function']['name'],
+            lambda tc: tc.function.name
+        ]:
+            try:
+                return getter(tool_call)
+            except (KeyError, AttributeError, TypeError):
+                continue
+
+    except Exception as e:
+        logger.warning("Warning: Error occurred in extract_tool_name: %s", str(e))
+    
+    return None
+
+def extract_tool_type(arguments):
+    """Extract tool type from LlamaIndex response when finish_type is tool_call"""
+    try:
+        finish_reason = extract_finish_reason(arguments)
+        finish_type = map_finish_reason_to_finish_type(finish_reason)
+        
+        if finish_type != "tool_call":
+            return None
+
+        tool_name = extract_tool_name(arguments)
+        if tool_name:
+            return TOOL_TYPE
+            
+    except Exception as e:
+        logger.warning("Warning: Error occurred in extract_tool_type: %s", str(e))
+    
+    return None

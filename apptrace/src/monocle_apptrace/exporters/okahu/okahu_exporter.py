@@ -1,18 +1,26 @@
 import json
 import logging
-import os
 from typing import Callable, Optional, Sequence
 import requests
 from opentelemetry.sdk.trace import ReadableSpan
 from opentelemetry.sdk.trace.export import SpanExporter, SpanExportResult, ConsoleSpanExporter
 from requests.exceptions import ReadTimeout
-from monocle_apptrace.exporters.base_exporter import SpanExporterBase
+from monocle_apptrace.exporters.base_exporter import SpanExporterBase, serialize_span
 from monocle_apptrace.exporters.exporter_processor import ExportTaskProcessor
+from monocle_apptrace.instrumentation.common.utils import get_monocle_env_value
 
-REQUESTS_SUCCESS_STATUS_CODES = (200, 202)
+REQUESTS_SUCCESS_STATUS_CODES = (200, 202, 204)
 OKAHU_PROD_INGEST_ENDPOINT = "https://ingest.okahu.co/api/v1/trace/ingest"
 
 logger = logging.getLogger(__name__)
+
+
+def _get_okahu_api_key() -> Optional[str]:
+    return get_monocle_env_value("OKAHU_API_KEY")
+
+
+def _get_monocle_exporter() -> Optional[str]:
+    return get_monocle_env_value("MONOCLE_EXPORTER")
 
 
 class OkahuSpanExporter(SpanExporterBase):
@@ -21,13 +29,16 @@ class OkahuSpanExporter(SpanExporterBase):
             endpoint: Optional[str] = None,
             timeout: Optional[int] = None,
             session: Optional[requests.Session] = None,
-            task_processor: ExportTaskProcessor = None
+            task_processor: ExportTaskProcessor = None,
+            evaluate: Optional[bool] = False
     ):
         """Okahu exporter."""
         super().__init__()
-        okahu_endpoint: str = os.environ.get("OKAHU_INGESTION_ENDPOINT", OKAHU_PROD_INGEST_ENDPOINT)
+        okahu_endpoint: str = get_monocle_env_value("OKAHU_INGESTION_ENDPOINT") or OKAHU_PROD_INGEST_ENDPOINT
+        if evaluate:
+            okahu_endpoint = okahu_endpoint.replace("/trace/ingest", "/eval/ingest")
         self.endpoint = endpoint or okahu_endpoint
-        api_key: str = os.environ.get("OKAHU_API_KEY")
+        api_key: Optional[str] = _get_okahu_api_key()
         self._closed = False
         if not api_key:
             raise ValueError("OKAHU_API_KEY not set.")
@@ -46,13 +57,11 @@ class OkahuSpanExporter(SpanExporterBase):
         # not allowed and should return a Failure result
         if not hasattr(self, 'session'):
             return self.exporter.export(spans)
-
+        
         if self._closed:
             logger.warning("Exporter already shutdown, ignoring batch")
             return SpanExportResult.FAILURE
-        if len(spans) == 0:
-            return
-
+        
         span_list = {
             "batch": []
         }
@@ -61,17 +70,14 @@ class OkahuSpanExporter(SpanExporterBase):
         for span in spans:
             if self.skip_export(span):
                 continue
-            # create a object from serialized span
-            obj = json.loads(span.to_json())
-            if obj["parent_id"] is not None:
-                obj["parent_id"] = remove_0x_from_start(obj["parent_id"])
-            if obj["context"] is not None:
-                obj["context"]["trace_id"] = remove_0x_from_start(obj["context"]["trace_id"])
-                obj["context"]["span_id"] = remove_0x_from_start(obj["context"]["span_id"])
-            span_list["batch"].append(obj)
+            span_list["batch"].append(serialize_span(span))
 
+        # if there are no spans to export after filtering, then return
+        if len(span_list["batch"]) == 0:
+            return
+        
         # Calculate is_root_span by checking if any span has no parent
-        is_root_span = any(not span.parent for span in spans)
+        is_root_span = any(OkahuSpanExporter._is_root_span(span) for span in spans)
 
         def send_spans_to_okahu(span_list_local=None, is_root=False):
             try:
@@ -95,9 +101,18 @@ class OkahuSpanExporter(SpanExporterBase):
 
         # if async task function is present, then push the request to asnc task
         if self.task_processor is not None and callable(self.task_processor.queue_task):
-            self.task_processor.queue_task(send_spans_to_okahu, span_list, is_root_span)
+            self.task_processor.queue_task(
+                send_spans_to_okahu,
+                kwargs={'span_list_local': span_list, 'is_root': is_root_span},
+                is_root_span=is_root_span
+            )
             return SpanExportResult.SUCCESS
         return send_spans_to_okahu(span_list, is_root_span)
+
+    @staticmethod
+    def _is_root_span(span: ReadableSpan) -> bool:
+        """Return True if the span has no parent (i.e. it is a root span)."""
+        return (not span.parent) or (span.attributes.get("span.type") == "workflow")
 
     def shutdown(self) -> None:
         if self._closed:
@@ -109,10 +124,4 @@ class OkahuSpanExporter(SpanExporterBase):
 
     def force_flush(self, timeout_millis: int = 30000) -> bool:
         return True
-
-
-# only removes the first occurrence of 0x from the string
-def remove_0x_from_start(my_str: str):
-    if my_str.startswith("0x"):
-        return my_str.replace("0x", "", 1)
-    return my_str
+    

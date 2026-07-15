@@ -1,24 +1,36 @@
 import logging
 import os
 from contextlib import contextmanager
+from threading import Lock
 from typing import Union
 from opentelemetry.context import get_value, set_value, attach, detach
 from opentelemetry.sdk.trace import Span
+from opentelemetry.sdk.resources import SERVICE_NAME
 from opentelemetry.trace.status import Status, StatusCode
 from monocle_apptrace.instrumentation.common.constants import (
+    HTTP_HEALTH_CHECK_METHODS,
     QUERY,
     service_name_map,
     service_type_map,
-    MONOCLE_SDK_VERSION, MONOCLE_SDK_LANGUAGE, MONOCLE_DETECTED_SPAN_ERROR
+    MONOCLE_SDK_VERSION, MONOCLE_SDK_LANGUAGE, MONOCLE_DETECTED_SPAN_ERROR,
+    HTTP_SUCCESS_CODES, HEALTH_RESET_COUNTER
 )
-from monocle_apptrace.instrumentation.common.utils import set_attribute, get_scopes, MonocleSpanException, get_monocle_version, replace_placeholders
-from monocle_apptrace.instrumentation.common.constants import WORKFLOW_TYPE_KEY, WORKFLOW_TYPE_GENERIC, CHILD_ERROR_CODE, MONOCLE_SKIP_EXECUTIONS, SKIPPED_EXECUTION
+
+from monocle_apptrace.instrumentation.common.utils import CyclicCounter, set_attribute, get_scopes, MonocleSpanException, get_monocle_version, replace_placeholders, propogate_inference_info_to_parent_span, get_workflow_name
+from monocle_apptrace.instrumentation.common.constants import \
+    (WORKFLOW_TYPE_KEY, WORKFLOW_TYPE_GENERIC, CHILD_ERROR_CODE, MONOCLE_SKIP_EXECUTIONS, SKIPPED_EXECUTION, MONOCLE_WORKFLOW_NAME_KEY)
 
 logger = logging.getLogger(__name__)
+http_span_counter = CyclicCounter(HEALTH_RESET_COUNTER)
 
 WORKFLOW_TYPE_MAP = {
     "llama_index.core.agent.workflow": WORKFLOW_TYPE_GENERIC,
     "llama_index": "workflow.llamaindex",
+    "langchain_openai": "workflow.langchain",
+    "langchain_anthropic": "workflow.langchain",
+    "langchain_google_genai": "workflow.langchain",
+    "langchain_community": "workflow.langchain",
+    "langchain_core": "workflow.langchain",
     "langchain": "workflow.langchain",
     "haystack": "workflow.haystack",
     "teams.ai": "workflow.teams_ai",
@@ -53,7 +65,8 @@ class SpanHandler:
         return None, None
 
     def post_tracing(self, to_wrap, wrapped, instance, args, kwargs, return_value, token=None):
-        pass
+        if token:
+            detach(token)
 
     def skip_span(self, to_wrap, wrapped, instance, args, kwargs) -> bool:
         return False
@@ -72,10 +85,22 @@ class SpanHandler:
 
     def pre_task_processing(self, to_wrap, wrapped, instance, args,kwargs, span):
         try:
-            if "pipeline" in to_wrap['package']:
+            if 'package' in to_wrap and "pipeline" in to_wrap['package']:
                 set_attribute(QUERY, args[0]['prompt_builder']['question'])
         except Exception as e:
             logger.warning("Warning: Error occurred in pre_task_processing: %s", str(e))
+
+    @staticmethod
+    def _coerce_scope_value(value):
+        # OTEL only accepts primitives (or sequences of them) as attribute values;
+        # scope ids derived from app objects (e.g. a UUID thread_id) get dropped otherwise.
+        if isinstance(value, (bool, str, bytes, int, float)):
+            return value
+        if isinstance(value, (list, tuple)) and all(
+            isinstance(item, (bool, str, bytes, int, float)) for item in value
+        ):
+            return value
+        return str(value)
 
     @staticmethod
     def set_default_monocle_attributes(span: Span, source_path = "" ):
@@ -84,7 +109,7 @@ class SpanHandler:
         span.set_attribute(MONOCLE_SDK_LANGUAGE, "python")
         span.set_attribute("span_source", source_path)
         for scope_key, scope_value in get_scopes().items():
-            span.set_attribute(f"scope.{scope_key}", scope_value)
+            span.set_attribute(f"scope.{scope_key}", SpanHandler._coerce_scope_value(scope_value))
         workflow_name = SpanHandler.get_workflow_name(span=span)
         if workflow_name:
             span.set_attribute("workflow.name", workflow_name)
@@ -100,7 +125,7 @@ class SpanHandler:
         span.set_attribute("span.type", "generic")
 
     def post_task_processing(self, to_wrap, wrapped, instance, args, kwargs, result, ex, span:Span, parent_span:Span):
-        pass
+        propogate_inference_info_to_parent_span(span, parent_span)
 
     def should_skip(self, processor, instance, span, parent_span, args, kwargs) -> bool:
         should_skip = False
@@ -116,6 +141,9 @@ class SpanHandler:
                 logger.warning("Warning: Error occurred in 'should_skip' accessor: %s", str(e))
         return should_skip
 
+    def should_sample(self, to_wrap, wrapped, instance, args, kwargs, result, ex, span:Span, parent_span:Span) -> bool:
+        return True
+
     def hydrate_span(self, to_wrap, wrapped, instance, args, kwargs, result, span, parent_span = None,
                     ex:Exception = None, is_post_exec:bool= False) -> bool:
         try:
@@ -124,8 +152,11 @@ class SpanHandler:
             if detected_error_in_attribute or detected_error_in_event:
                 span.set_attribute(MONOCLE_DETECTED_SPAN_ERROR, True)
         finally:
-            if is_post_exec and span.status.status_code == StatusCode.UNSET and ex is None:
-                span.set_status(StatusCode.OK)
+            if is_post_exec and span.status.status_code == StatusCode.UNSET:
+                if ex is None:
+                    span.set_status(StatusCode.OK)
+                else:
+                    span.set_status(StatusCode.ERROR, str(ex))
 
     def hydrate_attributes(self, to_wrap, wrapped, instance, args, kwargs, result, span:Span, parent_span:Span, is_post_exec:bool) -> bool:
         detected_error:bool = False
@@ -138,18 +169,25 @@ class SpanHandler:
             skip_processors:list[str] = self.skip_processor(to_wrap, wrapped, instance, span, args, kwargs) or []
             if 'attributes' in output_processor and 'attributes' not in skip_processors:
                 arguments = {"instance":instance, "args":args, "kwargs":kwargs, "result":result, "parent_span":parent_span, "span":span}
+
                 for processors in output_processor["attributes"]:
+                    entity_has_attributes = False
                     for processor in processors:
                         attribute = processor.get('attribute')
                         accessor = processor.get('accessor')
 
                         if attribute and accessor:
-                            attribute_name = f"entity.{span_index+1}.{attribute}"
+                            attribute_name = f"entity.{span_index + 1}.{attribute}"
                             try:
                                 if (not is_post_exec and processor.get('phase', '') != 'post_execution') or (is_post_exec and processor.get('phase', '') == 'post_execution'):
                                     processor_result = accessor(arguments)
                                     if processor_result and isinstance(processor_result, (str, list)):
                                         span.set_attribute(attribute_name, processor_result)
+                                        entity_has_attributes = True
+                                else:
+                                    # During post_execution, we need to find the next available entity index
+                                    if span.attributes.get(attribute_name) is not None:
+                                        entity_has_attributes = True
                             except MonocleSpanException as e:
                                 span.set_status(StatusCode.ERROR, e.message)
                                 detected_error = True
@@ -157,13 +195,16 @@ class SpanHandler:
                                 logger.debug(f"Error processing accessor: {e}")
                         else:
                             logger.debug(f"{' and '.join([key for key in ['attribute', 'accessor'] if not processor.get(key)])} not found or incorrect in entity JSON")
-                    span_index += 1
+
+                    # Only increment span_index if this entity actually has attributes set
+                    if entity_has_attributes:
+                        span_index += 1
 
         # set scopes as attributes by calling get_scopes()
         # scopes is a Mapping[str:object], iterate directly with .items()
         for scope_key, scope_value in get_scopes().items():
-            span.set_attribute(f"scope.{scope_key}", scope_value)
-        
+            span.set_attribute(f"scope.{scope_key}", SpanHandler._coerce_scope_value(scope_value))
+
         if span_index > 0:
             span.set_attribute("entity.count", span_index)
         return detected_error
@@ -183,8 +224,14 @@ class SpanHandler:
             if subtype:
                 if callable(subtype):
                     try:
-                        subtype_result = subtype(arguments)
-                        span.set_attribute("span.subtype", subtype_result)
+                        # For inference spans, only evaluate subtype during post-execution when result is available
+                        span_type = span.attributes.get("span.type") if span.attributes else None
+                        if span_type == "inference" and not is_post_exec:
+                            # Skip subtype evaluation for inference during pre-execution
+                            pass  
+                        else:
+                            subtype_result = subtype(arguments)
+                            span.set_attribute("span.subtype", subtype_result)
                     except Exception as e:
                         logger.debug(f"Error processing subtype: {e}")
                 else:
@@ -250,6 +297,10 @@ class SpanHandler:
         workflow_type = SpanHandler.get_workflow_type(to_wrap)
         span.set_attribute(f"entity.{span_index}.type", workflow_type)
 
+    @staticmethod
+    def is_workflow_span(span: Span) -> bool:
+        return span.attributes.get("span.type") == "workflow"
+
     def get_workflow_name_in_progress(self) -> str:
         return get_value(WORKFLOW_TYPE_KEY)
 
@@ -282,11 +333,15 @@ class SpanHandler:
                 span.set_attribute(f"entity.{span_index}.type", f"app_hosting.{type_name}")
                 entity_name_env = service_name_map.get(type_name, "unknown")
                 span.set_attribute(f"entity.{span_index}.name", os.environ.get(entity_name_env, "generic"))
+                break
 
     @staticmethod
     def get_workflow_name(span: Span) -> str:
         try:
-            return get_value("workflow_name") or span.resource.attributes.get("service.name")
+            monocle_workflow_name = get_workflow_name()
+            if monocle_workflow_name:
+                return monocle_workflow_name
+            return get_value(MONOCLE_WORKFLOW_NAME_KEY) or span.resource.attributes.get(SERVICE_NAME)
         except Exception as e:
             logger.exception(f"Error getting workflow name: {e}")
             return None
@@ -298,6 +353,18 @@ class SpanHandler:
                 return curr_span.parent is None
         except Exception as e:
             logger.warning(f"Error finding root span: {e}")
+
+    @staticmethod
+    def is_remote_parent_span(curr_span: Span) -> bool:
+        """True when this span's parent lives in another process (W3C context
+        was extracted by *any* layer, not just monocle's extract_http_headers).
+        Used to emit a workflow span for a propagated trace fragment."""
+        try:
+            parent = getattr(curr_span, "parent", None)
+            return parent is not None and getattr(parent, "is_remote", False) is True
+        except Exception as e:
+            logger.warning(f"Error checking remote parent span: {e}")
+            return False
 
     @staticmethod
     def attach_workflow_type(to_wrap=None, context=None): 
@@ -363,3 +430,38 @@ class NonFrameworkSpanHandler(SpanHandler):
             span.set_attribute("span.type", span_type)
         return span_type
 
+class HttpSpanHandler(SpanHandler):
+    sample_health_checks:bool = os.environ.get("MONOCLE_SAMPLE_HEALTH_CHECKS", "true").lower() == "true"
+
+    def should_sample(self, to_wrap, wrapped, instance, args, kwargs, result, ex, span:Span, parent_span:Span) -> bool:
+        # exclude http health checks spans ie spans with input/output are empty and there's no error or exception
+        # Return False to skip exporting the span
+        if ex is not None or not HttpSpanHandler.sample_health_checks:
+            return True
+
+        # Check attributes for methods
+        attributes = span.attributes
+        method = attributes.get("entity.1.method","")
+        if not method.lower() in HTTP_HEALTH_CHECK_METHODS:
+            return True
+
+        # Check events for input/output data
+        events = span.events
+        if events:
+            for event in events:
+                if event.name == "data.input":
+                    if event.attributes:
+                        return True
+                elif event.name == "data.output":
+                    if event.attributes:
+                        response = event.attributes.get("response")
+                        error_code = event.attributes.get("error_code")
+                        if (response is not None) or (error_code is not None and error_code not in HTTP_SUCCESS_CODES):
+                            return True
+            # if the span has no input/output data and no exception, then just export one out of every HEALTH_RESET_COUNTER
+            if http_span_counter.increment() > 0:
+                return False
+        return True
+
+class AgenticSpanHandler(SpanHandler):
+    pass

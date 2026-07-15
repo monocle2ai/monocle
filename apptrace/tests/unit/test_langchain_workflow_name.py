@@ -11,8 +11,8 @@ from common.dummy_class import DummyClass
 from common.embeddings_wrapper import HuggingFaceEmbeddings
 from common.fake_list_llm import FakeListLLM
 from common.http_span_exporter import HttpSpanExporter
-from langchain.prompts import PromptTemplate
-from langchain.schema import StrOutputParser
+from langchain_core.prompts import PromptTemplate
+from langchain_core.output_parsers import StrOutputParser
 from langchain_community.vectorstores import faiss
 from langchain_core.messages.ai import AIMessage
 from langchain_core.runnables import RunnablePassthrough

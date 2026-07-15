@@ -1,11 +1,11 @@
 from monocle_apptrace.instrumentation.common.constants import AGENT_REQUEST_SPAN_NAME, SPAN_SUBTYPES, SPAN_TYPES
 from monocle_apptrace.instrumentation.common.utils import get_error_message
 from monocle_apptrace.instrumentation.metamodel.agents import _helper
-from monocle_apptrace.instrumentation.common.utils import get_error_message
+from monocle_apptrace.instrumentation.common.utils import get_error_message, extract_from_agent_name, extract_from_agent_invocation_id
 
 AGENT = {
     "type": SPAN_TYPES.AGENTIC_INVOCATION,
-    "subtype": SPAN_SUBTYPES.ROUTING,
+    "subtype": SPAN_SUBTYPES.CONTENT_PROCESSING,
     "attributes": [
         [
             {
@@ -16,7 +16,7 @@ AGENT = {
             {
                 "_comment": "name of the agent",
                 "attribute": "name",
-                "accessor": lambda arguments: _helper.get_agent_name(arguments),
+                "accessor": lambda arguments: _helper.get_agent_name(arguments['args'], arguments['kwargs']),
             },
             {
                 "_comment": "agent description",
@@ -27,6 +27,16 @@ AGENT = {
                 "_comment": "agent instructions",
                 "attribute": "instructions",
                 "accessor": lambda arguments: _helper.get_agent_instructions(arguments),
+            },
+            {
+                "_comment": "delegating agent name",
+                "attribute": "from_agent",
+                "accessor": lambda arguments: extract_from_agent_name(arguments['parent_span'])
+            },
+            {
+                "_comment": "from_agent invocation id",
+                "attribute": "from_agent_span_id",
+                "accessor": lambda arguments: extract_from_agent_invocation_id(arguments['parent_span'])
             },
         ]
     ],
@@ -79,7 +89,7 @@ AGENT = {
 
 AGENT_REQUEST = {
     "type": SPAN_TYPES.AGENTIC_REQUEST,
-    "subtype": SPAN_SUBTYPES.PLANNING,
+    "subtype": SPAN_SUBTYPES.TURN,
     "attributes": [
         [
             {
@@ -122,7 +132,7 @@ AGENT_REQUEST = {
 
 TOOLS = {
     "type": SPAN_TYPES.AGENTIC_TOOL_INVOCATION,
-    "subtype": SPAN_SUBTYPES.ROUTING,
+    "subtype": SPAN_SUBTYPES.CONTENT_GENERATION,
     "attributes": [
         [
             {

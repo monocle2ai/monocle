@@ -8,8 +8,10 @@ from llama_index.core.agent.workflow import AgentWorkflow, FunctionAgent
 from llama_index.core.tools import FunctionTool
 from llama_index.llms.openai import OpenAI
 from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
-from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor, BatchSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
+from monocle_apptrace.exporters.file_exporter import FileSpanExporter
+
 
 logger = logging.getLogger(__name__)
 
@@ -17,10 +19,14 @@ logger = logging.getLogger(__name__)
 @pytest.fixture(scope="function")
 def setup():
     memory_exporter = InMemorySpanExporter()
+    file_exporter = FileSpanExporter()
     try:
         instrumentor = setup_monocle_telemetry(
             workflow_name="llamaindex_agent_1",
-            span_processors=[SimpleSpanProcessor(memory_exporter)]
+            span_processors=[
+                SimpleSpanProcessor(memory_exporter),
+                BatchSpanProcessor(file_exporter),
+            ]
         )
         yield memory_exporter
     finally:
@@ -122,6 +128,15 @@ def verify_spans(memory_exporter = None):
             elif span_attributes["entity.1.name"] == "coordinator":
                 found_supervisor_agent = True
             found_agent = True
+            
+             # Check for delegation via from_agent attribute
+            if "entity.1.from_agent" in span_attributes:
+                from_agent = span_attributes["entity.1.from_agent"]
+                agent_name = span_attributes["entity.1.name"]
+                if agent_name == "flight_booking_agent" and from_agent == "coordinator":
+                    found_book_flight_delegation = True
+                elif agent_name == "hotel_booking_agent" and from_agent == "flight_booking_agent":
+                    found_book_hotel_delegation = True
 
         if "span.type" in span_attributes and span_attributes["span.type"] == "agentic.tool.invocation":
             assert "entity.1.type" in span_attributes
@@ -135,27 +150,17 @@ def verify_spans(memory_exporter = None):
                 found_book_hotel_tool = True
             found_tool = True
 
-        if "span.type" in span_attributes and span_attributes["span.type"] == "agentic.delegation":
-            assert "entity.1.type" in span_attributes
-            assert "entity.1.from_agent" in span_attributes
-            assert "entity.1.to_agent" in span_attributes
-
-            assert span_attributes["entity.1.type"] == "agent.llamaindex"
-            if span_attributes["entity.1.to_agent"] == "flight_booking_agent":
-                found_book_flight_delegation = True
-            elif span_attributes["entity.1.to_agent"] == "hotel_booking_agent":
-                found_book_hotel_delegation = True
-
     assert found_inference, "Inference span not found"
     assert found_agent, "Agent span not found"
     assert found_tool, "Tool span not found"
-    assert found_book_flight_delegation, "Book flight delegation span not found"
-    assert found_book_hotel_delegation, "Book hotel delegation span not found"
     assert found_flight_agent, "Flight assistant agent span not found"
     assert found_hotel_agent, "Hotel assistant agent span not found"
     assert found_supervisor_agent, "Supervisor agent span not found"
     assert found_book_flight_tool, "Book flight tool span not found"
     assert found_book_hotel_tool, "Book hotel tool span not found"
+    assert found_book_flight_delegation, "Book flight delegation span not found (check from_agent attribute)"
+    assert found_book_hotel_delegation, "Book hotel delegation span not found (check from_agent attribute)"
+
 
 
 # [{

@@ -1,0 +1,340 @@
+"""Processor handlers for Microsoft Agent Framework instrumentation."""
+
+import logging
+from contextvars import ContextVar
+from opentelemetry.context import attach, set_value, detach, get_value
+from monocle_apptrace.instrumentation.common.span_handler import SpanHandler
+from monocle_apptrace.instrumentation.common.constants import AGENT_INVOCATION_SPAN_NAME, AGENT_NAME_KEY, AGENT_SESSION, LAST_AGENT_INVOCATION_ID, LAST_AGENT_NAME
+from monocle_apptrace.instrumentation.common.utils import set_scope, remove_scope
+from opentelemetry.trace import Span
+
+logger = logging.getLogger(__name__)
+
+# Context variable to signal that _inner_get_response is active,
+# so the child _inner_get_streaming_response span should be suppressed.
+_INNER_GET_RESPONSE_ACTIVE: ContextVar[bool] = ContextVar('_inner_get_response_active', default=False)
+
+# Context key for storing agent information
+MSAGENT_CONTEXT_KEY = "msagent.agent_info"
+
+def propogate_agent_name_to_parent_span(span: Span, parent_span: Span):
+    """Propagate agent name from child span to parent span."""
+    if span.attributes.get("span.type") != AGENT_INVOCATION_SPAN_NAME:
+        return
+    if parent_span is not None:
+        parent_span.set_attribute(LAST_AGENT_INVOCATION_ID, hex(span.context.span_id))
+        # Try to get agent name from context first, then fall back to span attributes
+        agent_name = get_value(AGENT_NAME_KEY)
+        if agent_name is None:
+            # Context may have been detached, try reading from span attributes
+            agent_name = span.attributes.get("entity.1.name")
+        if agent_name is not None:
+            parent_span.set_attribute(LAST_AGENT_NAME, agent_name)
+
+class MSAgentRequestHandler(SpanHandler):
+    """Handler for Microsoft Agent Framework turn-level requests (agentic.request)."""
+    
+    def skip_span(self, to_wrap, wrapped, instance, args, kwargs):
+        """Skip ChatAgent.run span when it's the 2nd+ turn span (inside workflow/multi-agent)."""
+        from monocle_apptrace.instrumentation.common.utils import is_scope_set
+        
+        # Skip if turn scope is already set - means we're the 2nd+ span
+        # The first span (workflow or first agent) already created the turn
+        if is_scope_set("agentic.turn"):
+            logger.debug(f"Skipping ChatAgent.run span - turn scope already set (inside workflow/multi-agent)")
+            return True
+        return False
+    
+    def pre_tracing(self, to_wrap, wrapped, instance, args, kwargs):
+        """Called before turn execution to extract and store agent information in context."""
+        from monocle_apptrace.instrumentation.metamodel.msagent._helper import uses_chat_client
+        from monocle_apptrace.instrumentation.metamodel.msagent.entities.inference import AGENT, AGENT_REQUEST
+        from monocle_apptrace.instrumentation.common.utils import is_scope_set, set_scopes
+        
+        # Store agent information in context for child spans to access
+        agent_info = {}
+        if hasattr(instance, "name"):
+            agent_info["name"] = instance.name
+        if hasattr(instance, "instructions"):
+            agent_info["instructions"] = instance.instructions
+        
+        # Extract thread/session ID and set scope
+        session_id_token = None
+        thread = kwargs.get("thread")
+        if thread is not None:
+            # Extract thread ID from thread object
+            thread_id = None
+            if hasattr(thread, "service_thread_id"):
+                thread_id = thread.service_thread_id
+            elif hasattr(thread, "id"):
+                thread_id = thread.id
+            elif hasattr(thread, "thread_id"):
+                thread_id = thread.thread_id
+            
+            if thread_id:
+                session_id_token = set_scope(AGENT_SESSION, thread_id)
+        
+        # Attach agent info context
+        context_token = None
+        if agent_info:
+            context_token = attach(set_value(MSAGENT_CONTEXT_KEY, agent_info))
+        
+        # Extract MS Teams context and set scopes
+        msteams_token = None
+        scope_values = self._extract_msteams_context(args, kwargs)
+        if scope_values:
+            msteams_token = set_scopes(scope_values)
+            
+            # Filter out context parameters from kwargs to prevent passing them to underlying methods
+            filtered_kwargs = {k: v for k, v in kwargs.items() 
+                               if k not in ["context", "turn_context", "turnContext"]}
+            
+            # Update kwargs in place to filter out context parameters
+            kwargs.clear()
+            kwargs.update(filtered_kwargs)
+        
+        # Store session token for cleanup (can't return it with context_token)
+        self._session_token = session_id_token
+        
+        # Store MS Teams token for cleanup
+        self._msteams_token = msteams_token
+        
+        # Determine processor based on client type and context
+        scope_name = AGENT_REQUEST.get("type")
+        alternate_to_wrap = None
+        
+        if uses_chat_client(instance):
+            # ChatClient: use recursive processor list to create turn + invocation
+            logger.debug(f"ChatClient: setting output_processor_list=[AGENT_REQUEST, AGENT]")
+            alternate_to_wrap = to_wrap.copy()
+            alternate_to_wrap["output_processor_list"] = [AGENT_REQUEST, AGENT]
+            # Clear output_processor if it exists to avoid confusion
+            if "output_processor" in alternate_to_wrap:
+                del alternate_to_wrap["output_processor"]
+        else:
+            # AssistantsClient: ChatAgent.run creates turn only, AssistantsClient methods create invocation
+            if not is_scope_set(scope_name):
+                # Create turn scope, AssistantsClient will create invocation later
+                alternate_to_wrap = to_wrap.copy()
+                # For streaming variants (e.g. run_stream), the original output_processor is
+                # AGENT_REQUEST_STREAM which has response_processor and is_auto_close=False.
+                # Preserve it so the stream processor runs and populates data.output.response.
+                original_processor = to_wrap.get("output_processor")
+                if not (original_processor and original_processor.get("response_processor")):
+                    alternate_to_wrap["output_processor"] = AGENT_REQUEST        
+        return context_token, alternate_to_wrap
+    
+    def post_tracing(self, to_wrap, wrapped, instance, args, kwargs, result, token):
+        """Clean up tokens set in pre_tracing."""
+        # Detach context token passed as parameter
+        if token is not None:
+            detach(token)
+        
+        # Clean up session token if it exists
+        if hasattr(self, '_session_token') and self._session_token is not None:
+            remove_scope(self._session_token)
+            self._session_token = None
+        
+        # Clean up MS Teams token if it exists
+        if hasattr(self, '_msteams_token') and self._msteams_token is not None:
+            remove_scope(self._msteams_token)
+            self._msteams_token = None
+    
+    def _extract_msteams_context(self, args, kwargs):
+        """Extract MS Teams context from Bot Framework TurnContext."""
+        scopes = {}
+        
+        # Try to find TurnContext in various possible locations
+        context = None
+        
+        # Check kwargs for common parameter names
+        for param_name in ["context", "turn_context", "turnContext"]:
+            if param_name in kwargs:
+                context = kwargs[param_name]
+                break
+        
+        # Check args if not found in kwargs
+        if not context and len(args) > 0:
+            for arg in args:
+                # Check if this looks like a TurnContext object
+                if hasattr(arg, 'activity') and hasattr(arg.activity, 'channel_id'):
+                    context = arg
+                    break
+        
+        if not context or not hasattr(context, 'activity'):
+            return scopes
+        
+        activity = context.activity
+        
+        # Extract channel information
+        if hasattr(activity, 'channel_id') and activity.channel_id:
+            channel_id = activity.channel_id
+            scopes["teams.channel.channel_id"] = channel_id
+            
+            # If it's MS Teams, extract Teams-specific attributes
+            if channel_id == "msteams":
+                # Activity type
+                if hasattr(activity, 'type') and activity.type:
+                    scopes["msteams.activity.type"] = activity.type
+                
+                # Conversation information
+                if hasattr(activity, "conversation") and activity.conversation:
+                    if hasattr(activity.conversation, 'id'):
+                        scopes["msteams.conversation.id"] = activity.conversation.id or ""
+                    if hasattr(activity.conversation, 'conversation_type'):
+                        scopes["msteams.conversation.type"] = activity.conversation.conversation_type or ""
+                    if hasattr(activity.conversation, 'name'):
+                        scopes["msteams.conversation.name"] = activity.conversation.name or ""
+                
+                # User information (from_property)
+                if hasattr(activity, "from_property") and activity.from_property:
+                    if hasattr(activity.from_property, 'id'):
+                        scopes["msteams.user.from_property.id"] = activity.from_property.id or ""
+                    if hasattr(activity.from_property, 'name'):
+                        scopes["msteams.user.from_property.name"] = activity.from_property.name or ""
+                    if hasattr(activity.from_property, 'role'):
+                        scopes["msteams.user.from_property.role"] = activity.from_property.role or ""
+                
+                # Recipient information
+                if hasattr(activity, "recipient") and activity.recipient:
+                    if hasattr(activity.recipient, 'id'):
+                        scopes["msteams.recipient.id"] = activity.recipient.id or ""
+                
+                # Channel data (tenant, team, channel details)
+                if hasattr(activity, "channel_data") and activity.channel_data:
+                    channel_data = activity.channel_data
+                    
+                    # Tenant information
+                    if isinstance(channel_data, dict):
+                        if "tenant" in channel_data and "id" in channel_data["tenant"]:
+                            scopes["msteams.channel_data.tenant.id"] = channel_data["tenant"]["id"] or ""
+                        
+                        # Team information
+                        if "team" in channel_data:
+                            if "id" in channel_data["team"]:
+                                scopes["msteams.channel_data.team.id"] = channel_data["team"]["id"] or ""
+                            if "name" in channel_data["team"]:
+                                scopes["msteams.channel_data.team.name"] = channel_data["team"]["name"] or ""
+                        
+                        # Channel information
+                        if "channel" in channel_data:
+                            if "id" in channel_data["channel"]:
+                                scopes["msteams.channel_data.channel.id"] = channel_data["channel"]["id"] or ""
+                            if "name" in channel_data["channel"]:
+                                scopes["msteams.channel_data.channel.name"] = channel_data["channel"]["name"] or ""
+        
+        return scopes
+
+    def post_task_processing(self, to_wrap, wrapped, instance, args, kwargs, result, ex, span: Span, parent_span: Span):
+        self.hydrate_events(to_wrap, wrapped, instance, args, kwargs,
+                            result, span=span, is_post_exec=True)
+
+class MSAgentAgentHandler(SpanHandler):
+    """Handler for Microsoft Agent Framework agent invocations."""
+    
+    def skip_span(self, to_wrap, wrapped, instance, args, kwargs):
+        """Skip get_response/get_streaming_response for ChatClient only in standalone mode."""
+        from monocle_apptrace.instrumentation.common.utils import is_scope_set
+        
+        client_class = instance.__class__.__name__
+        # For ChatClient: skip only in standalone mode (when no turn scope exists yet)
+        # In workflow/multi-agent: turn scope exists, so get_response creates invocation
+        if client_class == "AzureOpenAIChatClient":
+            if is_scope_set("agentic.turn"):
+                # Turn scope exists - we're in workflow/multi-agent, don't skip
+                logger.debug(f"Not skipping get_response - turn scope exists (workflow), create invocation span")
+                return False
+            else:
+                # No turn scope - standalone mode where ChatAgent.run creates both via processor_list
+                logger.debug(f"Skipping get_response - standalone mode, ChatAgent.run creates via processor_list")
+                return True
+        # Don't skip for AssistantsClient - this is where invocation span is created
+        return False
+    
+    def pre_tracing(self, to_wrap, wrapped, instance, args, kwargs):
+        """Set agent name in context with duplicate-invocation guard for ChatClient."""
+        from monocle_apptrace.instrumentation.common.utils import is_scope_set
+        
+        # For ChatClient: only create span if we're in recursive output_processor_list flow
+        # This happens when ChatAgent.run uses output_processor_list=[AGENT_REQUEST, AGENT]
+        # The second recursive call needs get_response to create the invocation span
+        client_class = instance.__class__.__name__
+        if client_class == "AzureOpenAIChatClient":
+            # Skip only if invocation scope already exists (would be duplicate)
+            if is_scope_set("agentic.invocation"):
+                return None, None  # Skip span creation
+        
+        # Set agent name in context for propagation
+        agent_name = None
+        if hasattr(instance, "name"):
+            agent_name = instance.name
+        elif hasattr(instance, "_name"):
+            agent_name = instance._name
+        if agent_name:
+            context = set_value(AGENT_NAME_KEY, agent_name)
+            token = attach(context)
+            return token, None
+        return None, None
+
+    def post_tracing(self, to_wrap, wrapped, instance, args, kwargs, result, token):
+        """Called after agent execution to clean up context."""
+        self._context_token = token  # Store for later cleanup
+
+    def post_task_processing(self, to_wrap, wrapped, instance, args, kwargs, result, ex, span, parent_span):
+        """Propagate agent name and invocation ID to parent span, then clean up context."""
+        # Propagate while context still has agent name
+        propogate_agent_name_to_parent_span(span, parent_span)
+        # Now detach context
+        if hasattr(self, '_context_token') and self._context_token is not None:
+            detach(self._context_token)
+            self._context_token = None
+        return super().post_task_processing(to_wrap, wrapped, instance, args, kwargs, result, ex, span, parent_span)
+
+    def hydrate_span(self, to_wrap, wrapped, instance, args, kwargs, result, span, parent_span=None, ex: Exception = None, is_post_exec: bool = False) -> bool:
+        """Hydrate span with agent-specific attributes."""
+        return super().hydrate_span(to_wrap, wrapped, instance, args, kwargs, result, span, parent_span, ex, is_post_exec)
+
+
+class MSAgentInferenceHandler(SpanHandler):
+    """Handler for _inner_get_response (non-streaming inference path).
+    
+    Sets a context variable so the child _inner_get_streaming_response
+    knows to skip its own span creation.
+    """
+
+    def pre_tracing(self, to_wrap, wrapped, instance, args, kwargs):
+        self._token = _INNER_GET_RESPONSE_ACTIVE.set(True)
+        return None, None
+
+    def post_tracing(self, to_wrap, wrapped, instance, args, kwargs, result, token):
+        _INNER_GET_RESPONSE_ACTIVE.reset(self._token)
+        if token is not None:
+            detach(token)
+
+
+class MSAgentInferenceStreamHandler(SpanHandler):
+    """Handler for _inner_get_streaming_response.
+    
+    Skips span creation when called from within _inner_get_response
+    (non-streaming path) since that parent already creates the inference span.
+    """
+
+    def skip_span(self, to_wrap, wrapped, instance, args, kwargs) -> bool:
+        return _INNER_GET_RESPONSE_ACTIVE.get(False)
+
+
+class MSAgentToolHandler(SpanHandler):
+    """Handler for Microsoft Agent Framework tool invocations."""
+
+    def pre_tracing(self, to_wrap, wrapped, instance, args, kwargs):
+        """Called before tool execution to extract tool information."""
+        return None, None
+
+    def post_tracing(self, to_wrap, wrapped, instance, args, kwargs, result, token):
+        """Called after tool execution to extract result information."""
+        if token is not None:
+            detach(token)
+
+    def hydrate_span(self, to_wrap, wrapped, instance, args, kwargs, result, span, parent_span=None, ex: Exception = None, is_post_exec: bool = False) -> bool:
+        """Hydrate span with tool-specific attributes."""
+        return super().hydrate_span(to_wrap, wrapped, instance, args, kwargs, result, span, parent_span, ex, is_post_exec)

@@ -108,7 +108,7 @@ def build_context(similar_documents):
 
 
 def search_similar_documents_opensearch(query):
-    opensearch_url = os.environ['OPENSEARCH_ENDPOINT_URL_BOTO']
+    opensearch_url = os.environ['OPENSEARCH_ENDPOINT_URL_BOTO_SAGEMAKER']  # Your OpenSearch endpoint URL
     index_name = "embeddings"  # Your index name
     content_handler = ContentHandler()
     sagemaker_endpoint_embeddings = SagemakerEndpointEmbeddings(endpoint_name=os.environ['SAGEMAKER_EMB_ENDPOINT_NAME'],
@@ -133,7 +133,7 @@ def search_similar_documents_opensearch(query):
         connection_class=RequestsHttpConnection
     )
     retriever = doc_search.as_retriever()
-    docs = retriever.get_relevant_documents(query)
+    docs = retriever.invoke(query)
     logger.info(f"Retrieved docs: {docs}")
     return [doc.page_content for doc in docs]
 
@@ -147,7 +147,15 @@ class ContentHandler(EmbeddingsContentHandler):
         return input_str.encode("utf-8")
 
     def transform_output(self, output: bytes) -> List[List[float]]:
-        response_json = json.loads(output.read().decode("utf-8"))
+        try:
+            data = output.read()
+        except Exception:
+            if hasattr(output, '_raw_stream') and hasattr(output._raw_stream, 'data'):
+                data = output._raw_stream.data
+            else:
+                raise
+        
+        response_json = json.loads(data.decode("utf-8"))
         return response_json["embedding"]
 
 # {

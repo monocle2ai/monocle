@@ -2,6 +2,7 @@ import logging
 import os
 import unittest
 import warnings
+from unittest.mock import patch
 
 from monocle_apptrace.exporters.monocle_exporters import get_monocle_exporter
 
@@ -33,7 +34,7 @@ class TestHandler(unittest.TestCase):
     def test_memory_exporter(self):
         os.environ['MONOCLE_EXPORTER'] = "memory"
         default_exporter = get_monocle_exporter()
-        assert default_exporter[0].__class__.__name__ == "InMemorySpanExporter"
+        assert default_exporter[0].__class__.__name__ == "MonocleInMemorySpanExporter"
         os.environ.clear()
 
     def test_console_exporter(self):
@@ -45,9 +46,69 @@ class TestHandler(unittest.TestCase):
     def test_multi_exporter(self):
         os.environ['MONOCLE_EXPORTER'] = "file,memory,console"
         exporters = get_monocle_exporter()
-        expected_exporters = ["FileSpanExporter", "InMemorySpanExporter", "ConsoleSpanExporter"]
+        expected_exporters = ["FileSpanExporter", "MonocleInMemorySpanExporter", "ConsoleSpanExporter"]
         exporter_class_names = [exporter.__class__.__name__ for exporter in exporters]
         assert exporter_class_names == expected_exporters, f"Expected {expected_exporters}, but got {exporter_class_names}"
+        os.environ.clear()
+
+    def test_otlp_exporter(self):
+        os.environ['MONOCLE_EXPORTER'] = "otlp"
+        os.environ['OTEL_EXPORTER_OTLP_ENDPOINT'] = "http://localhost:4318"
+        default_exporter = get_monocle_exporter()
+        assert default_exporter[0].__class__.__name__ == "OTLPSpanExporter"
+        os.environ.clear()
+
+    def test_otlp_genai_semconv_exporter(self):
+        os.environ['MONOCLE_EXPORTER'] = "otlp-genai-semconv"
+        os.environ['OTEL_EXPORTER_OTLP_ENDPOINT'] = "http://localhost:4318"
+        default_exporter = get_monocle_exporter()
+        assert default_exporter[0].__class__.__name__ == "OTLPSpanExporter"
+        os.environ.clear()
+
+    def test_otlp_exporter_supports_authenticated_headers(self):
+        with patch.dict(
+            os.environ,
+            {
+                "MONOCLE_EXPORTER": "otlp",
+                "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT": "https://example.test/v1/traces",
+                "OTEL_EXPORTER_OTLP_TRACES_HEADERS": (
+                    "Authorization=Bearer%20test-token,X-Tenant-ID=test-tenant"
+                ),
+            },
+            clear=True,
+        ):
+            exporter = get_monocle_exporter()[0]
+
+            assert exporter._endpoint == "https://example.test/v1/traces"
+            assert exporter._session.headers["authorization"] == "Bearer test-token"
+            assert exporter._session.headers["x-tenant-id"] == "test-tenant"
+
+
+    def test_monocle_console_adds_console_exporter(self):
+        """MONOCLE_CONSOLE=true appends ConsoleSpanExporter alongside the primary exporter."""
+        os.environ["MONOCLE_EXPORTER"] = "file"
+        os.environ["MONOCLE_CONSOLE"] = "true"
+        exporters = get_monocle_exporter()
+        class_names = [e.__class__.__name__ for e in exporters]
+        assert "FileSpanExporter" in class_names
+        assert "ConsoleSpanExporter" in class_names
+        os.environ.clear()
+
+    def test_monocle_console_no_duplicate(self):
+        """MONOCLE_CONSOLE=true does not add a second ConsoleSpanExporter when console is already configured."""
+        os.environ["MONOCLE_EXPORTER"] = "console"
+        os.environ["MONOCLE_CONSOLE"] = "true"
+        exporters = get_monocle_exporter()
+        console_count = sum(1 for e in exporters if e.__class__.__name__ == "ConsoleSpanExporter")
+        assert console_count == 1
+        os.environ.clear()
+
+    def test_monocle_console_unset_no_effect(self):
+        """Without MONOCLE_CONSOLE, no extra ConsoleSpanExporter is added."""
+        os.environ["MONOCLE_EXPORTER"] = "file"
+        exporters = get_monocle_exporter()
+        class_names = [e.__class__.__name__ for e in exporters]
+        assert "ConsoleSpanExporter" not in class_names
         os.environ.clear()
 
 
@@ -58,3 +119,5 @@ if __name__ == "__main__":
     handler.test_set_exporter()
     handler.test_memory_exporter()
     handler.test_console_exporter()
+    handler.test_otlp_exporter()
+    handler.test_otlp_genai_semconv_exporter()

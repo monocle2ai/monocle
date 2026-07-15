@@ -1,0 +1,180 @@
+[{
+    "name": "workflow",
+    "context": {
+        "trace_id": "jenkins_demo_trace_12345abcdef",
+        "span_id": "root_span_001",
+        "trace_state": "[]"
+    },
+    "kind": "SpanKind.INTERNAL",
+    "parent_id": null,
+    "start_time": "2026-03-09T13:30:45.123456Z",
+    "end_time": "2026-03-09T13:30:47.654321Z",
+    "status": {
+        "status_code": "OK"
+    },
+    "attributes": {
+        "monocle_apptrace.version": "0.7.0",
+        "monocle_apptrace.language": "python",
+        "workflow.name": "monocle-test-workflow",
+        "span.type": "agentic.turn",
+
+        "scope.test_name": "test_jenkins_integration",
+
+        "scope.git.commit.hash": "abc123def456789",
+        "scope.git.run.id": "jenkins_123_2026-03-09_13-30-45",
+        "scope.git.workflow.name": "monocle-test-pipeline",
+
+        "scope.jenkins.url": "https://jenkins.example.com",
+        "scope.jenkins.build.url": "https://jenkins.example.com/job/monocle-test-pipeline/123/",
+        "scope.jenkins.node.name": "jenkins-agent-001"
+    },
+    "events": [
+        {
+            "name": "data.input",
+            "timestamp": "2026-03-09T13:30:45.123500Z",
+            "attributes": {
+                "input": "Book a flight from San Francisco to New York"
+            }
+        },
+        {
+            "name": "data.output",
+            "timestamp": "2026-03-09T13:30:47.654000Z",
+            "attributes": {
+                "response": "Flight booked successfully: SF to NYC on 2026-03-15"
+            }
+        }
+    ],
+    "links": [],
+    "resource": {
+        "attributes": {
+            "service.name": "monocle-test-workflow"
+        },
+        "schema_url": ""
+    }
+},
+{
+    "name": "google.adk.agents.base_agent.BaseAgent.run",
+    "context": {
+        "trace_id": "jenkins_demo_trace_12345abcdef",
+        "span_id": "agent_span_002",
+        "trace_state": "[]"
+    },
+    "kind": "SpanKind.INTERNAL",
+    "parent_id": "root_span_001",
+    "start_time": "2026-03-09T13:30:45.234567Z",
+    "end_time": "2026-03-09T13:30:47.543210Z",
+    "status": {
+        "status_code": "OK"
+    },
+    "attributes": {
+        "monocle_apptrace.version": "0.7.0",
+        "monocle_apptrace.language": "python",
+        "workflow.name": "monocle-test-workflow",
+        "entity.1.type": "agent.adk",
+        "entity.1.name": "flight_booking_agent",
+        "entity.1.description": "Agent to book flights based on user queries",
+        "span.type": "agentic.invocation",
+
+        "scope.test_name": "test_jenkins_integration",
+
+        "scope.git.commit.hash": "abc123def456789",
+        "scope.git.run.id": "jenkins_123_2026-03-09_13-30-45",
+        "scope.git.workflow.name": "monocle-test-pipeline",
+
+        "scope.jenkins.url": "https://jenkins.example.com",
+        "scope.jenkins.build.url": "https://jenkins.example.com/job/monocle-test-pipeline/123/",
+        "scope.jenkins.node.name": "jenkins-agent-001",
+
+        "entity.count": 1,
+        "span.subtype": "content_processing"
+    },
+    "events": [
+        {
+            "name": "data.input",
+            "timestamp": "2026-03-09T13:30:45.234600Z",
+            "attributes": {
+                "input": ["Book a flight from San Francisco to New York"]
+            }
+        },
+        {
+            "name": "data.output",
+            "timestamp": "2026-03-09T13:30:47.543100Z",
+            "attributes": {
+                "response": "Flight booked successfully: SF to NYC on 2026-03-15"
+            }
+        }
+    ],
+    "links": [],
+    "resource": {
+        "attributes": {
+            "service.name": "monocle-test-workflow"
+        },
+        "schema_url": ""
+    }
+},
+{
+    "name": "inference",
+    "context": {
+        "trace_id": "jenkins_demo_trace_12345abcdef",
+        "span_id": "inference_span_003",
+        "trace_state": "[]"
+    },
+    "kind": "SpanKind.INTERNAL",
+    "parent_id": "agent_span_002",
+    "start_time": "2026-03-09T13:30:45.345678Z",
+    "end_time": "2026-03-09T13:30:47.432109Z",
+    "status": {
+        "status_code": "OK"
+    },
+    "attributes": {
+        "monocle_apptrace.version": "0.7.0",
+        "monocle_apptrace.language": "python",
+        "workflow.name": "monocle-test-workflow",
+        "span.type": "inference",
+        "entity.1.type": "inference.google",
+        "entity.1.name": "gemini-2.0-flash",
+
+        "scope.test_name": "test_jenkins_integration",
+
+        "scope.git.commit.hash": "abc123def456789",
+        "scope.git.run.id": "jenkins_123_2026-03-09_13-30-45",
+        "scope.git.workflow.name": "monocle-test-pipeline",
+
+        "scope.jenkins.url": "https://jenkins.example.com",
+        "scope.jenkins.build.url": "https://jenkins.example.com/job/monocle-test-pipeline/123/",
+        "scope.jenkins.node.name": "jenkins-agent-001"
+    },
+    "events": [
+        {
+            "name": "data.input",
+            "timestamp": "2026-03-09T13:30:45.345700Z",
+            "attributes": {
+                "input": "Find available flights from San Francisco to New York for next week"
+            }
+        },
+        {
+            "name": "metadata",
+            "timestamp": "2026-03-09T13:30:47.432000Z",
+            "attributes": {
+                "completion_tokens": 125,
+                "prompt_tokens": 234,
+                "total_tokens": 359,
+                "finish_type": "success"
+            }
+        },
+        {
+            "name": "data.output",
+            "timestamp": "2026-03-09T13:30:47.432100Z",
+            "attributes": {
+                "response": "I found several flights from SF to NYC on March 15, 2026. Would you like me to book one?"
+            }
+        }
+    ],
+    "links": [],
+    "resource": {
+        "attributes": {
+            "service.name": "monocle-test-workflow"
+        },
+        "schema_url": ""
+    }
+}]

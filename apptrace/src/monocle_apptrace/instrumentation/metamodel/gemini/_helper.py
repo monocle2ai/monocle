@@ -1,5 +1,10 @@
 import logging
 from contextlib import suppress
+from monocle_apptrace.instrumentation.common.constants import (
+    TOOL_TYPE,
+    INFERENCE_TOOL_CALL,
+    INFERENCE_TURN_END,
+)
 from monocle_apptrace.instrumentation.common.utils import (
     get_exception_message,
     get_json_dumps,
@@ -47,22 +52,37 @@ def extract_messages(kwargs):
 
 def extract_assistant_message(arguments):
     try:
+        response = arguments['result']
+
+        # Streaming path: SimpleNamespace from stream processor
+        if hasattr(response, 'output_text'):
+            messages = []
+            if hasattr(response, 'tools') and response.tools:
+                role = "ai"
+                tool = response.tools[0]
+                messages.append({role: f'"model": {tool.get("name", "")}, "args": {tool.get("args", {})}'})
+            elif response.output_text:
+                role = getattr(response, 'role', 'model') or 'model'
+                messages.append({role: response.output_text})
+            return get_json_dumps(messages[0]) if messages else ""
+
+        # Non-streaming path
         status = get_status_code(arguments)
         messages = []
         role = "model"
-        if hasattr(arguments['result'], "candidates") and len(arguments['result'].candidates) > 0 and hasattr(arguments['result'].candidates[0], "content") and hasattr(arguments['result'].candidates[0].content, "role"):
-                role = arguments["result"].candidates[0].content.role
+        if hasattr(response, "candidates") and len(response.candidates) > 0 and hasattr(response.candidates[0], "content") and hasattr(response.candidates[0].content, "role"):
+                role = response.candidates[0].content.role
         if status == 'success':
-            if arguments["result"].parts[0].function_call is not None:
+            if response.parts[0].function_call is not None:
                 role = "ai"
-                messages.append({role: f'"model": {arguments["result"].parts[0].function_call.name}, "args": {arguments["result"].parts[0].function_call.args}'})
-            elif hasattr(arguments['result'], "text") and len(arguments['result'].text):
-                messages.append({role: arguments['result'].text})
+                messages.append({role: f'"model": {response.parts[0].function_call.name}, "args": {response.parts[0].function_call.args}'})
+            elif hasattr(response, "text") and len(response.text):
+                messages.append({role: response.text})
         else:
             if arguments["exception"] is not None:
                 return get_exception_message(arguments)
-            elif hasattr(arguments["result"], "error"):
-                return arguments["result"].error
+            elif hasattr(response, "error"):
+                return response.error
         return get_json_dumps(messages[0]) if messages else ""
     except (IndexError, AttributeError) as e:
         logger.warning("Warning: Error occurred in extract_assistant_message: %s", str(e))
@@ -91,25 +111,48 @@ def extract_inference_endpoint(instance):
 
 def update_span_from_llm_response(response, instance):
     meta_dict = {}
+
+    # Streaming path: SimpleNamespace with .usage dict
+    if response is not None and hasattr(response, 'usage') and isinstance(response.usage, dict):
+        meta_dict.update(response.usage)
+        return meta_dict
+
+    # Non-streaming path
     if response is not None and hasattr(response, "usage_metadata") and response.usage_metadata is not None:
         token_usage = response.usage_metadata
         if token_usage is not None:
             meta_dict.update({"completion_tokens": token_usage.candidates_token_count})
             meta_dict.update({"prompt_tokens": token_usage.prompt_token_count })
             meta_dict.update({"total_tokens": token_usage.total_token_count})
+            if hasattr(token_usage, "thoughts_token_count") and token_usage.thoughts_token_count is not None:
+                meta_dict.update({"thoughts_tokens": token_usage.thoughts_token_count})
     return meta_dict
+
+def _get_first_tool_call(response):
+    """Helper to get the first function call from Gemini response parts"""
+    with suppress(AttributeError, IndexError, TypeError):
+        if hasattr(response,"parts") and len(response.parts)>0:
+            for part in response.parts:
+                if hasattr(part,"function_call") and part.function_call is not None:
+                    return part.function_call
+    return None
 
 def extract_finish_reason(arguments):
     """Extract finish_reason from Gemini response"""
     try:
-        if arguments["exception"] is not None:
+        if "exception" in arguments and arguments["exception"] is not None:
             return None
             
         response = arguments["result"]
 
-        with suppress(IndexError, AttributeError):
-            if response.part is not None and response.parts[0].function_call is not None:
-                return "FUNCTION_CALL"
+        # Streaming path: SimpleNamespace with .finish_reason directly
+        if hasattr(response, 'output_text') and hasattr(response, 'finish_reason'):
+            return response.finish_reason
+
+        # Check for function call first (higher priority than finish_reason)
+        # Use _get_first_tool_call to properly detect function calls
+        if _get_first_tool_call(response) is not None:
+            return "FUNCTION_CALL"
         
         # Handle Gemini response structure
         if (response is not None and 
@@ -126,3 +169,66 @@ def extract_finish_reason(arguments):
 def map_finish_reason_to_finish_type(finish_reason):
     """Map Gemini finish_reason to finish_type based on the possible errors mapping"""
     return map_gemini_finish_reason_to_finish_type(finish_reason)
+
+def agent_inference_type(arguments):
+    """Determine inference span subtype based on finish_reason (tool_call or turn_end)"""
+    
+    finish_type = map_finish_reason_to_finish_type(extract_finish_reason(arguments))
+    if finish_type == "tool_call":
+        return INFERENCE_TOOL_CALL
+    
+    return INFERENCE_TURN_END
+
+def extract_tool_name(arguments):
+    """Extract tool name from Gemini response when function calls are present"""
+    try:
+        finish_type = map_finish_reason_to_finish_type(extract_finish_reason(arguments))
+        if finish_type != "tool_call":
+            return None
+
+        response = arguments["result"]
+
+        # Streaming path: SimpleNamespace with .tools list
+        if hasattr(response, 'output_text') and hasattr(response, 'tools') and response.tools:
+            return response.tools[0].get("name")
+
+        # Non-streaming path
+        tool_call = _get_first_tool_call(response)
+        if not tool_call:
+            return None
+
+        for getter in [
+            lambda tc: tc.name,
+        ]:
+            try:
+                return getter(tool_call)
+            except (KeyError, AttributeError, TypeError):
+                continue
+
+    except Exception as e:
+        logger.warning("Warning: Error occurred in extract_tool_name: %s", str(e))
+
+    return None
+
+def extract_tool_type(arguments):
+    """Extract tool type from Gemini response when function calls are present"""
+    try:
+        finish_type = map_finish_reason_to_finish_type(extract_finish_reason(arguments))
+        if finish_type != "tool_call":
+            return None
+
+        response = arguments["result"]
+
+        # Streaming path: SimpleNamespace with .tools list
+        if hasattr(response, 'output_text') and hasattr(response, 'tools') and response.tools:
+            return TOOL_TYPE
+
+        # Non-streaming path
+        tool_name = extract_tool_name(arguments)
+        if tool_name:
+            return TOOL_TYPE
+
+    except Exception as e:
+        logger.warning("Warning: Error occurred in extract_tool_type: %s", str(e))
+
+    return None

@@ -7,7 +7,7 @@ from azure.core.exceptions import ResourceNotFoundError, ClientAuthenticationErr
 from opentelemetry.sdk.trace import ReadableSpan
 from opentelemetry.sdk.trace.export import SpanExporter, SpanExportResult
 from typing import Sequence, Optional, Dict, List, Tuple
-from monocle_apptrace.exporters.base_exporter import SpanExporterBase
+from monocle_apptrace.exporters.base_exporter import SpanExporterBase, format_trace_id_without_0x
 from monocle_apptrace.exporters.exporter_processor import ExportTaskProcessor
 import json
 from monocle_apptrace.instrumentation.common.constants import MONOCLE_SDK_VERSION
@@ -35,7 +35,7 @@ class AzureBlobSpanExporter(SpanExporterBase):
 
         self.blob_service_client = BlobServiceClient.from_connection_string(connection_string)
         self.container_name = container_name
-        self.file_prefix = DEFAULT_FILE_PREFIX
+        self.file_prefix = os.getenv('MONOCLE_BLOB_FILE_PREFIX', DEFAULT_FILE_PREFIX)
         self.time_format = DEFAULT_TIME_FORMAT
 
         # Check if container exists or create it
@@ -103,22 +103,26 @@ class AzureBlobSpanExporter(SpanExporterBase):
             try:
                 self.__upload_to_blob_with_trace_id(serialized_data, trace_id)
             except Exception as e:
-                logger.error(f"Failed to upload trace {hex(trace_id)}: {e}")
+                logger.error(f"Failed to upload trace {format_trace_id_without_0x(trace_id)}: {e}")
         
         del self.trace_spans[trace_id]
 
     def export(self, spans: Sequence[ReadableSpan]) -> SpanExportResult:
         """Synchronous export method that internally handles async logic."""
         try:
-            # Run the asynchronous export logic in an event loop
-            asyncio.run(self._export_async(spans))
+            if self._is_running_in_event_loop():
+                # If we're already in an event loop, create a task
+                asyncio.create_task(self._export_async(spans))
+            else:
+                # No event loop is running, so we can use asyncio.run()
+                asyncio.run(self._export_async(spans))
             return SpanExportResult.SUCCESS
         except Exception as e:
             logger.error(f"Error exporting spans: {e}")
             return SpanExportResult.FAILURE
 
     async def _export_async(self, spans: Sequence[ReadableSpan]):
-        """The actual async export logic is run here."""
+        """Blocking export logic — safe to call from a thread or a plain sync context."""
         try:
             # Cleanup expired traces first
             self._cleanup_expired_traces()
@@ -157,7 +161,11 @@ class AzureBlobSpanExporter(SpanExporterBase):
                         spans_to_upload, _, _ = self.trace_spans[trace_id]
                         serialized_data = self.__serialize_spans(spans_to_upload)
                         if serialized_data:
-                            self.task_processor.queue_task(self.__upload_to_blob_with_trace_id, serialized_data, trace_id)
+                            self.task_processor.queue_task(
+                                self.__upload_to_blob_with_trace_id,
+                                kwargs={'span_data_batch': serialized_data, 'trace_id': trace_id},
+                                is_root_span=True
+                            )
                         del self.trace_spans[trace_id]
                 else:
                     self._upload_trace(trace_id)
@@ -184,12 +192,12 @@ class AzureBlobSpanExporter(SpanExporterBase):
     def __upload_to_blob_with_trace_id(self, span_data_batch: str, trace_id: int):
         """Upload spans for a specific trace to Azure Blob with trace ID in filename."""
         current_time = datetime.datetime.now().strftime(self.time_format)
-        file_name = f"{self.file_prefix}{current_time}_{hex(trace_id)}.ndjson"
+        file_name = f"{self.file_prefix}{current_time}_{format_trace_id_without_0x(trace_id)}.ndjson"
         blob_client = self.blob_service_client.get_blob_client(container=self.container_name, blob=file_name)
         blob_client.upload_blob(span_data_batch, overwrite=True)
-        logger.debug(f"Trace {hex(trace_id)} uploaded to Azure Blob Storage as {file_name}.")
+        logger.debug(f"Trace {format_trace_id_without_0x(trace_id)} uploaded to Azure Blob Storage as {file_name}.")
 
-    async def force_flush(self, timeout_millis: int = 30000) -> bool:
+    def force_flush(self, timeout_millis: int = 30000) -> bool:
         """Flush all pending traces to Azure Blob."""
         trace_ids_to_upload = list(self.trace_spans.keys())
         for trace_id in trace_ids_to_upload:

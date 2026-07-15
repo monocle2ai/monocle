@@ -2,13 +2,21 @@ from monocle_apptrace.instrumentation.common.wrapper import atask_wrapper, task_
 from monocle_apptrace.instrumentation.metamodel.llamaindex.entities.inference import (
     INFERENCE,
 )
-from monocle_apptrace.instrumentation.metamodel.llamaindex.entities.agent import AGENT, TOOLS, AGENT_REQUEST
+from monocle_apptrace.instrumentation.metamodel.llamaindex.entities.agent import AGENT, TOOLS, AGENT_REQUEST, WORKFLOW
 from monocle_apptrace.instrumentation.metamodel.llamaindex.entities.retrieval import (
     RETRIEVAL,
 )
 
 
 LLAMAINDEX_METHODS = [
+    {
+        "package": "llama_index.core.workflow.workflow",
+        "object": "Workflow",
+        "method": "run",
+        "span_handler": "llamaindex_workflow_handler",
+        "wrapper_method": task_wrapper,
+        "output_processor": WORKFLOW
+    },
     {
         "package": "llama_index.core.indices.base_retriever",
         "object": "BaseRetriever",
@@ -83,7 +91,7 @@ LLAMAINDEX_METHODS = [
         "object": "AgentWorkflow",
         "method": "run",
         "span_handler": "llamaindex_agent_handler",
-        "wrapper_method": task_wrapper,
+        "wrapper_method": atask_wrapper,
         "output_processor": AGENT_REQUEST
     },
     {
@@ -91,6 +99,7 @@ LLAMAINDEX_METHODS = [
         "object": "ReActAgent",
         "method": "run",
         "wrapper_method": task_wrapper,
+        "span_handler": "llamaindex_agent_handler",
         "output_processor": AGENT
     },
     {
@@ -98,11 +107,27 @@ LLAMAINDEX_METHODS = [
         "object": "FunctionAgent",
         "method": "finalize",
         "wrapper_method": atask_wrapper,
+        "span_handler": "llamaindex_agent_handler",
         "output_processor": AGENT
     },
     {
         "package": "llama_index.core.agent.workflow.function_agent",
         "object": "FunctionAgent",
+        "method": "take_step",
+        "span_handler": "llamaindex_agent_handler",
+        "wrapper_method": atask_wrapper
+    },
+    {
+        "package": "llama_index.core.agent.workflow.react_agent",
+        "object": "ReActAgent",
+        "method": "finalize",
+        "wrapper_method": atask_wrapper,
+        "span_handler": "llamaindex_agent_handler",
+        "output_processor": AGENT
+    },
+    {
+        "package": "llama_index.core.agent.workflow.react_agent",
+        "object": "ReActAgent",
         "method": "take_step",
         "span_handler": "llamaindex_agent_handler",
         "wrapper_method": atask_wrapper

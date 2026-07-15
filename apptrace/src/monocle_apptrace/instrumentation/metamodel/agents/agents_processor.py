@@ -2,16 +2,20 @@ import logging
 from types import SimpleNamespace
 from opentelemetry.context import attach, set_value, detach
 from opentelemetry.trace import Tracer
-from monocle_apptrace.instrumentation.common.constants import AGENT_PREFIX_KEY
+from monocle_apptrace.instrumentation.common.constants import AGENT_NAME_KEY, AGENT_PREFIX_KEY, SPAN_TYPES
 from monocle_apptrace.instrumentation.common.span_handler import (
     SpanHandler as BaseSpanHandler,
 )
-from monocle_apptrace.instrumentation.common.utils import with_tracer_wrapper
+from monocle_apptrace.instrumentation.common.utils import with_tracer_wrapper, propogate_agent_name_to_parent_span, get_scopes
+
+# Scope an app opens to collapse its many Runner.run calls into one turn (see skip_span).
+AGENT_TURN_SCOPE = "agentic.turn"
 from monocle_apptrace.instrumentation.common.wrapper import atask_wrapper
 from monocle_apptrace.instrumentation.metamodel.agents._helper import (
     AGENTS_AGENT_NAME_KEY,
     DELEGATION_NAME_PREFIX,
     get_runner_agent_name,
+    get_agent_name
 )
 from monocle_apptrace.instrumentation.metamodel.agents.entities.inference import (
     AGENT_DELEGATION,
@@ -130,45 +134,36 @@ class AgentsSpanHandler(BaseSpanHandler):
         super().__init__(*args, **kwargs)
         self.agent_context_token = None
 
-    def set_agent_context(self, to_wrap, wrapped, instance, args, kwargs):
+    def skip_span(self, to_wrap, wrapped, instance, args, kwargs) -> bool:
+        """Skip the Runner.run turn span when an agentic.turn scope is already open, so
+        an app's many Runner.run calls nest as invocations under one turn. Only the turn
+        entry is skipped (run_single_turn invocations are not); inert without the scope."""
+        output_processor = to_wrap.get("output_processor") or {}
+        is_turn = output_processor.get("type") == SPAN_TYPES.AGENTIC_REQUEST
+        if is_turn and AGENT_TURN_SCOPE in get_scopes():
+            return True
+        return super().skip_span(to_wrap, wrapped, instance, args, kwargs)
+
+    def _get_agent_name(self, to_wrap, wrapped, instance, args, kwargs):
         """Set the agent context for tracking across calls."""
         try:
             # For Runner.run, the agent is the first argument
             if len(args) > 0:
                 agent = args[0]
                 agent_name = get_runner_agent_name(agent)
-                if agent_name:
-                    self.agent_context_token = attach(
-                        set_value(AGENTS_AGENT_NAME_KEY, agent_name)
-                    )
+                return agent_name
         except Exception as e:
             logger.warning("Warning: Error setting agent context: %s", str(e))
+        return ""
 
-    def clear_agent_context(self):
-        """Clear the agent context."""
-        if self.agent_context_token:
-            detach(self.agent_context_token)
-            self.agent_context_token = None
+    def pre_tracing(self, to_wrap, wrapped, instance, args, kwargs):
+        """Pre-tracing for agent tasks."""
+        agent_name = get_agent_name(args, kwargs)
+        context = set_value(AGENT_NAME_KEY, agent_name)
+        context = set_value(AGENT_PREFIX_KEY, DELEGATION_NAME_PREFIX, context)
+        return attach(context)
 
-    def pre_task_processing(
-        self, to_wrap, wrapped, instance, args, kwargs, *args1, **kwargs1
-    ):
-        """Pre-processing for agent tasks."""
-        self.set_agent_context(to_wrap, wrapped, instance, args, kwargs)
-        context = set_value(AGENT_PREFIX_KEY, DELEGATION_NAME_PREFIX)
-        attach(context)
-        return super().pre_task_processing(
-            to_wrap, wrapped, instance, args, kwargs, *args1, **kwargs1
-        )
-
-    def post_task_processing(
-        self, to_wrap, wrapped, instance, args, kwargs, result, ex, span, parent_span
-    ):
+    def post_task_processing(self, to_wrap, wrapped, instance, args, kwargs, result, ex, span, parent_span):
         """Post-processing for agent tasks."""
-        self.clear_agent_context()
-        context = set_value(AGENT_PREFIX_KEY, None)
-        attach(context)
-        return super().post_task_processing(
-            to_wrap, wrapped, instance, args, kwargs, result, ex, span, parent_span
-        )
-
+        propogate_agent_name_to_parent_span(span, parent_span)
+        super().post_task_processing(to_wrap, wrapped, instance, args, kwargs, result, ex, span, parent_span)

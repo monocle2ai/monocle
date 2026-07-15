@@ -15,4 +15,5 @@ __all__ = [
     "BertScoreComparer",
     "DefaultComparer",
     "MetricComparer",
+    "TokenMatchComparer"
 ]

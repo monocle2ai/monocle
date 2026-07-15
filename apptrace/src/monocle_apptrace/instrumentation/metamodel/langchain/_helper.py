@@ -4,8 +4,9 @@ and assistant messages from various input formats.
 """
 
 import logging
+from urllib.parse import urlparse
 from opentelemetry.context import get_value
-from monocle_apptrace.instrumentation.common.constants import AGENT_PREFIX_KEY, INFERENCE_AGENT_DELEGATION, INFERENCE_TURN_END, INFERENCE_TOOL_CALL
+from monocle_apptrace.instrumentation.common.constants import AGENT_PREFIX_KEY, INFERENCE_AGENT_DELEGATION, INFERENCE_TURN_END, INFERENCE_TOOL_CALL, TOOL_TYPE
 from monocle_apptrace.instrumentation.common.utils import (
     Option,
     get_json_dumps,
@@ -21,13 +22,28 @@ from contextlib import suppress
 logger = logging.getLogger(__name__)
 
 
-def extract_messages(args):
+def extract_messages(args, instance=None):
     """Extract system and user messages"""
     try:
+        # Some callers invoke the class method unbound, leaking the model itself into args[0].
+        if args and isinstance(args, (list, tuple)) and len(args) > 1:
+            leading = args[0]
+            is_self_like = leading is instance or (
+                not isinstance(leading, (list, tuple))
+                and not hasattr(leading, 'text')
+                and not hasattr(leading, 'messages')
+                and hasattr(leading, 'ainvoke') and hasattr(leading, 'invoke')
+            )
+            if is_self_like:
+                args = args[1:]
         messages = []
         if args and isinstance(args, (list, tuple)) and hasattr(args[0], 'text'):
             return [args[0].text]
         if args and isinstance(args, (list, tuple)) and len(args) > 0:
+            if isinstance(args[0], str):
+                # A model invoked with a raw string prompt (e.g. llm.invoke("...")
+                # or with_structured_output(...).ainvoke("..."))
+                return [args[0]]
             if isinstance(args[0], list) and len(args[0]) > 0:
                 first_msg = args[0][0]
                 if hasattr(first_msg, 'content') and hasattr(first_msg, 'type') and first_msg.type == "human":
@@ -38,7 +54,10 @@ def extract_messages(args):
                         messages.append({msg.type: msg.content})
             else:
                 for msg in args[0]:
-                    if hasattr(msg, 'content') and hasattr(msg, 'type') and msg.content:
+                    if isinstance(msg, dict) and msg.get('content'):
+                        # OpenAI-style dict message: {"role": ..., "content": ...}
+                        messages.append({msg.get('role') or msg.get('type') or 'user': msg['content']})
+                    elif hasattr(msg, 'content') and hasattr(msg, 'type') and msg.content:
                         messages.append({msg.type: msg.content})
                     elif hasattr(msg, 'tool_calls') and msg.tool_calls:
                         messages.append({msg.type: get_json_dumps(msg.tool_calls)})
@@ -88,6 +107,13 @@ def extract_assistant_message(arguments):
 
 def extract_provider_name(instance):
     provider_url: Option[str] = Option(None)
+    if hasattr(instance, 'client') and hasattr(instance.client, '_api_client') and hasattr(instance.client._api_client, '_http_options'):
+        provider_url: Option[str] = try_option(getattr, instance.client._api_client._http_options, 'base_url')
+        if provider_url.is_some():
+            url_value = provider_url.unwrap_or(None)
+            if isinstance(url_value, str) and ('://' in url_value or url_value.startswith('http')):
+                parsed = urlparse(url_value)
+                return parsed.hostname
     if hasattr(instance, 'client'):
         provider_url: Option[str] = try_option(getattr, instance.client, 'universe_domain')
     if hasattr(instance,'client') and hasattr(instance.client, '_client') and hasattr(instance.client._client, 'base_url'):
@@ -101,6 +127,9 @@ def extract_provider_name(instance):
 def extract_inference_endpoint(instance):
     inference_endpoint: Option[str] = None
     # instance.client.meta.endpoint_url
+    if hasattr(instance, 'client') and hasattr(instance.client, '_api_client') and hasattr(instance.client._api_client, '_http_options'):
+        inference_endpoint: Option[str] = try_option(getattr, instance.client._api_client._http_options, 'base_url').map(str)
+    
     if hasattr(instance, 'client') and hasattr(instance.client, 'transport'):
         inference_endpoint: Option[str] = try_option(getattr, instance.client.transport, 'host')
 
@@ -123,6 +152,24 @@ def extract_vectorstore_deployment(my_map):
             host, port = get_keys_as_tuple(client, 'host', 'port')
             if host:
                 return f"{host}:{port}" if port else host
+        
+        if '_client' in my_map and my_map['_client'] is not None:
+            try:
+                client_obj = my_map['_client']
+                if hasattr(client_obj, '_server') and hasattr(client_obj._server, 'get_settings'):
+                    settings = client_obj._server.get_settings()
+                    host = getattr(settings, 'chroma_logservice_host', None)
+                    port = getattr(settings, 'chroma_logservice_port', None)
+                    if not host:
+                        host = getattr(settings, 'chroma_coordinator_host', None)
+                    if not host:
+                        host = getattr(settings, 'chroma_server_host', None)
+                        port = getattr(settings, 'chroma_server_http_port', None)
+                    if host:
+                        return f"{host}:{port}" if port else host
+            except (AttributeError, TypeError):
+                pass
+        
         keys_to_check = ['client', '_client']
         host = __get_host_from_map(my_map, keys_to_check)
         if host:
@@ -310,7 +357,7 @@ def extract_tool_type(arguments):
 
         tool_name = extract_tool_name(arguments)
         if tool_name:
-            return "tool.function"
+            return TOOL_TYPE
             
     except Exception as e:
         logger.warning("Warning: Error occurred in extract_tool_type: %s", str(e))

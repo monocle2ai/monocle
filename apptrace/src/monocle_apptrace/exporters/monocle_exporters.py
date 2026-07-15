@@ -5,6 +5,7 @@ from importlib import import_module
 from opentelemetry.sdk.trace.export import SpanExporter, ConsoleSpanExporter
 from monocle_apptrace.exporters.exporter_processor import LambdaExportTaskProcessor, is_aws_lambda_environment
 from monocle_apptrace.exporters.file_exporter import FileSpanExporter
+from monocle_apptrace.exporters.okahu.okahu_exporter import _get_monocle_exporter
 
 logger = logging.getLogger(__name__)
 
@@ -13,17 +14,30 @@ monocle_exporters: Dict[str, Any] = {
     "blob": {"module": "monocle_apptrace.exporters.azure.blob_exporter", "class": "AzureBlobSpanExporter"},
     "okahu": {"module": "monocle_apptrace.exporters.okahu.okahu_exporter", "class": "OkahuSpanExporter"},
     "file": {"module": "monocle_apptrace.exporters.file_exporter", "class": "FileSpanExporter"},
-    "memory": {"module": "opentelemetry.sdk.trace.export.in_memory_span_exporter", "class": "InMemorySpanExporter"},
-    "console": {"module": "opentelemetry.sdk.trace.export", "class": "ConsoleSpanExporter"}
+    "memory": {"module": "monocle_apptrace.exporters.base_exporter", "class": "MonocleInMemorySpanExporter"},
+    "console": {"module": "opentelemetry.sdk.trace.export", "class": "ConsoleSpanExporter"},
+    "otlp": {"module": "opentelemetry.exporter.otlp.proto.http.trace_exporter", "class": "OTLPSpanExporter"},
+    "otlp-genai-semconv": {
+        "module": "opentelemetry.exporter.otlp.proto.http.trace_exporter",
+        "class": "OTLPSpanExporter",
+    },
+    "gcs" : {"module": "monocle_apptrace.exporters.gcp.gcs_exporter", "class": "GCSSpanExporter"},
+    "postgres": {"module": "monocle_apptrace.exporters.postgres.postgres_exporter", "class": "PostgresSpanExporter"},
+    "paygentic": {"module": "monocle_apptrace.exporters.paygentic.paygentic_exporter", "class": "PaygenticSpanExporter"}
 }
 
 
-def get_monocle_exporter(exporters_list:str=None) -> List[SpanExporter]:
-    # Retrieve the MONOCLE_EXPORTER environment variable and split it into a list
+def get_monocle_exporter_names(exporters_list: str = None) -> List[str]:
+    """Resolve configured exporter names without constructing exporters."""
     if exporters_list:
-        exporter_names = exporters_list.split(",")
+        configured_exporters = exporters_list
     else:
-        exporter_names = os.environ.get("MONOCLE_EXPORTER", "file").split(",")
+        configured_exporters = _get_monocle_exporter() or "file"
+    return [name.strip() for name in configured_exporters.split(",") if name.strip()]
+
+
+def get_monocle_exporter(exporters_list:str=None) -> List[SpanExporter]:
+    exporter_names = get_monocle_exporter_names(exporters_list)
     exporters = []
     
     # Create task processor for AWS Lambda environment
@@ -54,5 +68,11 @@ def get_monocle_exporter(exporters_list:str=None) -> List[SpanExporter]:
     if not exporters:
         logger.debug("No valid Monocle span exporters configured. Defaulting to FileSpanExporter.")
         exporters.append(FileSpanExporter())
+
+    # MONOCLE_CONSOLE=true adds ConsoleSpanExporter alongside whatever is configured
+    if os.environ.get("MONOCLE_CONSOLE", "").lower() in ("1", "true", "yes"):
+        if not any(isinstance(e, ConsoleSpanExporter) for e in exporters):
+            exporters.append(ConsoleSpanExporter())
+            logger.debug("MONOCLE_CONSOLE is set: added ConsoleSpanExporter.")
 
     return exporters

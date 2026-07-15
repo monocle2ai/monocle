@@ -2,6 +2,7 @@ import json
 import logging
 from typing import Any, Dict, Optional
 from urllib.parse import urlparse
+from monocle_apptrace.instrumentation.common.constants import TOOL_TYPE, INFERENCE_TOOL_CALL, INFERENCE_TURN_END
 from monocle_apptrace.instrumentation.common.utils import (
     get_json_dumps,
     get_exception_message,
@@ -296,6 +297,13 @@ def map_finish_reason_to_finish_type(finish_reason: Optional[str]) -> Optional[s
     """Map Azure AI Inference finish_reason to finish_type."""
     return map_azure_ai_inference_finish_reason_to_finish_type(finish_reason)
 
+def agent_inference_type(arguments):
+    """Determine inference span subtype based on finish_reason (tool_call or turn_end)."""
+    finish_type = map_finish_reason_to_finish_type(extract_finish_reason(arguments))
+    if finish_type == "tool_call":
+        return INFERENCE_TOOL_CALL
+    return INFERENCE_TURN_END
+
 def _get_first_tool_call(response):
     """Helper function to extract the first tool call from various LangChain response formats"""
     with suppress(AttributeError, IndexError, TypeError):
@@ -343,7 +351,7 @@ def extract_tool_type(arguments: Dict[str, Any]) -> Optional[str]:
 
         tool_name = extract_tool_name(arguments)
         if tool_name:
-            return "tool.function"
+            return TOOL_TYPE
             
     except Exception as e:
         logger.warning("Warning: Error occurred in extract_tool_type: %s", str(e))

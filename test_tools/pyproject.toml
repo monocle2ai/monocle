@@ -10,7 +10,7 @@ commands = [
 
 [project]
 name = "monocle_test_tools"
-version = "0.6.0"
+version = "0.8.7b1"
 authors = [
   { name="Okahu Inc.", email="okahu-pypi@okahu.ai" },
 ]
@@ -28,6 +28,20 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
 
+with-no-comparer= [
+    # Core dependencies
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.26.0",
+    "pydantic>=2.11.7",
+    "jsonschema>=4.0.0",
+
+    # Monocle dependencies
+    "monocle_apptrace>=0.5.0",
+
+    # git
+    "GitPython==3.1.50"
+]
+
 dependencies = [
     # Core dependencies
     "pytest>=8.0.0",
@@ -41,7 +55,10 @@ dependencies = [
     # Evaluation dependencies
     "bert-score>=0.3.0",
     "transformers>=4.0.0",
-    "sentence-transformers==3.3.0"
+    "sentence-transformers==3.3.0",
+
+    # git
+    "GitPython==3.1.50"
 ]
 
 [project.optional-dependencies]
@@ -53,7 +70,9 @@ dev = [
     "pre-commit>=3.0.0",
     'google-adk==1.10.0',
     'google-generativeai==0.8.5',
-    'openai-agents==0.2.6'
+    'openai-agents==0.2.6',
+    'crewai==0.95.0',
+    'langchain_openai'
 ]
 
 all = [
@@ -104,8 +123,7 @@ log_cli = true
 log_cli_level = "INFO"
 log_cli_format = "%(asctime)s [%(levelname)8s] %(name)s: %(message)s"
 log_cli_date_format = "%Y-%m-%d %H:%M:%S"
-pythonpath = ["src", "tests", "../apptrace/src"]
-
+pythonpath = ["src", "tests", "../apptrace/src", "test_tools", "."]
 markers = [
     "unit: marks tests as unit tests",
     "integration: marks tests as integration tests", 
@@ -114,6 +132,9 @@ markers = [
     "tool: marks tests as tool-related tests",
     "inference: marks tests as inference-related tests",
 ]
+
+[project.entry-points.pytest11]
+monocle_test_tools = "monocle_test_tools.pytest_plugin"
 
 [tool.black]
 line-length = 120

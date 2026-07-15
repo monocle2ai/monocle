@@ -22,4 +22,8 @@ class CustomConsoleSpanExporter(ConsoleSpanExporter):
         return self.captured_spans
     
     def reset(self):
-        self.captured_spans = []
+        self.captured_spans.clear()
+    
+    def force_flush(self, timeout_millis: int = 30000) -> bool:
+        """Force flush - returns True to indicate success."""
+        return True

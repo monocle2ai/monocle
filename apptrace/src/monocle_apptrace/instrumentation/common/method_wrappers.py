@@ -2,19 +2,20 @@ import logging
 import inspect
 from typing import Dict, List, Optional, Any
 from functools import wraps
-import inspect
-from opentelemetry.context import attach, get_current, detach
+from opentelemetry.context import attach, get_current, detach, Context
 from opentelemetry.sdk.trace import Span
 from opentelemetry.trace.span import INVALID_SPAN
 from opentelemetry.trace import get_tracer
+from opentelemetry.trace.status import StatusCode
 from contextlib import contextmanager, asynccontextmanager
 from monocle_apptrace.instrumentation.common.span_handler import SpanHandler
-from monocle_apptrace.instrumentation.common.wrapper import atask_wrapper, get_current_monocle_span, set_monocle_span_in_context, task_wrapper
+from monocle_apptrace.instrumentation.common.wrapper import atask_wrapper, get_current_monocle_span, set_monocle_span_in_context, task_wrapper, start_as_monocle_span
 from monocle_apptrace.instrumentation.common.utils import (
     http_route_handler, http_async_route_handler
 )
 from monocle_apptrace.instrumentation.common.constants import MONOCLE_INSTRUMENTOR
 from monocle_apptrace.instrumentation.common.instrumentor import get_tracer_provider
+from monocle_apptrace.instrumentation.common.custom_span_processor import CUSTOM_SPAN_PROCESSOR
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +25,8 @@ logger = logging.getLogger(__name__)
 def start_trace(
     span_name: Optional[str] = None,
     attributes: Optional[Dict[str, Any]] = None,
-    events: Optional[List[Dict[str, Any]]] = None
+    events: Optional[List[Dict[str, Any]]] = None,
+    context: Optional[Context] = None
 ):
     """
     Starts a new trace. All the spans created after this call will be part of the same trace. 
@@ -47,7 +49,7 @@ def start_trace(
         tracer = get_tracer(instrumenting_module_name= MONOCLE_INSTRUMENTOR, tracer_provider= get_tracer_provider())
         span_name = span_name or "custom_span"
         span = tracer.start_span(name=span_name)
-        updated_span_context = set_monocle_span_in_context(span=span)
+        updated_span_context = set_monocle_span_in_context(span=span, context=context)
         
         # Set default monocle attributes
         SpanHandler.set_default_monocle_attributes(span)
@@ -107,8 +109,8 @@ def monocle_trace(
     try:
         tracer = get_tracer(instrumenting_module_name=MONOCLE_INSTRUMENTOR, tracer_provider=get_tracer_provider())
         span_name = span_name or "custom_span"
-                
-        with tracer.start_as_current_span(span_name) as span:
+
+        with start_as_monocle_span(tracer, span_name, auto_close_span=True) as span:
             # Set default monocle attributes
             SpanHandler.set_default_monocle_attributes(span)
             if SpanHandler.is_root_span(span):
@@ -119,8 +121,9 @@ def monocle_trace(
             
             try:
                 yield
-            finally:
-                pass
+            except Exception as ex:
+                span.set_status(StatusCode.ERROR, str(ex))
+                raise
 
             
     except Exception as e:
@@ -145,7 +148,7 @@ async def amonocle_trace(
         tracer = get_tracer(instrumenting_module_name=MONOCLE_INSTRUMENTOR, tracer_provider=get_tracer_provider())
         span_name = span_name or "custom_span"
 
-        with tracer.start_as_current_span(span_name) as span:
+        with start_as_monocle_span(tracer, span_name, auto_close_span=True) as span:
             # Set default monocle attributes
             SpanHandler.set_default_monocle_attributes(span)
             if SpanHandler.is_root_span(span):
@@ -156,8 +159,9 @@ async def amonocle_trace(
             
             try:
                 yield
-            finally:
-                pass
+            except Exception as ex:
+                span.set_status(StatusCode.ERROR, str(ex))
+                raise
                 
             
     except Exception as e:
@@ -169,6 +173,7 @@ def monocle_trace_method(
 ):
     """
     Decorator to start and stop a trace for a method. All the spans created in the method will be part of the same trace.
+    Captures function inputs (args, kwargs) and outputs (return value) in span events.
     
     Args:
         span_name: Optional custom span name. If None, uses the decorated function's name.
@@ -189,9 +194,7 @@ def monocle_trace_method(
                     handler=handler,
                     to_wrap={
                         "span_name": effective_span_name,
-                        "output_processor":{
-                            "type": "custom",
-                        }
+                        "output_processor": CUSTOM_SPAN_PROCESSOR
                     }
                 )(  wrapped=func,                        
                     instance=None,
@@ -207,9 +210,7 @@ def monocle_trace_method(
                     handler=handler,
                     to_wrap={
                         "span_name": effective_span_name,
-                        "output_processor":{
-                            "type": "custom",
-                        }
+                        "output_processor": CUSTOM_SPAN_PROCESSOR
                     }
                 )(  wrapped=func,                        
                     instance=None,

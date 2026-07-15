@@ -22,7 +22,59 @@
        ```         
 - (Optionally) Modify config to alter where traces are sent
 
-See [Monocle user guide](Monocle_User_Guide.md) for more details.
-  
+See [Monocle user guide](../docs/Monocle_User_Guide.md) for more details.
 
+## Claude Code Instrumentation
 
+```bash
+# 1. Install uv (if not already installed)
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# 2. Install package
+uv tool install monocle_apptrace
+
+# 3. Register hooks — prompts for Okahu API key (leave blank for local-only)
+monocle-apptrace claude-setup
+```
+
+Start a new Claude Code session — traces flow automatically.
+
+See [Hook Setup Guide](HOOK_SETUP.md) for complete instructions.
+
+## Codex CLI Instrumentation
+
+```bash
+# 1. Install uv (if not already installed)
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# 2. Install package
+uv tool install monocle_apptrace
+
+# 3. Register hooks — prompts for Okahu API key (leave blank for local-only)
+monocle-apptrace codex-setup
+```
+
+Start a new Codex session — traces flow automatically.
+
+See [Hook Setup Guide](HOOK_SETUP.md) for complete instructions.
+
+## GitHub Copilot Instrumentation
+
+```bash
+# 1. Install uv (if not already installed)
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# 2. Install package
+uv tool install monocle_apptrace
+
+# 3. Register hooks — prompts for Okahu API key (leave blank for local-only)
+monocle-apptrace copilot-setup
+```
+
+After setup, reload your environment for the config to take effect — run `source ~/.zshrc` (or your shell's equivalent) in the terminal, or **Developer: Reload Window** in VS Code.
+
+Captures traces from both Copilot CLI and VS Code Copilot Chat. Start a session — traces flow automatically.
+
+Token counts are collected via Copilot's built-in OpenTelemetry file exporter, which `copilot-setup` enables automatically. Trace data is written to `~/.monocle/.copilot_otel/copilot.jsonl` and attached to the emitted OTel spans at the end of each turn.
+
+See [Hook Setup Guide](HOOK_SETUP.md) for complete instructions.

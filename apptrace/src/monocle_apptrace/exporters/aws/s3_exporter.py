@@ -2,6 +2,7 @@ import os
 import datetime
 import logging
 import asyncio
+import warnings
 import boto3
 from botocore.exceptions import ClientError
 from botocore.exceptions import (
@@ -13,7 +14,7 @@ from botocore.exceptions import (
 )
 from opentelemetry.sdk.trace import ReadableSpan
 from opentelemetry.sdk.trace.export import SpanExporter, SpanExportResult
-from monocle_apptrace.exporters.base_exporter import SpanExporterBase
+from monocle_apptrace.exporters.base_exporter import SpanExporterBase, format_trace_id_without_0x
 from monocle_apptrace.exporters.exporter_processor import ExportTaskProcessor
 from typing import Sequence, Optional, Dict, List, Tuple
 import json
@@ -46,7 +47,19 @@ class S3SpanExporter(SpanExporterBase):
                 region_name=region_name,
             )
         self.bucket_name = bucket_name or os.getenv('MONOCLE_S3_BUCKET_NAME','default-bucket')
-        self.file_prefix = os.getenv('MONOCLE_S3_KEY_PREFIX', DEFAULT_FILE_PREFIX)
+        # MONOCLE_S3_KEY_PREFIX is deprecated in favour of MONOCLE_S3_FILE_PREFIX —
+        # the new name is consistent across exporters (file/blob/s3) and is not
+        # confused with S3 access key configuration. The old name still wins if it
+        # is set on its own, so existing deployments keep working.
+        new_prefix = os.getenv('MONOCLE_S3_FILE_PREFIX')
+        legacy_prefix = os.getenv('MONOCLE_S3_KEY_PREFIX')
+        if legacy_prefix is not None and new_prefix is None:
+            warnings.warn(
+                "MONOCLE_S3_KEY_PREFIX is deprecated; use MONOCLE_S3_FILE_PREFIX instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+        self.file_prefix = new_prefix or legacy_prefix or DEFAULT_FILE_PREFIX
         self.time_format = DEFAULT_TIME_FORMAT
         self.task_processor = task_processor
         if self.task_processor is not None:
@@ -127,9 +140,9 @@ class S3SpanExporter(SpanExporterBase):
         serialized_data = self.__serialize_spans(spans)
         if serialized_data:
             try:
-                self.__upload_to_s3_with_trace_id(serialized_data, trace_id)
+                self.__upload_to_s3_with_trace_id(span_data_batch=serialized_data, trace_id=trace_id)
             except Exception as e:
-                logger.error(f"Failed to upload trace {hex(trace_id)}: {e}")
+                logger.error(f"Failed to upload trace {format_trace_id_without_0x(trace_id)}: {e}")
         
         del self.trace_spans[trace_id]
 
@@ -138,7 +151,12 @@ class S3SpanExporter(SpanExporterBase):
         try:
             # Run the asynchronous export logic in an event loop
             logger.info(f"Exporting {len(spans)} spans to S3.")
-            asyncio.run(self.__export_async(spans))
+            if self._is_running_in_event_loop():
+                # If we're already in an event loop, create a task
+                asyncio.create_task(self.__export_async(spans))
+            else:
+                # No event loop is running, so we can use asyncio.run()
+                asyncio.run(self.__export_async(spans))
             return SpanExportResult.SUCCESS
         except Exception as e:
             logger.error(f"Error exporting spans: {e}")
@@ -181,7 +199,11 @@ class S3SpanExporter(SpanExporterBase):
                         spans_to_upload, _, _ = self.trace_spans[trace_id]
                         serialized_data = self.__serialize_spans(spans_to_upload)
                         if serialized_data:
-                            self.task_processor.queue_task(self.__upload_to_s3_with_trace_id, serialized_data, trace_id, True)
+                            self.task_processor.queue_task(
+                                self.__upload_to_s3_with_trace_id,
+                                kwargs={'span_data_batch': serialized_data, 'trace_id': trace_id},
+                                is_root_span=True
+                            )
                         del self.trace_spans[trace_id]
                 else:
                     self._upload_trace(trace_id)
@@ -210,19 +232,19 @@ class S3SpanExporter(SpanExporterBase):
             return ""
 
     @SpanExporterBase.retry_with_backoff(exceptions=(EndpointConnectionError, ConnectionClosedError, ReadTimeoutError, ConnectTimeoutError))
-    def __upload_to_s3_with_trace_id(self, span_data_batch: str, trace_id: int):
+    def __upload_to_s3_with_trace_id(self, span_data_batch: str, trace_id: int) -> None:
         """Upload spans for a specific trace to S3 with trace ID in filename."""
         current_time = datetime.datetime.now().strftime(self.time_format)
         prefix = self.file_prefix + os.environ.get('MONOCLE_S3_KEY_PREFIX_CURRENT', '')
-        file_name = f"{prefix}{current_time}_{hex(trace_id)}.ndjson"
+        file_name = f"{prefix}{current_time}_{format_trace_id_without_0x(trace_id)}.ndjson"
         self.s3_client.put_object(
             Bucket=self.bucket_name,
             Key=file_name,
             Body=span_data_batch
         )
-        logger.debug(f"Trace {hex(trace_id)} uploaded to AWS S3 as {file_name}.")
+        logger.debug(f"Trace {format_trace_id_without_0x(trace_id)} uploaded to AWS S3 as {file_name}.")
 
-    async def force_flush(self, timeout_millis: int = 30000) -> bool:
+    def force_flush(self, timeout_millis: int = 30000) -> bool:
         """Flush all pending traces to S3."""
         trace_ids_to_upload = list(self.trace_spans.keys())
         for trace_id in trace_ids_to_upload:

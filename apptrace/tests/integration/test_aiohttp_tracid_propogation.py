@@ -14,6 +14,7 @@ from monocle_apptrace.instrumentation.common.constants import (
     TRACE_PROPOGATION_URLS,
 )
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+from monocle_apptrace.instrumentation.common.span_handler import http_span_counter
 
 logger = logging.getLogger(__name__)
 
@@ -38,12 +39,17 @@ async def aiohttp_server(scope="function", autouse=False):
         if instrumentor and instrumentor.is_instrumented_by_opentelemetry:
             instrumentor.uninstrument()
 
+# per test fixture to clear spans
+@pytest_asyncio.fixture
+async def clear_spans(aiohttp_server):
+    aiohttp_server.reset()
+    http_span_counter.reset()
+    yield
+
 
 
 @pytest.mark.asyncio
-async def test_chat_endpoint(aiohttp_server):
-    aiohttp_server.reset()
-
+async def test_chat_endpoint(clear_spans, aiohttp_server):
     url = aiohttp_helper.get_url()
     timeout = aiohttp.ClientTimeout(total=60)
     headers = {"client-id": str(uuid.uuid4())}
@@ -57,6 +63,41 @@ async def test_chat_endpoint(aiohttp_server):
             assert resp.status == 200
 
     verify_scopes(aiohttp_server)
+
+@pytest.mark.asyncio
+async def test_ask_agent_post_endpoint(clear_spans, aiohttp_server):
+    url = aiohttp_helper.get_url()
+    timeout = aiohttp.ClientTimeout(total=60)
+    headers = {
+        "client-id": str(uuid.uuid4()),
+        "Content-Type": "application/json",
+    }
+    question = "What is Task Decomposition?"
+    payload = {"question": question}
+
+    async with aiohttp.ClientSession(timeout=timeout) as session:
+        async with session.post(f"{url}/api/v1/ask_agent", headers=headers, json=payload) as resp:
+            logger.info(f"Response status: {resp.status}")
+            text = await resp.text()
+            logger.info(f"Response text: {text}")
+            assert resp.status == 200
+
+    verify_scopes(aiohttp_server)
+
+@pytest.mark.asyncio
+async def test_verify_skip_health_check(clear_spans, aiohttp_server):
+    url = aiohttp_helper.get_url()
+    timeout = aiohttp.ClientTimeout(total=60)
+    # Send three health check requests and verify that only first span is captured
+    async with aiohttp.ClientSession(timeout=timeout) as session:
+        for _ in range(3):
+            async with session.get(f"{url}") as resp:
+                assert resp.status == 200
+    
+    spans = aiohttp_server.get_captured_spans()
+    assert len(spans) > 0, f"No health check spans were captured"
+    health_check_spans = [span for span in spans if span.attributes.get("span.type") == "http.process"]
+    assert len(health_check_spans) == 1, f"Expected only 1 health check span, but found {len(health_check_spans)}"
 
 def verify_scopes(aiohttp_server):
     scope_name = "conversation"
@@ -73,15 +114,15 @@ def verify_scopes(aiohttp_server):
                 assert message_scope_id == span_attributes.get("scope."+scope_name)
         if span_attributes.get("span.type", "") == "http.send":
             span_input, span_output = span.events
-            assert span_attributes.get("entity.1.method").lower() == "get"
+            assert span_attributes.get("entity.1.method").lower() in ["get","post"]
             assert span_attributes.get("entity.1.URL") is not None
-            assert span_output.attributes['error_code'] == "200"
+            assert span_output.attributes['status_code'] == "200"
         if span_attributes.get("span.type", "") == "http.process":
             span_input, span_output = span.events
-            assert span_attributes.get("entity.1.method").lower() == "get"
+            assert span_attributes.get("entity.1.method").lower() in ["get","post"]
             assert span_attributes.get("entity.1.route") is not None
             assert span_attributes.get("entity.1.url") is not None
-            assert span_output.attributes['error_code'] == "200"
+            assert span_output.attributes['status_code'] == "200"
         if trace_id is None:
             trace_id = span.context.trace_id
         else:

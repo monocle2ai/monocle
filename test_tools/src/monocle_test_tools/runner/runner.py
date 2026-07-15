@@ -5,6 +5,11 @@ class AgentTypes(str, Enum):
     GOOGLE_ADK = "google_adk"
     OPENAI = "openai"
     LANGGRAPH = "langgraph"
+    CREWAI = "crewai"
+    LLAMAINDEX = "llamaindex"
+    STRANDS = "strands"
+    MSAGENT = "msagent"
+    HTTP_WITH_OKAHU = "http_with_okahu"
     
 def get_agent_runner(runner_type: str) -> AgentRunner:
     if runner_type == AgentTypes.GOOGLE_ADK:
@@ -16,5 +21,20 @@ def get_agent_runner(runner_type: str) -> AgentRunner:
     elif runner_type == AgentTypes.LANGGRAPH:
         from .lg_runner import LGRunner
         return LGRunner()
+    elif runner_type == AgentTypes.CREWAI:
+        from .crewai_runner import CrewAIRunner
+        return CrewAIRunner()
+    elif runner_type == AgentTypes.LLAMAINDEX:
+        from .llamaindex_runner import LlamaIndexRunner
+        return LlamaIndexRunner()
+    elif runner_type == AgentTypes.STRANDS:
+        from .strands_runner import StrandsRunner
+        return StrandsRunner()
+    elif runner_type == AgentTypes.MSAGENT:
+        from .msagent_runner import MSAgentRunner
+        return MSAgentRunner()
+    elif runner_type == AgentTypes.HTTP_WITH_OKAHU:
+        from .http_runner import HttpRunner
+        return HttpRunner()
     else:
         raise ValueError(f"Unknown runner type: {runner_type}")

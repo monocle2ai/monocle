@@ -4,8 +4,15 @@ from monocle_apptrace.instrumentation.metamodel.gemini import (
 )
 from monocle_apptrace.instrumentation.common.utils import get_error_message
 
+
+def process_stream(to_wrap, response, span_processor):
+    from monocle_apptrace.instrumentation.metamodel.gemini.gemini_stream_processor import GeminiStreamProcessor
+    processor = GeminiStreamProcessor()
+    return processor.process_stream(to_wrap, response, span_processor)
+
 INFERENCE = {
     "type": SPAN_TYPES.INFERENCE,
+    "subtype": lambda arguments: _helper.agent_inference_type(arguments),
     "attributes": [
         [
             {
@@ -34,6 +41,20 @@ INFERENCE = {
                 "accessor": lambda arguments: 'model.llm.' + _helper.resolve_from_alias(arguments['kwargs'],
                                                                                         ['model'])
             }
+        ],
+        [
+            {
+                "_comment": "Tool name when finish_type is tool_call",
+                "attribute": "name",
+                "phase": "post_execution",
+                "accessor": lambda arguments: _helper.extract_tool_name(arguments),
+            },
+            {
+                "_comment": "Tool type when finish_type is tool_call", 
+                "attribute": "type",
+                "phase": "post_execution",
+                "accessor": lambda arguments: _helper.extract_tool_type(arguments),
+            },
         ]
     ],
     "events": [
@@ -85,4 +106,10 @@ INFERENCE = {
 
 
     ]
+}
+
+STREAM_INFERENCE = {
+    **INFERENCE,
+    "is_auto_close": lambda kwargs: False,
+    "response_processor": process_stream,
 }

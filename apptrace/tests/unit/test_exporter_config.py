@@ -8,9 +8,24 @@ from monocle_apptrace.exporters.monocle_exporters import get_monocle_exporter
 
 logger = logging.getLogger(__name__)
 
+
 class TestHandler(unittest.TestCase):
+    def setUp(self):
+        # Isolate each test from ambient env vars and .env file lookups to prevent config leakage.
+        self._env_patcher = patch.dict(os.environ, {}, clear=True)
+        self._env_patcher.start()
+        self._env_value_patcher = patch(
+            "monocle_apptrace.exporters.okahu.okahu_exporter.get_monocle_env_value",
+            side_effect=lambda key: os.environ.get(key),
+        )
+        self._env_value_patcher.start()
+
+    def tearDown(self):
+        self._env_value_patcher.stop()
+        self._env_patcher.stop()
+
     def test_default_exporter(self):
-        os.environ.clear()
+        """No configuration -> defaults to FileSpanExporter."""
         default_exporter = get_monocle_exporter()
         assert default_exporter[0].__class__.__name__ == "FileSpanExporter"
 
@@ -22,26 +37,22 @@ class TestHandler(unittest.TestCase):
             warnings.simplefilter("ignore", UserWarning)
             default_exporter = get_monocle_exporter()
         assert default_exporter[0].__class__.__name__ == "ConsoleSpanExporter"
-        os.environ.clear()
 
     def test_set_exporter(self):
         os.environ["MONOCLE_EXPORTER"] = "okahu"
         os.environ["OKAHU_API_KEY"] = "foo"
         default_exporter = get_monocle_exporter()
         assert default_exporter[0].__class__.__name__ == "OkahuSpanExporter"
-        os.environ.clear()
 
     def test_memory_exporter(self):
         os.environ['MONOCLE_EXPORTER'] = "memory"
         default_exporter = get_monocle_exporter()
         assert default_exporter[0].__class__.__name__ == "MonocleInMemorySpanExporter"
-        os.environ.clear()
 
     def test_console_exporter(self):
         os.environ['MONOCLE_EXPORTER'] = "console"
         default_exporter = get_monocle_exporter()
         assert default_exporter[0].__class__.__name__ == "ConsoleSpanExporter"
-        os.environ.clear()
 
     def test_multi_exporter(self):
         os.environ['MONOCLE_EXPORTER'] = "file,memory,console"
@@ -49,21 +60,18 @@ class TestHandler(unittest.TestCase):
         expected_exporters = ["FileSpanExporter", "MonocleInMemorySpanExporter", "ConsoleSpanExporter"]
         exporter_class_names = [exporter.__class__.__name__ for exporter in exporters]
         assert exporter_class_names == expected_exporters, f"Expected {expected_exporters}, but got {exporter_class_names}"
-        os.environ.clear()
 
     def test_otlp_exporter(self):
         os.environ['MONOCLE_EXPORTER'] = "otlp"
         os.environ['OTEL_EXPORTER_OTLP_ENDPOINT'] = "http://localhost:4318"
         default_exporter = get_monocle_exporter()
         assert default_exporter[0].__class__.__name__ == "OTLPSpanExporter"
-        os.environ.clear()
 
     def test_otlp_genai_semconv_exporter(self):
         os.environ['MONOCLE_EXPORTER'] = "otlp-genai-semconv"
         os.environ['OTEL_EXPORTER_OTLP_ENDPOINT'] = "http://localhost:4318"
         default_exporter = get_monocle_exporter()
         assert default_exporter[0].__class__.__name__ == "OTLPSpanExporter"
-        os.environ.clear()
 
     def test_otlp_exporter_supports_authenticated_headers(self):
         with patch.dict(
@@ -92,7 +100,6 @@ class TestHandler(unittest.TestCase):
         class_names = [e.__class__.__name__ for e in exporters]
         assert "FileSpanExporter" in class_names
         assert "ConsoleSpanExporter" in class_names
-        os.environ.clear()
 
     def test_monocle_console_no_duplicate(self):
         """MONOCLE_CONSOLE=true does not add a second ConsoleSpanExporter when console is already configured."""
@@ -101,7 +108,6 @@ class TestHandler(unittest.TestCase):
         exporters = get_monocle_exporter()
         console_count = sum(1 for e in exporters if e.__class__.__name__ == "ConsoleSpanExporter")
         assert console_count == 1
-        os.environ.clear()
 
     def test_monocle_console_unset_no_effect(self):
         """Without MONOCLE_CONSOLE, no extra ConsoleSpanExporter is added."""
@@ -109,15 +115,7 @@ class TestHandler(unittest.TestCase):
         exporters = get_monocle_exporter()
         class_names = [e.__class__.__name__ for e in exporters]
         assert "ConsoleSpanExporter" not in class_names
-        os.environ.clear()
 
 
 if __name__ == "__main__":
-    handler = TestHandler()
-    handler.test_default_exporter()
-    handler.test_fallback_exporter()
-    handler.test_set_exporter()
-    handler.test_memory_exporter()
-    handler.test_console_exporter()
-    handler.test_otlp_exporter()
-    handler.test_otlp_genai_semconv_exporter()
+    unittest.main()

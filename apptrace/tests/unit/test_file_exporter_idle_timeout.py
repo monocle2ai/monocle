@@ -41,6 +41,11 @@ class TestFileExporterIdleTimeout(unittest.TestCase):
 
     def setUp(self):
         self.tmp = tempfile.mkdtemp()
+        # Isolate env vars to prevent config redirection away from test tmp directory.
+        self.env_p = patch.dict(os.environ)
+        self.env_p.start()
+        os.environ.pop("MONOCLE_TRACE_OUTPUT_PATH", None)
+        os.environ.pop("MONOCLE_FILE_PREFIX", None)
         self.clock = _Clock()
         self.p = patch.object(file_exporter, "datetime", self.clock)
         self.p.start()
@@ -53,6 +58,7 @@ class TestFileExporterIdleTimeout(unittest.TestCase):
     def tearDown(self):
         self.exp.shutdown()
         self.p.stop()
+        self.env_p.stop()
 
     def _files(self):
         return sorted(f for f in os.listdir(self.tmp) if f.endswith(".json"))

@@ -1,6 +1,6 @@
 from opentelemetry.context import get_value, set_value, attach, detach
 from monocle_apptrace.instrumentation.common.span_handler import SpanHandler
-from monocle_apptrace.instrumentation.metamodel.botocore.entities.inference import INFERENCE
+from monocle_apptrace.instrumentation.metamodel.botocore.entities.inference import INFERENCE, INFERENCE_STREAM
 from monocle_apptrace.instrumentation.metamodel.botocore.entities.retrieval import RETRIEVAL
 
 class BotoCoreSpanHandler(SpanHandler):
@@ -9,12 +9,23 @@ class BotoCoreSpanHandler(SpanHandler):
         """Determine which output processor to use based on the method name"""
         # Methods that generate retrieval spans
         retrieval_methods = []
+        streaming_inference_methods = ["converse_stream", "invoke_model_with_response_stream"]
 
         # Methods that generate inference spans (default for most)
-        inference_methods = ["converse", "invoke_model", "invoke_data_automation_async", "invoke_endpoint"]
+        inference_methods = [
+            "converse",
+            "converse_stream",
+            "invoke_model",
+            "invoke_model_with_response_stream",
+            "invoke_data_automation_async",
+            "invoke_endpoint",
+        ]
 
         if method_name == "retrieve_and_generate":
             return [RETRIEVAL, INFERENCE]
+
+        if method_name in streaming_inference_methods:
+            return INFERENCE_STREAM
 
         if method_name in retrieval_methods:
             return RETRIEVAL
@@ -28,7 +39,7 @@ class BotoCoreSpanHandler(SpanHandler):
         service_name = kwargs.get("service_name")
         service_method_mapping = {
             "sagemaker-runtime": ["invoke_endpoint"],
-            "bedrock-runtime": ["converse", "invoke_model"],
+            "bedrock-runtime": ["converse", "converse_stream", "invoke_model", "invoke_model_with_response_stream"],
             "bedrock-agent-runtime": ["retrieve_and_generate"],
             "bedrock-data-automation-runtime": ["invoke_data_automation_async"],
         }

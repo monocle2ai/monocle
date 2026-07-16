@@ -10,7 +10,13 @@ from monocle_apptrace.instrumentation.common.constants import HTTP_SUCCESS_CODES
 from monocle_apptrace.instrumentation.common.utils import MonocleSpanException
 
 logger = logging.getLogger(__name__)
-MAX_DATA_LENGTH = 1000
+
+try:
+    from monocle_apptrace.instrumentation.common.constants import DEFAULT_MAX_ATTRIBUTE_LENGTH
+    MAX_DATA_LENGTH = DEFAULT_MAX_ATTRIBUTE_LENGTH
+except ImportError:
+    # Fallback if constant doesn't exist (backwards compatibility)
+    MAX_DATA_LENGTH = 51200  # 50KB
 
 def get_route(args) -> str:
     return args[0]['PATH_INFO'] if 'PATH_INFO' in args[0] else ""

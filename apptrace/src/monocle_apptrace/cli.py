@@ -314,7 +314,7 @@ def _save_env(env_file, **kwargs):
     """Update `env_file`. Each kwarg becomes a `KEY=value` line; existing
     lines for the same key are replaced in place. File mode is 0600."""
     env_file.parent.mkdir(parents=True, exist_ok=True)
-    lines = env_file.read_text().splitlines() if env_file.exists() else [
+    lines = env_file.read_text(encoding="utf-8").splitlines() if env_file.exists() else [
         "# Monocle config — edit directly to change settings"
     ]
     for key, value in kwargs.items():
@@ -329,7 +329,7 @@ def _save_env(env_file, **kwargs):
                 break
         if not replaced:
             lines.append("{}={}".format(key, value))
-    env_file.write_text("\n".join(lines) + "\n")
+    env_file.write_text("\n".join(lines) + "\n", encoding="utf-8")
     os.chmod(env_file, stat.S_IRUSR | stat.S_IWUSR)
 
 

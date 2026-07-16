@@ -2,8 +2,10 @@ import logging
 import os
 
 import bs4
-import psycopg2
 import pytest
+
+psycopg2 = pytest.importorskip("psycopg2", reason="psycopg2 not installed")
+
 from common.custom_exporter import CustomConsoleSpanExporter
 from common.langhchain_patch import create_history_aware_retriever
 from dotenv import load_dotenv

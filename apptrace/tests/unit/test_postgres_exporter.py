@@ -5,9 +5,12 @@ import datetime
 import unittest
 from importlib import reload
 from unittest.mock import MagicMock, patch
+import pytest
 from opentelemetry.sdk.trace import ReadableSpan
 from opentelemetry.sdk.trace.export import SpanExportResult
-import psycopg2
+
+# psycopg2 is an optional dependency (installed via the `postgres` extra).
+psycopg2 = pytest.importorskip("psycopg2")
 import psycopg2.errors
 import monocle_apptrace.exporters.postgres.postgres_exporter as pg_mod
 from monocle_apptrace.exporters.postgres.postgres_exporter import PostgresSpanExporter

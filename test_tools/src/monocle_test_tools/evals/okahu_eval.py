@@ -322,6 +322,13 @@ class OkahuEval(BaseEval):
         if not fact_ids:
             raise AssertionError(f"No fact IDs found in spans for fact_name='{fact_name}'.")
 
+        # Compute a tight time window around the span for trace filtering (compute/perf).
+        # +/- 10 minutes (20 minute total window).
+        start_span_ns = span.start_time - 10 * 60 * 1e9  # 10 minutes before, in nanoseconds
+        end_span_ns = span.end_time + 10 * 60 * 1e9  # 10 minutes after, in nanoseconds
+        start_time = datetime.fromtimestamp(start_span_ns / 1e9, timezone.utc).strftime('%Y-%m-%dT%H:%M:%S.%fZ')
+        end_time = datetime.fromtimestamp(end_span_ns / 1e9, timezone.utc).strftime('%Y-%m-%dT%H:%M:%S.%fZ')
+
         headers = {"x-api-key": api_key}
         # Propagate baggage for traceability
         W3CBaggagePropagator().inject(headers)
@@ -335,6 +342,8 @@ class OkahuEval(BaseEval):
                 "breakdown_filter": fact_name,
                 "trace_id": fact_id,
                 "fact_name": fact_name,
+                "start_time": start_time,
+                "end_time": end_time,
                 "shadow_eval": self._trace_source != "okahu"
             }
             

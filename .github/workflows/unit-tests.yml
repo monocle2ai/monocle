@@ -72,7 +72,11 @@ jobs:
           cat ./unitfailed_files.txt >> failed_files.txt
           echo "" >> failed_files.txt
           LINE_NUM=$(grep -nE "===== .*((failed|passed|skipped|warnings|error).*)+ in .* ======" unitresult.log | tail -1 | cut -d: -f1)
-          tail -n +$LINE_NUM ./unitresult.log > unittest_summary.txt
+          if [[ -n "${LINE_NUM}" ]]; then
+            tail -n +"${LINE_NUM}" ./unitresult.log > unittest_summary.txt
+          else
+            cp unitresult.log unittest_summary.txt
+          fi
           echo "" >> test_summary.txt
           echo "Unit Test Summary:" >> test_summary.txt
           cat ./unittest_summary.txt >> test_summary.txt

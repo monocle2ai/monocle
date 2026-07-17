@@ -1,10 +1,22 @@
 """CSV -> fluent test-case adapter for monocle_test_tools.
 
-Loads a flat CSV of okahu-trace test cases and drives them through the
-existing fluent TraceAssertion API via @monocle_csv_cases + CsvCase.run.
-Config (evaluator, template_path, source=okahu) lives in the test stub;
-only per-row data lives in the CSV. See the design doc:
-okahu/monocle_backlog_tracking designs/2026-07-17-monocle-csv-testcase-adapter.md
+Loads a flat CSV of okahu-trace test cases and drives each row through the
+existing fluent TraceAssertion API via ``@monocle_csv_cases`` + ``CsvCase.run``,
+so test data can be curated in a spreadsheet.
+
+Config-in-code, data-in-CSV: the test stub owns everything constant across the
+sheet (the evaluator via ``with_evaluation(...)``, the eval ``template_path``,
+and the trace source, fixed to ``okahu`` in this version); the CSV owns only
+what varies per row (trace id, workflow, expected labels, and per-row
+assertions). One row = one test; a row may carry several assertions, each run
+independently against the same loaded trace.
+
+Example test stub::
+
+    @monocle_csv_cases("cases.csv")
+    def test_cases(monocle_trace_asserter, case):
+        case.run(monocle_trace_asserter.with_evaluation("okahu"),
+                 template_path=TEMPLATE_PATH)
 """
 import csv
 import inspect

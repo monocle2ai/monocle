@@ -30,6 +30,72 @@ def test_span_attribute_assertions(monocle_trace_asserter:TraceAssertion):
         .has_attribute("workflow.name") \
         .does_not_have_attribute("entity.1.type", "tool.openai")
 
+def test_has_attribute_with_chaining(monocle_trace_asserter:TraceAssertion):
+    trace_path = os.path.join(os.path.dirname(__file__), "traces/trace1.json")
+    loaded = monocle_trace_asserter.with_trace_source(source="file", trace_path=trace_path)
+
+    # Named parameters
+    matching = loaded.has_attribute(attribute_name="span.type", expected="inference") \
+        .has_event(event_name="metadata", attribute_name="total_tokens", expected=229)
+    assert matching._filtered_spans is not None
+    assert len(matching._filtered_spans) == 1
+    assert not matching.has_assertions()
+
+    # Positional parameters
+    positional = loaded.has_attribute("workflow.name")
+    assert not positional.has_assertions()
+
+def test_where_generic_selector(monocle_trace_asserter:TraceAssertion):
+    trace_path = os.path.join(os.path.dirname(__file__), "traces/trace1.json")
+    loaded = monocle_trace_asserter.with_trace_source(source="file", trace_path=trace_path)
+
+    # Combine an attribute match and an event match on the same span
+    matching = loaded.where(
+        attribute={"span.type": "inference"},
+        event={"name": "metadata", "attributes": {"total_tokens": 229}},
+    )
+    assert matching._filtered_spans is not None
+    assert len(matching._filtered_spans) == 1
+    assert not matching.has_assertions()
+
+    # Predicate-based selection
+    pred = loaded.where(predicate=lambda span: span.attributes.get("entity.count") == 2)
+    assert pred._filtered_spans
+    assert not pred.has_assertions()
+
+def test_where_filter_engine_matches_and_misses(monocle_trace_asserter:TraceAssertion):
+    trace_path = os.path.join(os.path.dirname(__file__), "traces/trace1.json")
+    loaded = monocle_trace_asserter.with_trace_source(source="file", trace_path=trace_path)
+    spans = loaded.validator.spans
+    assert spans is not None
+
+    # AND across attribute + event on the same span
+    assert loaded._filter_spans_where(
+        spans, {"span.type": "inference"}, {"name": "metadata", "attributes": {"total_tokens": 229}}, None
+    )
+    # Non-matching attribute yields no spans
+    assert not loaded._filter_spans_where(spans, {"span.type": "does.not.exist"}, None, None)
+    # Predicate-based filtering
+    assert loaded._filter_spans_where(spans, None, None, lambda s: s.attributes.get("entity.count") == 2)
+    # Conflicting criteria across facets: attribute present but event absent -> no match
+    assert not loaded._filter_spans_where(spans, {"span.type": "inference"}, {"name": "nonexistent.event"}, None)
+
+def test_where_requires_a_criterion(monocle_trace_asserter:TraceAssertion):
+    trace_path = os.path.join(os.path.dirname(__file__), "traces/trace1.json")
+    loaded = monocle_trace_asserter.with_trace_source(source="file", trace_path=trace_path)
+    with pytest.raises(ValueError):
+        loaded.where()
+    with pytest.raises(ValueError):
+        loaded.does_not_match()
+
+def test_does_not_match_generic_selector(monocle_trace_asserter:TraceAssertion):
+    trace_path = os.path.join(os.path.dirname(__file__), "traces/trace1.json")
+    loaded = monocle_trace_asserter.with_trace_source(source="file", trace_path=trace_path)
+
+    # No span carries this attribute, so does_not_match passes (no recorded assertion)
+    ok = loaded.does_not_match(attribute={"span.type": "does.not.exist"})
+    assert not ok.has_assertions()
+
 def test_generic_span_event_assertions(monocle_trace_asserter:TraceAssertion):
     trace_path = os.path.join(os.path.dirname(__file__), "traces/trace1.json")
     loaded = monocle_trace_asserter.with_trace_source(source="file", trace_path=trace_path)

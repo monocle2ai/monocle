@@ -183,3 +183,10 @@ def test_monocle_csv_cases_parametrizes(tmp_path):
     assert argnames == "case"
     assert [c.case_id for c in argvalues] == ["a", "b"]
     assert params[0].kwargs["ids"] == ["a", "b"]
+
+
+def test_public_exports():
+    import monocle_test_tools as mtt
+    assert hasattr(mtt, "CsvCase")
+    assert hasattr(mtt, "load_cases_from_csv")
+    assert hasattr(mtt, "monocle_csv_cases")

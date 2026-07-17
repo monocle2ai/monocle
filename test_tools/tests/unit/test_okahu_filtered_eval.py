@@ -195,3 +195,28 @@ def test_poll_for_coverage_returns_when_all_labeled():
                                      eval_name="hallucination")
     assert latest["wf"] == rows
     assert mock_q.call_count == 1                               # full coverage first round
+
+
+# --- Task 6: run_filtered orchestration -------------------------------------
+
+def test_run_filtered_grades_all_and_enforces_min_facts():
+    c = _client()
+    coverage = {"wf": [_row("aa", "no_hallucination"), _row("bb", "major_hallucination")]}
+    with patch.object(c, "submit", return_value="job-1"), \
+         patch.object(c, "poll_status", return_value="SUCCEEDED"), \
+         patch.object(c, "get_job_result_fact_ids", return_value=["aa", "bb"]), \
+         patch.object(c, "poll_for_coverage", return_value=coverage):
+        report = c.run_filtered("wf", accepted="no_hallucination", eval_name="hallucination",
+                                fact_name="traces", start_time="s", end_time="e", min_facts=1)
+    assert {s["fact_id"]: s["status"] for s in report["scenarios"]} == {"aa": "pass", "bb": "drift"}
+    assert report["job_id"] == "job-1"
+
+
+def test_run_filtered_min_facts_guard_raises_on_too_few():
+    c = _client()
+    with patch.object(c, "submit", return_value="job-2"), \
+         patch.object(c, "poll_status", return_value="SUCCEEDED"), \
+         patch.object(c, "get_job_result_fact_ids", return_value=[]):
+        with pytest.raises(AssertionError):
+            c.run_filtered("wf", accepted="no_hallucination", eval_name="hallucination",
+                           fact_name="traces", start_time="s", end_time="e", min_facts=1)

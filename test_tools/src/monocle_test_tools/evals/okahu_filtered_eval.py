@@ -253,3 +253,35 @@ class OkahuFilteredEval:
             if time.time() >= deadline:
                 return latest
             time.sleep(interval)
+
+    def run_filtered(self, workflow_names, *, accepted=None, not_expected=None,
+                     eval_name=None, template=None, fact_name, start_time, end_time,
+                     min_facts=1, results_timeout=300, results_interval=10,
+                     stall_rounds=2) -> dict:
+        """Submit -> poll -> enumerate discovered facts -> reconcile -> report.
+
+        Grades EVERY fact the server discovered against the blanket accepted/not_expected.
+        Raises if fewer than `min_facts` facts were discovered (never a vacuous pass).
+        """
+        custom_name = template.get("name") if template else None
+        wf_param = workflow_names if isinstance(workflow_names, str) else ",".join(workflow_names)
+        workflows = [workflow_names] if isinstance(workflow_names, str) else list(workflow_names)
+        job_id = self.submit(wf_param, eval_name=eval_name, template=template,
+                             fact_name=fact_name, start_time=start_time, end_time=end_time)
+        self.poll_status(job_id)
+        discovered = self.get_job_result_fact_ids(job_id)
+        if len(discovered) < min_facts:
+            raise AssertionError(
+                f"Filtered eval evaluated {len(discovered)} fact(s) (min_facts={min_facts}); "
+                f"check workflow/time-window filter. job_id={job_id}")
+        # Reconcile via the canonical /evals/query path over the discovered ids (reuses coverage).
+        per_workflow = {wf: {fid: True for fid in discovered} for wf in workflows}
+        latest = self.poll_for_coverage(
+            fact_name, per_workflow, start_time, end_time,
+            timeout=results_timeout, interval=results_interval, stall_rounds=stall_rounds,
+            job_id=job_id, eval_name=eval_name, custom_name=custom_name)
+        # Tag each row with its source workflow (query rows don't carry it) so the
+        # report/matrix can attribute a fact to a workflow.
+        merged_results = [{**r, "workflow": r.get("workflow") or wf}
+                          for wf in workflows for r in latest.get(wf, []) if r]
+        return build_filtered_report(accepted, not_expected, merged_results, job_id=job_id)

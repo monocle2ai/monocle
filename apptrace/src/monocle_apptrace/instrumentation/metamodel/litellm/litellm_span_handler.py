@@ -25,5 +25,8 @@ class LiteLLMSyncSpanHandler(SpanHandler):
         Returns:
             bool: True if the argument acompletion is true, False otherwise
         """
-        return kwargs.get('acompletion') is True
+        # response_api_handler signals its async variant via _is_async: the
+        # sync call then returns an unawaited coroutine, so a span here would
+        # never see the real result (the async wrap owns the span).
+        return kwargs.get('acompletion') is True or kwargs.get('_is_async') is True
 

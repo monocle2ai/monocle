@@ -67,3 +67,13 @@ def test_filtered_report_not_expected_only():
     results = [_row("aa", "major_hallucination", job_id="job-1")]
     report = feval.build_filtered_report(None, ["minor_hallucination", "major_hallucination"], results, job_id="job-1")
     assert report["scenarios"][0]["status"] == "drift"
+
+
+# --- Task 3: labeled-coverage set (poller support) ---------------------------
+
+def test_labeled_fact_ids_gated_by_job_id():
+    results = [_row("aa", "x", job_id="job-1"),
+               _row("bb", "x", job_id="OLD"),
+               {"fact_id": "cc", "job_id": "job-1", "eval_found": False}]
+    assert feval.labeled_fact_ids(results, job_id="job-1") == {"aa"}
+    assert feval.labeled_fact_ids(results, job_id=None) == {"aa", "bb"}

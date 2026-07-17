@@ -98,3 +98,12 @@ def build_filtered_report(accepted, not_expected, results: list, job_id,
         "summary": {"total": len(scenarios), **counts, "duration_seconds": duration_seconds},
         "scenarios": scenarios,
     }
+
+
+def labeled_fact_ids(results: list, job_id) -> set:
+    """Bare-hex ids with a usable label produced by job_id (gate off when job_id is None)."""
+    return {
+        normalize_fact_id(r.get("fact_id", ""))
+        for r in results
+        if has_label(r) and (job_id is None or r.get("job_id") == job_id)
+    }

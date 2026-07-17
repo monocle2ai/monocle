@@ -3,6 +3,77 @@ from monocle_apptrace.instrumentation.metamodel.botocore import (
     _helper,
 )
 from monocle_apptrace.instrumentation.common.utils import (get_error_message, get_llm_type, get_status,)
+
+
+def process_stream(to_wrap, response, span_processor):
+    """Wrap Bedrock streaming responses and compute a synthetic final result for span hydration."""
+    if not isinstance(response, dict) or "stream" not in response:
+        span_processor(response)
+        return response
+
+    original_stream = response.get("stream")
+    if original_stream is None:
+        span_processor(response)
+        return response
+
+    def _wrapped_stream():
+        has_tool_use = False
+        tool_name = None
+        text_parts = []
+        finish_reason = None
+        usage = None
+
+        try:
+            for chunk in original_stream:
+                try:
+                    if "contentBlockStart" in chunk:
+                        start = chunk["contentBlockStart"].get("start", {})
+                        tool_use = start.get("toolUse")
+                        if tool_use:
+                            has_tool_use = True
+                            tool_name = tool_use.get("name")
+
+                    if "contentBlockDelta" in chunk:
+                        delta = chunk["contentBlockDelta"].get("delta", {})
+                        if "text" in delta:
+                            text_parts.append(delta["text"])
+
+                    if "messageStop" in chunk:
+                        finish_reason = chunk["messageStop"].get("stopReason", finish_reason)
+
+                    if "metadata" in chunk:
+                        metadata = chunk.get("metadata", {})
+                        usage = metadata.get("usage", usage)
+                except Exception:
+                    # Best-effort parsing; never interfere with stream consumption.
+                    pass
+
+                yield chunk
+        finally:
+            if has_tool_use and finish_reason in (None, "end_turn"):
+                finish_reason_for_span = "tool_use"
+            else:
+                finish_reason_for_span = finish_reason or "end_turn"
+
+            content = []
+            if text_parts:
+                content.append({"text": "".join(text_parts)})
+            if has_tool_use and tool_name:
+                content.append({"toolUse": {"name": tool_name, "input": {}}})
+
+            synthetic_result = {
+                "stopReason": finish_reason_for_span,
+                "output": {"message": {"content": content}},
+            }
+            if usage:
+                synthetic_result["usage"] = usage
+
+            span_processor(synthetic_result)
+
+    response["stream"] = _wrapped_stream()
+    return response
+
+
 INFERENCE = {
     "type": SPAN_TYPES.INFERENCE,
     "subtype": lambda arguments: _helper.agent_inference_type(arguments),
@@ -95,4 +166,11 @@ INFERENCE = {
             ]
         }
     ]
+}
+
+
+INFERENCE_STREAM = {
+    **INFERENCE,
+    "is_auto_close": lambda kwargs: False,
+    "response_processor": process_stream,
 }

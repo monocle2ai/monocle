@@ -72,7 +72,9 @@ agent_test_cases: list[dict] = [
                 "entities": [
                     {"type": "tool", "name": "adk_book_flight"},
                     {"type": "agent", "name": "adk_flight_booking_agent"}
-                ]
+                ],
+                # Verify expected attributes on the matched span
+                "attributes": {"entity.1.type": "tool.adk"}
             }
         ]
     },
@@ -184,6 +186,26 @@ monocle_trace_asserter.called_agents(min_count=5, max_count=15)  # Between 5-15 
 monocle_trace_asserter.called_tools(max_count=20)  # At most 20 tool calls total
 ```
 
+#### Scope, attribute, and event assertions
+
+Assert on monocle scopes, span attributes, and span events. `has_scope`, `has_attribute`, and `has_event` narrow the context to matching spans:
+
+```python
+# Scope carried by the trace (value check, existence check, and substring check)
+monocle_trace_asserter.has_scope("tenant_id", "customer-123")
+monocle_trace_asserter.has_scope("tenant_id")                  # presence only
+monocle_trace_asserter.contains_scope("tenant_id", "customer")
+
+# Any-of and negative scope assertions
+monocle_trace_asserter.has_any_scope("tenant_id", "customer-123", "customer-456")
+monocle_trace_asserter.does_not_have_scope("tenant_id", "customer-999")
+
+# Verify a span attribute on the matched tool invocation
+monocle_trace_asserter \
+    .called_tool("adk_book_flight") \
+    .has_attribute("entity.1.type", "tool.adk")
+```
+
 ---
 
 ## Framework Examples
@@ -277,11 +299,10 @@ Run assertions against saved trace JSON files without invoking live agents. This
 
 ```python
 from monocle_test_tools import TraceAssertion
-from monocle_test_tools.span_loader import JSONSpanLoader
 
 def test_tool_invocation_from_trace(monocle_trace_asserter):
     # Load spans from a saved trace file
-    monocle_trace_asserter.load_spans(JSONSpanLoader.from_json("traces/trace1.json"))
+    monocle_trace_asserter.with_trace_source(source="file", trace_path="traces/trace1.json")
 
     monocle_trace_asserter \
         .called_tool("adk_book_hotel", "adk_hotel_booking_agent") \
@@ -292,15 +313,19 @@ def test_tool_invocation_from_trace(monocle_trace_asserter):
         .does_not_contain_input("Delhi") \
         .does_not_contain_output("failed")
 
-def test_agent_invocation_from_trace(monocle_trace_asserter):
-    monocle_trace_asserter.load_spans(JSONSpanLoader.from_json("traces/trace1.json"))
+    monocle_trace_asserter.with_evaluation("okahu").check_eval("hallucination", "major_hallucination")
 
+def test_agent_invocation_from_okahu(monocle_trace_asserter):
+        monocle_trace_asserter.with_trace_source(
+            source = "okahu", id="642dbd9d0dfcfdbdc8849f67f34c8a19", workflow_name=WORKFLOW_CC
+        ).with_evaluation("okahu").check_eval("hallucination", "major_hallucination")
     monocle_trace_asserter \
         .called_agent("adk_hotel_booking_agent") \
         .has_input("Book a flight from San Francisco...") \
         .contains_output("I have booked a stay at Marriot Intercontinental") \
         .does_not_have_output("cancel the booking")
 ```
+
 
 You can also use `MonocleValidator` directly for programmatic validation:
 
@@ -349,65 +374,69 @@ python -m monocle_test_tools.generate_test trace.json
 # With custom test name
 python -m monocle_test_tools.generate_test trace.json --test-name test_my_agent
 
+# Only generate the loader for a specific trace source (file | okahu)
+python -m monocle_test_tools.generate_test trace.json --trace-source file
+
 # Save to file
 python -m monocle_test_tools.generate_test trace.json > test_generated.py
 ```
 
+By default the generated test includes loader options for every supported trace
+source (file, Okahu, live agent run). Passing `--trace-source file` or
+`--trace-source okahu` emits only that loader (as active code).
+
 ### Example Output
+
+Generated tests load traces through the `with_trace_source` API and include
+cost (total tokens) and performance (turn duration) checks derived from the trace:
 
 ```python
 import pytest
 from monocle_test_tools import TraceAssertion
-from monocle_test_tools.span_loader import JSONSpanLoader
+
 
 def test_generated(monocle_trace_asserter: TraceAssertion):
     """Auto-generated test from trace analysis."""
-    
-    # Option 1: Load from JSON file
-    spans = JSONSpanLoader.from_json("path/to/trace.json")
-    # monocle_trace_asserter.validator.add_remote_spans(spans)
-    
+
+    # Option 1: Load from a local trace file
+    monocle_trace_asserter.with_trace_source("file", trace_path="path/to/trace.json")
+
     # Option 2: Load from Okahu
-    # from monocle_test_tools.span_loader import OkahuSpanLoader
-    # spans = OkahuSpanLoader.get_spans(workflow_name="your_workflow", trace_id="trace_id")
-    # monocle_trace_asserter.validator.add_remote_spans(spans)
-    
+    # monocle_trace_asserter.with_trace_source("okahu", id="TRACE_ID", workflow_name="WORKFLOW_NAME")
+
     # Option 3: Run agent directly
     # from your_module import your_agent
     # await monocle_trace_asserter.run_agent_async(your_agent, "framework_name", "user input")
-    
+
     asserter = monocle_trace_asserter
-    
+
     # Agent invocations with output checks
     asserter.called_agent("travel_agent").contains_output("Successfully booked")
     asserter.called_agent("hotel_agent").contains_output("Marriott reservation confirmed")
-    
+
     # Tool invocations
     asserter.called_tool("book_flight", "travel_agent")
     asserter.called_tool("book_hotel", "hotel_agent")
+
+    # Cost check: total tokens in the turn (derived from trace; adjust as needed)
+    asserter.under_token_limit(1204)
+
+    # Performance check: duration of the turn (derived from trace; adjust as needed)
+    asserter.under_duration(5.2, units="seconds", span_type="agent_turn")
 ```
 
-### Python API
+With `--trace-source file`, only the file loader line is emitted:
 
 ```python
-from monocle_test_tools.test_generator import TestGenerator
-
-# From local file
-generator = TestGenerator.from_json_file("trace.json")
-test_code = generator.generate_test_code(test_name="test_my_agent")
-print(test_code)
-
-# Write to file
-generator.write_to_file("test_my_agent.py")
-
-# From Okahu
-generator = TestGenerator.from_okahu(trace_id="abc123", workflow_name="my_app")
-print(generator.generate_test_code())
+    # Load traces from a local trace file
+    monocle_trace_asserter.with_trace_source("file", trace_path="path/to/trace.json")
 ```
 
 The generator extracts:
 - **Agent invocations** with output checks (first 80 chars as key phrase)
 - **Tool invocations** with parent agent references
+- **Total token usage** for the turn, emitted as an `under_token_limit()` check
+- **Turn duration**, emitted as an `under_duration(..., span_type="agent_turn")` check
 - **Sorted by invocation order** for readability
 
 ---
@@ -458,6 +487,26 @@ MockTool(
 
 Supported `ToolType` values: `tool.openai`, `tool.adk`, `tool.llama_index`, `tool.langgraph`, `tool.strands`.
 
+### Fluent API
+
+In the fluent API, register mock tools with `with_mock_tool()` before running the agent (call once per mock tool):
+
+```python
+@pytest.mark.asyncio
+async def test_with_mock_tool(monocle_trace_asserter):
+    monocle_trace_asserter.with_mock_tool(
+        MockTool(
+            name="adk_book_flight",
+            type=ToolType.ADK,
+            response={"status": "success", "message": "Flight booked from {{from_airport}} to {{to_airport}}."}
+        )
+    )
+    await monocle_trace_asserter.run_agent_async(root_agent, "google_adk",
+                        "Book a flight from San Francisco to Mumbai for 26th Nov 2025.")
+
+    monocle_trace_asserter.called_tool("adk_book_flight").contains_output("Flight booked")
+```
+
 ---
 
 ## Test Format Reference
@@ -491,6 +540,7 @@ Validation rules enforced by span type:
     "entities":         "List of entities involved. Each has 'type' (tool|agent|inference) and 'name'.",
     "input":            "Expected input for this interaction.",
     "output":           "Expected output from this interaction.",
+    "attributes":       "Expected span attributes (key/value pairs) to verify on the matched span.",
     "test_type":        "'positive' (default) or 'negative'. Negative tests assert the interaction does NOT occur.",
     "eval":             "Evaluation configuration. See Evaluation section.",
     "expect_errors":    "Whether errors are expected during this span.",
@@ -625,6 +675,18 @@ The following eval template names have been validated against real traces in tes
 
 > Passing a template name or fact combination that does not exist in Okahu raises an `AssertionError` with the list of valid templates. Use `@pytest.mark.xfail` for tests that are expected to fail.
 
+### Custom Evaluation Templates
+
+Instead of a built-in `eval_name`, pass `template_path` to `check_eval` to send your own template JSON to the eval service. Provide exactly one of `eval_name` or `template_path`.
+
+```python
+monocle_trace_asserter.called_agent("adk_flight_booking_agent")
+monocle_trace_asserter.with_evaluation("okahu") \
+    .check_eval(template_path="templates/my_custom_eval.json", expected="pass")
+```
+
+The file may be either the inner template (`{"name": ..., "eval_prompt": ..., ...}`) or the full API request body (`{"template": {...}}`) — the outer `template` key is unwrapped automatically. Server-side validation errors (HTTP 400) surface as an `AssertionError` prefixed with `Custom template validation failed:`.
+
 ---
 
 ## Supported Agent Frameworks (Runners)
@@ -644,6 +706,17 @@ The following eval template names have been validated against real traces in tes
 ## Fluent API Reference (`TraceAssertion`)
 
 The `monocle_trace_asserter` fixture provides a `TraceAssertion` instance. All assertion methods return `self` for chaining and accept an optional `message=` keyword argument for custom failure messages.
+
+### Configuration
+
+Configure the asserter before running assertions. These methods return `self` for chaining but do not themselves assert.
+
+| Method | Description |
+|---|---|
+| `with_trace_source(source="local", **kwargs)` | Choose where spans come from: `"local"` (in-memory, default), `"file"` (local `.monocle/*.json`), or `"okahu"` (cloud). File/Okahu kwargs: `id`, `trace_path` (file), `fact_name` (`trace`/`session`/`scope`), `scope_name`, `workflow_name` (required for Okahu) |
+| `with_comparer(comparer)` | Override the comparer for subsequent `has_*` assertions (see the Comparers table). Accepts a string key or `BaseComparer` instance |
+| `with_evaluation(eval, eval_options=None)` | Configure the evaluator (`"okahu"`, `"bert_score"`, or a `BaseEval` instance) before `check_eval` |
+| `with_mock_tool(mock_tool)` | Register a `MockTool` to simulate tool behavior during a subsequent `run_agent`/`run_agent_async` (fluent equivalent of `TestCase.mock_tools`). Call once per mock tool |
 
 ### Run agents
 
@@ -690,6 +763,33 @@ The `monocle_trace_asserter` fixture provides a `TraceAssertion` instance. All a
 | `does_not_contain_output(substring)` | Output does not contain the substring |
 | `does_not_contain_any_output(*substrings)` | Output does not contain any of the substrings |
 
+### Attribute assertions
+
+Filter the current spans down to those carrying a given span attribute, so subsequent chained assertions operate on the matching subset. When `value` is omitted, only the presence of the attribute is checked.
+
+| Method | Description |
+|---|---|
+| `has_attribute(attribute_name, expected=None)` | Assert at least one span carries the attribute `attribute_name` (optionally equal to `expected`); narrows context to matching spans (`key`/`value` accepted as legacy aliases) |
+| `does_not_have_attribute(attribute_name, expected=None)` | Assert no span carries the attribute `attribute_name` (optionally equal to `expected`) (`key`/`value` accepted as legacy aliases) |
+| `has_event(event_name, attribute_name=None, expected=None)` | Assert at least one span has an event named `event_name` (optionally carrying attribute `attribute_name`, optionally equal to `expected`); narrows context to matching spans |
+| `where(attribute=None, event=None, predicate=None)` | Generic selector: narrow context to spans matching **all** given criteria — `attribute` (`{name: expected}` mapping), `event` (`{"name":..., "attributes":{...}}`), and/or `predicate` (`Callable[[Span], bool]`). `has_attribute`/`has_event` are wrappers over this. |
+| `does_not_match(attribute=None, event=None, predicate=None)` | Assert no span matches all the given criteria (same arguments as `where`) |
+
+### Scope assertions
+
+Assert on monocle scope values attached to the current spans. `has_*`/`contains_*` narrow the context to matching spans. When the value/values argument is omitted on `has_scope`/`does_not_have_scope`, only presence/absence of the scope is checked.
+
+| Method | Description |
+|---|---|
+| `has_scope(scope_name, expected_value=None)` | Assert a span has the scope (optionally equal to `expected_value`) |
+| `has_any_scope(scope_name, *expected_values)` | Assert a span has the scope with any of the given values |
+| `does_not_have_scope(scope_name, unexpected_value=None)` | Assert no span has the scope (optionally with `unexpected_value`) |
+| `does_not_have_any_scope(scope_name, *unexpected_values)` | Assert no span has the scope with any of the given values |
+| `contains_scope(scope_name, expected_substring)` | Assert the scope value contains the substring |
+| `contains_any_scope(scope_name, *expected_substrings)` | Assert the scope value contains any of the substrings |
+| `does_not_contain_scope(scope_name, unexpected_substring)` | Assert the scope value does not contain the substring |
+| `does_not_contain_any_scope(scope_name, *unexpected_substrings)` | Assert the scope value does not contain any of the substrings |
+
 ### Performance assertions
 
 | Method | Description |
@@ -699,11 +799,11 @@ The `monocle_trace_asserter` fixture provides a `TraceAssertion` instance. All a
 
 ### Evaluation
 
+Configure the evaluator with `with_evaluation` (see the Configuration table) before calling `check_eval`. Note: `with_comparer` overrides the comparer for `has_*` assertions but does **not** affect `contains_*` methods (those always use token/substring matching).
+
 | Method | Description |
 |---|---|
-| `with_evaluation(eval, eval_options=None)` | Configure the evaluator (`"okahu"`, `"bert_score"`, or a `BaseEval` instance) |
-| `with_comparer(comparer)` | Override the comparer used by subsequent `has_input`, `has_any_input`, `does_not_have_input`, `has_output`, `has_any_output`, `does_not_have_output` assertions. Does **not** affect `contains_*` methods (those always use token/substring matching). Accepts a string key or class instance: `"default"` (exact match), `"similarity"` (semantic via sentence-transformers, threshold 0.8), `"bert_score"` (BERTScore similarity), `"metric"` (numeric metric comparison), `"token_match"` (substring containment), or any `BaseComparer` subclass instance. |
-| `check_eval(eval_name, expected=None, not_expected=None, fact_name="traces")` | Run an evaluation and assert the result. `expected` and `not_expected` each accept a string or list of strings |
+| `check_eval(eval_name=None, expected=None, not_expected=None, fact_name="traces", template_path=None)` | Run an evaluation and assert the result. Provide **either** `eval_name` (a standard Okahu template) **or** `template_path` (a custom-template JSON file), not both. `expected` and `not_expected` each accept a string or list of strings |
 
 ---
 

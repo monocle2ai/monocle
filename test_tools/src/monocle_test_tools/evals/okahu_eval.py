@@ -68,7 +68,33 @@ class OkahuEval(BaseEval):
                 f"Invalid fact_name '{fact_name}'. Supported values: {', '.join(sorted(set(mapping.keys())))}"
             )
         return mapped
-    
+
+    @staticmethod
+    def _raise_for_eval_response(response, exc):
+        """Translate an HTTPError on a POST to /v1/eval/jobs into a clean AssertionError.
+
+        - 404 → "Trace not found ..." (the trace wasn't ingested before check_eval)
+        - 400 → "Custom template validation failed: <reason>" (server-side template
+          validation rejected the submitted custom template — the reason comes from
+          the API's `error` field when the body is JSON, else the raw text)
+        - any other status → generic "Evaluation service returned HTTP <code>: <body>"
+        """
+        status_code = response.status_code
+        if status_code == 404:
+            raise AssertionError(
+                "Trace not found in evaluation service. Confirm the span data was ingested before running check_eval."
+            ) from exc
+        if status_code == 400:
+            try:
+                error_msg = response.json().get("error", response.text)
+            except ValueError:
+                error_msg = response.text or "<empty body>"
+            raise AssertionError(f"Custom template validation failed: {error_msg}") from exc
+        response_body = response.text or "<empty body>"
+        raise AssertionError(
+            f"Evaluation service returned HTTP {status_code}: {response_body}"
+        ) from exc
+
     def export_trace(self, filtered_spans: list[Span]) -> str:
         """Export trace to Okahu evaluation service once per test."""
         if not filtered_spans:
@@ -293,33 +319,31 @@ class OkahuEval(BaseEval):
 
         return job_id, label, explanation, eval_result
 
-    def evaluate(self, filtered_spans: Optional[list[Span]] = [], eval_name: Optional[str] = "", fact_name: Optional[str] = "traces", eval_args: dict = {}) -> Union[str, dict]:
-        if not eval_name:
-            raise ValueError("eval_name is required for evaluation.")
-        
+    def evaluate(self, filtered_spans: Optional[list[Span]] = [], eval_name: Optional[str] = "", fact_name: Optional[str] = "traces", eval_args: dict = {}, template: Optional[dict] = None) -> Union[str, dict]:
+        if template:
+            eval_name = template.get("name", "custom_eval")
+        elif not eval_name:
+            raise ValueError("eval_name is required for evaluation (or provide a custom template).")
+
         if not filtered_spans:
             raise ValueError("No spans provided for evaluation.")
-        
-        # Validate and default fact_name if not provided
+
         if not fact_name:
             fact_name = "traces"
-        
-        # Map user-friendly fact name to Okahu fact name
+
         fact_name = self._map_fact_name(fact_name)
-        
-        # Get API credentials
+
         api_key = (os.getenv("OKAHU_API_KEY") or "").strip()
         if not api_key:
             raise AssertionError("OKAHU_API_KEY is not configured.")
 
-        # Export on first eval call only
         if not self._trace_exported:
             self.export_trace(filtered_spans)
-        
-        # Verify eval template exists before submitting job
-        self.verify_eval_template_exists(eval_name=eval_name, fact_name=fact_name)
 
-        # setting parameters, headers, payload for eval job submission
+        # Only verify template existence for standard Okahu templates
+        if not template:
+            self.verify_eval_template_exists(eval_name=eval_name, fact_name=fact_name)
+
         span = filtered_spans[0]
         workflow_name = span.attributes.get("workflow.name")
         base = os.getenv("OKAHU_EVALUATION_ENDPOINT", OKAHU_PROD_EVALUATION_ENDPOINT).rstrip("/")
@@ -342,9 +366,12 @@ class OkahuEval(BaseEval):
         end_time = datetime.fromtimestamp(end_span_ns / 1e9, timezone.utc).strftime('%Y-%m-%dT%H:%M:%S.%fZ')
 
         headers = {"x-api-key": api_key}
-        # Propagate baggage for traceability
         W3CBaggagePropagator().inject(headers)
-        payload = {"template_name": eval_name}
+
+        if template:
+            payload = {"template": template}
+        else:
+            payload = {"template_name": eval_name}
         label = None
         explanation = ""
 
@@ -384,13 +411,7 @@ class OkahuEval(BaseEval):
             try:
                 response.raise_for_status()
             except requests.HTTPError as exc:
-                status_code = response.status_code
-                if status_code == 404:
-                    raise AssertionError(
-                        "Trace not found in evaluation service. Confirm the span data was ingested before running check_eval."
-                    ) from exc
-                response_body = response.text or "<empty body>"
-                raise AssertionError(f"Evaluation service returned HTTP {status_code}: {response_body}") from exc
+                self._raise_for_eval_response(response, exc)
             content_type = response.headers.get("Content-Type", "").lower()
             if "application/json" not in content_type:
                 raise AssertionError(f"Evaluation service returned non-JSON response: {response.text}")
@@ -418,7 +439,8 @@ class OkahuEval(BaseEval):
                         job_id=job_id,
                         eval_result=eval_result,
                         template_name=eval_name,
-                        fact_name=fact_name
+                        fact_name=fact_name,
+                        template=template
                     )
 
         return label, explanation

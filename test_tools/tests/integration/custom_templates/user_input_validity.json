@@ -1,0 +1,22 @@
+{   
+    "template": {
+        "name": "user_input_validity",
+        "eval_prompt": "Evaluate whether the user's input is a valid request given the intended purpose of the AI agent. The agent is designed to serve a specific function, and user inputs should be relevant to that function.\n\nExamine the conversation and determine whether the user's request makes sense in the context of what the agent is built to do. Consider the agent's responses and behavior to infer its intended purpose if not explicitly stated.\n\nClassification criteria:\n- valid: The user's request is clearly relevant to the agent's intended purpose. The request falls within the scope of what the agent is designed to handle.\n- ambiguous: The request is borderline — it could be interpreted as relevant but is vague, tangential, or only loosely related to the agent's purpose. Reasonable people could disagree on whether this is in-scope.\n- invalid: The user's request is clearly outside the agent's scope. The topic, action, or intent has no meaningful connection to the agent's purpose.",
+        "structure_output": {
+            "label": {
+                "description": "Classification of whether the user's input is valid given the agent's intended purpose.",
+                "enums": ["valid", "ambiguous", "invalid"]
+            },
+            "explanation": {
+                "description": "Explain why the user's input was classified as valid, ambiguous, or invalid. Identify the agent's inferred purpose and describe how the user's request relates or fails to relate to that purpose."
+            },
+            "inferred_purpose": {
+                "description": "The agent's intended purpose as inferred from the conversation context and the agent's responses and behavior."
+            },
+            "category": {
+                "description": "The category of the user's input relative to the agent's purpose. For valid inputs, describe the relevant domain. For invalid inputs, describe the type of off-topic request (e.g., wrong domain, nonsensical, unrelated action request)."
+            }
+        }
+    }
+}
+ 

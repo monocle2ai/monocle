@@ -17,17 +17,27 @@ monocle_exporters: Dict[str, Any] = {
     "memory": {"module": "monocle_apptrace.exporters.base_exporter", "class": "MonocleInMemorySpanExporter"},
     "console": {"module": "opentelemetry.sdk.trace.export", "class": "ConsoleSpanExporter"},
     "otlp": {"module": "opentelemetry.exporter.otlp.proto.http.trace_exporter", "class": "OTLPSpanExporter"},
+    "otlp-genai-semconv": {
+        "module": "opentelemetry.exporter.otlp.proto.http.trace_exporter",
+        "class": "OTLPSpanExporter",
+    },
     "gcs" : {"module": "monocle_apptrace.exporters.gcp.gcs_exporter", "class": "GCSSpanExporter"},
+    "postgres": {"module": "monocle_apptrace.exporters.postgres.postgres_exporter", "class": "PostgresSpanExporter"},
     "paygentic": {"module": "monocle_apptrace.exporters.paygentic.paygentic_exporter", "class": "PaygenticSpanExporter"}
 }
 
 
-def get_monocle_exporter(exporters_list:str=None) -> List[SpanExporter]:
-    # Retrieve the MONOCLE_EXPORTER environment variable and split it into a list
+def get_monocle_exporter_names(exporters_list: str = None) -> List[str]:
+    """Resolve configured exporter names without constructing exporters."""
     if exporters_list:
-        exporter_names = exporters_list.split(",")
+        configured_exporters = exporters_list
     else:
-        exporter_names = (_get_monocle_exporter() or "file").split(",")
+        configured_exporters = _get_monocle_exporter() or "file"
+    return [name.strip() for name in configured_exporters.split(",") if name.strip()]
+
+
+def get_monocle_exporter(exporters_list:str=None) -> List[SpanExporter]:
+    exporter_names = get_monocle_exporter_names(exporters_list)
     exporters = []
     
     # Create task processor for AWS Lambda environment

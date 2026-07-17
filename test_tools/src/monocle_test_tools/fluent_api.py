@@ -1,7 +1,9 @@
 from functools import wraps
 import inspect
+import json
 import os
-from typing import Optional, Union
+from pathlib import Path
+from typing import Any, Callable, Optional, Sequence, Union
 from monocle_apptrace.instrumentation.common.method_wrappers import monocle_trace_method
 from monocle_apptrace.instrumentation.common.utils import get_workflow_name
 from monocle_test_tools.schema import Evaluation
@@ -289,6 +291,190 @@ class TraceAssertion():
         return self
 
     @collect_assertions
+    def has_attribute(self, attribute_name:str, expected:Optional[any] = None, message:Optional[str] = None) -> 'TraceAssertion':
+        """Assert that a span carries the given attribute (optionally with a specific value).
+
+        Filters the current spans down to those matching, so subsequent chained
+        assertions operate on the matching subset. When ``expected`` is None, only the
+        presence of the attribute is checked.
+        """
+        matching_spans = self._filter_spans_by_attribute(self._filtered_spans, attribute_name, expected)
+        self._filtered_spans = matching_spans
+        if not matching_spans:
+            if message:
+                raise AssertionError(message)
+            if expected is None:
+                raise AssertionError(f"No span found with attribute '{attribute_name}'")
+            raise AssertionError(f"No span found with attribute '{attribute_name}' == '{expected}'")
+        return self
+
+    @collect_assertions
+    def does_not_have_attribute(self, attribute_name:str, expected:Optional[any] = None, message:Optional[str] = None) -> 'TraceAssertion':
+        """Assert that no span carries the given attribute (optionally with a specific value)."""
+        matching_spans = self._filter_spans_by_attribute(self._filtered_spans, attribute_name, expected)
+        if matching_spans:
+            if message:
+                raise AssertionError(message)
+            if expected is None:
+                raise AssertionError(f"Span found with attribute '{attribute_name}', but was not expected")
+            raise AssertionError(f"Span found with attribute '{attribute_name}' == '{expected}', but was not expected")
+        return self
+
+    @collect_assertions
+    def has_event(self, event_name:str, attribute_name:Optional[str] = None,
+                  expected:Optional[Any] = None, message:Optional[str] = None) -> 'TraceAssertion':
+        """Assert that a span has a named event and, optionally, a matching attribute.
+
+        Filters the current spans to those containing the matching event, allowing
+        subsequent fluent assertions to continue from the same spans. Values are
+        compared without coercion; string values use the configured comparer.
+        """
+        matching_spans = self._filter_spans_by_event(
+            self._filtered_spans, event_name, attribute_name, expected
+        )
+        self._filtered_spans = matching_spans
+        if not matching_spans:
+            if message:
+                raise AssertionError(message)
+            if attribute_name is None:
+                raise AssertionError(f"No span found with event '{event_name}'")
+            if expected is None:
+                raise AssertionError(
+                    f"No span found with event '{event_name}' containing attribute '{attribute_name}'"
+                )
+            raise AssertionError(
+                f"No span found with event '{event_name}' containing attribute "
+                f"'{attribute_name}' == '{expected}'"
+            )
+        return self
+
+    @collect_assertions
+    def where(self, attribute:Optional[dict] = None, event:Optional[dict] = None,
+              predicate:Optional[Callable[[Span], bool]] = None, message:Optional[str] = None) -> 'TraceAssertion':
+        """Generic span selector: narrow the filtered spans to those matching every given criterion.
+
+        This is the generic building block behind the more specific selectors
+        (``has_attribute``, ``has_event``). All provided criteria are AND-ed together;
+        a span matches when:
+
+          - every ``{name: expected}`` in ``attribute`` matches the span's attributes
+            (``expected`` of None checks presence only; strings use the configured comparer),
+          - it contains an event matching the ``event`` spec, and
+          - ``predicate(span)`` is truthy.
+
+        Args:
+            attribute: Mapping of attribute name -> expected value (None = presence check).
+            event: Event spec ``{"name": <event_name>, "attributes": {<attr>: <expected>}}``.
+                ``"attributes"`` is optional (event-presence check when omitted); per-attribute
+                ``expected`` of None checks presence only.
+            predicate: Callable receiving a Span and returning a bool for arbitrary matching.
+            message: Optional custom error message.
+
+        Example:
+            asserter.where(
+                attribute={"span.type": "agentic.turn"},
+                event={"name": "metadata", "attributes": {"total_tokens": 1000}},
+            )
+        """
+        if attribute is None and event is None and predicate is None:
+            raise ValueError("where() requires at least one of 'attribute', 'event', or 'predicate'.")
+        matching_spans = self._filter_spans_where(self._filtered_spans, attribute, event, predicate)
+        self._filtered_spans = matching_spans
+        if not matching_spans:
+            raise AssertionError(message or ("No span found matching " + self._describe_where(attribute, event, predicate)))
+        return self
+
+    @collect_assertions
+    def does_not_match(self, attribute:Optional[dict] = None, event:Optional[dict] = None,
+                       predicate:Optional[Callable[[Span], bool]] = None, message:Optional[str] = None) -> 'TraceAssertion':
+        """Negative counterpart of ``where``: assert no span matches all given criteria.
+
+        Accepts the same ``attribute``/``event``/``predicate`` criteria as ``where``.
+        """
+        if attribute is None and event is None and predicate is None:
+            raise ValueError("does_not_match() requires at least one of 'attribute', 'event', or 'predicate'.")
+        matching_spans = self._filter_spans_where(self._filtered_spans, attribute, event, predicate)
+        if matching_spans:
+            raise AssertionError(message or ("Span found matching " + self._describe_where(attribute, event, predicate)
+                                             + ", but was not expected"))
+        return self
+
+    @staticmethod
+    def _describe_where(attribute:Optional[dict], event:Optional[dict], predicate:Optional[Callable]) -> str:
+        """Build a human-readable description of a where() criteria set for error messages."""
+        parts = []
+        if attribute is not None:
+            parts.append(f"attribute(s) {attribute}")
+        if event is not None:
+            parts.append(f"event {event}")
+        if predicate is not None:
+            parts.append("predicate")
+        return " and ".join(parts) if parts else "given criteria"
+
+    def _value_matches(self, expected:Optional[Any], actual:Any) -> bool:
+        """Return True when ``actual`` satisfies ``expected`` (None = present/any value)."""
+        if expected is None:
+            return True
+        if isinstance(expected, str) and isinstance(actual, str):
+            return self._comparer.compare(expected, actual)
+        return actual == expected
+
+    def _span_matches_attributes(self, span:Span, attribute:dict) -> bool:
+        """Return True when the span carries every requested attribute with a matching value."""
+        for name, expected in attribute.items():
+            actual = span.attributes.get(name)
+            if actual is None:
+                return False
+            if not self._value_matches(expected, actual):
+                return False
+        return True
+
+    def _span_matches_event(self, span:Span, event:dict) -> bool:
+        """Return True when the span has an event matching the ``event`` spec."""
+        if not isinstance(event, dict):
+            raise ValueError("'event' must be a dict, e.g. {'name': 'metadata', 'attributes': {...}}")
+        event_name = event.get("name")
+        if event_name is None:
+            raise ValueError("'event' spec requires a 'name' key.")
+        attr_spec = event.get("attributes") or {}
+        for ev in getattr(span, "events", []) or []:
+            if ev.name != event_name:
+                continue
+            if not attr_spec:
+                return True
+            ev_attrs = ev.attributes or {}
+            if all(name in ev_attrs and self._value_matches(expected, ev_attrs[name])
+                   for name, expected in attr_spec.items()):
+                return True
+        return False
+
+    def _filter_spans_where(self, spans:Optional[Sequence[Span]], attribute:Optional[dict],
+                            event:Optional[dict], predicate:Optional[Callable[[Span], bool]]) -> list[Span]:
+        """Return spans satisfying all of the provided (attribute/event/predicate) criteria."""
+        matching_spans = []
+        for span in spans or []:
+            if attribute is not None and not self._span_matches_attributes(span, attribute):
+                continue
+            if event is not None and not self._span_matches_event(span, event):
+                continue
+            if predicate is not None and not predicate(span):
+                continue
+            matching_spans.append(span)
+        return matching_spans
+
+    def _filter_spans_by_attribute(self, spans:Optional[list[Span]], attribute_name:str, expected:Optional[any]) -> list[Span]:
+        """Return spans whose attribute ``attribute_name`` is present (and equals ``expected`` when given)."""
+        return self._filter_spans_where(spans, {attribute_name: expected}, None, None)
+
+    def _filter_spans_by_event(self, spans:Optional[Sequence[Span]], event_name:str,
+                               attribute_name:Optional[str], expected:Optional[Any]) -> list[Span]:
+        """Return spans containing an event that satisfies the requested attribute match."""
+        event_spec:dict = {"name": event_name}
+        if attribute_name is not None:
+            event_spec["attributes"] = {attribute_name: expected}
+        return self._filter_spans_where(spans, None, event_spec, None)
+
+    @collect_assertions
     def has_input(self, expected_input:str, message:Optional[str] = None) -> 'TraceAssertion':
         """Assert that the input matches the expected input."""
         self._verify_input_output(self._filtered_spans, expected_inputs=[expected_input],
@@ -419,28 +605,204 @@ class TraceAssertion():
         return self
 
     @collect_assertions
-    def check_eval(self, eval_name:str, expected:Optional[Union[str, list[str]]] = None, not_expected:Optional[Union[str, list[str]]] = None, fact_name:Optional[str] = "traces", message:Optional[str] = None) -> 'TraceAssertion':
-        """Validate evaluation results for the current filtered spans."""
-        #verify expected and not_expected aren't empty
+    def has_scope(self, scope_name:str, expected_value:Optional[str] = None, message:Optional[str] = None) -> 'TraceAssertion':
+        """Assert that at least one filtered span has the specified scope.
+
+        Args:
+            scope_name: Name of the scope (e.g., 'tenant_id', 'subscriptionId')
+            expected_value: Expected value for the scope. If omitted, only the
+                presence of the scope is checked, regardless of its value.
+            message: Optional custom error message
+
+        Example:
+            asserter.has_scope("tenant_id", "customer-123")  # value check
+            asserter.has_scope("tenant_id")                   # existence check
+        """
+        expected_values = None if expected_value is None else [expected_value]
+        self._verify_scope(self._filtered_spans, scope_name, expected_values,
+                          comparer=self._comparer, positive_test=True, custom_message=message)
+        return self
+
+    @collect_assertions
+    def has_any_scope(self, scope_name:str, *expected_values:str, message:Optional[str] = None) -> 'TraceAssertion':
+        """Assert that spans have the specified scope with any of the expected values.
+        
+        Args:
+            scope_name: Name of the scope (e.g., 'tenant_id')
+            expected_values: One or more expected values for the scope
+            message: Optional custom error message
+            
+        Example:
+            asserter.has_any_scope("tenant_id", "customer-123", "customer-456")
+        """
+        if not expected_values:
+            raise ValueError("At least one expected_value is required")
+        self._verify_scope(self._filtered_spans, scope_name, list(expected_values),
+                          comparer=self._comparer, positive_test=True, custom_message=message)
+        return self
+
+    @collect_assertions
+    def does_not_have_scope(self, scope_name:str, unexpected_value:Optional[str] = None, message:Optional[str] = None) -> 'TraceAssertion':
+        """Assert that no filtered span has the specified scope.
+
+        Args:
+            scope_name: Name of the scope (e.g., 'tenant_id')
+            unexpected_value: Value that should not be present. If omitted, the
+                scope must be entirely absent, regardless of its value.
+            message: Optional custom error message
+
+        Example:
+            asserter.does_not_have_scope("tenant_id", "customer-999")  # value check
+            asserter.does_not_have_scope("tenant_id")                   # absence check
+        """
+        unexpected_values = None if unexpected_value is None else [unexpected_value]
+        self._verify_scope(self._filtered_spans, scope_name, unexpected_values,
+                          comparer=self._comparer, positive_test=False, custom_message=message)
+        return self
+
+    @collect_assertions
+    def does_not_have_any_scope(self, scope_name:str, *unexpected_values:str, message:Optional[str] = None) -> 'TraceAssertion':
+        """Assert that spans do not have the specified scope with any of the given values.
+        
+        Args:
+            scope_name: Name of the scope (e.g., 'tenant_id')
+            unexpected_values: Values that should not be present
+            message: Optional custom error message
+            
+        Example:
+            asserter.does_not_have_any_scope("tenant_id", "customer-999", "customer-000")
+        """
+        if not unexpected_values:
+            raise ValueError("At least one unexpected_value is required")
+        self._verify_scope(self._filtered_spans, scope_name, list(unexpected_values),
+                          comparer=self._comparer, positive_test=False, custom_message=message)
+        return self
+
+    @collect_assertions
+    def contains_scope(self, scope_name:str, expected_substring:str, message:Optional[str] = None) -> 'TraceAssertion':
+        """Assert that the scope value contains the expected substring.
+        
+        Args:
+            scope_name: Name of the scope (e.g., 'tenant_id')
+            expected_substring: Substring that should be present in the scope value
+            message: Optional custom error message
+            
+        Example:
+            asserter.contains_scope("tenant_id", "customer")
+        """
+        self._verify_scope(self._filtered_spans, scope_name, [expected_substring],
+                          comparer=TokenMatchComparer(), positive_test=True, custom_message=message)
+        return self
+
+    @collect_assertions
+    def contains_any_scope(self, scope_name:str, *expected_substrings:str, message:Optional[str] = None) -> 'TraceAssertion':
+        """Assert that the scope value contains any of the expected substrings.
+        
+        Args:
+            scope_name: Name of the scope (e.g., 'tenant_id')
+            expected_substrings: Substrings to search for
+            message: Optional custom error message
+            
+        Example:
+            asserter.contains_any_scope("tenant_id", "customer", "client")
+        """
+        if not expected_substrings:
+            raise ValueError("At least one expected_substring is required")
+        self._verify_scope(self._filtered_spans, scope_name, list(expected_substrings),
+                          comparer=TokenMatchComparer(), positive_test=True, custom_message=message)
+        return self
+
+    @collect_assertions
+    def does_not_contain_scope(self, scope_name:str, unexpected_substring:str, message:Optional[str] = None) -> 'TraceAssertion':
+        """Assert that the scope value does not contain the given substring.
+        
+        Args:
+            scope_name: Name of the scope (e.g., 'tenant_id')
+            unexpected_substring: Substring that should not be present
+            message: Optional custom error message
+            
+        Example:
+            asserter.does_not_contain_scope("tenant_id", "admin")
+        """
+        self._verify_scope(self._filtered_spans, scope_name, [unexpected_substring],
+                          comparer=TokenMatchComparer(), positive_test=False, custom_message=message)
+        return self
+
+    @collect_assertions
+    def does_not_contain_any_scope(self, scope_name:str, *unexpected_substrings:str, message:Optional[str] = None) -> 'TraceAssertion':
+        """Assert that the scope value does not contain any of the given substrings.
+        
+        Args:
+            scope_name: Name of the scope (e.g., 'tenant_id')
+            unexpected_substrings: Substrings that should not be present
+            message: Optional custom error message
+            
+        Example:
+            asserter.does_not_contain_any_scope("tenant_id", "admin", "root")
+        """
+        if not unexpected_substrings:
+            raise ValueError("At least one unexpected_substring is required")
+        self._verify_scope(self._filtered_spans, scope_name, list(unexpected_substrings),
+                          comparer=TokenMatchComparer(), positive_test=False, custom_message=message)
+        return self
+
+    @collect_assertions
+    def check_eval(self, eval_name:Optional[str] = None, expected:Optional[Union[str, list[str]]] = None, not_expected:Optional[Union[str, list[str]]] = None, fact_name:Optional[str] = "traces", message:Optional[str] = None, template_path:Optional[str] = None) -> 'TraceAssertion':
+        """Validate evaluation results for the current filtered spans.
+
+        Provide exactly one of:
+          - eval_name: name of a standard Okahu eval template (e.g. "hallucination")
+          - template_path: filesystem path to a custom-template JSON file. The file
+            is loaded and the parsed dict is sent to the eval service. Server-side
+            validation errors (HTTP 400) surface as AssertionError with the prefix
+            'Custom template validation failed: <reason>'.
+        """
+        if eval_name and template_path:
+            raise ValueError("Provide either 'eval_name' or 'template_path', not both.")
+        if not eval_name and not template_path:
+            raise ValueError("Provide either 'eval_name' (for Okahu templates) or 'template_path' (for custom templates).")
+
+        template = None
+        if template_path:
+            path_obj = Path(template_path)
+            if not path_obj.is_file():
+                raise AssertionError(f"Custom template file not found: {template_path}")
+            try:
+                loaded = json.loads(path_obj.read_text(encoding="utf-8"))
+            except json.JSONDecodeError as exc:
+                raise AssertionError(
+                    f"Custom template file is not valid JSON: {template_path} — {exc}"
+                ) from exc
+            # Accept either the inner template ({"name": ..., "eval_prompt": ..., ...})
+            # or the API-request-body shape ({"template": {...inner...}}). Unwrap the
+            # outer "template" key when present so evaluate() gets the inner dict —
+            # evaluate() will re-wrap once for the HTTP payload.
+            if (
+                isinstance(loaded, dict)
+                and set(loaded.keys()) == {"template"}
+                and isinstance(loaded["template"], dict)
+            ):
+                template = loaded["template"]
+            else:
+                template = loaded
+            eval_name = template.get("name", "custom_eval")
+
         if expected is None and not_expected is None:
             raise ValueError("At least one of 'expected' or 'not_expected' must be provided")
-        # Convert strings to lists for uniform processing
         positive = [expected] if isinstance(expected, str) else expected if expected is not None else []
         negative = [not_expected] if isinstance(not_expected, str) else not_expected if not_expected is not None else []
-        
-        # Check for overlapping instances in expected and not_expected
+
         if negative:
             overlap = set(positive) & set(negative)
             if overlap:
                 raise ValueError(f"Overlapping evaluation results found in 'expected' and 'not_expected': {overlap}. Please ensure they are mutually exclusive.")
-        
+
         if self._eval is None:
             raise AssertionError(message if message else "No evaluator configured. Call with_evaluation before check_eval.")
         if not self._filtered_spans:
             raise AssertionError(message if message else "No spans available for evaluation. Chain a span selector before check_eval.")
-        eval_result, explanation = self._eval.evaluate(filtered_spans=self._filtered_spans, eval_name=eval_name, fact_name=fact_name)        
-        
-        # Check expectations
+        eval_result, explanation = self._eval.evaluate(filtered_spans=self._filtered_spans, eval_name=eval_name, fact_name=fact_name, template=template)
+
         if (positive and eval_result not in positive) or (negative and eval_result in negative):
             if message:
                 raise AssertionError(message)
@@ -448,7 +810,7 @@ class TraceAssertion():
                 raise AssertionError(f"Evaluation '{eval_name}' did not match expected result. Expected one of {positive}. Received '{eval_result}'. \n Explanation: {explanation}")
             else:
                 raise AssertionError(f"Evaluation '{eval_name}' matched an unexpected result. Should not be any of {negative}. Received '{eval_result}'. \n Explanation: {explanation}")
-        
+
         return self
 
     @collect_assertions
@@ -476,6 +838,26 @@ class TraceAssertion():
             self._filtered_spans = filtered_spans
 
         TraceAssertion._assert_on_spans(filtered_spans, "No matching operation found", positive_test, expected_inputs, expected_outputs, custom_message)
+
+    def _verify_scope(self, spans:list[Span], scope_name:str, expected_values:Optional[list[str]],
+                      comparer:BaseComparer, positive_test:Optional[bool]=True, custom_message:Optional[str]=None) -> None:
+        """Verify that spans have the specified scope with expected value(s)."""
+        filtered_spans: list[Span] = self.validator._check_scope(spans, scope_name, expected_values, comparer, positive_test)
+        
+        if positive_test == True:
+            self._filtered_spans = filtered_spans
+
+        if expected_values and len(expected_values) > 0:
+            scope_description = f"scope '{scope_name}' with value(s) {expected_values}"
+        else:
+            scope_description = f"scope '{scope_name}'"
+        
+        if positive_test:
+            assertion_message = f"No spans found with {scope_description}"
+        else:
+            assertion_message = f"Found spans with {scope_description}"
+        
+        TraceAssertion._assert_on_spans(filtered_spans, assertion_message, positive_test, custom_message=custom_message)
 
     @staticmethod
     def _assert_on_spans(spans:list[Span], assertion_message:str, positive_test:bool = True,

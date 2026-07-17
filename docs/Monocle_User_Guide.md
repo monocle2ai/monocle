@@ -101,6 +101,7 @@ Supported exporters:
 - `blob` - Upload traces to Azure Blob Storage
 - `okahu` - Send traces to Okahu observability platform
 - `otlp` - Send traces to any OTLP-compatible backend (e.g., Jaeger, Zipkin, Grafana Tempo, OpenTelemetry Collector)
+- `otlp-genai-semconv` - Send traces over OTLP and add OpenTelemetry `gen_ai.*` semantic attributes
 
 Examples:
 ```bash
@@ -112,6 +113,9 @@ export MONOCLE_EXPORTER=console
 
 # Use OTLP exporter
 export MONOCLE_EXPORTER=otlp
+
+# Use OTLP exporter with GenAI semantic attributes
+export MONOCLE_EXPORTER=otlp-genai-semconv
 
 # Use multiple exporters (file and console)
 export MONOCLE_EXPORTER=file,console
@@ -141,6 +145,57 @@ export OTEL_EXPORTER_OTLP_HEADERS="api-key=your-api-key"
 
 # Optional: Configure timeout (in milliseconds, default: 10000)
 export OTEL_EXPORTER_OTLP_TIMEOUT=15000
+```
+
+Header names and values use the standard OTLP environment-variable format. Percent-encode spaces and other reserved
+characters in header values. For example, an authenticated backend with a tenant header can be configured as:
+
+```bash
+export MONOCLE_EXPORTER=otlp
+export OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=https://observability.example.com/v1/traces
+export OTEL_EXPORTER_OTLP_TRACES_HEADERS="Authorization=Bearer%20your-token,X-Tenant-ID=your-tenant"
+```
+
+Monocle can export to Okahu and an OTLP backend simultaneously:
+
+```bash
+export MONOCLE_EXPORTER=okahu,otlp
+```
+
+#### OpenTelemetry GenAI semantic conventions
+
+The existing `otlp` exporter preserves Monocle's original span attributes. To add OpenTelemetry `gen_ai.*`
+attributes alongside the existing Monocle metamodel attributes, select the `otlp-genai-semconv` exporter:
+
+```bash
+export MONOCLE_EXPORTER=otlp-genai-semconv
+```
+
+Both exporter names use the same OTLP endpoint, headers, and timeout configuration. Control semantic-convention
+enrichment explicitly with:
+
+```bash
+# Default: enable only when otlp-genai-semconv is configured
+export MONOCLE_OTEL_GENAI_SEMCONV=auto
+
+# Explicit overrides, including custom SpanProcessor configurations
+export MONOCLE_OTEL_GENAI_SEMCONV=true
+export MONOCLE_OTEL_GENAI_SEMCONV=false
+```
+
+The same override is available programmatically:
+
+```python
+setup_monocle_telemetry(
+    workflow_name="my_app",
+    otel_genai_semconv=True,
+)
+```
+
+Monocle isolates automatically instrumented spans from non-Monocle OpenTelemetry spans by default. To include both in one parent/child trace hierarchy, set this before importing Monocle:
+
+```bash
+export MONOCLE_ISOLATE_SPANS=false
 ```
 
 #### Example with OpenTelemetry Collector
@@ -252,6 +307,46 @@ setup_monocle_telemetry(
         ])
 
 ```
+
+#### Custom instrumentation without code (YAML)
+
+Instead of passing `wrapper_methods=[...]` in code, you can declare the same methods in a YAML file that Monocle reads automatically at `setup_monocle_telemetry()` time. This lets you instrument methods in your own code or in third-party libraries without any Python changes.
+
+By default Monocle looks for the file at `<cwd>/.monocle/custom_instrumentation.yaml`. To use a different directory, set the `MONOCLE_CUSTOM_INSTRUMENTATION_FILE_PATH` environment variable (the file name `custom_instrumentation.yaml` is fixed; the env var overrides only the directory, resolved relative to the current working directory):
+
+```bash
+export MONOCLE_CUSTOM_INSTRUMENTATION_FILE_PATH=config/monocle
+# → config/monocle/custom_instrumentation.yaml
+```
+
+The file is optional — if it is missing, custom instrumentation is silently skipped.
+
+```yaml
+instrument:
+  - package: myapp.services       # importable module path (required)
+    class: PaymentService         # class holding the method (required)
+    method: charge                # method to wrap (required)
+    span_name: payment.charge     # optional span name (defaults to Monocle's convention)
+    sync: true                    # optional; false for async methods (default: true)
+
+  - package: myapp.agents
+    class: ResearchAgent
+    method: run_async
+    span_name: agent.research
+    sync: false                   # wrapped with the async task wrapper
+```
+
+| Field | Required | Description |
+|---|---|---|
+| `package` | Yes | Importable module path where the class lives |
+| `class` | Yes | Class name whose method will be instrumented |
+| `method` | Yes | Method name to wrap |
+| `span_name` | No | Custom span name; falls back to the default naming if omitted |
+| `sync` | No | `true` (default) wraps a synchronous method; `false` wraps an `async` method |
+
+Each valid entry is wrapped with Monocle's generic span processor, so spans carry the standard captured attributes (`instance`, `args`, `kwargs`, `output`). Entries missing any of `package`, `class`, or `method` are skipped with a warning. These wrappers are merged with the built-in framework methods and any `wrapper_methods=[...]` you pass programmatically.
+
+> **Note:** Loading requires `pyyaml`. It is imported lazily and only needed when the config file is actually present.
 
 ### Going beyond supported genAI components
 - If you are using an application framework, model hosting service/infra etc. that's not currently supported by Monocle, please submit a github issue to add that support. 

@@ -239,6 +239,7 @@ def build_setup_signature(
         wrapper_methods: Optional[list] = None,
         union_with_default_methods: bool = True,
         monocle_exporters_list: str = None,
+        otel_genai_semconv: object = None,
 ) -> dict:
     return {
         "workflow_name": workflow_name,
@@ -250,6 +251,7 @@ def build_setup_signature(
         ),
         "union_with_default_methods": _normalize_bool(union_with_default_methods),
         "monocle_exporters_list": _normalize_exporters_list(monocle_exporters_list),
+        "otel_genai_semconv": otel_genai_semconv,
     }
 
 def changed_setup_fields(previous: dict, current: dict) -> list[str]:
@@ -454,6 +456,16 @@ def get_json_dumps(obj) -> str:
         return json.dumps(obj)
     except TypeError as e:
         return str(obj)
+
+def extract_content_text(content) -> str:
+    """Extract plain text from a message content field.
+    Handles both plain strings and OpenAI-style content block lists
+    ([{'type': 'text', 'text': '...'}]).
+    """
+    if isinstance(content, list):
+        texts = [b.get('text', '') for b in content if isinstance(b, dict) and b.get('type') == 'text']
+        return ' '.join(texts)
+    return str(content)
 
 class Option(Generic[T]):
     def __init__(self, value: Optional[T]):

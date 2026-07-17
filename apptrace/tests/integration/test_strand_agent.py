@@ -81,8 +81,14 @@ def verify_spans():
             assert "entity.1.provider_name" in span_attributes
             assert "entity.1.inference_endpoint" in span_attributes
             bedrock_model = os.getenv("BEDROCK_MODEL", "")
-            assert span_attributes["entity.2.name"] == bedrock_model
-            assert span_attributes["entity.2.type"] == f"model.llm.{bedrock_model}"
+            actual_model = span_attributes["entity.2.name"]
+            # The model may have region prefix (us./eu./etc.) - compare without region if needed
+            if bedrock_model:
+                expected_without_region = bedrock_model.split(".", 1)[-1] if "." in bedrock_model else bedrock_model
+                actual_without_region = actual_model.split(".", 1)[-1] if "." in actual_model else actual_model
+                assert actual_without_region == expected_without_region, \
+                    f"Model mismatch: expected {bedrock_model}, got {actual_model}"
+            assert span_attributes["entity.2.type"] == f"model.llm.{actual_model}"
 
             # Assertions for span.subtype
             assert "span.subtype" in span_attributes, "Expected span.subtype attribute to be present"

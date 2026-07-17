@@ -10,7 +10,7 @@ commands = [
 
 [project]
 name = "monocle_apptrace"
-version = "0.7.0"
+version = "0.8.7b1"
 authors = [
   { name="Okahu Inc.", email="okahu-pypi@okahu.ai" },
 ]
@@ -86,8 +86,9 @@ dev = [
   'types-requests==2.31.0.20240106',
   'InstructorEmbedding==1.0.1',
   'faiss-cpu==1.8.0',
-  'pytest==8.3.5',
+  'pytest>=8.0.0',
   'pytest-venv',
+  'beautifulsoup4',  # bs4 is imported directly by test helpers (tests/common); no longer pulled transitively by llama-index 0.14
   'llama-index==0.13.0',
   'llama-index-llms-openai==0.5.0',
   'llama-index-tools-mcp==0.3.0',
@@ -99,7 +100,7 @@ dev = [
   'mistral-haystack==0.0.2',
   'langchain-aws>=0.3.0',
   'azure-storage-blob==12.22.0', # this is for blob exporter
-  'boto3==1.40.52', # this is for aws exporter
+  'boto3==1.42.86', # this is for aws exporter (>=1.42.86 required by bedrock-agentcore 1.6.1)
   'llama-index-vector-stores-opensearch==0.6.0',
   'haystack-ai==2.21.0',
   'llama-index-llms-azure-openai==0.4.0',
@@ -114,7 +115,7 @@ dev = [
   'opendal==0.45.14',
   'anthropic>=0.75.0',
   'anthropic-haystack==4.6.0',
-  'pytest-asyncio==0.26.0',
+  'pytest-asyncio>=0.26.0',
   'llama-index-llms-anthropic==0.8.1',
   'langchain-anthropic>=0.3.20',
   'langchain-mcp-adapters==0.2.1',
@@ -138,7 +139,7 @@ dev = [
   'openai-agents',
   'azure-identity',
   'agent-framework-azure-ai',
-  'bedrock-agentcore==1.2.0',
+  'bedrock-agentcore==1.6.1',
   'opentelemetry-semantic-conventions==0.60b1',
   'opentelemetry-semantic-conventions-ai==0.4.13',
   'agent-framework-core==1.5.0',
@@ -163,7 +164,7 @@ azure = [
 ]
 
 aws = [
-    'boto3==1.40.52',
+    'boto3==1.42.86',
 ]
 
 opentelemetry-exporter = [
@@ -172,6 +173,10 @@ opentelemetry-exporter = [
 
 gcp = [
     'google-cloud-storage==2.18.0',
+]
+
+postgres = [
+    'psycopg2-binary',
 ]
 
 

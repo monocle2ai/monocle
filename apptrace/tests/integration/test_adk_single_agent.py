@@ -119,21 +119,24 @@ async def run_agent(test_message: str):
         session_id=SESSION_ID
     )
     content = types.Content(role='user', parts=[types.Part(text=test_message)])
+    invocation_id = None
     # Process events as they arrive using async for
     async for event in runner.run_async(
         user_id=USER_ID,
         session_id=SESSION_ID,
         new_message=content
     ):
+        invocation_id = event.invocation_id or invocation_id
         # For final response
         if event.is_final_response():
             logger.info(event.content)  # End line after response
+    return invocation_id
 
 @pytest.mark.asyncio
 async def test_multi_agent(setup):
     test_message = "What is the current weather in New York?"
-    await run_agent(test_message)
-    verify_spans(setup)
+    invocation_id = await run_agent(test_message)
+    verify_spans(setup, invocation_id)
 
 @pytest.mark.asyncio
 async def test_invalid_api_key_error_code_in_span(setup):
@@ -157,7 +160,7 @@ async def test_invalid_api_key_error_code_in_span(setup):
                     assert "error_code" in span_output.attributes
                     assert span_output.attributes["error_code"] == 400
 
-def verify_spans(memory_exporter):
+def verify_spans(memory_exporter, expected_invocation_id=None):
     time.sleep(2)
     found_inference = found_agent = found_tool = False
     inference_span_id = None
@@ -225,3 +228,26 @@ def verify_spans(memory_exporter):
     assert found_inference, "Inference span not found"
     assert found_agent, "Agent span not found"
     assert found_tool, "Tool span not found"
+
+    # Turn scope must be the ADK invocation_id ("e-..."), consistent across the turn.
+    turn_ids = {
+        span.attributes["scope.agentic.turn"]
+        for span in spans
+        if "scope.agentic.turn" in span.attributes
+    }
+    assert turn_ids, "scope.agentic.turn not found on any span"
+    assert len(turn_ids) == 1, f"scope.agentic.turn inconsistent across the turn: {turn_ids}"
+    turn_id = turn_ids.pop()
+    assert turn_id.startswith("e-"), f"turn id is not an ADK invocation_id: {turn_id}"
+    if expected_invocation_id is not None:
+        assert turn_id == expected_invocation_id, \
+            f"Expected turn id {expected_invocation_id}, got {turn_id}"
+
+    # The REQUEST/turn span itself must carry the turn id.
+    request_turn_ids = [
+        span.attributes.get("scope.agentic.turn")
+        for span in spans
+        if span.attributes.get("span.type") == "agentic.turn"
+    ]
+    assert request_turn_ids and all(t == turn_id for t in request_turn_ids), \
+        f"agentic.turn span missing or mismatched turn id: {request_turn_ids}"

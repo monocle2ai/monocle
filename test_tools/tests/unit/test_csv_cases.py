@@ -40,3 +40,41 @@ def test_parse_extra_json():
         csv_cases.parse_extra_json('{"method":"x"}', "c1")   # not an array
     with pytest.raises(csv_cases.CsvCaseError):
         csv_cases.parse_extra_json('[{"kwargs":{}}]', "c1")  # missing method
+
+
+def test_row_to_case_valid_eval_row():
+    row = {"case_id": "cc_t01", "id": "642d", "workflow_name": "wf",
+           "fact_name": "traces", "expected": "major|minor"}
+    case = csv_cases._row_to_case(row, line=2)
+    assert case.case_id == "cc_t01"
+    assert case.id == "642d"
+    assert case.workflow_name == "wf"
+    assert case.expected == ["major", "minor"]
+    assert case.fact_name == "traces"
+
+
+def test_row_to_case_defaults_fact_name():
+    row = {"case_id": "c", "id": "t", "workflow_name": "wf", "expected": "ok"}
+    assert csv_cases._row_to_case(row, 2).fact_name == "traces"
+
+
+@pytest.mark.parametrize("row,needle", [
+    ({"case_id": "", "id": "t", "workflow_name": "wf", "expected": "ok"}, "case_id"),
+    ({"case_id": "c", "id": "", "workflow_name": "wf", "expected": "ok"}, "id"),
+    ({"case_id": "c", "id": "t", "workflow_name": "", "expected": "ok"}, "workflow_name"),
+    ({"case_id": "c", "id": "t", "workflow_name": "wf", "fact_name": "bogus", "expected": "ok"}, "fact_name"),
+    ({"case_id": "c", "id": "t", "workflow_name": "wf"}, "no assertions"),
+    ({"case_id": "c", "id": "t", "workflow_name": "wf",
+      "extra_json": '[{"method":"not_a_method"}]'}, "not_a_method"),
+])
+def test_row_to_case_errors(row, needle):
+    with pytest.raises(csv_cases.CsvCaseError) as exc:
+        csv_cases._row_to_case(row, line=7)
+    assert needle in str(exc.value)
+
+
+def test_row_to_case_non_eval_only_is_valid():
+    row = {"case_id": "tool_01", "id": "t", "workflow_name": "wf", "called_tool": "search_web"}
+    case = csv_cases._row_to_case(row, 2)
+    assert case.called_tool == "search_web"
+    assert case.expected is None

@@ -78,3 +78,35 @@ def test_row_to_case_non_eval_only_is_valid():
     case = csv_cases._row_to_case(row, 2)
     assert case.called_tool == "search_web"
     assert case.expected is None
+
+
+def test_load_cases_from_csv_happy(tmp_path):
+    path = _write(tmp_path,
+        "case_id,id,workflow_name,expected\n"
+        "cc_t01,642d,wf_cc,major_hallucination\n"
+        "cc_t02,8f12,wf_cc,no_hallucination\n")
+    cases = csv_cases.load_cases_from_csv(path)
+    assert [c.case_id for c in cases] == ["cc_t01", "cc_t02"]
+    assert cases[0].expected == "major_hallucination"
+
+
+def test_load_cases_duplicate_case_id(tmp_path):
+    path = _write(tmp_path,
+        "case_id,id,workflow_name,expected\n"
+        "dup,t1,wf,ok\n"
+        "dup,t2,wf,ok\n")
+    with pytest.raises(csv_cases.CsvCaseError) as exc:
+        csv_cases.load_cases_from_csv(path)
+    assert "duplicate" in str(exc.value).lower()
+
+
+def test_load_cases_missing_required_column(tmp_path):
+    path = _write(tmp_path, "case_id,workflow_name,expected\nc,wf,ok\n")
+    with pytest.raises(csv_cases.CsvCaseError) as exc:
+        csv_cases.load_cases_from_csv(path)
+    assert "id" in str(exc.value)
+
+
+def test_load_cases_missing_file():
+    with pytest.raises(csv_cases.CsvCaseError):
+        csv_cases.load_cases_from_csv("/nonexistent/cases.csv")

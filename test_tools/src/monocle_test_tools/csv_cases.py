@@ -9,6 +9,7 @@ okahu/monocle_backlog_tracking designs/2026-07-17-monocle-csv-testcase-adapter.m
 import csv
 import inspect
 import json
+import os
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Union
 
@@ -195,3 +196,26 @@ def _row_to_case(row: dict, line: int) -> CsvCase:
             f"Populate at least one of: {', '.join(ASSERTION_COLUMNS)}"
         )
     return case
+
+
+def load_cases_from_csv(path: str) -> List[CsvCase]:
+    """Load and validate a CSV of test cases into a list of CsvCase."""
+    if not os.path.isfile(path):
+        raise CsvCaseError(f"CSV file not found: {path}")
+    rows = read_rows(path)
+    if not rows:
+        raise CsvCaseError(f"CSV file has no data rows: {path}")
+    missing = [c for c in REQUIRED_COLUMNS if c not in rows[0]]
+    if missing:
+        raise CsvCaseError(f"{path}: missing required column(s): {', '.join(missing)}")
+
+    cases: List[CsvCase] = []
+    seen = set()
+    for index, row in enumerate(rows):
+        line = index + 2  # +1 for header, +1 for 1-based line numbers
+        case = _row_to_case(row, line)
+        if case.case_id in seen:
+            raise CsvCaseError(f"line {line}: duplicate case_id '{case.case_id}'")
+        seen.add(case.case_id)
+        cases.append(case)
+    return cases

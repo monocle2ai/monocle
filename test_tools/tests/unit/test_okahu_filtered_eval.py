@@ -134,3 +134,64 @@ def test_submit_custom_sends_template_object():
     _, kwargs = mock_post.call_args
     assert kwargs["json"] == {"template": tmpl}
     assert "trace_id" not in kwargs["params"]
+
+
+# --- Task 5: poll / fact-id discovery / query / coverage --------------------
+
+def test_query_results_builtin_sends_eval_name_and_bare_hex_ids():
+    c = _client()
+    payload = {"results": [{"fact_id": "aa", "eval_found": True,
+                            "eval_result": {"label": "x"}, "job_id": "j"}]}
+    with patch.object(feval.requests, "post", return_value=_resp(payload)) as mock_post:
+        rows = c.query_results("wf", ["0xaa"], eval_name="hallucination",
+                               fact_name="traces", start_time="s", end_time="e")
+    assert len(rows) == 1
+    _, kwargs = mock_post.call_args
+    assert kwargs["json"]["eval_names"] == ["hallucination"]
+    assert kwargs["json"]["fact_ids"] == ["aa"]                # 0x stripped
+
+
+def test_query_results_custom_sends_custom_and_filters_by_name():
+    c = _client()
+    payload = {"results": [
+        {"fact_id": "aa", "eval_name": "hallucination_test",
+         "eval_found": True, "eval_result": {"label": "x"}, "job_id": "j"},
+        {"fact_id": "aa", "eval_name": "other_custom",
+         "eval_found": True, "eval_result": {"label": "y"}, "job_id": "j"}]}
+    with patch.object(feval.requests, "post", return_value=_resp(payload)) as mock_post:
+        rows = c.query_results("wf", ["aa"], custom_name="hallucination_test",
+                               fact_name="traces", start_time="s", end_time="e")
+    _, kwargs = mock_post.call_args
+    assert kwargs["json"]["eval_names"] == ["custom"]
+    assert [r["eval_result"]["label"] for r in rows] == ["x"]   # other_custom filtered out
+
+
+def test_get_job_result_fact_ids_returns_bare_hex():
+    c = _client()
+    payload = {"status": "SUCCEEDED", "results": [{"fact_id": "0xaa"}, {"fact_id": "bb"}]}
+    with patch.object(feval.requests, "get", return_value=_resp(payload)):
+        assert sorted(c.get_job_result_fact_ids("job-1")) == ["aa", "bb"]
+
+
+def test_poll_status_returns_terminal_state():
+    c = _client()
+    with patch.object(feval.requests, "get", return_value=_resp({"status": "SUCCEEDED"})):
+        assert c.poll_status("job-1") == "SUCCEEDED"
+
+
+def test_poll_status_raises_on_failed():
+    c = _client()
+    with patch.object(feval.requests, "get", return_value=_resp({"status": "FAILED"})):
+        with pytest.raises(AssertionError):
+            c.poll_status("job-1")
+
+
+def test_poll_for_coverage_returns_when_all_labeled():
+    c = _client()
+    rows = [_row("aa", "no_hallucination", job_id="job-1")]
+    with patch.object(c, "query_results", return_value=rows) as mock_q:
+        latest = c.poll_for_coverage("traces", {"wf": {"aa": True}}, "s", "e",
+                                     timeout=30, interval=0, stall_rounds=2, job_id="job-1",
+                                     eval_name="hallucination")
+    assert latest["wf"] == rows
+    assert mock_q.call_count == 1                               # full coverage first round

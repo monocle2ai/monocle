@@ -166,3 +166,90 @@ class OkahuFilteredEval:
         assert job_id, f"No job_id in response: {data}"
         assert data.get("result") is None, f"Expected filtered mode (result=None), got: {data}"
         return job_id
+
+    def poll_status(self, job_id) -> str:
+        """Block until the job reaches a terminal state; return it (raise on failure/timeout)."""
+        url = f"{self.eval_base}/v1/eval/jobs/{job_id}/status"
+        deadline = time.time() + self.poll_timeout_s
+        while time.time() < deadline:
+            resp = requests.get(url, headers=self.headers, timeout=60)
+            resp.raise_for_status()
+            status = resp.json().get("status", "").upper()
+            if status in ("SUCCEEDED", "COMPLETED", "FINISHED"):
+                return status
+            if status in ("FAILED", "ERROR"):
+                raise AssertionError(f"Filtered eval job {job_id} failed with status: {status}")
+            time.sleep(self.poll_interval_s)
+        raise AssertionError(f"Filtered eval job {job_id} timed out after {self.poll_timeout_s}s")
+
+    def get_job_result_fact_ids(self, job_id) -> list:
+        """Bare-hex fact ids this job evaluated (from the job-detail results array).
+
+        VERIFY the row key against a live job before trusting this — the field may be
+        'fact_id', 'id', or nested. Adjust the extraction below to match (see plan
+        Phase 5 Step 2).
+        """
+        url = f"{self.eval_base}/v1/eval/jobs/{job_id}"
+        resp = requests.get(url, headers=self.headers, timeout=60)
+        resp.raise_for_status()
+        rows = resp.json().get("results", []) or []
+        ids = [normalize_fact_id(r.get("fact_id")) for r in rows if r and r.get("fact_id")]
+        return sorted(set(ids))
+
+    def query_results(self, workflow_name, fact_ids, *, eval_name=None, custom_name=None,
+                      fact_name, start_time, end_time) -> list:
+        """Query eval_results for a fact-id set via the canonical /evals/query path.
+
+        Built-in sends eval_names=[eval_name]; custom sends eval_names=["custom"] and filters
+        returned rows to eval_name == custom_name (the backend returns each custom row with its
+        original name, not the literal "custom"). All ids are sent bare-hex (Lesson 1).
+        """
+        url = f"{self.api_base}/v1/workflows/{workflow_name}/evals/query"
+        eval_names = ["custom"] if custom_name else [eval_name]
+        body = {
+            "eval_names": eval_names, "fact_name": fact_name,
+            "fact_ids": [normalize_fact_id(f) for f in fact_ids],
+            "start_time": start_time, "end_time": end_time,
+        }
+        resp = requests.post(url, headers=self.headers, json=body, timeout=60)
+        resp.raise_for_status()
+        results = resp.json().get("results", [])
+        if custom_name:
+            results = [r for r in results if r and r.get("eval_name") == custom_name]
+        return results
+
+    def poll_for_coverage(self, fact_name, per_workflow, start_time, end_time, *,
+                          timeout, interval, stall_rounds, job_id,
+                          eval_name=None, custom_name=None) -> dict:
+        """job_id-gated, plateau-aware poller over the discovered fact ids per workflow.
+
+        Stops on full coverage, on the labeled-count plateauing for `stall_rounds` rounds, or
+        on hard timeout — returning the latest results seen for each workflow.
+        """
+        deadline = time.time() + timeout
+        latest = {wf: [] for wf in per_workflow}
+        best_labeled, stalled = -1, 0
+        while True:
+            incomplete, total_labeled = {}, 0
+            for wf, mapped in per_workflow.items():
+                fact_ids = [normalize_fact_id(f) for f in mapped]
+                results = self.query_results(
+                    wf, fact_ids, eval_name=eval_name, custom_name=custom_name,
+                    fact_name=fact_name, start_time=start_time, end_time=end_time)
+                latest[wf] = results
+                labeled = labeled_fact_ids(results, job_id)
+                total_labeled += len(labeled)
+                missing = set(fact_ids) - labeled
+                if missing:
+                    incomplete[wf] = len(missing)
+            if not incomplete:
+                return latest
+            if total_labeled > best_labeled:
+                best_labeled, stalled = total_labeled, 0
+            else:
+                stalled += 1
+                if stalled >= stall_rounds:
+                    return latest
+            if time.time() >= deadline:
+                return latest
+            time.sleep(interval)

@@ -112,25 +112,43 @@ class TestHandler(unittest.TestCase):
                 break
         
         self.assertIsNotNone(actual_mock, "Could not find the called mock")
-        
-        # Get the data from the called mock
-        if actual_mock.call_args and actual_mock.call_args.kwargs and 'data' in actual_mock.call_args.kwargs:
-            dataBodyStr = actual_mock.call_args.kwargs['data']
-        elif actual_mock.call_args and len(actual_mock.call_args.args) > 0:
-            # For some HTTP calls, data might be in args
-            call_kwargs = actual_mock.call_args.kwargs
-            dataBodyStr = call_kwargs.get('data', call_kwargs.get('json', '{}'))
-        else:
-            dataBodyStr = '{}'
-        
-        if not dataBodyStr or dataBodyStr == '{}':
+
+        # BatchSpanProcessor can export spans across MULTIPLE post calls, and how
+        # they split between batches is timing/platform dependent. Inspecting only
+        # the last call (call_args) made this test flaky (passed locally, failed on
+        # CI). Aggregate the spans from every batch of every called mock instead.
+        def _extract_body(call):
+            if call is None:
+                return None
+            if call.kwargs and 'data' in call.kwargs:
+                return call.kwargs['data']
+            if call.kwargs and 'json' in call.kwargs:
+                return call.kwargs['json']
+            if call.args:
+                return call.args[0]
+            return None
+
+        combined_batch = []
+        for mock in [mock_session_post, mock_requests_post, mock_httpx_post, mock_httpx_async_post]:
+            if not mock.called:
+                continue
+            for call in mock.call_args_list:
+                body = _extract_body(call)
+                if not body:
+                    continue
+                try:
+                    parsed = json.loads(body) if isinstance(body, str) else body
+                except (TypeError, ValueError):
+                    continue
+                if isinstance(parsed, dict) and parsed.get('batch'):
+                    combined_batch.extend(parsed['batch'])
+
+        if not combined_batch:
             # Skip assertions if no trace data was captured
             return
-            
-        logger.debug(dataBodyStr)
-        dataJson = json.loads(dataBodyStr) if isinstance(dataBodyStr, str) else dataBodyStr
-        if not dataJson or 'batch' not in dataJson or not dataJson['batch']:
-            return
+
+        logger.debug(combined_batch)
+        dataJson = {"batch": combined_batch}
 
         root_spans = [x for x in  dataJson["batch"] if(x.get("parent_id") == "None")]
         if not root_spans:

@@ -15,7 +15,13 @@ from opentelemetry.sdk.trace.export import BatchSpanProcessor, SpanProcessor
 from opentelemetry.sdk.trace.export import SpanExporter
 from opentelemetry.trace import get_tracer
 from wrapt import wrap_function_wrapper
-from monocle_apptrace.exporters.monocle_exporters import get_monocle_exporter
+from monocle_apptrace.exporters.monocle_exporters import (
+    get_monocle_exporter,
+    get_monocle_exporter_names,
+)
+from monocle_apptrace.instrumentation.common.genai_semantic_conventions import (
+    configure_otel_genai_semconv,
+)
 from monocle_apptrace.instrumentation.common.span_handler import SpanHandler, NonFrameworkSpanHandler
 from monocle_apptrace.instrumentation.common.wrapper_method import (
     DEFAULT_METHODS_LIST,
@@ -221,6 +227,7 @@ class MonocleInstrumentor(BaseInstrumentor):
         # Clear global state when uninstrumenting
         set_monocle_instrumentor(None)
         set_monocle_setup_signature(None)
+        configure_otel_genai_semconv(False)
 
 def set_tracer_provider(tracer_provider: TracerProvider):
     global monocle_tracer_provider
@@ -260,7 +267,8 @@ def setup_monocle_telemetry(
         span_handlers: Dict[str,SpanHandler] = None,
         wrapper_methods: List[Union[dict,WrapperMethod]] = None,
         union_with_default_methods: bool = True,
-        monocle_exporters_list:str = None) -> MonocleInstrumentor:
+        monocle_exporters_list:str = None,
+        otel_genai_semconv: Optional[Union[str, bool]] = None) -> MonocleInstrumentor:
     """
     Set up Monocle telemetry for the application.
 
@@ -279,10 +287,15 @@ def setup_monocle_telemetry(
         If True, combine the provided wrapper_methods with the default methods.
         If False, only use the provided wrapper_methods.
     monocle_exporters_list : str, optional
-        Comma-separated list of exporters to use. This will override the env setting MONOCLE_EXPORTERS.
-        Supported exporters are: s3, blob, okahu, file, memory, console, otlp. 
+        Comma-separated list of exporters to use. This will override the env setting MONOCLE_EXPORTER.
+        Supported exporters are: s3, blob, okahu, file, memory, console, otlp, otlp-genai-semconv.
         For OTLP exporter, configure the endpoint via OTEL_EXPORTER_OTLP_ENDPOINT environment variable.
         This can't be combined with `span_processors`.
+    otel_genai_semconv : str or bool, optional
+        Controls OpenTelemetry GenAI semantic attributes. ``None`` or ``auto`` enables them when the built-in
+        ``otlp-genai-semconv`` exporter is configured. The existing ``otlp`` exporter leaves them disabled by
+        default. ``True`` and ``False`` explicitly enable or disable them. The MONOCLE_OTEL_GENAI_SEMCONV
+        environment variable provides the same auto/true/false control.
     """
     # workflow_name is determined in the following order of precedence:
     # 1. Argument passed to this function
@@ -302,6 +315,7 @@ def setup_monocle_telemetry(
         wrapper_methods=wrapper_methods,
         union_with_default_methods=union_with_default_methods,
         monocle_exporters_list=monocle_exporters_list,
+        otel_genai_semconv=otel_genai_semconv,
     )
 
     if check_duplicate_setup(
@@ -317,6 +331,8 @@ def setup_monocle_telemetry(
     })
     if span_processors and monocle_exporters_list:
         raise ValueError("span_processors and monocle_exporters_list can't be used together")
+    exporter_names = tuple(get_monocle_exporter_names(monocle_exporters_list))
+    configure_otel_genai_semconv(otel_genai_semconv, exporter_names)
     exporters:List[SpanExporter] = get_monocle_exporter(monocle_exporters_list)
     span_processors = span_processors or [BatchSpanProcessor(exporter) for exporter in exporters]
     set_monocle_span_processor(MonocleSynchronousMultiSpanProcessor())
@@ -403,4 +419,3 @@ from monocle_apptrace.instrumentation.common.method_wrappers import (
     stop_trace,
     http_route_handler
 )
-

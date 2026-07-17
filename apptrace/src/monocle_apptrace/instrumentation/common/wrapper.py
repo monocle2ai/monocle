@@ -15,6 +15,7 @@ from monocle_apptrace.instrumentation.common.constants import (
     SPAN_START_TIME,
     SPAN_END_TIME,
 )
+from monocle_apptrace.instrumentation.common.genai_semantic_conventions import enrich_genai_attributes
 from monocle_apptrace.instrumentation.common.scope_wrapper import monocle_trace_scope
 from monocle_apptrace.instrumentation.common.span_handler import SpanHandler
 from monocle_apptrace.instrumentation.common.utils import (
@@ -66,6 +67,11 @@ def post_process_span(handler, to_wrap, wrapped, instance, args, kwargs, return_
             handler.post_task_processing(to_wrap, wrapped, instance, args, kwargs, return_value, ex, span, parent_span)
         except Exception as e:
             logger.info(f"Warning: Error occurred in post_task_processing: {e}")
+
+        try:
+            enrich_genai_attributes(span)
+        except Exception as e:
+            logger.info(f"Warning: Error adding OpenTelemetry GenAI attributes: {e}")
 
         # If the handler decides to not sample the span ie not export it, update the span context to be sampled
         if not handler.should_sample(to_wrap, wrapped, instance, args, kwargs, return_value, ex, span, parent_span):
@@ -680,7 +686,12 @@ def start_as_monocle_span(tracer: Tracer, name: str, auto_close_span: bool,
     """
     if not ISOLATE_MONOCLE_SPANS:
         # If not isolating, use the default start_as_current_span
-        yield tracer.start_as_current_span(name, end_on_exit=auto_close_span)
+        with tracer.start_as_current_span(
+            name,
+            end_on_exit=auto_close_span,
+            start_time=start_time,
+        ) as span:
+            yield span
         return
 
     # Each entry into this context manager sets a unique sentinel in the current

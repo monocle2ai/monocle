@@ -20,7 +20,13 @@ from monocle_apptrace.instrumentation.common.wrapper import amonocle_wrapper
 
 logger = logging.getLogger(__name__)
 
-MAX_DATA_LENGTH = 1000
+try:
+    from monocle_apptrace.instrumentation.common.constants import DEFAULT_MAX_ATTRIBUTE_LENGTH
+    MAX_DATA_LENGTH = DEFAULT_MAX_ATTRIBUTE_LENGTH
+except ImportError:
+    # Fallback if constant doesn't exist (backwards compatibility)
+    MAX_DATA_LENGTH = 51200  # 50KB
+
 MAX_STREAMING_CAPTURE_LENGTH = 5000  # Larger buffer for streaming responses
 
 # STREAMING UTILITIES

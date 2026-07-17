@@ -9,6 +9,10 @@ template_name and inline custom templates.
 Only `requests` + the standard library are used here — the filtered-eval path is
 deliberately independent of the heavier (bert-score/transformers) evaluators.
 """
+import os
+import time
+
+import requests
 
 
 def normalize_fact_id(fid) -> str:
@@ -107,3 +111,58 @@ def labeled_fact_ids(results: list, job_id) -> set:
         for r in results
         if has_label(r) and (job_id is None or r.get("job_id") == job_id)
     }
+
+
+class OkahuFilteredEval:
+    """Env-bound HTTP client for the Okahu filtered-eval (async job) + query APIs.
+
+    A filtered eval is submitted with NO trace_id, so the server runs an async job that
+    discovers every fact matching the filter. Supports built-in template_name and inline
+    custom templates. Ported from the proven evaluation-testing BatchEvalClient, plus the
+    custom-template switch.
+    """
+
+    def __init__(self, api_key, eval_base, api_base, poll_interval_s=5, poll_timeout_s=600):
+        self.headers = {"x-api-key": api_key, "Content-Type": "application/json"}
+        self.eval_base = eval_base.rstrip("/")
+        self.api_base = api_base.rstrip("/") + "/api"
+        self.poll_interval_s = poll_interval_s
+        self.poll_timeout_s = poll_timeout_s
+
+    @classmethod
+    def from_env(cls):
+        required = ["OKAHU_API_KEY", "OKAHU_EVALUATION_ENDPOINT", "OKAHU_API_ENDPOINT"]
+        for var in required:
+            if not os.environ.get(var):
+                raise RuntimeError(f"Missing required environment variable: {var}")
+        return cls(
+            api_key=os.environ["OKAHU_API_KEY"],
+            eval_base=os.environ["OKAHU_EVALUATION_ENDPOINT"],
+            api_base=os.environ["OKAHU_API_ENDPOINT"],
+            poll_interval_s=int(os.getenv("BATCH_EVAL_JOB_POLL_INTERVAL_S", "5")),
+            poll_timeout_s=int(os.getenv("BATCH_EVAL_JOB_POLL_TIMEOUT_S", "600")),
+        )
+
+    def submit(self, workflow_names, *, eval_name=None, template=None,
+               fact_name, start_time, end_time) -> str:
+        """Submit a filtered eval job (no trace_id) and return its job_id.
+
+        Exactly one of `eval_name` (built-in template) or `template` (inline custom).
+        """
+        if bool(eval_name) == bool(template):
+            raise ValueError("Provide exactly one of 'eval_name' or 'template'.")
+        url = f"{self.eval_base}/v1/eval/jobs"
+        params = {
+            "workflow_name": workflow_names,
+            "start_time": start_time, "end_time": end_time,
+            "fact_name": fact_name, "breakdown_filter": fact_name,
+            "shadow_eval": "true",
+        }  # NOTE: no trace_id -> async filtered mode
+        body = {"template": template} if template else {"template_name": eval_name}
+        resp = requests.post(url, headers=self.headers, params=params, json=body, timeout=120)
+        resp.raise_for_status()
+        data = resp.json()
+        job_id = data.get("job_id")
+        assert job_id, f"No job_id in response: {data}"
+        assert data.get("result") is None, f"Expected filtered mode (result=None), got: {data}"
+        return job_id

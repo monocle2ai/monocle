@@ -3,7 +3,27 @@
 All network calls are mocked with unittest.mock (the repo convention; see
 test_okahu_eval_http_errors.py) — no live HTTP and no ML deps are exercised here.
 """
+import json
+from unittest.mock import MagicMock, patch
+
+import pytest
+
 from monocle_test_tools.evals import okahu_filtered_eval as feval
+from monocle_test_tools.evals.okahu_filtered_eval import OkahuFilteredEval
+
+
+def _client():
+    return OkahuFilteredEval(api_key="k", eval_base="https://eval.example/api",
+                             api_base="https://api.example")
+
+
+def _resp(payload, status=200):
+    """A stand-in requests.Response with .json() and a no-op raise_for_status()."""
+    resp = MagicMock()
+    resp.json.return_value = payload
+    resp.status_code = status
+    resp.raise_for_status.return_value = None
+    return resp
 
 
 # --- Task 1: fact_id normalization + label detection -------------------------
@@ -77,3 +97,40 @@ def test_labeled_fact_ids_gated_by_job_id():
                {"fact_id": "cc", "job_id": "job-1", "eval_found": False}]
     assert feval.labeled_fact_ids(results, job_id="job-1") == {"aa"}
     assert feval.labeled_fact_ids(results, job_id=None) == {"aa", "bb"}
+
+
+# --- Task 4: OkahuFilteredEval construction + submit -------------------------
+
+def test_submit_requires_exactly_one_template_selector():
+    c = _client()
+    with pytest.raises(ValueError):
+        c.submit("wf", fact_name="traces", start_time="s", end_time="e")
+    with pytest.raises(ValueError):
+        c.submit("wf", eval_name="hallucination", template={"name": "x"},
+                 fact_name="traces", start_time="s", end_time="e")
+
+
+def test_submit_builtin_sends_template_name_and_no_trace_id():
+    c = _client()
+    with patch.object(feval.requests, "post",
+                      return_value=_resp({"job_id": "job-1", "result": None})) as mock_post:
+        job_id = c.submit("wf", eval_name="hallucination", fact_name="traces",
+                          start_time="s", end_time="e")
+    assert job_id == "job-1"
+    _, kwargs = mock_post.call_args
+    assert kwargs["json"] == {"template_name": "hallucination"}
+    assert "trace_id" not in kwargs["params"]                  # absence -> filtered mode
+    assert kwargs["params"]["workflow_name"] == "wf"
+
+
+def test_submit_custom_sends_template_object():
+    c = _client()
+    tmpl = {"name": "hallucination_test", "eval_prompt": "p",
+            "structure_output": {"label": {"description": "d"}}}
+    with patch.object(feval.requests, "post",
+                      return_value=_resp({"job_id": "job-2", "result": None})) as mock_post:
+        job_id = c.submit("wf", template=tmpl, fact_name="traces", start_time="s", end_time="e")
+    assert job_id == "job-2"
+    _, kwargs = mock_post.call_args
+    assert kwargs["json"] == {"template": tmpl}
+    assert "trace_id" not in kwargs["params"]

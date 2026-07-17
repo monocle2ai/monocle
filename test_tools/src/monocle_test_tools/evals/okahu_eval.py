@@ -266,30 +266,44 @@ class OkahuEval(BaseEval):
 
         return ordered_ids
 
-    def _submit_eval_job(self, submit_url: str, headers: dict, payload: dict, params: dict) -> tuple[str, str, str, list[dict]]:
-        """Submit one eval job and parse result payload."""
-        try:
-            response = requests.post(
-                url=submit_url,
-                headers=headers,
-                json=payload,
-                params=params
-            )
-        except requests.Timeout as exc:
-            raise AssertionError(f"Evaluation service request timed out: {exc}") from exc
-        except requests.RequestException as exc:
-            raise AssertionError(f"Failed to reach evaluation service: {exc}") from exc
+    @staticmethod
+    def submit_eval_job(headers: dict, payload: dict, params: dict,
+                         max_attempts: int = 3, timeout: int = 120) -> tuple[str, str, str, list[dict]]:
+        """Submit one eval job to Okahu and parse the result payload.
+
+        Retries the POST on timeout up to ``max_attempts`` times, translates HTTP and
+        transport errors into AssertionErrors, and extracts the label/explanation from
+        the response.
+
+        Returns:
+            (job_id, label, explanation, eval_result)
+        """
+        response = None
+        base = os.getenv("OKAHU_EVALUATION_ENDPOINT", OKAHU_PROD_EVALUATION_ENDPOINT).rstrip("/")
+        submit_url = f"{base}/v1/eval/jobs"
+
+        for attempts in range(1, max_attempts + 1):
+            try:
+                response = requests.post(
+                    url=submit_url,
+                    headers=headers,
+                    json=payload,
+                    params=params,
+                    timeout=timeout
+                )
+                break  # successfully received a response, exit loop
+            except requests.Timeout as exc:
+                if attempts < max_attempts:
+                    logger.warning(f"Evaluation request timed out (attempt {attempts}/{max_attempts}), retrying...")
+                else:
+                    raise AssertionError(f"Evaluation service timed out after {max_attempts} attempts. Service may be overloaded or unreachable.") from exc
+            except requests.RequestException as exc:
+                raise AssertionError(f"Failed to reach evaluation service: {exc}. Check network connectivity and endpoint configuration.") from exc
 
         try:
             response.raise_for_status()
         except requests.HTTPError as exc:
-            status_code = response.status_code
-            if status_code == 404:
-                raise AssertionError(
-                    "Trace not found in evaluation service. Confirm the span data was ingested before running check_eval."
-                ) from exc
-            response_body = response.text or "<empty body>"
-            raise AssertionError(f"Evaluation service returned HTTP {status_code}: {response_body}") from exc
+            OkahuEval._raise_for_eval_response(response, exc)
 
         content_type = response.headers.get("Content-Type", "").lower()
         if "application/json" not in content_type:
@@ -301,10 +315,13 @@ class OkahuEval(BaseEval):
             raise AssertionError(f"Evaluation service returned invalid JSON: {response.text}") from exc
 
         try:
-            job_id = data.get("job_id")
-            eval_result = data.get("result")
-            label = json.loads(eval_result[0].get('result')).get('label')
-            explanation = json.loads(eval_result[0].get('result')).get('explanation')
+            job_id:str = data.get("job_id")
+            eval_result = data.get("result") or []
+            parsed = json.loads(eval_result[0].get("result"))
+            label = parsed.get("label")
+            explanation = parsed.get("explanation")
+        except AssertionError:
+            raise
         except Exception as exc:
             raise AssertionError(
                 f"Unexpected response format from evaluation service. Expected 'result' key in response. Received: {data}"
@@ -339,8 +356,6 @@ class OkahuEval(BaseEval):
 
         span = filtered_spans[0]
         workflow_name = span.attributes.get("workflow.name")
-        base = os.getenv("OKAHU_EVALUATION_ENDPOINT", OKAHU_PROD_EVALUATION_ENDPOINT).rstrip("/")
-        submit_url = f"{base}/v1/eval/jobs"
 
         fact_ids = self.enumerate_fact_ids(filtered_spans=filtered_spans, fact_name=fact_name)
         if not fact_ids:
@@ -367,52 +382,15 @@ class OkahuEval(BaseEval):
             
             logger.debug("Submitting evaluation on fact_id: %s", fact_id)
             logger.debug(f"Request params: {params}")
-            
-            # submit evaluation job to okahu and handle response/errors with retries for timeouts
-            max_attempts = 3
-            for attempts in range(1, max_attempts + 1):
-                try:
-                    response = requests.post(
-                        url=submit_url,
-                        headers=headers,
-                        json=payload,
-                        params=params,
-                        timeout=120
-                    )
-                    break # successfully received a response, exit loop
-                except requests.Timeout as exc:
-                    if attempts < max_attempts:
-                        logger.warning(f"Evaluation request timed out (attempt {attempts}/{max_attempts}), retrying...")
-                    else:
-                        raise AssertionError(f"Evaluation service timed out after {max_attempts} attempts. Service may be overloaded or unreachable.") from exc
-                except requests.RequestException as exc:
-                    raise AssertionError(f"Failed to reach evaluation service: {exc}. Check network connectivity and endpoint configuration.") from exc
-            try:
-                response.raise_for_status()
-            except requests.HTTPError as exc:
-                self._raise_for_eval_response(response, exc)
-            content_type = response.headers.get("Content-Type", "").lower()
-            if "application/json" not in content_type:
-                raise AssertionError(f"Evaluation service returned non-JSON response: {response.text}")
-            try:
-                data = response.json()
-            except ValueError as exc:
-                raise AssertionError(f"Evaluation service returned invalid JSON: {response.text}") from exc
-            try:
-                job_id = data.get("job_id")
-                eval_result = data.get("result") or []
-                parsed = json.loads(eval_result[0].get("result"))
-                label = parsed.get("label")
-                explanation = parsed.get("explanation")
-            except AssertionError:
-                raise
-            except Exception as exc:
-                raise AssertionError(
-                    f"Unexpected response format from evaluation service. Expected 'result' key in response. Received: {data}"
-                ) from exc
-            
+
+            # submit evaluation job to okahu and parse the response (with timeout retries)
+            job_id, label, explanation, eval_result = self.submit_eval_job(
+                headers=headers, payload=payload, params=params
+            )
+
             # Export eval results if okahu exporter is configured
             if "okahu" in (os.getenv("MONOCLE_EXPORTER", "")) or self._trace_source == "okahu":
+                base = os.getenv("OKAHU_EVALUATION_ENDPOINT", OKAHU_PROD_EVALUATION_ENDPOINT).rstrip("/")
                 with OkahuEvalResultExporter(api_key=api_key, endpoint=base) as result_exporter:
                     result_exporter.export_results(
                         job_id=job_id,

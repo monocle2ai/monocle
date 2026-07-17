@@ -331,15 +331,12 @@ You can also use `MonocleValidator` directly for programmatic validation:
 
 ```python
 from monocle_test_tools import MonocleValidator, TestCase, TestSpan, Entity, DefaultComparer
-from monocle_test_tools.span_loader import JSONSpanLoader
 
 @pytest.fixture(scope="module")
 def validator():
     v = MonocleValidator()
-    spans = JSONSpanLoader.from_json("traces/trace1.json")
-    v.memory_exporter.export(spans)
+    v.import_traces(trace_source="file", trace_path="traces/trace1.json")
     yield v
-    v.memory_exporter.clear()
 
 def test_tool_span(validator):
     test_case = TestCase(

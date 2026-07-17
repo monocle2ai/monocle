@@ -27,6 +27,8 @@ from monocle_test_tools.constants import TEST_SCOPE_NAME, DEFAULT_WORKFLOW_NAME,
 from monocle_test_tools.comparer.base_comparer import BaseComparer
 from monocle_test_tools.runner.runner import get_agent_runner
 from monocle_test_tools import trace_utils
+from monocle_test_tools.evals.okahu_eval import OkahuEval, OKAHU_PROD_EVALUATION_ENDPOINT
+from opentelemetry.baggage.propagation import W3CBaggagePropagator
 from monocle_apptrace.instrumentation.metamodel.adk.methods import ADK_METHODS
 from monocle_apptrace.instrumentation.metamodel.adk.entities.tool import TOOL as ADK_TOOL
 from monocle_apptrace.instrumentation.metamodel.langgraph.methods import LANGGRAPH_METHODS
@@ -61,7 +63,10 @@ class MonocleValidator:
             return
         self._spans:tuple[Span] = ()
         self._test_all_up_spans:tuple[Span] = ()
-        self._trace_source: str = ""
+        self._trace_source = ""
+        self._trace_source_fact_id = None
+        self._trace_source_fact_name = None
+        self._trace_source_workflow_name = None
         test_trace_path:str = os.path.join(".", DEFAULT_TRACE_FOLDER, "test_traces")
         os.environ["MONOCLE_TRACE_OUTPUT_PATH"] = test_trace_path
         if exporter_list is None:
@@ -165,11 +170,36 @@ class MonocleValidator:
                         test_assertion_message:str = None, skip_export:bool = False) -> None:
         try:
             if not skip_export:
-                self.flush_to_exporters(test_name, test_failed, test_assertion_message)
+                if self._trace_source is not None and self._trace_source != "":
+                    self.record_test_result(test_name=test_name, test_failed=test_failed,
+                                        test_assertion_message=test_assertion_message)
+                else:
+                    self.flush_to_exporters(test_name, test_failed, test_assertion_message)
         finally:
             self.cleanup()
             if token is not None:
                 stop_scope(token)
+
+    def record_test_result(self, test_name:str, test_failed:bool, test_assertion_message:str = None):
+        """Record a test's pass/fail outcome against its remote (Okahu) trace.
+
+        Used instead of ``flush_to_exporters`` when traces come from a remote source. Submits a
+        pre-calculated eval result (no LLM eval is run) to the Okahu eval service, one job per
+        unique trace present in the current spans.
+        """
+        if self.export_failed_tests_only and not test_failed:
+            return
+
+        if self._trace_source == "file":
+            JSONSpanLoader.record_test_result(test_name=test_name, test_failed=test_failed,
+                                               test_assertion_message=test_assertion_message)
+        elif self._trace_source == "okahu":
+            OkahuSpanLoader.record_test_result(test_name=test_name, test_failed=test_failed,
+                                               test_assertion_message=test_assertion_message, trace_id=self._trace_source_fact_id,
+                                               workflow_name=self._trace_source_workflow_name, fact_name=self._trace_source_fact_name)
+        else:
+            logger.warning("Unknown trace source '%s'; skipping test result recording for '%s'.", self._trace_source, test_name)
+            return
 
     @contextmanager
     def monocle_exporter_wrapper(self, test_case: TestCase, request:pytest.FixtureRequest):
@@ -340,7 +370,7 @@ class MonocleValidator:
 
     def import_traces(self, trace_source: str, id: Optional[str] = None,
                       trace_path: Optional[str] = None,
-                      fact_name: Optional[str] = "trace",
+                      fact_name: Optional[str] = "traces",
                       scope_name: Optional[str] = None,
                       workflow_name: Optional[str] = None) -> None:
         """Import traces from a source for assertion.
@@ -406,6 +436,10 @@ class MonocleValidator:
             )
         if not id:
             id = self._get_current_trace_id()
+        self._trace_source = trace_source
+        self._trace_source_fact_id = id
+        self._trace_source_fact_name = fact_name
+        self._trace_source_workflow_name = workflow_name
 
         if trace_source == "okahu":
             if not id:
@@ -438,10 +472,10 @@ class MonocleValidator:
                     trace_id=id,
                 )
         else:
-            # File source — fact_name must be "trace"
-            if fact_name != "trace":
+            # File source — fact_name must be "traces" , keeping the 'trace' for backward compatibility
+            if fact_name != "trace" and fact_name != "traces":
                 raise ValueError(
-                    "Only fact_name='trace' is supported for file trace source."
+                    "Only fact_name='traces' is supported for file trace source."
                 )
             # if the trace_path is a file, use it directly; otherwise, search for the trace file in the directory
             if trace_path and os.path.isfile(trace_path):

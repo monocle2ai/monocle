@@ -1,0 +1,722 @@
+[
+  {
+    "span_name": "workflow",
+    "start_time": "2026-05-27T04:31:18.469481Z",
+    "end_time": "2026-05-27T04:31:22.575689Z",
+    "duration_ms": 4106,
+    "status": {
+      "code": "ok",
+      "message": null
+    },
+    "attributes": {
+      "last.inference": "6096df382589f226:*",
+      "monocle_apptrace.language": "python",
+      "monocle_apptrace.version": "0.8.0",
+      "scope.agentic.session": "f273ad606f444c10b4569b6e057b3c72",
+      "scope.agentic.turn": "1d7268721f0c2498739b1c0b4fb1ff3d",
+      "scope.git.commit.hash": "88b09be0dfa1ee17c56baf24c90e936cce02284d",
+      "scope.git.run.id": "2026-05-26T21:27:40.011647",
+      "scope.git.workflow.name": "local",
+      "scope.test_name": "test_cc_t06",
+      "span.type": "workflow",
+      "span_source": "C:\\K_Coding\\git_src\\lg-travel-agent-CJAMES\\lg-travel-agent\\.venv\\Lib\\site-packages\\monocle_test_tools\\runner\\lg_runner.py:27",
+      "workflow.name": "test_cc_customer_care_agent_2",
+      "entity.1.name": "test_cc_customer_care_agent_2",
+      "entity.1.type": "workflow.langgraph",
+      "entity.2.name": "generic",
+      "entity.2.type": "app_hosting.generic",
+      "entity.count": 2
+    },
+    "events": [],
+    "context": {
+      "trace_id": "a6567746abaaa45a27be1ab5c7c5aa5f",
+      "span_id": "31e5e7a6ec5bd251",
+      "trace_state": "[]"
+    }
+  },
+  {
+    "span_name": "langgraph.graph.state.CompiledStateGraph.ainvoke",
+    "start_time": "2026-05-27T04:31:18.469481Z",
+    "end_time": "2026-05-27T04:31:22.575689Z",
+    "duration_ms": 4106,
+    "status": {
+      "code": "ok",
+      "message": null
+    },
+    "parent_id": "31e5e7a6ec5bd251",
+    "attributes": {
+      "entity.count": 1,
+      "last.inference": "6096df382589f226:*",
+      "monocle.last.agent.invocation.id": "96cc6de4f698df15",
+      "monocle.last.agent.name": "okahu_demo_cc_agent_supervisor",
+      "monocle_apptrace.language": "python",
+      "monocle_apptrace.version": "0.8.0",
+      "scope.agentic.session": "f273ad606f444c10b4569b6e057b3c72",
+      "scope.agentic.turn": "1d7268721f0c2498739b1c0b4fb1ff3d",
+      "scope.git.commit.hash": "88b09be0dfa1ee17c56baf24c90e936cce02284d",
+      "scope.git.run.id": "2026-05-26T21:27:40.011647",
+      "scope.git.workflow.name": "local",
+      "scope.test_name": "test_cc_t06",
+      "span.subtype": "turn",
+      "span.type": "agentic.turn",
+      "span_source": "C:\\K_Coding\\git_src\\lg-travel-agent-CJAMES\\lg-travel-agent\\.venv\\Lib\\site-packages\\monocle_test_tools\\runner\\lg_runner.py:27",
+      "workflow.name": "test_cc_customer_care_agent_2",
+      "entity.1.type": "agent.langgraph"
+    },
+    "events": [
+      {
+        "attributes": {
+          "input": [
+            "Does the warranty on order ORD-STD-0033 cover accidental damage?"
+          ]
+        },
+        "name": "data.input",
+        "timestamp": "2026-05-27T04:31:18.469847Z"
+      },
+      {
+        "attributes": {
+          "response": "The warranty for order ORD-STD-0033 is code STD-1Y, which represents a standard one-year warranty. This typically covers defects in materials or workmanship under normal use but does not include accidental damage coverage."
+        },
+        "name": "data.output",
+        "timestamp": "2026-05-27T04:31:22.575689Z"
+      }
+    ],
+    "context": {
+      "trace_id": "a6567746abaaa45a27be1ab5c7c5aa5f",
+      "span_id": "f4bc0bb061adb0ae",
+      "trace_state": "[]"
+    }
+  },
+  {
+    "span_name": "langgraph.graph.state.CompiledStateGraph.ainvoke",
+    "start_time": "2026-05-27T04:31:18.476848Z",
+    "end_time": "2026-05-27T04:31:19.925995Z",
+    "duration_ms": 1449,
+    "status": {
+      "code": "ok",
+      "message": null
+    },
+    "parent_id": "f4bc0bb061adb0ae",
+    "attributes": {
+      "entity.count": 1,
+      "last.inference": "56eab0734c390c88:transfer_to_okahu_demo_cc_agent_order_lookup",
+      "monocle.last.agent.invocation.id": "",
+      "monocle.last.agent.name": "",
+      "monocle_apptrace.language": "python",
+      "monocle_apptrace.version": "0.8.0",
+      "scope.agentic.invocation": "e4731aa36467c0a66a9834cb4a31aba3",
+      "scope.agentic.session": "f273ad606f444c10b4569b6e057b3c72",
+      "scope.agentic.turn": "1d7268721f0c2498739b1c0b4fb1ff3d",
+      "scope.git.commit.hash": "88b09be0dfa1ee17c56baf24c90e936cce02284d",
+      "scope.git.run.id": "2026-05-26T21:27:40.011647",
+      "scope.git.workflow.name": "local",
+      "scope.test_name": "test_cc_t06",
+      "span.subtype": "content_processing",
+      "span.type": "agentic.invocation",
+      "span_source": "c:\\K_Coding\\git_src\\lg-travel-agent-CJAMES\\lg-travel-agent\\.venv\\Lib\\site-packages\\langgraph\\_internal\\_runnable.py:706",
+      "workflow.name": "test_cc_customer_care_agent_2",
+      "entity.1.name": "okahu_demo_cc_agent_supervisor",
+      "entity.1.type": "agent.langgraph"
+    },
+    "events": [
+      {
+        "attributes": {
+          "input": [
+            "Does the warranty on order ORD-STD-0033 cover accidental damage?"
+          ]
+        },
+        "name": "data.input",
+        "timestamp": "2026-05-27T04:31:18.476848Z"
+      },
+      {
+        "attributes": {
+          "response": "Successfully transferred to okahu_demo_cc_agent_order_lookup"
+        },
+        "name": "data.output",
+        "timestamp": "2026-05-27T04:31:19.925995Z"
+      }
+    ],
+    "context": {
+      "trace_id": "a6567746abaaa45a27be1ab5c7c5aa5f",
+      "span_id": "13d386e131383c37",
+      "trace_state": "[]"
+    }
+  },
+  {
+    "span_name": "langchain.chat_models.base.BaseChatModel.ainvoke",
+    "start_time": "2026-05-27T04:31:18.480756Z",
+    "end_time": "2026-05-27T04:31:19.925995Z",
+    "duration_ms": 1445,
+    "status": {
+      "code": "ok",
+      "message": null
+    },
+    "parent_id": "13d386e131383c37",
+    "attributes": {
+      "entity.count": 3,
+      "monocle_apptrace.language": "python",
+      "monocle_apptrace.version": "0.8.0",
+      "scope.agentic.invocation": "e4731aa36467c0a66a9834cb4a31aba3",
+      "scope.agentic.session": "f273ad606f444c10b4569b6e057b3c72",
+      "scope.agentic.turn": "1d7268721f0c2498739b1c0b4fb1ff3d",
+      "scope.git.commit.hash": "88b09be0dfa1ee17c56baf24c90e936cce02284d",
+      "scope.git.run.id": "2026-05-26T21:27:40.011647",
+      "scope.git.workflow.name": "local",
+      "scope.test_name": "test_cc_t06",
+      "span.subtype": "delegation",
+      "span.type": "inference.framework",
+      "span_source": "c:\\K_Coding\\git_src\\lg-travel-agent-CJAMES\\lg-travel-agent\\.venv\\Lib\\site-packages\\langchain_core\\runnables\\base.py:5708",
+      "workflow.name": "test_cc_customer_care_agent_2",
+      "entity.1.inference_endpoint": "https://api.openai.com/v1/",
+      "entity.1.provider_name": "api.openai.com",
+      "entity.1.type": "inference.openai",
+      "entity.2.name": "gpt-4o",
+      "entity.2.type": "model.llm.gpt-4o",
+      "entity.3.name": "transfer_to_okahu_demo_cc_agent_order_lookup",
+      "entity.3.type": "tool.function"
+    },
+    "events": [
+      {
+        "attributes": {
+          "input": [
+            "{\"system\": \"You manage an order lookup specialist, a refund eligibility specialist, and a refund processing specialist. Assign each part of the user's request to the appropriate agent. Each specialist handles ONLY their designated area:\\n  - Order lookup specialist: order detail lookups, warranty inquiries. For delivery status, carrier, tracking, or signature questions, route to the order lookup specialist \u2014 these always require calling the shipping status tool.\\n  - Eligibility specialist: refund eligibility checks, return policy questions, exchange and return qualification. Return policy questions and 'qualifies for return/exchange' questions ALWAYS go to the eligibility specialist. For any request that references a specific order AND asks about eligibility, return qualification, or exchange qualification, ALWAYS route to BOTH the order lookup specialist AND the eligibility specialist \u2014 the return_eligible field from order lookup is NOT a substitute for an eligibility determination.\\n  - Refund processing specialist: processing approved refunds only. Route refund requests to the refund processing specialist.\\nWhen an agent returns a result, relay all returned field values exactly as provided \u2014 do not substitute, invent, or adjust order IDs, amounts, refund IDs, warranty codes, or eligibility status.\"}",
+            "{\"human\": \"Does the warranty on order ORD-STD-0033 cover accidental damage?\"}"
+          ]
+        },
+        "name": "data.input",
+        "timestamp": "2026-05-27T04:31:18.480756Z"
+      },
+      {
+        "attributes": {
+          "response": "{\"ai\": {\"name\": \"transfer_to_okahu_demo_cc_agent_order_lookup\", \"args\": {}, \"id\": \"call_fNiHbYEEsOuYKayZK3Dmwa6J\", \"type\": \"tool_call\"}}"
+        },
+        "name": "data.output",
+        "timestamp": "2026-05-27T04:31:19.925995Z"
+      },
+      {
+        "attributes": {
+          "completion_tokens": 17,
+          "finish_reason": "tool_calls",
+          "finish_type": "tool_call",
+          "prompt_tokens": 400,
+          "total_tokens": 417
+        },
+        "name": "metadata",
+        "timestamp": "2026-05-27T04:31:19.925995Z"
+      }
+    ],
+    "context": {
+      "trace_id": "a6567746abaaa45a27be1ab5c7c5aa5f",
+      "span_id": "56eab0734c390c88",
+      "trace_state": "[]"
+    }
+  },
+  {
+    "span_name": "openai.resources.chat.completions.AsyncCompletions.create",
+    "start_time": "2026-05-27T04:31:18.482756Z",
+    "end_time": "2026-05-27T04:31:19.910959Z",
+    "duration_ms": 1428,
+    "status": {
+      "code": "ok",
+      "message": null
+    },
+    "parent_id": "56eab0734c390c88",
+    "attributes": {
+      "monocle_apptrace.language": "python",
+      "monocle_apptrace.version": "0.8.0",
+      "scope.agentic.invocation": "e4731aa36467c0a66a9834cb4a31aba3",
+      "scope.agentic.session": "f273ad606f444c10b4569b6e057b3c72",
+      "scope.agentic.turn": "1d7268721f0c2498739b1c0b4fb1ff3d",
+      "scope.git.commit.hash": "88b09be0dfa1ee17c56baf24c90e936cce02284d",
+      "scope.git.run.id": "2026-05-26T21:27:40.011647",
+      "scope.git.workflow.name": "local",
+      "scope.test_name": "test_cc_t06",
+      "span.type": "inference.modelapi",
+      "span_source": "c:\\K_Coding\\git_src\\lg-travel-agent-CJAMES\\lg-travel-agent\\.venv\\Lib\\site-packages\\openai\\_legacy_response.py:384",
+      "workflow.name": "test_cc_customer_care_agent_2"
+    },
+    "events": [],
+    "context": {
+      "trace_id": "a6567746abaaa45a27be1ab5c7c5aa5f",
+      "span_id": "7bb731df00513cec",
+      "trace_state": "[]"
+    }
+  },
+  {
+    "span_name": "langgraph.graph.state.CompiledStateGraph.ainvoke",
+    "start_time": "2026-05-27T04:31:19.925995Z",
+    "end_time": "2026-05-27T04:31:21.509083Z",
+    "duration_ms": 1583,
+    "status": {
+      "code": "ok",
+      "message": null
+    },
+    "parent_id": "f4bc0bb061adb0ae",
+    "attributes": {
+      "entity.count": 1,
+      "inference.decision.span.id": "56eab0734c390c88",
+      "last.inference": "133c4ae32f029552:*",
+      "monocle.last.agent.invocation.id": "",
+      "monocle.last.agent.name": "",
+      "monocle_apptrace.language": "python",
+      "monocle_apptrace.version": "0.8.0",
+      "scope.agentic.invocation": "a4a1ad8775b612d48623747896c8117",
+      "scope.agentic.session": "f273ad606f444c10b4569b6e057b3c72",
+      "scope.agentic.turn": "1d7268721f0c2498739b1c0b4fb1ff3d",
+      "scope.git.commit.hash": "88b09be0dfa1ee17c56baf24c90e936cce02284d",
+      "scope.git.run.id": "2026-05-26T21:27:40.011647",
+      "scope.git.workflow.name": "local",
+      "scope.test_name": "test_cc_t06",
+      "span.subtype": "content_processing",
+      "span.type": "agentic.invocation",
+      "span_source": "c:\\K_Coding\\git_src\\lg-travel-agent-CJAMES\\lg-travel-agent\\.venv\\Lib\\site-packages\\langgraph_supervisor\\supervisor.py:116",
+      "workflow.name": "test_cc_customer_care_agent_2",
+      "entity.1.from_agent": "okahu_demo_cc_agent_supervisor",
+      "entity.1.from_agent_span_id": "13d386e131383c37",
+      "entity.1.name": "okahu_demo_cc_agent_order_lookup",
+      "entity.1.type": "agent.langgraph"
+    },
+    "events": [
+      {
+        "attributes": {
+          "input": [
+            "Does the warranty on order ORD-STD-0033 cover accidental damage?"
+          ]
+        },
+        "name": "data.input",
+        "timestamp": "2026-05-27T04:31:19.925995Z"
+      },
+      {
+        "attributes": {
+          "response": "The warranty code for order ORD-STD-0033 is STD-1Y. This code represents a standard one-year warranty. Generally, standard warranties like this cover defects in materials or workmanship under normal use, but they do not include coverage for accidental damage. "
+        },
+        "name": "data.output",
+        "timestamp": "2026-05-27T04:31:21.509083Z"
+      }
+    ],
+    "context": {
+      "trace_id": "a6567746abaaa45a27be1ab5c7c5aa5f",
+      "span_id": "412201b2a1cc9a2a",
+      "trace_state": "[]"
+    }
+  },
+  {
+    "span_name": "langchain.chat_models.base.BaseChatModel.ainvoke",
+    "start_time": "2026-05-27T04:31:19.925995Z",
+    "end_time": "2026-05-27T04:31:20.621108Z",
+    "duration_ms": 695,
+    "status": {
+      "code": "ok",
+      "message": null
+    },
+    "parent_id": "412201b2a1cc9a2a",
+    "attributes": {
+      "entity.count": 3,
+      "monocle_apptrace.language": "python",
+      "monocle_apptrace.version": "0.8.0",
+      "scope.agentic.invocation": "a4a1ad8775b612d48623747896c8117",
+      "scope.agentic.session": "f273ad606f444c10b4569b6e057b3c72",
+      "scope.agentic.turn": "1d7268721f0c2498739b1c0b4fb1ff3d",
+      "scope.git.commit.hash": "88b09be0dfa1ee17c56baf24c90e936cce02284d",
+      "scope.git.run.id": "2026-05-26T21:27:40.011647",
+      "scope.git.workflow.name": "local",
+      "scope.test_name": "test_cc_t06",
+      "span.subtype": "tool_call",
+      "span.type": "inference.framework",
+      "span_source": "c:\\K_Coding\\git_src\\lg-travel-agent-CJAMES\\lg-travel-agent\\.venv\\Lib\\site-packages\\langchain_core\\runnables\\base.py:5708",
+      "workflow.name": "test_cc_customer_care_agent_2",
+      "entity.1.inference_endpoint": "https://api.openai.com/v1/",
+      "entity.1.provider_name": "api.openai.com",
+      "entity.1.type": "inference.openai",
+      "entity.2.name": "gpt-4o",
+      "entity.2.type": "model.llm.gpt-4o",
+      "entity.3.name": "okahu_demo_cc_tool_get_product_warranty",
+      "entity.3.type": "tool.function"
+    },
+    "events": [
+      {
+        "attributes": {
+          "input": [
+            "{\"system\": \"You are an order lookup specialist. You look up customer order details, warranty information, and shipping status. You must always call the appropriate tool before responding \u2014 never answer without first calling a tool. Do not say you are transferring, forwarding, or routing the customer to anyone; you are the specialist and you answer directly. After the order lookup tool returns, relay order_id, customer, product, amount, date, status, and return_eligible exactly as provided \u2014 do not use return_eligible to draw conclusions about refund eligibility; that determination belongs exclusively to the eligibility specialist. After the warranty tool returns, relay the warranty information provided. For any question about shipping status, carrier, or tracking, call the get_shipping_status tool before answering. After the shipping status tool returns, relay the status information provided.\"}",
+            "{\"human\": \"Does the warranty on order ORD-STD-0033 cover accidental damage?\"}",
+            "{\"ai\": \"[{\\\"name\\\": \\\"transfer_to_okahu_demo_cc_agent_order_lookup\\\", \\\"args\\\": {}, \\\"id\\\": \\\"call_fNiHbYEEsOuYKayZK3Dmwa6J\\\", \\\"type\\\": \\\"tool_call\\\"}]\"}",
+            "{\"tool\": \"Successfully transferred to okahu_demo_cc_agent_order_lookup\"}"
+          ]
+        },
+        "name": "data.input",
+        "timestamp": "2026-05-27T04:31:19.925995Z"
+      },
+      {
+        "attributes": {
+          "response": "{\"ai\": {\"name\": \"okahu_demo_cc_tool_get_product_warranty\", \"args\": {\"order_id\": \"ORD-STD-0033\"}, \"id\": \"call_dq7MEcqbhRLD1iRQJtpAlWP2\", \"type\": \"tool_call\"}}"
+        },
+        "name": "data.output",
+        "timestamp": "2026-05-27T04:31:20.621108Z"
+      },
+      {
+        "attributes": {
+          "completion_tokens": 27,
+          "finish_reason": "tool_calls",
+          "finish_type": "tool_call",
+          "prompt_tokens": 499,
+          "total_tokens": 526
+        },
+        "name": "metadata",
+        "timestamp": "2026-05-27T04:31:20.621108Z"
+      }
+    ],
+    "context": {
+      "trace_id": "a6567746abaaa45a27be1ab5c7c5aa5f",
+      "span_id": "49dd717240b885c4",
+      "trace_state": "[]"
+    }
+  },
+  {
+    "span_name": "openai.resources.chat.completions.AsyncCompletions.create",
+    "start_time": "2026-05-27T04:31:19.935714Z",
+    "end_time": "2026-05-27T04:31:20.610716Z",
+    "duration_ms": 675,
+    "status": {
+      "code": "ok",
+      "message": null
+    },
+    "parent_id": "49dd717240b885c4",
+    "attributes": {
+      "monocle_apptrace.language": "python",
+      "monocle_apptrace.version": "0.8.0",
+      "scope.agentic.invocation": "a4a1ad8775b612d48623747896c8117",
+      "scope.agentic.session": "f273ad606f444c10b4569b6e057b3c72",
+      "scope.agentic.turn": "1d7268721f0c2498739b1c0b4fb1ff3d",
+      "scope.git.commit.hash": "88b09be0dfa1ee17c56baf24c90e936cce02284d",
+      "scope.git.run.id": "2026-05-26T21:27:40.011647",
+      "scope.git.workflow.name": "local",
+      "scope.test_name": "test_cc_t06",
+      "span.type": "inference.modelapi",
+      "span_source": "c:\\K_Coding\\git_src\\lg-travel-agent-CJAMES\\lg-travel-agent\\.venv\\Lib\\site-packages\\openai\\_legacy_response.py:384",
+      "workflow.name": "test_cc_customer_care_agent_2"
+    },
+    "events": [],
+    "context": {
+      "trace_id": "a6567746abaaa45a27be1ab5c7c5aa5f",
+      "span_id": "590e93a47b280f74",
+      "trace_state": "[]"
+    }
+  },
+  {
+    "span_name": "langchain_core.tools.structured.StructuredTool._run",
+    "start_time": "2026-05-27T04:31:20.625345Z",
+    "end_time": "2026-05-27T04:31:20.625345Z",
+    "duration_ms": 0,
+    "status": {
+      "code": "ok",
+      "message": null
+    },
+    "parent_id": "412201b2a1cc9a2a",
+    "attributes": {
+      "entity.count": 2,
+      "inference.decision.span.id": "49dd717240b885c4",
+      "monocle_apptrace.language": "python",
+      "monocle_apptrace.version": "0.8.0",
+      "scope.agentic.invocation": "a4a1ad8775b612d48623747896c8117",
+      "scope.agentic.session": "f273ad606f444c10b4569b6e057b3c72",
+      "scope.agentic.turn": "1d7268721f0c2498739b1c0b4fb1ff3d",
+      "scope.git.commit.hash": "88b09be0dfa1ee17c56baf24c90e936cce02284d",
+      "scope.git.run.id": "2026-05-26T21:27:40.011647",
+      "scope.git.workflow.name": "local",
+      "scope.test_name": "test_cc_t06",
+      "span.subtype": "content_generation",
+      "span.type": "agentic.tool.invocation",
+      "span_source": "c:\\K_Coding\\git_src\\lg-travel-agent-CJAMES\\lg-travel-agent\\.venv\\Lib\\site-packages\\langchain_core\\tools\\base.py:967",
+      "workflow.name": "test_cc_customer_care_agent_2",
+      "entity.1.description": "Get warranty information for a customer order",
+      "entity.1.name": "okahu_demo_cc_tool_get_product_warranty",
+      "entity.1.type": "tool.langgraph",
+      "entity.2.name": "okahu_demo_cc_agent_order_lookup",
+      "entity.2.type": "agent.langgraph"
+    },
+    "events": [
+      {
+        "attributes": {
+          "input": "{'order_id': 'ORD-STD-0033'}"
+        },
+        "name": "data.input",
+        "timestamp": "2026-05-27T04:31:20.625345Z"
+      },
+      {
+        "attributes": {
+          "response": "{\"order_id\": \"ORD-STD-0033\", \"warranty_code\": \"STD-1Y\"}"
+        },
+        "name": "data.output",
+        "timestamp": "2026-05-27T04:31:20.625345Z"
+      }
+    ],
+    "context": {
+      "trace_id": "a6567746abaaa45a27be1ab5c7c5aa5f",
+      "span_id": "1c16e18ac6edf06f",
+      "trace_state": "[]"
+    }
+  },
+  {
+    "span_name": "langchain.chat_models.base.BaseChatModel.ainvoke",
+    "start_time": "2026-05-27T04:31:20.628680Z",
+    "end_time": "2026-05-27T04:31:21.508087Z",
+    "duration_ms": 879,
+    "status": {
+      "code": "ok",
+      "message": null
+    },
+    "parent_id": "412201b2a1cc9a2a",
+    "attributes": {
+      "entity.count": 2,
+      "monocle_apptrace.language": "python",
+      "monocle_apptrace.version": "0.8.0",
+      "scope.agentic.invocation": "a4a1ad8775b612d48623747896c8117",
+      "scope.agentic.session": "f273ad606f444c10b4569b6e057b3c72",
+      "scope.agentic.turn": "1d7268721f0c2498739b1c0b4fb1ff3d",
+      "scope.git.commit.hash": "88b09be0dfa1ee17c56baf24c90e936cce02284d",
+      "scope.git.run.id": "2026-05-26T21:27:40.011647",
+      "scope.git.workflow.name": "local",
+      "scope.test_name": "test_cc_t06",
+      "span.subtype": "turn_end",
+      "span.type": "inference.framework",
+      "span_source": "c:\\K_Coding\\git_src\\lg-travel-agent-CJAMES\\lg-travel-agent\\.venv\\Lib\\site-packages\\langchain_core\\runnables\\base.py:5708",
+      "workflow.name": "test_cc_customer_care_agent_2",
+      "entity.1.inference_endpoint": "https://api.openai.com/v1/",
+      "entity.1.provider_name": "api.openai.com",
+      "entity.1.type": "inference.openai",
+      "entity.2.name": "gpt-4o",
+      "entity.2.type": "model.llm.gpt-4o"
+    },
+    "events": [
+      {
+        "attributes": {
+          "input": [
+            "{\"system\": \"You are an order lookup specialist. You look up customer order details, warranty information, and shipping status. You must always call the appropriate tool before responding \u2014 never answer without first calling a tool. Do not say you are transferring, forwarding, or routing the customer to anyone; you are the specialist and you answer directly. After the order lookup tool returns, relay order_id, customer, product, amount, date, status, and return_eligible exactly as provided \u2014 do not use return_eligible to draw conclusions about refund eligibility; that determination belongs exclusively to the eligibility specialist. After the warranty tool returns, relay the warranty information provided. For any question about shipping status, carrier, or tracking, call the get_shipping_status tool before answering. After the shipping status tool returns, relay the status information provided.\"}",
+            "{\"human\": \"Does the warranty on order ORD-STD-0033 cover accidental damage?\"}",
+            "{\"ai\": \"[{\\\"name\\\": \\\"transfer_to_okahu_demo_cc_agent_order_lookup\\\", \\\"args\\\": {}, \\\"id\\\": \\\"call_fNiHbYEEsOuYKayZK3Dmwa6J\\\", \\\"type\\\": \\\"tool_call\\\"}]\"}",
+            "{\"tool\": \"Successfully transferred to okahu_demo_cc_agent_order_lookup\"}",
+            "{\"ai\": \"[{\\\"name\\\": \\\"okahu_demo_cc_tool_get_product_warranty\\\", \\\"args\\\": {\\\"order_id\\\": \\\"ORD-STD-0033\\\"}, \\\"id\\\": \\\"call_dq7MEcqbhRLD1iRQJtpAlWP2\\\", \\\"type\\\": \\\"tool_call\\\"}]\"}",
+            "{\"tool\": \"{\\\"order_id\\\": \\\"ORD-STD-0033\\\", \\\"warranty_code\\\": \\\"STD-1Y\\\"}\"}"
+          ]
+        },
+        "name": "data.input",
+        "timestamp": "2026-05-27T04:31:20.628680Z"
+      },
+      {
+        "attributes": {
+          "response": "{\"ai\": \"The warranty code for order ORD-STD-0033 is STD-1Y. This code represents a standard one-year warranty. Generally, standard warranties like this cover defects in materials or workmanship under normal use, but they do not include coverage for accidental damage. \"}"
+        },
+        "name": "data.output",
+        "timestamp": "2026-05-27T04:31:21.508087Z"
+      },
+      {
+        "attributes": {
+          "completion_tokens": 54,
+          "finish_reason": "stop",
+          "finish_type": "success",
+          "prompt_tokens": 572,
+          "total_tokens": 626
+        },
+        "name": "metadata",
+        "timestamp": "2026-05-27T04:31:21.508087Z"
+      }
+    ],
+    "context": {
+      "trace_id": "a6567746abaaa45a27be1ab5c7c5aa5f",
+      "span_id": "133c4ae32f029552",
+      "trace_state": "[]"
+    }
+  },
+  {
+    "span_name": "openai.resources.chat.completions.AsyncCompletions.create",
+    "start_time": "2026-05-27T04:31:20.628680Z",
+    "end_time": "2026-05-27T04:31:21.507100Z",
+    "duration_ms": 878,
+    "status": {
+      "code": "ok",
+      "message": null
+    },
+    "parent_id": "133c4ae32f029552",
+    "attributes": {
+      "monocle_apptrace.language": "python",
+      "monocle_apptrace.version": "0.8.0",
+      "scope.agentic.invocation": "a4a1ad8775b612d48623747896c8117",
+      "scope.agentic.session": "f273ad606f444c10b4569b6e057b3c72",
+      "scope.agentic.turn": "1d7268721f0c2498739b1c0b4fb1ff3d",
+      "scope.git.commit.hash": "88b09be0dfa1ee17c56baf24c90e936cce02284d",
+      "scope.git.run.id": "2026-05-26T21:27:40.011647",
+      "scope.git.workflow.name": "local",
+      "scope.test_name": "test_cc_t06",
+      "span.type": "inference.modelapi",
+      "span_source": "c:\\K_Coding\\git_src\\lg-travel-agent-CJAMES\\lg-travel-agent\\.venv\\Lib\\site-packages\\openai\\_legacy_response.py:384",
+      "workflow.name": "test_cc_customer_care_agent_2"
+    },
+    "events": [],
+    "context": {
+      "trace_id": "a6567746abaaa45a27be1ab5c7c5aa5f",
+      "span_id": "b7ca93609e47ab0c",
+      "trace_state": "[]"
+    }
+  },
+  {
+    "span_name": "langgraph.graph.state.CompiledStateGraph.ainvoke",
+    "start_time": "2026-05-27T04:31:21.510816Z",
+    "end_time": "2026-05-27T04:31:22.575689Z",
+    "duration_ms": 1065,
+    "status": {
+      "code": "ok",
+      "message": null
+    },
+    "parent_id": "f4bc0bb061adb0ae",
+    "attributes": {
+      "entity.count": 1,
+      "inference.decision.span.id": "133c4ae32f029552",
+      "last.inference": "6096df382589f226:*",
+      "monocle.last.agent.invocation.id": "",
+      "monocle.last.agent.name": "",
+      "monocle_apptrace.language": "python",
+      "monocle_apptrace.version": "0.8.0",
+      "scope.agentic.invocation": "2d7b0a121f30f491285cee64cf9527fc",
+      "scope.agentic.session": "f273ad606f444c10b4569b6e057b3c72",
+      "scope.agentic.turn": "1d7268721f0c2498739b1c0b4fb1ff3d",
+      "scope.git.commit.hash": "88b09be0dfa1ee17c56baf24c90e936cce02284d",
+      "scope.git.run.id": "2026-05-26T21:27:40.011647",
+      "scope.git.workflow.name": "local",
+      "scope.test_name": "test_cc_t06",
+      "span.subtype": "content_processing",
+      "span.type": "agentic.invocation",
+      "span_source": "c:\\K_Coding\\git_src\\lg-travel-agent-CJAMES\\lg-travel-agent\\.venv\\Lib\\site-packages\\langgraph\\_internal\\_runnable.py:706",
+      "workflow.name": "test_cc_customer_care_agent_2",
+      "entity.1.from_agent": "okahu_demo_cc_agent_order_lookup",
+      "entity.1.from_agent_span_id": "412201b2a1cc9a2a",
+      "entity.1.name": "okahu_demo_cc_agent_supervisor",
+      "entity.1.type": "agent.langgraph"
+    },
+    "events": [
+      {
+        "attributes": {
+          "input": [
+            "Does the warranty on order ORD-STD-0033 cover accidental damage?"
+          ]
+        },
+        "name": "data.input",
+        "timestamp": "2026-05-27T04:31:21.511847Z"
+      },
+      {
+        "attributes": {
+          "response": "The warranty for order ORD-STD-0033 is code STD-1Y, which represents a standard one-year warranty. This typically covers defects in materials or workmanship under normal use but does not include accidental damage coverage."
+        },
+        "name": "data.output",
+        "timestamp": "2026-05-27T04:31:22.575689Z"
+      }
+    ],
+    "context": {
+      "trace_id": "a6567746abaaa45a27be1ab5c7c5aa5f",
+      "span_id": "96cc6de4f698df15",
+      "trace_state": "[]"
+    }
+  },
+  {
+    "span_name": "langchain.chat_models.base.BaseChatModel.ainvoke",
+    "start_time": "2026-05-27T04:31:21.513852Z",
+    "end_time": "2026-05-27T04:31:22.573932Z",
+    "duration_ms": 1060,
+    "status": {
+      "code": "ok",
+      "message": null
+    },
+    "parent_id": "96cc6de4f698df15",
+    "attributes": {
+      "entity.count": 2,
+      "monocle_apptrace.language": "python",
+      "monocle_apptrace.version": "0.8.0",
+      "scope.agentic.invocation": "2d7b0a121f30f491285cee64cf9527fc",
+      "scope.agentic.session": "f273ad606f444c10b4569b6e057b3c72",
+      "scope.agentic.turn": "1d7268721f0c2498739b1c0b4fb1ff3d",
+      "scope.git.commit.hash": "88b09be0dfa1ee17c56baf24c90e936cce02284d",
+      "scope.git.run.id": "2026-05-26T21:27:40.011647",
+      "scope.git.workflow.name": "local",
+      "scope.test_name": "test_cc_t06",
+      "span.subtype": "turn_end",
+      "span.type": "inference.framework",
+      "span_source": "c:\\K_Coding\\git_src\\lg-travel-agent-CJAMES\\lg-travel-agent\\.venv\\Lib\\site-packages\\langchain_core\\runnables\\base.py:5708",
+      "workflow.name": "test_cc_customer_care_agent_2",
+      "entity.1.inference_endpoint": "https://api.openai.com/v1/",
+      "entity.1.provider_name": "api.openai.com",
+      "entity.1.type": "inference.openai",
+      "entity.2.name": "gpt-4o",
+      "entity.2.type": "model.llm.gpt-4o"
+    },
+    "events": [
+      {
+        "attributes": {
+          "input": [
+            "{\"system\": \"You manage an order lookup specialist, a refund eligibility specialist, and a refund processing specialist. Assign each part of the user's request to the appropriate agent. Each specialist handles ONLY their designated area:\\n  - Order lookup specialist: order detail lookups, warranty inquiries. For delivery status, carrier, tracking, or signature questions, route to the order lookup specialist \u2014 these always require calling the shipping status tool.\\n  - Eligibility specialist: refund eligibility checks, return policy questions, exchange and return qualification. Return policy questions and 'qualifies for return/exchange' questions ALWAYS go to the eligibility specialist. For any request that references a specific order AND asks about eligibility, return qualification, or exchange qualification, ALWAYS route to BOTH the order lookup specialist AND the eligibility specialist \u2014 the return_eligible field from order lookup is NOT a substitute for an eligibility determination.\\n  - Refund processing specialist: processing approved refunds only. Route refund requests to the refund processing specialist.\\nWhen an agent returns a result, relay all returned field values exactly as provided \u2014 do not substitute, invent, or adjust order IDs, amounts, refund IDs, warranty codes, or eligibility status.\"}",
+            "{\"human\": \"Does the warranty on order ORD-STD-0033 cover accidental damage?\"}",
+            "{\"ai\": \"[{\\\"name\\\": \\\"transfer_to_okahu_demo_cc_agent_order_lookup\\\", \\\"args\\\": {}, \\\"id\\\": \\\"call_fNiHbYEEsOuYKayZK3Dmwa6J\\\", \\\"type\\\": \\\"tool_call\\\"}]\"}",
+            "{\"tool\": \"Successfully transferred to okahu_demo_cc_agent_order_lookup\"}",
+            "{\"ai\": \"The warranty code for order ORD-STD-0033 is STD-1Y. This code represents a standard one-year warranty. Generally, standard warranties like this cover defects in materials or workmanship under normal use, but they do not include coverage for accidental damage. \"}",
+            "{\"ai\": \"Transferring back to okahu_demo_cc_agent_supervisor\"}",
+            "{\"tool\": \"Successfully transferred back to okahu_demo_cc_agent_supervisor\"}"
+          ]
+        },
+        "name": "data.input",
+        "timestamp": "2026-05-27T04:31:21.514938Z"
+      },
+      {
+        "attributes": {
+          "response": "{\"ai\": \"The warranty for order ORD-STD-0033 is code STD-1Y, which represents a standard one-year warranty. This typically covers defects in materials or workmanship under normal use but does not include accidental damage coverage.\"}"
+        },
+        "name": "data.output",
+        "timestamp": "2026-05-27T04:31:22.573932Z"
+      },
+      {
+        "attributes": {
+          "completion_tokens": 45,
+          "finish_reason": "stop",
+          "finish_type": "success",
+          "prompt_tokens": 592,
+          "total_tokens": 637
+        },
+        "name": "metadata",
+        "timestamp": "2026-05-27T04:31:22.573932Z"
+      }
+    ],
+    "context": {
+      "trace_id": "a6567746abaaa45a27be1ab5c7c5aa5f",
+      "span_id": "6096df382589f226",
+      "trace_state": "[]"
+    }
+  },
+  {
+    "span_name": "openai.resources.chat.completions.AsyncCompletions.create",
+    "start_time": "2026-05-27T04:31:21.515933Z",
+    "end_time": "2026-05-27T04:31:22.572416Z",
+    "duration_ms": 1056,
+    "status": {
+      "code": "ok",
+      "message": null
+    },
+    "parent_id": "6096df382589f226",
+    "attributes": {
+      "monocle_apptrace.language": "python",
+      "monocle_apptrace.version": "0.8.0",
+      "scope.agentic.invocation": "2d7b0a121f30f491285cee64cf9527fc",
+      "scope.agentic.session": "f273ad606f444c10b4569b6e057b3c72",
+      "scope.agentic.turn": "1d7268721f0c2498739b1c0b4fb1ff3d",
+      "scope.git.commit.hash": "88b09be0dfa1ee17c56baf24c90e936cce02284d",
+      "scope.git.run.id": "2026-05-26T21:27:40.011647",
+      "scope.git.workflow.name": "local",
+      "scope.test_name": "test_cc_t06",
+      "span.type": "inference.modelapi",
+      "span_source": "c:\\K_Coding\\git_src\\lg-travel-agent-CJAMES\\lg-travel-agent\\.venv\\Lib\\site-packages\\openai\\_legacy_response.py:384",
+      "workflow.name": "test_cc_customer_care_agent_2"
+    },
+    "events": [],
+    "context": {
+      "trace_id": "a6567746abaaa45a27be1ab5c7c5aa5f",
+      "span_id": "d0bf95b48c5ddc94",
+      "trace_state": "[]"
+    }
+  }
+]

@@ -2,14 +2,21 @@ from monocle_apptrace.instrumentation.common.constants import SPAN_TYPES
 from monocle_apptrace.instrumentation.metamodel.litellm import (
     _helper,
 )
+from monocle_apptrace.instrumentation.metamodel.litellm.litellm_stream_processor import LiteLLMStreamProcessor
 from monocle_apptrace.instrumentation.common.utils import (
     get_error_message,
     resolve_from_alias,
     get_llm_type,
 )
+
+def process_response(to_wrap, response, span_processor):
+    processor = LiteLLMStreamProcessor()
+    return processor.process_stream(to_wrap, response, span_processor)
 INFERENCE = {
     "type": SPAN_TYPES.INFERENCE,
     "subtype": lambda arguments: _helper.agent_inference_type(arguments),
+    "is_auto_close": lambda kwargs: not _helper.is_streaming_request(kwargs),
+    "response_processor": process_response,
     "attributes": [
         [
             {

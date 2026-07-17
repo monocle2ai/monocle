@@ -766,8 +766,11 @@ Filter the current spans down to those carrying a given span attribute, so subse
 
 | Method | Description |
 |---|---|
-| `has_attribute(key, value=None)` | Assert at least one span carries the attribute `key` (optionally equal to `value`); narrows context to matching spans |
-| `does_not_have_attribute(key, value=None)` | Assert no span carries the attribute `key` (optionally equal to `value`) |
+| `has_attribute(attribute_name, expected=None)` | Assert at least one span carries the attribute `attribute_name` (optionally equal to `expected`); narrows context to matching spans (`key`/`value` accepted as legacy aliases) |
+| `does_not_have_attribute(attribute_name, expected=None)` | Assert no span carries the attribute `attribute_name` (optionally equal to `expected`) (`key`/`value` accepted as legacy aliases) |
+| `has_event(event_name, attribute_name=None, expected=None)` | Assert at least one span has an event named `event_name` (optionally carrying attribute `attribute_name`, optionally equal to `expected`); narrows context to matching spans |
+| `where(attribute=None, event=None, predicate=None)` | Generic selector: narrow context to spans matching **all** given criteria — `attribute` (`{name: expected}` mapping), `event` (`{"name":..., "attributes":{...}}`), and/or `predicate` (`Callable[[Span], bool]`). `has_attribute`/`has_event` are wrappers over this. |
+| `does_not_match(attribute=None, event=None, predicate=None)` | Assert no span matches all the given criteria (same arguments as `where`) |
 
 ### Scope assertions
 

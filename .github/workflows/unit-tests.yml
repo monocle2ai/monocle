@@ -30,10 +30,14 @@ jobs:
         with:
           python-version: '3.11'
 
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
       - name: Install build dependencies
         run: |
-          python -m pip install --upgrade pip
-          pip install build setuptools wheel toml
+          uv pip install --system build setuptools wheel toml
 
       - name: Build wheels
         run: |
@@ -42,18 +46,13 @@ jobs:
 
       - name: Install package and dev dependencies
         run: |
-          pip install --upgrade pip
           cd apptrace
-          pip install -e '.[dev]'
-          pip install -e '.[azure]'
-          pip install -e '.[aws]'
-          pip install -e '.[gcp]'
-          pip install -e '.[postgres]'
+          uv pip install --system --prerelease=allow -e '.[dev,azure,aws,gcp,postgres]'
 
       - name: Install test_tools package and dependencies
         run: |
           cd test_tools
-          pip install -e '.[dev]'
+          uv pip install --system --prerelease=allow -e '.[dev]'
 
       - name: Run Apptrace Unit tests
         id: run-apptrace-unit-tests
@@ -72,7 +71,11 @@ jobs:
           cat ./unitfailed_files.txt >> failed_files.txt
           echo "" >> failed_files.txt
           LINE_NUM=$(grep -nE "===== .*((failed|passed|skipped|warnings|error).*)+ in .* ======" unitresult.log | tail -1 | cut -d: -f1)
-          tail -n +$LINE_NUM ./unitresult.log > unittest_summary.txt
+          if [[ -n "${LINE_NUM}" ]]; then
+            tail -n +"${LINE_NUM}" ./unitresult.log > unittest_summary.txt
+          else
+            cp unitresult.log unittest_summary.txt
+          fi
           echo "" >> test_summary.txt
           echo "Unit Test Summary:" >> test_summary.txt
           cat ./unittest_summary.txt >> test_summary.txt

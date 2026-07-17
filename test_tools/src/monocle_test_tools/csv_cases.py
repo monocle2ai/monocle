@@ -13,6 +13,8 @@ import os
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Union
 
+import pytest
+
 from monocle_test_tools.fluent_api import TraceAssertion
 
 REQUIRED_COLUMNS = ("case_id", "id", "workflow_name")
@@ -258,3 +260,23 @@ def load_cases_from_csv(path: str) -> List[CsvCase]:
         seen.add(case.case_id)
         cases.append(case)
     return cases
+
+
+def monocle_csv_cases(path: str):
+    """Parametrize a test over the rows of a CSV of CsvCase.
+
+    Usage:
+        @monocle_csv_cases("cases.csv")
+        def test_cases(monocle_trace_asserter, case):
+            case.run(monocle_trace_asserter.with_evaluation("okahu"),
+                     template_path=TEMPLATE_PATH)
+
+    Relative paths resolve against the calling test file's directory, so the
+    test works regardless of pytest's invocation directory.
+    """
+    resolved = path
+    if not os.path.isabs(path):
+        caller_file = inspect.stack()[1].filename
+        resolved = os.path.join(os.path.dirname(os.path.abspath(caller_file)), path)
+    cases = load_cases_from_csv(resolved)
+    return pytest.mark.parametrize("case", cases, ids=[c.case_id for c in cases])

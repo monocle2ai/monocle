@@ -164,3 +164,22 @@ def test_run_non_eval_row_maps_all_columns():
                      "has_output", "has_attribute"]
     assert ("under_duration", (1200.0,), {"units": "ms"}) in a.calls
     assert ("has_attribute", (), {"attribute_name": "model", "expected": "gpt-4o"}) in a.calls
+
+
+def test_monocle_csv_cases_parametrizes(tmp_path):
+    path = _write(tmp_path,
+        "case_id,id,workflow_name,expected\n"
+        "a,t1,wf,ok\n"
+        "b,t2,wf,ok\n")
+    mark = csv_cases.monocle_csv_cases(path)  # absolute path
+
+    @mark
+    def dummy(case):
+        pass
+
+    params = [m for m in dummy.pytestmark if m.name == "parametrize"]
+    assert params, "expected a parametrize mark"
+    argnames, argvalues = params[0].args[0], params[0].args[1]
+    assert argnames == "case"
+    assert [c.case_id for c in argvalues] == ["a", "b"]
+    assert params[0].kwargs["ids"] == ["a", "b"]

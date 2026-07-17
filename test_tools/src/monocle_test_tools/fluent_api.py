@@ -3,7 +3,7 @@ import inspect
 import json
 import os
 from pathlib import Path
-from typing import Any, Optional, Sequence, Union
+from typing import Any, Callable, Optional, Sequence, Union
 from monocle_apptrace.instrumentation.common.method_wrappers import monocle_trace_method
 from monocle_apptrace.instrumentation.common.utils import get_workflow_name
 from monocle_test_tools.schema import Evaluation
@@ -300,33 +300,33 @@ class TraceAssertion():
         return self
 
     @collect_assertions
-    def has_attribute(self, key:str, value:Optional[any] = None, message:Optional[str] = None) -> 'TraceAssertion':
+    def has_attribute(self, attribute_name:str, expected:Optional[any] = None, message:Optional[str] = None) -> 'TraceAssertion':
         """Assert that a span carries the given attribute (optionally with a specific value).
 
         Filters the current spans down to those matching, so subsequent chained
-        assertions operate on the matching subset. When ``value`` is None, only the
+        assertions operate on the matching subset. When ``expected`` is None, only the
         presence of the attribute is checked.
         """
-        matching_spans = self._filter_spans_by_attribute(self._filtered_spans, key, value)
+        matching_spans = self._filter_spans_by_attribute(self._filtered_spans, attribute_name, expected)
         self._filtered_spans = matching_spans
         if not matching_spans:
             if message:
                 raise AssertionError(message)
-            if value is None:
-                raise AssertionError(f"No span found with attribute '{key}'")
-            raise AssertionError(f"No span found with attribute '{key}' == '{value}'")
+            if expected is None:
+                raise AssertionError(f"No span found with attribute '{attribute_name}'")
+            raise AssertionError(f"No span found with attribute '{attribute_name}' == '{expected}'")
         return self
 
     @collect_assertions
-    def does_not_have_attribute(self, key:str, value:Optional[any] = None, message:Optional[str] = None) -> 'TraceAssertion':
+    def does_not_have_attribute(self, attribute_name:str, expected:Optional[any] = None, message:Optional[str] = None) -> 'TraceAssertion':
         """Assert that no span carries the given attribute (optionally with a specific value)."""
-        matching_spans = self._filter_spans_by_attribute(self._filtered_spans, key, value)
+        matching_spans = self._filter_spans_by_attribute(self._filtered_spans, attribute_name, expected)
         if matching_spans:
             if message:
                 raise AssertionError(message)
-            if value is None:
-                raise AssertionError(f"Span found with attribute '{key}', but was not expected")
-            raise AssertionError(f"Span found with attribute '{key}' == '{value}', but was not expected")
+            if expected is None:
+                raise AssertionError(f"Span found with attribute '{attribute_name}', but was not expected")
+            raise AssertionError(f"Span found with attribute '{attribute_name}' == '{expected}', but was not expected")
         return self
 
     @collect_assertions
@@ -357,48 +357,131 @@ class TraceAssertion():
             )
         return self
 
-    def _filter_spans_by_attribute(self, spans:Optional[list[Span]], key:str, value:Optional[any]) -> list[Span]:
-        """Return spans whose attribute ``key`` is present (and equals ``value`` when given)."""
+    @collect_assertions
+    def where(self, attribute:Optional[dict] = None, event:Optional[dict] = None,
+              predicate:Optional[Callable[[Span], bool]] = None, message:Optional[str] = None) -> 'TraceAssertion':
+        """Generic span selector: narrow the filtered spans to those matching every given criterion.
+
+        This is the generic building block behind the more specific selectors
+        (``has_attribute``, ``has_event``). All provided criteria are AND-ed together;
+        a span matches when:
+
+          - every ``{name: expected}`` in ``attribute`` matches the span's attributes
+            (``expected`` of None checks presence only; strings use the configured comparer),
+          - it contains an event matching the ``event`` spec, and
+          - ``predicate(span)`` is truthy.
+
+        Args:
+            attribute: Mapping of attribute name -> expected value (None = presence check).
+            event: Event spec ``{"name": <event_name>, "attributes": {<attr>: <expected>}}``.
+                ``"attributes"`` is optional (event-presence check when omitted); per-attribute
+                ``expected`` of None checks presence only.
+            predicate: Callable receiving a Span and returning a bool for arbitrary matching.
+            message: Optional custom error message.
+
+        Example:
+            asserter.where(
+                attribute={"span.type": "agentic.turn"},
+                event={"name": "metadata", "attributes": {"total_tokens": 1000}},
+            )
+        """
+        if attribute is None and event is None and predicate is None:
+            raise ValueError("where() requires at least one of 'attribute', 'event', or 'predicate'.")
+        matching_spans = self._filter_spans_where(self._filtered_spans, attribute, event, predicate)
+        self._filtered_spans = matching_spans
+        if not matching_spans:
+            raise AssertionError(message or ("No span found matching " + self._describe_where(attribute, event, predicate)))
+        return self
+
+    @collect_assertions
+    def does_not_match(self, attribute:Optional[dict] = None, event:Optional[dict] = None,
+                       predicate:Optional[Callable[[Span], bool]] = None, message:Optional[str] = None) -> 'TraceAssertion':
+        """Negative counterpart of ``where``: assert no span matches all given criteria.
+
+        Accepts the same ``attribute``/``event``/``predicate`` criteria as ``where``.
+        """
+        if attribute is None and event is None and predicate is None:
+            raise ValueError("does_not_match() requires at least one of 'attribute', 'event', or 'predicate'.")
+        matching_spans = self._filter_spans_where(self._filtered_spans, attribute, event, predicate)
+        if matching_spans:
+            raise AssertionError(message or ("Span found matching " + self._describe_where(attribute, event, predicate)
+                                             + ", but was not expected"))
+        return self
+
+    @staticmethod
+    def _describe_where(attribute:Optional[dict], event:Optional[dict], predicate:Optional[Callable]) -> str:
+        """Build a human-readable description of a where() criteria set for error messages."""
+        parts = []
+        if attribute is not None:
+            parts.append(f"attribute(s) {attribute}")
+        if event is not None:
+            parts.append(f"event {event}")
+        if predicate is not None:
+            parts.append("predicate")
+        return " and ".join(parts) if parts else "given criteria"
+
+    def _value_matches(self, expected:Optional[Any], actual:Any) -> bool:
+        """Return True when ``actual`` satisfies ``expected`` (None = present/any value)."""
+        if expected is None:
+            return True
+        if isinstance(expected, str) and isinstance(actual, str):
+            return self._comparer.compare(expected, actual)
+        return actual == expected
+
+    def _span_matches_attributes(self, span:Span, attribute:dict) -> bool:
+        """Return True when the span carries every requested attribute with a matching value."""
+        for name, expected in attribute.items():
+            actual = span.attributes.get(name)
+            if actual is None:
+                return False
+            if not self._value_matches(expected, actual):
+                return False
+        return True
+
+    def _span_matches_event(self, span:Span, event:dict) -> bool:
+        """Return True when the span has an event matching the ``event`` spec."""
+        if not isinstance(event, dict):
+            raise ValueError("'event' must be a dict, e.g. {'name': 'metadata', 'attributes': {...}}")
+        event_name = event.get("name")
+        if event_name is None:
+            raise ValueError("'event' spec requires a 'name' key.")
+        attr_spec = event.get("attributes") or {}
+        for ev in getattr(span, "events", []) or []:
+            if ev.name != event_name:
+                continue
+            if not attr_spec:
+                return True
+            ev_attrs = ev.attributes or {}
+            if all(name in ev_attrs and self._value_matches(expected, ev_attrs[name])
+                   for name, expected in attr_spec.items()):
+                return True
+        return False
+
+    def _filter_spans_where(self, spans:Optional[Sequence[Span]], attribute:Optional[dict],
+                            event:Optional[dict], predicate:Optional[Callable[[Span], bool]]) -> list[Span]:
+        """Return spans satisfying all of the provided (attribute/event/predicate) criteria."""
         matching_spans = []
         for span in spans or []:
-            actual_value = span.attributes.get(key)
-            if actual_value is None:
+            if attribute is not None and not self._span_matches_attributes(span, attribute):
                 continue
-            if value is None:
-                matching_spans.append(span)
-            elif isinstance(value, str) and isinstance(actual_value, str):
-                if self._comparer.compare(value, actual_value):
-                    matching_spans.append(span)
-            elif actual_value == value:
-                matching_spans.append(span)
+            if event is not None and not self._span_matches_event(span, event):
+                continue
+            if predicate is not None and not predicate(span):
+                continue
+            matching_spans.append(span)
         return matching_spans
+
+    def _filter_spans_by_attribute(self, spans:Optional[list[Span]], attribute_name:str, expected:Optional[any]) -> list[Span]:
+        """Return spans whose attribute ``attribute_name`` is present (and equals ``expected`` when given)."""
+        return self._filter_spans_where(spans, {attribute_name: expected}, None, None)
 
     def _filter_spans_by_event(self, spans:Optional[Sequence[Span]], event_name:str,
                                attribute_name:Optional[str], expected:Optional[Any]) -> list[Span]:
         """Return spans containing an event that satisfies the requested attribute match."""
-        matching_spans = []
-        for span in spans or []:
-            for event in getattr(span, "events", []) or []:
-                if event.name != event_name:
-                    continue
-                if attribute_name is None:
-                    matching_spans.append(span)
-                    break
-                attributes = event.attributes or {}
-                if attribute_name not in attributes:
-                    continue
-                actual = attributes[attribute_name]
-                if expected is None:
-                    matching_spans.append(span)
-                    break
-                if isinstance(expected, str) and isinstance(actual, str):
-                    matches = self._comparer.compare(expected, actual)
-                else:
-                    matches = actual == expected
-                if matches:
-                    matching_spans.append(span)
-                    break
-        return matching_spans
+        event_spec:dict = {"name": event_name}
+        if attribute_name is not None:
+            event_spec["attributes"] = {attribute_name: expected}
+        return self._filter_spans_where(spans, None, event_spec, None)
 
     @collect_assertions
     def has_input(self, expected_input:str, message:Optional[str] = None) -> 'TraceAssertion':

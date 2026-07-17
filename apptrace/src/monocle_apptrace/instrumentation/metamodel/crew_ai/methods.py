@@ -65,7 +65,7 @@ CREW_AI_METHODS = [
     # Tool execution - public interface
     {
         "package": "crewai.tools.base_tool",
-        "object": "BaseTool", 
+        "object": "BaseTool",
         "method": "run",
         "wrapper_method": task_wrapper,
         "span_handler": "crew_ai_tool_handler",

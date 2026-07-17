@@ -269,3 +269,15 @@ def get_agent_description(instance) -> str:
 def get_tool_description(instance) -> str:
     """Get the description of the tool."""
     return get_description(instance)
+
+def is_streaming_mode(instance) -> bool:
+    """Check if a Crew instance is configured for streaming."""
+    try:
+        # Check if instance is a Crew and has stream attribute.
+        # Use bool() instead of 'is True' to handle pydantic-wrapped booleans.
+        if hasattr(instance, 'stream'):
+            return bool(instance.stream)
+        return False
+    except Exception as e:
+        logger.debug(f"Error checking streaming mode: {e}")
+        return False

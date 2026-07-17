@@ -122,6 +122,45 @@ class CsvCase:
     extra_steps: List[dict] = field(default_factory=list)
     notes: Optional[str] = None
 
+    def run(self, asserter, **check_eval_kwargs) -> None:
+        """Drive this row through the fluent TraceAssertion `asserter`.
+
+        Independent assertions are each invoked on the base asserter (not
+        threaded): PR #721 collects failures on the asserter and the pytest
+        plugin reports them. Only misconfiguration (eval columns with no
+        evaluator) raises from here.
+        """
+        asserter.with_trace_source("okahu", id=self.id, workflow_name=self.workflow_name)
+
+        if self.expected is not None or self.not_expected is not None:
+            if getattr(asserter, "_eval", None) is None:
+                raise CsvCaseError(
+                    f"row '{self.case_id}': has expected/not_expected but no evaluator is "
+                    f"configured. Add .with_evaluation(...) to your test stub."
+                )
+            asserter.check_eval(
+                expected=self.expected,
+                not_expected=self.not_expected,
+                fact_name=self.fact_name,
+                **check_eval_kwargs,
+            )
+
+        if self.called_tool is not None:
+            asserter.called_tool(self.called_tool)
+        if self.called_agent is not None:
+            asserter.called_agent(self.called_agent)
+        if self.token_limit is not None:
+            asserter.under_token_limit(self.token_limit)
+        if self.duration_ms is not None:
+            asserter.under_duration(self.duration_ms, units="ms")
+        if self.has_input is not None:
+            asserter.has_input(self.has_input)
+        if self.has_output is not None:
+            asserter.has_output(self.has_output)
+
+        for step in self.extra_steps:
+            getattr(asserter, step["method"])(**step.get("kwargs", {}))
+
 
 def _require(row: dict, column: str, case_id: str, line: int) -> str:
     value = row.get(column, "").strip()

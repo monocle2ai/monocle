@@ -110,3 +110,57 @@ def test_load_cases_missing_required_column(tmp_path):
 def test_load_cases_missing_file():
     with pytest.raises(csv_cases.CsvCaseError):
         csv_cases.load_cases_from_csv("/nonexistent/cases.csv")
+
+
+class _RecordingAsserter:
+    """Test double: records calls, returns self, mimics _eval presence."""
+    def __init__(self, has_eval=True):
+        self.calls = []
+        self._eval = object() if has_eval else None
+
+    def __getattr__(self, name):
+        def method(*args, **kwargs):
+            self.calls.append((name, args, kwargs))
+            return self
+        return method
+
+
+def test_run_eval_row_issues_trace_source_and_check_eval():
+    case = csv_cases._row_to_case(
+        {"case_id": "c", "id": "t1", "workflow_name": "wf", "expected": "ok"}, 2)
+    a = _RecordingAsserter(has_eval=True)
+    case.run(a, template_path="tpl.json")
+    names = [c[0] for c in a.calls]
+    assert names == ["with_trace_source", "check_eval"]
+    ts = a.calls[0]
+    assert ts[1] == ("okahu",) and ts[2] == {"id": "t1", "workflow_name": "wf"}
+    ce = a.calls[1]
+    assert ce[2] == {"expected": "ok", "not_expected": None,
+                     "fact_name": "traces", "template_path": "tpl.json"}
+
+
+def test_run_eval_row_without_evaluator_raises():
+    case = csv_cases._row_to_case(
+        {"case_id": "needs_eval", "id": "t", "workflow_name": "wf", "expected": "ok"}, 2)
+    a = _RecordingAsserter(has_eval=False)
+    with pytest.raises(csv_cases.CsvCaseError) as exc:
+        case.run(a)
+    assert "needs_eval" in str(exc.value)
+    assert "with_evaluation" in str(exc.value)
+
+
+def test_run_non_eval_row_maps_all_columns():
+    row = {"case_id": "c", "id": "t", "workflow_name": "wf",
+           "called_tool": "search_web", "called_agent": "planner",
+           "token_limit": "5000", "duration_ms": "1200",
+           "has_input": "hello", "has_output": "world",
+           "extra_json": '[{"method":"has_attribute","kwargs":{"attribute_name":"model","expected":"gpt-4o"}}]'}
+    case = csv_cases._row_to_case(row, 2)
+    a = _RecordingAsserter(has_eval=False)
+    case.run(a)
+    names = [c[0] for c in a.calls]
+    assert names == ["with_trace_source", "called_tool", "called_agent",
+                     "under_token_limit", "under_duration", "has_input",
+                     "has_output", "has_attribute"]
+    assert ("under_duration", (1200.0,), {"units": "ms"}) in a.calls
+    assert ("has_attribute", (), {"attribute_name": "model", "expected": "gpt-4o"}) in a.calls

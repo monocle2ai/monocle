@@ -170,22 +170,36 @@ class OkahuSpanLoader:
             ValueError: If OKAHU_API_KEY is not configured.
             ConnectionError: If the request to Okahu fails.
         """
-        # Strip 0x prefix if present
-        trace_id = trace_id.replace("0x", "")
+        bare_id = trace_id.replace("0x", "")
 
         base = OkahuSpanLoader._get_api_base(endpoint)
         headers = OkahuSpanLoader._get_headers(api_key)
-        url = f"{base}/api/v1/workflows/{workflow_name}/traces/{trace_id}/spans"
 
         params = {}
         if filter_fact and filter_fact_id:
             params["filter_fact"] = filter_fact
             params["filter_fact_id"] = filter_fact_id
 
-        span_data_list = OkahuSpanLoader._do_get(
-            url, headers, params=params or None, timeout=timeout,
-            context_msg=f"spans for trace_id '{trace_id}' in workflow '{workflow_name}'"
-        )
+        # Try bare hex first (OTLP ingest path), then 0x-prefixed
+        # (OTel SDK ingest path) to handle both storage formats.
+        for candidate_id in [bare_id, f"0x{bare_id}"]:
+            url = f"{base}/api/v1/workflows/{workflow_name}/traces/{candidate_id}/spans"
+            try:
+                span_data_list = OkahuSpanLoader._do_get(
+                    url, headers, params=params or None, timeout=timeout,
+                    context_msg=f"spans for trace_id '{candidate_id}' in workflow '{workflow_name}'"
+                )
+                trace_id = candidate_id
+                break
+            except requests.HTTPError as exc:
+                if exc.response is not None and exc.response.status_code == 404 and candidate_id == bare_id:
+                    continue
+                raise
+        else:
+            raise requests.HTTPError(
+                f"Trace '{bare_id}' not found in workflow '{workflow_name}' "
+                f"(tried both bare hex and 0x-prefixed)."
+            )
 
         span_data_list = OkahuSpanLoader._unwrap_list(
             span_data_list, ("spans", "batch", "data", "results", "trace_spans"),

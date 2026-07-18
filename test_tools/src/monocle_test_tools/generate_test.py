@@ -16,7 +16,8 @@ def main():
         epilog=__doc__
     )
     
-    parser.add_argument("trace_file", help="Path to trace JSON file")
+    parser.add_argument("trace_file", nargs="?", default=None, help="Path to trace JSON file")
+    parser.add_argument("--trace-file", dest="_trace_file_flag", metavar="TRACE_FILE", default=None, help="Path to trace JSON file")
     parser.add_argument("--test-name", default="test_generated", help="Test function name (default: test_generated)")
     
     parser.add_argument(
@@ -28,10 +29,14 @@ def main():
     )
     args = parser.parse_args()
     
+    trace_file = args._trace_file_flag if args._trace_file_flag else args.trace_file
+    if not trace_file:
+        parser.error("trace file is required: provide it as a positional argument or via --trace-file")
+    
     from monocle_test_tools.test_generator import TestGenerator
     
     try:
-        generator = TestGenerator.from_json_file(args.trace_file, trace_source=args.trace_source)
+        generator = TestGenerator.from_json_file(trace_file, trace_source=args.trace_source)
         test_code = generator.generate_test_code(test_name=args.test_name)
         print(test_code)
     except Exception as e:

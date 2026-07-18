@@ -2,6 +2,23 @@ import os
 from datetime import datetime
 import pytest
 from .fluent_api import TraceAssertion
+from . import eval_matrix
+
+
+def pytest_addoption(parser) -> None:
+    """Register the opt-in --monocle-eval-matrix option.
+
+    See `eval_matrix.py` for the recorder implementation. Off by default:
+    a plain `pytest` invocation with neither this flag nor the
+    MONOCLE_EVAL_MATRIX env var set records nothing and writes no file.
+    """
+    eval_matrix.pytest_addoption(parser)
+
+
+def pytest_sessionfinish(session) -> None:
+    """If the eval-result-matrix recorder is enabled, write the collected
+    records to the resolved output path."""
+    eval_matrix.pytest_sessionfinish(session)
 
 @pytest.fixture(scope="session", autouse=True)
 def run_once_at_start_of_session():
@@ -78,7 +95,11 @@ def monocle_trace_asserter(request:pytest.FixtureRequest):
             assertion_messages = None
         traceAssertion.validator.post_test_cleanup(token, request.node.name, is_test_failed,
                                     assertion_messages, skip_export=traceAssertion._skip_export)
-        
+
+        # Opt-in eval-result-matrix recorder: self-skips when disabled, or
+        # when this test never called check_eval (no `_last_eval` stash).
+        eval_matrix.record_eval_row_for(request.config, request, traceAssertion)
+
         # Cleanup trace asserter (triggers eval cleanup including trace deletion)
         traceAssertion.cleanup()
 

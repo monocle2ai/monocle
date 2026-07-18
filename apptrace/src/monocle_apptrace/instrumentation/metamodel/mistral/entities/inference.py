@@ -2,6 +2,13 @@ from monocle_apptrace.instrumentation.common.constants import SPAN_TYPES
 from monocle_apptrace.instrumentation.metamodel.mistral import _helper
 from monocle_apptrace.instrumentation.common.utils import get_error_message, resolve_from_alias
 
+
+def process_stream(to_wrap, response, span_processor):
+    from monocle_apptrace.instrumentation.metamodel.mistral.mistral_stream_processor import MistralStreamProcessor
+
+    processor = MistralStreamProcessor()
+    return processor.process_stream(to_wrap, response, span_processor)
+
 MISTRAL_INFERENCE = {
     "type": SPAN_TYPES.INFERENCE,
     "subtype": lambda arguments: _helper.agent_inference_type(arguments),
@@ -102,4 +109,11 @@ MISTRAL_INFERENCE = {
             ]
         }
     ]
+}
+
+
+MISTRAL_STREAM_INFERENCE = {
+    **MISTRAL_INFERENCE,
+    "is_auto_close": lambda kwargs: False,
+    "response_processor": process_stream,
 }

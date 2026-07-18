@@ -13,6 +13,13 @@ from typing import Optional, Union
 logger = logging.getLogger(__name__)
 OKAHU_PROD_EVALUATION_ENDPOINT = "https://eval.okahu.co/api"
 
+# Time window padding (seconds) applied around the span envelope when filtering traces
+# for evals. Applied uniformly on either side of the earliest-start/latest-end span
+# envelope. Defaults to 8 hours to cover long-lived aggregate facts (sessions,
+# conversations, test runs) that can span multiple traces; override via
+# OKAHU_EVAL_TIME_PAD_SECONDS if a deployment needs a tighter or wider window.
+DEFAULT_EVAL_TIME_PAD_SECONDS = 8 * 60 * 60      # 8 hours
+
 class OkahuEval(BaseEval):
     last_judge_output: dict = {}
     last_total_tokens: Optional[int] = None
@@ -351,6 +358,18 @@ class OkahuEval(BaseEval):
         if not fact_ids:
             raise AssertionError(f"No fact IDs found in spans for fact_name='{fact_name}'.")
 
+        # Compute a time window around the full span set for trace filtering (compute/perf).
+        # Use the earliest start and latest end across all filtered spans (the workflow envelope),
+        # then pad uniformly on either side so aggregate facts spanning multiple traces are covered.
+        pad_seconds = int(os.getenv("OKAHU_EVAL_TIME_PAD_SECONDS", DEFAULT_EVAL_TIME_PAD_SECONDS))
+        pad_ns = pad_seconds * 1e9
+        earliest_start_ns = min(s.start_time for s in filtered_spans)
+        latest_end_ns = max(s.end_time for s in filtered_spans)
+        start_span_ns = earliest_start_ns - pad_ns  # pad before earliest start, in nanoseconds
+        end_span_ns = latest_end_ns + pad_ns  # pad after latest end, in nanoseconds
+        start_time = datetime.fromtimestamp(start_span_ns / 1e9, timezone.utc).strftime('%Y-%m-%dT%H:%M:%S.%fZ')
+        end_time = datetime.fromtimestamp(end_span_ns / 1e9, timezone.utc).strftime('%Y-%m-%dT%H:%M:%S.%fZ')
+
         headers = {"x-api-key": api_key}
         W3CBaggagePropagator().inject(headers)
 
@@ -367,6 +386,8 @@ class OkahuEval(BaseEval):
                 "breakdown_filter": fact_name,
                 "trace_id": fact_id,
                 "fact_name": fact_name,
+                "start_time": start_time,
+                "end_time": end_time,
                 "shadow_eval": self._trace_source != "okahu"
             }
             

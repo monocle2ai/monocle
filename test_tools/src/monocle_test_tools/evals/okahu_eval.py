@@ -21,6 +21,9 @@ OKAHU_PROD_EVALUATION_ENDPOINT = "https://eval.okahu.co/api"
 DEFAULT_EVAL_TIME_PAD_SECONDS = 8 * 60 * 60      # 8 hours
 
 class OkahuEval(BaseEval):
+    last_judge_output: dict = {}
+    last_total_tokens: Optional[int] = None
+
     def __init__(self, **data):
         eval_options = data.get("eval_options")
         super().__init__(eval_options=eval_options)
@@ -28,6 +31,8 @@ class OkahuEval(BaseEval):
         self._trace_exported = self._trace_source == "okahu"  # Only export if using okahu trace source, otherwise assume already exported
         self._current_trace_id = None
         self._fact_map_cache = None
+        self.last_judge_output: dict = {}
+        self.last_total_tokens = None
     
     @staticmethod
     def _map_fact_name(fact_name: str) -> str:
@@ -425,6 +430,8 @@ class OkahuEval(BaseEval):
                 parsed = json.loads(eval_result[0].get("result"))
                 label = parsed.get("label")
                 explanation = parsed.get("explanation")
+                self.last_judge_output = parsed
+                self.last_total_tokens = parsed.get("total_tokens")
             except AssertionError:
                 raise
             except Exception as exc:

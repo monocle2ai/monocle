@@ -67,10 +67,10 @@ def test_check_eval_filtered_rejects_overlapping_expected_not_expected():
                               expected="x", not_expected=["x", "y"])
 
 
-def _report(passed=1, drift=0, errors=0, scenarios=None):
+def _report(passed=1, failed=0, errors=0, scenarios=None):
     return {"job_id": "job-1", "status": "completed",
-            "summary": {"total": passed + drift + errors, "passed": passed,
-                        "drift": drift, "errors": errors, "duration_seconds": 1},
+            "summary": {"total": passed + failed + errors, "passed": passed,
+                        "failed": failed, "errors": errors, "duration_seconds": 1},
             "scenarios": scenarios or [
                 {"fact_id": "aa", "expected": ["no_hallucination"], "actual": "no_hallucination",
                  "status": "pass", "job_id": "job-1", "explanation": "", "workflow": "wf"}]}
@@ -87,15 +87,15 @@ def test_check_eval_filtered_passes_and_stashes_report(monkeypatch):
     assert a.get_filtered_eval_failures() == []
 
 
-def test_check_eval_filtered_raises_on_drift_over_threshold(monkeypatch):
+def test_check_eval_filtered_raises_on_fail_over_threshold(monkeypatch):
     monkeypatch.delenv("MONOCLE_EVAL_MATRIX", raising=False)
-    drift_scn = [{"fact_id": "bb", "expected": ["no_hallucination"], "actual": "major_hallucination",
-                  "status": "drift", "job_id": "job-1", "explanation": "", "workflow": "wf"}]
+    fail_scn = [{"fact_id": "bb", "expected": ["no_hallucination"], "actual": "major_hallucination",
+                 "status": "fail", "job_id": "job-1", "explanation": "", "workflow": "wf"}]
     a = _asserter().with_filtered_source("okahu", workflow_name="wf", start_time="s", end_time="e")
     with patch("monocle_test_tools.evals.okahu_filtered_eval.OkahuFilteredEval.from_env") as mk:
-        mk.return_value.run_filtered.return_value = _report(passed=0, drift=1, scenarios=drift_scn)
+        mk.return_value.run_filtered.return_value = _report(passed=0, failed=1, scenarios=fail_scn)
         with pytest.raises(AssertionError):
             a.check_eval_filtered(eval_name="hallucination", expected="no_hallucination")
     # report + failures are still available after the raise
-    assert a.get_filtered_eval_report()["summary"]["drift"] == 1
+    assert a.get_filtered_eval_report()["summary"]["failed"] == 1
     assert [f["fact_id"] for f in a.get_filtered_eval_failures()] == ["bb"]

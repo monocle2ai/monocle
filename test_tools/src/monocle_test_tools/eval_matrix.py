@@ -46,7 +46,7 @@ def build_eval_matrix_row(run_id: str, scenario: str, last_eval: dict, passed: b
     if passed:
         status = "pass"
     elif actual:
-        status = "drift"
+        status = "fail"
     else:
         status = "error"
 

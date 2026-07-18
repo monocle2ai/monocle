@@ -40,7 +40,7 @@ def test_build_eval_matrix_row_pass_includes_tokens():
     }
 
 
-def test_build_eval_matrix_row_not_passed_with_label_is_drift():
+def test_build_eval_matrix_row_not_passed_with_label_is_fail():
     last_eval = {
         "trace_id": "def456",
         "expected": ["no_hallucination"],
@@ -53,7 +53,7 @@ def test_build_eval_matrix_row_not_passed_with_label_is_drift():
 
     row = build_eval_matrix_row(run_id="run-2", scenario="test_y", last_eval=last_eval, passed=False)
 
-    assert row["status"] == "drift"
+    assert row["status"] == "fail"
     assert row["actual"] == "major_hallucination"
     assert row["claim_verdicts"] == []
     assert row["hallucination_types"] == []
@@ -206,11 +206,11 @@ def test_record_eval_rows_from_report_appends_one_row_per_scenario_when_enabled(
         {"fact_id": "aa", "workflow": "wf", "job_id": "job-1", "expected": ["no_hallucination"],
          "actual": "no_hallucination", "status": "pass", "explanation": "ok"},
         {"fact_id": "bb", "workflow": "wf", "job_id": "job-1", "expected": ["no_hallucination"],
-         "actual": "major_hallucination", "status": "drift", "explanation": "x"}]}
+         "actual": "major_hallucination", "status": "fail", "explanation": "x"}]}
     eval_matrix.record_eval_rows_from_report(report)
     rows = get_records()
     assert [r["fact_id"] for r in rows] == ["aa", "bb"]
-    assert [r["status"] for r in rows] == ["pass", "drift"]
+    assert [r["status"] for r in rows] == ["pass", "fail"]
 
 
 def test_record_eval_rows_from_report_self_skips_when_disabled(monkeypatch):

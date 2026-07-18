@@ -30,7 +30,7 @@ def has_label(result) -> bool:
     )
 
 
-_COUNT_KEY = {"pass": "passed", "drift": "drift", "error": "errors"}
+_COUNT_KEY = {"pass": "passed", "fail": "failed", "error": "errors"}
 
 
 def _as_list(x):
@@ -40,14 +40,14 @@ def _as_list(x):
 
 
 def grade_label(actual, accepted=None, not_expected=None) -> str:
-    """'pass' | 'drift' | 'missing' for one actual label (any-of accepted + not_expected)."""
+    """'pass' | 'fail' | 'missing' for one actual label (any-of accepted + not_expected)."""
     if actual is None:
         return "missing"
     acc, ne = _as_list(accepted), (_as_list(not_expected) or [])
     if acc is not None and actual not in acc:
-        return "drift"
+        return "fail"
     if actual in ne:
-        return "drift"
+        return "fail"
     return "pass"
 
 
@@ -94,7 +94,7 @@ def build_filtered_report(accepted, not_expected, results: list, job_id,
             "job_id": row.get("job_id"), "explanation": explanation,
             "workflow": row.get("workflow", ""),
         })
-    counts = {"passed": 0, "drift": 0, "errors": 0}
+    counts = {"passed": 0, "failed": 0, "errors": 0}
     for s in scenarios:
         counts[_COUNT_KEY[s["status"]]] += 1
     return {
@@ -156,8 +156,10 @@ class OkahuFilteredEval:
             "workflow_name": workflow_names,
             "start_time": start_time, "end_time": end_time,
             "fact_name": fact_name, "breakdown_filter": fact_name,
-            "shadow_eval": "true",
-        }  # NOTE: no trace_id -> async filtered mode
+            "shadow_eval": False,
+        }  # NOTE: no trace_id -> async filtered mode. shadow_eval is False because
+        # filtered jobs grade traces already loaded in Okahu, not test-generated
+        # shadow traces (mirrors the interactive path's `_trace_source != "okahu"`).
         body = {"template": template} if template else {"template_name": eval_name}
         resp = requests.post(url, headers=self.headers, params=params, json=body, timeout=120)
         resp.raise_for_status()

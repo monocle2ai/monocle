@@ -875,7 +875,7 @@ class TraceAssertion():
                             not_expected: Optional[Union[str, list[str]]] = None, *,
                             template_path: Optional[str] = None,
                             template: Optional[dict] = None,
-                            drift_threshold: int = 0, min_facts: int = 1,
+                            fail_threshold: int = 0, min_facts: int = 1,
                             message: Optional[str] = None) -> 'TraceAssertion':
         """Run a filtered eval over the declared filtered source and assert labels.
 
@@ -925,12 +925,12 @@ class TraceAssertion():
         eval_matrix.record_eval_rows_from_report(report)
 
         s = report["summary"]
-        if s["errors"] > 0 or s["drift"] > drift_threshold:
+        if s["errors"] > 0 or s["failed"] > fail_threshold:
             failures = [r for r in report["scenarios"] if r["status"] != "pass"]
             lines = "\n".join(f"  {r['status']:7} {r['fact_id']}  exp={r['expected']} act={r['actual']}"
                               for r in failures)
             raise AssertionError(message or
-                f"Filtered eval failed: {s['drift']} drift, {s['errors']} errors "
+                f"Filtered eval failed: {s['failed']} failed, {s['errors']} errors "
                 f"(of {s['total']}).\n{lines}")
         return self
 

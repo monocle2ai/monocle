@@ -8,45 +8,17 @@ Two things are centralised here:
 
 1. ``build_stream_span_processors`` — wires an in-memory/console exporter (for
    local assertions) together with the Okahu exporter (so every run also
-   publishes a real trace to Okahu).  The Okahu exporter is added only when an
-   ``OKAHU_API_KEY`` is resolvable, so the examples still run offline.
+   publishes a real trace to Okahu).  The Okahu exporter is always added;
+   ``OkahuSpanExporter`` raises if ``OKAHU_API_KEY`` is not resolvable, so a
+   misconfigured environment fails loudly instead of silently running offline.
 2. ``collect_stream`` / ``acollect_stream`` — drain a streamed response while
    accumulating the text deltas, mirroring how a real UI would consume a stream.
 """
 
-import logging
-import os
-from pathlib import Path
-
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 
 from common.custom_exporter import CustomConsoleSpanExporter
-
-logger = logging.getLogger(__name__)
-
-
-def _ensure_okahu_key_loaded() -> bool:
-    """Best-effort load of ``OKAHU_API_KEY`` from the repo-root ``.env.monocle``.
-
-    ``get_monocle_env_value`` only looks at ``os.getcwd()/.env.monocle``; pytest
-    may run from a different working directory, so we walk up from this file to
-    find the repo root and hoist the key into ``os.environ``.
-    """
-    if os.environ.get("OKAHU_API_KEY"):
-        return True
-    for parent in Path(__file__).resolve().parents:
-        env_file = parent / ".env.monocle"
-        if not env_file.exists():
-            continue
-        try:
-            for line in env_file.read_text(encoding="utf-8").splitlines():
-                line = line.strip()
-                if line.startswith("OKAHU_API_KEY="):
-                    os.environ["OKAHU_API_KEY"] = line.split("=", 1)[1].strip().strip("\"'")
-                    return True
-        except Exception:  # pragma: no cover - defensive, never break a scenario
-            pass
-    return bool(os.environ.get("OKAHU_API_KEY"))
+from monocle_apptrace.exporters.okahu.okahu_exporter import OkahuSpanExporter
 
 
 def build_stream_span_processors(exporter=None):
@@ -61,19 +33,10 @@ def build_stream_span_processors(exporter=None):
     Returns ``(exporter, span_processors)``.
     """
     exporter = exporter or CustomConsoleSpanExporter()
-    span_processors = [SimpleSpanProcessor(exporter)]
-
-    if _ensure_okahu_key_loaded():
-        try:
-            from monocle_apptrace.exporters.okahu.okahu_exporter import OkahuSpanExporter
-
-            span_processors.append(SimpleSpanProcessor(OkahuSpanExporter()))
-            logger.info("Okahu exporter enabled for streaming scenario.")
-        except Exception as ex:  # missing key / import issue -> keep running offline
-            logger.warning("Okahu exporter not enabled (%s); running with in-memory only.", ex)
-    else:
-        logger.info("OKAHU_API_KEY not found; streaming scenario runs in-memory only.")
-
+    span_processors = [
+        SimpleSpanProcessor(exporter),
+        SimpleSpanProcessor(OkahuSpanExporter()),
+    ]
     return exporter, span_processors
 
 

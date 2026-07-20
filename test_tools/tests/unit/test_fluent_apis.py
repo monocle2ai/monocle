@@ -117,5 +117,17 @@ def test_event_filter_distinguishes_missing_and_non_matching_values(monocle_trac
     assert not loaded._filter_spans_by_event(spans, "metadata", "missing", None)
     assert not loaded._filter_spans_by_event(spans, "metadata", "total_tokens", "229")
 
+def test_okahu_filter_threads_through_collect_assertions():
+    a = TraceAssertion()
+    a._okahu_filter = {"workflows": ["wf"], "start_time": "s",
+                       "end_time": "e", "fact_name": "traces"}
+    # called_tool is @collect_assertions-decorated: it returns a *new* asserter.
+    # (It may record an assertion on empty spans; that is irrelevant here.)
+    b = a.called_tool("anything")
+    assert b._okahu_filter == {"workflows": ["wf"], "start_time": "s",
+                               "end_time": "e", "fact_name": "traces"}
+    # Clear assertion errors (irrelevant to the filter threading test)
+    TraceAssertion._assertion_errors = []
+
 if __name__ == "__main__":
     pytest.main([__file__])

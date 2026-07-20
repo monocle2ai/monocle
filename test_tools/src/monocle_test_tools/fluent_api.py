@@ -38,7 +38,8 @@ def collect_assertions(func):
             fluent_chain.append(signature)
         fluent_chain.append(func_signature)
         asserter = TraceAssertion(filtered_spans=asserter._filtered_spans, fluent_chain=fluent_chain,
-                            is_assertion_failed=asserter.is_assertion_failed, _eval=asserter._eval)
+                            is_assertion_failed=asserter.is_assertion_failed, _eval=asserter._eval,
+                            okahu_filter=getattr(asserter, "_okahu_filter", None))
         try:
             func(asserter, *args, **kwargs)
         except AssertionError as e:
@@ -60,6 +61,10 @@ class TraceAssertion():
     # (class-qualified) and otherwise mutate in place (`.update(...)`) so
     # the fixture's `traceAssertion.__last_eval` sees the same object.
     _last_eval: Optional[dict[str, Any]] = None
+    # Filter scope recorded by with_trace_source("okahu", start_time=..., end_time=...)
+    # for eval-only filtered runs. Threaded through @collect_assertions like
+    # _filtered_spans so the (decorated) check_eval can read it.
+    _okahu_filter: Optional[dict] = None
 
     @staticmethod
     def get_trace_asserter():
@@ -68,7 +73,8 @@ class TraceAssertion():
         return traceAssertion
 
     def __init__(self, filtered_spans:Optional[list[Span]] = None, fluent_chain:list[str] = []
-                ,is_assertion_failed:bool = False, _eval:Optional[Union[str, BaseEval]] = None) -> None:
+                ,is_assertion_failed:bool = False, _eval:Optional[Union[str, BaseEval]] = None,
+                okahu_filter:Optional[dict] = None) -> None:
         self._eval:Union[str, BaseEval]  = _eval
         self.validator = MonocleValidator()
         if filtered_spans is None:
@@ -79,6 +85,7 @@ class TraceAssertion():
         self.is_assertion_failed = is_assertion_failed
         self._skip_export = False
         self.mock_tools: Optional[list[MockTool]] = []
+        self._okahu_filter = okahu_filter
         
     def record_assertion(self, e:AssertionError, fluent_chain:list[str]) -> None:
         """Record an assertion error with its fluent chain context."""
@@ -115,6 +122,7 @@ class TraceAssertion():
         # Clean up validator state
         self.validator.cleanup()
         self._filtered_spans = None
+        self._okahu_filter = None
         TraceAssertion._assertion_errors = []
         TraceAssertion._last_eval = None
 

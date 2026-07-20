@@ -182,3 +182,21 @@ def test_check_eval_filter_only_params_rejected_in_span_mode():
         a.check_eval(eval_name="hallucination", expected="x", min_facts=5)
     with pytest.raises(ValueError):
         a.check_eval(eval_name="hallucination", expected="x", fail_threshold=2)
+
+
+def test_get_eval_report_uniform_span_mode(monkeypatch, tmp_path):
+    # Span-mode: build_eval yields a 1-fact report via check_eval (evaluator mocked).
+    from monocle_test_tools.fluent_api import TraceAssertion
+    TraceAssertion._eval_report = None
+    a = _asserter()
+    a._filtered_spans = None
+    a._okahu_filter = {"workflows": ["wf"], "start_time": "s", "end_time": "e", "fact_name": "traces"}
+    with patch("monocle_test_tools.evals.okahu_filtered_eval.OkahuFilteredEval.from_env") as mk:
+        mk.return_value.run_filtered.return_value = _report()
+        a.check_eval(eval_name="hallucination", expected="no_hallucination")
+    report = a.get_eval_report()
+    assert report["summary"]["passed"] == 1
+    assert a.get_eval_failures() == []
+    out = tmp_path / "r.json"
+    a.write_eval_report(str(out))
+    assert out.is_file()

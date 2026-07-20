@@ -968,6 +968,17 @@ class TraceAssertion():
         """The uniform eval report stashed by check_eval (filter mode = N facts; span mode = 1 fact)."""
         return self._eval_report
 
+    def get_eval_failures(self) -> list:
+        """Extract failures from the class-scoped eval report."""
+        report = getattr(TraceAssertion, "_eval_report", None) or {"scenarios": []}
+        return [r for r in report["scenarios"] if r["status"] != "pass"]
+
+    def write_eval_report(self, path: str) -> None:
+        """Write the class-scoped eval report to a JSON file."""
+        import json as _json
+        with open(path, "w", encoding="utf-8") as f:
+            _json.dump(getattr(TraceAssertion, "_eval_report", {}) or {}, f, indent=2)
+
     def with_filtered_source(self, source: str = "okahu", *, workflow_name,
                              start_time, end_time, fact_name: str = "traces") -> 'TraceAssertion':
         """Declare a filtered eval scope (async job over a workflow + time-window filter).

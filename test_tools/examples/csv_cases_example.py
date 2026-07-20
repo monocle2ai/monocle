@@ -1,4 +1,4 @@
-"""Copy-ready example: drive monocle test cases from a CSV.
+"""Copy-ready example: drive monocle eval test cases from a CSV.
 
 Real usage — a teammate writes this stub once; non-engineers edit the CSV:
 
@@ -25,5 +25,5 @@ def test_example_csv_loads():
     cases = load_cases_from_csv(_CSV)
     assert len(cases) >= 2
     assert cases[0].case_id
-    # every example row has at least one assertion (guaranteed by the loader)
-    assert cases[0].expected is not None or cases[0].called_tool is not None
+    # every eval row carries a label (guaranteed by the loader)
+    assert cases[0].expected is not None or cases[0].not_expected is not None

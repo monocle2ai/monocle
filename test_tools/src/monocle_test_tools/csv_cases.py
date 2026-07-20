@@ -1,15 +1,24 @@
-"""CSV -> fluent test-case adapter for monocle_test_tools.
+"""CSV -> fluent eval test-case adapter for monocle_test_tools.
 
-Loads a flat CSV of okahu-trace test cases and drives each row through the
-existing fluent TraceAssertion API via ``@monocle_csv_cases`` + ``CsvCase.run``,
-so test data can be curated in a spreadsheet.
+Loads a flat CSV of okahu-trace *evaluation* test cases and drives each row
+through the existing fluent TraceAssertion API via ``@monocle_csv_cases`` +
+``CsvCase.run``, so eval test data can be curated in a spreadsheet.
+
+Scope (v0): evaluation tests only. Each row asserts an eval label
+(``expected``/``not_expected`` via ``check_eval``) and, optionally, operational
+guard rails on the run: a token budget (``max_tokens`` -> ``under_token_limit``)
+and an effort ceiling (``max_duration_ms`` -> ``under_duration``). The loader
+bridges exactly these three stable, eval-relevant fluent methods -- not the
+open set of assertions. General non-eval assertions (tool/agent calls,
+input/output, arbitrary fluent methods) and multi-condition rows are
+intentionally out of scope for v0; see the PR for the rationale and future
+considerations.
 
 Config-in-code, data-in-CSV: the test stub owns everything constant across the
 sheet (the evaluator via ``with_evaluation(...)``, the eval ``template_path``,
 and the trace source, fixed to ``okahu`` in this version); the CSV owns only
-what varies per row (trace id, workflow, expected labels, and per-row
-assertions). One row = one test; a row may carry several assertions, each run
-independently against the same loaded trace.
+what varies per row (fact id, workflow, expected labels, guard rails).
+One row = one test.
 
 Example test stub::
 
@@ -22,26 +31,12 @@ import csv
 import inspect
 import json
 import os
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Dict, List, Optional, Union
 
 import pytest
 
-from monocle_test_tools.fluent_api import TraceAssertion
-
-REQUIRED_COLUMNS = ("case_id", "id", "workflow_name")
-
-FACT_NAME_VALUES = (
-    "traces", "inferences", "agentic_turns", "agentic_sessions",
-    "agent_invocation", "tool_execution", "commits", "conversations",
-    "test_runs", "tests",
-)
-
-# Columns that constitute an assertion; a valid row has >= 1 populated.
-ASSERTION_COLUMNS = (
-    "expected", "not_expected", "called_tool", "called_agent",
-    "token_limit", "duration_ms", "has_input", "has_output", "extra_json",
-)
+REQUIRED_COLUMNS = ("case_id", "fact_id", "workflow_name")
 
 
 class CsvCaseError(ValueError):
@@ -98,82 +93,46 @@ def parse_float(cell: str, column: str, case_id: str) -> Optional[float]:
         raise CsvCaseError(f"row '{case_id}': column '{column}' must be a number, got '{cell}'")
 
 
-def parse_extra_json(cell: str, case_id: str) -> List[dict]:
-    """Parse the extra_json cell into a list of {"method", "kwargs"?} steps."""
-    if cell == "":
-        return []
-    try:
-        value = json.loads(cell)
-    except json.JSONDecodeError as exc:
-        raise CsvCaseError(f"row '{case_id}': column 'extra_json' is not valid JSON — {exc}")
-    if not isinstance(value, list):
-        raise CsvCaseError(f"row '{case_id}': column 'extra_json' must be a JSON array of steps")
-    for step in value:
-        if not isinstance(step, dict) or "method" not in step or not isinstance(step["method"], str):
-            raise CsvCaseError(
-                f"row '{case_id}': each extra_json step must be an object with a string 'method'"
-            )
-        if "kwargs" in step and not isinstance(step["kwargs"], dict):
-            raise CsvCaseError(f"row '{case_id}': extra_json step 'kwargs' must be an object")
-    return value
-
-
 @dataclass
 class CsvCase:
-    """One CSV row: an okahu-trace test case driven through the fluent API."""
+    """One CSV row: an okahu-trace evaluation test case driven through the fluent API."""
     case_id: str
-    id: str
+    fact_id: str
     workflow_name: str
     fact_name: str = "traces"
     expected: Optional[Union[str, List[str]]] = None
     not_expected: Optional[Union[str, List[str]]] = None
-    called_tool: Optional[str] = None
-    called_agent: Optional[str] = None
-    token_limit: Optional[int] = None
-    duration_ms: Optional[float] = None
-    has_input: Optional[str] = None
-    has_output: Optional[str] = None
-    extra_steps: List[dict] = field(default_factory=list)
+    max_tokens: Optional[int] = None
+    max_duration_ms: Optional[float] = None
     notes: Optional[str] = None
 
     def run(self, asserter, **check_eval_kwargs) -> None:
         """Drive this row through the fluent TraceAssertion `asserter`.
 
-        Independent assertions are each invoked on the base asserter (not
-        threaded): PR #721 collects failures on the asserter and the pytest
-        plugin reports them. Only misconfiguration (eval columns with no
-        evaluator) raises from here.
+        Runs the eval (``check_eval``) plus optional operational guard rails
+        (token budget, duration). Independent assertions are each invoked on
+        the base asserter (not threaded): PR #721 collects failures on the
+        asserter and the pytest plugin reports them. Only misconfiguration
+        (an eval row with no evaluator) raises from here.
         """
-        asserter.with_trace_source("okahu", id=self.id, workflow_name=self.workflow_name)
+        asserter.with_trace_source("okahu", id=self.fact_id, workflow_name=self.workflow_name)
 
-        if self.expected is not None or self.not_expected is not None:
-            if getattr(asserter, "_eval", None) is None:
-                raise CsvCaseError(
-                    f"row '{self.case_id}': has expected/not_expected but no evaluator is "
-                    f"configured. Add .with_evaluation(...) to your test stub."
-                )
-            asserter.check_eval(
-                expected=self.expected,
-                not_expected=self.not_expected,
-                fact_name=self.fact_name,
-                **check_eval_kwargs,
+        if getattr(asserter, "_eval", None) is None:
+            raise CsvCaseError(
+                f"row '{self.case_id}': is an evaluation case but no evaluator is "
+                f"configured. Add .with_evaluation(...) to your test stub."
             )
+        asserter.check_eval(
+            expected=self.expected,
+            not_expected=self.not_expected,
+            fact_name=self.fact_name,
+            **check_eval_kwargs,
+        )
 
-        if self.called_tool is not None:
-            asserter.called_tool(self.called_tool)
-        if self.called_agent is not None:
-            asserter.called_agent(self.called_agent)
-        if self.token_limit is not None:
-            asserter.under_token_limit(self.token_limit)
-        if self.duration_ms is not None:
-            asserter.under_duration(self.duration_ms, units="ms")
-        if self.has_input is not None:
-            asserter.has_input(self.has_input)
-        if self.has_output is not None:
-            asserter.has_output(self.has_output)
-
-        for step in self.extra_steps:
-            getattr(asserter, step["method"])(**step.get("kwargs", {}))
+        if self.max_tokens is not None:
+            asserter.under_token_limit(self.max_tokens)
+        if self.max_duration_ms is not None:
+            asserter.under_duration(self.max_duration_ms, units="ms")
 
 
 def _require(row: dict, column: str, case_id: str, line: int) -> str:
@@ -183,76 +142,37 @@ def _require(row: dict, column: str, case_id: str, line: int) -> str:
     return value
 
 
-def _validate_extra_steps(steps: List[dict], case_id: str) -> None:
-    for step in steps:
-        method_name = step["method"]
-        method = getattr(TraceAssertion, method_name, None)
-        if method is None or not callable(method):
-            raise CsvCaseError(
-                f"row '{case_id}': extra_json method '{method_name}' is not a TraceAssertion method"
-            )
-        kwargs = step.get("kwargs", {})
-        sig = inspect.signature(method)
-        accepts_var_kw = any(p.kind == p.VAR_KEYWORD for p in sig.parameters.values())
-        if not accepts_var_kw:
-            valid = set(sig.parameters) - {"self"}
-            unknown = set(kwargs) - valid
-            if unknown:
-                raise CsvCaseError(
-                    f"row '{case_id}': extra_json '{method_name}' got unknown kwargs {sorted(unknown)}; "
-                    f"valid: {sorted(valid)}"
-                )
-
-
 def _row_to_case(row: dict, line: int) -> CsvCase:
     case_id = row.get("case_id", "").strip()
     _require(row, "case_id", case_id, line)
-    trace_id = _require(row, "id", case_id, line)
+    fact_id = _require(row, "fact_id", case_id, line)
     workflow_name = _require(row, "workflow_name", case_id, line)
 
     fact_name = row.get("fact_name", "").strip() or "traces"
-    if fact_name not in FACT_NAME_VALUES:
+
+    expected = parse_multivalue(row.get("expected", "").strip())
+    not_expected = parse_multivalue(row.get("not_expected", "").strip())
+    if expected is None and not_expected is None:
         raise CsvCaseError(
-            f"row '{case_id}': invalid fact_name '{fact_name}'. Supported: {', '.join(FACT_NAME_VALUES)}"
+            f"row '{case_id}': an evaluation case requires an 'expected' or "
+            f"'not_expected' label (a token/duration guard rail alone is not a test)."
         )
 
-    extra_steps = parse_extra_json(row.get("extra_json", "").strip(), case_id)
-    _validate_extra_steps(extra_steps, case_id)
-
-    case = CsvCase(
+    return CsvCase(
         case_id=case_id,
-        id=trace_id,
+        fact_id=fact_id,
         workflow_name=workflow_name,
         fact_name=fact_name,
-        expected=parse_multivalue(row.get("expected", "").strip()),
-        not_expected=parse_multivalue(row.get("not_expected", "").strip()),
-        called_tool=(row.get("called_tool", "").strip() or None),
-        called_agent=(row.get("called_agent", "").strip() or None),
-        token_limit=parse_int(row.get("token_limit", "").strip(), "token_limit", case_id),
-        duration_ms=parse_float(row.get("duration_ms", "").strip(), "duration_ms", case_id),
-        has_input=(row.get("has_input", "").strip() or None),
-        has_output=(row.get("has_output", "").strip() or None),
-        extra_steps=extra_steps,
+        expected=expected,
+        not_expected=not_expected,
+        max_tokens=parse_int(row.get("max_tokens", "").strip(), "max_tokens", case_id),
+        max_duration_ms=parse_float(row.get("max_duration_ms", "").strip(), "max_duration_ms", case_id),
         notes=(row.get("notes", "").strip() or None),
     )
 
-    has_assertion = (
-        case.expected is not None or case.not_expected is not None
-        or case.called_tool is not None or case.called_agent is not None
-        or case.token_limit is not None or case.duration_ms is not None
-        or case.has_input is not None or case.has_output is not None
-        or len(case.extra_steps) > 0
-    )
-    if not has_assertion:
-        raise CsvCaseError(
-            f"row '{case_id}': declares a trace source but no assertions (vacuous test). "
-            f"Populate at least one of: {', '.join(ASSERTION_COLUMNS)}"
-        )
-    return case
-
 
 def load_cases_from_csv(path: str) -> List[CsvCase]:
-    """Load and validate a CSV of test cases into a list of CsvCase."""
+    """Load and validate a CSV of eval test cases into a list of CsvCase."""
     if not os.path.isfile(path):
         raise CsvCaseError(f"CSV file not found: {path}")
     rows = read_rows(path)
@@ -275,7 +195,7 @@ def load_cases_from_csv(path: str) -> List[CsvCase]:
 
 
 def monocle_csv_cases(path: str):
-    """Parametrize a test over the rows of a CSV of CsvCase.
+    """Parametrize a test over the rows of a CSV of eval CsvCase.
 
     Usage:
         @monocle_csv_cases("cases.csv")

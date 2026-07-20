@@ -28,7 +28,7 @@ def cases_csv(tmp_path):
     path = tmp_path / "cases.csv"
     path.write_text(
         textwrap.dedent(f"""\
-            case_id,id,workflow_name,expected
+            case_id,fact_id,workflow_name,expected
             cc_t01,{PLACEHOLDER_TRACE_ID},{DEMO_WORKFLOW_NAME},{EXPECTED_LABEL}
         """),
         encoding="utf-8",
@@ -40,7 +40,7 @@ def test_csv_case_replays_and_evaluates(monocle_trace_asserter, cases_csv):
     cases = load_cases_from_csv(cases_csv)
     assert len(cases) == 1
 
-    # Stub owns evaluator + template selection; CSV owns id/workflow/expected.
+    # Stub owns evaluator + template selection; CSV owns fact_id/workflow/expected.
     cases[0].run(
         monocle_trace_asserter.with_evaluation("okahu"),
         eval_name="hallucination",

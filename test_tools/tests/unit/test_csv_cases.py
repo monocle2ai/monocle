@@ -10,9 +10,9 @@ def _write(tmp_path, text):
 
 
 def test_read_rows_parses_header_and_strips(tmp_path):
-    path = _write(tmp_path, "case_id, id ,workflow_name\n a1 ,tid1, wf1 \n")
+    path = _write(tmp_path, "case_id, fact_id ,workflow_name\n a1 ,tid1, wf1 \n")
     rows = csv_cases.read_rows(path)
-    assert rows == [{"case_id": "a1", "id": "tid1", "workflow_name": "wf1"}]
+    assert rows == [{"case_id": "a1", "fact_id": "tid1", "workflow_name": "wf1"}]
 
 
 def test_parse_multivalue_variants():
@@ -23,49 +23,50 @@ def test_parse_multivalue_variants():
 
 
 def test_parse_int_and_float():
-    assert csv_cases.parse_int("", "token_limit", "c1") is None
-    assert csv_cases.parse_int("5000", "token_limit", "c1") == 5000
-    assert csv_cases.parse_float("12.5", "duration_ms", "c1") == 12.5
+    assert csv_cases.parse_int("", "max_tokens", "c1") is None
+    assert csv_cases.parse_int("5000", "max_tokens", "c1") == 5000
+    assert csv_cases.parse_float("12.5", "max_duration_ms", "c1") == 12.5
     with pytest.raises(csv_cases.CsvCaseError):
-        csv_cases.parse_int("five", "token_limit", "c1")
-
-
-def test_parse_extra_json():
-    assert csv_cases.parse_extra_json("", "c1") == []
-    steps = csv_cases.parse_extra_json(
-        '[{"method":"has_attribute","kwargs":{"attribute_name":"model","expected":"gpt-4o"}}]', "c1"
-    )
-    assert steps == [{"method": "has_attribute", "kwargs": {"attribute_name": "model", "expected": "gpt-4o"}}]
-    with pytest.raises(csv_cases.CsvCaseError):
-        csv_cases.parse_extra_json('{"method":"x"}', "c1")   # not an array
-    with pytest.raises(csv_cases.CsvCaseError):
-        csv_cases.parse_extra_json('[{"kwargs":{}}]', "c1")  # missing method
+        csv_cases.parse_int("five", "max_tokens", "c1")
 
 
 def test_row_to_case_valid_eval_row():
-    row = {"case_id": "cc_t01", "id": "642d", "workflow_name": "wf",
+    row = {"case_id": "cc_t01", "fact_id": "642d", "workflow_name": "wf",
            "fact_name": "traces", "expected": "major|minor"}
     case = csv_cases._row_to_case(row, line=2)
     assert case.case_id == "cc_t01"
-    assert case.id == "642d"
+    assert case.fact_id == "642d"
     assert case.workflow_name == "wf"
     assert case.expected == ["major", "minor"]
     assert case.fact_name == "traces"
 
 
 def test_row_to_case_defaults_fact_name():
-    row = {"case_id": "c", "id": "t", "workflow_name": "wf", "expected": "ok"}
+    row = {"case_id": "c", "fact_id": "t", "workflow_name": "wf", "expected": "ok"}
     assert csv_cases._row_to_case(row, 2).fact_name == "traces"
 
 
+def test_row_to_case_not_expected_only_is_valid():
+    row = {"case_id": "c", "fact_id": "t", "workflow_name": "wf", "not_expected": "major_hallucination"}
+    case = csv_cases._row_to_case(row, 2)
+    assert case.not_expected == "major_hallucination"
+    assert case.expected is None
+
+
+def test_row_to_case_maps_guard_rails():
+    row = {"case_id": "c", "fact_id": "t", "workflow_name": "wf", "expected": "ok",
+           "max_tokens": "5000", "max_duration_ms": "4000"}
+    case = csv_cases._row_to_case(row, 2)
+    assert case.max_tokens == 5000
+    assert case.max_duration_ms == 4000.0
+
+
 @pytest.mark.parametrize("row,needle", [
-    ({"case_id": "", "id": "t", "workflow_name": "wf", "expected": "ok"}, "case_id"),
-    ({"case_id": "c", "id": "", "workflow_name": "wf", "expected": "ok"}, "id"),
-    ({"case_id": "c", "id": "t", "workflow_name": "", "expected": "ok"}, "workflow_name"),
-    ({"case_id": "c", "id": "t", "workflow_name": "wf", "fact_name": "bogus", "expected": "ok"}, "fact_name"),
-    ({"case_id": "c", "id": "t", "workflow_name": "wf"}, "no assertions"),
-    ({"case_id": "c", "id": "t", "workflow_name": "wf",
-      "extra_json": '[{"method":"not_a_method"}]'}, "not_a_method"),
+    ({"case_id": "", "fact_id": "t", "workflow_name": "wf", "expected": "ok"}, "case_id"),
+    ({"case_id": "c", "fact_id": "", "workflow_name": "wf", "expected": "ok"}, "fact_id"),
+    ({"case_id": "c", "fact_id": "t", "workflow_name": "", "expected": "ok"}, "workflow_name"),
+    ({"case_id": "c", "fact_id": "t", "workflow_name": "wf"}, "expected"),
+    ({"case_id": "c", "fact_id": "t", "workflow_name": "wf", "max_tokens": "5000"}, "expected"),
 ])
 def test_row_to_case_errors(row, needle):
     with pytest.raises(csv_cases.CsvCaseError) as exc:
@@ -73,16 +74,9 @@ def test_row_to_case_errors(row, needle):
     assert needle in str(exc.value)
 
 
-def test_row_to_case_non_eval_only_is_valid():
-    row = {"case_id": "tool_01", "id": "t", "workflow_name": "wf", "called_tool": "search_web"}
-    case = csv_cases._row_to_case(row, 2)
-    assert case.called_tool == "search_web"
-    assert case.expected is None
-
-
 def test_load_cases_from_csv_happy(tmp_path):
     path = _write(tmp_path,
-        "case_id,id,workflow_name,expected\n"
+        "case_id,fact_id,workflow_name,expected\n"
         "cc_t01,642d,wf_cc,major_hallucination\n"
         "cc_t02,8f12,wf_cc,no_hallucination\n")
     cases = csv_cases.load_cases_from_csv(path)
@@ -92,7 +86,7 @@ def test_load_cases_from_csv_happy(tmp_path):
 
 def test_load_cases_duplicate_case_id(tmp_path):
     path = _write(tmp_path,
-        "case_id,id,workflow_name,expected\n"
+        "case_id,fact_id,workflow_name,expected\n"
         "dup,t1,wf,ok\n"
         "dup,t2,wf,ok\n")
     with pytest.raises(csv_cases.CsvCaseError) as exc:
@@ -104,7 +98,7 @@ def test_load_cases_missing_required_column(tmp_path):
     path = _write(tmp_path, "case_id,workflow_name,expected\nc,wf,ok\n")
     with pytest.raises(csv_cases.CsvCaseError) as exc:
         csv_cases.load_cases_from_csv(path)
-    assert "id" in str(exc.value)
+    assert "fact_id" in str(exc.value)
 
 
 def test_load_cases_missing_file():
@@ -127,7 +121,7 @@ class _RecordingAsserter:
 
 def test_run_eval_row_issues_trace_source_and_check_eval():
     case = csv_cases._row_to_case(
-        {"case_id": "c", "id": "t1", "workflow_name": "wf", "expected": "ok"}, 2)
+        {"case_id": "c", "fact_id": "t1", "workflow_name": "wf", "expected": "ok"}, 2)
     a = _RecordingAsserter(has_eval=True)
     case.run(a, template_path="tpl.json")
     names = [c[0] for c in a.calls]
@@ -139,9 +133,21 @@ def test_run_eval_row_issues_trace_source_and_check_eval():
                      "fact_name": "traces", "template_path": "tpl.json"}
 
 
+def test_run_eval_row_maps_guard_rails():
+    case = csv_cases._row_to_case(
+        {"case_id": "c", "fact_id": "t1", "workflow_name": "wf", "expected": "ok",
+         "max_tokens": "5000", "max_duration_ms": "4000"}, 2)
+    a = _RecordingAsserter(has_eval=True)
+    case.run(a)
+    names = [c[0] for c in a.calls]
+    assert names == ["with_trace_source", "check_eval", "under_token_limit", "under_duration"]
+    assert ("under_token_limit", (5000,), {}) in a.calls
+    assert ("under_duration", (4000.0,), {"units": "ms"}) in a.calls
+
+
 def test_run_eval_row_without_evaluator_raises():
     case = csv_cases._row_to_case(
-        {"case_id": "needs_eval", "id": "t", "workflow_name": "wf", "expected": "ok"}, 2)
+        {"case_id": "needs_eval", "fact_id": "t", "workflow_name": "wf", "expected": "ok"}, 2)
     a = _RecordingAsserter(has_eval=False)
     with pytest.raises(csv_cases.CsvCaseError) as exc:
         case.run(a)
@@ -149,26 +155,9 @@ def test_run_eval_row_without_evaluator_raises():
     assert "with_evaluation" in str(exc.value)
 
 
-def test_run_non_eval_row_maps_all_columns():
-    row = {"case_id": "c", "id": "t", "workflow_name": "wf",
-           "called_tool": "search_web", "called_agent": "planner",
-           "token_limit": "5000", "duration_ms": "1200",
-           "has_input": "hello", "has_output": "world",
-           "extra_json": '[{"method":"has_attribute","kwargs":{"attribute_name":"model","expected":"gpt-4o"}}]'}
-    case = csv_cases._row_to_case(row, 2)
-    a = _RecordingAsserter(has_eval=False)
-    case.run(a)
-    names = [c[0] for c in a.calls]
-    assert names == ["with_trace_source", "called_tool", "called_agent",
-                     "under_token_limit", "under_duration", "has_input",
-                     "has_output", "has_attribute"]
-    assert ("under_duration", (1200.0,), {"units": "ms"}) in a.calls
-    assert ("has_attribute", (), {"attribute_name": "model", "expected": "gpt-4o"}) in a.calls
-
-
 def test_monocle_csv_cases_parametrizes(tmp_path):
     path = _write(tmp_path,
-        "case_id,id,workflow_name,expected\n"
+        "case_id,fact_id,workflow_name,expected\n"
         "a,t1,wf,ok\n"
         "b,t2,wf,ok\n")
     mark = csv_cases.monocle_csv_cases(path)  # absolute path

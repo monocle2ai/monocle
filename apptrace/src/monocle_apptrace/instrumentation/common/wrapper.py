@@ -2,6 +2,7 @@
 import logging
 import os
 from contextlib import contextmanager
+from functools import partial
 from typing import AsyncGenerator, Generator, Iterator, Optional
 from opentelemetry.trace import NonRecordingSpan, Tracer
 from opentelemetry.trace.propagation import set_span_in_context, get_current_span
@@ -98,6 +99,71 @@ def post_process_span(handler, to_wrap, wrapped, instance, args, kwargs, return_
 
         return return_value
 
+def post_process_span_internal_common(
+    ret_val,
+    handler,
+    to_wrap,
+    wrapped,
+    instance,
+    args,
+    kwargs,
+    span,
+    parent_span,
+    ex,
+    auto_close_span,
+):
+    ret_val = post_process_span(
+        handler,
+        to_wrap,
+        wrapped,
+        instance,
+        args,
+        kwargs,
+        ret_val,
+        span,
+        parent_span,
+        ex,
+    )
+    if not auto_close_span:
+        span.end()
+    return ret_val
+
+def finalize_span(handler, to_wrap, wrapped, instance, args, kwargs, span, parent_span,
+                  ex, auto_close_span, result, is_generator=False, stream_items=None):
+    """Finalize a span's post-processing, deferring the close for streamed results.
+
+    Builds the deferred finalizer (post_process_span + optional span.end()) once and either:
+    - hands it to the output_processor's response_processor, which finalizes the span once the
+      caller consumes the streamed result (is_auto_close=False intermediate/streaming spans); or
+    - runs it eagerly for non-streaming results.
+
+    Returns the value to propagate as the wrapped call's result. For generator wrappers pass
+    is_generator=True and the accumulated raw items via stream_items; the items have already
+    been yielded, so the response_processor branch leaves `result` unchanged.
+    """
+    post_process_span_internal = partial(
+        post_process_span_internal_common,
+        handler=handler,
+        to_wrap=to_wrap,
+        wrapped=wrapped,
+        instance=instance,
+        args=args,
+        kwargs=kwargs,
+        span=span,
+        parent_span=parent_span,
+        ex=ex,
+        auto_close_span=auto_close_span,
+    )
+    output_processor = to_wrap.get("output_processor")
+    response_processor = output_processor.get("response_processor") if isinstance(output_processor, dict) else None
+    if ex is None and not auto_close_span and response_processor:
+        if is_generator:
+            response_processor(to_wrap, stream_items or None, post_process_span_internal)
+            return result
+        wrapper = response_processor(to_wrap, result, post_process_span_internal)
+        return wrapper if wrapper is not None else result
+    return post_process_span_internal(result)
+
 def get_span_name(to_wrap, instance):
     if to_wrap.get("span_name"):
         name = to_wrap.get("span_name")
@@ -145,18 +211,10 @@ def monocle_wrapper_span_processor(tracer: Tracer, handler: SpanHandler, to_wrap
                     ex = e
                     raise
                 finally:
-                    def post_process_span_internal(ret_val):
-                        ret_val = post_process_span(handler, to_wrap, wrapped, instance, args, kwargs, ret_val, span, parent_span ,ex)
-                        # Close non-auto-close intermediate spans (leaf/root branches already do).
-                        if not auto_close_span:
-                            span.end()
-                        return ret_val
-                    if ex is None and not auto_close_span and to_wrap.get("output_processor") and to_wrap.get("output_processor").get("response_processor"):
-                        wrapper = to_wrap.get("output_processor").get("response_processor")(to_wrap, return_value, post_process_span_internal)
-                        if wrapper is not None:
-                            return_value = wrapper
-                    else:
-                        return_value = post_process_span_internal(return_value)
+                    return_value = finalize_span(
+                        handler, to_wrap, wrapped, instance, args, kwargs,
+                        span, parent_span, ex, auto_close_span, return_value,
+                    )
             else:
                 try:
                     handler.hydrate_span(to_wrap, wrapped, instance, args, kwargs, None, span, parent_span, ex,
@@ -172,17 +230,10 @@ def monocle_wrapper_span_processor(tracer: Tracer, handler: SpanHandler, to_wrap
                     ex = e
                     raise
                 finally:
-                    def post_process_span_internal(ret_val):
-                        post_process_span(handler, to_wrap, wrapped, instance, args, kwargs, ret_val, span, parent_span ,ex)
-                        if not auto_close_span:
-                            span.end()
-                        return ret_val
-                    if ex is None and not auto_close_span and to_wrap.get("output_processor") and to_wrap.get("output_processor").get("response_processor"):
-                        wrapper = to_wrap.get("output_processor").get("response_processor")(to_wrap, return_value, post_process_span_internal)
-                        if wrapper is not None:
-                            return_value = wrapper
-                    else:
-                        return_value = post_process_span_internal(return_value)
+                    return_value = finalize_span(
+                        handler, to_wrap, wrapped, instance, args, kwargs,
+                        span, parent_span, ex, auto_close_span, return_value,
+                    )
             span_status = span.status
     return return_value, span_status
 
@@ -236,10 +287,11 @@ def monocle_iter_wrapper_span_processor(tracer: Tracer, handler: SpanHandler, to
                     ex = e
                     raise
                 finally:
-                    last_item = post_process_span(handler, to_wrap, wrapped, instance, args, kwargs, last_item, span, parent_span, ex)
-                    # Close non-auto-close intermediate spans (leaf/root branches already do).
-                    if not auto_close_span:
-                        span.end()
+                    last_item = post_process_span_internal_common(
+                        last_item, handler=handler, to_wrap=to_wrap, wrapped=wrapped,
+                        instance=instance, args=args, kwargs=kwargs, span=span,
+                        parent_span=parent_span, ex=ex, auto_close_span=auto_close_span,
+                    )
             else:
                 try:
                     handler.hydrate_span(to_wrap, wrapped, instance, args, kwargs, None, span, parent_span, ex,
@@ -268,14 +320,11 @@ def monocle_iter_wrapper_span_processor(tracer: Tracer, handler: SpanHandler, to
                     ex = e
                     raise
                 finally:
-                    def post_process_span_internal(ret_val):
-                        ret_val = post_process_span(handler, to_wrap, wrapped, instance, args, kwargs, ret_val, span, parent_span, ex)
-                        if not auto_close_span:
-                            span.end()
-                    if ex is None and _has_response_processor:
-                        to_wrap.get("output_processor").get("response_processor")(to_wrap, _raw_items or None, post_process_span_internal)
-                    else:
-                        last_item = post_process_span_internal(last_item)
+                    last_item = finalize_span(
+                        handler, to_wrap, wrapped, instance, args, kwargs,
+                        span, parent_span, ex, auto_close_span, last_item,
+                        is_generator=True, stream_items=_raw_items,
+                    )
     return
 
 def monocle_wrapper(tracer: Tracer, handler: SpanHandler, to_wrap, wrapped, instance, source_path, args, kwargs):
@@ -395,21 +444,10 @@ async def amonocle_wrapper_span_processor(tracer: Tracer, handler: SpanHandler, 
                     ex = e
                     raise
                 finally:
-                    def post_process_span_internal(ret_val):
-                        ret_val = post_process_span(handler, to_wrap, wrapped, instance, args, kwargs, ret_val, span, parent_span ,ex)
-                        # Close non-auto-close intermediate spans (leaf/root branches already do).
-                        if not auto_close_span:
-                            span.end()
-                        return ret_val
-                    # Defer close for streaming intermediate spans (e.g. an agent turn span
-                    # wrapping a streamed invocation) so the response_processor finalizes them
-                    # once the stream is consumed; otherwise finalize eagerly.
-                    if ex is None and not auto_close_span and to_wrap.get("output_processor") and to_wrap.get("output_processor").get("response_processor"):
-                        wrapper = to_wrap.get("output_processor").get("response_processor")(to_wrap, return_value, post_process_span_internal)
-                        if wrapper is not None:
-                            return_value = wrapper
-                    else:
-                        return_value = post_process_span_internal(return_value)
+                    return_value = finalize_span(
+                        handler, to_wrap, wrapped, instance, args, kwargs,
+                        span, parent_span, ex, auto_close_span, return_value,
+                    )
             else:
                 try:
                     handler.hydrate_span(to_wrap, wrapped, instance, args, kwargs, None, span, parent_span, ex,
@@ -425,17 +463,10 @@ async def amonocle_wrapper_span_processor(tracer: Tracer, handler: SpanHandler, 
                     ex = e
                     raise
                 finally:
-                    def post_process_span_internal(ret_val):
-                        ret_val = post_process_span(handler, to_wrap, wrapped, instance, args, kwargs, ret_val, span, parent_span, ex)
-                        if not auto_close_span:
-                            span.end()
-                        return ret_val
-                    if ex is None and not auto_close_span and to_wrap.get("output_processor") and to_wrap.get("output_processor").get("response_processor"):
-                        wrapper = to_wrap.get("output_processor").get("response_processor")(to_wrap, return_value, post_process_span_internal)
-                        if wrapper is not None:
-                            return_value = wrapper
-                    else:
-                        return_value = post_process_span_internal(return_value)
+                    return_value = finalize_span(
+                        handler, to_wrap, wrapped, instance, args, kwargs,
+                        span, parent_span, ex, auto_close_span, return_value,
+                    )
         span_status = span.status
     return return_value, span_status
 
@@ -489,10 +520,11 @@ async def amonocle_iter_wrapper_span_processor(tracer: Tracer, handler: SpanHand
                     ex = e
                     raise
                 finally:
-                    last_item = post_process_span(handler, to_wrap, wrapped, instance, args, kwargs, last_item, span, parent_span, ex)
-                    # Close non-auto-close intermediate spans (leaf/root branches already do).
-                    if not auto_close_span:
-                        span.end()
+                    last_item = post_process_span_internal_common(
+                        last_item, handler=handler, to_wrap=to_wrap, wrapped=wrapped,
+                        instance=instance, args=args, kwargs=kwargs, span=span,
+                        parent_span=parent_span, ex=ex, auto_close_span=auto_close_span,
+                    )
             else:
                 try:
                     handler.hydrate_span(to_wrap, wrapped, instance, args, kwargs, None, span, parent_span, ex,
@@ -524,14 +556,13 @@ async def amonocle_iter_wrapper_span_processor(tracer: Tracer, handler: SpanHand
                     ex = e
                     raise
                 finally:
-                    def post_process_span_internal(ret_val):
-                        ret_val = post_process_span(handler, to_wrap, wrapped, instance, args, kwargs, ret_val, span, parent_span, ex)
-                        if not auto_close_span:
-                            span.end()
-                    if ex is None and _has_response_processor:
-                        to_wrap.get("output_processor").get("response_processor")(to_wrap, _raw_items or None, post_process_span_internal)
-                    else:
-                        last_item = post_process_span_internal(last_item)
+                    last_item = finalize_span(
+                        handler, to_wrap, wrapped, instance, args, kwargs,
+                        span, parent_span, ex, auto_close_span, last_item,
+                        is_generator=True, stream_items=_raw_items,
+                    )
+
+
     return
 
 async def amonocle_wrapper(tracer: Tracer, handler: SpanHandler, to_wrap, wrapped, instance, source_path, args, kwargs):

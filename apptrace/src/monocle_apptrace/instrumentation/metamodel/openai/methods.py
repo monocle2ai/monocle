@@ -8,7 +8,7 @@ from monocle_apptrace.instrumentation.metamodel.openai.entities.retrieval import
 
 OPENAI_METHODS = [
     {
-        "package": "openai.resources.chat.completions",
+        "package": "openai.resources.chat.completions.completions",
         "object": "Completions",
         "method": "create",
         "wrapper_method": task_wrapper,
@@ -16,7 +16,7 @@ OPENAI_METHODS = [
         "output_processor": INFERENCE
     },
     {
-        "package": "openai.resources.chat.completions",
+        "package": "openai.resources.chat.completions.completions",
         "object": "AsyncCompletions",
         "method": "create",
         "wrapper_method": atask_wrapper,
@@ -40,7 +40,7 @@ OPENAI_METHODS = [
         "output_processor": RETRIEVAL
     },
     {
-        "package": "openai.resources.responses",
+        "package": "openai.resources.responses.responses",
         "object": "Responses",
         "method": "create",
         "wrapper_method": task_wrapper,
@@ -48,9 +48,25 @@ OPENAI_METHODS = [
         "output_processor": INFERENCE
     },
     {
-        "package": "openai.resources.responses",
+        "package": "openai.resources.responses.responses",
         "object": "AsyncResponses",
         "method": "create",
+        "wrapper_method": atask_wrapper,
+        "span_handler": "openai_handler",
+        "output_processor": INFERENCE
+    },
+    {
+        "package": "agents.models.openai_responses",
+        "object": "OpenAIResponsesModel",
+        "method": "_fetch_response",
+        "wrapper_method": atask_wrapper,
+        "span_handler": "openai_handler",
+        "output_processor": INFERENCE
+    },
+    {
+        "package": "agents.models.openai_responses",
+        "object": "OpenAIResponsesWSModel",
+        "method": "_fetch_response",
         "wrapper_method": atask_wrapper,
         "span_handler": "openai_handler",
         "output_processor": INFERENCE

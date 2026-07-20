@@ -24,6 +24,31 @@ class OpenAIStreamProcessor(BaseStreamProcessor):
             state.close_stream()
             if hasattr(item, "response") and hasattr(item.response, "usage"):
                 state.token_usage = item.response.usage
+            if hasattr(item, "response") and hasattr(item.response, "output_text"):
+                if not state.accumulated_response and item.response.output_text:
+                    state.accumulated_response = item.response.output_text
+            if hasattr(item, "response") and hasattr(item.response, "output") and isinstance(item.response.output, list):
+                has_function_call = False
+                for output_item in item.response.output:
+                    if getattr(output_item, "type", "") == "function_call":
+                        has_function_call = True
+                        state.tools.append(
+                            {
+                                "id": getattr(output_item, "id", ""),
+                                "name": getattr(output_item, "name", ""),
+                                "arguments": getattr(output_item, "arguments", ""),
+                            }
+                        )
+                if has_function_call:
+                    state.finish_reason = "tool_calls"
+
+            if hasattr(item, "response") and hasattr(item.response, "status") and not state.finish_reason:
+                response_status = getattr(item.response, "status", None)
+                if response_status == "completed":
+                    state.finish_reason = "stop"
+                elif response_status == "incomplete":
+                    incomplete_details = getattr(item.response, "incomplete_details", None)
+                    state.finish_reason = getattr(incomplete_details, "reason", None) or "length"
         
         return True
 

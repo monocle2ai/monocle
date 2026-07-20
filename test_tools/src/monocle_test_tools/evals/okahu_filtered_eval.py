@@ -31,6 +31,7 @@ def has_label(result) -> bool:
 
 
 _COUNT_KEY = {"pass": "passed", "fail": "failed", "error": "errors"}
+_DEFAULT_PAGE_SIZE = 100
 
 
 def _as_list(x):
@@ -184,6 +185,35 @@ class OkahuFilteredEval:
             time.sleep(self.poll_interval_s)
         raise AssertionError(f"Filtered eval job {job_id} timed out after {self.poll_timeout_s}s")
 
+    def _paginate_get(self, url):
+        """Yield every 'results' row across pages for a GET endpoint (limit/offset)."""
+        offset = 0
+        while True:
+            resp = requests.get(url, headers=self.headers,
+                                params={"limit": _DEFAULT_PAGE_SIZE, "offset": offset},
+                                timeout=60)
+            resp.raise_for_status()
+            rows = resp.json().get("results", []) or []
+            for r in rows:
+                yield r
+            if len(rows) < _DEFAULT_PAGE_SIZE:
+                return
+            offset += _DEFAULT_PAGE_SIZE
+
+    def _paginate_post(self, url, body):
+        """Yield every 'results' row across pages for a POST query (limit/offset in body)."""
+        offset = 0
+        while True:
+            page_body = {**body, "limit": _DEFAULT_PAGE_SIZE, "offset": offset}
+            resp = requests.post(url, headers=self.headers, json=page_body, timeout=60)
+            resp.raise_for_status()
+            rows = resp.json().get("results", []) or []
+            for r in rows:
+                yield r
+            if len(rows) < _DEFAULT_PAGE_SIZE:
+                return
+            offset += _DEFAULT_PAGE_SIZE
+
     def get_job_result_fact_ids(self, job_id) -> list:
         """Bare-hex fact ids this job evaluated (from the job-detail results array).
 
@@ -192,10 +222,8 @@ class OkahuFilteredEval:
         Phase 5 Step 2).
         """
         url = f"{self.eval_base}/v1/eval/jobs/{job_id}"
-        resp = requests.get(url, headers=self.headers, timeout=60)
-        resp.raise_for_status()
-        rows = resp.json().get("results", []) or []
-        ids = [normalize_fact_id(r.get("fact_id")) for r in rows if r and r.get("fact_id")]
+        ids = [normalize_fact_id(r.get("fact_id"))
+               for r in self._paginate_get(url) if r and r.get("fact_id")]
         return sorted(set(ids))
 
     def query_results(self, workflow_name, fact_ids, *, eval_name=None, custom_name=None,
@@ -213,9 +241,7 @@ class OkahuFilteredEval:
             "fact_ids": [normalize_fact_id(f) for f in fact_ids],
             "start_time": start_time, "end_time": end_time,
         }
-        resp = requests.post(url, headers=self.headers, json=body, timeout=60)
-        resp.raise_for_status()
-        results = resp.json().get("results", [])
+        results = list(self._paginate_post(url, body))
         if custom_name:
             results = [r for r in results if r and r.get("eval_name") == custom_name]
         return results

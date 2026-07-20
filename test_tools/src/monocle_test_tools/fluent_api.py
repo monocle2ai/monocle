@@ -901,6 +901,16 @@ class TraceAssertion():
             total_tokens=getattr(self._eval, "last_total_tokens", None),
         )
 
+        # Stash the uniform (filter-mode-shaped) report BEFORE the pass/fail raise
+        # below, so a failing span-mode eval still leaves a 1-fact report behind —
+        # matching filter mode, which stashes its report before raising too.
+        TraceAssertion._eval_report = build_filtered_report(
+            expected, not_expected,
+            [{"fact_id": trace_id, "job_id": None, "eval_found": True,
+              "eval_result": {"label": eval_result, "explanation": explanation},
+              "workflow": ""}],
+            job_id=None)
+
         if (positive and eval_result not in positive) or (negative and eval_result in negative):
             if message:
                 raise AssertionError(message)
@@ -908,13 +918,6 @@ class TraceAssertion():
                 raise AssertionError(f"Evaluation '{eval_name}' did not match expected result. Expected one of {positive}. Received '{eval_result}'. \n Explanation: {explanation}")
             else:
                 raise AssertionError(f"Evaluation '{eval_name}' matched an unexpected result. Should not be any of {negative}. Received '{eval_result}'. \n Explanation: {explanation}")
-
-        TraceAssertion._eval_report = build_filtered_report(
-            expected, not_expected,
-            [{"fact_id": trace_id, "job_id": None, "eval_found": True,
-              "eval_result": {"label": eval_result, "explanation": explanation},
-              "workflow": ""}],
-            job_id=None)
 
         return self
 
@@ -966,7 +969,7 @@ class TraceAssertion():
 
     def get_eval_report(self) -> Optional[dict]:
         """The uniform eval report stashed by check_eval (filter mode = N facts; span mode = 1 fact)."""
-        return self._eval_report
+        return getattr(TraceAssertion, "_eval_report", None)
 
     def get_eval_failures(self) -> list:
         """Extract failures from the class-scoped eval report."""
@@ -975,9 +978,8 @@ class TraceAssertion():
 
     def write_eval_report(self, path: str) -> None:
         """Write the class-scoped eval report to a JSON file."""
-        import json as _json
         with open(path, "w", encoding="utf-8") as f:
-            _json.dump(getattr(TraceAssertion, "_eval_report", {}) or {}, f, indent=2)
+            json.dump(getattr(TraceAssertion, "_eval_report", {}) or {}, f, indent=2)
 
     @collect_assertions
     def under_token_limit(self, token_limit:int, message:Optional[str] = None) -> 'TraceAssertion':

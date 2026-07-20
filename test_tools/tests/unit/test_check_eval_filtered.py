@@ -5,15 +5,50 @@ plus the end-to-end wiring of `with_trace_source("okahu", start_time=, end_time=
 `check_eval(...)` (filter mode) with OkahuFilteredEval mocked out.
 No live HTTP and no ML deps are touched.
 """
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
 from monocle_test_tools.fluent_api import TraceAssertion
 
 
+@pytest.fixture(autouse=True)
+def _reset_trace_assertion_class_state():
+    """Reset shared class-level TraceAssertion state before AND after each test.
+
+    Several tests here build a `TraceAssertion()` directly (bypassing the
+    `monocle_trace_asserter` fixture, whose teardown calls `cleanup()`), and some
+    intentionally leave a recorded assertion or a stashed `_eval_report` behind.
+    A manual reset as the LAST statement of a test body is fragile: if an earlier
+    assertion in that same test body fails, the reset is skipped and the dirty
+    class-level state (`_assertion_errors` in particular) bleeds into whichever
+    test runs next -- pytest_plugin.py's `pytest_runtest_makereport` flips any
+    passing test to failed when `TraceAssertion().has_assertions()` is true.
+    An autouse fixture with both a setup and a teardown reset closes that gap.
+    """
+    TraceAssertion._assertion_errors = []
+    TraceAssertion._eval_report = None
+    TraceAssertion._okahu_filter = None
+    yield
+    TraceAssertion._assertion_errors = []
+    TraceAssertion._eval_report = None
+    TraceAssertion._okahu_filter = None
+
+
 def _asserter():
     return TraceAssertion()
+
+
+def _make_span_asserter(eval_result=("no_hallucination", "ok")):
+    """Span-mode asserter: one span, mocked evaluator, NO `_okahu_filter` set.
+
+    Mirrors `_make_asserter` in test_check_eval_template_path.py's
+    `test_template_dict_selector_reaches_evaluate_unmodified`.
+    """
+    span = MagicMock()
+    eval_mock = MagicMock()
+    eval_mock.evaluate.return_value = eval_result
+    return TraceAssertion(filtered_spans=[span], _eval=eval_mock)
 
 
 def test_check_eval_filter_mode_requires_exactly_one_selector():
@@ -112,19 +147,24 @@ def test_check_eval_filter_mode_records_failure_on_fail_over_threshold(monkeypat
     fail_scn = [{"fact_id": "bb", "expected": ["no_hallucination"], "actual": "major_hallucination",
                  "status": "fail", "job_id": "job-1", "explanation": "", "workflow": "wf"}]
     a = _asserter().with_trace_source("okahu", workflow_name="wf", start_time="s", end_time="e")
-    with patch("monocle_test_tools.evals.okahu_filtered_eval.OkahuFilteredEval.from_env") as mk:
-        mk.return_value.run_filtered.return_value = _report(passed=0, failed=1, scenarios=fail_scn)
-        result = a.check_eval(eval_name="hallucination", expected="no_hallucination")
-    # @collect_assertions records the gate failure rather than raising inline.
-    assert result.has_assertions()
-    assert result.get_eval_report()["summary"]["failed"] == 1
-    # This test intentionally leaves a recorded assertion on the (shared) class-level
-    # _assertion_errors list, since it doesn't go through the monocle_trace_asserter
-    # fixture (whose teardown calls cleanup()). Clear it so pytest_plugin's
-    # pytest_runtest_makereport hook doesn't flip this (already-passing) test's own
-    # outcome, and so the dirty state doesn't bleed into later tests. Same idiom as
-    # test_okahu_filter_threads_through_collect_assertions in test_fluent_apis.py.
-    TraceAssertion._assertion_errors = []
+    # This test intentionally leaves a recorded assertion behind to inspect it
+    # below. pytest_plugin.py's pytest_runtest_makereport hook checks
+    # `TraceAssertion().has_assertions()` right after the test *call* phase
+    # finishes -- before the autouse fixture's teardown-side reset (which only
+    # runs in the later teardown phase) has a chance to run -- so the cleanup
+    # must happen inside the test body. The try/finally (rather than a bare
+    # last-statement reset) guarantees it runs even if an assertion above it
+    # fails, so a real regression here can't also contaminate whichever test
+    # runs next.
+    try:
+        with patch("monocle_test_tools.evals.okahu_filtered_eval.OkahuFilteredEval.from_env") as mk:
+            mk.return_value.run_filtered.return_value = _report(passed=0, failed=1, scenarios=fail_scn)
+            result = a.check_eval(eval_name="hallucination", expected="no_hallucination")
+        # @collect_assertions records the gate failure rather than raising inline.
+        assert result.has_assertions()
+        assert result.get_eval_report()["summary"]["failed"] == 1
+    finally:
+        TraceAssertion._assertion_errors = []
 
 
 def test_check_eval_filter_only_params_rejected_in_span_mode():
@@ -136,10 +176,8 @@ def test_check_eval_filter_only_params_rejected_in_span_mode():
         a.check_eval(eval_name="hallucination", expected="x", fail_threshold=2)
 
 
-def test_get_eval_report_uniform_span_mode(monkeypatch, tmp_path):
-    # Span-mode: build_eval yields a 1-fact report via check_eval (evaluator mocked).
-    from monocle_test_tools.fluent_api import TraceAssertion
-    TraceAssertion._eval_report = None
+def test_get_eval_report_uniform_filter_mode(monkeypatch, tmp_path):
+    # Filter-mode: run_filtered's report is stashed as-is via check_eval (mocked client).
     a = _asserter()
     a._filtered_spans = None
     a._okahu_filter = {"workflows": ["wf"], "start_time": "s", "end_time": "e", "fact_name": "traces"}
@@ -152,3 +190,44 @@ def test_get_eval_report_uniform_span_mode(monkeypatch, tmp_path):
     out = tmp_path / "r.json"
     a.write_eval_report(str(out))
     assert out.is_file()
+
+
+def test_check_eval_span_mode_pass_stashes_uniform_report():
+    """Real span-mode (no `_okahu_filter`): matching `expected` -> report is a 1-fact
+    uniform report (same shape as filter mode) with no failures."""
+    a = _make_span_asserter(eval_result=("no_hallucination", "looks fine"))
+
+    result = a.check_eval(eval_name="hallucination", expected="no_hallucination")
+
+    assert not result.has_assertions(), result.get_assertion_messages()
+    report = result.get_eval_report()
+    assert report is not None
+    assert report["summary"]["total"] == 1
+    assert result.get_eval_failures() == []
+
+
+def test_check_eval_span_mode_fail_still_stashes_uniform_report():
+    """Important 1 regression test: a FAILING span-mode eval must still populate
+    the uniform report (pass or fail, the report is always stashed), not just
+    record the assertion. Before the fix, this failed because the span-mode
+    `_eval_report` assignment ran only after (and thus never reached on) the
+    pass/fail raise.
+
+    Uses try/finally (see the comment in
+    test_check_eval_filter_mode_records_failure_on_fail_over_threshold above)
+    since this test intentionally leaves a recorded assertion behind to inspect.
+    """
+    a = _make_span_asserter(eval_result=("major_hallucination", "not fine"))
+
+    try:
+        result = a.check_eval(eval_name="hallucination", expected="no_hallucination")
+
+        # @collect_assertions suppresses the AssertionError and records it instead.
+        assert result.has_assertions()
+        report = result.get_eval_report()
+        assert report is not None
+        assert report["summary"]["total"] == 1
+        failures = result.get_eval_failures()
+        assert len(failures) == 1
+    finally:
+        TraceAssertion._assertion_errors = []

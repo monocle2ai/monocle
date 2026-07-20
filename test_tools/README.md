@@ -369,16 +369,19 @@ Automatically generate test code by analyzing trace files. The generator scans s
 
 ```bash
 # Generate test code from a trace file
-python -m monocle_test_tools.generate_test trace.json
+python -m monocle_test_tools generate_test --trace-file trace.json
 
 # With custom test name
-python -m monocle_test_tools.generate_test trace.json --test-name test_my_agent
+python -m monocle_test_tools generate_test --trace-file trace.json --test-name test_my_agent
 
 # Only generate the loader for a specific trace source (file | okahu)
-python -m monocle_test_tools.generate_test trace.json --trace-source file
+python -m monocle_test_tools generate_test --trace-file trace.json --trace-source file
 
 # Save to file
-python -m monocle_test_tools.generate_test trace.json > test_generated.py
+python -m monocle_test_tools generate_test --trace-file trace.json > test_generated.py
+
+# The old module path still works
+python -m monocle_test_tools.generate_test trace.json
 ```
 
 By default the generated test includes loader options for every supported trace

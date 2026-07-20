@@ -99,3 +99,46 @@ def test_check_eval_filtered_raises_on_fail_over_threshold(monkeypatch):
     # report + failures are still available after the raise
     assert a.get_filtered_eval_report()["summary"]["failed"] == 1
     assert [f["fact_id"] for f in a.get_filtered_eval_failures()] == ["bb"]
+
+
+def test_with_trace_source_okahu_window_records_scope_no_import():
+    a = _asserter()
+    with patch.object(a.validator, "import_traces") as imp:
+        a.with_trace_source("okahu", workflow_name="wf", start_time="s", end_time="e")
+    imp.assert_not_called()
+    assert a._okahu_filter == {"workflows": ["wf"], "start_time": "s",
+                               "end_time": "e", "fact_name": "traces"}
+
+
+def test_with_trace_source_okahu_window_accepts_workflow_list():
+    a = _asserter().with_trace_source("okahu", workflow_name=["a", "b"],
+                                      start_time="s", end_time="e")
+    assert a._okahu_filter["workflows"] == ["a", "b"]
+
+
+def test_with_trace_source_okahu_id_and_window_conflict():
+    with pytest.raises(ValueError):
+        _asserter().with_trace_source("okahu", id="t1", workflow_name="wf",
+                                      start_time="s", end_time="e")
+
+
+def test_with_trace_source_okahu_window_requires_workflow_and_bounds():
+    with pytest.raises(ValueError):
+        _asserter().with_trace_source("okahu", start_time="s", end_time="e")  # no workflow
+    with pytest.raises(ValueError):
+        _asserter().with_trace_source("okahu", workflow_name="wf", start_time="s")  # no end
+
+
+def test_with_trace_source_window_rejected_for_local_and_file():
+    with pytest.raises(ValueError):
+        _asserter().with_trace_source("local", start_time="s", end_time="e")
+    with pytest.raises(ValueError):
+        _asserter().with_trace_source("file", start_time="s", end_time="e")
+
+
+def test_with_trace_source_okahu_id_still_imports():
+    a = _asserter()
+    with patch.object(a.validator, "import_traces") as imp:
+        a.with_trace_source("okahu", id="t1", workflow_name="wf")
+    imp.assert_called_once()
+    assert a._okahu_filter is None

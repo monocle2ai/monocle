@@ -218,13 +218,37 @@ class TraceAssertion():
                 workflow_name="my_app"
             ).called_tool("search")
         """
+        window_kwargs = ("start_time", "end_time")
+        has_window = any(kwargs.get(k) is not None for k in window_kwargs)
+
         if source == "local":
-            # Default behavior: use traces already in memory
-            # No action needed - validator already has spans from current execution
-            pass
-        elif source in ("file", "okahu"):
-            # Delegate to import_traces() for file and okahu sources
+            # Default behavior: use traces already in memory.
+            if has_window:
+                raise ValueError("Time-window filtering is only supported for source='okahu'.")
+        elif source == "file":
+            if has_window:
+                raise ValueError("Time-window filtering is only supported for source='okahu'.")
             self.validator.import_traces(trace_source=source, **kwargs)
+        elif source == "okahu":
+            has_id = kwargs.get("id") is not None
+            if has_window and has_id:
+                raise ValueError("Provide an 'id' or a time window (start_time/end_time), not both.")
+            if has_window:
+                # Filter mode: eval-only. Record the scope; import no spans.
+                start_time, end_time = kwargs.get("start_time"), kwargs.get("end_time")
+                if start_time is None or end_time is None:
+                    raise ValueError("Filter mode requires both 'start_time' and 'end_time'.")
+                workflow_name = kwargs.get("workflow_name")
+                if not workflow_name:
+                    raise ValueError("Filter mode requires 'workflow_name'.")
+                workflows = ([workflow_name] if isinstance(workflow_name, str)
+                             else list(workflow_name))
+                self._okahu_filter = {"workflows": workflows, "start_time": start_time,
+                                      "end_time": end_time,
+                                      "fact_name": kwargs.get("fact_name", "traces")}
+            else:
+                # Direct id mode (unchanged): single id imported into memory.
+                self.validator.import_traces(trace_source=source, **kwargs)
         else:
             raise ValueError(
                 f"Unsupported trace source: '{source}'. "

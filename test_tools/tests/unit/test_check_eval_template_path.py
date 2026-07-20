@@ -86,7 +86,7 @@ class TestCheckEvalTemplatePath:
         path.write_text(json.dumps(WRAPPED_TEMPLATE), encoding="utf-8")
         asserter = _make_asserter()
 
-        with pytest.raises(ValueError, match="not both"):
+        with pytest.raises(ValueError, match="exactly one"):
             asserter.check_eval(
                 eval_name="hallucination",
                 template_path=str(path),
@@ -96,5 +96,33 @@ class TestCheckEvalTemplatePath:
     def test_neither_eval_name_nor_template_path_raises_value_error(self):
         asserter = _make_asserter()
 
-        with pytest.raises(ValueError, match="Provide either"):
+        with pytest.raises(ValueError, match="exactly one"):
             asserter.check_eval(expected="a")
+
+    def test_eval_name_and_template_dict_both_raises_value_error(self):
+        """Passing both eval_name and template (dict) selectors is rejected,
+        matching the eval_name/template_path exactly-one behavior."""
+        asserter = _make_asserter()
+
+        with pytest.raises(ValueError, match="exactly one"):
+            asserter.check_eval(
+                eval_name="hallucination",
+                template=dict(INNER_TEMPLATE),
+                expected="a",
+            )
+
+    def test_template_dict_selector_reaches_evaluate_unmodified(self):
+        """Regression test: an inline `template` dict passed to check_eval in
+        span mode must reach self._eval.evaluate(..., template=...) as-is,
+        not be clobbered by a stray `template = None` reset."""
+        asserter = _make_asserter(eval_result=("a", "ok"))
+        template_dict = dict(INNER_TEMPLATE)
+
+        result = asserter.check_eval(template=template_dict, expected="a")
+
+        assert not result.has_assertions(), result.get_assertion_messages()
+        _, kwargs = asserter._eval.evaluate.call_args
+        assert kwargs["template"] == template_dict
+        assert kwargs["template"] is not None
+        # eval_name should be derived from the template's "name" field.
+        assert kwargs["eval_name"] == "test_template"

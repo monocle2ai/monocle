@@ -822,12 +822,12 @@ class TraceAssertion():
                 min_facts=min_facts, fail_threshold=fail_threshold, max_facts=max_facts,
                 message=message)
 
-        if eval_name and template_path:
-            raise ValueError("Provide either 'eval_name' or 'template_path', not both.")
-        if not eval_name and not template_path:
-            raise ValueError("Provide either 'eval_name' (for Okahu templates) or 'template_path' (for custom templates).")
+        if sum(bool(x) for x in (eval_name, template_path, template)) != 1:
+            raise ValueError(
+                "Provide exactly one of 'eval_name' (for Okahu templates), "
+                "'template_path' (for a custom-template JSON file), or "
+                "'template' (for an inline custom-template dict).")
 
-        template = None
         if template_path:
             path_obj = Path(template_path)
             if not path_obj.is_file():
@@ -850,6 +850,8 @@ class TraceAssertion():
                 template = loaded["template"]
             else:
                 template = loaded
+            eval_name = template.get("name", "custom_eval")
+        elif template and not eval_name:
             eval_name = template.get("name", "custom_eval")
 
         if expected is None and not_expected is None:

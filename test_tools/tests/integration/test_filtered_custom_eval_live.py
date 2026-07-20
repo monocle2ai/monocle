@@ -38,9 +38,9 @@ TEMPLATE = {  # or load a committed hallucination_test.json
 def test_filtered_custom_template_smoke(monocle_trace_asserter):
     # Blanket gate over every fact the job discovers (no id list).
     (monocle_trace_asserter
-        .with_filtered_source("okahu", workflow_name=os.environ["SMOKE_WORKFLOW"],
-                              start_time=os.environ["SMOKE_START"], end_time=os.environ["SMOKE_END"])
+        .with_trace_source("okahu", workflow_name=os.environ["SMOKE_WORKFLOW"],
+                           start_time=os.environ["SMOKE_START"], end_time=os.environ["SMOKE_END"])
         .with_evaluation("okahu")
-        .check_eval_filtered(template=TEMPLATE, expected="no_hallucination", min_facts=1))
-    report = monocle_trace_asserter.get_filtered_eval_report()
+        .check_eval(template=TEMPLATE, expected="no_hallucination", min_facts=1))
+    report = monocle_trace_asserter.get_eval_report()
     assert report["summary"]["total"] >= 1

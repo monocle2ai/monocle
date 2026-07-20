@@ -284,7 +284,7 @@ class OkahuFilteredEval:
 
     def run_filtered(self, workflow_names, *, accepted=None, not_expected=None,
                      eval_name=None, template=None, fact_name, start_time, end_time,
-                     min_facts=1, results_timeout=300, results_interval=10,
+                     min_facts=1, max_facts=None, results_timeout=300, results_interval=10,
                      stall_rounds=2) -> dict:
         """Submit -> poll -> enumerate discovered facts -> reconcile -> report.
 
@@ -302,6 +302,12 @@ class OkahuFilteredEval:
             raise AssertionError(
                 f"Filtered eval evaluated {len(discovered)} fact(s) (min_facts={min_facts}); "
                 f"check workflow/time-window filter. job_id={job_id}")
+        ceiling = max_facts if max_facts is not None else int(os.getenv("OKAHU_MAX_FACTS", "1000"))
+        if len(discovered) > ceiling:
+            raise AssertionError(
+                f"Filtered eval discovered {len(discovered)} facts, exceeding max_facts={ceiling} "
+                f"(set OKAHU_MAX_FACTS to raise the ceiling, or narrow the time window). "
+                f"job_id={job_id}")
         # Reconcile via the canonical /evals/query path over the discovered ids (reuses coverage).
         per_workflow = {wf: {fid: True for fid in discovered} for wf in workflows}
         latest = self.poll_for_coverage(

@@ -263,3 +263,26 @@ def test_run_filtered_min_facts_guard_raises_on_too_few():
         with pytest.raises(AssertionError):
             c.run_filtered("wf", accepted="no_hallucination", eval_name="hallucination",
                            fact_name="traces", start_time="s", end_time="e", min_facts=1)
+
+
+def test_run_filtered_raises_when_population_exceeds_max_facts():
+    c = feval.OkahuFilteredEval(api_key="k", eval_base="http://e", api_base="http://a")
+    with patch.object(c, "submit", return_value="job-1"), \
+         patch.object(c, "poll_status", return_value="SUCCEEDED"), \
+         patch.object(c, "get_job_result_fact_ids", return_value=["aa", "bb", "cc"]):
+        with pytest.raises(AssertionError) as exc:
+            c.run_filtered("wf", accepted="no_hallucination", eval_name="hallucination",
+                           fact_name="traces", start_time="s", end_time="e",
+                           min_facts=1, max_facts=2)
+    assert "max_facts" in str(exc.value)
+
+
+def test_run_filtered_max_facts_env_default(monkeypatch):
+    monkeypatch.setenv("OKAHU_MAX_FACTS", "2")
+    c = feval.OkahuFilteredEval(api_key="k", eval_base="http://e", api_base="http://a")
+    with patch.object(c, "submit", return_value="job-1"), \
+         patch.object(c, "poll_status", return_value="SUCCEEDED"), \
+         patch.object(c, "get_job_result_fact_ids", return_value=["aa", "bb", "cc"]):
+        with pytest.raises(AssertionError):
+            c.run_filtered("wf", accepted="no_hallucination", eval_name="hallucination",
+                           fact_name="traces", start_time="s", end_time="e", min_facts=1)

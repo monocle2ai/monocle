@@ -24,6 +24,29 @@ def _make_asserter(eval_result=("a", "ok")):
     return TraceAssertion(filtered_spans=[span], _eval=eval_mock)
 
 
+@pytest.fixture(autouse=True)
+def _reset_trace_assertion_class_state():
+    """Reset shared class-level TraceAssertion state before AND after each test.
+
+    Several tests here build a `TraceAssertion()` directly (bypassing the
+    `monocle_trace_asserter` fixture, whose teardown calls `cleanup()`) and
+    intentionally leave a recorded assertion behind. A manual reset as the LAST
+    statement of a test body is fragile: if an earlier assertion in that same
+    test body fails, the reset is skipped and the dirty class-level
+    `_assertion_errors` bleeds into whichever test runs next --
+    pytest_plugin.py's `pytest_runtest_makereport` flips any passing test to
+    failed when `TraceAssertion().has_assertions()` is true. An autouse fixture
+    with both a setup and a teardown reset closes that gap.
+    """
+    TraceAssertion._assertion_errors = []
+    TraceAssertion._eval_report = None
+    TraceAssertion._okahu_filter = None
+    yield
+    TraceAssertion._assertion_errors = []
+    TraceAssertion._eval_report = None
+    TraceAssertion._okahu_filter = None
+
+
 class TestCheckEvalTemplatePath:
 
     def test_wrapped_template_file_is_unwrapped_before_evaluate(self, tmp_path):
@@ -58,28 +81,40 @@ class TestCheckEvalTemplatePath:
         missing = tmp_path / "does_not_exist.json"
         asserter = _make_asserter()
 
-        result = asserter.check_eval(template_path=str(missing), expected="a")
+        # This test intentionally leaves a recorded assertion behind to inspect
+        # it below. pytest_plugin.py's pytest_runtest_makereport hook checks
+        # `TraceAssertion().has_assertions()` right after the test *call* phase
+        # finishes -- i.e. before the autouse fixture's teardown-side reset (that
+        # only runs in the later teardown phase) has a chance to run -- so the
+        # cleanup must happen inside the test body itself. The try/finally (rather
+        # than a bare last-statement reset) guarantees it runs even if an
+        # assertion above it fails, so a real regression here can't also
+        # contaminate whichever test runs next.
+        try:
+            result = asserter.check_eval(template_path=str(missing), expected="a")
 
-        assert result.has_assertions()
-        msg = result.get_assertion_messages()
-        assert "Custom template file not found" in msg
-        assert str(missing) in msg
-        # Clear assertions so pytest hook doesn't fail the test
-        TraceAssertion._assertion_errors = []
+            assert result.has_assertions()
+            msg = result.get_assertion_messages()
+            assert "Custom template file not found" in msg
+            assert str(missing) in msg
+        finally:
+            TraceAssertion._assertion_errors = []
 
     def test_invalid_json_raises_clean_assertion(self, tmp_path):
         path = tmp_path / "bad.json"
         path.write_text("{not valid json", encoding="utf-8")
         asserter = _make_asserter()
 
-        result = asserter.check_eval(template_path=str(path), expected="a")
+        # See the try/finally comment in test_missing_file_raises_clean_assertion.
+        try:
+            result = asserter.check_eval(template_path=str(path), expected="a")
 
-        assert result.has_assertions()
-        msg = result.get_assertion_messages()
-        assert "Custom template file is not valid JSON" in msg
-        assert str(path) in msg
-        # Clear assertions so pytest hook doesn't fail the test
-        TraceAssertion._assertion_errors = []
+            assert result.has_assertions()
+            msg = result.get_assertion_messages()
+            assert "Custom template file is not valid JSON" in msg
+            assert str(path) in msg
+        finally:
+            TraceAssertion._assertion_errors = []
 
     def test_both_eval_name_and_template_path_raises_value_error(self, tmp_path):
         path = tmp_path / "tpl.json"

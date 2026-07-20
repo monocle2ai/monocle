@@ -7,6 +7,7 @@ from typing import Any, Callable, Optional, Sequence, Union
 from monocle_apptrace.instrumentation.common.method_wrappers import monocle_trace_method
 from monocle_apptrace.instrumentation.common.utils import get_workflow_name
 from monocle_test_tools import eval_matrix
+from monocle_test_tools.evals.okahu_filtered_eval import build_filtered_report
 from monocle_test_tools.schema import Evaluation
 from monocle_test_tools.span_loader import JSONSpanLoader, OkahuSpanLoader
 from .comparer.comparer_manager import get_comparer
@@ -65,6 +66,9 @@ class TraceAssertion():
     # for eval-only filtered runs. Threaded through @collect_assertions like
     # _filtered_spans so the (decorated) check_eval can read it.
     _okahu_filter: Optional[dict] = None
+    # Uniform eval report (filter mode = N facts; span mode = 1 fact). Class-scoped
+    # like _last_eval so accessors on the fixture's original asserter can read it.
+    _eval_report: Optional[dict] = None
 
     @staticmethod
     def get_trace_asserter():
@@ -125,6 +129,7 @@ class TraceAssertion():
         self._okahu_filter = None
         TraceAssertion._assertion_errors = []
         TraceAssertion._last_eval = None
+        TraceAssertion._eval_report = None
 
     @staticmethod
     def _validate_count_params(count: Optional[int], min_count: Optional[int], max_count: Optional[int]) -> None:
@@ -789,7 +794,7 @@ class TraceAssertion():
         return self
 
     @collect_assertions
-    def check_eval(self, eval_name:Optional[str] = None, expected:Optional[Union[str, list[str]]] = None, not_expected:Optional[Union[str, list[str]]] = None, fact_name:Optional[str] = "traces", message:Optional[str] = None, template_path:Optional[str] = None) -> 'TraceAssertion':
+    def check_eval(self, eval_name:Optional[str] = None, expected:Optional[Union[str, list[str]]] = None, not_expected:Optional[Union[str, list[str]]] = None, fact_name:Optional[str] = "traces", message:Optional[str] = None, template_path:Optional[str] = None, *, template:Optional[dict] = None, min_facts:int = 1, fail_threshold:int = 0, max_facts:Optional[int] = None) -> 'TraceAssertion':
         """Validate evaluation results for the current filtered spans.
 
         Provide exactly one of:
@@ -798,7 +803,25 @@ class TraceAssertion():
             is loaded and the parsed dict is sent to the eval service. Server-side
             validation errors (HTTP 400) surface as AssertionError with the prefix
             'Custom template validation failed: <reason>'.
+
+        When with_trace_source("okahu", start_time=..., end_time=...) has recorded a
+        filter scope, this runs the filtered (async job) flow instead of the span
+        path; min_facts/fail_threshold/max_facts apply only in that mode.
         """
+        filter_scope = getattr(self, "_okahu_filter", None)
+        if filter_scope is None:
+            # Span mode: filter-only params must not be used.
+            if min_facts != 1 or fail_threshold != 0 or max_facts is not None:
+                raise ValueError(
+                    "min_facts/fail_threshold/max_facts apply only to a time-window "
+                    "(filtered) source; set start_time/end_time on with_trace_source('okahu', ...).")
+        else:
+            return self._check_eval_filtered(
+                filter_scope, eval_name=eval_name, expected=expected,
+                not_expected=not_expected, template_path=template_path, template=template,
+                min_facts=min_facts, fail_threshold=fail_threshold, max_facts=max_facts,
+                message=message)
+
         if eval_name and template_path:
             raise ValueError("Provide either 'eval_name' or 'template_path', not both.")
         if not eval_name and not template_path:
@@ -884,7 +907,64 @@ class TraceAssertion():
             else:
                 raise AssertionError(f"Evaluation '{eval_name}' matched an unexpected result. Should not be any of {negative}. Received '{eval_result}'. \n Explanation: {explanation}")
 
+        TraceAssertion._eval_report = build_filtered_report(
+            expected, not_expected,
+            [{"fact_id": trace_id, "job_id": None, "eval_found": True,
+              "eval_result": {"label": eval_result, "explanation": explanation},
+              "workflow": ""}],
+            job_id=None)
+
         return self
+
+    def _check_eval_filtered(self, scope, *, eval_name, expected, not_expected,
+                             template_path, template, min_facts, fail_threshold,
+                             max_facts, message):
+        from monocle_test_tools.evals.okahu_filtered_eval import OkahuFilteredEval
+        selectors = [s for s in (eval_name, template_path, template) if s]
+        if len(selectors) != 1:
+            raise ValueError("Provide exactly one of 'eval_name', 'template_path', or 'template'.")
+        if isinstance(expected, dict):
+            raise ValueError("check_eval takes 'expected' as a str/list, not a dict.")
+        if expected is None and not_expected is None:
+            raise ValueError("Filtered check_eval requires 'expected' and/or 'not_expected'.")
+        acc = None if expected is None else ([expected] if isinstance(expected, str) else list(expected))
+        neg = [] if not_expected is None else ([not_expected] if isinstance(not_expected, str) else list(not_expected))
+        if acc and set(acc) & set(neg):
+            raise ValueError(f"'expected' and 'not_expected' overlap: {set(acc) & set(neg)}.")
+
+        if template_path:
+            path_obj = Path(template_path)
+            if not path_obj.is_file():
+                raise AssertionError(f"Custom template file not found: {template_path}")
+            loaded = json.loads(path_obj.read_text(encoding="utf-8"))
+            if (isinstance(loaded, dict) and set(loaded.keys()) == {"template"}
+                    and isinstance(loaded["template"], dict)):
+                template = loaded["template"]
+            else:
+                template = loaded
+
+        client = OkahuFilteredEval.from_env()
+        report = client.run_filtered(
+            scope["workflows"], accepted=expected, not_expected=not_expected,
+            eval_name=eval_name, template=template, fact_name=scope["fact_name"],
+            start_time=scope["start_time"], end_time=scope["end_time"],
+            min_facts=min_facts, max_facts=max_facts)
+        TraceAssertion._eval_report = report
+        eval_matrix.record_eval_rows_from_report(report)
+
+        s = report["summary"]
+        if s["errors"] > 0 or s["failed"] > fail_threshold:
+            failures = [r for r in report["scenarios"] if r["status"] != "pass"]
+            lines = "\n".join(f"  {r['status']:7} {r['fact_id']}  exp={r['expected']} act={r['actual']}"
+                              for r in failures)
+            raise AssertionError(message or
+                f"Filtered eval failed: {s['failed']} failed, {s['errors']} errors "
+                f"(of {s['total']}).\n{lines}")
+        return self
+
+    def get_eval_report(self) -> Optional[dict]:
+        """The uniform eval report stashed by check_eval (filter mode = N facts; span mode = 1 fact)."""
+        return self._eval_report
 
     def with_filtered_source(self, source: str = "okahu", *, workflow_name,
                              start_time, end_time, fact_name: str = "traces") -> 'TraceAssertion':

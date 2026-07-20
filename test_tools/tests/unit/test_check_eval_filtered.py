@@ -142,3 +142,43 @@ def test_with_trace_source_okahu_id_still_imports():
         a.with_trace_source("okahu", id="t1", workflow_name="wf")
     imp.assert_called_once()
     assert a._okahu_filter is None
+
+
+def test_check_eval_filter_mode_runs_filtered_flow_and_stashes_report(monkeypatch):
+    monkeypatch.delenv("MONOCLE_EVAL_MATRIX", raising=False)
+    a = _asserter().with_trace_source("okahu", workflow_name="wf",
+                                      start_time="s", end_time="e")
+    with patch("monocle_test_tools.evals.okahu_filtered_eval.OkahuFilteredEval.from_env") as mk:
+        mk.return_value.run_filtered.return_value = _report()
+        result = a.check_eval(eval_name="hallucination", expected="no_hallucination", min_facts=1)
+    assert result.get_eval_report()["job_id"] == "job-1"
+    mk.return_value.run_filtered.assert_called_once()
+
+
+def test_check_eval_filter_mode_records_failure_on_fail_over_threshold(monkeypatch):
+    monkeypatch.delenv("MONOCLE_EVAL_MATRIX", raising=False)
+    fail_scn = [{"fact_id": "bb", "expected": ["no_hallucination"], "actual": "major_hallucination",
+                 "status": "fail", "job_id": "job-1", "explanation": "", "workflow": "wf"}]
+    a = _asserter().with_trace_source("okahu", workflow_name="wf", start_time="s", end_time="e")
+    with patch("monocle_test_tools.evals.okahu_filtered_eval.OkahuFilteredEval.from_env") as mk:
+        mk.return_value.run_filtered.return_value = _report(passed=0, failed=1, scenarios=fail_scn)
+        result = a.check_eval(eval_name="hallucination", expected="no_hallucination")
+    # @collect_assertions records the gate failure rather than raising inline.
+    assert result.has_assertions()
+    assert result.get_eval_report()["summary"]["failed"] == 1
+    # This test intentionally leaves a recorded assertion on the (shared) class-level
+    # _assertion_errors list, since it doesn't go through the monocle_trace_asserter
+    # fixture (whose teardown calls cleanup()). Clear it so pytest_plugin's
+    # pytest_runtest_makereport hook doesn't flip this (already-passing) test's own
+    # outcome, and so the dirty state doesn't bleed into later tests. Same idiom as
+    # test_okahu_filter_threads_through_collect_assertions in test_fluent_apis.py.
+    TraceAssertion._assertion_errors = []
+
+
+def test_check_eval_filter_only_params_rejected_in_span_mode():
+    a = _asserter()
+    a._filtered_spans = ["not-empty"]  # span mode (no _okahu_filter)
+    with pytest.raises(ValueError):
+        a.check_eval(eval_name="hallucination", expected="x", min_facts=5)
+    with pytest.raises(ValueError):
+        a.check_eval(eval_name="hallucination", expected="x", fail_threshold=2)

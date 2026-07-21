@@ -100,6 +100,10 @@ def extract_agent_request_input(arguments: Dict[str, Any]) -> Any:
     """
     return [arguments['kwargs']['new_message'].parts[0].text] if 'new_message' in arguments['kwargs'] else []
 
+def get_invocation_id(args) -> Optional[str]:
+    """Return ADK's invocation id from a BaseAgent.run_async call, if present."""
+    return args[0].invocation_id if args and hasattr(args[0], 'invocation_id') else None
+
 def extract_agent_response(result: Any) -> Any:
     """
     Extract the response data from agent result.

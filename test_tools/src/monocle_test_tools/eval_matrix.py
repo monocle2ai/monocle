@@ -34,7 +34,10 @@ def build_eval_matrix_row(run_id: str, scenario: str, last_eval: dict, passed: b
     Returns a dict with exactly these keys (schema is consumed downstream,
     do not rename): run_id, scenario, trace_id, expected, actual, status,
     explanation, total_tokens, claim_verdicts, hallucination_types,
-    entity_match_check.
+    entity_match_check, fact_id, workflow, job_id.
+
+    The trailing fact_id/workflow/job_id are additive columns for the filtered
+    flow; interactive rows carry empty-string defaults so no consumer breaks.
     """
     last_eval = last_eval or {}
     judge_output = last_eval.get("judge_output") or {}
@@ -43,7 +46,7 @@ def build_eval_matrix_row(run_id: str, scenario: str, last_eval: dict, passed: b
     if passed:
         status = "pass"
     elif actual:
-        status = "drift"
+        status = "fail"
     else:
         status = "error"
 
@@ -59,6 +62,9 @@ def build_eval_matrix_row(run_id: str, scenario: str, last_eval: dict, passed: b
         "claim_verdicts": judge_output.get("claim_verdicts") or [],
         "hallucination_types": judge_output.get("hallucination_types") or [],
         "entity_match_check": judge_output.get("entity_match_check") or "",
+        "fact_id": last_eval.get("fact_id") or "",
+        "workflow": last_eval.get("workflow") or "",
+        "job_id": last_eval.get("job_id") or "",
     }
 
 
@@ -135,6 +141,32 @@ def record_eval_row_for(config, request, trace_assertion) -> None:
 
     row = build_eval_matrix_row(run_id=run_id, scenario=scenario, last_eval=last_eval, passed=passed)
     record_row(row)
+
+
+def record_eval_rows_from_report(report: dict) -> None:
+    """Append one matrix row per filtered-report scenario, if the recorder is enabled.
+
+    Bridges the filtered flow (N scenarios in one test) to the same accumulator the
+    interactive per-test recorder uses. Self-skips when disabled. The filtered path
+    runs inside one test with no pytest config in hand, so it keys off the
+    MONOCLE_EVAL_MATRIX env var (the pytest --monocle-eval-matrix option is only
+    reachable from record_eval_row_for).
+    """
+    option_value = None  # no pytest config here; env is the enable signal for the filtered path
+    env_value = os.environ.get("MONOCLE_EVAL_MATRIX")
+    if not is_enabled(option_value, env_value):
+        return
+    run_id = os.getenv("RUN_ID") or os.getenv("LOCAL_RUN_ID") or "local"
+    for s in report.get("scenarios", []):
+        last_eval = {
+            "trace_id": s.get("fact_id"), "fact_id": s.get("fact_id"),
+            "workflow": s.get("workflow", ""), "job_id": s.get("job_id") or report.get("job_id"),
+            "expected": s.get("expected"), "label": s.get("actual") or "",
+            "explanation": s.get("explanation"), "judge_output": {}, "total_tokens": None,
+        }
+        row = build_eval_matrix_row(run_id=run_id, scenario=s.get("fact_id") or "",
+                                    last_eval=last_eval, passed=(s.get("status") == "pass"))
+        record_row(row)
 
 
 def pytest_addoption(parser) -> None:

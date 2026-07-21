@@ -1,4 +1,5 @@
 from unittest.mock import Mock, patch
+from monocle_test_tools import eval_matrix
 from monocle_test_tools.eval_matrix import build_eval_matrix_row, reset_records, record_eval_row_for, get_records
 from monocle_test_tools.fluent_api import TraceAssertion
 
@@ -32,10 +33,14 @@ def test_build_eval_matrix_row_pass_includes_tokens():
         "claim_verdicts": [{"claim": "x", "verdict": "supported"}],
         "hallucination_types": [],
         "entity_match_check": "ok",
+        # Filtered-flow columns default to empty for interactive rows (additive widening).
+        "fact_id": "",
+        "workflow": "",
+        "job_id": "",
     }
 
 
-def test_build_eval_matrix_row_not_passed_with_label_is_drift():
+def test_build_eval_matrix_row_not_passed_with_label_is_fail():
     last_eval = {
         "trace_id": "def456",
         "expected": ["no_hallucination"],
@@ -48,7 +53,7 @@ def test_build_eval_matrix_row_not_passed_with_label_is_drift():
 
     row = build_eval_matrix_row(run_id="run-2", scenario="test_y", last_eval=last_eval, passed=False)
 
-    assert row["status"] == "drift"
+    assert row["status"] == "fail"
     assert row["actual"] == "major_hallucination"
     assert row["claim_verdicts"] == []
     assert row["hallucination_types"] == []
@@ -174,3 +179,42 @@ def test_recorder_does_not_bleed_stale_eval_between_tests():
     assert row_a["trace_id"] == "t1"
     assert row_a["actual"] == "major_hallucination"
     assert row_a["total_tokens"] == 10
+
+
+# --- Task 7: widened schema + filtered-report recorder bridge ----------------
+
+def test_build_eval_matrix_row_carries_optional_filtered_fields():
+    last_eval = {"trace_id": "aa", "fact_id": "aa", "workflow": "wf", "job_id": "job-1",
+                 "expected": ["no_hallucination"], "label": "no_hallucination",
+                 "explanation": "ok", "judge_output": {}, "total_tokens": 5}
+    row = build_eval_matrix_row(run_id="r", scenario="aa", last_eval=last_eval, passed=True)
+    assert row["fact_id"] == "aa" and row["workflow"] == "wf" and row["job_id"] == "job-1"
+    assert row["status"] == "pass"
+
+
+def test_build_eval_matrix_row_defaults_filtered_fields_empty_for_interactive():
+    last_eval = {"trace_id": "t", "expected": "x", "label": "x", "explanation": "",
+                 "judge_output": {}, "total_tokens": None}
+    row = build_eval_matrix_row(run_id="r", scenario="test_x", last_eval=last_eval, passed=True)
+    assert row["fact_id"] == "" and row["workflow"] == "" and row["job_id"] == ""
+
+
+def test_record_eval_rows_from_report_appends_one_row_per_scenario_when_enabled(monkeypatch):
+    reset_records()
+    monkeypatch.setenv("MONOCLE_EVAL_MATRIX", "1")
+    report = {"job_id": "job-1", "scenarios": [
+        {"fact_id": "aa", "workflow": "wf", "job_id": "job-1", "expected": ["no_hallucination"],
+         "actual": "no_hallucination", "status": "pass", "explanation": "ok"},
+        {"fact_id": "bb", "workflow": "wf", "job_id": "job-1", "expected": ["no_hallucination"],
+         "actual": "major_hallucination", "status": "fail", "explanation": "x"}]}
+    eval_matrix.record_eval_rows_from_report(report)
+    rows = get_records()
+    assert [r["fact_id"] for r in rows] == ["aa", "bb"]
+    assert [r["status"] for r in rows] == ["pass", "fail"]
+
+
+def test_record_eval_rows_from_report_self_skips_when_disabled(monkeypatch):
+    reset_records()
+    monkeypatch.delenv("MONOCLE_EVAL_MATRIX", raising=False)
+    eval_matrix.record_eval_rows_from_report({"scenarios": [{"fact_id": "aa", "status": "pass"}]})
+    assert get_records() == []

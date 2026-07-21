@@ -251,3 +251,12 @@ def verify_spans(memory_exporter, expected_invocation_id=None):
     ]
     assert request_turn_ids and all(t == turn_id for t in request_turn_ids), \
         f"agentic.turn span missing or mismatched turn id: {request_turn_ids}"
+
+    # The workflow/root span must also carry the turn id (propagated from the turn span).
+    workflow_turn_ids = [
+        span.attributes.get("scope.agentic.turn")
+        for span in spans
+        if span.attributes.get("span.type") == "workflow"
+    ]
+    assert workflow_turn_ids and all(t == turn_id for t in workflow_turn_ids), \
+        f"workflow span missing or mismatched turn id: {workflow_turn_ids}"

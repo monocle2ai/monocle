@@ -47,17 +47,15 @@ class AdkSpanHandler(SpanHandler):
                 session_id_token = set_scope(AGENT_SESSION, session_id)
 
         # Bind the turn scope to ADK's invocation_id at the root agent, before child spans.
-        turn_token = self._bind_turn_scope(instance, args)
-        tokens = [t for t in (session_id_token, turn_token) if t is not None]
+        turn_scope_token = self._bind_turn_scope(instance, args)
+        tokens = [t for t in (session_id_token, turn_scope_token) if t is not None]
         return (tokens or None), agent_request_wrapper
 
     def _bind_turn_scope(self, instance, args):
-        """Set the turn scope to ADK's invocation_id once, at the root agent call.
+        """Bind the turn scope to ADK's invocation_id once, at the root agent call.
 
-        invocation_id isn't known until inside run_async, so it can't be set up-front
-        (the REQUEST entity skips the random builtin turn scope). args[0] is the ADK
-        InvocationContext; sub-agents inherit the scope, so is_scope_set guards a re-set.
-        Also stamps the REQUEST/turn span, which opened before the id existed.
+        The id isn't known until ADK is running, so it's set here (not up-front) and stamped
+        onto the already-open turn span; is_scope_set stops sub-agents from re-setting it.
         """
         if getattr(instance, '__class__', None) is not None and instance.__class__.__name__ == 'Runner':
             return None
@@ -79,3 +77,13 @@ class AdkSpanHandler(SpanHandler):
                 remove_scope(scope_token)
         elif token:
             remove_scope(token)
+
+    def post_task_processing(self, to_wrap, wrapped, instance, args, kwargs, result, ex, span, parent_span):
+        super().post_task_processing(to_wrap, wrapped, instance, args, kwargs, result, ex, span, parent_span)
+        # The workflow/root span opened before the id existed and skips scope hydration at
+        # close, so copy the turn scope onto it (only the turn span's parent is the workflow).
+        turn_scope = f"scope.{AGENT_REQUEST_SPAN_NAME}"
+        turn_id = span.attributes.get(turn_scope)
+        if (turn_id and parent_span is not None
+                and SpanHandler.is_workflow_span(parent_span) and parent_span.is_recording()):
+            parent_span.set_attribute(turn_scope, turn_id)

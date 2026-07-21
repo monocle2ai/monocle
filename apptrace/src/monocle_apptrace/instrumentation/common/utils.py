@@ -678,20 +678,28 @@ def propogate_inference_info_to_parent_span(span: Span, parent_span: Span):
     """Propagate inference information from child span to parent span. Copy the parent span's last inference id to tool spans.
         This way we link the inference span that's resulted in the tool call or agent delegation decision to the tool/agent invocation span."""
     if parent_span is not None and parent_span != INVALID_SPAN:
+        # The parent span may already be ended when this runs for deferred/streaming
+        # spans (e.g. an agent turn finalizing after the synchronous run_streamed call
+        # — and its workflow parent — has returned and closed). Writing to an ended span
+        # is a silent no-op that OTel logs as "Setting attribute on ended span"; skip it.
+        parent_writable = getattr(parent_span, "is_recording", lambda: True)()
         ## save last inference id in parent span
         if span.attributes.get("span.type") in [SPAN_TYPES.INFERENCE, SPAN_TYPES.INFERENCE_FRAMEWORK]:
             if span.attributes.get("span.subtype") in [INFERENCE_AGENT_DELEGATION, INFERENCE_TOOL_CALL]:
-                parent_span.set_attribute(LAST_INFERENCE, f"{format(span.context.span_id, '#018x')}:{span.attributes.get('entity.3.name', '')}")
+                if parent_writable:
+                    parent_span.set_attribute(LAST_INFERENCE, f"{format(span.context.span_id, '#018x')}:{span.attributes.get('entity.3.name', '')}")
             elif span.attributes.get("span.subtype") == INFERENCE_TURN_END:
-                parent_span.set_attribute(LAST_INFERENCE, f"{format(span.context.span_id, '#018x')}:{ANY_AGENT}")
+                if parent_writable:
+                    parent_span.set_attribute(LAST_INFERENCE, f"{format(span.context.span_id, '#018x')}:{ANY_AGENT}")
         # copy last infernce span id from parent span to tool span
         elif span.attributes.get("span.type") in [SPAN_TYPES.AGENTIC_TOOL_INVOCATION, SPAN_TYPES.AGENTIC_INVOCATION]:
             if LAST_INFERENCE in parent_span.attributes and verify_tool_names_in_spans(span, parent_span):
                 span.set_attribute(INFERENCE_DECISION, parent_span.attributes.get(LAST_INFERENCE).split(":")[0])
-                parent_span.set_attribute(LAST_INFERENCE, "")
+                if parent_writable:
+                    parent_span.set_attribute(LAST_INFERENCE, "")
 
         # propagate last inference id from child span to parent span
-        if span.attributes.get(LAST_INFERENCE, "") != "" and  (
+        if parent_writable and span.attributes.get(LAST_INFERENCE, "") != "" and  (
                 span.attributes.get("span.type") not in [SPAN_TYPES.AGENTIC_DELEGATION] \
                 or parent_span.attributes.get("span.subtype", "") not in [SPAN_SUBTYPES.ROUTING]
         ):

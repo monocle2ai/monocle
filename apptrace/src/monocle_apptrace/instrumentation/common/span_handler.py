@@ -463,7 +463,7 @@ class HttpSpanHandler(SpanHandler):
                 return False
         return True
 
-    def build_trace_return_trailer(self, trace_id: int, delimiter: str):
+    def build_trace_return_trailer(self, trace_id: int, delimiter: str) -> "bytes | None":
         """Pop this trace's captured spans and build the response trailer bytes.
         Returns None when there is nothing to return."""
         from monocle_apptrace.exporters.trace_return_exporter import get_trace_return_exporter

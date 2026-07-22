@@ -28,6 +28,8 @@ def test_build_trailer_returns_bytes_for_matching_trace():
     assert clean == b"BODY"
     import json
     assert json.loads(tr.decode_payload(payload))[0]["name"] == "inference"
+    # eviction: a second call for the same trace now finds nothing
+    assert HttpSpanHandler().build_trace_return_trailer(42, tr.make_delimiter()) is None
 
 
 def test_build_trailer_none_when_no_spans():

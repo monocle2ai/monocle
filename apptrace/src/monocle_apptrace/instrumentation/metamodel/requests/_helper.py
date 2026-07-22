@@ -1,12 +1,17 @@
+import logging
 import os
 
 from opentelemetry.context import attach, detach, get_value, set_value
 from opentelemetry.trace.propagation import _SPAN_KEY
 from  monocle_apptrace.instrumentation.metamodel.requests import allowed_urls
 from opentelemetry.propagate import inject
+from monocle_apptrace.instrumentation.common.constants import TRACE_RETURN_RESPONSE_HEADER
+from monocle_apptrace.instrumentation.common import trace_return as tr
 from monocle_apptrace.instrumentation.common.span_handler import SpanHandler
 from monocle_apptrace.instrumentation.common.utils import _MONOCLE_SPAN_KEY, add_monocle_trace_state
 from urllib.parse import urlparse, ParseResult
+
+logger = logging.getLogger(__name__)
 
 
 def get_route(kwargs):
@@ -77,3 +82,20 @@ class RequestSpanHandler(SpanHandler):
 
     def skip_span(self, to_wrap, wrapped, instance, args, kwargs) -> bool:
         return request_skip_span(kwargs, RequestSpanHandler._trace_all_urls)
+
+    def post_task_processing(self, to_wrap, wrapped, instance, args, kwargs, result, ex, span, parent_span):
+        try:
+            headers = getattr(result, "headers", None)
+            header_value = headers.get(TRACE_RETURN_RESPONSE_HEADER) if headers else None
+            if header_value:
+                delimiter = tr.parse_delimiter_from_header(header_value)
+                if delimiter:
+                    body = getattr(result, "_content", None)
+                    if isinstance(body, (bytes, bytearray)):
+                        clean, payload = tr.split_body_and_trailer(bytes(body), delimiter)
+                        if payload is not None:
+                            result._content = clean
+                            result._monocle_remote_spans = tr.decode_payload(payload)
+        except Exception as e:
+            logger.debug(f"trace-return strip failed: {e}")
+        super().post_task_processing(to_wrap, wrapped, instance, args, kwargs, result, ex, span, parent_span)

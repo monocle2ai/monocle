@@ -680,22 +680,67 @@ class TestMonocleTraceMethod(unittest.IsolatedAsyncioTestCase):
 
     async def test_monocle_trace_method_async_exception(self):
         """Test monocle_trace_method decorator when async function raises exception"""
-        
+
         @monocle_trace_method(span_name="async_error_function")
         async def async_test_function():
             await asyncio.sleep(0.001)
             raise RuntimeError("Async test error")
-        
+
         with self.assertRaises(RuntimeError):
             await async_test_function()
-        
+
         self.exporter.force_flush()
         spans = self.exporter.captured_spans
-        
+
         self.assertEqual(len(spans), 2)
         span = spans[0]
         self.assertEqual(span.name, "async_error_function")
         self.assertEqual(span.status.status_code, StatusCode.ERROR)
+
+    def test_monocle_trace_method_disabled_sync(self):
+        """Test monocle_trace_method(enabled=False) is a no-op passthrough for sync functions."""
+
+        @monocle_trace_method(enabled=False)
+        def disabled_function(x, y):
+            return x + y
+
+        result = disabled_function(3, 4)
+
+        self.assertEqual(result, 7)
+        self.exporter.force_flush()
+        # No spans should be captured — decorator is disabled.
+        self.assertEqual(len(self.exporter.captured_spans), 0)
+
+    async def test_monocle_trace_method_disabled_async(self):
+        """Test monocle_trace_method(enabled=False) is a no-op passthrough for async functions."""
+
+        @monocle_trace_method(enabled=False)
+        async def disabled_async_function(x, y):
+            await asyncio.sleep(0.001)
+            return x * y
+
+        result = await disabled_async_function(3, 4)
+
+        self.assertEqual(result, 12)
+        self.exporter.force_flush()
+        # No spans should be captured — decorator is disabled.
+        self.assertEqual(len(self.exporter.captured_spans), 0)
+
+    def test_monocle_trace_method_enabled_explicit(self):
+        """Test monocle_trace_method(enabled=True) behaves identically to the default."""
+
+        @monocle_trace_method(enabled=True)
+        def explicit_enabled_function(x):
+            return x * 2
+
+        result = explicit_enabled_function(5)
+
+        self.assertEqual(result, 10)
+        self.exporter.force_flush()
+        spans = self.exporter.captured_spans
+        # Should produce spans just like the default behaviour.
+        self.assertGreater(len(spans), 0)
+        self.assertEqual(spans[0].name, "explicit_enabled_function")
 
     def test_monocle_trace_method_multiple_calls(self):
         """Test monocle_trace_method decorator with multiple function calls"""

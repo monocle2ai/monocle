@@ -408,15 +408,14 @@ Create `apptrace/tests/unit/test_trace_return_setup.py`:
 ```python
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from monocle_apptrace.instrumentation.common import instrumentor as inst
-from monocle_apptrace.exporters.trace_return_exporter import get_trace_return_exporter
 
 
 def test_processor_added_when_enabled(monkeypatch):
     monkeypatch.setenv("MONOCLE_ENABLE_TRACE_RETURN", "true")
-    procs = [SimpleSpanProcessor(get_trace_return_exporter())]
     # helper under test: appends the trace-return processor when enabled
     result = inst._append_trace_return_processor([])
     assert len(result) == 1
+    assert isinstance(result[0], SimpleSpanProcessor)
 
 
 def test_processor_absent_when_disabled(monkeypatch):

@@ -1,0 +1,4 @@
+case_id,fact_id,workflow_name,fact_name,expected,not_expected,max_tokens,max_duration_ms,notes
+cc_t01,642dbd9d0dfcfdbdc8849f67f34c8a19,test_cc_customer_care_agent,traces,major_hallucination,,,,eval-replay row (kit parity)
+cc_t02,8f127fc9bad5199ff073acbf1cbdece1,test_cc_customer_care_agent,traces,no_hallucination,,,,eval-replay row
+cc_t03,642dbd9d0dfcfdbdc8849f67f34c8a19,test_cc_customer_care_agent,traces,no_hallucination,,5000,4000,eval row with token budget + duration guard rails

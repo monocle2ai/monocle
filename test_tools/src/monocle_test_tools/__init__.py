@@ -25,6 +25,7 @@ from .comparer import ( BaseComparer, BertScoreComparer, DefaultComparer)
 from . import trace_utils
 from .runner import AgentRunner, get_agent_runner
 from .fluent_api import TraceAssertion
+from .csv_cases import CsvCase, load_cases_from_csv, monocle_csv_cases
 from .test_generator import TestGenerator
 from . import pytest_plugin
 from . import gitutils
@@ -48,6 +49,9 @@ __all__ = [
     "MockTool",
     "ToolType",
     "TraceAssertion",
+    "CsvCase",
+    "load_cases_from_csv",
+    "monocle_csv_cases",
     "TestGenerator",
     "pytest_plugin",
     "gitutils"

@@ -14,3 +14,8 @@ class AgentRunner:
         """Check if the runner has remote traces. This can be overridden if the runner needs to fetch traces in a specific way."""
         return None
 
+    def get_remote_spans(self) -> list:
+        """Spans the runner obtained out-of-band (e.g. piggybacked on an HTTP response).
+        Default: none."""
+        return []
+

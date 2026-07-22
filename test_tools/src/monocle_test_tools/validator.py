@@ -278,6 +278,9 @@ class MonocleValidator:
                 detach(mock_tool_token)
         self._trace_source =  agent_runner.get_remote_traces_source()
         self._fetch_remote_traces()
+        remote_spans = agent_runner.get_remote_spans()
+        if remote_spans:
+            self.add_remote_spans(remote_spans)
         return result
 
     async def run_agent_async(self, agent, agent_type:str, *args, session_id:str=None, mock_tools:list[MockTool]=[], **kwargs):
@@ -296,6 +299,9 @@ class MonocleValidator:
                 detach(mock_tool_token)
         self._trace_source = agent_runner.get_remote_traces_source()
         self._fetch_remote_traces()
+        remote_spans = agent_runner.get_remote_spans()
+        if remote_spans:
+            self.add_remote_spans(remote_spans)
         return result
 
     async def test_agent_async(self, agent, agent_type:str, test_case:Union[TestCase, dict], session_id:str=None):

@@ -48,3 +48,27 @@ def test_maybe_processor_gated_by_env(monkeypatch):
     assert maybe_trace_return_processor() is None
     monkeypatch.setenv("MONOCLE_ENABLE_TRACE_RETURN", "true")
     assert maybe_trace_return_processor() is not None
+
+
+def test_pop_preserves_remaining_tagged_span_without_sdk_version():
+    """Regression test: remaining tagged spans without SDK version are NOT dropped on eviction."""
+    exp = TraceReturnSpanExporter()
+
+    class TaggedNoVersionSpan:
+        def __init__(self, trace_id):
+            self._attributes = {"scope.monocle_trace_return": "true"}  # no monocle_apptrace.version
+            self._ctx = FakeCtx(trace_id)
+
+        @property
+        def attributes(self):
+            return self._attributes
+
+        def get_span_context(self):
+            return self._ctx
+
+    exp.export([TaggedNoVersionSpan(1), TaggedNoVersionSpan(2)])
+    popped = exp.pop_spans_for_trace(1)
+    assert len(popped) == 1
+    remaining = exp.get_finished_spans()
+    assert len(remaining) == 1
+    assert remaining[0].get_span_context().trace_id == 2

@@ -14,7 +14,7 @@ from monocle_apptrace.instrumentation.common.constants import (
 
 logger = logging.getLogger(__name__)
 
-_DELIMITER_PREFIX = "\n__MONOCLE_TRACES__"
+_DELIMITER_PREFIX = "__MONOCLE_TRACES__"
 
 
 def is_trace_return_enabled() -> bool:
@@ -56,7 +56,7 @@ def build_response_header_value(delimiter: str) -> str:
 def parse_delimiter_from_header(header_value: str):
     if not header_value or "delim=" not in header_value:
         return None
-    return header_value.split("delim=", 1)[1].rstrip()
+    return header_value.split("delim=", 1)[1].strip()
 
 
 def split_body_and_trailer(body: bytes, delimiter: str):

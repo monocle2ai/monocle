@@ -56,3 +56,10 @@ def test_encode_decode_roundtrip():
     spans = _json.loads(decoded)
     assert len(spans) == 2
     assert spans[0]["name"] == "inference"
+
+
+def test_delimiter_is_header_safe():
+    d = tr.make_delimiter()
+    assert "\n" not in d and "\r" not in d
+    assert d == d.strip()
+    assert tr.parse_delimiter_from_header(tr.build_response_header_value(d)) == d

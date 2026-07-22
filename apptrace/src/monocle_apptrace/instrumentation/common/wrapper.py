@@ -139,7 +139,7 @@ def monocle_wrapper_span_processor(tracer: Tracer, handler: SpanHandler, to_wrap
                 except Exception as e:
                     logger.info(f"Warning: Error occurred in hydrate_span pre_process_span: {e}")
                 try:
-                    with monocle_trace_scope(get_builtin_scope_names(to_wrap)):
+                    with monocle_trace_scope(*get_builtin_scope_names(to_wrap, instance, args, kwargs)):
                         return_value, span_status = monocle_wrapper_span_processor(tracer, handler, to_wrap, wrapped, instance, source_path, False, args, kwargs)
                 except Exception as e:
                     ex = e
@@ -226,7 +226,7 @@ def monocle_iter_wrapper_span_processor(tracer: Tracer, handler: SpanHandler, to
                 except Exception as e:
                     logger.info(f"Warning: Error occurred in hydrate_span pre_process_span: {e}")
                 try:
-                    with monocle_trace_scope(get_builtin_scope_names(to_wrap)):
+                    with monocle_trace_scope(*get_builtin_scope_names(to_wrap, instance, args, kwargs)):
                         for item in monocle_iter_wrapper_span_processor(tracer, handler, to_wrap, wrapped, instance, source_path, False, args, kwargs):
                             last_item = item
                             yield item
@@ -295,7 +295,7 @@ def monocle_wrapper(tracer: Tracer, handler: SpanHandler, to_wrap, wrapped, inst
             add_workflow_span = get_value(ADD_NEW_WORKFLOW) == True
             token = attach(set_value(ADD_NEW_WORKFLOW, False))
             try:
-                with monocle_trace_scope(get_builtin_scope_names(to_wrap)):
+                with monocle_trace_scope(*get_builtin_scope_names(to_wrap, instance, args, kwargs)):
                     return_value, span_status = monocle_wrapper_span_processor(tracer, handler, to_wrap, wrapped, instance, source_path, add_workflow_span, args, kwargs)
             finally:
                 detach(token)
@@ -330,7 +330,7 @@ def monocle_iter_wrapper(tracer: Tracer, handler: SpanHandler, to_wrap, wrapped,
             _marker_token = MONOCLE_CONTEXT_MARKER.set(_marker)
             token = attach(set_value(ADD_NEW_WORKFLOW, False))
             try:
-                with monocle_trace_scope(get_builtin_scope_names(to_wrap)):
+                with monocle_trace_scope(*get_builtin_scope_names(to_wrap, instance, args, kwargs)):
                     for item in monocle_iter_wrapper_span_processor(tracer, handler, to_wrap, wrapped, instance, source_path, add_workflow_span, args, kwargs):
                         yield item
             finally:
@@ -389,7 +389,7 @@ async def amonocle_wrapper_span_processor(tracer: Tracer, handler: SpanHandler, 
                     logger.info(f"Warning: Error occurred in hydrate_span pre_process_span: {e}")
 
                 try:
-                    with monocle_trace_scope(get_builtin_scope_names(to_wrap)):
+                    with monocle_trace_scope(*get_builtin_scope_names(to_wrap, instance, args, kwargs)):
                         return_value, span_status = await amonocle_wrapper_span_processor(tracer, handler, to_wrap, wrapped, instance, source_path, False, args, kwargs)
                 except Exception as e:
                     ex = e
@@ -479,7 +479,7 @@ async def amonocle_iter_wrapper_span_processor(tracer: Tracer, handler: SpanHand
                 except Exception as e:
                     logger.info(f"Warning: Error occurred in hydrate_span pre_process_span: {e}")
                 try:
-                    with monocle_trace_scope(get_builtin_scope_names(to_wrap)):
+                    with monocle_trace_scope(*get_builtin_scope_names(to_wrap, instance, args, kwargs)):
                         async for item in amonocle_iter_wrapper_span_processor(tracer, handler, to_wrap, wrapped, instance, source_path, False, args, kwargs):
                             last_item = item
                             yield item
@@ -551,7 +551,7 @@ async def amonocle_wrapper(tracer: Tracer, handler: SpanHandler, to_wrap, wrappe
             add_workflow_span = get_value(ADD_NEW_WORKFLOW) == True
             token = attach(set_value(ADD_NEW_WORKFLOW, False))
             try:
-                with monocle_trace_scope(get_builtin_scope_names(to_wrap)):
+                with monocle_trace_scope(*get_builtin_scope_names(to_wrap, instance, args, kwargs)):
                     return_value, span_status = await amonocle_wrapper_span_processor(tracer, handler, to_wrap, wrapped, instance, source_path, 
                                                                         add_workflow_span, args, kwargs)
             finally:
@@ -586,7 +586,7 @@ async def amonocle_iter_wrapper(tracer: Tracer, handler: SpanHandler, to_wrap, w
             _marker_token = MONOCLE_CONTEXT_MARKER.set(_marker)
             token = attach(set_value(ADD_NEW_WORKFLOW, False))
             try:
-                with monocle_trace_scope(get_builtin_scope_names(to_wrap)):
+                with monocle_trace_scope(*get_builtin_scope_names(to_wrap, instance, args, kwargs)):
                     async for item in amonocle_iter_wrapper_span_processor(tracer, handler, to_wrap, wrapped, instance, source_path, add_workflow_span, args, kwargs):
                         yield item
             finally:
@@ -764,7 +764,12 @@ def start_as_monocle_span(tracer: Tracer, name: str, auto_close_span: bool,
         if auto_close_span:
             span.end(end_time=effective_end)
 
-def get_builtin_scope_names(to_wrap) -> str:
+def get_builtin_scope_names(to_wrap, instance=None, args=None, kwargs=None) -> tuple:
+    """Return the builtin scope to open, as a tuple splatted into monocle_trace_scope():
+       (name,)         -> auto-generate a value (default);
+       (name, value)   -> use this value (entity opts in via use_builtin_scope + scope_value);
+       (None,)         -> open no scope (value is set elsewhere, e.g. by the metamodel handler).
+    """
     output_processor = None
     if "output_processor" in to_wrap:
         output_processor = to_wrap.get("output_processor", None)
@@ -774,13 +779,27 @@ def get_builtin_scope_names(to_wrap) -> str:
                 output_processor = processor
                 break
 
-    # An entity can opt out of the builtin scope when its handler sets the value itself.
-    if isinstance(output_processor, dict) and output_processor.get("skip_builtin_scope", False):
-        return None
-    span_type = output_processor.get("type", None) if output_processor and isinstance(output_processor, dict) else None
+    span_type = output_processor.get("type", None) if isinstance(output_processor, dict) else None
+
+    # An entity can supply the builtin scope's value itself (instead of the random default)
+    # via a `scope_value` accessor evaluated with the call arguments. If it yields no value,
+    # the scope is left unset (the value is provided elsewhere) rather than auto-generated.
+    if isinstance(output_processor, dict) and output_processor.get("use_builtin_scope", False):
+        scope_name = output_processor.get("scope_name", span_type)
+        accessor = output_processor.get("scope_value")
+        value = None
+        if callable(accessor):
+            try:
+                value = accessor({"instance": instance, "args": args or (), "kwargs": kwargs or {}})
+            except Exception as e:
+                logger.warning("Warning: Error evaluating scope_value: %s", str(e))
+        if scope_name and value is not None:
+            return scope_name, value
+        return (None,)
+
     if span_type and span_type in AGENTIC_SPANS:
-        return span_type
-    return None
+        return (span_type,)
+    return (None,)
 
 def get_wrapper_with_next_processor(to_wrap, handler, instance, span, parent_span, args, kwargs):
     if has_more_processors(to_wrap):

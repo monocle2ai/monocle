@@ -55,6 +55,7 @@ class HttpRunner(_BaseHttpRunner):
     """HTTP runner that reads server-side spans piggybacked on the HTTP response."""
 
     def __init__(self):
+        super().__init__()
         self._remote_spans = []
 
     async def run_agent_async(self, root_agent: str, *args, **kwargs) -> Any:

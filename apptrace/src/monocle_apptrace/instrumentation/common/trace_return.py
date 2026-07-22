@@ -1,7 +1,6 @@
 import base64
 import gzip
 import json
-import logging
 import os
 import uuid
 
@@ -11,8 +10,6 @@ from monocle_apptrace.instrumentation.common.constants import (
     TRACE_RETURN_REQUEST_HEADER,
     TRACE_RETURN_VERSION,
 )
-
-logger = logging.getLogger(__name__)
 
 _DELIMITER_PREFIX = "__MONOCLE_TRACES__"
 
@@ -53,13 +50,13 @@ def build_response_header_value(delimiter: str) -> str:
     return f"{TRACE_RETURN_VERSION}; delim={delimiter}"
 
 
-def parse_delimiter_from_header(header_value: str):
+def parse_delimiter_from_header(header_value: str) -> "str | None":
     if not header_value or "delim=" not in header_value:
         return None
     return header_value.split("delim=", 1)[1].strip()
 
 
-def split_body_and_trailer(body: bytes, delimiter: str):
+def split_body_and_trailer(body: bytes, delimiter: str) -> "tuple[bytes, str | None]":
     marker = delimiter.encode("utf-8")
     idx = body.find(marker)
     if idx == -1:

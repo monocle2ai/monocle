@@ -465,15 +465,20 @@ async def fastapi_atask_wrapper(tracer, handler, to_wrap, wrapped, instance,
     if scope.get('method', 'GET') in ('POST', 'PUT', 'PATCH'):
         receive = await _buffer_request_body(scope, receive)
 
-    # Wrap send to capture response body (including streaming)
-    send = await _capture_response_body(scope, send)
-
     # Trace-return injection (opt-in): trace_id is resolved lazily inside the send
     # wrapper at trailer-finalize time, since the request span has not been created
-    # yet at this point in the wrapper chain.
+    # yet at this point in the wrapper chain. Assigned FIRST so it wraps the real
+    # send directly (innermost) — it appends the trailer/fixes content-length on
+    # the way OUT to the real send.
     if is_trace_return_enabled() and is_trace_return_requested(_headers_from_scope(scope)):
         delimiter = make_delimiter()
         send = await _inject_trace_return_send(scope, send, HttpSpanHandler(), delimiter)
+
+    # Wrap send to capture response body (including streaming). Assigned SECOND so
+    # it wraps the inject wrapper (outermost) — it observes the app's original,
+    # clean body (before any trailer is appended) and forwards messages unchanged
+    # downstream so the inject wrapper still sees the original start/body messages.
+    send = await _capture_response_body(scope, send)
 
     # Rebuild args with wrapped receive and send
     args = (scope, receive, send) + args[3:]

@@ -4,6 +4,29 @@ from monocle_test_tools import TraceAssertion
 from span_loader import JSONSpanLoader
 os.environ["MONOCLE_EXPORT_FAILED_TESTS_ONLY"] = "true"
 
+
+@pytest.fixture(autouse=True)
+def _reset_trace_assertion_class_state():
+    """Reset shared class-level TraceAssertion state before AND after each test.
+
+    `test_okahu_filter_threads_through_collect_assertions` below builds a
+    `TraceAssertion()` directly (bypassing the `monocle_trace_asserter` fixture,
+    whose teardown calls `cleanup()`) and intentionally leaves a recorded
+    assertion behind. A manual reset as the LAST statement of a test body is
+    fragile: if an earlier assertion in that same test body fails, the reset is
+    skipped and the dirty class-level `_assertion_errors` bleeds into whichever
+    test runs next -- pytest_plugin.py's `pytest_runtest_makereport` flips any
+    passing test to failed when `TraceAssertion().has_assertions()` is true.
+    An autouse fixture with both a setup and a teardown reset closes that gap.
+    """
+    TraceAssertion._assertion_errors = []
+    TraceAssertion._eval_report = None
+    TraceAssertion._okahu_filter = None
+    yield
+    TraceAssertion._assertion_errors = []
+    TraceAssertion._eval_report = None
+    TraceAssertion._okahu_filter = None
+
 def test_tool_invocation_span(monocle_trace_asserter:TraceAssertion):
     monocle_trace_asserter.load_spans(JSONSpanLoader.load_spans("traces/trace1.json"))
     monocle_trace_asserter.called_tool("adk_book_hotel_5", "adk_hotel_booking_agent_5") \
@@ -116,6 +139,26 @@ def test_event_filter_distinguishes_missing_and_non_matching_values(monocle_trac
     assert loaded._filter_spans_by_event(spans, "metadata", "total_tokens", 229)
     assert not loaded._filter_spans_by_event(spans, "metadata", "missing", None)
     assert not loaded._filter_spans_by_event(spans, "metadata", "total_tokens", "229")
+
+def test_okahu_filter_threads_through_collect_assertions():
+    a = TraceAssertion()
+    a._okahu_filter = {"workflows": ["wf"], "start_time": "s",
+                       "end_time": "e", "fact_name": "traces"}
+    # called_tool is @collect_assertions-decorated: it returns a *new* asserter,
+    # and (on empty spans) records an assertion on the shared class-level list.
+    # That recording is irrelevant to what this test checks (filter threading),
+    # but pytest_plugin.py's pytest_runtest_makereport hook flips a passing
+    # test's own outcome to failed when `TraceAssertion().has_assertions()` is
+    # true right after the *call* phase -- i.e. before the autouse fixture's
+    # teardown-side reset runs -- so the reset must happen here, inside the
+    # test body. The try/finally (rather than a bare last-statement reset)
+    # guarantees it runs even if the assertion below fails.
+    try:
+        b = a.called_tool("anything")
+        assert b._okahu_filter == {"workflows": ["wf"], "start_time": "s",
+                                   "end_time": "e", "fact_name": "traces"}
+    finally:
+        TraceAssertion._assertion_errors = []
 
 if __name__ == "__main__":
     pytest.main([__file__])

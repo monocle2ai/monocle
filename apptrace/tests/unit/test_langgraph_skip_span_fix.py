@@ -10,6 +10,10 @@ import unittest
 from unittest.mock import MagicMock, patch
 
 from monocle_apptrace.instrumentation.common.scope_wrapper import start_scope, stop_scope
+from monocle_apptrace.instrumentation.common.constants import (
+    AGENT_INVOCATION_SPAN_NAME,
+    AGENT_REQUEST_SPAN_NAME,
+)
 from monocle_apptrace.instrumentation.metamodel.langgraph.langgraph_processor import (
     LanggraphAgentHandler,
 )
@@ -43,7 +47,7 @@ class TestLanggraphSkipSpanFix(unittest.TestCase):
         to_wrap = self._to_wrap("astream")
         
         # Simulate being inside an agentic.invocation scope (as when ainvoke calls astream)
-        scope_token = start_scope("agentic.invocation", "test-invocation-id")
+        scope_token = start_scope(AGENT_INVOCATION_SPAN_NAME, "test-invocation-id")
         try:
             # skip_span should return True to prevent duplicate span
             result = self.handler.skip_span(
@@ -74,7 +78,7 @@ class TestLanggraphSkipSpanFix(unittest.TestCase):
         to_wrap = self._to_wrap("stream")
         
         # Simulate being inside an agentic.invocation scope (as when invoke calls stream)
-        scope_token = start_scope("agentic.invocation", "test-invocation-id")
+        scope_token = start_scope(AGENT_INVOCATION_SPAN_NAME, "test-invocation-id")
         try:
             result = self.handler.skip_span(
                 to_wrap, self.mock_wrapped, self.instance, self.mock_args, self.mock_kwargs
@@ -104,7 +108,7 @@ class TestLanggraphSkipSpanFix(unittest.TestCase):
         to_wrap = self._to_wrap("ainvoke")
         
         # Even if there's an existing scope, ainvoke should not be skipped by this logic
-        scope_token = start_scope("agentic.invocation", "existing-scope")
+        scope_token = start_scope(AGENT_INVOCATION_SPAN_NAME, "existing-scope")
         try:
             result = self.handler.skip_span(
                 to_wrap, self.mock_wrapped, self.instance, self.mock_args, self.mock_kwargs
@@ -122,7 +126,7 @@ class TestLanggraphSkipSpanFix(unittest.TestCase):
         """Test that invoke() is never skipped."""
         to_wrap = self._to_wrap("invoke")
         
-        scope_token = start_scope("agentic.invocation", "existing-scope")
+        scope_token = start_scope(AGENT_INVOCATION_SPAN_NAME, "existing-scope")
         try:
             result = self.handler.skip_span(
                 to_wrap, self.mock_wrapped, self.instance, self.mock_args, self.mock_kwargs
@@ -134,20 +138,18 @@ class TestLanggraphSkipSpanFix(unittest.TestCase):
         finally:
             stop_scope(scope_token)
 
-    def test_different_scope_does_not_trigger_skip(self):
-        """Test that stream/astream are only skipped for agentic.invocation scope, not other scopes."""
+    def test_agentic_turn_scope_also_triggers_skip(self):
+        """Test that stream/astream are skipped when already in agentic.turn scope."""
         to_wrap = self._to_wrap("astream")
         
-        # Set a different scope (not agentic.invocation)
-        scope_token = start_scope("agentic.turn", "some-turn-id")
+        scope_token = start_scope(AGENT_REQUEST_SPAN_NAME, "some-turn-id")
         try:
             result = self.handler.skip_span(
                 to_wrap, self.mock_wrapped, self.instance, self.mock_args, self.mock_kwargs
             )
-            # Should not skip because we're checking for agentic.invocation specifically
-            self.assertFalse(
+            self.assertTrue(
                 result,
-                "skip_span should not skip astream() when only agentic.turn scope is set"
+                "skip_span should skip astream() when agentic.turn scope is set"
             )
         finally:
             stop_scope(scope_token)
@@ -172,7 +174,7 @@ class TestLanggraphSkipSpanIntegration(unittest.TestCase):
         """
         # Step 1: ainvoke creates a scope
         ainvoke_to_wrap = self._to_wrap("ainvoke")
-        scope_token = start_scope("agentic.invocation", "ainvoke-scope-123")
+        scope_token = start_scope(AGENT_INVOCATION_SPAN_NAME, "ainvoke-scope-123")
         
         try:
             # Step 2: During ainvoke's execution, astream() is called

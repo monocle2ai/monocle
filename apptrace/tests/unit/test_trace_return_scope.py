@@ -1,4 +1,3 @@
-from opentelemetry.context import attach, detach
 from monocle_apptrace.instrumentation.common.utils import extract_http_headers, get_scopes, clear_http_scopes
 
 

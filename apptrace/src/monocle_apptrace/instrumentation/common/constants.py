@@ -259,3 +259,10 @@ PROVIDER_BASE_URLS = {
 
 SPAN_START_TIME:str = "monocle_span_start_time"
 SPAN_END_TIME:str = "monocle_span_end_time"
+
+# HTTP response span piggyback (trace return)
+MONOCLE_TRACE_RETURN_ENABLED_ENV = "MONOCLE_ENABLE_TRACE_RETURN"
+TRACE_RETURN_REQUEST_HEADER = "x-monocle-retrieve-traces"
+TRACE_RETURN_RESPONSE_HEADER = "x-monocle-traces"
+TRACE_RETURN_SCOPE_NAME = "monocle_trace_return"
+TRACE_RETURN_VERSION = "v1"

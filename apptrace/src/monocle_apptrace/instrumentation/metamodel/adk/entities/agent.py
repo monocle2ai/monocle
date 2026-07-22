@@ -100,9 +100,10 @@ AGENT_ORCHESTRATOR = {
 REQUEST = {
       "type": SPAN_TYPES.AGENTIC_REQUEST,
       "subtype": SPAN_SUBTYPES.TURN,
-      # AdkSpanHandler sets the turn scope to invocation_id (not available up-front), so opt
-      # into caller-provided value handling instead of the random auto-generated builtin.
+      # Turn scope value = the caller-supplied invocation_id (ADK run_async(invocation_id=...)).
+      # Set by the core builtin-scope mechanism; falls back to an auto-generated id if absent.
       "use_builtin_scope": True,
+      "scope_value": lambda arguments: arguments["kwargs"].get("invocation_id"),
       "attributes": [
         [
               {

@@ -112,21 +112,21 @@ runner = Runner(
     session_service=session_service
 )
 
-async def run_agent(test_message: str):
+async def run_agent(test_message: str, invocation_id: str = None):
     session = await session_service.create_session(
-        app_name=APP_NAME, 
+        app_name=APP_NAME,
         user_id=USER_ID,
         session_id=SESSION_ID
     )
     content = types.Content(role='user', parts=[types.Part(text=test_message)])
-    invocation_id = None
-    # Process events as they arrive using async for
+    # Process events as they arrive using async for. A caller-supplied invocation_id is
+    # honored by ADK (>= 2.5) and becomes the turn scope via the builtin-scope mechanism.
     async for event in runner.run_async(
         user_id=USER_ID,
         session_id=SESSION_ID,
+        invocation_id=invocation_id,
         new_message=content
     ):
-        invocation_id = event.invocation_id or invocation_id
         # For final response
         if event.is_final_response():
             logger.info(event.content)  # End line after response
@@ -135,7 +135,8 @@ async def run_agent(test_message: str):
 @pytest.mark.asyncio
 async def test_multi_agent(setup):
     test_message = "What is the current weather in New York?"
-    invocation_id = await run_agent(test_message)
+    invocation_id = "e-00000000-0000-0000-0000-0000000000ad"  # caller-supplied turn id
+    await run_agent(test_message, invocation_id)
     verify_spans(setup, invocation_id)
 
 @pytest.mark.asyncio

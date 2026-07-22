@@ -767,8 +767,9 @@ def start_as_monocle_span(tracer: Tracer, name: str, auto_close_span: bool,
 def get_builtin_scope_names(to_wrap, instance=None, args=None, kwargs=None) -> tuple:
     """Return the builtin scope to open, as a tuple splatted into monocle_trace_scope():
        (name,)         -> auto-generate a value (default);
-       (name, value)   -> use this value (entity opts in via use_builtin_scope + scope_value);
-       (None,)         -> open no scope (value is set elsewhere, e.g. by the metamodel handler).
+       (name, value)   -> entity opted in via use_builtin_scope + scope_value; use this value
+                          (value None -> monocle_trace_scope auto-generates, i.e. graceful fallback);
+       (None,)         -> open no scope (non-agentic span).
     """
     output_processor = None
     if "output_processor" in to_wrap:
@@ -782,8 +783,8 @@ def get_builtin_scope_names(to_wrap, instance=None, args=None, kwargs=None) -> t
     span_type = output_processor.get("type", None) if isinstance(output_processor, dict) else None
 
     # An entity can supply the builtin scope's value itself (instead of the random default)
-    # via a `scope_value` accessor evaluated with the call arguments. If it yields no value,
-    # the scope is left unset (the value is provided elsewhere) rather than auto-generated.
+    # via a `scope_value` accessor evaluated with the call arguments. A None result falls
+    # back to an auto-generated value, so callers that don't supply one still get a scope.
     if isinstance(output_processor, dict) and output_processor.get("use_builtin_scope", False):
         scope_name = output_processor.get("scope_name", span_type)
         accessor = output_processor.get("scope_value")
@@ -793,9 +794,7 @@ def get_builtin_scope_names(to_wrap, instance=None, args=None, kwargs=None) -> t
                 value = accessor({"instance": instance, "args": args or (), "kwargs": kwargs or {}})
             except Exception as e:
                 logger.warning("Warning: Error evaluating scope_value: %s", str(e))
-        if scope_name and value is not None:
-            return scope_name, value
-        return (None,)
+        return (scope_name, value) if scope_name else (None,)
 
     if span_type and span_type in AGENTIC_SPANS:
         return (span_type,)

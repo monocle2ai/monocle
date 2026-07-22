@@ -1,12 +1,10 @@
-import logging
 import threading
 
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor, SpanExportResult
+from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 
 from monocle_apptrace.exporters.base_exporter import MonocleInMemorySpanExporter
 from monocle_apptrace.instrumentation.common.constants import TRACE_RETURN_SCOPE_NAME
-
-logger = logging.getLogger(__name__)
 
 _SCOPE_ATTR = f"scope.{TRACE_RETURN_SCOPE_NAME}"
 
@@ -23,7 +21,7 @@ class TraceReturnSpanExporter(MonocleInMemorySpanExporter):
         if not tagged:
             return SpanExportResult.SUCCESS
         with self._tr_lock:
-            return super().export(tagged)
+            return InMemorySpanExporter.export(self, tagged)
 
     def pop_spans_for_trace(self, trace_id: int) -> list:
         """Return and evict all buffered spans whose trace_id matches."""
@@ -33,7 +31,7 @@ class TraceReturnSpanExporter(MonocleInMemorySpanExporter):
             remaining = [s for s in all_spans if s.get_span_context().trace_id != trace_id]
             self.clear()
             if remaining:
-                super().export(remaining)
+                InMemorySpanExporter.export(self, remaining)
         return matched
 
 

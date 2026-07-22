@@ -774,6 +774,9 @@ def get_builtin_scope_names(to_wrap) -> str:
                 output_processor = processor
                 break
 
+    # An entity can opt out of the builtin scope when its handler sets the value itself.
+    if isinstance(output_processor, dict) and output_processor.get("skip_builtin_scope", False):
+        return None
     span_type = output_processor.get("type", None) if output_processor and isinstance(output_processor, dict) else None
     if span_type and span_type in AGENTIC_SPANS:
         return span_type

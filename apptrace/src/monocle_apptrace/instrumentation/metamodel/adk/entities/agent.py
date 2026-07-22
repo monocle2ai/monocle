@@ -100,6 +100,8 @@ AGENT_ORCHESTRATOR = {
 REQUEST = {
       "type": SPAN_TYPES.AGENTIC_REQUEST,
       "subtype": SPAN_SUBTYPES.TURN,
+      # AdkSpanHandler binds the turn scope to invocation_id; skip the random builtin one.
+      "skip_builtin_scope": True,
       "attributes": [
         [
               {

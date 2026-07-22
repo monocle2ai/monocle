@@ -5,7 +5,6 @@ from collections import deque
 from dataclasses import dataclass, field
 from typing import AsyncIterator, List
 
-from opentelemetry import trace as _trace_api
 from opentelemetry.trace import Span
 
 from monocle_apptrace.instrumentation.common.constants import HTTP_SUCCESS_CODES, TRACE_RETURN_RESPONSE_HEADER
@@ -20,6 +19,7 @@ from monocle_apptrace.instrumentation.common.utils import (
     MonocleSpanException,
     clear_http_scopes,
     extract_http_headers,
+    get_current_monocle_span,
     get_exception_status_code,
     with_tracer_wrapper,
 )
@@ -205,6 +205,12 @@ async def _inject_trace_return_send(scope, send, handler, delimiter: str, trace_
     as the active request span) when not supplied explicitly. The request span is not
     yet created when this wrapper is constructed, so resolving it up front would read
     the wrong (or no) span; tests may still pass an explicit `trace_id` for determinism.
+
+    Note: Monocle keeps its own span hierarchy off the standard OTel context (see
+    `MONOCLE_ISOLATE_SPANS`, default true), so `opentelemetry.trace.get_current_span()`
+    would return an invalid span here. The lazy lookup must go through Monocle's own
+    `get_current_monocle_span()` accessor instead (same one used by wrapper.py /
+    method_wrappers.py) to find the actual active request span.
     """
     header_bytes = (TRACE_RETURN_RESPONSE_HEADER.encode("ascii"),
                     build_response_header_value(delimiter).encode("ascii"))
@@ -213,7 +219,10 @@ async def _inject_trace_return_send(scope, send, handler, delimiter: str, trace_
     def _resolve_trace_id():
         if trace_id is not None:
             return trace_id
-        return _trace_api.get_current_span().get_span_context().trace_id
+        # get_current_monocle_span() returns INVALID_SPAN (trace_id 0) when no
+        # Monocle span is active; that's fine, build_trace_return_trailer will
+        # simply find no matching spans and skip the trailer.
+        return get_current_monocle_span().get_span_context().trace_id
 
     async def _send(message):
         mtype = message.get("type")
@@ -224,6 +233,15 @@ async def _inject_trace_return_send(scope, send, handler, delimiter: str, trace_
                 state["buffered"] = True
                 state["held_start"] = message
                 return  # defer until finalize
+            # Streaming: ASGI does not allow headers to be added after start is
+            # sent, so the x-monocle-traces header advertising a POSSIBLE trailer
+            # at `delimiter` must go out now, before we know whether any spans
+            # will actually be captured by finalize time. If no trailer ends up
+            # being appended (see the streaming finalize branch below), the
+            # header is still present but the delimiter never appears in the
+            # body. The client splits the body on the delimiter and treats its
+            # absence as zero spans, so this is safe — just a header that may
+            # advertise a trailer that doesn't materialize.
             headers.append(header_bytes)
             message = {**message, "headers": headers}
             await send(message)

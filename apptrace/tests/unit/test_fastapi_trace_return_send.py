@@ -68,3 +68,19 @@ def test_no_injection_when_no_trailer(monkeypatch):
     _run(wrapped({"type": "http.response.body", "body": b"abc", "more_body": False}))
     body = b"".join(m.get("body", b"") for m in sent if m["type"] == "http.response.body")
     assert body == b"abc"
+
+
+def test_streaming_no_trailer_passes_chunks_through(monkeypatch):
+    monkeypatch.setenv("MONOCLE_ENABLE_TRACE_RETURN", "true")
+    delim = "\n__MONOCLE_TRACES__w__"
+    sent, send = _collect_send()
+    scope = {"headers": [(b"x-monocle-retrieve-traces", b"true")]}
+    wrapped = _run(h._inject_trace_return_send(scope, send, StubHandler(None), trace_id=7, delimiter=delim))
+    _run(wrapped({"type": "http.response.start", "status": 200,
+                  "headers": [(b"content-type", b"text/event-stream")]}))
+    _run(wrapped({"type": "http.response.body", "body": b"data: a\n\n", "more_body": True}))
+    _run(wrapped({"type": "http.response.body", "body": b"data: b\n\n", "more_body": False}))
+    body = b"".join(m.get("body", b"") for m in sent if m["type"] == "http.response.body")
+    assert body == b"data: a\n\ndata: b\n\n"
+    assert delim.encode() not in body
+    assert sent[0]["type"] == "http.response.start"

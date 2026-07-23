@@ -5,6 +5,8 @@ from monocle_apptrace.instrumentation.common.utils import extract_http_headers, 
     MonocleSpanException
 from monocle_apptrace.instrumentation.common.span_handler import SpanHandler
 from monocle_apptrace.instrumentation.common.constants import HTTP_SUCCESS_CODES
+from monocle_apptrace.instrumentation.common import trace_return as tr
+from monocle_apptrace.instrumentation.common.constants import TRACE_RETURN_RESPONSE_HEADER
 from urllib.parse import unquote, urlparse, ParseResult
 
 logger = logging.getLogger(__name__)
@@ -87,3 +89,20 @@ class lambdaSpanHandler(SpanHandler):
 
     def post_tracing(self, to_wrap, wrapped, instance, args, kwargs, return_value,token):
         lambda_func_post_tracing(token)
+
+    def post_task_processing(self, to_wrap, wrapped, instance, args, kwargs, result, ex, span, parent_span):
+        try:
+            if isinstance(result, dict) and isinstance(result.get("body"), str):
+                trace_id = span.get_span_context().trace_id if span is not None else 0
+                payload = tr.get_response_trailer(trace_id)
+                if payload is not None:
+                    header_value, trailer = payload
+                    result["body"] = result["body"] + trailer.decode("ascii")
+                    headers = result.get("headers")
+                    if not isinstance(headers, dict):
+                        headers = {}
+                    headers[TRACE_RETURN_RESPONSE_HEADER] = header_value
+                    result["headers"] = headers
+        except Exception as e:
+            logger.debug(f"lambda trace-return injection skipped: {e}")
+        super().post_task_processing(to_wrap, wrapped, instance, args, kwargs, result, ex, span, parent_span)

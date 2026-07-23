@@ -19,7 +19,6 @@ import asyncio
 import json
 import socket
 import threading
-import time
 
 import pytest
 
@@ -56,10 +55,15 @@ def flask_server():
         return {"answer": _answer(data.get("q", ""))}
 
     port = _free_port()
+    # make_server() binds and starts listening on the socket synchronously,
+    # in this (main) thread, before serve_forever() is handed off to the
+    # background thread below -- so the server is already accepting
+    # connections by the time this fixture yields the URL. No sleep/readiness
+    # poll needed (unlike the aiohttp fixture, where AppRunner/TCPSite.start()
+    # is itself async and must run inside the background thread's own loop).
     srv = make_server("127.0.0.1", port, app)
     t = threading.Thread(target=srv.serve_forever, daemon=True)
     t.start()
-    time.sleep(0.3)
     yield f"http://127.0.0.1:{port}"
     srv.shutdown()
     t.join(timeout=5)

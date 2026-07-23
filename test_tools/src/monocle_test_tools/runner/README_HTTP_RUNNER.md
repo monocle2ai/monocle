@@ -167,7 +167,7 @@ authorization gate, for:
 | FastAPI (ASGI) | Yes | Yes — trailer appended to the ASGI `http.response.body` chain |
 | Flask (WSGI) | Yes | Yes — trailer appended via a wrapped WSGI `app_iter` / `start_response` |
 | aiohttp | Yes — `web.Response` | Yes — `web.StreamResponse` (`prepare`/`write_eof` hooks) |
-| AWS Lambda | Yes — trailer appended to the `body` string, header added to the `headers` dict | N/A (Lambda responses are always a single buffered dict; no streaming response model) |
+| AWS Lambda\* | Yes — trailer appended to the `body` string, header added to the `headers` dict | N/A (Lambda responses are always a single buffered dict; no streaming response model) |
 | Azure Functions | Yes — trailer appended to `func.HttpResponse`'s body, header added to `.headers` | N/A (buffered `HttpResponse` model; no streaming response type) |
 
 All five frameworks share the same wire format (`x-monocle-traces` response
@@ -175,6 +175,10 @@ header + trailer appended after the body, stripped by the client-side
 `RequestSpanHandler`) and the same server-side authorization gate
 (`MONOCLE_ENABLE_TRACE_RETURN` + `MONOCLE_TRACE_RETRIEVAL_DEFAULT_KEY` /
 `MONOCLE_TRACE_RETRIEVAL_CALLBACK`) described above.
+
+\* See the AWS Lambda keyword-invocation caveat under "Known limitations"
+below — the table above describes the mechanism, not an unconditional
+guarantee for real Lambda deployments.
 
 End-to-end coverage: Flask and aiohttp are driven through a real in-process
 server via `HttpRunner`
@@ -198,6 +202,19 @@ needs no real server to demonstrate correctly.
 - Client-side handling assumes a **buffered** response (the default for
   `requests`); streaming *consumption on the client* is not covered.
 - Designed for direct client→server test setups (no intermediary proxy).
+- **AWS Lambda trace-return currently only activates when the handler is
+  invoked with keyword arguments** (`event=`/`context=`); under standard
+  positional AWS invocation (`handler(event, context)`) the underlying
+  `lambda_func_pre_tracing` header extraction (`kwargs['event']`) finds no
+  event, so the trace-return scope is never set, no spans are captured, and no
+  trailer is returned — the feature silently no-ops rather than erroring.
+  This is a pre-existing limitation of the `lambdafunc` instrumentation's
+  header-extraction convention (its other accessors, e.g. `get_url`/`get_route`,
+  read the event positionally instead, so the two are inconsistent with each
+  other), not something introduced by trace-return; it is tracked as a known
+  gap rather than fixed here. Azure Functions is unaffected — its Python
+  worker invokes handlers with `req=` as a keyword argument, matching what
+  `azure_func_pre_tracing` expects.
 
 ## Source
 

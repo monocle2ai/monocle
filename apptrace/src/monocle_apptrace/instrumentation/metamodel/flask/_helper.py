@@ -126,6 +126,8 @@ def flask_response_wrapper(tracer, handler, to_wrap, wrapped, instance, source_p
     Streamed: set the header up front (no Content-Length to fix), wrap app_iter to append a
     final trailer chunk."""
     eligible = tr.is_trace_return_enabled() and is_scope_set(TRACE_RETURN_SCOPE_NAME)
+    # len(args) < 2 should never happen for werkzeug's Response.__call__(environ, start_response);
+    # this is a defensive-only guard against an unexpected call shape.
     if not eligible or len(args) < 2:
         return monocle_wrapper(tracer, handler, to_wrap, wrapped, instance, source_path, args, kwargs)
     environ, start_response = args[0], args[1]

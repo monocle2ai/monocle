@@ -98,6 +98,8 @@ def _aiohttp_inject_buffered(response, trace_id) -> None:
     """Append the trace-return trailer + header to a buffered aiohttp web.Response.
     Only web.Response (which has a settable .body) is eligible; web.StreamResponse
     does not have .body and is handled separately via prepare/write_eof hooks."""
+    if not is_scope_set(TRACE_RETURN_SCOPE_NAME):
+        return
     if not hasattr(response, "body"):
         return
     try:
@@ -110,7 +112,14 @@ def _aiohttp_inject_buffered(response, trace_id) -> None:
     if payload is None:
         return
     header_value, trailer = payload
+    from aiohttp import hdrs
     response.body = bytes(current) + trailer
+    # If a handler pre-set an explicit Content-Length, aiohttp won't recompute it
+    # (it only auto-derives Content-Length from body length when the header wasn't
+    # already present); update it to match the appended body so the wire response
+    # isn't truncated.
+    if hdrs.CONTENT_LENGTH in response.headers:
+        response.headers[hdrs.CONTENT_LENGTH] = str(len(response.body))
     response.headers[TRACE_RETURN_RESPONSE_HEADER] = header_value
 
 
@@ -119,6 +128,12 @@ async def aiohttp_streamresponse_prepare(tracer, handler, to_wrap, wrapped, inst
     """Wrap StreamResponse.prepare to set the trace-return header before headers are
     sent to the client. Does NOT create a span: calls wrapped(...) directly so the
     streaming response's own parent/child span relationships are untouched."""
+    from aiohttp import web
+    # web.Response (buffered) subclasses StreamResponse and shares prepare();
+    # buffered injection is done in post_task_processing, so skip it here to
+    # avoid a second, mismatched header. Only true streaming responses inject here.
+    if isinstance(instance, web.Response):
+        return await wrapped(*args, **kwargs)
     try:
         if tr.is_trace_return_enabled() and is_scope_set(TRACE_RETURN_SCOPE_NAME) and not instance.prepared:
             delimiter = tr.make_delimiter()

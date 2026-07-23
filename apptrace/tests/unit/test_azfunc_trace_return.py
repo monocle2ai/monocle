@@ -44,3 +44,16 @@ def test_azfunc_noop_when_disabled(monkeypatch):
         result=resp, ex=None, span=FakeSpan(21), parent_span=None)
     assert resp.get_body() == b"{}"
     assert resp.headers.get("x-monocle-traces") is None
+
+
+def test_azfunc_no_header_when_body_mutation_fails(monkeypatch):
+    monkeypatch.setenv("MONOCLE_ENABLE_TRACE_RETURN", "true")
+    exp = get_trace_return_exporter(); exp.clear(); exp.export([FakeSpan(22)])
+    resp = azure_functions.HttpResponse(body=b"{}", status_code=200)
+    # Freeze get_body so the post-setattr verification sees no change,
+    # simulating a future private-attr rename.
+    monkeypatch.setattr(resp, "get_body", lambda: b"{}")
+    azureSpanHandler().post_task_processing(
+        to_wrap={}, wrapped=None, instance=None, args=(), kwargs={},
+        result=resp, ex=None, span=FakeSpan(22), parent_span=None)
+    assert resp.headers.get("x-monocle-traces") is None

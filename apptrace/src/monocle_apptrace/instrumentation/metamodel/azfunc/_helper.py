@@ -105,7 +105,13 @@ class azureSpanHandler(SpanHandler):
                     # func.HttpResponse has no public body setter; mutate the
                     # name-mangled private buffer that get_body() reads.
                     setattr(result, "_HttpResponse__body", new_body)
-                    result.headers[TRACE_RETURN_RESPONSE_HEADER] = header_value
+                    # Fail safe: only advertise the trailer if the private-buffer
+                    # mutation actually took effect (guards against a future
+                    # azure-functions rename silently creating a stray attribute).
+                    if result.get_body() == new_body:
+                        result.headers[TRACE_RETURN_RESPONSE_HEADER] = header_value
+                    else:
+                        logger.debug("azfunc trace-return: body mutation did not take effect; skipping header")
         except Exception as e:
             logger.debug(f"azfunc trace-return injection skipped: {e}")
         super().post_task_processing(to_wrap, wrapped, instance, args, kwargs, result, ex, span, parent_span)

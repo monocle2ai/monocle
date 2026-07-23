@@ -374,9 +374,9 @@ def extract_http_headers(headers) -> object:
             imported_scope[http_scope] = f"{http_header}: {headers[http_header]}"
     # trace-return opt-in: tag spans so the scope-filtered exporter captures them
     from monocle_apptrace.instrumentation.common.trace_return import (
-        is_trace_return_enabled, is_trace_return_requested)
+        is_trace_return_enabled, is_trace_return_authorized)
     from monocle_apptrace.instrumentation.common.constants import TRACE_RETURN_SCOPE_NAME
-    if is_trace_return_enabled() and is_trace_return_requested(headers):
+    if is_trace_return_enabled() and is_trace_return_authorized(headers):
         imported_scope[TRACE_RETURN_SCOPE_NAME] = "true"
     token = set_scopes(imported_scope, trace_context)
     return token

@@ -25,15 +25,6 @@ def is_trace_return_enabled() -> bool:
     return os.environ.get(MONOCLE_TRACE_RETURN_ENABLED_ENV, "false").lower() == "true"
 
 
-def is_trace_return_requested(headers: dict) -> bool:
-    if not headers:
-        return False
-    for key, value in headers.items():
-        if str(key).lower() == TRACE_RETURN_REQUEST_HEADER and str(value).lower() == "true":
-            return True
-    return False
-
-
 def _get_header_case_insensitive(headers: dict, name: str):
     if not headers:
         return None

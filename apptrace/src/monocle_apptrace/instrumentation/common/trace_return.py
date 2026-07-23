@@ -65,7 +65,7 @@ def _resolve_callback(spec: str):
     try:
         module = importlib.import_module(module_path)
         candidate = getattr(module, attr)
-    except (ImportError, AttributeError) as e:
+    except Exception as e:
         logger.warning("Could not load trace-retrieval callback '%s': %s", spec, e)
         return None
     if not callable(candidate):

@@ -70,3 +70,13 @@ def test_authorized_callback_raises_denies(tmp_path, monkeypatch):
 def test_authorized_malformed_spec_denies(monkeypatch):
     monkeypatch.setenv("MONOCLE_TRACE_RETRIEVAL_CALLBACK", "no_colon_here")
     assert tr.is_trace_return_authorized({}) is False
+
+
+def test_authorized_empty_module_spec_denies(monkeypatch):
+    monkeypatch.setenv("MONOCLE_TRACE_RETRIEVAL_CALLBACK", ":cb")
+    assert tr.is_trace_return_authorized({}) is False
+
+
+def test_authorized_relative_module_spec_denies(monkeypatch):
+    monkeypatch.setenv("MONOCLE_TRACE_RETRIEVAL_CALLBACK", "..bad:cb")
+    assert tr.is_trace_return_authorized({}) is False

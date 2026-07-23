@@ -1,10 +1,15 @@
 import asyncio
 import logging
+import os
 from typing import Any
 import requests
 from monocle_test_tools.runner.agent_runner import AgentRunner
 from monocle_test_tools.file_span_loader import JSONSpanLoader
 from monocle_apptrace.instrumentation.metamodel.requests._helper import RequestSpanHandler
+from monocle_apptrace.instrumentation.common.constants import (
+    MONOCLE_TRACE_RETRIEVAL_KEY_ENV,
+    TRACE_RETURN_REQUEST_HEADER,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -59,9 +64,22 @@ class HttpRunner(_BaseHttpRunner):
         self._remote_spans = []
 
     async def run_agent_async(self, root_agent: str, *args, **kwargs) -> Any:
+        self._maybe_inject_retrieval_key(kwargs)
         response = await super().run_agent_async(root_agent, *args, **kwargs)
         self._capture_remote_spans(response)
         return response
+
+    def _maybe_inject_retrieval_key(self, kwargs) -> None:
+        """Add the trace-retrieval key header from MONOCLE_TRACE_RETRIEVAL_KEY,
+        unless the caller already supplied the header."""
+        key = os.environ.get(MONOCLE_TRACE_RETRIEVAL_KEY_ENV)
+        if not key:
+            return
+        headers = dict(kwargs.get("headers") or {})
+        if any(str(k).lower() == TRACE_RETURN_REQUEST_HEADER for k in headers):
+            return  # caller-supplied header wins
+        headers[TRACE_RETURN_REQUEST_HEADER] = key
+        kwargs["headers"] = headers
 
     def _capture_remote_spans(self, response) -> None:
         raw = getattr(response, "_monocle_remote_spans", None)

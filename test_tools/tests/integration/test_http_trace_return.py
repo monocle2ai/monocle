@@ -8,6 +8,13 @@ import os
 # long as this file is run on its own / is the first test module to touch
 # MonocleValidator in the pytest session.
 os.environ["MONOCLE_ENABLE_TRACE_RETURN"] = "true"
+# Server-side key (default_trace_retrieval_callback checks the incoming
+# x-monocle-retrieve-traces header against this) and client-side key
+# (HttpRunner._maybe_inject_retrieval_key reads this to auto-inject the
+# header). Same value == authorized; must be set before MonocleValidator()
+# is constructed for the same reason as MONOCLE_ENABLE_TRACE_RETURN above.
+os.environ["MONOCLE_TRACE_RETRIEVAL_DEFAULT_KEY"] = "e2e-s3cret"
+os.environ["MONOCLE_TRACE_RETRIEVAL_KEY"] = "e2e-s3cret"
 
 import socket
 import threading
@@ -103,7 +110,15 @@ def server():
 
 
 def test_server_spans_returned_in_band(server):
-    """The FastAPI server's spans are piggybacked on the response and land in the validator."""
+    """The FastAPI server's spans are piggybacked on the response and land in the validator.
+
+    The x-monocle-retrieve-traces header is NOT passed explicitly here: with
+    MONOCLE_TRACE_RETRIEVAL_KEY set at module import time (above), HttpRunner
+    (_maybe_inject_retrieval_key) auto-injects the header, and the server's
+    default_trace_retrieval_callback authorizes it against
+    MONOCLE_TRACE_RETRIEVAL_DEFAULT_KEY -- proving the key-based auto-injection
+    path end-to-end, not just the header-based mechanics.
+    """
     import json
     from monocle_test_tools.validator import MonocleValidator
 
@@ -111,7 +126,6 @@ def test_server_spans_returned_in_band(server):
     response = validator.run_agent(
         server + "/chat", "http",
         method="POST", json={"q": "hi"},
-        headers={"x-monocle-retrieve-traces": "true"},
     )
     # (a) body is clean -- trailer was stripped
     assert response.json()["answer"] == "echo: hi"
@@ -131,6 +145,25 @@ def test_server_spans_returned_in_band(server):
     # merged into validator.spans via HttpRunner/add_remote_spans.
     span_names = [s.name for s in validator.spans]
     assert "answer_question" in span_names
+
+
+def test_wrong_key_denied(server):
+    """A request that presents the wrong trace-retrieval key is denied end-to-end.
+
+    Discriminating counterpart to test_server_spans_returned_in_band: proves
+    that merely sending the x-monocle-retrieve-traces header is not enough --
+    the value must match the server's MONOCLE_TRACE_RETRIEVAL_DEFAULT_KEY, or
+    the server withholds the trailer entirely (no x-monocle-traces header,
+    clean body).
+    """
+    import requests
+
+    r = requests.post(
+        server + "/chat", json={"q": "x"},
+        headers={"x-monocle-retrieve-traces": "not-the-key"},
+    )
+    assert r.json()["answer"] == "echo: x"  # body clean
+    assert "x-monocle-traces" not in {k.lower() for k in r.headers.keys()}  # no trailer header
 
 
 def test_concurrent_requests_get_isolated_spans(server):
@@ -175,7 +208,11 @@ def test_concurrent_requests_get_isolated_spans(server):
     # run first to have already triggered setup.
     MonocleValidator()
 
-    headers = {"x-monocle-retrieve-traces": "true"}
+    # Value must match MONOCLE_TRACE_RETRIEVAL_DEFAULT_KEY (set at module
+    # import time above) -- these requests go via raw `requests`, not
+    # HttpRunner, so there is no auto-injection here; the key must be
+    # supplied explicitly to be authorized under the key-based gate.
+    headers = {"x-monocle-retrieve-traces": os.environ["MONOCLE_TRACE_RETRIEVAL_KEY"]}
     RequestSpanHandler.set_trace_all_urls_for_test(True)
     try:
         with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:

@@ -11,8 +11,8 @@ from monocle_apptrace.instrumentation.common.constants import HTTP_SUCCESS_CODES
 from monocle_apptrace.instrumentation.common.span_handler import HttpSpanHandler, SpanHandler
 from monocle_apptrace.instrumentation.common.trace_return import (
     build_response_header_value,
+    is_trace_return_authorized,
     is_trace_return_enabled,
-    is_trace_return_requested,
     make_delimiter,
 )
 from monocle_apptrace.instrumentation.common.utils import (
@@ -470,7 +470,7 @@ async def fastapi_atask_wrapper(tracer, handler, to_wrap, wrapped, instance,
     # yet at this point in the wrapper chain. Assigned FIRST so it wraps the real
     # send directly (innermost) — it appends the trailer/fixes content-length on
     # the way OUT to the real send.
-    if is_trace_return_enabled() and is_trace_return_requested(_headers_from_scope(scope)):
+    if is_trace_return_enabled() and is_trace_return_authorized(_headers_from_scope(scope)):
         delimiter = make_delimiter()
         send = await _inject_trace_return_send(scope, send, HttpSpanHandler(), delimiter)
 

@@ -13,13 +13,6 @@ def test_enabled_reads_env(monkeypatch):
     assert tr.is_trace_return_enabled() is False
 
 
-def test_requested_checks_header():
-    assert tr.is_trace_return_requested({"x-monocle-retrieve-traces": "true"}) is True
-    assert tr.is_trace_return_requested({"X-Monocle-Retrieve-Traces": "TRUE"}) is True
-    assert tr.is_trace_return_requested({"other": "true"}) is False
-    assert tr.is_trace_return_requested({}) is False
-
-
 def test_header_value_roundtrip():
     delim = tr.make_delimiter()
     value = tr.build_response_header_value(delim)

@@ -56,6 +56,9 @@ def _resolve_callback(spec: str):
     try:
         module = importlib.import_module(module_path)
         candidate = getattr(module, attr)
+    # Broad by design: import_module can raise ValueError (empty module name)
+    # or TypeError (relative spec), not just ImportError/AttributeError, and this
+    # runs outside the caller's try/except — any resolve failure must deny, not propagate.
     except Exception as e:
         logger.warning("Could not load trace-retrieval callback '%s': %s", spec, e)
         return None

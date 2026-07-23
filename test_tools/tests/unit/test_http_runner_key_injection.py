@@ -27,3 +27,13 @@ def test_no_injection_when_env_unset(monkeypatch):
     assert "headers" not in kwargs or all(
         k.lower() != "x-monocle-retrieve-traces" for k in kwargs.get("headers", {})
     )
+
+
+def test_no_injection_when_env_empty(monkeypatch):
+    monkeypatch.setenv("MONOCLE_TRACE_RETRIEVAL_KEY", "")
+    runner = HttpRunner()
+    kwargs = {"method": "GET"}
+    runner._maybe_inject_retrieval_key(kwargs)
+    assert "headers" not in kwargs or all(
+        k.lower() != "x-monocle-retrieve-traces" for k in kwargs.get("headers", {})
+    )

@@ -92,7 +92,7 @@ class lambdaSpanHandler(SpanHandler):
 
     def post_task_processing(self, to_wrap, wrapped, instance, args, kwargs, result, ex, span, parent_span):
         try:
-            if isinstance(result, dict) and isinstance(result.get("body"), str):
+            if isinstance(result, dict) and isinstance(result.get("body"), str) and not result.get("isBase64Encoded"):
                 trace_id = span.get_span_context().trace_id if span is not None else 0
                 payload = tr.get_response_trailer(trace_id)
                 if payload is not None:

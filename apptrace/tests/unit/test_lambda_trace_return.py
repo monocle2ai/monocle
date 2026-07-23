@@ -33,6 +33,17 @@ def test_lambda_injects_trailer(monkeypatch):
     assert json.loads(tr.decode_payload(payload))[0]["name"] == "lambda_child"
 
 
+def test_lambda_skips_base64_body(monkeypatch):
+    monkeypatch.setenv("MONOCLE_ENABLE_TRACE_RETURN", "true")
+    exp = get_trace_return_exporter(); exp.clear(); exp.export([FakeSpan(11)])
+    result = {"statusCode": 200, "headers": {}, "body": "aGVsbG8=", "isBase64Encoded": True}
+    lambdaSpanHandler().post_task_processing(
+        to_wrap={}, wrapped=None, instance=None, args=(), kwargs={},
+        result=result, ex=None, span=FakeSpan(11), parent_span=None)
+    assert result["body"] == "aGVsbG8="  # untouched
+    assert all(k.lower() != "x-monocle-traces" for k in result["headers"])
+
+
 def test_lambda_noop_when_disabled(monkeypatch):
     monkeypatch.delenv("MONOCLE_ENABLE_TRACE_RETURN", raising=False)
     get_trace_return_exporter().clear()

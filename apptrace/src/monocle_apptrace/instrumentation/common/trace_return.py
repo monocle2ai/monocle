@@ -123,3 +123,26 @@ def split_body_and_trailer(body: bytes, delimiter: str) -> "tuple[bytes, str | N
     clean = body[:idx]
     payload = body[idx + len(marker):].decode("ascii")
     return clean, payload
+
+
+def pop_and_build_trailer(trace_id: int, delimiter: str) -> "bytes | None":
+    """Pop this trace's captured spans from the exporter and build trailer bytes.
+    Returns None when there are no spans to return."""
+    from monocle_apptrace.exporters.trace_return_exporter import get_trace_return_exporter
+    spans = get_trace_return_exporter().pop_spans_for_trace(trace_id)
+    if not spans:
+        return None
+    return build_trailer_bytes(spans, delimiter)
+
+
+def get_response_trailer(trace_id: int) -> "tuple[str, bytes] | None":
+    """Convenience for buffered injection: make a delimiter, pop+build the
+    trailer, and return (response header value, trailer bytes). None when the
+    feature is disabled or there are no spans for this trace."""
+    if not is_trace_return_enabled():
+        return None
+    delimiter = make_delimiter()
+    trailer = pop_and_build_trailer(trace_id, delimiter)
+    if trailer is None:
+        return None
+    return build_response_header_value(delimiter), trailer

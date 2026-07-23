@@ -55,3 +55,50 @@ def test_generate_test_accepts_trace_file_flag():
     with patch.object(sys, "argv", ["generate_test", "--trace-file", "trace.json"]):
         result = main()
     assert result != 2  # Not an arg-parse error
+
+
+def test_generate_test_accepts_okahu_trace_id_and_workflow_name():
+    """generate_test should accept direct Okahu inputs."""
+    from monocle_test_tools.generate_test import main
+    with patch.object(
+        sys,
+        "argv",
+        [
+            "generate_test",
+            "--trace-id",
+            "abc123",
+            "--workflow-name",
+            "my_app",
+        ],
+    ):
+        result = main()
+    assert result != 2  # Not an arg-parse error
+
+
+def test_generate_test_with_only_trace_id_exits_2():
+    """trace-id without workflow-name should fail arg validation."""
+    from monocle_test_tools.generate_test import main
+    with patch.object(sys, "argv", ["generate_test", "--trace-id", "abc123"]):
+        with pytest.raises(SystemExit) as exc:
+            main()
+    assert exc.value.code == 2
+
+
+def test_generate_test_rejects_mixed_file_and_okahu_inputs():
+    """Supplying both file and Okahu inputs should fail arg validation."""
+    from monocle_test_tools.generate_test import main
+    with patch.object(
+        sys,
+        "argv",
+        [
+            "generate_test",
+            "trace.json",
+            "--trace-id",
+            "abc123",
+            "--workflow-name",
+            "my_app",
+        ],
+    ):
+        with pytest.raises(SystemExit) as exc:
+            main()
+    assert exc.value.code == 2

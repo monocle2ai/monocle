@@ -363,7 +363,7 @@ def test_tool_span(validator):
 
 ## Test Generator
 
-Automatically generate test code by analyzing trace files. The generator scans spans and creates Python test assertions for agents, tools, and outputs.
+Automatically generate test code by analyzing trace files. The generator scans spans and creates Python test assertions for agents, tools, outputs, cost, and performance, plus evaluation assertions supplied as `--eval` parameters (built-in or custom, auto-detected).
 
 ### Quick Start
 
@@ -373,6 +373,24 @@ python -m monocle_test_tools generate_test --trace-file trace.json
 
 # With custom test name
 python -m monocle_test_tools generate_test --trace-file trace.json --test-name test_my_agent
+
+# Generate test code directly from an Okahu cloud trace
+python -m monocle_test_tools generate_test --trace-id <trace_id> --workflow-name <workflow_name>
+
+# Inject built-in eval assertions (pass evals that exist on the cloud trace)
+python -m monocle_test_tools generate_test --trace-id <trace_id> --workflow-name <workflow_name> \
+  --trace-source okahu \
+  --eval hallucination=no_hallucination \
+  --eval sentiment=positive
+
+# Inject a custom eval template assertion
+python -m monocle_test_tools generate_test --trace-id <trace_id> --workflow-name <workflow_name> \
+  --trace-source okahu \
+  --eval ./my_custom_eval.json=pass
+
+# Specify a different fact_name for all injected evals (default: traces)
+python -m monocle_test_tools generate_test --trace-id <trace_id> --workflow-name <workflow_name> \
+  --eval hallucination=no_hallucination --eval-fact agentic_turns
 
 # Only generate the loader for a specific trace source (file | okahu)
 python -m monocle_test_tools generate_test --trace-file trace.json --trace-source file
@@ -387,6 +405,20 @@ python -m monocle_test_tools.generate_test trace.json
 By default the generated test includes loader options for every supported trace
 source (file, Okahu, live agent run). Passing `--trace-source file` or
 `--trace-source okahu` emits only that loader (as active code).
+
+The `--eval` type is auto-detected from the value (or forced with a `builtin:` / `custom:` prefix):
+- **Built-in**: plain name (e.g. `hallucination`, `sentiment`) → `check_eval("hallucination", ...)`
+- **Custom**: value ends with `.json` or is a path → `check_eval(template_path="./my_eval.json", ...)`
+
+`--eval-source` selects the evaluator (default `okahu`). It sets the `with_evaluation(...)`
+call in the generated test and drives how each `--eval` value is classified as built-in vs
+custom:
+
+```bash
+python -m monocle_test_tools generate_test --trace-file trace.json \
+  --eval-source okahu --eval hallucination=no_hallucination
+# ->  asserter.with_evaluation("okahu").check_eval("hallucination", expected="no_hallucination", ...)
+```
 
 ### Example Output
 
@@ -426,7 +458,14 @@ def test_generated(monocle_trace_asserter: TraceAssertion):
 
     # Performance check: duration of the turn (derived from trace; adjust as needed)
     asserter.under_duration(5.2, units="seconds", span_type="agent_turn")
+
+    # Eval assertions (from --eval parameters; require an eval service, e.g. Okahu)
+    asserter.with_evaluation("okahu").check_eval("hallucination", expected="pass")
 ```
+
+The Okahu cloud loader is **pre-populated** with the `id` (trace id) and
+`workflow_name` read from the trace itself, so it is ready to uncomment without
+editing placeholders.
 
 With `--trace-source file`, only the file loader line is emitted:
 
@@ -440,6 +479,7 @@ The generator extracts:
 - **Tool invocations** with parent agent references
 - **Total token usage** for the turn, emitted as an `under_token_limit()` check
 - **Turn duration**, emitted as an `under_duration(..., span_type="agent_turn")` check
+- **Trace id and workflow name**, used to pre-populate the Okahu cloud loader
 - **Sorted by invocation order** for readability
 
 ---

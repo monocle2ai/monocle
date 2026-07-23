@@ -215,6 +215,11 @@ needs no real server to demonstrate correctly.
   gap rather than fixed here. Azure Functions is unaffected — its Python
   worker invokes handlers with `req=` as a keyword argument, matching what
   `azure_func_pre_tracing` expects.
+- **aiohttp streaming (`web.StreamResponse`) trace-return depends on the
+  Monocle span context still being active when `write_eof` runs.** If the
+  request span has already closed by then, the trailer is skipped and the
+  client receives the announced header with no spans — safe (clean body, no
+  error), just no trace payload. Buffered aiohttp `web.Response` is unaffected.
 
 ## Source
 

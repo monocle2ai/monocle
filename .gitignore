@@ -111,3 +111,6 @@ test_tools/LICENSE
 test.env
 .monocle_claude_trace.jsonl
 .claude_sessions/
+
+# Superpowers design/plan artifacts (session workflow docs)
+docs/superpowers/

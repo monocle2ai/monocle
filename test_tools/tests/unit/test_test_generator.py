@@ -400,5 +400,36 @@ def test_cli_parse_eval_spec_requires_expected():
         _parse_eval_spec("hallucination=", "traces")      # empty expected
 
 
+# --- eval_source argument --------------------------------------------------------
+
+def test_generated_with_evaluation_uses_eval_source():
+    """The generated with_evaluation(...) call reflects the eval_source argument."""
+    spans = [_span({"span.type": "workflow", "workflow.name": "wf"})]
+    evals = [{"criteria": "hallucination", "expected": "pass"}]
+    code = TestGenerator(spans, trace_file="t.json", injected_evals=evals,
+                         eval_source="okahu").generate_test_code()
+    assert 'with_evaluation("okahu")' in code
+
+
+def test_unsupported_eval_source_rejected():
+    """An unsupported eval_source raises ValueError (like trace_source)."""
+    spans = [_span({"span.type": "workflow", "workflow.name": "wf"})]
+    with pytest.raises(ValueError):
+        TestGenerator(spans, trace_file="t.json", eval_source="not_a_real_evaluator")
+
+
+def test_supported_eval_sources_matches_registry():
+    """The local SUPPORTED_EVAL_SOURCES mirror must not drift from the registry."""
+    from monocle_test_tools.test_generator import SUPPORTED_EVAL_SOURCES
+    from monocle_test_tools.evals.eval_manager import get_supported_eval_sources
+    assert set(SUPPORTED_EVAL_SOURCES) == set(get_supported_eval_sources())
+
+
+def test_detect_eval_type_via_eval_source():
+    """_detect_eval_type routes through the eval source's classify_eval_input."""
+    assert TestGenerator._detect_eval_type("hallucination", "okahu") == "builtin"
+    assert TestGenerator._detect_eval_type("./x.json", "okahu") == "custom"
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

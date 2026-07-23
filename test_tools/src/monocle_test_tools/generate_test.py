@@ -15,11 +15,12 @@ import argparse
 import sys
 
 
-def _parse_eval_spec(raw: str, default_fact: str) -> dict:
+def _parse_eval_spec(raw: str, default_fact: str, eval_source: str = "okahu") -> dict:
     """Parse ``[TYPE:]NAME_OR_PATH=EXPECTED`` into an eval spec.
 
-    A ``builtin:``/``custom:`` prefix forces the type, else it is auto-detected.
-    ``=EXPECTED`` is required; raises ``ValueError`` on malformed input.
+    A ``builtin:``/``custom:`` prefix forces the type, else it is auto-detected
+    using ``eval_source``'s rules. ``=EXPECTED`` is required; raises ``ValueError``
+    on malformed input (or an unknown ``eval_source``).
     """
     from monocle_test_tools.test_generator import TestGenerator
 
@@ -39,9 +40,8 @@ def _parse_eval_spec(raw: str, default_fact: str) -> dict:
             f"'{name_part}=<expected>'"
         )
 
-    eval_type = explicit_type or TestGenerator._detect_eval_type(name_part)
+    eval_type = explicit_type or TestGenerator._detect_eval_type(name_part, eval_source)
     spec: dict = {
-        "evaluator": "okahu",
         "fact_name": default_fact or "traces",
         "eval_type": eval_type,
         "expected": expected.strip(),
@@ -91,6 +91,12 @@ def main():
         default="traces",
         help="Default fact_name for injected --eval assertions (default: traces).",
     )
+    parser.add_argument(
+        "--eval-source",
+        default="okahu",
+        help="Evaluator for the generated with_evaluation(...) calls; also drives how "
+             "eval names/paths are classified as built-in vs custom (default: okahu).",
+    )
 
     args = parser.parse_args()
     
@@ -110,9 +116,9 @@ def main():
             "or provide both --trace-id and --workflow-name"
         )
 
-    # Parse injected evals (malformed specs surface as a clean argparse error).
+    # Parse injected evals (malformed specs / unknown eval-source surface as a clean error).
     try:
-        injected_evals = [_parse_eval_spec(raw, args.eval_fact) for raw in args.evals]
+        injected_evals = [_parse_eval_spec(raw, args.eval_fact, args.eval_source) for raw in args.evals]
     except ValueError as exc:
         parser.error(str(exc))
 
@@ -124,6 +130,7 @@ def main():
                 trace_file,
                 trace_source=args.trace_source,
                 injected_evals=injected_evals,
+                eval_source=args.eval_source,
             )
         else:
             generator = TestGenerator.from_okahu(
@@ -131,6 +138,7 @@ def main():
                 workflow_name=args.workflow_name,
                 trace_source=args.trace_source,
                 injected_evals=injected_evals,
+                eval_source=args.eval_source,
             )
         test_code = generator.generate_test_code(test_name=args.test_name)
         print(test_code)

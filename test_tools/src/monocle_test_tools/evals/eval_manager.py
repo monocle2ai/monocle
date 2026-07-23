@@ -32,3 +32,29 @@ def get_evaluator(eval: Optional[Union[str, BaseEval]], eval_options: Optional[d
             except Exception as e:
                 raise ValueError(f"Invalid eval class name: {eval}. Error: {e}") from e
     return eval
+
+
+# Evaluators selectable as an ``eval_source`` (name -> BaseEval subclass). Add new
+# eval providers here; each may customize behavior via the BaseEval interface
+EVAL_SOURCE_CLASSES: dict = {
+    "okahu": OkahuEval,
+}
+
+
+def get_supported_eval_sources() -> tuple:
+    """Names accepted as an ``eval_source``."""
+    return tuple(EVAL_SOURCE_CLASSES.keys())
+
+
+def get_evaluator_class(eval_source: str):
+    """Return the ``BaseEval`` subclass for an eval source name (e.g. ``"okahu"``).
+
+    Raises ``ValueError`` for an unknown source.
+    """
+    try:
+        return EVAL_SOURCE_CLASSES[eval_source]
+    except KeyError:
+        raise ValueError(
+            f"Unsupported eval_source: '{eval_source}'. "
+            f"Supported values: {', '.join(sorted(EVAL_SOURCE_CLASSES))}."
+        ) from None

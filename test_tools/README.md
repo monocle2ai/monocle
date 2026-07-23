@@ -406,9 +406,19 @@ By default the generated test includes loader options for every supported trace
 source (file, Okahu, live agent run). Passing `--trace-source file` or
 `--trace-source okahu` emits only that loader (as active code).
 
-The `--eval` type is auto-detected from the value:
+The `--eval` type is auto-detected from the value (or forced with a `builtin:` / `custom:` prefix):
 - **Built-in**: plain name (e.g. `hallucination`, `sentiment`) → `check_eval("hallucination", ...)`
 - **Custom**: value ends with `.json` or is a path → `check_eval(template_path="./my_eval.json", ...)`
+
+`--eval-source` selects the evaluator (default `okahu`). It sets the `with_evaluation(...)`
+call in the generated test and drives how each `--eval` value is classified as built-in vs
+custom:
+
+```bash
+python -m monocle_test_tools generate_test --trace-file trace.json \
+  --eval-source okahu --eval hallucination=no_hallucination
+# ->  asserter.with_evaluation("okahu").check_eval("hallucination", expected="no_hallucination", ...)
+```
 
 ### Example Output
 

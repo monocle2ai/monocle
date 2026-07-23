@@ -8,10 +8,34 @@ from opentelemetry.baggage.propagation import W3CBaggagePropagator
 from monocle_apptrace.exporters.okahu import okahu_exporter
 from monocle_apptrace.exporters.okahu.okahu_eval_result_exporter import OkahuEvalResultExporter
 from monocle_test_tools.evals.base_eval import BaseEval
-from typing import Optional, Union
+from typing import Optional, Union, Tuple
 
 logger = logging.getLogger(__name__)
 OKAHU_PROD_EVALUATION_ENDPOINT = "https://eval.okahu.co/api"
+
+# If a user-supplied eval name matches one of these it is treated as built-in;
+# path-like values (e.g. ./my.json) are treated as custom templates.
+OKAHU_BUILTIN_EVAL_NAMES: set = {
+    "answer_relevancy",
+    "argument_correctness",
+    "bias",
+    "contextual_precision",
+    "contextual_recall",
+    "contextual_relevancy",
+    "conversation_completeness",
+    "correctness",
+    "frustration",
+    "hallucination",
+    "knowledge_retention",
+    "mcp_task_completion",
+    "misuse",
+    "offtopic",
+    "pii_leakage",
+    "role_adherence",
+    "sentiment",
+    "summarization",
+    "toxicity",
+}
 
 # Time window padding (seconds) applied around the span envelope when filtering traces
 # for evals. Applied uniformly on either side of the earliest-start/latest-end span
@@ -23,6 +47,29 @@ DEFAULT_EVAL_TIME_PAD_SECONDS = 8 * 60 * 60      # 8 hours
 class OkahuEval(BaseEval):
     last_judge_output: dict = {}
     last_total_tokens: Optional[int] = None
+
+    @classmethod
+    def classify_eval_input(cls, name_or_path: str) -> Tuple[str, str]:
+        """Classify an eval input as Okahu builtin or custom template.
+
+        - A name in ``OKAHU_BUILTIN_EVAL_NAMES`` is always ``"builtin"``.
+        - A path-like value (``.json`` / path separator / ``./`` / ``../``) is
+          ``"custom"`` (a template file).
+        - Any other bare name defaults to ``"builtin"``.
+
+        Returns ``(eval_type, value)``.
+        """
+        name = (name_or_path or "").strip()
+        if name in OKAHU_BUILTIN_EVAL_NAMES:
+            return "builtin", name
+        is_path_like = (
+            name.endswith(".json")
+            or os.sep in name
+            or (os.altsep is not None and os.altsep in name)
+            or name.startswith("./")
+            or name.startswith("../")
+        )
+        return ("custom" if is_path_like else "builtin"), name
 
     def __init__(self, **data):
         eval_options = data.get("eval_options")

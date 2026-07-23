@@ -1,5 +1,4 @@
 import math
-import os
 from typing import List, Optional, Set, Dict
 from opentelemetry.sdk.trace import ReadableSpan
 
@@ -8,29 +7,8 @@ from opentelemetry.sdk.trace import ReadableSpan
 # code for that specific source is generated.
 SUPPORTED_TRACE_SOURCES = ("file", "okahu")
 
-# Built-in Okahu eval template names. Plain names are emitted as check_eval(eval_name=...);
-# path-like values (e.g. ./my.json) are treated as custom templates.
-BUILTIN_EVAL_NAMES: Set[str] = {
-    "answer_relevancy",
-    "argument_correctness",
-    "bias",
-    "contextual_precision",
-    "contextual_recall",
-    "contextual_relevancy",
-    "conversation_completeness",
-    "correctness",
-    "frustration",
-    "hallucination",
-    "knowledge_retention",
-    "mcp_task_completion",
-    "misuse",
-    "offtopic",
-    "pii_leakage",
-    "role_adherence",
-    "sentiment",
-    "summarization",
-    "toxicity",
-}
+
+SUPPORTED_EVAL_SOURCES = ("okahu",)
 
 
 class TestGenerator:
@@ -44,7 +22,8 @@ class TestGenerator:
     def __init__(self, spans: List[ReadableSpan], trace_file: str = None,
                  trace_source: Optional[str] = None, trace_id: Optional[str] = None,
                  workflow_name: Optional[str] = None,
-                 injected_evals: Optional[List[Dict]] = None):
+                 injected_evals: Optional[List[Dict]] = None,
+                 eval_source: Optional[str] = "okahu"):
         """Initialize with a list of spans to analyze.
 
         Args:
@@ -60,6 +39,8 @@ class TestGenerator:
                 or ``template_path`` (custom JSON template), plus optional ``expected``,
                 ``not_expected``, ``fact_name``, and ``eval_type`` (``"builtin"`` or
                 ``"custom"``, auto-detected when absent).
+            eval_source: Evaluator to use in generated ``with_evaluation()`` calls.
+                Defaults to ``"okahu"``.
         """
         if trace_source is not None and trace_source not in SUPPORTED_TRACE_SOURCES:
             raise ValueError(
@@ -69,6 +50,12 @@ class TestGenerator:
         self.spans = spans
         self.trace_file = trace_file
         self.trace_source = trace_source
+        self.eval_source = eval_source or "okahu"
+        if self.eval_source not in SUPPORTED_EVAL_SOURCES:
+            raise ValueError(
+                f"Unsupported eval_source: '{self.eval_source}'. "
+                f"Supported values: {', '.join(SUPPORTED_EVAL_SOURCES)}."
+            )
         self.trace_id = trace_id
         self.workflow_name = workflow_name
         # Evals injected directly via CLI --eval flags (after type detection/normalisation).
@@ -86,16 +73,18 @@ class TestGenerator:
 
     @classmethod
     def from_json_file(cls, filepath: str, trace_source: Optional[str] = None,
-                       injected_evals: Optional[List[Dict]] = None):
+                       injected_evals: Optional[List[Dict]] = None,
+                       eval_source: Optional[str] = "okahu"):
         """Create generator from a trace JSON file."""
         from monocle_test_tools.span_loader import JSONSpanLoader
         spans = JSONSpanLoader.from_json(filepath)
         return cls(spans, trace_file=filepath, trace_source=trace_source,
-                   injected_evals=injected_evals)
+                   injected_evals=injected_evals, eval_source=eval_source)
 
     @classmethod
     def from_okahu(cls, trace_id: str, workflow_name: str, trace_source: Optional[str] = None,
-                   injected_evals: Optional[List[Dict]] = None):
+                   injected_evals: Optional[List[Dict]] = None,
+                   eval_source: Optional[str] = "okahu"):
         """Create generator from an Okahu trace."""
         from monocle_test_tools.span_loader import OkahuSpanLoader
         spans = OkahuSpanLoader.get_spans(
@@ -104,7 +93,7 @@ class TestGenerator:
         )
         return cls(spans, trace_file=None, trace_source=trace_source,
                    trace_id=trace_id, workflow_name=workflow_name,
-                   injected_evals=injected_evals)
+                   injected_evals=injected_evals, eval_source=eval_source)
 
     def analyze(self):
         """Scan spans and extract agents, tools, outputs, tokens and duration.
@@ -170,7 +159,7 @@ class TestGenerator:
         deduped: List[Dict[str, object]] = []
         seen: Set[tuple] = set()
         for ev in self._injected_evals:
-            key = (ev.get("evaluator"), ev.get("criteria"), ev.get("template_path"),
+            key = (ev.get("criteria"), ev.get("template_path"),
                    repr(ev.get("expected")), repr(ev.get("not_expected")), ev.get("fact_name"))
             if key in seen:
                 continue
@@ -193,33 +182,21 @@ class TestGenerator:
         return None
 
     @staticmethod
-    def _detect_eval_type(name_or_path: str) -> str:
-        """Classify an eval identity as ``"builtin"`` or ``"custom"``.
+    def _detect_eval_type(name_or_path: str, eval_source: str = "okahu") -> str:
+        """Classify eval input as ``"builtin"`` or ``"custom"`` using the eval
+        source's own rules (via its ``BaseEval.classify_eval_input``)."""
+        from monocle_test_tools.evals.eval_manager import get_evaluator_class
+        evaluator_cls = get_evaluator_class(eval_source)
+        eval_type, _ = evaluator_cls.classify_eval_input(name_or_path)
+        return eval_type
 
-        - A name in ``BUILTIN_EVAL_NAMES`` is always ``"builtin"``.
-        - A path-like value (ends with ``.json``, contains a path separator, or
-          starts with ``./`` / ``../``) is ``"custom"``.
-        - Any other bare name defaults to ``"builtin"``.
-        """
-        name = (name_or_path or "").strip()
-        if name in BUILTIN_EVAL_NAMES:
-            return "builtin"
-        is_path_like = (
-            name.endswith(".json")
-            or os.sep in name
-            or (os.altsep is not None and os.altsep in name)
-            or name.startswith("./")
-            or name.startswith("../")
-        )
-        return "custom" if is_path_like else "builtin"
+    def _normalise_injected_eval(self, raw: Dict) -> Dict:
+        """Normalise a raw injected eval dict (from CLI --eval parsing / injected_evals)
+        into the shape consumed by ``_eval_assertion_line``.
 
-    @staticmethod
-    def _normalise_injected_eval(raw: Dict) -> Dict:
-        """Normalise a raw injected eval dict (from CLI --eval parsing) into the
-        same shape used by ``_normalize_eval_spec`` for span-extracted evals.
-
-        Detects eval type when ``eval_type`` is absent, and maps ``criteria`` →
-        built-in name or ``template_path`` → custom path accordingly.
+        Detects eval type via the configured ``eval_source`` when ``eval_type`` is
+        absent and maps a custom value into ``template_path``. The evaluator for the
+        emitted ``with_evaluation(...)`` is taken from ``eval_source`` at render time.
         """
         ev = dict(raw)
 
@@ -228,16 +205,14 @@ class TestGenerator:
         eval_type = ev.get("eval_type")
         if eval_type not in ("builtin", "custom"):
             name = ev.get("criteria") or ev.get("template_path") or ""
-            eval_type = TestGenerator._detect_eval_type(name)
+            eval_type = self._detect_eval_type(name, self.eval_source)
         ev["eval_type"] = eval_type
 
-        # If the user passed a file path in the ``criteria`` field (e.g. from a raw dict),
+        # If a file path arrived in the ``criteria`` field (e.g. from a raw dict),
         # move it to template_path.
         if eval_type == "custom" and ev.get("criteria") and not ev.get("template_path"):
             ev["template_path"] = ev.pop("criteria")
 
-        if not ev.get("evaluator"):
-            ev["evaluator"] = "okahu"
         if not ev.get("fact_name"):
             ev["fact_name"] = "traces"
 
@@ -368,7 +343,7 @@ class TestGenerator:
         ``# builtin eval`` / ``# custom eval`` comment shown alongside the assertion.
         """
         lit = self._eval_literal
-        eval_type = ev.get("eval_type")  # "builtin", "custom", or None (span-extracted)
+        eval_type = ev.get("eval_type")  # "builtin" or "custom" (set by _normalise_injected_eval)
 
         # check_eval accepts an eval_name positional OR a template_path keyword (not both).
         if ev.get("template_path"):
@@ -381,8 +356,9 @@ class TestGenerator:
             call_args.append(f'not_expected={lit(ev["not_expected"])}')
         if ev.get("fact_name"):
             call_args.append(f'fact_name={lit(ev["fact_name"])}')
-        evaluator = ev.get("evaluator") or "okahu"
-        line = f'asserter.with_evaluation({lit(evaluator)}).check_eval({", ".join(call_args)})'
+        evaluator = self.eval_source
+        args_str = ", ".join(call_args)
+        line = f'asserter.with_evaluation("{evaluator}").check_eval({args_str})'
 
         # Append inline type comment for injected evals so developers know the type
         if eval_type in ("builtin", "custom"):

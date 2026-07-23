@@ -1,15 +1,22 @@
 import base64
 import gzip
+import hmac
+import importlib
 import json
+import logging
 import os
 import uuid
 
 from monocle_apptrace.exporters.base_exporter import serialize_span
 from monocle_apptrace.instrumentation.common.constants import (
     MONOCLE_TRACE_RETURN_ENABLED_ENV,
+    MONOCLE_TRACE_RETRIEVAL_CALLBACK_ENV,
+    MONOCLE_TRACE_RETRIEVAL_DEFAULT_KEY_ENV,
     TRACE_RETURN_REQUEST_HEADER,
     TRACE_RETURN_VERSION,
 )
+
+logger = logging.getLogger(__name__)
 
 _DELIMITER_PREFIX = "__MONOCLE_TRACES__"
 
@@ -25,6 +32,64 @@ def is_trace_return_requested(headers: dict) -> bool:
         if str(key).lower() == TRACE_RETURN_REQUEST_HEADER and str(value).lower() == "true":
             return True
     return False
+
+
+def _get_header_case_insensitive(headers: dict, name: str):
+    if not headers:
+        return None
+    lname = name.lower()
+    for key, value in headers.items():
+        if str(key).lower() == lname:
+            return value
+    return None
+
+
+def default_trace_retrieval_callback(headers: dict) -> bool:
+    """Default authorization: the request's x-monocle-retrieve-traces header
+    value must equal the server key MONOCLE_TRACE_RETRIEVAL_DEFAULT_KEY."""
+    key = os.environ.get(MONOCLE_TRACE_RETRIEVAL_DEFAULT_KEY_ENV)
+    if not key:
+        return False
+    value = _get_header_case_insensitive(headers, TRACE_RETURN_REQUEST_HEADER)
+    if value is None:
+        return False
+    return hmac.compare_digest(str(value), str(key))
+
+
+def _resolve_callback(spec: str):
+    """Resolve a 'pkg.module:callable' spec to a callable, or None on failure."""
+    if ":" not in spec:
+        logger.warning("Invalid MONOCLE_TRACE_RETRIEVAL_CALLBACK spec (expected 'module:callable'): %s", spec)
+        return None
+    module_path, _, attr = spec.partition(":")
+    try:
+        module = importlib.import_module(module_path)
+        candidate = getattr(module, attr)
+    except (ImportError, AttributeError) as e:
+        logger.warning("Could not load trace-retrieval callback '%s': %s", spec, e)
+        return None
+    if not callable(candidate):
+        logger.warning("Trace-retrieval callback '%s' is not callable", spec)
+        return None
+    return candidate
+
+
+def is_trace_return_authorized(headers: dict) -> bool:
+    """Per-request authorization gate for trace retrieval. Uses the callback
+    configured via MONOCLE_TRACE_RETRIEVAL_CALLBACK, or the default callback.
+    Any failure to load or run the callback denies (returns False)."""
+    spec = os.environ.get(MONOCLE_TRACE_RETRIEVAL_CALLBACK_ENV)
+    if spec:
+        callback = _resolve_callback(spec)
+        if callback is None:
+            return False
+    else:
+        callback = default_trace_retrieval_callback
+    try:
+        return bool(callback(headers))
+    except Exception as e:
+        logger.warning("Trace-retrieval authorization callback raised: %s", e)
+        return False
 
 
 def make_delimiter() -> str:

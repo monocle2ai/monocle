@@ -157,15 +157,46 @@ client run_agent(url, "http", ...)
 
 The `requests.Response` you get back has a clean body (the trailer is removed).
 
+## Framework support
+
+Server-side span return is implemented, behind the same two-layer
+authorization gate, for:
+
+| Framework | Buffered response | Streaming response |
+|---|---|---|
+| FastAPI (ASGI) | Yes | Yes — trailer appended to the ASGI `http.response.body` chain |
+| Flask (WSGI) | Yes | Yes — trailer appended via a wrapped WSGI `app_iter` / `start_response` |
+| aiohttp | Yes — `web.Response` | Yes — `web.StreamResponse` (`prepare`/`write_eof` hooks) |
+| AWS Lambda | Yes — trailer appended to the `body` string, header added to the `headers` dict | N/A (Lambda responses are always a single buffered dict; no streaming response model) |
+| Azure Functions | Yes — trailer appended to `func.HttpResponse`'s body, header added to `.headers` | N/A (buffered `HttpResponse` model; no streaming response type) |
+
+All five frameworks share the same wire format (`x-monocle-traces` response
+header + trailer appended after the body, stripped by the client-side
+`RequestSpanHandler`) and the same server-side authorization gate
+(`MONOCLE_ENABLE_TRACE_RETURN` + `MONOCLE_TRACE_RETRIEVAL_DEFAULT_KEY` /
+`MONOCLE_TRACE_RETRIEVAL_CALLBACK`) described above.
+
+End-to-end coverage: Flask and aiohttp are driven through a real in-process
+server via `HttpRunner`
+([`test_http_trace_return_frameworks.py`](../../../tests/integration/test_http_trace_return_frameworks.py)),
+mirroring the FastAPI e2e
+([`test_http_trace_return.py`](../../../tests/integration/test_http_trace_return.py)).
+AWS Lambda and Azure Functions have no real hosting runtime available in
+tests, so their e2e coverage drives the route decorator
+(`monocle_trace_lambda_function_route` / `monocle_trace_azure_function_route`)
+directly with a fake `event`/`req`, and asserts the returned dict /
+`HttpResponse` carries the trailer and that stripping it client-side recovers
+the span JSON — same file. Streaming for Flask/aiohttp is unit-covered
+(`apptrace/tests/unit/test_flask_trace_return.py`,
+`test_aiohttp_trace_return.py`) rather than re-proven end-to-end, since it
+needs no real server to demonstrate correctly.
+
 ## Known limitations
 
 - Only **completed child spans** of the request are returned; the server's root
   HTTP/workflow span ends after the response is sent, so it is not included.
 - Client-side handling assumes a **buffered** response (the default for
   `requests`); streaming *consumption on the client* is not covered.
-- Server-side span return is implemented for **FastAPI** today; other server
-  frameworks (Flask, aiohttp, AWS Lambda, Azure Functions) are planned and will
-  use the same authorization gate.
 - Designed for direct client→server test setups (no intermediary proxy).
 
 ## Source
@@ -173,5 +204,10 @@ The `requests.Response` you get back has a clean body (the trailer is removed).
 - Runner: [`http_runner.py`](http_runner.py) (`HttpRunner`, `HttpOkahuRunner`)
 - Runner registry / `AgentTypes`: [`runner.py`](runner.py)
 - Server-side codec, authorization, exporter (in `monocle_apptrace`):
-  `instrumentation/common/trace_return.py`, `exporters/trace_return_exporter.py`,
-  `instrumentation/metamodel/fastapi/_helper.py`
+  `instrumentation/common/trace_return.py`, `exporters/trace_return_exporter.py`
+- Per-framework injection (in `monocle_apptrace`):
+  `instrumentation/metamodel/fastapi/_helper.py`,
+  `instrumentation/metamodel/flask/_helper.py`,
+  `instrumentation/metamodel/aiohttp/_helper.py`,
+  `instrumentation/metamodel/lambdafunc/_helper.py` + `wrapper.py`,
+  `instrumentation/metamodel/azfunc/_helper.py` + `wrapper.py`

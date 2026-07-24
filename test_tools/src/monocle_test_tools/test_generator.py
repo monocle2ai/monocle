@@ -38,6 +38,10 @@ class TestGenerator:
         self.agents: Set[str] = set()
         self.tools: Dict[str, str] = {}  # tool_name -> agent_name
         self.agent_outputs: Dict[str, List[str]] = {}  # agent_name -> outputs
+        self.agent_inputs: Dict[str, List[str]] = {}  # agent_name -> inputs
+        self.tool_inputs: Dict[str, str] = {}  # tool_name -> first input snippet
+        self.tool_outputs: Dict[str, str] = {}  # tool_name -> first output snippet
+        self.span_attributes: Dict[str, Dict[str, str]] = {}  # span_type -> {attr_key: attr_value}
         self.has_workflow = False
         self.total_tokens = 0  # total tokens across inference spans in the turn
         self.turn_duration = 0.0  # max agentic.turn duration in seconds
@@ -70,17 +74,25 @@ class TestGenerator:
         self.agents = set()
         self.tools = {}
         self.agent_outputs = {}
+        self.agent_inputs = {}
+        self.tool_inputs = {}
+        self.tool_outputs = {}
+        self.span_attributes = {}
         self.has_workflow = False
         self.total_tokens = 0
         self.turn_duration = 0.0
+
+        # Attributes worth surfacing as has_attribute() assertions per span type.
+        _NOTABLE_ATTRS = ("entity.1.type", "workflow.name", "span.type")
+
         for span in self.spans:
             span_type = span.attributes.get("span.type", "")
-            
+
             if span_type == "agentic.invocation":
                 name = span.attributes.get("entity.1.name", "")
                 if name:
                     self.agents.add(name)
-                    
+
                     events = getattr(span, 'events', [])
                     for event in events:
                         if event.name == "data.output":
@@ -89,15 +101,37 @@ class TestGenerator:
                                 key_phrase = content[:80].strip()
                                 if key_phrase:
                                     self.agent_outputs.setdefault(name, []).append(key_phrase)
-            
+                        elif event.name == "data.input":
+                            content = event.attributes.get("input", "") or event.attributes.get("user_input", "")
+                            if content and len(content) > 5:
+                                self.agent_inputs.setdefault(name, []).append(content[:80].strip())
+
             elif span_type == "agentic.tool.invocation":
                 tool_name = span.attributes.get("entity.1.name", "")
                 parent_agent = span.attributes.get("entity.2.name", "")
                 if tool_name:
                     self.tools[tool_name] = parent_agent or ""
-            
+                    events = getattr(span, 'events', [])
+                    for event in events:
+                        if event.name == "data.input" and tool_name not in self.tool_inputs:
+                            content = event.attributes.get("input", "") or event.attributes.get("user_input", "")
+                            if content:
+                                self.tool_inputs[tool_name] = content[:80].strip()
+                        elif event.name == "data.output" and tool_name not in self.tool_outputs:
+                            content = event.attributes.get("response", "") or event.attributes.get("output", "")
+                            if content:
+                                self.tool_outputs[tool_name] = content[:80].strip()
+
             elif span_type == "workflow":
                 self.has_workflow = True
+
+            # Collect notable span attributes per span type for has_attribute() assertions.
+            if span_type:
+                attrs = self.span_attributes.setdefault(span_type, {})
+                for key in _NOTABLE_ATTRS:
+                    val = span.attributes.get(key)
+                    if val and key not in attrs:
+                        attrs[key] = str(val)
 
             # Accumulate total tokens across inference spans in the turn.
             if span_type in ("inference", "inference.framework"):
@@ -177,26 +211,52 @@ class TestGenerator:
             '',
         ])
         
-        # Agent assertions with outputs
+        # Agent assertions with inputs, outputs and notable attributes
         if self.agents:
             code.append('    # Agent invocations with output checks')
             for agent in sorted(self.agents):
                 outputs = self.agent_outputs.get(agent, [])
+                inputs = self.agent_inputs.get(agent, [])
+                chain = f'    asserter.called_agent("{agent}")'
                 if outputs:
                     output = outputs[0].replace('"', '\\"').replace('\n', ' ')
-                    code.append(f'    asserter.called_agent("{agent}").contains_output("{output}")')
-                else:
-                    code.append(f'    asserter.called_agent("{agent}")')
+                    chain += f'.contains_output("{output}")'
+                if inputs:
+                    inp = inputs[0].replace('"', '\\"').replace('\n', ' ')
+                    chain += f'.has_input("{inp}")'
+                code.append(chain)
             code.append('')
-        
-        # Tool assertions
+
+        # Notable span-type attributes as has_attribute() assertions
+        _ASSERTION_SPAN_TYPES = ("agentic.invocation", "agentic.tool.invocation", "workflow")
+        attr_lines = []
+        for stype in _ASSERTION_SPAN_TYPES:
+            attrs = self.span_attributes.get(stype, {})
+            for key, val in sorted(attrs.items()):
+                if key == "span.type":
+                    continue  # redundant with called_agent / called_tool
+                escaped_val = val.replace('"', '\\"')
+                attr_lines.append(f'    asserter.has_attribute("{key}", "{escaped_val}")')
+        if attr_lines:
+            code.append('    # Span attribute assertions')
+            code.extend(attr_lines)
+            code.append('')
+
+        # Tool assertions with optional input/output snippets
         if self.tools:
             code.append('    # Tool invocations')
             for tool_name, agent_name in sorted(self.tools.items()):
+                chain = f'    asserter.called_tool("{tool_name}"'
                 if agent_name:
-                    code.append(f'    asserter.called_tool("{tool_name}", "{agent_name}")')
-                else:
-                    code.append(f'    asserter.called_tool("{tool_name}")')
+                    chain += f', "{agent_name}"'
+                chain += ')'
+                if tool_name in self.tool_inputs:
+                    inp = self.tool_inputs[tool_name].replace('"', '\\"').replace('\n', ' ')
+                    chain += f'.has_input("{inp}")'
+                if tool_name in self.tool_outputs:
+                    out = self.tool_outputs[tool_name].replace('"', '\\"').replace('\n', ' ')
+                    chain += f'.has_output("{out}")'
+                code.append(chain)
             code.append('')
 
         # Cost check: total tokens in the turn

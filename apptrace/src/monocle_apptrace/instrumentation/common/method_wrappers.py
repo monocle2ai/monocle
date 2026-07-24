@@ -169,17 +169,25 @@ async def amonocle_trace(
         yield  # Still yield to not break the context manager
 
 def monocle_trace_method(
-    span_name: Optional[str] = None
+    span_name: Optional[str] = None,
+    enabled: bool = True
 ):
     """
     Decorator to start and stop a trace for a method. All the spans created in the method will be part of the same trace.
     Captures function inputs (args, kwargs) and outputs (return value) in span events.
-    
+
     Args:
         span_name: Optional custom span name. If None, uses the decorated function's name.
+        enabled: When False the decorator is a no-op passthrough — no spans are created.
+            Useful for conditionally disabling tracing via config or env var, e.g.
+            ``@monocle_trace_method(enabled=os.getenv("TRACE", "1") == "1")``.
     """
-    
+
     def decorator(func):
+        # When disabled, return the function unwrapped so no spans are created.
+        if not enabled:
+            return func
+
         tracer = get_tracer(instrumenting_module_name=MONOCLE_INSTRUMENTOR, tracer_provider=get_tracer_provider())
         handler = SpanHandler()
         source_path= func.__code__.co_filename + ":" + str(func.__code__.co_firstlineno)
@@ -196,7 +204,7 @@ def monocle_trace_method(
                         "span_name": effective_span_name,
                         "output_processor": CUSTOM_SPAN_PROCESSOR
                     }
-                )(  wrapped=func,                        
+                )(  wrapped=func,
                     instance=None,
                     source_path=source_path,
                     args=args,
@@ -212,7 +220,7 @@ def monocle_trace_method(
                         "span_name": effective_span_name,
                         "output_processor": CUSTOM_SPAN_PROCESSOR
                     }
-                )(  wrapped=func,                        
+                )(  wrapped=func,
                     instance=None,
                     source_path=source_path,
                     args=args,

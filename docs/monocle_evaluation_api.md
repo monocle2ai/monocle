@@ -329,7 +329,16 @@ monocle_trace_asserter.with_evaluation("okahu") \
     .check_eval(template_path="path/to/my_custom_eval.json", expected="good")
 ```
 
-`template_path` and `eval_name` are mutually exclusive — use one or the other in a single `check_eval()` call. You can mix both styles in the same test:
+You can also pass the template **inline** as a dict via the keyword-only `template` parameter — handy when the template is built in code rather than stored in a file:
+
+```python
+monocle_trace_asserter.with_evaluation("okahu") \
+    .check_eval(template={"name": "my_custom_eval", "eval_prompt": "...",
+                          "structure_output": {"label": {"enums": ["good", "bad"]}}},
+                expected="good")
+```
+
+`eval_name`, `template_path`, and `template` are **mutually exclusive** — provide **exactly one** in a single `check_eval()` call. When `eval_name` is omitted, the template's `name` field is used as the eval name (falling back to `"custom_eval"`). You can mix styles across calls in the same test:
 
 ```python
 # Built-in evaluation
@@ -481,6 +490,69 @@ AssertionError: Duration limit exceeded for agent 'flight_booking_agent': agent_
 AssertionError: Duration limit exceeded for tool 'book_flight': tool_invocation took 5.5 ms (limit: 5 ms)
 ```
 
+## 9. Time-window (Filtered) Evaluation
+
+The examples above evaluate a **specific** trace or fact — one you produced by running an agent, or selected with `with_trace_source("okahu", id=...)`. Sometimes you instead want to evaluate **every fact that occurred in a time window** for one or more workflows, without knowing the trace ids in advance (for example, "grade every trace `my_app` produced overnight").
+
+Set `start_time` and `end_time` on `with_trace_source("okahu", ...)`. This runs `check_eval()` as a single **asynchronous** Okahu job that discovers the matching facts server-side, applies one **blanket** `expected`/`not_expected` to each discovered fact, and reports per fact.
+
+```python
+monocle_trace_asserter \
+    .with_trace_source("okahu", workflow_name="my_app",
+                       start_time="2026-07-21T00:00:00Z", end_time="2026-07-22T00:00:00Z") \
+    .with_evaluation("okahu") \
+    .check_eval("hallucination", expected="no_hallucination", min_facts=5)
+```
+
+**How the mode is selected.** There is no separate "filtered" method — the *same* `check_eval()` runs the filtered flow whenever the source carries a time window instead of an `id`. Rules:
+
+- Provide an `id` **or** a time window, never both (raises `ValueError`).
+- Filter mode requires **both** `start_time` and `end_time` **and** a `workflow_name`.
+- `fact_name` (default `traces`) selects the grain of fact to discover.
+
+**Filter-only parameters** (raise `ValueError` if used without a time window):
+
+| Parameter | Default | Purpose |
+|---|---|---|
+| `min_facts` | `1` | Fail the run if fewer than this many facts were discovered — guards against a vacuous pass on an empty window. |
+| `fail_threshold` | `0` | Allow up to this many non-matching facts before the assertion fails. |
+| `max_facts` | `OKAHU_MAX_FACTS` (`1000`) | Runaway guard — fail loudly if the window discovers more than this many facts. |
+
+**Reading results.** Both the filtered and single-fact paths populate the same report (filtered = N facts; single-fact = a 1-fact report), on pass **and** failure:
+
+- `get_eval_report()` — the full report dict (contains a `scenarios` list)
+- `get_eval_failures()` — the scenarios whose `status` is not `pass`
+- `write_eval_report(path)` — write the report to a JSON file
+
+## 10. Eval Result Matrix (opt-in recorder)
+
+For measuring eval **stability** and **token cost** across a run, an opt-in pytest recorder captures a per-test matrix — one row per test that calls `check_eval()`. It is **off by default** and changes no test behavior unless enabled.
+
+```bash
+pytest --monocle-eval-matrix                       # writes test-eval-replay-matrix.json
+pytest --monocle-eval-matrix=path/to/matrix.json   # custom output path
+MONOCLE_EVAL_MATRIX=1 pytest                        # enable via env var (default path)
+```
+
+At session end the recorder writes `{"generated_at": <UTC ISO8601>, "records": [ ... ]}`. Each record carries a fixed schema: `run_id`, `scenario`, `trace_id`, `expected`, `actual`, `status` (`pass` / `fail` / `error`), `explanation`, `total_tokens`, `claim_verdicts`, `hallucination_types`, `entity_match_check`, plus `fact_id`, `workflow`, and `job_id` (populated for the time-window flow; empty for interactive rows). Output-path precedence: the `--monocle-eval-matrix` value, else `MONOCLE_EVAL_MATRIX`, else the default `test-eval-replay-matrix.json`.
+
+## 11. Curating Cases from CSV
+
+To manage many eval cases as a flat spreadsheet, `monocle_test_tools` provides a CSV adapter — `load_cases_from_csv`, `CsvCase`, and the `@monocle_csv_cases` decorator — that parametrizes a one-line test stub over the CSV rows and drives each through the fluent `check_eval` path (v0 scope: **evaluation tests only**, fixed to the `okahu` trace source).
+
+```python
+import os
+from monocle_test_tools import monocle_csv_cases
+
+TEMPLATE_PATH = os.path.join(os.path.dirname(__file__), "hallucination_test.json")
+
+@monocle_csv_cases("cases.csv")
+def test_cases(monocle_trace_asserter, case):
+    case.run(monocle_trace_asserter.with_evaluation("okahu"), template_path=TEMPLATE_PATH)
+```
+
+The stub owns everything constant across the sheet (evaluator, template, trace source); the CSV owns only what varies per row. Columns and the full schema are documented in the [test tools README — CSV eval test cases](../test_tools/README.md#csv-eval-test-cases), with a copy-ready example at `test_tools/examples/`.
+
 ## Notes
 
 ### Evaluator Configuration
@@ -504,21 +576,31 @@ check_eval(eval_name, expected=None, not_expected=None, message=None)
 check_eval(fact_name, eval_name, expected=None, not_expected=None, message=None)
 ```
 
-**Custom template evaluation:**
+**Custom template evaluation (file or inline):**
 ```python
 check_eval(template_path="path/to/template.json", expected=None, not_expected=None, message=None)
+check_eval(template={...}, expected=None, not_expected=None, message=None)
+```
+
+**Full signature:**
+```python
+check_eval(eval_name=None, expected=None, not_expected=None, fact_name="traces",
+           message=None, template_path=None, *,
+           template=None, min_facts=1, fail_threshold=0, max_facts=None)
 ```
 
 **Parameters:**
-- `eval_name`: **(Optional)** The metric/evaluation name (e.g., "sentiment", "bias", "hallucination"). Required unless `template_path` is provided.
-- `template_path`: **(Optional)** Filesystem path to a custom-template JSON file. `check_eval()` loads the file, parses it, and submits it to the evaluation service. Required unless `eval_name` is provided.
+- `eval_name`: **(Optional)** The metric/evaluation name (e.g., "sentiment", "bias", "hallucination"). Provide exactly one of `eval_name` / `template_path` / `template`.
+- `template_path`: **(Optional)** Filesystem path to a custom-template JSON file. `check_eval()` loads the file, parses it, and submits it to the evaluation service.
+- `template`: **(Optional, keyword-only)** An inline custom-template dict, as an alternative to `template_path`.
 - `fact_name`: **(Optional)** The fact type to evaluate (traces, agentic_sessions, agentic_turns, inferences). Defaults to "traces" if omitted.
 - `expected`: **(Optional)** Accepts a **string** or **list of strings** for values that should match
 - `not_expected`: **(Optional)** Accepts a **string** or **list of strings** for values that should NOT match
 - `message`: **(Optional)** Custom message to display on evaluation failure
+- `min_facts` / `fail_threshold` / `max_facts`: **(Optional, keyword-only)** Apply **only** to time-window (filtered) evaluation — see [Section 9](#9-time-window-filtered-evaluation). Using them without a time-window source raises a `ValueError`.
 
 **Important:**
-- `eval_name` and `template_path` are mutually exclusive — provide one or the other, never both
+- `eval_name`, `template_path`, and `template` are mutually exclusive — provide exactly one, never more than one
 - At least one of `expected` or `not_expected` must be provided — omitting both will raise a `ValueError`
 - Both parameters can be used together for comprehensive validation
 - The method validates that there's no overlap between `expected` and `not_expected`

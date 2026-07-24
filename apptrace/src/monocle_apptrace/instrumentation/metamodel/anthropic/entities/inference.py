@@ -106,7 +106,12 @@ INFERENCE = {
             ]
         }
     ],
-    "is_auto_close": lambda kwargs: True,
+    # Stream-aware: `create(stream=True)` returns an iterator that must be processed
+    # by the stream processor, so only auto-close (treat return value as a complete
+    # response) when NOT streaming. Use truthiness, not `is False`: the NotGiven/Omit
+    # stream sentinel is falsy but not False.
+    "is_auto_close": lambda kwargs: not kwargs.get("stream", False),
+    "response_processor": process_stream,
 }
 
 STREAM_INFERENCE = {

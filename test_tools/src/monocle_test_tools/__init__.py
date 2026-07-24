@@ -11,6 +11,7 @@ from .validator import (
 
 from .schema import (
     TestCase,
+    MultiTurnTestCase,
     TestSpan,
     Entity,
     EntityType,
@@ -33,6 +34,7 @@ from . import gitutils
 __all__ = [
     "MonocleValidator",
     "TestCase",
+    "MultiTurnTestCase",
     "TestSpan",
     "Entity",
     "EntityType",

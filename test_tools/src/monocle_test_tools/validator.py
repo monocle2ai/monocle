@@ -22,8 +22,8 @@ from pydantic import BaseModel, ValidationError
 from monocle_test_tools.file_span_loader import JSONSpanLoader
 from monocle_test_tools.gitutils import get_git_context, get_repo_name
 from monocle_test_tools.okahu_span_loader import OkahuSpanLoader
-from monocle_test_tools.schema import SpanType, TestSpan, TestCase, Evaluation, EvalInputs, MockTool
-from monocle_test_tools.constants import TEST_SCOPE_NAME, DEFAULT_WORKFLOW_NAME, TEST_STATUS_ATTRIBUTE, TEST_ASSERTION_ATTRIBUTE, TEST_WORKFLOW_ENV
+from monocle_test_tools.schema import SpanType, TestSpan, TestCase, MultiTurnTestCase, Evaluation, EvalInputs, MockTool
+from monocle_test_tools.constants import TEST_SCOPE_NAME, SESSION_SCOPE_NAME, DEFAULT_WORKFLOW_NAME, TEST_STATUS_ATTRIBUTE, TEST_ASSERTION_ATTRIBUTE, TEST_WORKFLOW_ENV
 from monocle_test_tools.comparer.base_comparer import BaseComparer
 from monocle_test_tools.runner.runner import get_agent_runner
 from monocle_test_tools import trace_utils
@@ -161,6 +161,21 @@ class MonocleValidator:
         token = start_scopes(all_scopes, context)
         return token
 
+    def pre_multi_turn_setup(self, test_case_name: str, session_id: str) -> object:
+        """Prepare the validator for a multi-turn run.
+
+        Starts a scope that carries both the test name and a shared session id,
+        so every span produced across all turns is grouped under one
+        ``scope.session_id`` attribute. Per-turn mock tools are applied inside
+        each turn's run (see ``run_multi_turn_agent_async``), so they are not set
+        here. Returns the scope token to stop once the run finishes.
+        """
+        session_scope = {TEST_SCOPE_NAME: test_case_name, SESSION_SCOPE_NAME: session_id}
+        git_scopes = get_git_context()
+        all_scopes = {**session_scope, **git_scopes}
+        token = start_scopes(all_scopes)
+        return token
+
     def post_test_cleanup(self, token:object, test_name:str, test_failed:bool,
                         test_assertion_message:str = None, skip_export:bool = False) -> None:
         try:
@@ -203,6 +218,41 @@ class MonocleValidator:
     def test_id_generator(val):
         return f"{val.test_name}_{uuid.uuid4().hex[:8]}"
 
+    @asynccontextmanager
+    async def monocle_multi_turn_wrapper(self, multi_turn_case: MultiTurnTestCase, request: pytest.FixtureRequest):
+        """Scope + export lifecycle for a multi-turn test.
+
+        Assigns a shared session id (auto-generated when the case doesn't set
+        one), starts a scope carrying both the test name and that session id so
+        every turn's spans are grouped under one ``scope.session_id``, yields to
+        the test body (which drives the turns and runs per-turn / session
+        assertions), then exports the accumulated spans and cleans up. Unlike the
+        single-turn wrapper it does not call ``validate`` itself, because
+        per-turn span slicing and session validation are done inside
+        ``test_multi_turn_agent_async`` where the per-turn spans are available.
+        """
+        test_case_name = request.node.name if request is not None else multi_turn_case.test_name
+        if multi_turn_case.session_id is None:
+            multi_turn_case.session_id = f"monocle_test_session_{uuid.uuid4().hex}"
+        token = self.pre_multi_turn_setup(test_case_name, multi_turn_case.session_id)
+        prior_test_failed_count = request.session.testsfailed if request is not None else 0
+        validation_failed = False
+        validation_error_message = None
+        try:
+            yield
+        except Exception as e:
+            validation_failed = True
+            validation_error_message = str(e)
+            raise
+        finally:
+            test_failed = validation_failed or (
+                request is not None and request.session.testsfailed > prior_test_failed_count
+            )
+            test_name = request.node.name if request is not None else test_case_name
+            self.post_test_cleanup(token, test_name, test_failed, validation_error_message)
+            if token is not None:
+                stop_scope(token)
+
     def monocle_testcase(self, test_cases_array: list[Union[TestCase, dict]]):
         test_cases: list[TestCase] = []
         for tc in test_cases_array:
@@ -223,6 +273,34 @@ class MonocleValidator:
                 def wrapper(test_case, request, *args, **kwargs):
                     with self.monocle_exporter_wrapper(test_case, request):
                         return func(test_case, *args, **kwargs)
+            return wrapper
+        return decorator
+
+    def monocle_multi_turn_testcase(self, multi_turn_cases_array: list[Union[MultiTurnTestCase, dict]]):
+        """Decorator to parametrize a test function over multi-turn test cases.
+
+        Mirrors ``monocle_testcase`` but for ``MultiTurnTestCase`` inputs. Each
+        case is run inside ``monocle_multi_turn_wrapper`` so the shared session
+        scope and span export are handled automatically; the decorated test body
+        typically just awaits ``test_multi_turn_agent_async``. The decorated
+        function must be a coroutine, since multi-turn runs are async.
+        """
+        multi_turn_cases: list[MultiTurnTestCase] = []
+        for mtc in multi_turn_cases_array:
+            if isinstance(mtc, dict):
+                multi_turn_cases.append(MultiTurnTestCase.model_validate(mtc))
+            else:
+                multi_turn_cases.append(mtc)
+
+        def decorator(func):
+            if not inspect.iscoroutinefunction(func):
+                raise ValueError("monocle_multi_turn_testcase can only decorate async test functions.")
+
+            @pytest.mark.asyncio
+            @pytest.mark.parametrize("multi_turn_case", multi_turn_cases)
+            async def wrapper(multi_turn_case, request, *args, **kwargs):
+                async with self.monocle_multi_turn_wrapper(multi_turn_case, request):
+                    return await func(multi_turn_case, *args, **kwargs)
             return wrapper
         return decorator
 
@@ -321,6 +399,121 @@ class MonocleValidator:
                 raise
         self.validate_result(test_case, result)
         return result
+
+    @staticmethod
+    def _chain_turn_input(test_input, previous_output):
+        """Substitute the previous turn's output into a turn's input.
+
+        Any string element of ``test_input`` that contains the
+        ``{previous_output}`` placeholder is formatted with the prior turn's
+        result, so the output of turn n can inform the input of turn n+1. Turns
+        that don't use the placeholder are returned unchanged.
+        """
+        if test_input is None or previous_output is None:
+            return test_input
+        chained = []
+        for item in test_input:
+            if isinstance(item, str) and "{previous_output}" in item:
+                chained.append(item.replace("{previous_output}", str(previous_output)))
+            else:
+                chained.append(item)
+        return tuple(chained)
+
+    async def run_multi_turn_agent_async(self, agent, agent_type: str, multi_turn_case: MultiTurnTestCase):
+        """Run every turn of a multi-turn case against one live agent session.
+
+        A single agent runner instance is reused across all turns and the same
+        ``session_id`` is threaded into every turn, so the agent's own memory
+        persists between turns (this is what lets an "incomplete input -> agent
+        asks for clarification -> follow-up input" flow work end to end). Spans
+        are accumulated across turns instead of being cleared, so both per-turn
+        and session-wide assertions have the spans they need.
+
+        Returns a tuple of ``(per_turn_spans, results)`` where ``per_turn_spans``
+        is a list holding the spans produced by each turn (in order) and
+        ``results`` is the list of per-turn results.
+        """
+        agent_runner = get_agent_runner(agent_type)
+        if agent_runner is None:
+            raise ValueError(f"Unsupported agent type: {agent_type}")
+
+        session_id = multi_turn_case.session_id
+        per_turn_spans: list[tuple] = []
+        results: list = []
+        previous_output = None
+
+        try:
+            for turn in multi_turn_case.turns:
+                self.clear_spans()
+                mock_tool_token = None
+                turn_input = self._chain_turn_input(turn.test_input, previous_output)
+                try:
+                    context = self._set_wrapper_methods(turn.mock_tools or [])
+                    if context is not None:
+                        mock_tool_token = attach(context)
+                    result = None
+                    try:
+                        result = await agent_runner.run_agent_async(
+                            agent, *turn_input, session_id=session_id
+                        )
+                    except Exception:
+                        if not (turn.expect_errors or multi_turn_case.expect_errors):
+                            raise
+                finally:
+                    if mock_tool_token is not None:
+                        detach(mock_tool_token)
+
+                self._trace_source = agent_runner.get_remote_traces_source()
+                self._fetch_remote_traces()
+                turn_spans = self.spans
+                per_turn_spans.append(turn_spans)
+                results.append(result)
+                previous_output = result
+        finally:
+            if hasattr(agent_runner, "end_session"):
+                try:
+                    await agent_runner.end_session(session_id)
+                except Exception as e:
+                    logger.debug(f"end_session cleanup failed: {e}")
+
+        return per_turn_spans, results
+
+    async def test_multi_turn_agent_async(self, agent, agent_type: str,
+                                          multi_turn_case: Union[MultiTurnTestCase, dict]):
+        """Run a multi-turn test case and validate per-turn and session assertions.
+
+        Runs every turn in order against a shared live session, validates each
+        turn's own assertions (``test_output``, ``test_spans``) against that
+        turn's spans, then validates the session-level ``session_spans`` and
+        ``session_output`` against the spans accumulated across all turns.
+        """
+        if isinstance(multi_turn_case, dict):
+            multi_turn_case = MultiTurnTestCase.model_validate(multi_turn_case)
+        if multi_turn_case.session_id is None:
+            multi_turn_case.session_id = f"monocle_test_session_{uuid.uuid4().hex}"
+
+        per_turn_spans, results = await self.run_multi_turn_agent_async(
+            agent, agent_type, multi_turn_case
+        )
+
+        for turn, turn_spans, result in zip(multi_turn_case.turns, per_turn_spans, results):
+            self._spans = tuple(turn_spans)
+            self.validate(turn)
+            self.validate_result(turn, result)
+
+        self._spans = tuple(self._test_all_up_spans)
+        session_case = TestCase(
+            test_name=multi_turn_case.test_name,
+            test_output=multi_turn_case.session_output,
+            comparer=multi_turn_case.comparer,
+            test_spans=multi_turn_case.session_spans,
+            expect_errors=multi_turn_case.expect_errors,
+            expect_warnings=multi_turn_case.expect_warnings,
+        )
+        self.validate(session_case)
+        if multi_turn_case.session_output is not None:
+            self.validate_result(session_case, results[-1] if results else None)
+        return results
 
     def _fetch_remote_traces(self):
         import time

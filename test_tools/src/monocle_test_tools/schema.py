@@ -172,3 +172,52 @@ class TestCase(BaseModel):
     def __init__(self, **data):
         super().__init__(**data)
         self.comparer = get_comparer(self.comparer)
+
+class MultiTurnTestCase(BaseModel):
+    """
+    Represents a multi-turn test case in the Monocle testing framework.
+
+    A MultiTurnTestCase drives an agent through an ordered list of turns that
+    share a single session. Unlike chaining independent single-turn tests, all
+    turns run against the same live agent session so the agent's own memory
+    carries over between turns (for example, an "incomplete input -> agent asks
+    for clarification -> follow-up input" flow). The spans produced by every
+    turn are accumulated and grouped under one session id (exposed as a scope
+    attribute), which lets assertions run across the whole session rather than a
+    single turn at a time.
+
+    Each turn is an ordinary TestCase, so per-turn assertions (test_output,
+    test_spans, evals) work exactly as they do for single-turn tests. The
+    session_spans block holds assertions evaluated against the accumulated spans
+    from all turns, which is where session-wide evals (hallucination, user
+    sentiment across the whole conversation) belong.
+
+    Chaining: the output of turn n is available to turn n+1. Any string element
+    in a later turn's test_input that contains the ``{previous_output}``
+    placeholder is substituted with the previous turn's result before the turn
+    runs.
+
+    Attributes:
+        test_name: Name of the multi-turn test case.
+        session_id: Session id shared by every turn. Auto-generated when omitted.
+        turns: Ordered list of TestCase turns to run in the same session.
+        session_spans: Assertions evaluated across the accumulated spans of all turns.
+        session_output: Expected final output, compared against the last turn's result.
+        comparer: Comparison method used for session_output.
+        expect_errors: Whether errors are expected across the session as a whole.
+        expect_warnings: Whether warnings are expected across the session as a whole.
+    """
+    test_name: Optional[str] = Field("monocle_multi_turn_test", description="Name of the multi-turn test case.")
+    session_id: Optional[str] = Field(None, description="Session id shared by all turns. Auto-generated if not provided.")
+    turns: list[TestCase] = Field(..., description="Ordered list of turns (each a TestCase) to run in the same session.")
+    session_spans: list[TestSpan] = Field(default_factory=list, description="Assertions evaluated across the accumulated spans of all turns.")
+    session_output: Optional[Any] = Field(None, description="Expected final output, compared against the last turn's result.")
+    comparer: Optional[Union[str, BaseComparer]] = Field(DefaultComparer(), description="Comparison method for session_output.")
+    expect_errors: Optional[bool] = Field(False, description="Whether to expect errors across the session as a whole.")
+    expect_warnings: Optional[bool] = Field(False, description="Whether to expect warnings across the session as a whole.")
+
+    def __init__(self, **data):
+        super().__init__(**data)
+        if not self.turns or len(self.turns) == 0:
+            raise ValueError("MultiTurnTestCase must have at least one turn.")
+        self.comparer = get_comparer(self.comparer)

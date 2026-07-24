@@ -103,6 +103,77 @@ if __name__ == "__main__":
     pytest.main([__file__])
 ```
 
+### Multi-turn testing (`@monocle_multi_turn_testcase`)
+
+Single-turn tests run one input, collect one trace, and assert against it. Multi-turn testing runs an ordered list of turns against a single live agent session in one shot: the agent's own memory carries over between turns, spans from every turn are accumulated and grouped under one session id, and assertions can run per-turn or across the whole session.
+
+This is what enables testing an "incomplete input -> agent asks for a clarification -> follow-up input" flow, plus session-wide evals such as hallucination and user sentiment across the whole conversation rather than a single turn.
+
+Wrap the turns in a `MultiTurnTestCase`:
+
+```python
+import pytest
+from monocle_test_tools import MultiTurnTestCase, MonocleValidator
+from adk_travel_agent import root_agent
+
+multi_turn_cases: list[dict] = [
+    {
+        # A single session id groups every turn's spans (auto-generated if omitted).
+        "session_id": "booking_session_1",
+        "turns": [
+            # Turn 1: incomplete input, the agent should ask for the destination.
+            {
+                "test_input": ["Book me a flight for 26th Nov 2025."],
+                "test_spans": [
+                    {
+                        "span_type": "agentic.turn",
+                        "output": "Which city would you like to fly to?",
+                        "comparer": "similarity"
+                    }
+                ]
+            },
+            # Turn 2: the follow-up. The agent remembers the date from turn 1
+            # because both turns share one live session.
+            {
+                "test_input": ["Fly to Mumbai."],
+                "test_output": "A flight to Mumbai on November 26, 2025 has been booked.",
+                "comparer": "similarity"
+            }
+        ],
+        # Assertions across the accumulated spans of ALL turns.
+        "session_spans": [
+            {
+                "span_type": "agentic.tool.invocation",
+                "entities": [
+                    {"type": "tool", "name": "adk_book_flight"},
+                    {"type": "agent", "name": "adk_flight_booking_agent"}
+                ]
+            }
+        ]
+    }
+]
+
+@MonocleValidator().monocle_multi_turn_testcase(multi_turn_cases)
+async def test_multi_turn(multi_turn_case: MultiTurnTestCase):
+    await MonocleValidator().test_multi_turn_agent_async(root_agent, "google_adk", multi_turn_case)
+
+if __name__ == "__main__":
+    pytest.main([__file__])
+```
+
+Each turn is an ordinary `TestCase`, so per-turn `test_output`, `test_spans`, and evals work exactly as in single-turn tests, validated against that turn's spans. The `session_spans` block (and optional `session_output`) is validated against the spans accumulated across every turn.
+
+**Chaining turn output into the next input.** Use the `{previous_output}` placeholder in a later turn's `test_input` to feed the prior turn's result forward:
+
+```python
+"turns": [
+    {"test_input": ["Suggest a city to visit in November."]},
+    {"test_input": ["Book me a flight to {previous_output}."]}
+]
+```
+
+**Session persistence across runners.** The ADK runner keeps one in-memory session service alive for the whole multi-turn run, so agent memory persists between turns. Runners that delegate session continuity to their own framework keep memory across turns via the shared `session_id` too (LangGraph `thread_id`, Strands `FileSessionManager`, LlamaIndex chat store, MS Agent thread).
+
 ### Fluent API (`monocle_trace_asserter`)
 
 Use the `monocle_trace_asserter` pytest fixture to write expressive, chainable assertions. Each assertion method filters the span context for subsequent calls.

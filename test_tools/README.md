@@ -680,15 +680,95 @@ The following eval template names have been validated against real traces in tes
 
 ### Custom Evaluation Templates
 
-Instead of a built-in `eval_name`, pass `template_path` to `check_eval` to send your own template JSON to the eval service. Provide exactly one of `eval_name` or `template_path`.
+Instead of a built-in `eval_name`, you can send your own template to the eval service. `check_eval` accepts **exactly one** of three mutually exclusive selectors: `eval_name` (a standard Okahu template), `template_path` (a path to a custom-template JSON file), or `template` (an inline custom-template dict).
 
 ```python
+# From a file
 monocle_trace_asserter.called_agent("adk_flight_booking_agent")
 monocle_trace_asserter.with_evaluation("okahu") \
     .check_eval(template_path="templates/my_custom_eval.json", expected="pass")
+
+# Inline dict (no file needed) — pass the template as a keyword-only argument
+monocle_trace_asserter.with_evaluation("okahu") \
+    .check_eval(template={"name": "my_eval", "eval_prompt": "...", "structure_output": {...}},
+                expected="pass")
 ```
 
-The file may be either the inner template (`{"name": ..., "eval_prompt": ..., ...}`) or the full API request body (`{"template": {...}}`) — the outer `template` key is unwrapped automatically. Server-side validation errors (HTTP 400) surface as an `AssertionError` prefixed with `Custom template validation failed:`.
+For `template_path`, the file may be either the inner template (`{"name": ..., "eval_prompt": ..., ...}`) or the full API request body (`{"template": {...}}`) — the outer `template` key is unwrapped automatically. When `eval_name` is omitted, the template's `name` field is used as the eval name (falling back to `"custom_eval"`). Server-side validation errors (HTTP 400) surface as an `AssertionError` prefixed with `Custom template validation failed:`.
+
+### Time-window (filtered) evaluation
+
+The examples above evaluate a **specific** trace/fact that you selected (by running an agent, or by `with_trace_source("okahu", id=...)`). You can instead evaluate **every fact discovered in a time window** for one or more workflows — without knowing the trace ids up front — by setting `start_time`/`end_time` on `with_trace_source("okahu", ...)`. This runs the evaluation as a single asynchronous Okahu job that discovers the matching facts server-side, applies one **blanket** `expected`/`not_expected` to each, and reports per fact.
+
+```python
+# Evaluate all traces for "my_app" in a time window against one blanket expectation
+monocle_trace_asserter \
+    .with_trace_source("okahu", workflow_name="my_app",
+                       start_time="2026-07-21T00:00:00Z", end_time="2026-07-22T00:00:00Z") \
+    .with_evaluation("okahu") \
+    .check_eval("hallucination", expected="no_hallucination", min_facts=5)
+```
+
+- **Mode is chosen by the source, not a separate method.** Supplying a time window (vs. an `id`) makes the *same* `check_eval` run the filtered flow. Providing both `id` and a time window raises; filter mode requires both `start_time` and `end_time` **and** a `workflow_name`.
+- `fact_name` (defaults to `traces`) selects the fact grain to discover.
+- **Filter-only `check_eval` parameters** (raise a `ValueError` if used without a time window):
+  - `min_facts` (default `1`) — fail the run if fewer than this many facts were discovered (guards against a vacuous pass on an empty window).
+  - `fail_threshold` (default `0`) — allow up to this many non-matching facts before the assertion fails.
+  - `max_facts` (default from `OKAHU_MAX_FACTS`, `1000`) — runaway guard; fail loudly if the window discovers more than this many facts.
+- **Results are uniform.** Both the filtered and the single-fact paths populate the same report, readable via the accessors below (filtered mode = N facts; single-fact mode = a 1-fact report), on pass **and** failure.
+
+| Method | Description |
+|---|---|
+| `get_eval_report()` | The eval report stashed by the last `check_eval` (dict with a `scenarios` list) |
+| `get_eval_failures()` | The subset of report scenarios whose `status` is not `pass` |
+| `write_eval_report(path)` | Write the report to a JSON file |
+
+### Eval result matrix
+
+An **opt-in** pytest recorder captures a per-test eval-result matrix (scenario, expected/actual label, judge output, token cost, pass/fail/error) across a whole run — useful for measuring eval stability and token cost without hand-rolling a `conftest.py` recorder. It is **off by default** and changes no behavior unless enabled.
+
+Enable it either way:
+
+```bash
+pytest --monocle-eval-matrix                       # writes test-eval-replay-matrix.json
+pytest --monocle-eval-matrix=path/to/matrix.json   # custom path
+MONOCLE_EVAL_MATRIX=1 pytest                        # via env var (default path)
+```
+
+A row is recorded for every test that calls `check_eval`. At session end the recorder writes `{"generated_at": <UTC ISO8601>, "records": [ ... ]}`, where each record has a fixed schema: `run_id`, `scenario`, `trace_id`, `expected`, `actual`, `status` (`pass`/`fail`/`error`), `explanation`, `total_tokens`, `claim_verdicts`, `hallucination_types`, `entity_match_check`, and (for the filtered flow) `fact_id`, `workflow`, `job_id`. Path precedence: the `--monocle-eval-matrix` value, else `MONOCLE_EVAL_MATRIX`, else the default `test-eval-replay-matrix.json`.
+
+### CSV eval test cases
+
+For curating many eval cases as a flat spreadsheet, `monocle_test_tools` exports a CSV adapter — `load_cases_from_csv`, `CsvCase`, and the `@monocle_csv_cases` decorator — that parametrizes a one-line test stub over the rows and drives each through the fluent `check_eval` path. **Scope (v0): evaluation tests only** (fixed to the `okahu` trace source).
+
+**Config in code, data in CSV.** The test stub owns everything constant across the sheet (the evaluator, the eval template, the trace source); the CSV owns only what varies per row. One row = one test.
+
+```python
+import os
+from monocle_test_tools import monocle_csv_cases
+
+TEMPLATE_PATH = os.path.join(os.path.dirname(__file__), "hallucination_test.json")
+
+@monocle_csv_cases("cases.csv")
+def test_cases(monocle_trace_asserter, case):
+    case.run(monocle_trace_asserter.with_evaluation("okahu"), template_path=TEMPLATE_PATH)
+```
+
+Each row maps onto exactly three stable, eval-relevant fluent methods — `check_eval` (the label being tuned) plus two optional operational guard rails, `under_token_limit` and `under_duration`:
+
+| Column | Required | Maps to | Notes |
+|---|---|---|---|
+| `case_id` | ✅ | (test id) | Unique per row; duplicates are rejected at load time |
+| `fact_id` | ✅ | `with_trace_source(id=...)` | Identifier of the evaluated fact — equals the trace id when `fact_name=traces`, a finer-grained id otherwise |
+| `workflow_name` | ✅ | `with_trace_source(workflow_name=...)` | Okahu workflow name |
+| `fact_name` | | `check_eval(fact_name=...)` | Fact grain (defaults to `traces`) |
+| `expected` | one of these | `check_eval(expected=...)` | Multi-value: pipe-delimited (`a\|b`) or a JSON array |
+| `not_expected` | one of these | `check_eval(not_expected=...)` | Multi-value, same as `expected` |
+| `max_tokens` | | `under_token_limit(...)` | Token-budget guard rail |
+| `max_duration_ms` | | `under_duration(..., units="ms")` | Effort/latency guard rail |
+| `notes` | | (ignored) | Free-form documentation for curators |
+
+A row must declare an `expected` or `not_expected` label — a guard rail alone is not an eval test. `load_cases_from_csv(path)` can also be used standalone (returns a list of `CsvCase`) and reports load errors with the offending `line N`. A copy-ready example ships at [`examples/cases.example.csv`](examples/cases.example.csv) + [`examples/csv_cases_example.py`](examples/csv_cases_example.py).
 
 ---
 
@@ -716,7 +796,7 @@ Configure the asserter before running assertions. These methods return `self` fo
 
 | Method | Description |
 |---|---|
-| `with_trace_source(source="local", **kwargs)` | Choose where spans come from: `"local"` (in-memory, default), `"file"` (local `.monocle/*.json`), or `"okahu"` (cloud). File/Okahu kwargs: `id`, `trace_path` (file), `fact_name` (`trace`/`session`/`scope`), `scope_name`, `workflow_name` (required for Okahu) |
+| `with_trace_source(source="local", **kwargs)` | Choose where spans come from: `"local"` (in-memory, default), `"file"` (local `.monocle/*.json`), or `"okahu"` (cloud). File/Okahu kwargs: `id`, `trace_path` (file), `fact_name` (`trace`/`session`/`scope`), `scope_name`, `workflow_name` (required for Okahu). **Okahu time-window (filtered) mode:** pass `start_time` + `end_time` (both required) with `workflow_name` and no `id` to evaluate all discovered facts in a window (see [Time-window evaluation](#time-window-filtered-evaluation)) |
 | `with_comparer(comparer)` | Override the comparer for subsequent `has_*` assertions (see the Comparers table). Accepts a string key or `BaseComparer` instance |
 | `with_evaluation(eval, eval_options=None)` | Configure the evaluator (`"okahu"`, `"bert_score"`, or a `BaseEval` instance) before `check_eval` |
 | `with_mock_tool(mock_tool)` | Register a `MockTool` to simulate tool behavior during a subsequent `run_agent`/`run_agent_async` (fluent equivalent of `TestCase.mock_tools`). Call once per mock tool |
@@ -806,7 +886,8 @@ Configure the evaluator with `with_evaluation` (see the Configuration table) bef
 
 | Method | Description |
 |---|---|
-| `check_eval(eval_name=None, expected=None, not_expected=None, fact_name="traces", template_path=None)` | Run an evaluation and assert the result. Provide **either** `eval_name` (a standard Okahu template) **or** `template_path` (a custom-template JSON file), not both. `expected` and `not_expected` each accept a string or list of strings |
+| `check_eval(eval_name=None, expected=None, not_expected=None, fact_name="traces", template_path=None, *, template=None, min_facts=1, fail_threshold=0, max_facts=None)` | Run an evaluation and assert the result. Provide **exactly one** of `eval_name` (a standard Okahu template), `template_path` (a custom-template JSON file), or `template` (an inline custom-template dict). `expected`/`not_expected` each accept a string or list of strings. `min_facts`/`fail_threshold`/`max_facts` apply **only** in time-window (filtered) mode (see [Time-window evaluation](#time-window-filtered-evaluation)) and raise otherwise |
+| `get_eval_report()` / `get_eval_failures()` / `write_eval_report(path)` | Read the report stashed by the last `check_eval` — the full report dict, the non-`pass` scenarios, or write it to JSON. Same shape in single-fact and filtered modes |
 
 ---
 
@@ -843,6 +924,8 @@ validator.check_duration_limits(max_duration=30.0, units="seconds", span_type="w
 | `MONOCLE_TRACE_OUTPUT_PATH` | Directory for file-based trace output | `.monocle/test_traces` |
 | `OKAHU_API_KEY` | API key for Okahu evaluation and trace export | — |
 | `OKAHU_EVALUATION_ENDPOINT` | Override the Okahu evaluation endpoint | `https://eval.okahu.co/api` |
+| `OKAHU_MAX_FACTS` | Runaway guard for time-window (filtered) evals: fail loudly if a filter discovers more than this many facts (see [Time-window evaluation](#time-window-filtered-evaluation)) | `1000` |
+| `MONOCLE_EVAL_MATRIX` | Set (to any value, optionally a path) to enable the opt-in eval-result-matrix recorder (see [Eval result matrix](#eval-result-matrix)). Off when unset | unset (off) |
 | `LOCAL_RUN_ID` | Run identifier applied to all spans in a session | ISO datetime at session start |
 
 ---

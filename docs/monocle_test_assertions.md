@@ -18,8 +18,8 @@ This document provides a comprehensive reference for all assertions supported by
 | Method | Parameters | Description |
 |--------|-----------|-------------|
 | `under_token_limit()` | `token_limit` | **Asserts:** The total token count across all spans is below the specified limit. Fails if limit is exceeded. |
-| `under_duration()` | `duration_limit` | **Asserts:** The workflow execution time is under the specified limit (in seconds). Fails if duration exceeds limit. |
-| `check_eval()` | `eval_name`, `expected_eval`, `fact_name="traces"` | **Asserts:** The evaluation result matches the expected value. Fails if evaluation result differs from expected. |
+| `under_duration()` | `duration_limit`, `units="seconds"`, `span_type="workflow"` | **Asserts:** Span durations are under the specified limit. `units`: `seconds` (default), `ms`, `minutes`. Fails if duration exceeds limit. |
+| `check_eval()` | `eval_name=None`, `expected=None`, `not_expected=None`, `fact_name="traces"`, `template_path=None`, `template=None`, `min_facts=1`, `fail_threshold=0`, `max_facts=None` | **Asserts:** The evaluation result matches (`expected`) / avoids (`not_expected`) the given label(s). Provide **exactly one** of `eval_name` (Okahu template), `template_path` (custom-template JSON file), or `template` (inline dict). `min_facts`/`fail_threshold`/`max_facts` apply only in time-window (filtered) mode. See the [evaluation API guide](monocle_evaluation_api.md) for filtered evaluation and result-report accessors. |
 
 ## Configuration Methods
 

@@ -1,14 +1,21 @@
 import asyncio
 import logging
-from typing import Union, Any, Optional
+import os
+from typing import Any
 import requests
 from monocle_test_tools.runner.agent_runner import AgentRunner
+from monocle_test_tools.file_span_loader import JSONSpanLoader
 from monocle_apptrace.instrumentation.metamodel.requests._helper import RequestSpanHandler
+from monocle_apptrace.instrumentation.common.constants import (
+    MONOCLE_TRACE_RETRIEVAL_KEY_ENV,
+    TRACE_RETURN_REQUEST_HEADER,
+)
 
 logger = logging.getLogger(__name__)
 
-class HttpRunner(AgentRunner):
-    async def run_agent_async(self, root_agent: str, *args, **kwargs) -> str:
+
+class _BaseHttpRunner(AgentRunner):
+    async def run_agent_async(self, root_agent: str, *args, **kwargs) -> Any:
         """Run the given agent with provided root_agent URL, args and kwargs."""
         """ Arguments:
             root_agent: The URL to which the HTTP request will be made. This is expected to be a string URL. For HttpRunner, root_agent is used as the target URL for the HTTP request.
@@ -16,27 +23,19 @@ class HttpRunner(AgentRunner):
             *args: Positional arguments that may contain request data or parameters.
             **kwargs: Keyword arguments that may contain request details like method, headers, body, etc.
         """
-        # For HttpRunner, we expect the root_agent to be a callable that takes a request dict
         if root_agent is None or not isinstance(root_agent, str):
-            raise ValueError("For HttpRunner, root_agent is not expected. Please pass the HTTP request details in args and kwargs.")
-
-        # Use request library to make the HTTP request based on the details in args and kwargs
-        # method = kwargs.get("method", "GET")
-        # url = root_agent
-        # headers = kwargs.get("headers", {})
-        # data = kwargs.get("data", None) or kwargs.get("json", None) or kwargs.get("body", None) or (args[0] if len(args) > 0 else None) or ""
+            raise ValueError("For HttpRunner, root_agent must be the target URL string.")
         try:
             RequestSpanHandler.set_trace_all_urls_for_test(True)  # Ensure all requests are traced for testing
             kwargs["url"] = root_agent
             response = requests.request(**kwargs)
-            logger.debug(f"Received HTTP response with status code: {response.status_code}, body: {response.text}")
+            logger.debug(f"HTTP response status={response.status_code}")
             response.raise_for_status()  # Raise an exception for HTTP error codes
             return response
         finally:
             RequestSpanHandler.set_trace_all_urls_for_test(False)  # Reset to default after the request is done
 
-    def run_agent(self, root_agent: str, *args, **kwargs) -> str:
-        import asyncio
+    def run_agent(self, root_agent: str, *args, **kwargs) -> Any:
         try:
             loop = asyncio.get_running_loop()
         except RuntimeError:
@@ -47,7 +46,52 @@ class HttpRunner(AgentRunner):
                 future = pool.submit(asyncio.run, self.run_agent_async(root_agent, *args, **kwargs))
                 return future.result()
         return asyncio.run(self.run_agent_async(root_agent, *args, **kwargs))
-    
+
+
+class HttpOkahuRunner(_BaseHttpRunner):
+    """HTTP runner that fetches server-side traces from Okahu (legacy behavior)."""
+
     def get_remote_traces_source(self) -> str:
-        """HttpRunner may have remote traces if the HTTP request triggers spans that are exported to a remote backend. This can be overridden if the runner needs to fetch traces in a specific way."""
+        """HttpOkahuRunner fetches remote traces from Okahu after the HTTP request triggers spans exported to that backend."""
         return "okahu"
+
+
+class HttpRunner(_BaseHttpRunner):
+    """HTTP runner that reads server-side spans piggybacked on the HTTP response."""
+
+    def __init__(self):
+        super().__init__()
+        self._remote_spans = []
+
+    async def run_agent_async(self, root_agent: str, *args, **kwargs) -> Any:
+        self._maybe_inject_retrieval_key(kwargs)
+        response = await super().run_agent_async(root_agent, *args, **kwargs)
+        self._capture_remote_spans(response)
+        return response
+
+    def _maybe_inject_retrieval_key(self, kwargs) -> None:
+        """Add the trace-retrieval key header from MONOCLE_TRACE_RETRIEVAL_KEY,
+        unless the caller already supplied the header."""
+        key = os.environ.get(MONOCLE_TRACE_RETRIEVAL_KEY_ENV)
+        if not key:
+            return
+        headers = dict(kwargs.get("headers") or {})
+        if any(str(k).lower() == TRACE_RETURN_REQUEST_HEADER for k in headers):
+            return  # caller-supplied header wins
+        headers[TRACE_RETURN_REQUEST_HEADER] = key
+        kwargs["headers"] = headers
+
+    def _capture_remote_spans(self, response) -> None:
+        raw = getattr(response, "_monocle_remote_spans", None)
+        if raw:
+            try:
+                self._remote_spans = JSONSpanLoader.from_json_str(raw)
+            except Exception as e:
+                logger.warning(f"Failed to deserialize piggybacked spans: {e}")
+                self._remote_spans = []
+
+    def get_remote_spans(self) -> list:
+        return self._remote_spans
+
+    def get_remote_traces_source(self):
+        return None

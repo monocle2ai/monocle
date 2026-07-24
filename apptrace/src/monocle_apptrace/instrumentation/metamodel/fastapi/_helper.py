@@ -7,12 +7,19 @@ from typing import AsyncIterator, List
 
 from opentelemetry.trace import Span
 
-from monocle_apptrace.instrumentation.common.constants import HTTP_SUCCESS_CODES
+from monocle_apptrace.instrumentation.common.constants import HTTP_SUCCESS_CODES, TRACE_RETURN_RESPONSE_HEADER
 from monocle_apptrace.instrumentation.common.span_handler import HttpSpanHandler, SpanHandler
+from monocle_apptrace.instrumentation.common.trace_return import (
+    build_response_header_value,
+    is_trace_return_authorized,
+    is_trace_return_enabled,
+    make_delimiter,
+)
 from monocle_apptrace.instrumentation.common.utils import (
     MonocleSpanException,
     clear_http_scopes,
     extract_http_headers,
+    get_current_monocle_span,
     get_exception_status_code,
     with_tracer_wrapper,
 )
@@ -180,6 +187,109 @@ async def _capture_response_body(scope, send):
         await send(message)
 
     return _send
+
+
+def _headers_from_scope(scope) -> dict:
+    """Decode an ASGI scope's raw header list into a lowercase-keyed dict."""
+    return {k.decode("utf-8").lower(): v.decode("utf-8") for k, v in scope.get("headers", [])}
+
+
+async def _inject_trace_return_send(scope, send, handler, delimiter: str, trace_id: int = None):
+    """Wrap ASGI send to append the trace-return trailer to the response.
+
+    Buffered responses (content-length present): hold start, append trailer, fix length.
+    Streaming responses (no content-length): forward start immediately, append a final
+    trailer body chunk after the last real chunk.
+
+    `trace_id` is resolved lazily (at finalize time, inside the same async task/context
+    as the active request span) when not supplied explicitly. The request span is not
+    yet created when this wrapper is constructed, so resolving it up front would read
+    the wrong (or no) span; tests may still pass an explicit `trace_id` for determinism.
+
+    Note: Monocle keeps its own span hierarchy off the standard OTel context (see
+    `MONOCLE_ISOLATE_SPANS`, default true), so `opentelemetry.trace.get_current_span()`
+    would return an invalid span here. The lazy lookup must go through Monocle's own
+    `get_current_monocle_span()` accessor instead (same one used by wrapper.py /
+    method_wrappers.py) to find the actual active request span.
+    """
+    header_bytes = (TRACE_RETURN_RESPONSE_HEADER.encode("ascii"),
+                    build_response_header_value(delimiter).encode("ascii"))
+    state = {"held_start": None, "buffered": False, "body_parts": []}
+
+    def _resolve_trace_id():
+        if trace_id is not None:
+            return trace_id
+        # get_current_monocle_span() returns INVALID_SPAN (trace_id 0) when no
+        # Monocle span is active; that's fine, build_trace_return_trailer will
+        # simply find no matching spans and skip the trailer.
+        return get_current_monocle_span().get_span_context().trace_id
+
+    async def _send(message):
+        mtype = message.get("type")
+        if mtype == "http.response.start":
+            headers = list(message.get("headers", []))
+            has_length = any(k.lower() == b"content-length" for k, _ in headers)
+            if has_length:
+                state["buffered"] = True
+                state["held_start"] = message
+                return  # defer until finalize
+            # Streaming: ASGI does not allow headers to be added after start is
+            # sent, so the x-monocle-traces header advertising a POSSIBLE trailer
+            # at `delimiter` must go out now, before we know whether any spans
+            # will actually be captured by finalize time. If no trailer ends up
+            # being appended (see the streaming finalize branch below), the
+            # header is still present but the delimiter never appears in the
+            # body. The client splits the body on the delimiter and treats its
+            # absence as zero spans, so this is safe — just a header that may
+            # advertise a trailer that doesn't materialize.
+            headers.append(header_bytes)
+            message = {**message, "headers": headers}
+            await send(message)
+            return
+
+        if mtype == "http.response.body":
+            body = message.get("body", b"")
+            more = message.get("more_body", False)
+            if state["buffered"]:
+                state["body_parts"].append(body)
+                if more:
+                    return
+                full_body = b"".join(state["body_parts"])
+                tid = _resolve_trace_id()
+                trailer = handler.build_trace_return_trailer(tid, delimiter)
+                start = state["held_start"]
+                headers = list(start.get("headers", []))
+                if trailer:
+                    new_headers = []
+                    for k, v in headers:
+                        if k.lower() == b"content-length":
+                            new_headers.append((k, str(len(full_body) + len(trailer)).encode("ascii")))
+                        else:
+                            new_headers.append((k, v))
+                    new_headers.append(header_bytes)
+                    await send({**start, "headers": new_headers})
+                    await send({"type": "http.response.body", "body": full_body + trailer, "more_body": False})
+                else:
+                    await send(start)
+                    await send({"type": "http.response.body", "body": full_body, "more_body": False})
+                return
+            # streaming path (start already forwarded)
+            if more:
+                await send(message)
+                return
+            tid = _resolve_trace_id()
+            trailer = handler.build_trace_return_trailer(tid, delimiter)
+            if trailer:
+                await send({**message, "body": body, "more_body": True})
+                await send({"type": "http.response.body", "body": trailer, "more_body": False})
+            else:
+                await send(message)
+            return
+
+        await send(message)
+
+    return _send
+
 
 def get_url(args) -> str:
     """Extract full URL from ASGI scope."""
@@ -355,7 +465,19 @@ async def fastapi_atask_wrapper(tracer, handler, to_wrap, wrapped, instance,
     if scope.get('method', 'GET') in ('POST', 'PUT', 'PATCH'):
         receive = await _buffer_request_body(scope, receive)
 
-    # Wrap send to capture response body (including streaming)
+    # Trace-return injection (opt-in): trace_id is resolved lazily inside the send
+    # wrapper at trailer-finalize time, since the request span has not been created
+    # yet at this point in the wrapper chain. Assigned FIRST so it wraps the real
+    # send directly (innermost) — it appends the trailer/fixes content-length on
+    # the way OUT to the real send.
+    if is_trace_return_enabled() and is_trace_return_authorized(_headers_from_scope(scope)):
+        delimiter = make_delimiter()
+        send = await _inject_trace_return_send(scope, send, HttpSpanHandler(), delimiter)
+
+    # Wrap send to capture response body (including streaming). Assigned SECOND so
+    # it wraps the inject wrapper (outermost) — it observes the app's original,
+    # clean body (before any trailer is appended) and forwards messages unchanged
+    # downstream so the inject wrapper still sees the original start/body messages.
     send = await _capture_response_body(scope, send)
 
     # Rebuild args with wrapped receive and send

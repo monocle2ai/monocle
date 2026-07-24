@@ -105,3 +105,12 @@ local_config.py
 apptrace/LICENSE
 mcp/LICENSE
 test_tools/LICENSE
+# Local session telemetry, dev-container, and credentials — never commit
+.monocle/
+.devcontainer/
+test.env
+.monocle_claude_trace.jsonl
+.claude_sessions/
+
+# Superpowers design/plan artifacts (session workflow docs)
+docs/superpowers/

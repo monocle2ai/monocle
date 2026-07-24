@@ -3,6 +3,8 @@ from threading import local
 from monocle_apptrace.instrumentation.common.utils import extract_http_headers, clear_http_scopes, get_exception_status_code, try_option, Option, MonocleSpanException
 from monocle_apptrace.instrumentation.common.span_handler import SpanHandler
 from monocle_apptrace.instrumentation.common.constants import HTTP_SUCCESS_CODES
+from monocle_apptrace.instrumentation.common import trace_return as tr
+from monocle_apptrace.instrumentation.common.constants import TRACE_RETURN_RESPONSE_HEADER
 from urllib.parse import unquote, urlparse, ParseResult
 
 
@@ -88,3 +90,28 @@ class azureSpanHandler(SpanHandler):
     
     def post_tracing(self, to_wrap, wrapped, instance, args, kwargs, return_value, token):
         azure_func_post_tracing(token)
+
+    def post_task_processing(self, to_wrap, wrapped, instance, args, kwargs, result, ex, span, parent_span):
+        try:
+            if hasattr(result, "get_body") and hasattr(result, "headers"):
+                trace_id = span.get_span_context().trace_id if span is not None else 0
+                payload = tr.get_response_trailer(trace_id)
+                if payload is not None:
+                    header_value, trailer = payload
+                    body = result.get_body() or b""
+                    if isinstance(body, str):
+                        body = body.encode("utf-8")
+                    new_body = body + trailer
+                    # func.HttpResponse has no public body setter; mutate the
+                    # name-mangled private buffer that get_body() reads.
+                    setattr(result, "_HttpResponse__body", new_body)
+                    # Fail safe: only advertise the trailer if the private-buffer
+                    # mutation actually took effect (guards against a future
+                    # azure-functions rename silently creating a stray attribute).
+                    if result.get_body() == new_body:
+                        result.headers[TRACE_RETURN_RESPONSE_HEADER] = header_value
+                    else:
+                        logger.debug("azfunc trace-return: body mutation did not take effect; skipping header")
+        except Exception as e:
+            logger.debug(f"azfunc trace-return injection skipped: {e}")
+        super().post_task_processing(to_wrap, wrapped, instance, args, kwargs, result, ex, span, parent_span)

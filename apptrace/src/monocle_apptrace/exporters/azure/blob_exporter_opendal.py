@@ -22,7 +22,6 @@ class OpenDALAzureExporter(SpanExporterBase):
         DEFAULT_TIME_FORMAT = "%Y-%m-%d_%H.%M.%S"
         self.max_batch_size = 500
         self.export_interval = 1
-        self.container_name = container_name
 
         # Default values
         self.file_prefix = os.getenv('MONOCLE_BLOB_FILE_PREFIX', DEFAULT_FILE_PREFIX)
@@ -37,7 +36,13 @@ class OpenDALAzureExporter(SpanExporterBase):
                 raise ValueError("Azure Storage connection string is not provided or set in environment variables.")
 
         if not container_name:
-            container_name = os.getenv('MONOCLE_BLOB_CONTAINER_NAME', 'default-container')
+            container_name = os.getenv('MONOCLE_BLOB_CONTAINER_NAME')
+            if not container_name:
+                raise ValueError(
+                    "Azure Blob container name is not provided. Please provide the container_name "
+                    "parameter or set the MONOCLE_BLOB_CONTAINER_NAME environment variable."
+                )
+        self.container_name = container_name
         endpoint, account_name , account_key = self.parse_connection_string(connection_string)
 
         if not account_name or not account_key:

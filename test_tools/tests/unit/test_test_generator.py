@@ -244,19 +244,191 @@ def test_custom_test_name():
     assert "def test_my_custom_name" in test_code
 
 
-def test_output_checks_included():
-    """Test that output checks are included for agents with outputs."""
+def test_output_checks_excluded_by_default():
+    """contains_output is NOT emitted by default (opt-in via include_io)."""
     trace_path = "tests/unit/traces/trace1.json"
     if not Path(trace_path).exists():
         pytest.skip(f"Trace file {trace_path} not found")
-    
+
     generator = TestGenerator.from_json_file(trace_path)
     generator.analyze()
-    
-    # If any agent has outputs, should include contains_output
+
+    test_code = generator.generate_test_code()
+    assert "contains_output" not in test_code
+
+
+def test_output_checks_included_with_flag():
+    """contains_output IS emitted when include_io=True."""
+    trace_path = "tests/unit/traces/trace1.json"
+    if not Path(trace_path).exists():
+        pytest.skip(f"Trace file {trace_path} not found")
+
+    generator = TestGenerator.from_json_file(trace_path)
+    generator.analyze()
+
     if any(generator.agent_outputs.values()):
-        test_code = generator.generate_test_code()
+        test_code = generator.generate_test_code(include_io=True)
         assert "contains_output" in test_code
+
+
+def _make_mock_span(span_type, entity_name="", entity_type="", events=None, attrs=None):
+    """Build a minimal mock span object for generator tests."""
+    from unittest.mock import MagicMock
+    span = MagicMock()
+    base_attrs = {"span.type": span_type}
+    if entity_name:
+        base_attrs["entity.1.name"] = entity_name
+    if entity_type:
+        base_attrs["entity.1.type"] = entity_type
+    if attrs:
+        base_attrs.update(attrs)
+    span.attributes = base_attrs
+    span.events = events or []
+    span.start_time = None
+    span.end_time = None
+    return span
+
+
+def _make_event(name, **attributes):
+    from unittest.mock import MagicMock
+    ev = MagicMock()
+    ev.name = name
+    ev.attributes = attributes
+    return ev
+
+
+# --- Issue #714: has_attribute assertions in generated code ---
+
+def test_generate_omits_has_attribute_by_default():
+    """Generator does NOT emit has_attribute() by default (opt-in via --include-attributes)."""
+    span = _make_mock_span(
+        "agentic.invocation",
+        entity_name="my_agent",
+        entity_type="agent.langgraph",
+    )
+    gen = TestGenerator(spans=[span])
+    code = gen.generate_test_code()
+
+    assert "has_attribute" not in code
+
+
+def test_generate_emits_has_attribute_when_opted_in():
+    """Generator emits has_attribute() when include_attributes=True (issue #714)."""
+    span = _make_mock_span(
+        "agentic.invocation",
+        entity_name="my_agent",
+        entity_type="agent.langgraph",
+    )
+    gen = TestGenerator(spans=[span])
+    code = gen.generate_test_code(include_attributes=True)
+
+    assert "has_attribute" in code
+    assert "entity.1.type" in code
+    assert "agent.langgraph" in code
+
+
+def test_analyze_populates_span_attributes():
+    """analyze() collects notable attributes into span_attributes dict (issue #714)."""
+    span = _make_mock_span(
+        "agentic.tool.invocation",
+        entity_name="my_tool",
+        entity_type="tool.openai",
+    )
+    gen = TestGenerator(spans=[span])
+    gen.analyze()
+
+    assert "agentic.tool.invocation" in gen.span_attributes
+    attrs = gen.span_attributes["agentic.tool.invocation"]
+    assert attrs.get("entity.1.type") == "tool.openai"
+
+
+def test_span_attributes_reset_on_repeated_analyze():
+    """Repeated analyze() calls do not accumulate duplicate attribute values (issue #714)."""
+    span = _make_mock_span("agentic.invocation", entity_name="a", entity_type="agent.x")
+    gen = TestGenerator(spans=[span])
+    gen.analyze()
+    first = dict(gen.span_attributes)
+    gen.analyze()
+    assert gen.span_attributes == first
+
+
+# --- Issue #687: additional assertion types in generated code ---
+
+def test_generate_omits_has_input_by_default():
+    """Generator does NOT emit .has_input() by default (opt-in via --include-io)."""
+    input_ev = _make_event("data.input", input="What is the weather today?")
+    span = _make_mock_span("agentic.invocation", entity_name="weather_agent", events=[input_ev])
+    gen = TestGenerator(spans=[span])
+    code = gen.generate_test_code()
+
+    assert "has_input" not in code
+
+
+def test_generate_emits_has_input_when_opted_in():
+    """Generator emits .has_input() when include_io=True (issue #687)."""
+    input_ev = _make_event("data.input", input="What is the weather today?")
+    span = _make_mock_span("agentic.invocation", entity_name="weather_agent", events=[input_ev])
+    gen = TestGenerator(spans=[span])
+    code = gen.generate_test_code(include_io=True)
+
+    assert "has_input" in code
+    assert "What is the weather today?" in code
+
+
+def test_generate_omits_tool_io_by_default():
+    """Generator does NOT emit tool has_input/has_output by default (opt-in via --include-io)."""
+    inp_ev = _make_event("data.input", input="search query")
+    out_ev = _make_event("data.output", response="search result")
+    span = _make_mock_span(
+        "agentic.tool.invocation",
+        entity_name="search_tool",
+        events=[inp_ev, out_ev],
+    )
+    gen = TestGenerator(spans=[span])
+    code = gen.generate_test_code()
+
+    assert "search query" not in code
+    assert "search result" not in code
+
+
+def test_generate_emits_tool_input_output_when_opted_in():
+    """Generator emits .has_input()/.has_output() for tools when include_io=True (issue #687)."""
+    inp_ev = _make_event("data.input", input="search query")
+    out_ev = _make_event("data.output", response="search result")
+    span = _make_mock_span(
+        "agentic.tool.invocation",
+        entity_name="search_tool",
+        events=[inp_ev, out_ev],
+    )
+    gen = TestGenerator(spans=[span])
+    code = gen.generate_test_code(include_io=True)
+
+    assert "search query" in code
+    assert "search result" in code
+    assert "has_input" in code
+    assert "has_output" in code
+
+
+def test_analyze_populates_tool_inputs_outputs():
+    """analyze() captures first tool input/output snippets (issue #687)."""
+    inp_ev = _make_event("data.input", input="my tool input")
+    out_ev = _make_event("data.output", response="my tool output")
+    span = _make_mock_span("agentic.tool.invocation", entity_name="t1", events=[inp_ev, out_ev])
+    gen = TestGenerator(spans=[span])
+    gen.analyze()
+
+    assert gen.tool_inputs.get("t1") == "my tool input"
+    assert gen.tool_outputs.get("t1") == "my tool output"
+
+
+def test_analyze_populates_agent_inputs():
+    """analyze() captures agent input snippets (issue #687)."""
+    inp_ev = _make_event("data.input", input="Hello agent!")
+    span = _make_mock_span("agentic.invocation", entity_name="bot", events=[inp_ev])
+    gen = TestGenerator(spans=[span])
+    gen.analyze()
+
+    assert gen.agent_inputs.get("bot") == ["Hello agent!"]
 
 
 if __name__ == "__main__":

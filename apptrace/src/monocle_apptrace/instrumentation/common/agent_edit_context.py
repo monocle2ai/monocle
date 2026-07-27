@@ -380,9 +380,15 @@ class GitContext:
             if baseline.get("files"):
                 diff = _workspace_changes(baseline.get("files", {}), _workspace_snapshot(repo_root))
             else:
+                # No per-file snapshot baseline: only count *committed* changes since
+                # the baseline SHA to avoid attributing pre-existing dirty files to
+                # this turn (issue #690 — over-reporting tracked-file changes).
                 diff = {"files": [], "added": 0, "removed": 0}
                 if base_sha:
-                    diff = _diff_stats(base_sha, repo_root)
+                    committed = _diff_stats(f"{base_sha}..HEAD", repo_root)
+                    diff["files"] += committed["files"]
+                    diff["added"] += committed["added"]
+                    diff["removed"] += committed["removed"]
                 untracked = _untracked_changes(baseline.get("untracked", {}), repo_root)
                 diff["files"] += untracked["files"]
                 diff["added"] += untracked["added"]

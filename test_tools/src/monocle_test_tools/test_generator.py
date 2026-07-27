@@ -187,11 +187,25 @@ class TestGenerator:
         ])
         return lines
 
-    def generate_test_code(self, test_name: str = "test_generated") -> str:
-        """Generate Python test code with assertions."""
-        
+    def generate_test_code(self, test_name: str = "test_generated",
+                           include_attributes: bool = False,
+                           include_io: bool = False) -> str:
+        """Generate Python test code with assertions.
+
+        Args:
+            test_name: Name of the generated test function.
+            include_attributes: When True, emit ``has_attribute()`` assertions
+                for notable span attributes (entity.1.type, workflow.name, etc).
+                Off by default — these checks can be brittle as framework
+                internals change.
+            include_io: When True, emit ``has_input()`` / ``has_output()`` /
+                ``contains_output()`` assertions for agent and tool I/O.
+                Off by default — LLM outputs are non-deterministic and will
+                vary across runs.
+        """
+
         self.analyze()
-        
+
         code = [
             'import pytest',
             'from monocle_test_tools import TraceAssertion',
@@ -210,39 +224,41 @@ class TestGenerator:
             '    asserter = monocle_trace_asserter',
             '',
         ])
-        
-        # Agent assertions with inputs, outputs and notable attributes
+
+        # Agent assertions — I/O checks are opt-in via include_io
         if self.agents:
-            code.append('    # Agent invocations with output checks')
+            code.append('    # Agent invocations')
             for agent in sorted(self.agents):
-                outputs = self.agent_outputs.get(agent, [])
-                inputs = self.agent_inputs.get(agent, [])
                 chain = f'    asserter.called_agent("{agent}")'
-                if outputs:
-                    output = outputs[0].replace('"', '\\"').replace('\n', ' ')
-                    chain += f'.contains_output("{output}")'
-                if inputs:
-                    inp = inputs[0].replace('"', '\\"').replace('\n', ' ')
-                    chain += f'.has_input("{inp}")'
+                if include_io:
+                    outputs = self.agent_outputs.get(agent, [])
+                    inputs = self.agent_inputs.get(agent, [])
+                    if outputs:
+                        output = outputs[0].replace('"', '\\"').replace('\n', ' ')
+                        chain += f'.contains_output("{output}")'
+                    if inputs:
+                        inp = inputs[0].replace('"', '\\"').replace('\n', ' ')
+                        chain += f'.has_input("{inp}")'
                 code.append(chain)
             code.append('')
 
-        # Notable span-type attributes as has_attribute() assertions
-        _ASSERTION_SPAN_TYPES = ("agentic.invocation", "agentic.tool.invocation", "workflow")
-        attr_lines = []
-        for stype in _ASSERTION_SPAN_TYPES:
-            attrs = self.span_attributes.get(stype, {})
-            for key, val in sorted(attrs.items()):
-                if key == "span.type":
-                    continue  # redundant with called_agent / called_tool
-                escaped_val = val.replace('"', '\\"')
-                attr_lines.append(f'    asserter.has_attribute("{key}", "{escaped_val}")')
-        if attr_lines:
-            code.append('    # Span attribute assertions')
-            code.extend(attr_lines)
-            code.append('')
+        # Notable span-type attributes as has_attribute() assertions — opt-in
+        if include_attributes:
+            _ASSERTION_SPAN_TYPES = ("agentic.invocation", "agentic.tool.invocation", "workflow")
+            attr_lines = []
+            for stype in _ASSERTION_SPAN_TYPES:
+                attrs = self.span_attributes.get(stype, {})
+                for key, val in sorted(attrs.items()):
+                    if key == "span.type":
+                        continue  # redundant with called_agent / called_tool
+                    escaped_val = val.replace('"', '\\"')
+                    attr_lines.append(f'    asserter.has_attribute("{key}", "{escaped_val}")')
+            if attr_lines:
+                code.append('    # Span attribute assertions')
+                code.extend(attr_lines)
+                code.append('')
 
-        # Tool assertions with optional input/output snippets
+        # Tool assertions — I/O checks are opt-in via include_io
         if self.tools:
             code.append('    # Tool invocations')
             for tool_name, agent_name in sorted(self.tools.items()):
@@ -250,12 +266,13 @@ class TestGenerator:
                 if agent_name:
                     chain += f', "{agent_name}"'
                 chain += ')'
-                if tool_name in self.tool_inputs:
-                    inp = self.tool_inputs[tool_name].replace('"', '\\"').replace('\n', ' ')
-                    chain += f'.has_input("{inp}")'
-                if tool_name in self.tool_outputs:
-                    out = self.tool_outputs[tool_name].replace('"', '\\"').replace('\n', ' ')
-                    chain += f'.has_output("{out}")'
+                if include_io:
+                    if tool_name in self.tool_inputs:
+                        inp = self.tool_inputs[tool_name].replace('"', '\\"').replace('\n', ' ')
+                        chain += f'.has_input("{inp}")'
+                    if tool_name in self.tool_outputs:
+                        out = self.tool_outputs[tool_name].replace('"', '\\"').replace('\n', ' ')
+                        chain += f'.has_output("{out}")'
                 code.append(chain)
             code.append('')
 
@@ -275,9 +292,11 @@ class TestGenerator:
 
         return '\n'.join(code)
     
-    def write_to_file(self, filepath: str):
+    def write_to_file(self, filepath: str, include_attributes: bool = False,
+                      include_io: bool = False):
         """Write generated test code to a file."""
-        code = self.generate_test_code()
+        code = self.generate_test_code(include_attributes=include_attributes,
+                                       include_io=include_io)
         with open(filepath, 'w') as f:
             f.write(code)
         print(f"Test written to: {filepath}")

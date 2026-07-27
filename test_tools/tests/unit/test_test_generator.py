@@ -244,18 +244,30 @@ def test_custom_test_name():
     assert "def test_my_custom_name" in test_code
 
 
-def test_output_checks_included():
-    """Test that output checks are included for agents with outputs."""
+def test_output_checks_excluded_by_default():
+    """contains_output is NOT emitted by default (opt-in via include_io)."""
     trace_path = "tests/unit/traces/trace1.json"
     if not Path(trace_path).exists():
         pytest.skip(f"Trace file {trace_path} not found")
-    
+
     generator = TestGenerator.from_json_file(trace_path)
     generator.analyze()
-    
-    # If any agent has outputs, should include contains_output
+
+    test_code = generator.generate_test_code()
+    assert "contains_output" not in test_code
+
+
+def test_output_checks_included_with_flag():
+    """contains_output IS emitted when include_io=True."""
+    trace_path = "tests/unit/traces/trace1.json"
+    if not Path(trace_path).exists():
+        pytest.skip(f"Trace file {trace_path} not found")
+
+    generator = TestGenerator.from_json_file(trace_path)
+    generator.analyze()
+
     if any(generator.agent_outputs.values()):
-        test_code = generator.generate_test_code()
+        test_code = generator.generate_test_code(include_io=True)
         assert "contains_output" in test_code
 
 
@@ -287,8 +299,8 @@ def _make_event(name, **attributes):
 
 # --- Issue #714: has_attribute assertions in generated code ---
 
-def test_generate_emits_has_attribute_for_entity_type():
-    """Generator emits has_attribute() for notable span attributes (issue #714)."""
+def test_generate_omits_has_attribute_by_default():
+    """Generator does NOT emit has_attribute() by default (opt-in via --include-attributes)."""
     span = _make_mock_span(
         "agentic.invocation",
         entity_name="my_agent",
@@ -296,6 +308,19 @@ def test_generate_emits_has_attribute_for_entity_type():
     )
     gen = TestGenerator(spans=[span])
     code = gen.generate_test_code()
+
+    assert "has_attribute" not in code
+
+
+def test_generate_emits_has_attribute_when_opted_in():
+    """Generator emits has_attribute() when include_attributes=True (issue #714)."""
+    span = _make_mock_span(
+        "agentic.invocation",
+        entity_name="my_agent",
+        entity_type="agent.langgraph",
+    )
+    gen = TestGenerator(spans=[span])
+    code = gen.generate_test_code(include_attributes=True)
 
     assert "has_attribute" in code
     assert "entity.1.type" in code
@@ -329,19 +354,29 @@ def test_span_attributes_reset_on_repeated_analyze():
 
 # --- Issue #687: additional assertion types in generated code ---
 
-def test_generate_emits_has_input_for_agent():
-    """Generator emits .has_input() chain for agent with captured input (issue #687)."""
+def test_generate_omits_has_input_by_default():
+    """Generator does NOT emit .has_input() by default (opt-in via --include-io)."""
     input_ev = _make_event("data.input", input="What is the weather today?")
     span = _make_mock_span("agentic.invocation", entity_name="weather_agent", events=[input_ev])
     gen = TestGenerator(spans=[span])
     code = gen.generate_test_code()
 
+    assert "has_input" not in code
+
+
+def test_generate_emits_has_input_when_opted_in():
+    """Generator emits .has_input() when include_io=True (issue #687)."""
+    input_ev = _make_event("data.input", input="What is the weather today?")
+    span = _make_mock_span("agentic.invocation", entity_name="weather_agent", events=[input_ev])
+    gen = TestGenerator(spans=[span])
+    code = gen.generate_test_code(include_io=True)
+
     assert "has_input" in code
     assert "What is the weather today?" in code
 
 
-def test_generate_emits_tool_input_output():
-    """Generator emits .has_input()/.has_output() for tools with event data (issue #687)."""
+def test_generate_omits_tool_io_by_default():
+    """Generator does NOT emit tool has_input/has_output by default (opt-in via --include-io)."""
     inp_ev = _make_event("data.input", input="search query")
     out_ev = _make_event("data.output", response="search result")
     span = _make_mock_span(
@@ -351,6 +386,22 @@ def test_generate_emits_tool_input_output():
     )
     gen = TestGenerator(spans=[span])
     code = gen.generate_test_code()
+
+    assert "search query" not in code
+    assert "search result" not in code
+
+
+def test_generate_emits_tool_input_output_when_opted_in():
+    """Generator emits .has_input()/.has_output() for tools when include_io=True (issue #687)."""
+    inp_ev = _make_event("data.input", input="search query")
+    out_ev = _make_event("data.output", response="search result")
+    span = _make_mock_span(
+        "agentic.tool.invocation",
+        entity_name="search_tool",
+        events=[inp_ev, out_ev],
+    )
+    gen = TestGenerator(spans=[span])
+    code = gen.generate_test_code(include_io=True)
 
     assert "search query" in code
     assert "search result" in code

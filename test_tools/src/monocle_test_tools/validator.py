@@ -26,6 +26,7 @@ from monocle_test_tools.schema import SpanType, TestSpan, TestCase, MultiTurnTes
 from monocle_test_tools.constants import TEST_SCOPE_NAME, SESSION_SCOPE_NAME, DEFAULT_WORKFLOW_NAME, TEST_STATUS_ATTRIBUTE, TEST_ASSERTION_ATTRIBUTE, TEST_WORKFLOW_ENV
 from monocle_test_tools.comparer.base_comparer import BaseComparer
 from monocle_test_tools.runner.runner import get_agent_runner
+from monocle_test_tools.trace_sources import get_trace_source
 from monocle_test_tools import trace_utils
 from monocle_apptrace.instrumentation.metamodel.adk.methods import ADK_METHODS
 from monocle_apptrace.instrumentation.metamodel.adk.entities.tool import TOOL as ADK_TOOL
@@ -62,6 +63,12 @@ class MonocleValidator:
         self._spans:tuple[Span] = ()
         self._test_all_up_spans:tuple[Span] = ()
         self._trace_source: str = ""
+        # Details of the fact whose spans were loaded from a remote trace source,
+        # captured in import_traces and used to record the test outcome back to
+        # the source during post_test_cleanup.
+        self._trace_source_fact_id: Optional[str] = None
+        self._trace_source_fact_name: Optional[str] = None
+        self._trace_source_workflow_name: Optional[str] = None
         test_trace_path:str = os.path.join(".", DEFAULT_TRACE_FOLDER, "test_traces")
         os.environ["MONOCLE_TRACE_OUTPUT_PATH"] = test_trace_path
         if exporter_list is None:
@@ -100,6 +107,9 @@ class MonocleValidator:
         if self.file_exporter is not None:
             self.file_exporter.force_flush()
         self.trace_id = None
+        self._trace_source_fact_id = None
+        self._trace_source_fact_name = None
+        self._trace_source_workflow_name = None
 
     @property
     def spans(self):
@@ -181,10 +191,37 @@ class MonocleValidator:
         try:
             if not skip_export:
                 self.flush_to_exporters(test_name, test_failed, test_assertion_message)
+            self._maybe_record_test_result(test_name, test_failed)
         finally:
             self.cleanup()
             if token is not None:
                 stop_scope(token)
+
+    def _maybe_record_test_result(self, test_name:str, test_failed:bool) -> None:
+        """Record the test outcome back to the trace source, when supported.
+
+        Resolves the current trace source (only Okahu records today) and asks it
+        to record a label for this test. Fully best-effort: it never raises, so
+        it cannot fail the test or mask its real result. Must run before
+        ``cleanup()`` clears the captured fact details.
+        """
+        try:
+            trace_source = get_trace_source(self._trace_source)
+            if trace_source is None:
+                return
+            fact_id = self._trace_source_fact_id or self._get_current_trace_id()
+            fact_name = self._trace_source_fact_name or "traces"
+            workflow_name = self._trace_source_workflow_name or get_workflow_name()
+            trace_source.record_test_result(
+                fact_id=fact_id,
+                fact_name=fact_name,
+                workflow_name=workflow_name,
+                test_name=test_name,
+                test_failed=test_failed,
+                exporters=self.exporters,
+            )
+        except Exception as exc:
+            logger.warning("Failed to record test result: %s", exc)
 
     @contextmanager
     def monocle_exporter_wrapper(self, test_case: TestCase, request:pytest.FixtureRequest):
@@ -616,26 +653,34 @@ class MonocleValidator:
 
             if fact_name == "session":
                 # Session-based: use agent_sessions scope
+                okahu_fact_name = OkahuSpanLoader.AGENT_SESSIONS_SCOPE
                 spans = OkahuSpanLoader.load_by_scope(
                     workflow_name=workflow_name,
-                    scope_name=OkahuSpanLoader.AGENT_SESSIONS_SCOPE,
+                    scope_name=okahu_fact_name,
                     scope_id=id,
                 )
             elif fact_name == "scope":
                 # Custom scope: requires scope_name
                 if not scope_name:
                     raise ValueError("'scope_name' is required when fact_name='scope'.")
+                okahu_fact_name = scope_name
                 spans = OkahuSpanLoader.load_by_scope(
                     workflow_name=workflow_name,
-                    scope_name=scope_name,
+                    scope_name=okahu_fact_name,
                     scope_id=id,
                 )
             else:
                 # Direct trace_id lookup
+                okahu_fact_name = "traces"
                 spans = OkahuSpanLoader.get_spans(
                     workflow_name=workflow_name,
                     trace_id=id,
                 )
+            # Capture the fact details so the test outcome can be recorded back
+            # to Okahu during post_test_cleanup.
+            self._trace_source_fact_id = id
+            self._trace_source_fact_name = okahu_fact_name
+            self._trace_source_workflow_name = workflow_name
         else:
             # File source — fact_name must be "trace"
             if fact_name != "trace":

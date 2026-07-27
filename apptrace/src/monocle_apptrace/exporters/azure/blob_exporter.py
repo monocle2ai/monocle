@@ -31,7 +31,12 @@ class AzureBlobSpanExporter(SpanExporterBase):
                 raise ValueError("Azure Storage connection string is not provided or set in environment variables.")
 
         if not container_name:
-            container_name = os.getenv('MONOCLE_BLOB_CONTAINER_NAME', 'default-container')
+            container_name = os.getenv('MONOCLE_BLOB_CONTAINER_NAME')
+            if not container_name:
+                raise ValueError(
+                    "Azure Blob container name is not provided. Please provide the container_name "
+                    "parameter or set the MONOCLE_BLOB_CONTAINER_NAME environment variable."
+                )
 
         self.blob_service_client = BlobServiceClient.from_connection_string(connection_string)
         self.container_name = container_name

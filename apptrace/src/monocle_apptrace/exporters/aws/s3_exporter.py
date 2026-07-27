@@ -46,7 +46,12 @@ class S3SpanExporter(SpanExporterBase):
                 aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY'),
                 region_name=region_name,
             )
-        self.bucket_name = bucket_name or os.getenv('MONOCLE_S3_BUCKET_NAME','default-bucket')
+        self.bucket_name = bucket_name or os.getenv('MONOCLE_S3_BUCKET_NAME')
+        if not self.bucket_name:
+            raise ValueError(
+                "S3 bucket name is not provided. Please provide the bucket_name parameter "
+                "or set the MONOCLE_S3_BUCKET_NAME environment variable."
+            )
         # MONOCLE_S3_KEY_PREFIX is deprecated in favour of MONOCLE_S3_FILE_PREFIX —
         # the new name is consistent across exporters (file/blob/s3) and is not
         # confused with S3 access key configuration. The old name still wins if it

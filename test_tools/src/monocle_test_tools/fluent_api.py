@@ -226,6 +226,13 @@ class TraceAssertion():
         window_kwargs = ("start_time", "end_time")
         has_window = any(kwargs.get(k) is not None for k in window_kwargs)
 
+        # with_evaluation() copies the validator's trace source into the evaluator at
+        # construction time, so an evaluator configured BEFORE this call holds a stale
+        # (usually empty) source. Push the real one down so fluent call order does not
+        # change how the eval is submitted.
+        if isinstance(self._eval, BaseEval):
+            self._eval.set_trace_source(source)
+
         if source == "local":
             # Default behavior: use traces already in memory.
             if has_window:

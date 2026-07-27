@@ -54,7 +54,19 @@ class OkahuEval(BaseEval):
         self._fact_map_cache = None
         self.last_judge_output: dict = {}
         self.last_total_tokens = None
-    
+
+    def set_trace_source(self, trace_source: str) -> None:
+        """Adopt a trace source configured after construction.
+
+        Both `shadow_eval` and `_trace_exported` derive from `_trace_source`, so a
+        stale value here means the eval is submitted as a shadow eval (the service
+        then returns an empty `result`) and the trace is needlessly re-exported.
+        Keep the two in step whenever the source changes.
+        """
+        self._trace_source = trace_source or ""
+        # An okahu source is already holding the trace, so there is nothing to export.
+        self._trace_exported = self._trace_source == "okahu"
+
     @staticmethod
     def _map_fact_name(fact_name: str) -> str:
         """

@@ -36,7 +36,12 @@ class OpenDALS3Exporter(SpanExporterBase):
         self.time_format = DEFAULT_TIME_FORMAT
         self.export_queue = []
         self.last_export_time = time.time()
-        self.bucket_name = bucket_name or os.getenv("MONOCLE_S3_BUCKET_NAME", "default-bucket")
+        self.bucket_name = bucket_name or os.getenv("MONOCLE_S3_BUCKET_NAME")
+        if not self.bucket_name:
+            raise ValueError(
+                "S3 bucket name is not provided. Please provide the bucket_name parameter "
+                "or set the MONOCLE_S3_BUCKET_NAME environment variable."
+            )
 
         # Initialize OpenDAL S3 operator
         self.op = Operator(

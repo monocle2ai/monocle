@@ -37,6 +37,8 @@ def test_build_eval_matrix_row_pass_includes_tokens():
         "fact_id": "",
         "workflow": "",
         "job_id": "",
+        # Populated only when evaluate() raised; empty on a passing row.
+        "failure_reason": "",
     }
 
 

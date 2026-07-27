@@ -899,7 +899,15 @@ class TraceAssertion():
             "total_tokens": None,
         }
 
-        eval_result, explanation = self._eval.evaluate(filtered_spans=self._filtered_spans, eval_name=eval_name, fact_name=fact_name, template=template)
+        try:
+            eval_result, explanation = self._eval.evaluate(filtered_spans=self._filtered_spans, eval_name=eval_name, fact_name=fact_name, template=template)
+        except Exception as exc:
+            # evaluate() never produced a label (transport error, read timeout, an
+            # empty `result` from the service...). Record WHY on the stash before
+            # re-raising, so the eval-result-matrix row is self-describing instead of
+            # an empty actual whose cause only exists in the pytest log.
+            self._last_eval.update(failure_reason=str(exc))
+            raise
 
         self._last_eval.update(
             label=eval_result,

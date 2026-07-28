@@ -93,7 +93,7 @@ class TestOkahuRecordTestResult:
             "result": {
                 "label": "test_something",
                 "value": "PASS",
-                "explanation": "Test run",
+                "explanation": "PASS",
                 "category": "test",
             }
         }

@@ -332,6 +332,15 @@ def update_span_from_llm_response(response):
             meta_dict.update({"completion_tokens": getattr(token_usage,"completion_tokens",None) or getattr(token_usage,"output_tokens",None)})
             meta_dict.update({"prompt_tokens": getattr(token_usage, "prompt_tokens", None) or getattr(token_usage, "input_tokens", None)})
             meta_dict.update({"total_tokens": getattr(token_usage,"total_tokens", None)})
+            cached_tokens = None
+            prompt_details = getattr(token_usage, "prompt_tokens_details", None)
+            input_details = getattr(token_usage, "input_tokens_details", None)
+            if prompt_details is not None:
+                cached_tokens = getattr(prompt_details, "cached_tokens", None)
+            elif input_details is not None:
+                cached_tokens = getattr(input_details, "cached_tokens", None)
+            if cached_tokens is not None:
+                meta_dict.update({"cache_read_input_tokens": cached_tokens})
     # Fallback to dict format
     elif isinstance(response, dict) and 'usage' in response:
         token_usage = response['usage']
@@ -339,6 +348,20 @@ def update_span_from_llm_response(response):
             meta_dict.update({"completion_tokens": token_usage.get("completion_tokens") or token_usage.get("output_tokens")})
             meta_dict.update({"prompt_tokens": token_usage.get("prompt_tokens") or token_usage.get("input_tokens")})
             meta_dict.update({"total_tokens": token_usage.get("total_tokens")})
+            prompt_details = token_usage.get("prompt_tokens_details") or {}
+            input_details = token_usage.get("input_tokens_details") or {}
+            cached_tokens = None
+            if isinstance(prompt_details, dict):
+                cached_tokens = prompt_details.get("cached_tokens")
+            elif hasattr(prompt_details, "cached_tokens"):
+                cached_tokens = getattr(prompt_details, "cached_tokens", None)
+            if cached_tokens is None:
+                if isinstance(input_details, dict):
+                    cached_tokens = input_details.get("cached_tokens")
+                elif hasattr(input_details, "cached_tokens"):
+                    cached_tokens = getattr(input_details, "cached_tokens", None)
+            if cached_tokens is not None:
+                meta_dict.update({"cache_read_input_tokens": cached_tokens})
     return meta_dict
 
 def extract_vector_input(vector_input: dict):

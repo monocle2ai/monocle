@@ -3,6 +3,8 @@
 import pytest
 import tempfile
 from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import patch
 from monocle_test_tools.test_generator import TestGenerator
 
 
@@ -257,6 +259,114 @@ def test_output_checks_included():
     if any(generator.agent_outputs.values()):
         test_code = generator.generate_test_code()
         assert "contains_output" in test_code
+
+
+
+def _event(name, attributes):
+    return SimpleNamespace(name=name, attributes=attributes)
+
+
+def _span(attributes, events=(), trace_id=0xABC123, start=None, end=None):
+    return SimpleNamespace(
+        attributes=attributes,
+        events=list(events),
+        start_time=start,
+        end_time=end,
+        get_span_context=lambda: SimpleNamespace(trace_id=trace_id),
+    )
+
+
+def _session_spans():
+    """Two traces (two turns) of one session: each has a workflow, an agent
+    invocation (with output) and a tool invocation."""
+    spans = []
+    for i, (tid, agent, tool) in enumerate([
+        (0xAAA1, "flight_agent", "book_flight"),
+        (0xBBB2, "hotel_agent", "book_hotel"),
+    ]):
+        spans.append(_span({"span.type": "workflow", "workflow.name": "travel"}, trace_id=tid))
+        spans.append(_span(
+            {"span.type": "agentic.invocation", "entity.1.name": agent, "workflow.name": "travel"},
+            events=[_event("data.output", {"response": f"{agent} finished the booking successfully."})],
+            trace_id=tid,
+        ))
+        spans.append(_span(
+            {"span.type": "agentic.tool.invocation", "entity.1.name": tool,
+             "entity.2.name": agent, "workflow.name": "travel"},
+            trace_id=tid,
+        ))
+    return spans
+
+
+def test_from_okahu_uses_get_spans():
+    """from_okahu must call the loader's get_spans (regression: it used a
+    non-existent load_by_trace_id)."""
+    with patch("monocle_test_tools.okahu_span_loader.OkahuSpanLoader.get_spans",
+               return_value=[]) as mock_get:
+        gen = TestGenerator.from_okahu(trace_id="abc123", workflow_name="wf")
+    mock_get.assert_called_once_with(workflow_name="wf", trace_id="abc123")
+    assert gen.trace_id == "abc123" and gen.workflow_name == "wf"
+
+
+def test_from_okahu_session_loads_all_session_spans():
+    """from_okahu_session delegates to from_okahu_scope with the agent_sessions scope
+    and records the session id (idiomatic fact_name=session)."""
+    session_spans = _session_spans()
+    with patch("monocle_test_tools.okahu_span_loader.OkahuSpanLoader.load_by_scope",
+               return_value=session_spans) as mock_load:
+        gen = TestGenerator.from_okahu_session(session_id="sess_1", workflow_name="travel")
+    mock_load.assert_called_once_with(
+        workflow_name="travel", scope_name="agent_sessions", scope_id="sess_1")
+    assert gen.session_id == "sess_1"
+    assert gen.scope_name is None and gen.scope_id is None  # session uses the session form
+    assert gen.spans == session_spans
+
+
+def test_from_okahu_scope_generic_fact():
+    """from_okahu_scope fetches any fact via load_by_scope and records scope_name/id."""
+    scope_spans = _session_spans()
+    with patch("monocle_test_tools.okahu_span_loader.OkahuSpanLoader.load_by_scope",
+               return_value=scope_spans) as mock_load:
+        gen = TestGenerator.from_okahu_scope(scope_name="test_id", scope_id="run_9",
+                                             workflow_name="travel")
+    mock_load.assert_called_once_with(
+        workflow_name="travel", scope_name="test_id", scope_id="run_9")
+    assert gen.scope_name == "test_id" and gen.scope_id == "run_9"
+    assert gen.session_id is None
+    # Assertions still extracted across all traces under the fact.
+    assert 'called_agent("flight_agent")' in gen.generate_test_code()
+
+
+def test_scope_loader_line_targets_the_fact():
+    """A non-session fact emits fact_name="scope" with scope_name in the loader."""
+    gen = TestGenerator(_session_spans(), scope_name="test_id", scope_id="run_9",
+                        workflow_name="travel", trace_source="okahu")
+    code = gen.generate_test_code()
+    assert ('with_trace_source("okahu", id="run_9", fact_name="scope", '
+            'scope_name="test_id", workflow_name="travel")') in code
+
+
+def test_session_generates_assertions_across_turns():
+    """The core fix: a session yields assertions for every turn's agents and tools,
+    not an empty test."""
+    gen = TestGenerator(_session_spans(), session_id="sess_1", workflow_name="travel")
+    code = gen.generate_test_code()
+
+    assert 'called_agent("flight_agent")' in code
+    assert 'called_agent("hotel_agent")' in code
+    assert 'called_tool("book_flight", "flight_agent")' in code
+    assert 'called_tool("book_hotel", "hotel_agent")' in code
+
+
+def test_session_loader_line_targets_the_session():
+    """The generated Okahu loader targets the session (fact_name=session), not a trace."""
+    gen = TestGenerator(_session_spans(), session_id="sess_1", workflow_name="travel",
+                        trace_source="okahu")
+    code = gen.generate_test_code()
+
+    assert ('with_trace_source("okahu", id="sess_1", fact_name="session", '
+            'workflow_name="travel")') in code
+    assert "TRACE_ID" not in code
 
 
 if __name__ == "__main__":

@@ -1,6 +1,7 @@
 import json
 from unittest.mock import patch, MagicMock
 from monocle_test_tools.evals.okahu_eval import OkahuEval
+from monocle_apptrace.exporters.okahu.okahu_eval_result_exporter import OkahuEvalResultExporter
 
 def _resp(judge: dict):
     m = MagicMock()
@@ -17,7 +18,8 @@ def test_evaluate_stashes_total_tokens_and_output(monkeypatch):
     monkeypatch.setenv("OKAHU_API_KEY", "k")
     with patch.object(OkahuEval, "export_trace", return_value="traceid"), \
          patch.object(OkahuEval, "enumerate_fact_ids", return_value=["traceid"]), \
-         patch("monocle_test_tools.evals.okahu_eval.requests.post", return_value=_resp(judge)):
+         patch("monocle_test_tools.evals.okahu_eval.requests.post", return_value=_resp(judge)), \
+         patch.object(OkahuEvalResultExporter, "export_results", return_value=None):
         label, explanation = ev.evaluate(filtered_spans=[span], template={"name": "t"}, fact_name="traces")
     assert (label, explanation) == ("major_hallucination", "why")   # arity unchanged
     assert ev.last_total_tokens == 512

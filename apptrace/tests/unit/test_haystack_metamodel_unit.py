@@ -9,7 +9,7 @@ from base_unit import MonocleTestBase
 from common.mock_span_exporter import MockSpanExporter
 from haystack import Document, Pipeline
 from haystack.components.builders.prompt_builder import PromptBuilder
-from haystack.components.generators import OpenAIGenerator
+from haystack.components.generators.chat import OpenAIChatGenerator
 from haystack.components.retrievers import InMemoryBM25Retriever
 from haystack.document_stores.in_memory import InMemoryDocumentStore
 from haystack.utils import Secret
@@ -63,7 +63,7 @@ class TestHandler(MonocleTestBase):
         prompt_builder = PromptBuilder(template=prompt_template)
         if api_key is None:
             raise ValueError("API key must not be None")
-        llm = OpenAIGenerator(api_key=Secret.from_token(api_key), model="gpt-3.5-turbo-0125")
+        llm = OpenAIChatGenerator(api_key=Secret.from_token(api_key), model="gpt-3.5-turbo-0125")
         
         # Mock the OpenAI client after it's created
         mock_completion = MagicMock()
@@ -197,7 +197,7 @@ class TestHandler(MonocleTestBase):
             
         span_names: List[str] = [span.get("name", "unknown") for span in dataJson['batch']]
         # Use flexible span name matching to accommodate variations like .run suffix
-        expected_patterns = ["OpenAIGenerator", "Pipeline"]  # More flexible patterns
+        expected_patterns = ["OpenAIChatGenerator", "Pipeline"]  # More flexible patterns
         for pattern in expected_patterns:
             found = any(pattern in span_name for span_name in span_names)
             if not found:
@@ -216,7 +216,7 @@ class TestHandler(MonocleTestBase):
         for span in dataJson["batch"]:
             # Use more flexible matching for OpenAI Generator spans
             span_name = span.get("name", "")
-            if "OpenAIGenerator" in span_name and "attributes" in span:
+            if "OpenAIChatGenerator" in span_name and "attributes" in span:
                 span_attrs = span["attributes"]
                 if "entity.count" in span_attrs:
                     self.assertEqual(span_attrs["entity.count"], 2)

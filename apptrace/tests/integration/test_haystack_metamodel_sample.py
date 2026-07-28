@@ -11,7 +11,7 @@ from common.custom_exporter import CustomConsoleSpanExporter
 from datasets import load_dataset
 from haystack import Document, Pipeline
 from haystack.components.builders import PromptBuilder
-from haystack.components.generators import OpenAIGenerator
+from haystack.components.generators.chat import OpenAIChatGenerator
 from haystack.components.retrievers.in_memory import InMemoryEmbeddingRetriever
 from haystack.document_stores.in_memory import InMemoryDocumentStore
 from haystack.utils import Secret
@@ -48,7 +48,7 @@ def test_haystack_metamodel_sample(setup):
         SentenceTransformersTextEmbedder,
     )
     api_key = os.getenv("OPENAI_API_KEY")
-    generator = OpenAIGenerator(
+    generator = OpenAIChatGenerator(
         api_key=Secret.from_token(api_key), model="gpt-4"
     )
 
@@ -188,7 +188,7 @@ def test_haystack_metamodel_sample(setup):
 #     }
 # },
 # {
-#     "name": "haystack.components.generators.openai.OpenAIGenerator",
+#     "name": "haystack.components.generators.openai.OpenAIChatGenerator",
 #     "context": {
 #         "trace_id": "0x3a350c422d4897c7ff7fb43ac05bac3c",
 #         "span_id": "0x8d618c0dc5ed2b96",

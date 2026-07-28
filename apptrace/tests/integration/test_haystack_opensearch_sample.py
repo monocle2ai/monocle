@@ -217,7 +217,7 @@ def test_haystack_opensearch_sample(setup):
 #     }
 # }
 # {
-#     "name": "haystack.components.generators.openai.OpenAIGenerator",
+#     "name": "haystack.components.generators.openai.OpenAIChatGenerator",
 #     "context": {
 #         "trace_id": "0xa599cf84e013b83c58e3afaf8a7058f8",
 #         "span_id": "0x1de03fa69ab19977",

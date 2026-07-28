@@ -29,7 +29,7 @@ class OkahuTraceSource(TraceSource):
     def record_test_result(self, *, fact_id: Optional[str], fact_name: Optional[str],
                            workflow_name: Optional[str], test_name: str,
                            test_failed: bool, exporters: Optional[list] = None,
-                           description: str = "Test run") -> bool:
+                           description: str = None) -> bool:
         """Record the test outcome as an Okahu eval label.
 
         Best-effort: returns ``False`` (and logs at most a warning) when the
@@ -55,7 +55,7 @@ class OkahuTraceSource(TraceSource):
             "result": {
                 "label": test_name,
                 "value": value,
-                "explanation": description,
+                "explanation": description if description else value,
                 "category": "test",
             }
         }

@@ -191,13 +191,13 @@ class MonocleValidator:
         try:
             if not skip_export:
                 self.flush_to_exporters(test_name, test_failed, test_assertion_message)
-            self._maybe_record_test_result(test_name, test_failed)
+            self._maybe_record_test_result(test_name, test_failed, test_assertion_message)
         finally:
             self.cleanup()
             if token is not None:
                 stop_scope(token)
 
-    def _maybe_record_test_result(self, test_name:str, test_failed:bool) -> None:
+    def _maybe_record_test_result(self, test_name:str, test_failed:bool, description:str) -> None:
         """Record the test outcome back to the trace source, when supported.
 
         Resolves the current trace source (only Okahu records today) and asks it
@@ -219,6 +219,7 @@ class MonocleValidator:
                 test_name=test_name,
                 test_failed=test_failed,
                 exporters=self.exporters,
+                description=description
             )
         except Exception as exc:
             logger.warning("Failed to record test result: %s", exc)

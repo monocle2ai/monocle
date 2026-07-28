@@ -55,8 +55,8 @@ class OkahuTraceSource(TraceSource):
             "result": {
                 "label": test_name,
                 "value": value,
-                "description": description,
-                "type": "test",
+                "explanation": description,
+                "category": "test",
             }
         }
 

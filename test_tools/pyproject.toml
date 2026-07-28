@@ -27,6 +27,19 @@ classifiers = [
     "Topic :: Software Development :: Testing",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
+with-no-comparer= [
+    # Core dependencies
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.26.0",
+    "pydantic>=2.11.7",
+    "jsonschema>=4.0.0",
+
+    # Monocle dependencies
+    "monocle_apptrace>=0.5.0",
+
+    # git
+    "GitPython==3.1.50"
+]
 
 dependencies = [
     # Core dependencies
@@ -41,9 +54,6 @@ dependencies = [
     # Evaluation dependencies
     "bert-score>=0.3.0",
     "transformers>=4.0.0",
-    # Range, not a pin: apptrace's dev_tranformers extra pins 5.6.1, and an
-    # exact pin here made the two packages uninstallable in one environment.
-    # Only the stable SentenceTransformer(...)/.encode() API is used.
     "sentence-transformers>=3.3.0",
 
     # git
@@ -57,8 +67,6 @@ dev = [
     "flake8>=6.0.0",
     "mypy>=1.0.0",
     "pre-commit>=3.0.0",
-    # Ranges, not pins: apptrace's dev extra leaves these unpinned, and exact
-    # pins here dragged the shared CI environment back to older versions.
     'google-adk>=1.10.0,<2',  # 2.x is a breaking change
     'google-generativeai>=0.8.5',
     'openai-agents>=0.2.6',

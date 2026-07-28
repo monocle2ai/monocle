@@ -253,6 +253,14 @@ def get_monocle_span_processor() -> MonocleSynchronousMultiSpanProcessor:
     global monocle_span_processor
     return monocle_span_processor
 
+def _append_trace_return_processor(span_processors):
+    """Append the trace-return SimpleSpanProcessor when MONOCLE_ENABLE_TRACE_RETURN is on."""
+    from monocle_apptrace.exporters.trace_return_exporter import maybe_trace_return_processor
+    proc = maybe_trace_return_processor()
+    if proc is not None:
+        span_processors = list(span_processors) + [proc]
+    return span_processors
+
 def set_monocle_setup_signature(signature: Optional[dict]):
     global monocle_setup_signature
     monocle_setup_signature = signature
@@ -335,6 +343,7 @@ def setup_monocle_telemetry(
     configure_otel_genai_semconv(otel_genai_semconv, exporter_names)
     exporters:List[SpanExporter] = get_monocle_exporter(monocle_exporters_list)
     span_processors = span_processors or [BatchSpanProcessor(exporter) for exporter in exporters]
+    span_processors = _append_trace_return_processor(span_processors)
     set_monocle_span_processor(MonocleSynchronousMultiSpanProcessor())
     set_tracer_provider(TracerProvider(resource=resource, active_span_processor=get_monocle_span_processor()))
     set_workflow_name(workflow_name)

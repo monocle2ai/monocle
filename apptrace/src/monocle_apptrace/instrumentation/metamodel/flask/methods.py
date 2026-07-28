@@ -1,5 +1,4 @@
-from monocle_apptrace.instrumentation.common.wrapper import task_wrapper
-from monocle_apptrace.instrumentation.metamodel.flask._helper import flask_task_wrapper
+from monocle_apptrace.instrumentation.metamodel.flask._helper import flask_task_wrapper, flask_response_wrapper
 from monocle_apptrace.instrumentation.metamodel.flask.entities.http import FLASK_HTTP_PROCESSOR, FLASK_RESPONSE_PROCESSOR
 
 FLASK_METHODS = [
@@ -15,7 +14,7 @@ FLASK_METHODS = [
         "package": "werkzeug.wrappers.response",
         "object": "Response",
         "method": "__call__",
-        "wrapper_method": task_wrapper,
+        "wrapper_method": flask_response_wrapper,
         "span_handler": "flask_response_handler",
         "output_processor": FLASK_RESPONSE_PROCESSOR,
     }

@@ -33,6 +33,12 @@ class JSONSpanLoader:
         return span_list
 
     @staticmethod
+    def from_json_str(json_str: str) -> List[ReadableSpan]:
+        """Load spans from a JSON string (list of span dicts in file/Okahu format)."""
+        span_data = json.loads(json_str)
+        return [JSONSpanLoader._from_dict(item) for item in span_data]
+
+    @staticmethod
     def find_trace_file(trace_id: str, trace_dir: Optional[str] = None) -> Optional[str]:
         """Find a trace file matching the given trace_id.
 

@@ -26,4 +26,8 @@ class AgentRunner:
         is a no-op.
         """
         return None
+    def get_remote_spans(self) -> list:
+        """Spans the runner obtained out-of-band (e.g. piggybacked on an HTTP response).
+        Default: none."""
+        return []
 

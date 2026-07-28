@@ -144,6 +144,50 @@ def extract_embeddings_output(arguments: Dict[str, Any]) -> str:
         return ""
 
 
+def _get_field(obj: Any, name: str) -> Any:
+    """Read ``name`` from an object regardless of access style.
+
+    Handles plain attributes (SimpleNamespace / typed objects), mapping-style
+    access (azure-core ``Model`` is a MutableMapping whose unmodeled fields are
+    only reachable via ``obj[name]``), and plain dicts.
+    """
+    if obj is None:
+        return None
+    if isinstance(obj, dict):
+        return obj.get(name)
+    val = getattr(obj, name, None)
+    if val is not None:
+        return val
+    # azure-core Model / other mappings expose unmodeled fields via .get()/[].
+    getter = getattr(obj, "get", None)
+    if callable(getter):
+        try:
+            return getter(name)
+        except (TypeError, KeyError):
+            return None
+    return None
+
+
+def _extract_cached_tokens(usage: Any) -> Optional[int]:
+    """Return the cached prompt-token count from an azure-ai-inference usage object.
+
+    Azure OpenAI deployments served through the inference endpoint report cached
+    prompt tokens under ``usage.prompt_tokens_details.cached_tokens`` (some
+    deployments use ``input_tokens_details``). The typed ``CompletionsUsage``
+    model does not declare these fields, so we read them defensively via
+    attribute, mapping, or dict access, and also check an
+    ``additional_properties`` bag if one is present.
+    """
+    for source in (usage, getattr(usage, "additional_properties", None)):
+        if source is None:
+            continue
+        details = _get_field(source, "prompt_tokens_details") or _get_field(source, "input_tokens_details")
+        cached = _get_field(details, "cached_tokens")
+        if cached is not None:
+            return cached
+    return None
+
+
 def update_span_from_llm_response(result: Any, instance: Any = None) -> Dict[str, Any]:
     """Extract usage metadata from azure-ai-inference response."""
     try:
@@ -158,6 +202,9 @@ def update_span_from_llm_response(result: Any, instance: Any = None) -> Dict[str
                 attributes["prompt_tokens"] = usage.prompt_tokens
             if hasattr(usage, "total_tokens"):
                 attributes["total_tokens"] = usage.total_tokens
+            cached_tokens = _extract_cached_tokens(usage)
+            if cached_tokens is not None:
+                attributes["cache_read_input_tokens"] = cached_tokens
 
         # Handle regular response usage
         elif hasattr(result, "usage"):
@@ -168,6 +215,9 @@ def update_span_from_llm_response(result: Any, instance: Any = None) -> Dict[str
                 attributes["prompt_tokens"] = usage.prompt_tokens
             if hasattr(usage, "total_tokens"):
                 attributes["total_tokens"] = usage.total_tokens
+            cached_tokens = _extract_cached_tokens(usage)
+            if cached_tokens is not None:
+                attributes["cache_read_input_tokens"] = cached_tokens
 
         # Extract model information if available
         if hasattr(result, "model"):

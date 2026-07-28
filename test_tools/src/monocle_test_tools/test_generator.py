@@ -13,7 +13,8 @@ class TestGenerator:
 
     def __init__(self, spans: List[ReadableSpan], trace_file: str = None,
                  trace_source: Optional[str] = None, trace_id: Optional[str] = None,
-                 workflow_name: Optional[str] = None):
+                 workflow_name: Optional[str] = None, session_id: Optional[str] = None,
+                 scope_name: Optional[str] = None, scope_id: Optional[str] = None):
         """Initialize with a list of spans to analyze.
 
         Args:
@@ -24,6 +25,13 @@ class TestGenerator:
                 for all supported sources is emitted.
             trace_id: Trace id, used when generating "okahu" loader code.
             workflow_name: Okahu workflow name, used when generating "okahu" loader code.
+            session_id: Agentic session id. When set, the spans span multiple traces
+                (a whole session) and the generated Okahu loader targets the session
+                (``fact_name="session"``) instead of a single trace.
+            scope_name / scope_id: A custom Okahu fact/scope (e.g. ``"test_id"``) and
+                its value. When set, the spans span every trace under that fact and the
+                generated Okahu loader targets it (``fact_name="scope"``). This is the
+                general form; ``session_id`` is the ``agent_sessions`` special case.
         """
         if trace_source is not None and trace_source not in SUPPORTED_TRACE_SOURCES:
             raise ValueError(
@@ -35,6 +43,9 @@ class TestGenerator:
         self.trace_source = trace_source
         self.trace_id = trace_id
         self.workflow_name = workflow_name
+        self.session_id = session_id
+        self.scope_name = scope_name
+        self.scope_id = scope_id
         self.agents: Set[str] = set()
         self.tools: Dict[str, str] = {}  # tool_name -> agent_name
         self.agent_outputs: Dict[str, List[str]] = {}  # agent_name -> outputs
@@ -53,12 +64,55 @@ class TestGenerator:
     def from_okahu(cls, trace_id: str, workflow_name: str, trace_source: Optional[str] = None):
         """Create generator from an Okahu trace."""
         from monocle_test_tools.span_loader import OkahuSpanLoader
-        spans = OkahuSpanLoader.load_by_trace_id(
+        spans = OkahuSpanLoader.get_spans(
+            workflow_name=workflow_name,
             trace_id=trace_id,
-            workflow_name=workflow_name
         )
         return cls(spans, trace_file=None, trace_source=trace_source,
                    trace_id=trace_id, workflow_name=workflow_name)
+
+    @classmethod
+    def from_okahu_scope(cls, scope_name: str, scope_id: str, workflow_name: str,
+                         trace_source: Optional[str] = None):
+        """Create generator from any Okahu fact/scope other than a single trace.
+
+        Loads spans across every trace under ``scope_name == scope_id`` (e.g.
+        ``"agent_sessions"``, ``"test_id"``, ``"conversations"``, or any custom
+        scope), so assertions are extracted from the whole fact rather than one turn.
+
+        The ``agent_sessions`` scope is emitted with the idiomatic
+        ``fact_name="session"`` loader; every other scope uses ``fact_name="scope"``.
+        """
+        from monocle_test_tools.span_loader import OkahuSpanLoader
+        spans = OkahuSpanLoader.load_by_scope(
+            workflow_name=workflow_name,
+            scope_name=scope_name,
+            scope_id=scope_id,
+        )
+        if scope_name == OkahuSpanLoader.AGENT_SESSIONS_SCOPE:
+            return cls(spans, trace_file=None, trace_source=trace_source,
+                       workflow_name=workflow_name, session_id=scope_id)
+        return cls(spans, trace_file=None, trace_source=trace_source,
+                   workflow_name=workflow_name, scope_name=scope_name, scope_id=scope_id)
+
+    @classmethod
+    def from_okahu_session(cls, session_id: str, workflow_name: str,
+                           trace_source: Optional[str] = None):
+        """Create generator from an Okahu agentic session.
+
+        A session spans multiple traces; this loads spans across every trace in the
+        session so agent/tool/inference assertions are extracted from the whole
+        session (loading a single trace id would miss most turns — the cause of
+        session tests being generated with no assertions). Thin wrapper over
+        ``from_okahu_scope`` with the ``agent_sessions`` scope.
+        """
+        from monocle_test_tools.span_loader import OkahuSpanLoader
+        return cls.from_okahu_scope(
+            scope_name=OkahuSpanLoader.AGENT_SESSIONS_SCOPE,
+            scope_id=session_id,
+            workflow_name=workflow_name,
+            trace_source=trace_source,
+        )
 
     def analyze(self):
         """Scan spans and extract agents, tools, outputs, tokens and duration.
@@ -123,18 +177,35 @@ class TestGenerator:
             if self.trace_file
             else '    monocle_trace_asserter.with_trace_source("file", trace_path="path/to/trace.json")'
         )
-        okahu_id = self.trace_id or "TRACE_ID"
         okahu_workflow = self.workflow_name or "WORKFLOW_NAME"
-        okahu_line = (
-            f'    monocle_trace_asserter.with_trace_source("okahu", '
-            f'id="{okahu_id}", workflow_name="{okahu_workflow}")'
-        )
+        if self.session_id:
+            # Session: load spans across every trace in the agent session.
+            okahu_line = (
+                f'    monocle_trace_asserter.with_trace_source("okahu", '
+                f'id="{self.session_id}", fact_name="session", workflow_name="{okahu_workflow}")'
+            )
+            okahu_label = '    # Load traces from an Okahu session'
+        elif self.scope_id:
+            # Any other fact/scope: load spans across every trace under the scope.
+            okahu_line = (
+                f'    monocle_trace_asserter.with_trace_source("okahu", '
+                f'id="{self.scope_id}", fact_name="scope", scope_name="{self.scope_name}", '
+                f'workflow_name="{okahu_workflow}")'
+            )
+            okahu_label = f'    # Load traces from Okahu scope "{self.scope_name}"'
+        else:
+            okahu_id = self.trace_id or "TRACE_ID"
+            okahu_line = (
+                f'    monocle_trace_asserter.with_trace_source("okahu", '
+                f'id="{okahu_id}", workflow_name="{okahu_workflow}")'
+            )
+            okahu_label = '    # Load traces from Okahu'
 
         if self.trace_source == "file":
             return ['    # Load traces from a local trace file', file_line]
 
         if self.trace_source == "okahu":
-            return ['    # Load traces from Okahu', okahu_line]
+            return [okahu_label, okahu_line]
 
         # Default: emit all options, file loader active when available.
         lines = ['    # Option 1: Load from a local trace file']

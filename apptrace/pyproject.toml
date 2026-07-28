@@ -101,7 +101,7 @@ dev = [
   'langchain-aws>=0.3.0',
   'azure-storage-blob==12.22.0', # this is for blob exporter
   'boto3==1.42.86', # this is for aws exporter (>=1.42.86 required by bedrock-agentcore 1.6.1)
-  'llama-index-vector-stores-opensearch==0.6.0',
+  'llama-index-vector-stores-opensearch==1.1.1',
   'haystack-ai==3.0.0',
   'llama-index-llms-azure-openai==0.4.0',
   'requests-aws4auth==1.2.3',

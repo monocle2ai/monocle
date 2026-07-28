@@ -13,7 +13,7 @@ name = "monocle_mcp"
 version = "0.8.7b1"
 description = "Monocle MCP server: prompts and tools for enabling and analyzing Monocle tracing in GenAI apps."
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.10"
 authors = [
   { name = "Okahu Inc.", email = "okahu-pypi@okahu.ai" }
 ]

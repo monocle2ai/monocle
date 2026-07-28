@@ -463,5 +463,11 @@ class HttpSpanHandler(SpanHandler):
                 return False
         return True
 
+    def build_trace_return_trailer(self, trace_id: int, delimiter: str) -> "bytes | None":
+        """Pop this trace's captured spans and build the response trailer bytes.
+        Returns None when there is nothing to return."""
+        from monocle_apptrace.instrumentation.common import trace_return as tr
+        return tr.pop_and_build_trailer(trace_id, delimiter)
+
 class AgenticSpanHandler(SpanHandler):
     pass

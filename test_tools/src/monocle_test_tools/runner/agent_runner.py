@@ -14,7 +14,6 @@ class AgentRunner:
         """Check if the runner has remote traces. This can be overridden if the runner needs to fetch traces in a specific way."""
         return None
 
-<<<<<<< HEAD
     async def end_session(self, session_id: str = None) -> None:
         """Release any resources held for a live multi-turn session.
 
@@ -27,10 +26,8 @@ class AgentRunner:
         is a no-op.
         """
         return None
-=======
     def get_remote_spans(self) -> list:
         """Spans the runner obtained out-of-band (e.g. piggybacked on an HTTP response).
         Default: none."""
         return []
->>>>>>> e10763c (feat(test-tools): HttpRunner ingests piggybacked spans; rename legacy to HttpOkahuRunner)
 

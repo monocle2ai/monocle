@@ -32,6 +32,21 @@ def test_export_keeps_only_tagged_spans():
     assert len(stored) == 1
 
 
+def test_export_survives_shutdown():
+    """The process-global singleton is registered on the tracer provider via a
+    SpanProcessor. A provider teardown (reset_span_processors / clear_span_processors,
+    or a subsequent setup_monocle_telemetry) calls shutdown() on it. The exporter must
+    stay usable, or the base InMemorySpanExporter.shutdown() sets _stopped=True and
+    every later export() silently drops spans -- permanently disabling trace-return for
+    the rest of the process."""
+    exp = TraceReturnSpanExporter()
+    exp.shutdown()
+    exp.export([FakeSpan(7, tagged=True)])
+    assert len(exp.get_finished_spans()) == 1
+    # and pop still returns it (pop re-exports remaining, which also requires not-stopped)
+    assert len(exp.pop_spans_for_trace(7)) == 1
+
+
 def test_pop_spans_for_trace_evicts_by_trace_id():
     exp = TraceReturnSpanExporter()
     exp.export([FakeSpan(1, tagged=True), FakeSpan(2, tagged=True), FakeSpan(1, tagged=True)])

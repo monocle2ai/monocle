@@ -23,6 +23,18 @@ class TraceReturnSpanExporter(MonocleInMemorySpanExporter):
         with self._tr_lock:
             return InMemorySpanExporter.export(self, tagged)
 
+    def shutdown(self) -> None:
+        # This is a process-global singleton registered on the tracer provider via a
+        # SpanProcessor (see maybe_trace_return_processor). Provider teardown --
+        # reset_span_processors / clear_span_processors, or a subsequent
+        # setup_monocle_telemetry -- propagates shutdown() to it. The base
+        # InMemorySpanExporter.shutdown() would set _stopped=True, after which export()
+        # silently returns FAILURE and drops every span, permanently disabling
+        # trace-return for the rest of the process. Keep the singleton usable across
+        # provider teardowns instead of stopping it.
+        with self._tr_lock:
+            self._stopped = False
+
     def pop_spans_for_trace(self, trace_id: int) -> list:
         """Return and evict all buffered spans whose trace_id matches."""
         with self._tr_lock:

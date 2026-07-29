@@ -7,14 +7,59 @@ Input is one of:
     - any other Okahu fact/scope (--fact-name + --fact-id + --workflow-name).
 
 Usage:
-    python -m monocle_test_tools.generate_test trace.json
-    python -m monocle_test_tools.generate_test --trace-id <id> --workflow-name <name>
-    python -m monocle_test_tools.generate_test --session-id <id> --workflow-name <name>
-    python -m monocle_test_tools.generate_test --fact-name test_id --fact-id <id> --workflow-name <name>
+    python -m monocle_test_tools generate_test --trace-file trace.json
+    python -m monocle_test_tools generate_test --trace-id <id> --workflow-name <name>
+    python -m monocle_test_tools generate_test --session-id <id> --workflow-name <name>
+    python -m monocle_test_tools generate_test --fact-name test_id --fact-id <id> --workflow-name <name>
+
+Generated tests assert on agents, tools, outputs, tokens, and turn duration.
+The Okahu cloud loader is pre-populated with trace id and workflow name.
+
+--eval [TYPE:]NAME_OR_PATH=EXPECTED   Inject eval assertions (repeatable).
+  Type auto-detected (path -> custom, else built-in) or forced via 'builtin:'/'custom:'.
 """
 
 import argparse
 import sys
+
+
+def _parse_eval_spec(raw: str, default_fact: str, eval_source: str = "okahu") -> dict:
+    """Parse ``[TYPE:]NAME_OR_PATH=EXPECTED`` into an eval spec.
+
+    A ``builtin:``/``custom:`` prefix forces the type, else it is auto-detected
+    using ``eval_source``'s rules. ``=EXPECTED`` is required; raises ``ValueError``
+    on malformed input (or an unknown ``eval_source``).
+    """
+    from monocle_test_tools.test_generator import TestGenerator
+
+    explicit_type = None
+    for candidate in ("builtin", "custom"):
+        if raw.startswith(candidate + ":"):
+            explicit_type, raw = candidate, raw[len(candidate) + 1:]
+            break
+
+    name_part, sep, expected = raw.partition("=")
+    name_part = name_part.strip()
+    if not name_part:
+        raise ValueError("--eval requires an eval name or template path")
+    if not sep or not expected.strip():
+        raise ValueError(
+            f"--eval '{raw}' must specify an expected result, e.g. "
+            f"'{name_part}=<expected>'"
+        )
+
+    eval_type = explicit_type or TestGenerator._detect_eval_type(name_part, eval_source)
+    spec: dict = {
+        "fact_name": default_fact or "traces",
+        "eval_type": eval_type,
+        "expected": expected.strip(),
+    }
+    if eval_type == "custom":
+        spec["template_path"] = name_part
+    else:
+        spec["criteria"] = name_part
+
+    return spec
 
 
 def main():
@@ -40,10 +85,38 @@ def main():
         help="Only generate loader code for this trace source (file|okahu). "
              "If omitted, code for all sources is generated.",
     )
+    parser.add_argument(
+        "--eval",
+        dest="evals",
+        metavar="NAME_OR_PATH[=EXPECTED]",
+        action="append",
+        default=[],
+        help=(
+            "Inject an eval assertion (repeatable). Format: [TYPE:]NAME_OR_PATH=EXPECTED, "
+            "e.g. hallucination=no_hallucination or custom:./my_eval.json=pass. "
+            "Type auto-detected (path -> custom, else built-in) or forced via builtin:/custom: prefix."
+        ),
+    )
+    parser.add_argument(
+        "--eval-fact",
+        default="traces",
+        help="Default fact_name for injected --eval assertions (default: traces).",
+    )
+    parser.add_argument(
+        "--eval-source",
+        default=None,
+        help="Evaluator for the generated with_evaluation(...) calls; also drives how "
+             "eval names/paths are classified as built-in vs custom. "
+             "Required when --eval is used (e.g. okahu).",
+    )
+
     args = parser.parse_args()
     
     trace_file = args._trace_file_flag if args._trace_file_flag else args.trace_file
     has_fact = bool(args.fact_name or args.fact_id)
+
+    if args.evals and not args.eval_source:
+        parser.error("--eval-source is required when --eval is used (e.g. --eval-source okahu)")
 
     # Exactly one input mode: file, okahu trace, okahu session, or okahu fact/scope.
     modes = [bool(trace_file), bool(args.trace_id), bool(args.session_id), has_fact]
@@ -56,6 +129,12 @@ def main():
     if (args.trace_id or args.session_id or has_fact) and not args.workflow_name:
         parser.error("--workflow-name is required with --trace-id / --session-id / --fact-name")
 
+    # Parse injected evals (malformed specs / unknown eval-source surface as a clean error).
+    try:
+        injected_evals = [_parse_eval_spec(raw, args.eval_fact, args.eval_source) for raw in args.evals]
+    except ValueError as exc:
+        parser.error(str(exc))
+
     from monocle_test_tools.test_generator import TestGenerator
     
     try:
@@ -63,19 +142,25 @@ def main():
             generator = TestGenerator.from_okahu_session(
                 session_id=args.session_id, workflow_name=args.workflow_name,
                 trace_source=args.trace_source,
+                injected_evals=injected_evals, eval_source=args.eval_source,
             )
         elif has_fact:
             generator = TestGenerator.from_okahu_scope(
                 scope_name=args.fact_name, scope_id=args.fact_id,
                 workflow_name=args.workflow_name, trace_source=args.trace_source,
+                injected_evals=injected_evals, eval_source=args.eval_source,
             )
         elif args.trace_id:
             generator = TestGenerator.from_okahu(
                 trace_id=args.trace_id, workflow_name=args.workflow_name,
                 trace_source=args.trace_source,
+                injected_evals=injected_evals, eval_source=args.eval_source,
             )
         else:
-            generator = TestGenerator.from_json_file(trace_file, trace_source=args.trace_source)
+            generator = TestGenerator.from_json_file(
+                trace_file, trace_source=args.trace_source,
+                injected_evals=injected_evals, eval_source=args.eval_source,
+            )
         test_code = generator.generate_test_code(test_name=args.test_name)
         print(test_code)
     except Exception as e:

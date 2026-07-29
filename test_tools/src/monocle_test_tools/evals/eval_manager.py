@@ -32,3 +32,15 @@ def get_evaluator(eval: Optional[Union[str, BaseEval]], eval_options: Optional[d
             except Exception as e:
                 raise ValueError(f"Invalid eval class name: {eval}. Error: {e}") from e
     return eval
+
+
+# Evaluators selectable as an ``eval_source``.
+# Add new eval providers here; each may customize behavior via the BaseEval interface.
+EVAL_SOURCE_CLASSES: dict = {
+    "okahu": OkahuEval,
+}
+
+
+def get_supported_eval_sources() -> tuple:
+    """Names accepted as an ``eval_source``."""
+    return tuple(EVAL_SOURCE_CLASSES.keys())

@@ -43,9 +43,9 @@ def cleanup_module():
     subprocess.check_call([sys.executable, "-m", "pip", "uninstall", "-y","sentence-transformers"])
 
 def test_haystack_metamodel_sample(setup):
-    from haystack.components.embedders import (
-        SentenceTransformersDocumentEmbedder,
-        SentenceTransformersTextEmbedder,
+    from haystack_integrations.components.embedders.sentence_transformers import (
+            SentenceTransformersDocumentEmbedder,
+            SentenceTransformersTextEmbedder,
     )
     api_key = os.getenv("OPENAI_API_KEY")
     generator = OpenAIChatGenerator(

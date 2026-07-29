@@ -102,11 +102,11 @@ dev = [
   'azure-storage-blob==12.22.0', # this is for blob exporter
   'azure-functions==1.24.0', # this is for azfunc instrumentation tests (2.x requires Python>=3.13; 1.24.0 supports 3.7+)
   'boto3==1.42.86', # this is for aws exporter (>=1.42.86 required by bedrock-agentcore 1.6.1)
-  'llama-index-vector-stores-opensearch==0.6.0',
-  'haystack-ai==2.21.0',
+  'llama-index-vector-stores-opensearch==1.1.1',
+  'haystack-ai==3.0.0',
   'llama-index-llms-azure-openai==0.4.0',
   'requests-aws4auth==1.2.3',
-  'opensearch-haystack==1.2.0',
+  'opensearch-haystack==8.2.0',
   'langchainhub==0.1.21',
   'chromadb>=1.0.0,<2.0.0',
   'flask',
@@ -147,7 +147,7 @@ dev = [
 ]
 
 dev_tranformers = [
-  'sentence-transformers==5.2.0'
+  'sentence-transformers==5.6.1'
 ]
 
 dev_gemini = [

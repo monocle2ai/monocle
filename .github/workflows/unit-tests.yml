@@ -26,12 +26,12 @@ jobs:
         uses: actions/checkout@v7
 
       - name: Set up Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           python-version: '3.11'
 
       - name: Set up uv
-        uses: astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@v8.3.2
         with:
           enable-cache: true
 
@@ -44,15 +44,14 @@ jobs:
           chmod +x ./.github/scripts/build-all.sh
           ./.github/scripts/build-all.sh
 
-      - name: Install package and dev dependencies
+      - name: Install packages and dev dependencies
         run: |
-          cd apptrace
-          uv pip install --system --prerelease=allow -e '.[dev,azure,aws,gcp,postgres]'
+          uv pip install --system --prerelease=allow \
+            -e './apptrace[dev,azure,aws,gcp,postgres]' \
+            -e './test_tools[dev]'
 
-      - name: Install test_tools package and dependencies
-        run: |
-          cd test_tools
-          uv pip install --system --prerelease=allow -e '.[dev]'
+      - name: Verify dependency consistency
+        run: uv pip check --system
 
       - name: Run Apptrace Unit tests
         id: run-apptrace-unit-tests

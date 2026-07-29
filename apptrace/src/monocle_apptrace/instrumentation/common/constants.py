@@ -63,6 +63,8 @@ llm_type_map = {
     "sagemakerllm": "aws_sagemaker",
     "chatbedrock": "aws_bedrock",
     "openaigenerator": "openai",
+    "openaichatgenerator": "openai",
+    "azureopenaichatgenerator": "azure_openai",
     "bedrockruntime": "aws_bedrock",
     "sagemakerruntime": "aws_sagemaker",
     "anthropic": "anthropic",

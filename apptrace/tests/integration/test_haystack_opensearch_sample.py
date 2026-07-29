@@ -2,27 +2,75 @@ import subprocess
 import logging
 import os
 import sys
+import time
 
 import pytest
 from common.custom_exporter import CustomConsoleSpanExporter
 from datasets import load_dataset
 from haystack import Document, Pipeline
 from haystack.components.builders import PromptBuilder
-from haystack.components.generators import OpenAIGenerator
-from haystack.document_stores.types import DuplicatePolicy
+from haystack.components.generators.chat import OpenAIChatGenerator
 from haystack.utils import Secret
 from haystack_integrations.components.retrievers.opensearch import (
     OpenSearchEmbeddingRetriever,
 )
 from haystack_integrations.document_stores.opensearch import OpenSearchDocumentStore
+from haystack_integrations.document_stores.opensearch.auth import AWSAuth
 from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from opensearchpy.helpers import bulk
 
 logger = logging.getLogger(__name__)
 
 
+def write_documents_serverless(document_store, documents):
+    """Ingest documents into an AWS OpenSearch Serverless (aoss) collection.
+
+    Uses opensearch-haystack private attributes (`_client`, `_index`,
+    `_max_chunk_bytes`); there is no public accessor for them in 8.x.
+    """
+    # Also creates the index with its knn mapping if it does not exist yet.
+    document_store._ensure_initialized()
+
+    # Without `_id` the collection cannot de-duplicate, so an unconditional
+    # write would append the whole dataset again on every run.
+    already_present = document_store.count_documents()
+    if already_present > 0:
+        logger.info("OpenSearch index already holds %s documents, skipping ingest", already_present)
+        return 0
+
+    actions = []
+    for doc in documents:
+        source = doc.to_dict()
+        # Mirrors OpenSearchDocumentStore: sparse embeddings are not storable.
+        source.pop("sparse_embedding", None)
+        actions.append({"_op_type": "index", "_source": source})
+
+    # No `refresh`: serverless collections do not support it.
+    written, errors = bulk(
+        client=document_store._client,
+        actions=actions,
+        index=document_store._index,
+        raise_on_error=False,
+        max_chunk_bytes=document_store._max_chunk_bytes,
+    )
+    if errors:
+        raise RuntimeError(f"Failed to write documents to OpenSearch: {errors}")
+
+    # Serverless indexing is eventually consistent, so without `refresh` the
+    # retriever can otherwise run before any of these documents are visible.
+    for _ in range(30):
+        if document_store.count_documents() >= written:
+            break
+        time.sleep(2)
+    else:
+        logger.warning("Ingested documents not yet searchable; retrieval may return nothing")
+    return written
+
+
 @pytest.fixture(scope="module")
 def setup():
+    instrumentor = None
     try:
         subprocess.check_call([sys.executable, "-m", "pip", "install", ".[dev_tranformers]"])
         custom_exporter = CustomConsoleSpanExporter()
@@ -43,19 +91,22 @@ def cleanup_module():
     subprocess.check_call([sys.executable, "-m", "pip", "uninstall", "-y","sentence-transformers"])
 
 def test_haystack_opensearch_sample(setup):
-    from haystack.components.embedders import (
+    from haystack_integrations.components.embedders.sentence_transformers import (
         SentenceTransformersDocumentEmbedder,
         SentenceTransformersTextEmbedder,
     )
     # initialize
     api_key = os.getenv("OPENAI_API_KEY")
-    http_auth=(os.getenv("OPEN_SEARCH_AUTH_USER"), os.getenv("OPEN_SEARCH_AUTH_PASSWORD"))
-    generator = OpenAIGenerator(
+    os.environ.setdefault('AWS_DEFAULT_REGION', 'us-east-1')
+    aws_auth = AWSAuth(aws_access_key_id=Secret.from_token(os.environ["AWS_ACCESS_KEY_ID"]),
+                        aws_secret_access_key=Secret.from_token(os.environ["AWS_SECRET_ACCESS_KEY"]),
+                        aws_region_name=Secret.from_token(os.environ["AWS_DEFAULT_REGION"]),
+                        aws_service='aoss')
+    generator = OpenAIChatGenerator(
         api_key=Secret.from_token(api_key), model="gpt-4"
     )
     document_store = OpenSearchDocumentStore(hosts=os.getenv("OPEN_SEARCH_DOCSTORE_ENDPOINT"), use_ssl=True,
-                        verify_certs=True, http_auth=http_auth)
-    model = "sentence-transformers/all-mpnet-base-v2"
+                        verify_certs=True, http_auth=aws_auth)
 
     # documents = [Document(content="There are over 7,000 languages spoken around the world today."),
     #                         Document(content="Elephants have been observed to behave in a way that indicates a high level of self-awareness, such as recognizing themselves in mirrors."),
@@ -63,17 +114,14 @@ def test_haystack_opensearch_sample(setup):
 
     dataset = load_dataset("bilgeyucel/seven-wonders", split="train")
     documents = [Document(content=doc["content"], meta=doc["meta"]) for doc in dataset]
-    document_embedder = SentenceTransformersDocumentEmbedder(model=model)
-    document_embedder.warm_up()
+    document_embedder = SentenceTransformersDocumentEmbedder()
     documents_with_embeddings = document_embedder.run(documents)
 
-    document_store.write_documents(documents_with_embeddings.get("documents"), policy=DuplicatePolicy.SKIP)
+    write_documents_serverless(document_store,documents_with_embeddings.get("documents"))
 
 
     # embedder to embed user query
-    text_embedder = SentenceTransformersTextEmbedder(
-        model="sentence-transformers/all-mpnet-base-v2"
-    )
+    text_embedder = SentenceTransformersTextEmbedder()
 
     # get relevant documents from embedded query
     retriever = OpenSearchEmbeddingRetriever(document_store=document_store)
@@ -83,10 +131,7 @@ def test_haystack_opensearch_sample(setup):
     Given the following information, answer the question.
 
     Context:
-    {% for document in documents %    finally:
-        # Clean up instrumentor to avoid global state leakage
-        if instrumentor and instrumentor.is_instrumented_by_opentelemetry:
-            instrumentor.uninstrument()}
+    {% for document in documents %}
         {{ document.content }}
     {% endfor %}
 
@@ -172,7 +217,7 @@ def test_haystack_opensearch_sample(setup):
 #     }
 # }
 # {
-#     "name": "haystack.components.generators.openai.OpenAIGenerator",
+#     "name": "haystack.components.generators.openai.OpenAIChatGenerator",
 #     "context": {
 #         "trace_id": "0xa599cf84e013b83c58e3afaf8a7058f8",
 #         "span_id": "0x1de03fa69ab19977",

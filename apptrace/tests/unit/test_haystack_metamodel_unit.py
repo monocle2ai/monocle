@@ -3,16 +3,18 @@ import os
 import time
 import unittest
 from typing import List
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 from base_unit import MonocleTestBase
 from common.mock_span_exporter import MockSpanExporter
 from haystack import Document, Pipeline
-from haystack.components.builders.prompt_builder import PromptBuilder
-from haystack.components.generators import OpenAIGenerator
+from haystack.components.builders import ChatPromptBuilder
+from haystack.components.generators.chat import OpenAIChatGenerator
 from haystack.components.retrievers import InMemoryBM25Retriever
+from haystack.dataclasses import ChatMessage
 from haystack.document_stores.in_memory import InMemoryDocumentStore
 from haystack.utils import Secret
+from openai.types.chat import ChatCompletion
 from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
 from monocle_apptrace.instrumentation.common.span_handler import WORKFLOW_TYPE_MAP
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
@@ -44,9 +46,13 @@ class TestHandler(MonocleTestBase):
     
 
     
-    def test_haystack_pipeline_with_retriever(self):
+    # Patch the OpenAI client class rather than an instance attribute: haystack 3.0
+    # builds OpenAIChatGenerator.client lazily in warm_up(), so it is still None
+    # right after construction.
+    @patch('openai.resources.chat.completions.Completions.create')
+    def test_haystack_pipeline_with_retriever(self, mock_openai_create):
         # Test uses MockSpanExporter - no HTTP mocking needed
-        
+
         api_key = os.getenv("OPENAI_API_KEY")
         workflow_name = "haystack_app_1"
         documents = [Document(content="Joe lives in Berlin"), Document(content="Joe is a software engineer")]
@@ -60,42 +66,47 @@ class TestHandler(MonocleTestBase):
             \nQuestion: {{question}}
             \nAnswer:
             """
-        prompt_builder = PromptBuilder(template=prompt_template)
+        # ChatPromptBuilder renders into ChatMessages, which is what OpenAIChatGenerator consumes.
+        prompt_builder = ChatPromptBuilder(
+            template=[ChatMessage.from_user(prompt_template)],
+            required_variables=["documents", "question"],
+        )
         if api_key is None:
             raise ValueError("API key must not be None")
-        llm = OpenAIGenerator(api_key=Secret.from_token(api_key), model="gpt-3.5-turbo-0125")
-        
-        # Mock the OpenAI client after it's created
-        mock_completion = MagicMock()
+        llm = OpenAIChatGenerator(api_key=Secret.from_token(api_key), model="gpt-3.5-turbo-0125")
+
+        # spec=ChatCompletion so haystack's isinstance() check on the response passes.
+        mock_completion = MagicMock(spec=ChatCompletion)
         mock_completion.id = 'chatcmpl-test123'
         mock_completion.object = 'chat.completion'
         mock_completion.created = 1234567890
         mock_completion.model = 'gpt-3.5-turbo-0125'
-        
+
         # Create mock choice
         mock_choice = MagicMock()
         mock_choice.index = 0
         mock_choice.finish_reason = 'stop'
-        
+        mock_choice.logprobs = None
+
         # Create mock message
         mock_message = MagicMock()
         mock_message.role = 'assistant'
         mock_message.content = 'Here is a joke about OpenTelemetry: Why did the trace go to therapy? Because it had too many spans!'
+        # Must be falsy, otherwise haystack tries to iterate it as tool calls.
+        mock_message.tool_calls = None
         mock_choice.message = mock_message
-        
+
         mock_completion.choices = [mock_choice]
-        
+
         # Create mock usage
         mock_usage = MagicMock()
         mock_usage.prompt_tokens = 50
         mock_usage.completion_tokens = 20
         mock_usage.total_tokens = 70
         mock_completion.usage = mock_usage
-        
-        # Mock the client's chat.completions.create method
-        llm.client.chat.completions.create = MagicMock(return_value=mock_completion)
-        
-        # llm = OpenAIChatGenerator(api_key=Secret.from_token(api_key), model="gpt-3.5-turbo")
+
+        mock_openai_create.return_value = mock_completion
+
         document_store = InMemoryDocumentStore()
         for doc in documents:
             document_store.write_documents([doc])
@@ -107,7 +118,7 @@ class TestHandler(MonocleTestBase):
         pipe.add_component("prompt_builder", prompt_builder)
         pipe.add_component("llm", llm)
         pipe.connect("retriever", "prompt_builder.documents")
-        pipe.connect("prompt_builder.prompt", "llm.prompt")
+        pipe.connect("prompt_builder.prompt", "llm.messages")
         query = "OpenTelemetry"
         message = f"Tell me a joke about {query}"
         
@@ -197,7 +208,7 @@ class TestHandler(MonocleTestBase):
             
         span_names: List[str] = [span.get("name", "unknown") for span in dataJson['batch']]
         # Use flexible span name matching to accommodate variations like .run suffix
-        expected_patterns = ["OpenAIGenerator", "Pipeline"]  # More flexible patterns
+        expected_patterns = ["OpenAIChatGenerator", "Pipeline"]  # More flexible patterns
         for pattern in expected_patterns:
             found = any(pattern in span_name for span_name in span_names)
             if not found:
@@ -216,7 +227,7 @@ class TestHandler(MonocleTestBase):
         for span in dataJson["batch"]:
             # Use more flexible matching for OpenAI Generator spans
             span_name = span.get("name", "")
-            if "OpenAIGenerator" in span_name and "attributes" in span:
+            if "OpenAIChatGenerator" in span_name and "attributes" in span:
                 span_attrs = span["attributes"]
                 if "entity.count" in span_attrs:
                     self.assertEqual(span_attrs["entity.count"], 2)

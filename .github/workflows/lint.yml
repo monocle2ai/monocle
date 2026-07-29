@@ -25,9 +25,7 @@ jobs:
 
       - name: Install packages and pylint
         run: |
-          pip install ./apptrace
-          pip install ./mcp
-          pip install ./test_tools
+          pip install ./apptrace ./mcp ./test_tools
           pip install pylint
 
       - name: Run pylint tests

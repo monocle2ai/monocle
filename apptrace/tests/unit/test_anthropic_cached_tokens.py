@@ -1,13 +1,4 @@
-"""Unit tests for cached token extraction in the Anthropic instrumentation.
-
-Anthropic's Messages API reports prompt-cache usage on the ``usage`` object:
-  - ``usage.cache_read_input_tokens``     – tokens served from cache (a cache hit)
-  - ``usage.cache_creation_input_tokens`` – tokens written to cache (not captured here)
-
-Cache reads should be captured as ``cache_read_input_tokens`` in the metadata dict,
-matching the OpenAI/Azure instrumentation. For streaming, the count is reported in
-the ``message_start`` event and must survive the ``message_delta`` usage overwrite.
-"""
+"""Unit tests for Anthropic cached token extraction (non-streaming and streaming)."""
 import unittest
 from types import SimpleNamespace
 

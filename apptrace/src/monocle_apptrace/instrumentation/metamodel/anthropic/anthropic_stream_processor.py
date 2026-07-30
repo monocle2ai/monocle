@@ -48,6 +48,10 @@ class AnthropicStreamProcessor(BaseStreamProcessor):
                     "total_tokens": getattr(usage, "input_tokens", 0)
                     + getattr(usage, "output_tokens", 0),
                 }
+                # Prompt-cache reads are reported here (message_start), not in the delta.
+                cached_tokens = getattr(usage, "cache_read_input_tokens", None)
+                if cached_tokens is not None:
+                    state.token_usage["cache_read_input_tokens"] = cached_tokens
             role = getattr(message, "role", None)
             if role:
                 state.role = role
@@ -61,12 +65,20 @@ class AnthropicStreamProcessor(BaseStreamProcessor):
             if stop_reason:
                 state.finish_reason = stop_reason
             if usage is not None:
-                state.token_usage = {
+                new_usage = {
                     "completion_tokens": getattr(usage, "output_tokens", 0),
                     "prompt_tokens": getattr(usage, "input_tokens", 0),
                     "total_tokens": getattr(usage, "input_tokens", 0)
                     + getattr(usage, "output_tokens", 0),
                 }
+                # cache_read_input_tokens arrives in message_start, not in the delta;
+                # carry the earlier value forward so this overwrite doesn't drop it.
+                cached_tokens = getattr(usage, "cache_read_input_tokens", None)
+                if cached_tokens is None and state.token_usage:
+                    cached_tokens = state.token_usage.get("cache_read_input_tokens")
+                if cached_tokens is not None:
+                    new_usage["cache_read_input_tokens"] = cached_tokens
+                state.token_usage = new_usage
             return True
 
         # Mark stream completion.

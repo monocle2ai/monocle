@@ -189,21 +189,19 @@ class MonocleInstrumentor(BaseInstrumentor):
             except ModuleNotFoundError as e:
                 logger.debug(f"ignoring module {e.name}")
 
+            except AttributeError as ex:
+                # The method list spans multiple releases of each framework, so a method
+                # missing from the installed version is a version-compatibility case, not
+                # an error. Handled here generically to keep per-framework knowledge in
+                # the metamodels rather than in common/core.
+                logger.debug(f"""method not found (SDK version compatibility): {str(ex)}
+                            for package: {target_package},
+                            object:{target_object},
+                            method:{target_method}""")
+
             except Exception as ex:
                 if target_package == "agent_framework._tools":
                     logger.debug("ignoring wrap exception for package: agent_framework._tools")
-                    continue
-                # For openai-agents SDK, method availability varies by version; log as debug
-                if target_package == "agents.run" and target_method in ("run_single_turn", "_run_single_turn"):
-                    logger.debug(f"method {target_method} not found in {target_package} (SDK version compatibility)")
-                    continue
-                # openhands-sdk added the async API (arun/astep/_arun_safe) after 1.21
-                if (
-                    isinstance(ex, AttributeError)
-                    and target_package.startswith("openhands.sdk")
-                    and target_method in ("arun", "astep", "_arun_safe")
-                ):
-                    logger.debug(f"method {target_method} not found in {target_package} (SDK version compatibility)")
                     continue
                 logger.error(f"""_instrument wrap exception: {str(ex)}
                             for package: {target_package},

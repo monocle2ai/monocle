@@ -26,7 +26,7 @@ from monocle_test_tools.schema import SpanType, TestSpan, TestCase, MultiTurnTes
 from monocle_test_tools.constants import TEST_SCOPE_NAME, SESSION_SCOPE_NAME, DEFAULT_WORKFLOW_NAME, TEST_STATUS_ATTRIBUTE, TEST_ASSERTION_ATTRIBUTE, TEST_WORKFLOW_ENV
 from monocle_test_tools.comparer.base_comparer import BaseComparer
 from monocle_test_tools.runner.runner import get_agent_runner
-from monocle_test_tools.trace_sources import get_trace_source
+from monocle_test_tools.trace_sources import get_trace_source, OkahuTraceSource
 from monocle_test_tools import trace_utils
 from monocle_apptrace.instrumentation.metamodel.adk.methods import ADK_METHODS
 from monocle_apptrace.instrumentation.metamodel.adk.entities.tool import TOOL as ADK_TOOL
@@ -207,6 +207,13 @@ class MonocleValidator:
         """
         try:
             trace_source = get_trace_source(self._trace_source)
+            if trace_source is None and not self._trace_source:
+                # No trace source was declared (all local runners — ADK, LangGraph,
+                # CrewAI, LlamaIndex, etc. — leave this unset). If spans are being
+                # exported to Okahu, record the outcome there. Explicit sources like
+                # "file" keep their existing behavior (this stays a no-op for them).
+                if OkahuTraceSource._okahu_exporter_active(self.exporters):
+                    trace_source = OkahuTraceSource()
             if trace_source is None:
                 return
             fact_id = self._trace_source_fact_id or self._get_current_trace_id()

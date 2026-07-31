@@ -72,6 +72,42 @@ class TestPostTestCleanupRecords:
             token=None, test_name="test_x", test_failed=False, skip_export=True
         )
 
+    def test_records_for_undeclared_source_with_okahu_exporter(self, validator):
+        # Local runners (ADK, LangGraph, CrewAI, LlamaIndex, ...) never declare a
+        # remote trace source, so _trace_source is unset. When an Okahu exporter is
+        # active, the outcome must still be recorded via the exporter-derived source.
+        validator._trace_source = ""
+        validator._trace_source_fact_id = "trace-1"
+        validator._trace_source_workflow_name = "my_app"
+
+        with patch("monocle_test_tools.validator.get_trace_source", return_value=None), \
+             patch("monocle_test_tools.validator.OkahuTraceSource") as okahu_cls:
+            okahu_cls._okahu_exporter_active.return_value = True
+            fake_source = okahu_cls.return_value
+            validator.post_test_cleanup(
+                token=None, test_name="test_x", test_failed=False, skip_export=True
+            )
+
+        okahu_cls._okahu_exporter_active.assert_called_once_with(validator.exporters)
+        fake_source.record_test_result.assert_called_once()
+        _, kwargs = fake_source.record_test_result.call_args
+        assert kwargs["fact_id"] == "trace-1"
+        assert kwargs["workflow_name"] == "my_app"
+        assert kwargs["test_name"] == "test_x"
+        assert kwargs["exporters"] is validator.exporters
+
+    def test_noop_for_undeclared_source_without_okahu_exporter(self, validator):
+        # Undeclared source + no Okahu exporter (e.g. file-only export) must remain
+        # a no-op: nothing recorded, no error raised.
+        validator._trace_source = ""
+        with patch("monocle_test_tools.validator.get_trace_source", return_value=None), \
+             patch("monocle_test_tools.validator.OkahuTraceSource") as okahu_cls:
+            okahu_cls._okahu_exporter_active.return_value = False
+            validator.post_test_cleanup(
+                token=None, test_name="test_x", test_failed=False, skip_export=True
+            )
+            okahu_cls.return_value.record_test_result.assert_not_called()
+
     def test_recording_failure_never_raises(self, validator):
         validator._trace_source = "okahu"
         validator._trace_source_fact_id = "trace-1"

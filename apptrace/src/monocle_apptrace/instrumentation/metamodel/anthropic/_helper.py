@@ -146,6 +146,11 @@ def update_span_from_llm_response(response):
             meta_dict.update({"completion_tokens": output_tokens})
             meta_dict.update({"prompt_tokens": input_tokens})
             meta_dict.update({"total_tokens": total_tokens})
+            cached_tokens = getattr(token_usage, "cache_read_input_tokens", None)
+            if cached_tokens is None and isinstance(token_usage, dict):
+                cached_tokens = token_usage.get("cache_read_input_tokens")
+            if cached_tokens is not None:
+                meta_dict.update({"cache_read_input_tokens": cached_tokens})
     return meta_dict
 
 def extract_finish_reason(arguments):

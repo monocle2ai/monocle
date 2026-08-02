@@ -400,6 +400,11 @@ class OkahuEval(BaseEval):
             payload = {"template_name": eval_name}
         label = None
         explanation = ""
+        # A live run submits the eval in shadow mode (compute only); we persist the
+        # result via export_results below. A replay (trace already in Okahu, PR #547)
+        # submits with shadow_eval False, so the eval service persists the result
+        # itself — in that case we must not export again, or it is stored twice.
+        shadow_eval = self._trace_source != "okahu"
 
         for fact_id in fact_ids:
             params = {
@@ -409,7 +414,7 @@ class OkahuEval(BaseEval):
                 "fact_name": fact_name,
                 "start_time": start_time,
                 "end_time": end_time,
-                "shadow_eval": self._trace_source != "okahu"
+                "shadow_eval": shadow_eval
             }
             
             logger.debug("Submitting evaluation on fact_id: %s", fact_id)
@@ -460,8 +465,10 @@ class OkahuEval(BaseEval):
                     f"Unexpected response format from evaluation service. Expected 'result' key in response. Received: {data}"
                 ) from exc
             
-            # Export eval results if okahu exporter is configured
-            if "okahu" in (os.getenv("MONOCLE_EXPORTER", "")) or self._trace_source == "okahu":
+            # Only persist via export_results when the submit ran in shadow mode. On a
+            # replay (shadow_eval False) the submit already stored the result, so
+            # exporting again would create a duplicate row.
+            if shadow_eval and "okahu" in os.getenv("MONOCLE_EXPORTER", ""):
                 with OkahuEvalResultExporter(api_key=api_key, endpoint=base) as result_exporter:
                     result_exporter.export_results(
                         job_id=job_id,

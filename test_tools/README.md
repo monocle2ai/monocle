@@ -863,7 +863,7 @@ def test_cases(monocle_trace_asserter, case):
     case.run(monocle_trace_asserter.with_evaluation("okahu"), template_path=TEMPLATE_PATH)
 ```
 
-Each row maps onto exactly three stable, eval-relevant fluent methods — `check_eval` (the label being tuned) plus two optional operational guard rails, `under_token_limit` and `under_duration`:
+Each row maps onto one stable, eval-relevant fluent method — `check_eval` (the label being tuned):
 
 | Column | Required | Maps to | Notes |
 |---|---|---|---|
@@ -873,11 +873,21 @@ Each row maps onto exactly three stable, eval-relevant fluent methods — `check
 | `fact_name` | | `check_eval(fact_name=...)` | Fact grain (defaults to `traces`) |
 | `expected` | one of these | `check_eval(expected=...)` | Multi-value: pipe-delimited (`a\|b`) or a JSON array |
 | `not_expected` | one of these | `check_eval(not_expected=...)` | Multi-value, same as `expected` |
-| `max_tokens` | | `under_token_limit(...)` | Token-budget guard rail |
-| `max_duration_ms` | | `under_duration(..., units="ms")` | Effort/latency guard rail |
 | `notes` | | (ignored) | Free-form documentation for curators |
 
-A row must declare an `expected` or `not_expected` label — a guard rail alone is not an eval test. `load_cases_from_csv(path)` can also be used standalone (returns a list of `CsvCase`) and reports load errors with the offending `line N`. A copy-ready example ships at [`examples/cases.example.csv`](examples/cases.example.csv) + [`examples/csv_cases_example.py`](examples/csv_cases_example.py).
+A row must declare an `expected` or `not_expected` label. Any column not listed above (including a would-be token/duration budget) is silently ignored, never misapplied. `load_cases_from_csv(path)` can also be used standalone (returns a list of `CsvCase`) and reports load errors with the offending `line N`.
+
+**Populating a row never means touching the stub.** `CsvCase.run()` applies each field that has a value and skips each empty cell. The only thing that ever lives in Python is the judge (`template_path`/`eval_name`) — everything else is data a non-engineer can edit in the spreadsheet.
+
+> **Why no token/duration budget in v0?** Operational guard rails (`under_token_limit`, `under_duration`) read the *recorded* run's spans, which are frozen at capture time. In an evals-only replay they measure the traced agent run, not the judge — so they can't reflect a judge-template change, which is exactly what CSV eval tuning is for. The eval-tune kit still captures and reports the judge's own token spend (`check_eval` stashes `total_tokens`); a future `under_eval_tokens` assertion is the right home for a CSV budget column.
+
+Three copy-ready examples ship under [`examples/csv_eval/`](examples/csv_eval/) (see its [README](examples/csv_eval/README.md) for the one-line run command per file) — the same adapter with the fact-set CSV and template supplied three ways (**literals → env → flags**, each pure `monocle_test_tools`, nothing extra to install):
+
+- [`examples/csv_eval/csv_cases_example.py`](examples/csv_eval/csv_cases_example.py) — values written in the file; grades with a custom template committed alongside ([`examples/csv_eval/hallucination_test.json`](examples/csv_eval/hallucination_test.json)), with the built-in judge shown as a commented-out alternative.
+- [`examples/csv_eval/csv_cases_env_example.py`](examples/csv_eval/csv_cases_env_example.py) — CSV path and template from environment variables (`FACT_SET`, `TEMPLATE`); the decorator stays, since env is readable at import.
+- [`examples/csv_eval/csv_cases_parametrized_example.py`](examples/csv_eval/csv_cases_parametrized_example.py) (+ its `conftest.py`) — CSV path and template from pytest flags (`--fact-set`, `--template`), via `pytest_generate_tests`.
+
+All three read [`examples/csv_eval/cases.example.csv`](examples/csv_eval/cases.example.csv).
 
 ---
 

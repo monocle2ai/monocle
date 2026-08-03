@@ -875,7 +875,7 @@ Each row maps onto one stable, eval-relevant fluent method — `check_eval` (the
 | `not_expected` | one of these | `check_eval(not_expected=...)` | Multi-value, same as `expected` |
 | `notes` | | (ignored) | Free-form documentation for curators |
 
-A row must declare an `expected` or `not_expected` label. Any column not listed above (including a would-be token/duration budget) is silently ignored, never misapplied. `load_cases_from_csv(path)` can also be used standalone (returns a list of `CsvCase`) and reports load errors with the offending `line N`.
+A row must declare an `expected` or `not_expected` label. Any column not listed above is silently ignored, never misapplied. `load_cases_from_csv(path)` can also be used standalone (returns a list of `CsvCase`) and reports load errors with the offending `line N`.
 
 **Populating a row never means touching the stub.** `CsvCase.run()` applies each field that has a value and skips each empty cell. The only thing that ever lives in Python is the judge (`template_path`/`eval_name`) — everything else is data a non-engineer can edit in the spreadsheet.
 

@@ -23,7 +23,7 @@ from monocle_test_tools.file_span_loader import JSONSpanLoader
 from monocle_test_tools.gitutils import get_git_context, get_repo_name
 from monocle_test_tools.okahu_span_loader import OkahuSpanLoader
 from monocle_test_tools.schema import SpanType, TestSpan, TestCase, MultiTurnTestCase, Evaluation, EvalInputs, MockTool
-from monocle_test_tools.constants import TEST_SCOPE_NAME, SESSION_SCOPE_NAME, DEFAULT_WORKFLOW_NAME, TEST_STATUS_ATTRIBUTE, TEST_ASSERTION_ATTRIBUTE, TEST_WORKFLOW_ENV
+from monocle_test_tools.constants import TEST_SCOPE_NAME, SESSION_SCOPE_NAME, TURN_SCOPE_NAME, DEFAULT_WORKFLOW_NAME, TEST_STATUS_ATTRIBUTE, TEST_ASSERTION_ATTRIBUTE, TEST_WORKFLOW_ENV
 from monocle_test_tools.comparer.base_comparer import BaseComparer
 from monocle_test_tools.runner.runner import get_agent_runner
 from monocle_test_tools.trace_sources import get_trace_source
@@ -399,12 +399,13 @@ class MonocleValidator:
             self.add_remote_spans(remote_spans)
         return result
 
-    async def run_agent_async(self, agent, agent_type:str, *args, session_id:str=None, mock_tools:list[MockTool]=[], **kwargs):
+    async def run_agent_async(self, agent, agent_type:str, *args, session_id:str=None, turn_id:str=None, mock_tools:list[MockTool]=[], **kwargs):
         self.clear_spans()
         agent_runner = get_agent_runner(agent_type)
         if agent_runner is None:
             raise ValueError(f"Unsupported agent type: {agent_type}")
         mock_tool_token = None
+        turn_token = start_scopes({TURN_SCOPE_NAME: turn_id}) if turn_id is not None else None
         try:
             context = self._set_wrapper_methods(mock_tools)
             if context is not None:
@@ -413,6 +414,8 @@ class MonocleValidator:
         finally:
             if mock_tool_token is not None:
                 detach(mock_tool_token)
+            if turn_token is not None:
+                stop_scope(turn_token)
         self._trace_source = agent_runner.get_remote_traces_source()
         self._fetch_remote_traces()
         remote_spans = agent_runner.get_remote_spans()
@@ -473,9 +476,17 @@ class MonocleValidator:
         are accumulated across turns instead of being cleared, so both per-turn
         and session-wide assertions have the spans they need.
 
-        Returns a tuple of ``(per_turn_spans, results)`` where ``per_turn_spans``
-        is a list holding the spans produced by each turn (in order) and
-        ``results`` is the list of per-turn results.
+        Every turn also runs inside its own ``turn_id`` scope (nested under the
+        shared session scope), so each span a turn produces carries a
+        ``scope.turn_id`` attribute in addition to ``scope.session_id``. The turn
+        id is the turn's own ``turn_id`` when set, otherwise its 1-based index;
+        this keeps turns filterable and assertable both in-memory and in exported
+        traces.
+
+        Returns a tuple of ``(per_turn_spans, results, turn_ids)`` where
+        ``per_turn_spans`` is a list holding the spans produced by each turn (in
+        order), ``results`` is the list of per-turn results and ``turn_ids`` is
+        the list of resolved turn ids (same order).
         """
         agent_runner = get_agent_runner(agent_type)
         if agent_runner is None:
@@ -484,11 +495,14 @@ class MonocleValidator:
         session_id = multi_turn_case.session_id
         per_turn_spans: list[tuple] = []
         results: list = []
+        turn_ids: list = []
         previous_output = None
 
         try:
-            for turn in multi_turn_case.turns:
+            for index, turn in enumerate(multi_turn_case.turns, start=1):
                 self.clear_spans()
+                turn_id = turn.turn_id if turn.turn_id is not None else str(index)
+                turn_token = start_scopes({TURN_SCOPE_NAME: turn_id})
                 mock_tool_token = None
                 turn_input = self._chain_turn_input(turn.test_input, previous_output)
                 try:
@@ -506,12 +520,15 @@ class MonocleValidator:
                 finally:
                     if mock_tool_token is not None:
                         detach(mock_tool_token)
+                    if turn_token is not None:
+                        stop_scope(turn_token)
 
                 self._trace_source = agent_runner.get_remote_traces_source()
                 self._fetch_remote_traces()
                 turn_spans = self.spans
                 per_turn_spans.append(turn_spans)
                 results.append(result)
+                turn_ids.append(turn_id)
                 previous_output = result
         finally:
             if hasattr(agent_runner, "end_session"):
@@ -520,7 +537,7 @@ class MonocleValidator:
                 except Exception as e:
                     logger.debug(f"end_session cleanup failed: {e}")
 
-        return per_turn_spans, results
+        return per_turn_spans, results, turn_ids
 
     async def test_multi_turn_agent_async(self, agent, agent_type: str,
                                           multi_turn_case: Union[MultiTurnTestCase, dict]):
@@ -536,7 +553,7 @@ class MonocleValidator:
         if multi_turn_case.session_id is None:
             multi_turn_case.session_id = f"monocle_test_session_{uuid.uuid4().hex}"
 
-        per_turn_spans, results = await self.run_multi_turn_agent_async(
+        per_turn_spans, results, _turn_ids = await self.run_multi_turn_agent_async(
             agent, agent_type, multi_turn_case
         )
 

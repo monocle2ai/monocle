@@ -157,9 +157,13 @@ class TraceAssertion():
         """Run the given agent with provided args and kwargs."""
         return self.validator.run_agent(agent, agent_type, *args, mock_tools=self.mock_tools, **kwargs)
 
-    async def run_agent_async(self, agent, agent_type:str, *args, session_id:str=None, **kwargs) -> any:
-        """Run the given async agent with provided args and kwargs."""
-        return await self.validator.run_agent_async(agent, agent_type, *args, session_id=session_id, mock_tools=self.mock_tools, **kwargs)
+    async def run_agent_async(self, agent, agent_type:str, *args, session_id:str=None, turn_id:str=None, **kwargs) -> any:
+        """Run the given async agent with provided args and kwargs.
+
+        Pass ``turn_id`` to tag every span produced by this run with a
+        ``scope.turn_id`` attribute.
+        """
+        return await self.validator.run_agent_async(agent, agent_type, *args, session_id=session_id, turn_id=turn_id, mock_tools=self.mock_tools, **kwargs)
 
     def with_mock_tool(self, mock_tool:MockTool) -> 'TraceAssertion':
         """Set mock tools to be used during agent execution."""
@@ -901,23 +905,32 @@ class TraceAssertion():
             total_tokens=getattr(self._eval, "last_total_tokens", None),
         )
 
-        # Stash the uniform (filter-mode-shaped) report BEFORE the pass/fail raise
-        # below, so a failing span-mode eval still leaves a 1-fact report behind —
-        # matching filter mode, which stashes its report before raising too.
+        # Grade every fact the evaluator returned (one per turn/session when
+        # fact_name resolves to many), not just the last one. Fall back to the
+        # single returned label when the evaluator doesn't break results down by
+        # fact. isinstance guards a MagicMock evaluator (truthy, but not a list).
+        fact_results = getattr(self._eval, "last_fact_results", None)
+        if isinstance(fact_results, list) and fact_results:
+            facts = [(r["fact_id"], r["eval_result"]["label"],
+                      r["eval_result"].get("explanation", "")) for r in fact_results]
+        else:
+            facts = [(trace_id, eval_result, explanation)]
+
         TraceAssertion._eval_report = build_filtered_report(
             expected, not_expected,
-            [{"fact_id": trace_id, "job_id": None, "eval_found": True,
-              "eval_result": {"label": eval_result, "explanation": explanation},
-              "workflow": ""}],
+            [{"fact_id": fact_id, "job_id": None, "eval_found": True,
+              "eval_result": {"label": eval_result, "explanation": explanation}, "workflow": ""}
+             for fact_id, eval_result, explanation in facts],
             job_id=None)
 
-        if (positive and eval_result not in positive) or (negative and eval_result in negative):
-            if message:
-                raise AssertionError(message)
-            elif positive and eval_result not in positive:
-                raise AssertionError(f"Evaluation '{eval_name}' did not match expected result. Expected one of {positive}. Received '{eval_result}'. \n Explanation: {explanation}")
-            else:
-                raise AssertionError(f"Evaluation '{eval_name}' matched an unexpected result. Should not be any of {negative}. Received '{eval_result}'. \n Explanation: {explanation}")
+        for fact_id, eval_result, explanation in facts:
+            if (positive and eval_result not in positive) or (negative and eval_result in negative):
+                if message:
+                    raise AssertionError(message)
+                elif positive and eval_result not in positive:
+                    raise AssertionError(f"Evaluation '{eval_name}' did not match expected result for fact '{fact_id}'. Expected one of {positive}. Received '{eval_result}'. \n Explanation: {explanation}")
+                else:
+                    raise AssertionError(f"Evaluation '{eval_name}' matched an unexpected result for fact '{fact_id}'. Should not be any of {negative}. Received '{eval_result}'. \n Explanation: {explanation}")
 
         return self
 

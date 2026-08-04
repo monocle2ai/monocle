@@ -163,6 +163,23 @@ if __name__ == "__main__":
 
 Each turn is an ordinary `TestCase`, so per-turn `test_output`, `test_spans`, and evals work exactly as in single-turn tests, validated against that turn's spans. The `session_spans` block (and optional `session_output`) is validated against the spans accumulated across every turn.
 
+**Scoping an assertion to a specific turn.** Every turn runs inside its own turn scope, so each span it produces carries a `scope.turn_id` attribute (alongside the shared `scope.session_id`). The turn id is the turn's own `turn_id` when set, otherwise its 1-based index (`"1"`, `"2"`, ...). Use it in a `session_spans` assertion's `attributes` to require that a span happened in a particular turn:
+
+```python
+"turns": [
+    {"test_input": ["Book me a flight for 26th Nov 2025."], "turn_id": "collect_info"},
+    {"test_input": ["Fly to Mumbai."], "turn_id": "book"}
+],
+"session_spans": [
+    {
+        "span_type": "agentic.tool.invocation",
+        "entities": [{"type": "tool", "name": "adk_book_flight"}],
+        # the flight must have been booked in the "book" turn, not the first
+        "attributes": {"scope.turn_id": "book"}
+    }
+]
+```
+
 **Chaining turn output into the next input.** Use the `{previous_output}` placeholder in a later turn's `test_input` to feed the prior turn's result forward:
 
 ```python
@@ -746,6 +763,8 @@ monocle_trace_asserter.called_agent("adk_flight_booking_agent")
 monocle_trace_asserter.with_evaluation("okahu") \
     .check_eval("conversation_completeness", expected="complete")
 ```
+
+> **When `fact_name` resolves to multiple facts** (e.g. `agentic_turns` across a multi-turn session), `check_eval` evaluates and asserts **every** fact — it fails if any single fact fails, and the error names each failing fact. To scope an eval to one turn instead, narrow the spans first (e.g. `.where(attribute={"scope.turn_id": "2"})`) so only that turn's fact is evaluated.
 
 #### Okahu `fact_name` values
 

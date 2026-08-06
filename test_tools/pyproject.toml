@@ -38,7 +38,7 @@ with-no-comparer= [
     "monocle_apptrace>=0.5.0",
 
     # git
-    "GitPython==3.1.50"
+    "GitPython==3.1.58"
 ]
 
 dependencies = [
@@ -57,7 +57,7 @@ dependencies = [
     "sentence-transformers>=3.3.0",
 
     # git
-    "GitPython==3.1.50"
+    "GitPython==3.1.58"
 ]
 
 [project.optional-dependencies]

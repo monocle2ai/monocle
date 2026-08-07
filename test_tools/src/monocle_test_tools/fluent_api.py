@@ -923,14 +923,22 @@ class TraceAssertion():
              for fact_id, eval_result, explanation in facts],
             job_id=None)
 
+
+        failures = []
         for fact_id, eval_result, explanation in facts:
-            if (positive and eval_result not in positive) or (negative and eval_result in negative):
-                if message:
-                    raise AssertionError(message)
-                elif positive and eval_result not in positive:
-                    raise AssertionError(f"Evaluation '{eval_name}' did not match expected result for fact '{fact_id}'. Expected one of {positive}. Received '{eval_result}'. \n Explanation: {explanation}")
-                else:
-                    raise AssertionError(f"Evaluation '{eval_name}' matched an unexpected result for fact '{fact_id}'. Should not be any of {negative}. Received '{eval_result}'. \n Explanation: {explanation}")
+            if positive and eval_result not in positive:
+                failures.append(f"Evaluation '{eval_name}' did not match expected result for fact '{fact_id}'. Expected one of {positive}. Received '{eval_result}'. \n Explanation: {explanation}")
+            elif negative and eval_result in negative:
+                failures.append(f"Evaluation '{eval_name}' matched an unexpected result for fact '{fact_id}'. Should not be any of {negative}. Received '{eval_result}'. \n Explanation: {explanation}")
+
+        if failures:
+            if message:
+                raise AssertionError(message)
+            if len(failures) == 1:
+                raise AssertionError(failures[0])
+            raise AssertionError(
+                f"Evaluation '{eval_name}' failed for {len(failures)} of {len(facts)} facts:"
+                + "".join(f"{os.linesep}  - {failure}" for failure in failures))
 
         return self
 

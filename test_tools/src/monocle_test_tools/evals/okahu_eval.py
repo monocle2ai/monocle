@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import time
 from datetime import datetime, timezone
 from opentelemetry.sdk.trace import Span
 import requests
@@ -19,6 +20,43 @@ OKAHU_PROD_EVALUATION_ENDPOINT = "https://eval.okahu.co/api"
 # conversations, test runs) that can span multiple traces; override via
 # OKAHU_EVAL_TIME_PAD_SECONDS if a deployment needs a tighter or wider window.
 DEFAULT_EVAL_TIME_PAD_SECONDS = 8 * 60 * 60      # 8 hours
+
+# --- transient-failure retry -------------------------------------------------------
+# A dropped connection or a read timeout should not cost a scenario. Retrying is only
+# safe where re-issuing the request cannot change state, though: submitting an eval job
+# creates a NEW job id (and a new charge) on every POST, so a retry after the request may
+# already have been delivered would double-bill and skew any token accounting.
+#
+# Hence two policies:
+#   * _IDEMPOTENT_RETRY_ON  — reads (fact map, template listing). Any transport failure
+#     is retried; re-reading is free and has no side effects.
+#   * _SUBMIT_RETRY_ON      — the eval-job POST. Only `ConnectTimeout`, where the
+#     connection was never established so nothing can have reached the service. Read
+#     timeouts and resets are NOT retried: the request may have landed.
+EVAL_RETRY_ATTEMPTS = 3
+EVAL_RETRY_BASE_DELAY_SECONDS = 1.0
+_IDEMPOTENT_RETRY_ON = (requests.ConnectionError, requests.Timeout)
+_SUBMIT_RETRY_ON = (requests.ConnectTimeout,)
+
+
+def _request_with_retry(send, retry_on: tuple, what: str,
+                        attempts: int = EVAL_RETRY_ATTEMPTS):
+    """Call `send()`, retrying only the exception types in `retry_on`.
+
+    Backs off exponentially between attempts and re-raises the original exception once
+    the budget is spent, so callers keep translating errors into their own messages.
+    """
+    for attempt in range(1, attempts + 1):
+        try:
+            return send()
+        except retry_on as exc:
+            if attempt >= attempts:
+                raise
+            delay = EVAL_RETRY_BASE_DELAY_SECONDS * (2 ** (attempt - 1))
+            logger.warning("%s failed (attempt %d/%d): %s — retrying in %.1fs",
+                           what, attempt, attempts, exc, delay)
+            time.sleep(delay)
+
 
 class OkahuEval(BaseEval):
     last_judge_output: dict = {}
@@ -54,7 +92,19 @@ class OkahuEval(BaseEval):
         self._fact_map_cache = None
         self.last_judge_output: dict = {}
         self.last_total_tokens = None
-    
+
+    def set_trace_source(self, trace_source: str) -> None:
+        """Adopt a trace source configured after construction.
+
+        Both `shadow_eval` and `_trace_exported` derive from `_trace_source`, so a
+        stale value here means the eval is submitted as a shadow eval (the service
+        then returns an empty `result`) and the trace is needlessly re-exported.
+        Keep the two in step whenever the source changes.
+        """
+        self._trace_source = trace_source or ""
+        # An okahu source is already holding the trace, so there is nothing to export.
+        self._trace_exported = self._trace_source == "okahu"
+
     @staticmethod
     def _map_fact_name(fact_name: str) -> str:
         """
@@ -164,7 +214,9 @@ class OkahuEval(BaseEval):
         params = {"fact_name": fact_name}
         
         try:
-            response = requests.get(url=list_url, headers=headers, params=params, timeout=60)
+            response = _request_with_retry(
+                lambda: requests.get(url=list_url, headers=headers, params=params, timeout=60),
+                retry_on=_IDEMPOTENT_RETRY_ON, what="Template listing request")
             response.raise_for_status()
             templates = response.json().get("templates", [])
             
@@ -203,7 +255,9 @@ class OkahuEval(BaseEval):
         headers = {"x-api-key": api_key}
         
         try:
-            response = requests.get(url=fact_map_url, headers=headers, timeout=60)
+            response = _request_with_retry(
+                lambda: requests.get(url=fact_map_url, headers=headers, timeout=60),
+                retry_on=_IDEMPOTENT_RETRY_ON, what="Fact map request")
             response.raise_for_status()
             self._fact_map_cache = response.json()
             return self._fact_map_cache
@@ -420,25 +474,37 @@ class OkahuEval(BaseEval):
             logger.debug("Submitting evaluation on fact_id: %s", fact_id)
             logger.debug(f"Request params: {params}")
             
-            # submit evaluation job to okahu and handle response/errors with retries for timeouts
-            max_attempts = 3
-            for attempts in range(1, max_attempts + 1):
-                try:
-                    response = requests.post(
+            # Submit the eval job. Retried ONLY on ConnectTimeout: every POST creates a
+            # new job id and a new charge, so resubmitting a request that may already
+            # have been delivered would duplicate the job. A failed connect cannot have
+            # been delivered, so that one is safe to retry.
+            try:
+                response = _request_with_retry(
+                    lambda: requests.post(
                         url=submit_url,
                         headers=headers,
                         json=payload,
                         params=params,
                         timeout=120
-                    )
-                    break # successfully received a response, exit loop
-                except requests.Timeout as exc:
-                    if attempts < max_attempts:
-                        logger.warning(f"Evaluation request timed out (attempt {attempts}/{max_attempts}), retrying...")
-                    else:
-                        raise AssertionError(f"Evaluation service timed out after {max_attempts} attempts. Service may be overloaded or unreachable.") from exc
-                except requests.RequestException as exc:
-                    raise AssertionError(f"Failed to reach evaluation service: {exc}. Check network connectivity and endpoint configuration.") from exc
+                    ),
+                    retry_on=_SUBMIT_RETRY_ON, what="Evaluation job submission")
+            except requests.ConnectTimeout as exc:
+                raise AssertionError(
+                    f"Could not connect to the evaluation service after {EVAL_RETRY_ATTEMPTS} "
+                    f"attempts: {exc}. Service may be overloaded or unreachable."
+                ) from exc
+            except requests.Timeout as exc:
+                raise AssertionError(
+                    f"Evaluation service did not respond in time: {exc}. Not retried, because "
+                    "the job was already submitted and resubmitting would create a duplicate "
+                    "eval job."
+                ) from exc
+            except requests.RequestException as exc:
+                raise AssertionError(
+                    f"Failed to reach evaluation service: {exc}. Not retried, because the "
+                    "request may have been delivered and resubmitting would create a duplicate "
+                    "eval job. Check network connectivity and endpoint configuration."
+                ) from exc
             try:
                 response.raise_for_status()
             except requests.HTTPError as exc:

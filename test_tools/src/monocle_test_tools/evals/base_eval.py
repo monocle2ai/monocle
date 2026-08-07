@@ -14,6 +14,16 @@ class BaseEval(BaseModel):
         """Optional cleanup hook called at test end. Override if needed."""
         pass
 
+    def set_trace_source(self, trace_source: str) -> None:
+        """Adopt a trace source discovered after this evaluator was constructed.
+
+        `with_evaluation()` may run before `with_trace_source()` -- e.g.
+        `case.run(asserter.with_evaluation("okahu"), ...)`, where the evaluation is
+        configured while building the argument -- so the source is not always known
+        at construction time. Override if the evaluator's behaviour depends on it.
+        """
+        pass
+
     @classmethod
     def classify_eval_input(cls, name_or_path: str) -> Tuple[str, str]:
         """Classify an eval input as builtin or custom.

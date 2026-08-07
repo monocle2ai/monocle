@@ -78,11 +78,12 @@ async def test_multi_turn_runs_all_turns_in_one_session(monkeypatch):
     )
 
     results = await validator.run_multi_turn_agent_async(None, "google_adk", mtc)
-    per_turn_spans, outputs = results
+    per_turn_spans, outputs, turn_ids = results
 
     assert fake.session_ids_seen == ["multi_turn_session_test", "multi_turn_session_test"]
     assert "I can book the flight" in fake.inputs_seen[1]
     assert len(per_turn_spans) == 2
+    assert turn_ids == ["1", "2"]
     assert len(validator._test_all_up_spans) == len(all_spans)
     assert outputs == turn_outputs
     assert fake.end_session_called_with == "multi_turn_session_test"

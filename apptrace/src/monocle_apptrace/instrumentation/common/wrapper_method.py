@@ -49,6 +49,8 @@ from monocle_apptrace.instrumentation.metamodel.adk.adk_handler import AdkSpanHa
 from monocle_apptrace.instrumentation.metamodel.mistral.methods import MISTRAL_METHODS
 from monocle_apptrace.instrumentation.metamodel.strands.methods import STRAND_METHODS
 from monocle_apptrace.instrumentation.metamodel.strands.strands_processor import StrandsSpanHandler
+from monocle_apptrace.instrumentation.metamodel.openhands.methods import OPENHANDS_METHODS
+from monocle_apptrace.instrumentation.metamodel.openhands.openhands_processor import OpenHandsSpanHandler, OpenHandsToolHandler
 from monocle_apptrace.instrumentation.metamodel.agentcore.methods import AGENTCORE_METHODS
 from monocle_apptrace.instrumentation.metamodel.claude_cli.methods import CLAUDE_CLI_PROXY_METHODS
 from monocle_apptrace.instrumentation.metamodel.codex_cli.codex_span_handler import CodexSpanHandler
@@ -132,6 +134,7 @@ DEFAULT_METHODS_LIST = (
     MISTRAL_METHODS +
     HUGGING_FACE_METHODS +
     STRAND_METHODS +
+    OPENHANDS_METHODS +
     AGENTCORE_METHODS +
     CLAUDE_CLI_PROXY_METHODS +
     CODEX_CLI_PROXY_METHODS +
@@ -170,6 +173,8 @@ MONOCLE_SPAN_HANDLERS: Dict[str, SpanHandler] = {
     "lambda_func_handler": lambdaSpanHandler(),
     "adk_handler": AdkSpanHandler(),
     "strands_handler": StrandsSpanHandler(),
+    "openhands_handler": OpenHandsSpanHandler(),
+    "openhands_tool_handler": OpenHandsToolHandler(),
     "claude_handler": ClaudeSpanHandler(),
     "codex_handler": CodexSpanHandler(),
     "github_copilot_handler": GitHubCopilotSpanHandler(),

@@ -8,6 +8,7 @@ from common.custom_exporter import CustomConsoleSpanExporter
 from common.dummy_class import DummyClass
 from common.utils import SCOPE_NAME, SCOPE_VALUE, verify_traceID
 from monocle_apptrace.instrumentation.common.instrumentor import (
+    MonocleInstrumentor,
     amonocle_trace,
     get_tracer_provider,
     monocle_trace,
@@ -1073,6 +1074,45 @@ class TestMonocleTraceMethodInputOutput(unittest.IsolatedAsyncioTestCase):
             # Stop session scope
             stop_scope(session_token)
 
+
+
+class TestInstrumentorVersionCompatibility(unittest.TestCase):
+    """Methods listed by a metamodel but absent from the installed SDK version are a
+    version-compatibility case, not an error. Handled generically so no framework
+    specific checks are needed in common/core."""
+
+    def _instrument_missing_method(self):
+        instrumentor = MonocleInstrumentor(
+            handlers=None,
+            user_wrapper_methods=[
+                WrapperMethod(
+                    package="common.dummy_class",
+                    object_name="DummyClass",
+                    method="method_added_in_a_later_sdk_version",
+                    wrapper_method=task_wrapper,
+                )
+            ],
+            union_with_default_methods=False,
+        )
+        with self.assertLogs("monocle_apptrace.instrumentation.common.instrumentor", level="DEBUG") as logs:
+            instrumentor._instrument(tracer_provider=get_tracer_provider())
+        return instrumentor, logs.output
+
+    def test_missing_method_is_not_an_error(self):
+        instrumentor, log_output = self._instrument_missing_method()
+        self.assertFalse(
+            [line for line in log_output if line.startswith("ERROR")],
+            f"missing method should not be logged as an error: {log_output}",
+        )
+        self.assertTrue(
+            [line for line in log_output if "method_added_in_a_later_sdk_version" in line and line.startswith("DEBUG")],
+            f"missing method should be logged at debug: {log_output}",
+        )
+        self.assertNotIn(
+            "method_added_in_a_later_sdk_version",
+            [method.get("method") for method in instrumentor.instrumented_method_list],
+            "missing method should not be recorded as instrumented",
+        )
 
 
 if __name__ == '__main__':

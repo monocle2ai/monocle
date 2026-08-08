@@ -17,6 +17,9 @@ The Okahu cloud loader is pre-populated with trace id and workflow name.
 
 --eval [TYPE:]NAME_OR_PATH=EXPECTED   Inject eval assertions (repeatable).
   Type auto-detected (path -> custom, else built-in) or forced via 'builtin:'/'custom:'.
+
+Evals already recorded on the source fact are auto-discovered and added as
+check_eval() baseline assertions; disable with --no-discover-evals.
 """
 
 import argparse
@@ -99,8 +102,9 @@ def main():
     )
     parser.add_argument(
         "--eval-fact",
-        default="traces",
-        help="Default fact_name for injected --eval assertions (default: traces).",
+        default=None,
+        help="Fact_name for injected --eval assertions (default: traces). Also overrides "
+             "the auto-matched fact level used for eval discovery.",
     )
     parser.add_argument(
         "--eval-source",
@@ -108,6 +112,12 @@ def main():
         help="Evaluator for the generated with_evaluation(...) calls; also drives how "
              "eval names/paths are classified as built-in vs custom. "
              "Required when --eval is used (e.g. okahu).",
+    )
+    parser.add_argument(
+        "--no-discover-evals",
+        dest="discover_evals",
+        action="store_false",
+        help="Disable auto-discovery of evals already recorded on the source fact.",
     )
 
     args = parser.parse_args()
@@ -143,25 +153,32 @@ def main():
                 session_id=args.session_id, workflow_name=args.workflow_name,
                 trace_source=args.trace_source,
                 injected_evals=injected_evals, eval_source=args.eval_source,
+                discover_evals=args.discover_evals, discovery_fact_name=args.eval_fact,
             )
         elif has_fact:
             generator = TestGenerator.from_okahu_scope(
                 scope_name=args.fact_name, scope_id=args.fact_id,
                 workflow_name=args.workflow_name, trace_source=args.trace_source,
                 injected_evals=injected_evals, eval_source=args.eval_source,
+                discover_evals=args.discover_evals, discovery_fact_name=args.eval_fact,
             )
         elif args.trace_id:
             generator = TestGenerator.from_okahu(
                 trace_id=args.trace_id, workflow_name=args.workflow_name,
                 trace_source=args.trace_source,
                 injected_evals=injected_evals, eval_source=args.eval_source,
+                discover_evals=args.discover_evals, discovery_fact_name=args.eval_fact,
             )
         else:
             generator = TestGenerator.from_json_file(
                 trace_file, trace_source=args.trace_source,
                 injected_evals=injected_evals, eval_source=args.eval_source,
+                discover_evals=args.discover_evals, discovery_fact_name=args.eval_fact,
             )
         test_code = generator.generate_test_code(test_name=args.test_name)
+        note = getattr(generator, "_discovery_note", None)
+        if note:
+            print(f"Warning: {note}", file=sys.stderr)
         print(test_code)
     except Exception as e:
         print(f"Error: {e}", file=sys.stderr)

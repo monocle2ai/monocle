@@ -522,5 +522,127 @@ def test_session_loader_line_targets_the_session():
     assert "TRACE_ID" not in code
 
 
+# --- Eval discovery: fact-level resolution + factory plumbing (Task 4) -----------
+
+def test_resolve_discovery_fact_name_auto_match():
+    spans = [_span({"span.type": "workflow", "workflow.name": "wf"})]
+
+    trace_gen = TestGenerator(spans, trace_file="t.json")
+    assert trace_gen._resolve_discovery_fact_name() == "traces"
+
+    sess_gen = TestGenerator(spans, session_id="s1", workflow_name="wf")
+    assert sess_gen._resolve_discovery_fact_name() == "agentic_sessions"
+
+    # A supported scope stays; an unsupported one falls back to traces.
+    scope_ok = TestGenerator(spans, scope_name="conversations", scope_id="c1", workflow_name="wf")
+    assert scope_ok._resolve_discovery_fact_name() == "conversations"
+    scope_bad = TestGenerator(spans, scope_name="test_id", scope_id="r1", workflow_name="wf")
+    assert scope_bad._resolve_discovery_fact_name() == "traces"
+
+
+def test_discovery_fact_name_override_wins():
+    spans = [_span({"span.type": "workflow", "workflow.name": "wf"})]
+    gen = TestGenerator(spans, session_id="s1", workflow_name="wf",
+                        discovery_fact_name="traces")
+    assert gen._resolve_discovery_fact_name() == "traces"
+
+
+def test_factories_forward_discover_flag():
+    with patch("monocle_test_tools.span_loader.OkahuSpanLoader.get_spans", return_value=[]):
+        gen = TestGenerator.from_okahu(trace_id="abc", workflow_name="wf",
+                                       discover_evals=False)
+    assert gen.discover_evals is False
+
+
+# --- Eval discovery: merge + emit (Task 5) ---------------------------------------
+
+def _disc_spec(name, label, fact_id="abc123", fact_name="traces"):
+    return {"criteria": name, "expected": label, "fact_name": fact_name,
+            "eval_type": "builtin", "_discovered": True, "_discovered_fact_id": fact_id}
+
+
+def test_discovered_eval_emitted_with_baseline_comment():
+    spans = [_span({"span.type": "workflow", "workflow.name": "wf"})]
+    with patch("monocle_test_tools.test_generator.discover_fact_evals",
+               return_value=([_disc_spec("correctness", "correct")], None)):
+        code = TestGenerator(spans, trace_file="t.json").generate_test_code()
+    assert 'check_eval("correctness", expected="correct", fact_name="traces")' in code
+    assert "# discovered from fact abc123; adjust as needed" in code
+
+
+def test_no_evals_found_emits_comment():
+    spans = [_span({"span.type": "workflow", "workflow.name": "wf"})]
+    with patch("monocle_test_tools.test_generator.discover_fact_evals",
+               return_value=([], "No existing evals found on this fact")):
+        code = TestGenerator(spans, trace_file="t.json").generate_test_code()
+    assert "# No existing evals found on this fact" in code
+
+
+def test_discovery_skipped_emits_comment():
+    spans = [_span({"span.type": "workflow", "workflow.name": "wf"})]
+    with patch("monocle_test_tools.test_generator.discover_fact_evals",
+               return_value=([], "eval discovery skipped: OKAHU_API_KEY not configured")):
+        code = TestGenerator(spans, trace_file="t.json").generate_test_code()
+    assert "# eval discovery skipped: OKAHU_API_KEY not configured" in code
+
+
+def test_injected_eval_wins_over_discovered_conflict():
+    spans = [_span({"span.type": "workflow", "workflow.name": "wf"})]
+    injected = [{"criteria": "correctness", "expected": "perfect", "eval_type": "builtin"}]
+    with patch("monocle_test_tools.test_generator.discover_fact_evals",
+               return_value=([_disc_spec("correctness", "correct")], None)):
+        gen = TestGenerator(spans, trace_file="t.json", injected_evals=injected)
+        gen.analyze()
+    correctness = [e for e in gen.evals if e.get("criteria") == "correctness"]
+    assert len(correctness) == 1
+    assert correctness[0]["expected"] == "perfect"      # injected wins
+    assert not correctness[0].get("_discovered")
+
+
+def test_discovery_disabled_makes_no_call():
+    spans = [_span({"span.type": "workflow", "workflow.name": "wf"})]
+    with patch("monocle_test_tools.test_generator.discover_fact_evals") as disc:
+        TestGenerator(spans, trace_file="t.json", discover_evals=False).generate_test_code()
+    disc.assert_not_called()
+
+
+# --- CLI --no-discover-evals (Task 6) --------------------------------------------
+
+def test_cli_no_discover_evals_flag_parsed(monkeypatch):
+    import sys
+    from monocle_test_tools import generate_test
+
+    class _FakeGen:
+        _discovery_note = None
+        def generate_test_code(self, test_name="test_generated"):
+            return "print('ok')"
+
+    # main() does `from ...test_generator import TestGenerator`, binding the real
+    # class object; patch the method on that class so the local name is affected.
+    with patch("monocle_test_tools.test_generator.TestGenerator.from_json_file",
+               return_value=_FakeGen()) as mock_ff:
+        monkeypatch.setattr(sys, "argv", ["prog", "trace.json", "--no-discover-evals"])
+        rc = generate_test.main()
+    assert rc == 0
+    assert mock_ff.call_args.kwargs.get("discover_evals") is False
+
+
+def test_cli_discover_evals_default_on(monkeypatch):
+    import sys
+    from monocle_test_tools import generate_test
+
+    class _FakeGen:
+        _discovery_note = None
+        def generate_test_code(self, test_name="test_generated"):
+            return "print('ok')"
+
+    with patch("monocle_test_tools.test_generator.TestGenerator.from_json_file",
+               return_value=_FakeGen()) as mock_ff:
+        monkeypatch.setattr(sys, "argv", ["prog", "trace.json"])
+        rc = generate_test.main()
+    assert rc == 0
+    assert mock_ff.call_args.kwargs.get("discover_evals") is True
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

@@ -99,9 +99,13 @@ Supported exporters:
 - `memory` - Store traces in memory (useful for testing)
 - `s3` - Upload traces to AWS S3 bucket
 - `blob` - Upload traces to Azure Blob Storage
+- `gcs` - Upload traces to Google Cloud Storage
 - `okahu` - Send traces to Okahu observability platform
 - `otlp` - Send traces to any OTLP-compatible backend (e.g., Jaeger, Zipkin, Grafana Tempo, OpenTelemetry Collector)
 - `otlp-genai-semconv` - Send traces over OTLP and add OpenTelemetry `gen_ai.*` semantic attributes
+- `postgres` - Write traces to a PostgreSQL `traces` table (set `MONOCLE_POSTGRES_CONNECTION_URL`; install the `postgres` extra)
+- `clickhouse` - Write traces to a ClickHouse `traces` table (set `MONOCLE_CLICKHOUSE_CONNECTION_URL`; install the `clickhouse` extra)
+- `paygentic` - Send traces to Paygentic
 
 Examples:
 ```bash

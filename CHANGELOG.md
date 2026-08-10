@@ -1,6 +1,7 @@
 ## Unreleased
 
 - feat(test_tools)!: the eval-result matrix row is now template-agnostic — `judge_output` carries the judge's structured output verbatim, and the `hallucination`-specific `claim_verdicts`, `hallucination_types` and `entity_match_check` columns are removed. Previously only those three fields were promoted, so every other template's `structure_output` (e.g. `addressed_aspects` / `missing_aspects` / `completeness_score` on `conversation_completeness`) was dropped and downstream analysis had only the free-text `explanation` to parse. **Migration:** read `row["judge_output"]["claim_verdicts"]` instead of `row["claim_verdicts"]`.
+- feat(exporters): add ClickHouse span exporter (`MONOCLE_EXPORTER=clickhouse`), configured via `MONOCLE_CLICKHOUSE_CONNECTION_URL`; install with the `clickhouse` extra
 - feat(exporters): configurable file-name prefix for file and Azure Blob exporters via `MONOCLE_FILE_PREFIX` and `MONOCLE_BLOB_FILE_PREFIX`; S3 `MONOCLE_S3_KEY_PREFIX` renamed to `MONOCLE_S3_FILE_PREFIX` (old name still works with deprecation warning) ([#149](https://github.com/monocle2ai/monocle/issues/149))
 - chore(deps): add `opentelemetry-exporter-otlp-proto-http` as a default dependency so the OTLP exporter works out of the box ([#570](https://github.com/monocle2ai/monocle/issues/570))
 - feat(exporters): add `MONOCLE_CONSOLE` env var to enable console output alongside any configured exporter ([#577](https://github.com/monocle2ai/monocle/pull/577))

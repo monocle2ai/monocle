@@ -379,6 +379,34 @@ async def test_strands_agent(test_case: TestCase):
     )
 ```
 
+### AWS Bedrock AgentCore
+
+Unlike the other runners, `agentcore` is a *remote* runner: it invokes an agent already deployed to AWS Bedrock AgentCore Runtime via boto3, so no agent framework needs to be installed locally. The agent argument is the deployed agent's Runtime ARN (the endpoint-qualified form is accepted and split automatically):
+
+```python
+ARN = "arn:aws:bedrock-agentcore:us-east-1:<account>:runtime/<agent-id>"
+
+response = monocle_trace_asserter.run_agent(
+    ARN, "agentcore",
+    "Book a flight from San Jose to Seattle for 22 Nov 2026",
+    session_id=f"monocle_test_session_{uuid.uuid4().hex}",
+)
+```
+
+- **Region** is taken from the ARN, so the agent is reached in the region it was deployed to regardless of your local AWS default region.
+- **Payload** sent to the agent is `{"prompt": <message>}`, matching the `BedrockAgentCoreApp` entrypoint contract. Pass a dict to send a different shape verbatim.
+- **Response**: the runner reads the response stream and JSON-decodes it. An agent that returns text (the common case) yields a plain `str`; an agent returning a JSON object yields a `dict`.
+- **`session_id`** is sent as `runtimeSessionId` so the deployed agent keeps conversation context across turns. AWS requires at least 33 characters — Monocle's auto-generated session ids satisfy this, and shorter ids raise a `ValueError` rather than being silently rewritten. Omit it to let AgentCore generate one.
+- **Traces**: spans are produced *inside* the deployed agent and exported by its own Monocle instrumentation, so they are not in the test process. Retrieve them by session — the agent stamps the `runtimeSessionId` onto its spans as `scope.agentic.session`, which Okahu indexes as the `agent_sessions` fact:
+
+```python
+monocle_trace_asserter.with_trace_source(
+    "okahu", id=session_id, fact_name="session", workflow_name="<agent's workflow name>",
+).called_tool("book_flight_tool")
+```
+
+Allow a few seconds for the spans to reach Okahu after the call returns.
+
 ---
 
 ## Offline Testing with Pre-Recorded Traces
@@ -911,6 +939,7 @@ A row must declare an `expected` or `not_expected` label — a guard rail alone 
 | `llamaindex` | LlamaIndex |
 | `strands` | Strands Agents |
 | `msagent` | Microsoft Semantic Kernel / AutoGen |
+| `agentcore` | AWS Bedrock AgentCore Runtime 
 
 ---
 

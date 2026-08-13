@@ -31,3 +31,18 @@ class AgentRunner:
         Default: none."""
         return []
 
+    def get_remote_trace_query(self) -> dict:
+        """Identify this run's spans in the remote trace source.
+
+        Returned mapping is passed as keyword arguments to
+        ``MonocleValidator.import_traces`` (``id``, ``fact_name``,
+        ``workflow_name``, ...). Runners whose remote spans share the test's
+        trace id need nothing here, so the default is empty and the validator
+        falls back to looking the trace id up from the local spans.
+
+        A runner whose spans are produced in another process — and therefore
+        under a different trace id and workflow — overrides this to name the
+        fact that does identify them (for example an agent session id).
+        """
+        return {}
+

@@ -5,6 +5,8 @@
 - feat(exporters): add `MONOCLE_CONSOLE` env var to enable console output alongside any configured exporter ([#577](https://github.com/monocle2ai/monocle/pull/577))
 - fix(test_tools): lazy-load `SentenceTransformer` to prevent crash at pytest collection time in network-restricted environments ([#576](https://github.com/monocle2ai/monocle/pull/576))
 - feat(test_tools): add `agentcore` runner to invoke an agent deployed to AWS Bedrock AgentCore Runtime remotely via boto3 `invoke_agent_runtime`, with session-based retrieval of the deployed agent's spans from Okahu
+- feat(test_tools): runners can identify their remote spans by a fact other than the trace id via `AgentRunner.get_remote_trace_query()`; the `agentcore` runner uses it to correlate the deployed agent's spans by the AgentCore session, so existing assertions apply to them
+- feat: an agent deployed to AWS Bedrock AgentCore returns its spans in the invocation response when `MONOCLE_ENABLE_TRACE_RETURN` is set, and the `agentcore` runner strips them off before the caller sees the response — no trace backend needed. Falls back to session-based retrieval when the deployed agent does not return them
 
 ## Version 0.8.11 (2026-08-03)
 - fix: Disable the second API call that stored evaluation results when `shadow_eval = True`, fixing duplicate eval result storage ([#771](https://github.com/monocle2ai/monocle/pull/771))

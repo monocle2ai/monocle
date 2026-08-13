@@ -14,6 +14,8 @@ RUNTIME_ARN = "arn:aws:bedrock-agentcore:us-west-2:123456789012:runtime/test_age
 ENDPOINT_ARN = RUNTIME_ARN + "/runtime-endpoint/DEFAULT"
 # Same shape as Monocle's auto-generated session ids, which clear AgentCore's minimum.
 VALID_SESSION_ID = "monocle_test_session_" + "a" * 32
+# Workflow the deployed agent reports under — not the test's own workflow.
+REMOTE_WORKFLOW = "deployed_agent_workflow"
 
 
 class FakeStream:
@@ -261,6 +263,67 @@ def test_remote_trace_hooks_are_inert():
 
     assert runner.get_remote_traces_source() is None
     assert runner.get_remote_spans() == []
+
+
+def test_no_remote_source_until_a_workflow_is_configured(monkeypatch):
+    """Without a workflow name there is nothing to query, so retrieval is skipped."""
+    monkeypatch.delenv("AGENTCORE_TRACE_WORKFLOW", raising=False)
+    runner = AgentCoreRunner(client=FakeClient())
+
+    runner.run_agent(RUNTIME_ARN, "hi", session_id=VALID_SESSION_ID)
+
+    assert runner.get_remote_traces_source() is None
+    assert runner.get_remote_trace_query() == {}
+
+
+def test_remote_query_uses_the_session_id_that_was_sent():
+    """The lookup key is the exact runtimeSessionId AgentCore received."""
+    client = FakeClient()
+    runner = AgentCoreRunner(client=client, trace_workflow_name=REMOTE_WORKFLOW)
+
+    runner.run_agent(RUNTIME_ARN, "hi", session_id=VALID_SESSION_ID)
+
+    assert client.last_request["runtimeSessionId"] == VALID_SESSION_ID
+    assert runner.get_remote_traces_source() == "okahu"
+    assert runner.get_remote_trace_query() == {
+        "id": VALID_SESSION_ID,
+        "fact_name": "session",
+        "workflow_name": REMOTE_WORKFLOW,
+    }
+
+
+def test_remote_query_tracks_the_latest_session():
+    """Each invocation retargets the lookup at that call's session."""
+    runner = AgentCoreRunner(client=FakeClient(), trace_workflow_name=REMOTE_WORKFLOW)
+    second_session = "monocle_test_session_" + "b" * 32
+
+    runner.run_agent(RUNTIME_ARN, "one", session_id=VALID_SESSION_ID)
+    runner.run_agent(RUNTIME_ARN, "two", session_id=second_session)
+
+    assert runner.get_remote_trace_query()["id"] == second_session
+
+
+def test_workflow_name_falls_back_to_env(monkeypatch):
+    monkeypatch.setenv("AGENTCORE_TRACE_WORKFLOW", REMOTE_WORKFLOW)
+    runner = AgentCoreRunner(client=FakeClient())
+
+    runner.run_agent(RUNTIME_ARN, "hi", session_id=VALID_SESSION_ID)
+
+    assert runner.get_remote_trace_query()["workflow_name"] == REMOTE_WORKFLOW
+
+
+def test_aws_generated_session_is_not_used_for_lookup():
+    """AgentCore generates a session when none is sent, but it is not on the request.
+
+    Correlation would need the id the agent actually stamped on its spans, so
+    the runner reports no query rather than guessing one.
+    """
+    runner = AgentCoreRunner(client=FakeClient(), trace_workflow_name=REMOTE_WORKFLOW)
+
+    runner.run_agent(RUNTIME_ARN, "hi")
+
+    assert runner.get_remote_trace_query() == {}
+    assert runner.get_remote_traces_source() is None
 
 
 if __name__ == "__main__":

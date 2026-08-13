@@ -134,5 +134,34 @@ def test_agentcore_remote_agent_response_and_spans(monocle_trace_asserter: Trace
     monocle_trace_asserter.has_scope("agentic.session", session_id)
 
 
+@pytest.mark.skipif(
+    not AGENTCORE_TRACE_WORKFLOW,
+    reason="AGENTCORE_TRACE_WORKFLOW is not set; requires an Okahu API key for the tenant "
+           "the deployed agent exports to.",
+)
+def test_agentcore_remote_spans_are_retrieved_by_session(monocle_trace_asserter: TraceAssertion):
+    """The same spans, retrieved without asking for them explicitly.
+
+    ``run_agent`` reports the session as the runner's remote trace query, so the
+    spans the agent produced inside AWS are imported and asserted on like local
+    ones — no ``with_trace_source`` call, and no waiting loop in the test.
+    """
+    session_id = _session_id()
+
+    response = monocle_trace_asserter.run_agent(
+        AGENTCORE_RUNTIME_URL,
+        "agentcore",
+        "Book a flight from San Jose to Seattle for 22 Oct 2026",
+        session_id=session_id,
+    )
+
+    assert isinstance(response, str)
+    assert "Seattle" in response
+
+    monocle_trace_asserter.called_agent("agc_travel_agent")
+    monocle_trace_asserter.called_tool("book_flight_tool")
+    monocle_trace_asserter.has_scope("agentic.session", session_id)
+
+
 if __name__ == "__main__":
     pytest.main([__file__])

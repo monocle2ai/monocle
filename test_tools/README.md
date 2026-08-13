@@ -180,6 +180,14 @@ Each turn is an ordinary `TestCase`, so per-turn `test_output`, `test_spans`, an
 ]
 ```
 
+This works with the fluent API too. If you run each turn as a separate `run_agent_async` call with the same `session_id`, the turns are numbered (`"1"`, `"2"`, ...). Then check a turn with `has_scope`:
+
+```python
+await monocle_trace_asserter.run_agent_async(agent, "langgraph", "Book me a flight for 26th Nov 2025.", session_id="s")  # turn "1"
+await monocle_trace_asserter.run_agent_async(agent, "langgraph", "Fly to Mumbai.", session_id="s")                      # turn "2"
+
+monocle_trace_asserter.called_tool("adk_book_flight").has_scope("turn_id", "2")   # booked in turn 2
+```
 **Chaining turn output into the next input.** Use the `{previous_output}` placeholder in a later turn's `test_input` to feed the prior turn's result forward:
 
 ```python

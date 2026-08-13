@@ -72,6 +72,9 @@ class MonocleValidator:
         self._trace_source_fact_id: Optional[str] = None
         self._trace_source_fact_name: Optional[str] = None
         self._trace_source_workflow_name: Optional[str] = None
+        # Per-session run_agent_async count, used to default an unset turn_id to
+        # the next 1-based turn index for that session. Reset per test.
+        self._session_turn_counters: dict[str, int] = {}
         test_trace_path:str = os.path.join(".", DEFAULT_TRACE_FOLDER, "test_traces")
         os.environ["MONOCLE_TRACE_OUTPUT_PATH"] = test_trace_path
         if exporter_list is None:
@@ -113,6 +116,7 @@ class MonocleValidator:
         self._trace_source_fact_id = None
         self._trace_source_fact_name = None
         self._trace_source_workflow_name = None
+        self._session_turn_counters = {}
 
     @property
     def spans(self):
@@ -408,6 +412,12 @@ class MonocleValidator:
         if agent_runner is None:
             raise ValueError(f"Unsupported agent type: {agent_type}")
         mock_tool_token = None
+        # Unset turn_id defaults to the next 1-based turn index for this session
+        # (tags scope.turn_id on repeated run_agent_async calls). No session_id
+        # means a single turn, left untagged.
+        if turn_id is None and session_id is not None:
+            self._session_turn_counters[session_id] = self._session_turn_counters.get(session_id, 0) + 1
+            turn_id = str(self._session_turn_counters[session_id])
         turn_token = start_scopes({TURN_SCOPE_NAME: turn_id}) if turn_id is not None else None
         try:
             context = self._set_wrapper_methods(mock_tools)
@@ -505,6 +515,7 @@ class MonocleValidator:
             for index, turn in enumerate(multi_turn_case.turns, start=1):
                 self.clear_spans()
                 turn_id = turn.turn_id if turn.turn_id is not None else str(index)
+                turn.turn_id = turn_id  
                 turn_token = start_scopes({TURN_SCOPE_NAME: turn_id})
                 mock_tool_token = None
                 turn_input = self._chain_turn_input(turn.test_input, previous_output)

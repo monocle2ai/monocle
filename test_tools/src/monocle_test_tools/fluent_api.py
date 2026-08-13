@@ -230,6 +230,13 @@ class TraceAssertion():
         window_kwargs = ("start_time", "end_time")
         has_window = any(kwargs.get(k) is not None for k in window_kwargs)
 
+        # with_evaluation() copies the validator's trace source into the evaluator at
+        # construction time, so an evaluator configured BEFORE this call holds a stale
+        # (usually empty) source. Push the real one down so fluent call order does not
+        # change how the eval is submitted.
+        if isinstance(self._eval, BaseEval):
+            self._eval.set_trace_source(source)
+
         if source == "local":
             # Default behavior: use traces already in memory.
             if has_window:
@@ -896,7 +903,15 @@ class TraceAssertion():
             "total_tokens": None,
         }
 
-        eval_result, explanation = self._eval.evaluate(filtered_spans=self._filtered_spans, eval_name=eval_name, fact_name=fact_name, template=template)
+        try:
+            eval_result, explanation = self._eval.evaluate(filtered_spans=self._filtered_spans, eval_name=eval_name, fact_name=fact_name, template=template)
+        except Exception as exc:
+            # evaluate() never produced a label (transport error, read timeout, an
+            # empty `result` from the service...). Record WHY on the stash before
+            # re-raising, so the eval-result-matrix row is self-describing instead of
+            # an empty actual whose cause only exists in the pytest log.
+            self._last_eval.update(failure_reason=str(exc))
+            raise
 
         self._last_eval.update(
             label=eval_result,

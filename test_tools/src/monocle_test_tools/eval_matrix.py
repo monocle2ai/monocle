@@ -29,15 +29,17 @@ def build_eval_matrix_row(run_id: str, scenario: str, last_eval: dict, passed: b
     `last_eval` is expected to look like the dict stashed by
     `TraceAssertion.check_eval`:
         {"trace_id": str, "expected": ..., "fact_name": str, "label": ...,
-         "explanation": ..., "judge_output": dict, "total_tokens": ...}
+         "explanation": ..., "judge_output": dict, "total_tokens": ...,
+         "failure_reason": str}
 
     Returns a dict with exactly these keys (schema is consumed downstream,
     do not rename): run_id, scenario, trace_id, expected, actual, status,
     explanation, total_tokens, claim_verdicts, hallucination_types,
-    entity_match_check, fact_id, workflow, job_id.
+    entity_match_check, fact_id, workflow, job_id, failure_reason.
 
     The trailing fact_id/workflow/job_id are additive columns for the filtered
     flow; interactive rows carry empty-string defaults so no consumer breaks.
+    `failure_reason` is likewise additive and empty unless evaluate() raised.
     """
     last_eval = last_eval or {}
     judge_output = last_eval.get("judge_output") or {}
@@ -65,6 +67,10 @@ def build_eval_matrix_row(run_id: str, scenario: str, last_eval: dict, passed: b
         "fact_id": last_eval.get("fact_id") or "",
         "workflow": last_eval.get("workflow") or "",
         "job_id": last_eval.get("job_id") or "",
+        # Why the eval produced no label, when it produced none. Empty for passing
+        # rows and for judge disagreements (those are described by actual +
+        # explanation); populated when evaluate() raised.
+        "failure_reason": last_eval.get("failure_reason") or "",
     }
 
 

@@ -4,9 +4,16 @@ import logging
 import os
 from typing import Any, Optional, Union
 
+from monocle_test_tools.file_span_loader import JSONSpanLoader
 from monocle_test_tools.runner.agent_runner import AgentRunner
 
 logger = logging.getLogger(__name__)
+
+# A deployed agent running with trace-return enabled appends its spans after a
+# delimiter of the form ``__MONOCLE_TRACES__<hex>__``. The prefix is fixed, so
+# the trailer can be located without the response header the HTTP path uses.
+_DELIMITER_PREFIX = "__MONOCLE_TRACES__"
+_DELIMITER_SUFFIX = "__"
 
 # Okahu indexes the deployed agent's session scope under this fact name.
 REMOTE_TRACE_SOURCE = "okahu"
@@ -67,6 +74,7 @@ class AgentCoreRunner(AgentRunner):
         self._trace_workflow_name = trace_workflow_name or os.environ.get(
             AGENTCORE_TRACE_WORKFLOW_ENV)
         self._last_session_id: Optional[str] = None
+        self._remote_spans: list = []
 
     def _get_client(self, region_hint: Optional[str] = None) -> Any:
         """Return the boto3 client, creating it on first use.
@@ -150,6 +158,34 @@ class AgentCoreRunner(AgentRunner):
         else:
             body = {"prompt": test_message}
         return json.dumps(body).encode("utf-8")
+
+    def _split_trailer(self, text: str) -> str:
+        """Take any trace-return trailer off the response and keep its spans.
+
+        A deployed agent running with trace-return enabled appends its spans to
+        the value it returns, after a delimiter. The delimiter starts with a
+        fixed prefix, so it can be found without the response header the HTTP
+        path relies on — boto3 cannot carry one. Returns the text with the
+        trailer removed, so callers only ever see the agent's own answer.
+        """
+        index = text.find(_DELIMITER_PREFIX)
+        if index == -1:
+            return text
+        end = text.find(_DELIMITER_SUFFIX, index + len(_DELIMITER_PREFIX))
+        if end == -1:
+            return text
+        payload = text[end + len(_DELIMITER_SUFFIX):]
+        try:
+            from monocle_apptrace.instrumentation.common.trace_return import decode_payload
+            self._remote_spans = JSONSpanLoader.from_json_str(decode_payload(payload))
+        except Exception as e:
+            logger.warning(f"Failed to deserialize spans returned by the agent: {e}")
+            self._remote_spans = []
+        return text[:index]
+
+    def get_remote_spans(self) -> list:
+        """Spans the deployed agent returned alongside its response, if any."""
+        return self._remote_spans
 
     @staticmethod
     def _decode_response(response: dict) -> Any:
@@ -235,13 +271,19 @@ class AgentCoreRunner(AgentRunner):
         # Remembered as sent, so remote spans are looked up by exactly the id
         # AgentCore stamped on them rather than a separately derived one.
         self._last_session_id = request.get("runtimeSessionId")
+        # Spans belong to one invocation; a reused runner must not report the
+        # previous call's.
+        self._remote_spans = []
 
         # AWS errors are left to propagate so the framework's expect_errors
         # handling sees a real failure rather than an error string as a response.
         client = self._get_client(region_hint=self._region_from_arn(runtime_arn))
         response = client.invoke_agent_runtime(**request)
         logger.debug(f"AgentCore response statusCode={response.get('statusCode')}")
-        return self._decode_response(response)
+        result = self._decode_response(response)
+        if isinstance(result, str):
+            result = self._split_trailer(result)
+        return result
 
     def get_remote_traces_source(self) -> Optional[str]:
         """Remote spans live in the trace backend the deployed agent exports to.
@@ -249,7 +291,13 @@ class AgentCoreRunner(AgentRunner):
         Reports a source only once retrieval can actually succeed — a workflow
         name is configured and a session id was sent — so an unconfigured runner
         skips retrieval instead of quietly importing nothing.
+
+        Reports nothing when the agent already returned its spans in the
+        response: those are the same spans, so fetching them again would add
+        every one of them twice.
         """
+        if self._remote_spans:
+            return None
         if self._trace_workflow_name and self._last_session_id:
             return REMOTE_TRACE_SOURCE
         return None
@@ -262,7 +310,7 @@ class AgentCoreRunner(AgentRunner):
         session fact, so the id sent on the call is enough to find the spans it
         produced.
         """
-        if not (self._trace_workflow_name and self._last_session_id):
+        if self._remote_spans or not (self._trace_workflow_name and self._last_session_id):
             return {}
         return {
             "id": self._last_session_id,

@@ -37,6 +37,9 @@ from monocle_apptrace.instrumentation.common.utils import set_workflow_name, get
 
 logger = logging.getLogger(__name__)
 RETRY_TIMEOUT_SECONDS = 10
+# Spans a runner produced in another process are exported by that process, so
+# they land in the trace backend a little after the call returns.
+REMOTE_FACT_TIMEOUT_SECONDS = int(os.getenv("MONOCLE_REMOTE_TRACE_TIMEOUT", "60"))
 
 class MonocleValidator:
     memory_exporter:MonocleInMemorySpanExporter = None
@@ -393,7 +396,7 @@ class MonocleValidator:
             if mock_tool_token is not None:
                 detach(mock_tool_token)
         self._trace_source =  agent_runner.get_remote_traces_source()
-        self._fetch_remote_traces()
+        self._fetch_remote_traces(**agent_runner.get_remote_trace_query())
         remote_spans = agent_runner.get_remote_spans()
         if remote_spans:
             self.add_remote_spans(remote_spans)
@@ -417,7 +420,7 @@ class MonocleValidator:
             if turn_token is not None:
                 stop_scope(turn_token)
         self._trace_source = agent_runner.get_remote_traces_source()
-        self._fetch_remote_traces()
+        self._fetch_remote_traces(**agent_runner.get_remote_trace_query())
         remote_spans = agent_runner.get_remote_spans()
         if remote_spans:
             self.add_remote_spans(remote_spans)
@@ -524,7 +527,7 @@ class MonocleValidator:
                         stop_scope(turn_token)
 
                 self._trace_source = agent_runner.get_remote_traces_source()
-                self._fetch_remote_traces()
+                self._fetch_remote_traces(**agent_runner.get_remote_trace_query())
                 turn_spans = self.spans
                 per_turn_spans.append(turn_spans)
                 results.append(result)
@@ -576,15 +579,34 @@ class MonocleValidator:
             self.validate_result(session_case, results[-1] if results else None)
         return results
 
-    def _fetch_remote_traces(self):
+    def _fetch_remote_traces(self, **query):
+        """Import the spans this run produced remotely.
+
+        ``query`` comes from the runner's ``get_remote_trace_query()`` and names
+        the fact identifying those spans. When it is empty the trace id is
+        resolved from the local spans, which is the original behaviour.
+
+        Spans exported from another process reach the backend a little after the
+        call returns, so a fact-based lookup polls for longer than the trace-id
+        lookup and also retries the "not found yet" ConnectionError that the
+        span loader raises while they are still in flight.
+        """
         import time
-        deadline = time.monotonic() + RETRY_TIMEOUT_SECONDS
+        deadline = time.monotonic() + (REMOTE_FACT_TIMEOUT_SECONDS if query else RETRY_TIMEOUT_SECONDS)
         last_exc = None
         while time.monotonic() < deadline:
             try:
-                self.import_traces(self._trace_source)
+                self.import_traces(self._trace_source, **query)
                 return
             except requests.exceptions.HTTPError | requests.HTTPError as e:
+                time.sleep(1)
+                last_exc = e
+            except ConnectionError as e:
+                # Raised by the span loader while the remote spans are still in
+                # flight. Only a fact lookup can wait that out; without a query
+                # the original behaviour of surfacing it immediately is kept.
+                if not query:
+                    raise
                 time.sleep(1)
                 last_exc = e
             except ValueError as e:

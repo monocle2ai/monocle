@@ -16,8 +16,6 @@ from monocle_test_tools.evals.okahu_filtered_eval import OkahuFilteredEval, has_
 
 logger = logging.getLogger(__name__)
 
-_SUPPORTED_EVAL_SOURCES = ("okahu",)
-
 # A result row whose eval_id starts with this prefix comes from a user-supplied
 # custom template. Okahu does not store custom templates, so the generated
 # assertion must be commented out with a request for the template path rather
@@ -107,21 +105,20 @@ def _query_fact_evals(client, workflow_name: str, fact_ids: List[str], *, fact_n
     return list(client._paginate_post(url, body))
 
 
-def discover_fact_evals(spans, *, fact_name: str = "traces",
-                        eval_source: str = "okahu") -> Tuple[List[dict], Optional[str]]:
+def discover_fact_evals(spans, *, fact_name: str = "traces") -> Tuple[List[dict], Optional[str]]:
     """Query the Okahu eval store for evals already recorded on the fact.
 
     Returns (specs, note): ``note`` is None when specs were found, otherwise a
     human-readable reason for the generated-code comment + stderr warning.
     Never raises.
 
+    Provider selection is handled by the caller (``BaseEval`` registry dispatch);
+    this module is the Okahu implementation reached via ``OkahuEval.discover_fact_evals``.
+
     A row whose eval_id starts with ``custom_evaluation__`` comes from an unsaved
     custom template; its spec is tagged ``_discovered_custom`` so the generator
     emits a commented-out assertion asking for the template path.
     """
-    if eval_source not in _SUPPORTED_EVAL_SOURCES:
-        return [], f"eval discovery skipped: unsupported eval_source '{eval_source}'"
-
     # Only the API key must be set. The Okahu endpoints default to prod (users
     # never set them); developers override OKAHU_API_ENDPOINT / _EVALUATION_ENDPOINT.
     api_key = (os.getenv("OKAHU_API_KEY") or "").strip()

@@ -2,7 +2,7 @@ import math
 from typing import List, Optional, Set, Dict
 from opentelemetry.sdk.trace import ReadableSpan
 
-from monocle_test_tools.evals.okahu_eval_discovery import discover_fact_evals
+from monocle_test_tools.evals.eval_manager import get_supported_eval_sources
 
 
 # Allowed values for the ``trace_source`` argument. When set, only the loader
@@ -10,7 +10,9 @@ from monocle_test_tools.evals.okahu_eval_discovery import discover_fact_evals
 SUPPORTED_TRACE_SOURCES = ("file", "okahu")
 
 
-SUPPORTED_EVAL_SOURCES = ("okahu",)
+# Eval providers usable as an ``eval_source`` come from the eval registry, so a
+# new evaluator can be registered without editing the generator.
+SUPPORTED_EVAL_SOURCES = get_supported_eval_sources()
 
 
 class TestGenerator:
@@ -244,11 +246,13 @@ class TestGenerator:
         merged: List[Dict[str, object]] = list(self._injected_evals)
         self._discovery_note = None
         if self.discover_evals:
-            discovered, note = discover_fact_evals(
-                self.spans,
-                fact_name=self._resolve_discovery_fact_name(),
-                eval_source=self.eval_source,
-            )
+            evaluator = self._get_discovery_evaluator()
+            if evaluator is None:
+                discovered, note = [], (
+                    f"eval discovery skipped: unsupported eval_source '{self.eval_source}'")
+            else:
+                discovered, note = evaluator.discover_fact_evals(
+                    self.spans, fact_name=self._resolve_discovery_fact_name())
             self._discovery_note = note
             # Discovered specs are already normalised by discover_fact_evals; do NOT
             # run them through _normalise_injected_eval (it would move a custom eval's
@@ -306,6 +310,18 @@ class TestGenerator:
             except ValueError:
                 return "traces"
         return "traces"
+
+    def _get_discovery_evaluator(self):
+        """Resolve the eval provider used for discovery from ``eval_source``.
+
+        Looks the provider up in the eval registry (same source of truth as
+        ``_detect_eval_type``) so the generator never imports a specific
+        evaluator. Returns a ``BaseEval`` instance, or ``None`` when the
+        configured ``eval_source`` is not registered.
+        """
+        from monocle_test_tools.evals.eval_manager import EVAL_SOURCE_CLASSES
+        cls = EVAL_SOURCE_CLASSES.get(self.eval_source)
+        return cls(eval_options={}) if cls else None
 
     @staticmethod
     def _detect_eval_type(name_or_path: str, eval_source: str = "okahu") -> str:

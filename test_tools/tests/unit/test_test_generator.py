@@ -563,7 +563,7 @@ def _disc_spec(name, label, fact_id="abc123", fact_name="traces"):
 
 def test_discovered_eval_emitted_with_baseline_comment():
     spans = [_span({"span.type": "workflow", "workflow.name": "wf"})]
-    with patch("monocle_test_tools.test_generator.discover_fact_evals",
+    with patch("monocle_test_tools.evals.okahu_eval.OkahuEval.discover_fact_evals",
                return_value=([_disc_spec("correctness", "correct")], None)):
         code = TestGenerator(spans, trace_file="t.json").generate_test_code()
     assert 'check_eval("correctness", expected="correct", fact_name="traces")' in code
@@ -578,7 +578,7 @@ def _disc_custom_spec(name, label, fact_id="abc123", fact_name="traces"):
 
 def test_discovered_custom_eval_is_commented_out_with_path_request():
     spans = [_span({"span.type": "workflow", "workflow.name": "wf"})]
-    with patch("monocle_test_tools.test_generator.discover_fact_evals",
+    with patch("monocle_test_tools.evals.okahu_eval.OkahuEval.discover_fact_evals",
                return_value=([_disc_custom_spec("hallucination", "major_hallucination")], None)):
         code = TestGenerator(spans, trace_file="t.json").generate_test_code()
     # No ACTIVE check_eval for the custom eval — the assertion line is commented out.
@@ -595,7 +595,7 @@ def test_discovered_builtin_and_custom_same_name_both_emitted():
         _disc_spec("hallucination", "major_hallucination"),          # builtin (active)
         _disc_custom_spec("hallucination", "major_hallucination"),   # custom (commented)
     ]
-    with patch("monocle_test_tools.test_generator.discover_fact_evals",
+    with patch("monocle_test_tools.evals.okahu_eval.OkahuEval.discover_fact_evals",
                return_value=(discovered, None)):
         gen = TestGenerator(spans, trace_file="t.json")
         code = gen.generate_test_code()
@@ -606,7 +606,7 @@ def test_discovered_builtin_and_custom_same_name_both_emitted():
 
 def test_no_evals_found_emits_comment():
     spans = [_span({"span.type": "workflow", "workflow.name": "wf"})]
-    with patch("monocle_test_tools.test_generator.discover_fact_evals",
+    with patch("monocle_test_tools.evals.okahu_eval.OkahuEval.discover_fact_evals",
                return_value=([], "No existing evals found on this fact")):
         code = TestGenerator(spans, trace_file="t.json").generate_test_code()
     assert "# No existing evals found on this fact" in code
@@ -614,7 +614,7 @@ def test_no_evals_found_emits_comment():
 
 def test_discovery_skipped_emits_comment():
     spans = [_span({"span.type": "workflow", "workflow.name": "wf"})]
-    with patch("monocle_test_tools.test_generator.discover_fact_evals",
+    with patch("monocle_test_tools.evals.okahu_eval.OkahuEval.discover_fact_evals",
                return_value=([], "eval discovery skipped: OKAHU_API_KEY not configured")):
         code = TestGenerator(spans, trace_file="t.json").generate_test_code()
     assert "# eval discovery skipped: OKAHU_API_KEY not configured" in code
@@ -623,7 +623,7 @@ def test_discovery_skipped_emits_comment():
 def test_injected_eval_wins_over_discovered_conflict():
     spans = [_span({"span.type": "workflow", "workflow.name": "wf"})]
     injected = [{"criteria": "correctness", "expected": "perfect", "eval_type": "builtin"}]
-    with patch("monocle_test_tools.test_generator.discover_fact_evals",
+    with patch("monocle_test_tools.evals.okahu_eval.OkahuEval.discover_fact_evals",
                return_value=([_disc_spec("correctness", "correct")], None)):
         gen = TestGenerator(spans, trace_file="t.json", injected_evals=injected)
         gen.analyze()
@@ -635,7 +635,7 @@ def test_injected_eval_wins_over_discovered_conflict():
 
 def test_discovery_disabled_makes_no_call():
     spans = [_span({"span.type": "workflow", "workflow.name": "wf"})]
-    with patch("monocle_test_tools.test_generator.discover_fact_evals") as disc:
+    with patch("monocle_test_tools.evals.okahu_eval.OkahuEval.discover_fact_evals") as disc:
         TestGenerator(spans, trace_file="t.json", discover_evals=False).generate_test_code()
     disc.assert_not_called()
 

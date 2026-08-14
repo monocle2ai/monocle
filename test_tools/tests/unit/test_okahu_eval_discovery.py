@@ -157,10 +157,26 @@ def test_discover_empty_when_no_labels(monkeypatch):
     assert note == "No existing evals found on this fact"
 
 
-def test_discover_unsupported_source_skips():
-    specs, note = discover_fact_evals(_traces_spans(), fact_name="traces", eval_source="nope")
+# --- BaseEval interface + OkahuEval override -------------------------------------
+
+def test_base_eval_discovery_default_is_noop():
+    """An evaluator that doesn't support discovery returns empty + a note, never raises."""
+    from monocle_test_tools.evals.base_eval import BaseEval
+    specs, note = BaseEval().discover_fact_evals(_traces_spans(), fact_name="traces")
     assert specs == []
-    assert note.startswith("eval discovery skipped:")
+    assert note and "not supported" in note
+
+
+def test_okahu_eval_discovery_delegates_to_module():
+    """OkahuEval.discover_fact_evals delegates to the okahu_eval_discovery module fn."""
+    from monocle_test_tools.evals.okahu_eval import OkahuEval
+    sentinel = ([{"criteria": "correctness"}], None)
+    with patch("monocle_test_tools.evals.okahu_eval_discovery.discover_fact_evals",
+               return_value=sentinel) as mod_fn:
+        result = OkahuEval(eval_options={}).discover_fact_evals(_traces_spans(), fact_name="agentic_sessions")
+    assert result == sentinel
+    _args, kwargs = mod_fn.call_args
+    assert kwargs["fact_name"] == "agentic_sessions"
 
 
 def test_discover_missing_creds_skips(monkeypatch):

@@ -54,7 +54,16 @@ class OkahuEval(BaseEval):
         self._fact_map_cache = None
         self.last_judge_output: dict = {}
         self.last_total_tokens = None
-    
+
+    def discover_fact_evals(self, spans, *, fact_name: str = "traces"):
+        """Discover evals already recorded on the source fact in the Okahu store.
+
+        Delegates to the ``okahu_eval_discovery`` module. The import is local to
+        break the ``okahu_eval`` <-> ``okahu_eval_discovery`` import cycle.
+        """
+        from monocle_test_tools.evals.okahu_eval_discovery import discover_fact_evals as _discover
+        return _discover(spans, fact_name=fact_name)
+
     @staticmethod
     def _map_fact_name(fact_name: str) -> str:
         """

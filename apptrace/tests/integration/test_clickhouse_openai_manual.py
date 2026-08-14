@@ -1,18 +1,22 @@
-"""Manual end-to-end test: make a real OpenAI inference call, instrument it
-with Monocle, export the spans to ClickHouse, and verify the workflow and
+"""Manual end-to-end test: make a real Azure OpenAI inference call, instrument
+it with Monocle, export the spans to ClickHouse, and verify the workflow and
 inference spans landed.
 
-Run it manually (it hits the OpenAI API and needs a live ClickHouse). Put the
-settings in ``apptrace/.env``:
+Run it manually (it hits Azure OpenAI and needs a live ClickHouse). Put the
+settings in a ``.env`` at the repo root (or ``apptrace/.env``):
 
     MONOCLE_CLICKHOUSE_CONNECTION_URL=clickhouse://user:pass@host:8123/db
-    OPENAI_API_KEY=sk-...
+    AZURE_OPENAI_API_KEY=...
+    AZURE_OPENAI_ENDPOINT=https://<resource>.openai.azure.com/
+    AZURE_OPENAI_DEPLOYMENT_NAME=<your-deployment-name>   # or AZURE_OPENAI_API_DEPLOYMENT
+    AZURE_OPENAI_API_VERSION=2024-10-21                   # optional, defaults below
 
 Then:
 
     pytest apptrace/tests/integration/test_clickhouse_openai_manual.py -v -s
 
-The test skips itself if either variable is missing, so it is safe in CI.
+The test skips itself if the ClickHouse URL or the Azure settings are missing,
+so it is safe in CI.
 """
 import os
 import logging
@@ -20,12 +24,13 @@ import logging
 import pytest
 from dotenv import load_dotenv
 
-load_dotenv(os.path.join(os.path.dirname(__file__), "..", "..", ".env"))
+_HERE = os.path.dirname(__file__)
+load_dotenv(os.path.join(_HERE, "..", "..", ".env"), override=True)         # apptrace/.env if present
+load_dotenv(os.path.join(_HERE, "..", "..", "..", ".env"), override=True)   # repo-root .env wins
 
 clickhouse_connect = pytest.importorskip("clickhouse_connect", reason="clickhouse-connect not installed")
-pytest.importorskip("openai", reason="openai not installed")
+openai = pytest.importorskip("openai", reason="openai not installed")
 
-from openai import OpenAI
 from opentelemetry import trace as otel_trace
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
@@ -38,13 +43,20 @@ from monocle_apptrace.exporters.clickhouse.clickhouse_exporter import (
 
 logger = logging.getLogger(__name__)
 
+DEFAULT_API_VERSION = "2024-10-21"
 
-def test_clickhouse_openai_manual():
+
+def test_clickhouse_azure_openai_manual():
     conn_url = os.getenv("MONOCLE_CLICKHOUSE_CONNECTION_URL")
     if not conn_url:
         pytest.skip("MONOCLE_CLICKHOUSE_CONNECTION_URL not set")
-    if not os.getenv("OPENAI_API_KEY"):
-        pytest.skip("OPENAI_API_KEY not set")
+
+    api_key = os.getenv("AZURE_OPENAI_API_KEY")
+    endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
+    deployment = os.getenv("AZURE_OPENAI_API_DEPLOYMENT") or os.getenv("AZURE_OPENAI_DEPLOYMENT_NAME")
+    api_version = os.getenv("AZURE_OPENAI_API_VERSION") or DEFAULT_API_VERSION
+    if not (api_key and endpoint and deployment):
+        pytest.skip("Azure OpenAI env vars not set (need API key, endpoint, deployment)")
 
     # Capture the emitted spans locally so we know the trace_id to query for.
     memory_exporter = InMemorySpanExporter()
@@ -57,8 +69,13 @@ def test_clickhouse_openai_manual():
         wrapper_methods=[],
     )
     try:
-        response = OpenAI().chat.completions.create(
-            model="gpt-4o-mini",
+        client = openai.AzureOpenAI(
+            api_key=api_key,
+            azure_endpoint=endpoint,
+            api_version=api_version,
+        )
+        response = client.chat.completions.create(
+            model=deployment,  # Azure uses the deployment name
             messages=[{"role": "user", "content": "In one sentence, what is ClickHouse?"}],
         )
         logger.info("LLM answer: %s", response.choices[0].message.content)
@@ -70,16 +87,16 @@ def test_clickhouse_openai_manual():
         trace_id = f"0x{spans[0].context.trace_id:032x}"
         logger.info("trace_id: %s", trace_id)
 
-        client = clickhouse_connect.get_client(dsn=conn_url, settings=CLIENT_SETTINGS)
+        ch = clickhouse_connect.get_client(dsn=conn_url, settings=CLIENT_SETTINGS)
         try:
             span_types = [
-                r[0] for r in client.query(
+                r[0] for r in ch.query(
                     "SELECT attributes.`span.type` FROM traces WHERE trace_id = {tid:String}",
                     parameters={"tid": trace_id},
                 ).result_rows
             ]
         finally:
-            client.close()
+            ch.close()
 
         logger.info("span types in ClickHouse for %s: %s", trace_id, span_types)
         assert "workflow" in span_types, f"no workflow span in ClickHouse: {span_types}"

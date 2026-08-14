@@ -40,7 +40,7 @@ from monocle_apptrace.instrumentation.common.constants import (
     MONOCLE_INSTRUMENTOR, MONOCLE_WORKFLOW_NAME_KEY, CUSTOM_INSTRUMENTATION_FILE_NAME,
     CUSTOM_INSTRUMENTATION_FILE_PATH_ENV, WORKFLOW_NAME_ENV
 )
-from monocle_apptrace.instrumentation.common.custom_span_processor import CUSTOM_SPAN_PROCESSOR
+from monocle_apptrace.instrumentation.common.custom_span_processor import build_custom_span_processor
 from functools import wraps
 
 logger = logging.getLogger(__name__)
@@ -74,7 +74,10 @@ def load_custom_instrumentation() -> List[WrapperMethod]:
                 method=entry.get("method"),
                 span_name=entry.get("span_name"),
                 wrapper_method=task_wrapper if entry.get("sync", True) else atask_wrapper,
-                output_processor=CUSTOM_SPAN_PROCESSOR
+                # `exclude: [inputs, outputs]` opts a method out of having its
+                # arguments or return value captured, for anything that must
+                # not leave the process.
+                output_processor=build_custom_span_processor(entry.get("exclude"))
             ))
     except FileNotFoundError:
         pass

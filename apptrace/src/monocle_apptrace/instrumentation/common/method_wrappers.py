@@ -15,7 +15,7 @@ from monocle_apptrace.instrumentation.common.utils import (
 )
 from monocle_apptrace.instrumentation.common.constants import MONOCLE_INSTRUMENTOR
 from monocle_apptrace.instrumentation.common.instrumentor import get_tracer_provider
-from monocle_apptrace.instrumentation.common.custom_span_processor import CUSTOM_SPAN_PROCESSOR
+from monocle_apptrace.instrumentation.common.custom_span_processor import build_custom_span_processor
 
 logger = logging.getLogger(__name__)
 
@@ -169,16 +169,27 @@ async def amonocle_trace(
         yield  # Still yield to not break the context manager
 
 def monocle_trace_method(
-    span_name: Optional[str] = None
+    span_name: Optional[str] = None,
+    exclude = None
 ):
     """
     Decorator to start and stop a trace for a method. All the spans created in the method will be part of the same trace.
     Captures function inputs (args, kwargs) and outputs (return value) in span events.
-    
+
     Args:
         span_name: Optional custom span name. If None, uses the decorated function's name.
+        exclude: Optionally skip capturing "inputs", "outputs", or both, for
+            methods whose arguments or return values should not leave the
+            process. Accepts a single name or an iterable of names. Excluded
+            data is never captured; the span is still recorded, and an
+            excluded-output span still carries error_code.
+
+    Example:
+        @monocle_trace_method(exclude="inputs")
+        def charge_card(card_number: str) -> Receipt: ...
     """
-    
+    span_processor = build_custom_span_processor(exclude)
+
     def decorator(func):
         tracer = get_tracer(instrumenting_module_name=MONOCLE_INSTRUMENTOR, tracer_provider=get_tracer_provider())
         handler = SpanHandler()
@@ -194,7 +205,7 @@ def monocle_trace_method(
                     handler=handler,
                     to_wrap={
                         "span_name": effective_span_name,
-                        "output_processor": CUSTOM_SPAN_PROCESSOR
+                        "output_processor": span_processor
                     }
                 )(  wrapped=func,                        
                     instance=None,
@@ -210,7 +221,7 @@ def monocle_trace_method(
                     handler=handler,
                     to_wrap={
                         "span_name": effective_span_name,
-                        "output_processor": CUSTOM_SPAN_PROCESSOR
+                        "output_processor": span_processor
                     }
                 )(  wrapped=func,                        
                     instance=None,

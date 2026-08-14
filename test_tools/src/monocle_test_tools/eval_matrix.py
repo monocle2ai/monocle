@@ -33,11 +33,19 @@ def build_eval_matrix_row(run_id: str, scenario: str, last_eval: dict, passed: b
 
     Returns a dict with exactly these keys (schema is consumed downstream,
     do not rename): run_id, scenario, trace_id, expected, actual, status,
-    explanation, total_tokens, claim_verdicts, hallucination_types,
-    entity_match_check, fact_id, workflow, job_id.
+    explanation, total_tokens, fact_id, workflow, job_id, judge_output.
 
     The trailing fact_id/workflow/job_id are additive columns for the filtered
     flow; interactive rows carry empty-string defaults so no consumer breaks.
+
+    The schema is TEMPLATE-AGNOSTIC: every eval template defines its own
+    `structure_output`, so no judge field is promoted to a top-level column.
+    `judge_output` carries the judge's structured output verbatim, whatever the
+    template emits — `claim_verdicts` / `hallucination_types` /
+    `entity_match_check` for `hallucination`, `addressed_aspects` /
+    `missing_aspects` / `completeness_score` for `conversation_completeness`,
+    `bias_types` for `bias`, and so on. Read the fields you need from
+    `judge_output`; this function does not need to know them.
     """
     last_eval = last_eval or {}
     judge_output = last_eval.get("judge_output") or {}
@@ -59,12 +67,10 @@ def build_eval_matrix_row(run_id: str, scenario: str, last_eval: dict, passed: b
         "status": status,
         "explanation": last_eval.get("explanation"),
         "total_tokens": last_eval.get("total_tokens"),
-        "claim_verdicts": judge_output.get("claim_verdicts") or [],
-        "hallucination_types": judge_output.get("hallucination_types") or [],
-        "entity_match_check": judge_output.get("entity_match_check") or "",
         "fact_id": last_eval.get("fact_id") or "",
         "workflow": last_eval.get("workflow") or "",
         "job_id": last_eval.get("job_id") or "",
+        "judge_output": judge_output,
     }
 
 

@@ -30,14 +30,65 @@ def test_build_eval_matrix_row_pass_includes_tokens():
         "status": "pass",
         "explanation": "matches expectations",
         "total_tokens": 123,
-        "claim_verdicts": [{"claim": "x", "verdict": "supported"}],
-        "hallucination_types": [],
-        "entity_match_check": "ok",
         # Filtered-flow columns default to empty for interactive rows (additive widening).
         "fact_id": "",
         "workflow": "",
         "job_id": "",
+        # No judge field is promoted to a column: the judge's structured output is
+        # carried verbatim so the schema is the same for every template.
+        "judge_output": {
+            "claim_verdicts": [{"claim": "x", "verdict": "supported"}],
+            "hallucination_types": [],
+            "entity_match_check": "ok",
+        },
     }
+
+
+def test_build_eval_matrix_row_schema_is_template_agnostic():
+    """Any template's structured output must survive, and no field is promoted.
+
+    `conversation_completeness` emits addressed_aspects / missing_aspects /
+    completeness_score. Before `judge_output` was carried through, only three
+    `hallucination` fields were promoted to columns and every other template's
+    output was dropped, leaving downstream analysis with free-text
+    `explanation` alone.
+    """
+    last_eval = {
+        "trace_id": "ghi789",
+        "expected": ["complete"],
+        "fact_name": "traces",
+        "label": "partially_complete",
+        "explanation": "the second sub-question is unanswered",
+        "judge_output": {
+            "addressed_aspects": ["who wrote it"],
+            "missing_aspects": ["which prize it won"],
+            "completeness_score": 0.5,
+            "query_coverage": "partial",
+            "follow_up_needed": True,
+        },
+        "total_tokens": 77,
+    }
+
+    row = build_eval_matrix_row(run_id="run-4", scenario="cc_t01", last_eval=last_eval, passed=False)
+
+    assert row["judge_output"]["addressed_aspects"] == ["who wrote it"]
+    assert row["judge_output"]["missing_aspects"] == ["which prize it won"]
+    assert row["judge_output"]["completeness_score"] == 0.5
+    assert row["judge_output"]["query_coverage"] == "partial"
+    assert row["judge_output"]["follow_up_needed"] is True
+    # No template's fields are promoted to top-level columns, so the row keys are
+    # identical whatever the template emitted.
+    for promoted in ("claim_verdicts", "hallucination_types", "entity_match_check",
+                     "addressed_aspects", "missing_aspects", "completeness_score"):
+        assert promoted not in row
+    assert row["status"] == "fail"
+
+
+def test_build_eval_matrix_row_judge_output_defaults_to_empty_dict():
+    """A missing or null judge_output must serialise as {}, never None."""
+    for stash in ({"label": "complete"}, {"label": "complete", "judge_output": None}):
+        row = build_eval_matrix_row(run_id="run-5", scenario="cc_t02", last_eval=stash, passed=True)
+        assert row["judge_output"] == {}
 
 
 def test_build_eval_matrix_row_not_passed_with_label_is_fail():
@@ -55,9 +106,8 @@ def test_build_eval_matrix_row_not_passed_with_label_is_fail():
 
     assert row["status"] == "fail"
     assert row["actual"] == "major_hallucination"
-    assert row["claim_verdicts"] == []
-    assert row["hallucination_types"] == []
-    assert row["entity_match_check"] == ""
+    assert row["judge_output"] == {}
+    assert "claim_verdicts" not in row
 
 
 def test_build_eval_matrix_row_not_passed_without_label_is_error():
@@ -93,9 +143,7 @@ def test_build_eval_matrix_row_is_none_safe_for_missing_judge_output_keys():
     row = build_eval_matrix_row(run_id="run-4", scenario="test_w", last_eval=last_eval, passed=True)
 
     assert row["status"] == "pass"
-    assert row["claim_verdicts"] == []
-    assert row["hallucination_types"] == []
-    assert row["entity_match_check"] == ""
+    assert row["judge_output"] == {}
     # explanation is passed through as-is from last_eval (no forced fallback)
     assert row["explanation"] is None
 

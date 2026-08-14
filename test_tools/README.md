@@ -912,7 +912,7 @@ pytest --monocle-eval-matrix=path/to/matrix.json   # custom path
 MONOCLE_EVAL_MATRIX=1 pytest                        # via env var (default path)
 ```
 
-A row is recorded for every test that calls `check_eval`. At session end the recorder writes `{"generated_at": <UTC ISO8601>, "records": [ ... ]}`, where each record has a fixed schema: `run_id`, `scenario`, `trace_id`, `expected`, `actual`, `status` (`pass`/`fail`/`error`), `explanation`, `total_tokens`, `claim_verdicts`, `hallucination_types`, `entity_match_check`, and (for the filtered flow) `fact_id`, `workflow`, `job_id`. Path precedence: the `--monocle-eval-matrix` value, else `MONOCLE_EVAL_MATRIX`, else the default `test-eval-replay-matrix.json`.
+A row is recorded for every test that calls `check_eval`. At session end the recorder writes `{"generated_at": <UTC ISO8601>, "records": [ ... ]}`, where each record has a fixed, template-agnostic schema: `run_id`, `scenario`, `trace_id`, `expected`, `actual`, `status` (`pass`/`fail`/`error`), `explanation`, `total_tokens`, (for the filtered flow) `fact_id`, `workflow`, `job_id`, and `judge_output` — the judge's structured output verbatim. No judge field is promoted to a top-level column, because every template defines its own `structure_output`: read `claim_verdicts` / `hallucination_types` / `entity_match_check` (hallucination), `addressed_aspects` / `missing_aspects` / `completeness_score` (conversation_completeness), `bias_types` (bias) and so on from `judge_output`. Path precedence: the `--monocle-eval-matrix` value, else `MONOCLE_EVAL_MATRIX`, else the default `test-eval-replay-matrix.json`.
 
 ### CSV eval test cases
 

@@ -24,26 +24,22 @@ CLIENT_SETTINGS = {"enable_json_type": 1}
 CREATE_TABLE_SQL = """
     CREATE TABLE IF NOT EXISTS traces (
         name           String,
-        start_time     DateTime64(9, 'UTC'),
-        end_time       DateTime64(9, 'UTC'),
+        start_time     DateTime64(6, 'UTC'),
+        end_time       DateTime64(6, 'UTC'),
         status_code    LowCardinality(String),
         status_message Nullable(String),
         span_id        String,
         trace_id       String,
         parent_id      Nullable(String),
         attributes     JSON,
-        events         Array(JSON),
-        metadata       JSON
+        events         Array(JSON)
     ) ENGINE = MergeTree() ORDER BY (trace_id, span_id)
 """
 
 INSERT_COLUMNS = [
     "name", "start_time", "end_time", "status_code", "status_message",
-    "span_id", "trace_id", "parent_id", "attributes", "events", "metadata",
+    "span_id", "trace_id", "parent_id", "attributes", "events",
 ]
-
-# ClickHouse error code raised when the user lacks the required privilege.
-ACCESS_DENIED_CODE = "497"
 
 
 class ClickHouseSpanExporter(SpanExporterBase):
@@ -60,7 +56,7 @@ class ClickHouseSpanExporter(SpanExporterBase):
         try:
             self.client.command(CREATE_TABLE_SQL)
         except DatabaseError as e:
-            if ACCESS_DENIED_CODE in str(e) or "ACCESS_DENIED" in str(e):
+            if "ACCESS_DENIED" in str(e):
                 raise PermissionError(
                     "ClickHouseSpanExporter could not create the 'traces' table — "
                     "the database user lacks CREATE TABLE permission. "
@@ -94,7 +90,6 @@ class ClickHouseSpanExporter(SpanExporterBase):
             parent_id,
             serialized.get("attributes") or {},   # JSON
             serialized.get("events") or [],        # Array(JSON)
-            serialized.get("metadata") or {},      # JSON — reserved for future use
         ]
 
     def _reconnect(self) -> None:

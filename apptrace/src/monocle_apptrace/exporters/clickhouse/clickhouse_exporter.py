@@ -1,5 +1,4 @@
 import os
-import json
 import logging
 import datetime
 from typing import Sequence
@@ -19,24 +18,28 @@ from monocle_apptrace.exporters.base_exporter import (
 
 logger = logging.getLogger(__name__)
 
+# The JSON / Array(JSON) columns require the JSON type to be enabled on the server.
+CLIENT_SETTINGS = {"enable_json_type": 1}
+
 CREATE_TABLE_SQL = """
     CREATE TABLE IF NOT EXISTS traces (
-        name        String,
-        start_time  DateTime64(9, 'UTC'),
-        end_time    DateTime64(9, 'UTC'),
-        status      String,
-        span_id     String,
-        trace_id    String,
-        parent_id   Nullable(String),
-        attributes  String,
-        events      String,
-        metadata    Nullable(String)
+        name           String,
+        start_time     DateTime64(9, 'UTC'),
+        end_time       DateTime64(9, 'UTC'),
+        status_code    LowCardinality(String),
+        status_message Nullable(String),
+        span_id        String,
+        trace_id       String,
+        parent_id      Nullable(String),
+        attributes     JSON,
+        events         Array(JSON),
+        metadata       JSON
     ) ENGINE = MergeTree() ORDER BY (trace_id, span_id)
 """
 
 INSERT_COLUMNS = [
-    "name", "start_time", "end_time", "status", "span_id", "trace_id",
-    "parent_id", "attributes", "events", "metadata",
+    "name", "start_time", "end_time", "status_code", "status_message",
+    "span_id", "trace_id", "parent_id", "attributes", "events", "metadata",
 ]
 
 # ClickHouse error code raised when the user lacks the required privilege.
@@ -50,7 +53,7 @@ class ClickHouseSpanExporter(SpanExporterBase):
         self.connection_url = os.environ.get("MONOCLE_CLICKHOUSE_CONNECTION_URL")
         if not self.connection_url:
             raise ValueError("MONOCLE_CLICKHOUSE_CONNECTION_URL environment variable is required")
-        self.client = clickhouse_connect.get_client(dsn=self.connection_url)
+        self.client = clickhouse_connect.get_client(dsn=self.connection_url, settings=CLIENT_SETTINGS)
         self._ensure_table()
 
     def _ensure_table(self) -> None:
@@ -79,17 +82,19 @@ class ClickHouseSpanExporter(SpanExporterBase):
             "0x" + format_span_id_without_0x(span.parent.span_id)
             if span.parent else None
         )
+        status = serialized.get("status") or {}
         return [
             span.name,
             start_time,
             end_time,
-            json.dumps(serialized.get("status")),
+            status.get("status_code") or status.get("code") or "",
+            status.get("message"),
             span_id,
             trace_id,
             parent_id,
-            json.dumps(serialized.get("attributes")),
-            json.dumps(serialized.get("events")),
-            None,   # metadata — reserved for future use
+            serialized.get("attributes") or {},   # JSON
+            serialized.get("events") or [],        # Array(JSON)
+            serialized.get("metadata") or {},      # JSON — reserved for future use
         ]
 
     def _reconnect(self) -> None:
@@ -97,7 +102,7 @@ class ClickHouseSpanExporter(SpanExporterBase):
             self.client.close()
         except Exception:
             pass
-        self.client = clickhouse_connect.get_client(dsn=self.connection_url)
+        self.client = clickhouse_connect.get_client(dsn=self.connection_url, settings=CLIENT_SETTINGS)
 
     def _do_insert(self, rows: list) -> None:
         self.client.insert("traces", rows, column_names=INSERT_COLUMNS)

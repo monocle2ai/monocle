@@ -16,9 +16,13 @@ import monocle_apptrace.exporters.clickhouse.clickhouse_exporter as ch_mod
 from monocle_apptrace.exporters.clickhouse.clickhouse_exporter import ClickHouseSpanExporter
 from monocle_apptrace.exporters.monocle_exporters import monocle_exporters
 
+# Column positions in the row built by _build_row (mirror of INSERT_COLUMNS).
+C_NAME, C_START, C_END, C_STATUS_CODE, C_STATUS_MSG, \
+    C_SPAN_ID, C_TRACE_ID, C_PARENT_ID, C_ATTRS, C_EVENTS, C_META = range(11)
+
 
 def _make_span(name="test-span", trace_id=0xAABBCCDD, span_id=0x1111,
-               parent_span_id=None):
+               parent_span_id=None, status=None, attributes=None, events=None):
     """Build a minimal mock ReadableSpan for use in tests."""
     span = MagicMock(spec=ReadableSpan)
     span.name = name
@@ -35,9 +39,9 @@ def _make_span(name="test-span", trace_id=0xAABBCCDD, span_id=0x1111,
     span.attributes.get.return_value = "0.8.0"   # non-empty → not skipped
     span.to_json.return_value = json.dumps({
         "name": name,
-        "status": {"status_code": "OK"},
-        "attributes": {"monocle_apptrace.version": "0.8.0"},
-        "events": [],
+        "status": status if status is not None else {"status_code": "OK"},
+        "attributes": attributes if attributes is not None else {"monocle_apptrace.version": "0.8.0"},
+        "events": events if events is not None else [],
     })
     return span
 
@@ -55,7 +59,8 @@ class TestClickHouseInit(unittest.TestCase):
     def test_reads_connection_url_from_env(self, mock_get_client):
         os.environ["MONOCLE_CLICKHOUSE_CONNECTION_URL"] = "clickhouse://user:pass@localhost:8123/db"
         exporter = ClickHouseSpanExporter()
-        mock_get_client.assert_called_once_with(dsn="clickhouse://user:pass@localhost:8123/db")
+        mock_get_client.assert_called_once_with(
+            dsn="clickhouse://user:pass@localhost:8123/db", settings=ch_mod.CLIENT_SETTINGS)
         self.assertIsNotNone(exporter.client)
         del os.environ["MONOCLE_CLICKHOUSE_CONNECTION_URL"]
 
@@ -79,35 +84,50 @@ class TestBuildRow(unittest.TestCase):
 
     def test_span_id_has_0x_prefix(self):
         row = self.exporter._build_row(_make_span(span_id=0xABCDEF0123456789))
-        self.assertEqual(row[4], "0xabcdef0123456789")
+        self.assertEqual(row[C_SPAN_ID], "0xabcdef0123456789")
 
     def test_trace_id_has_0x_prefix(self):
         row = self.exporter._build_row(_make_span(trace_id=0xAABBCCDD11223344AABBCCDD11223344))
-        self.assertTrue(row[5].startswith("0x"))
+        self.assertTrue(row[C_TRACE_ID].startswith("0x"))
 
     def test_parent_id_is_none_for_root_span(self):
         row = self.exporter._build_row(_make_span())  # no parent
-        self.assertIsNone(row[6])
+        self.assertIsNone(row[C_PARENT_ID])
 
     def test_parent_id_has_0x_prefix_for_child_span(self):
         row = self.exporter._build_row(_make_span(parent_span_id=0x1111222233334444))
-        self.assertEqual(row[6], "0x1111222233334444")
+        self.assertEqual(row[C_PARENT_ID], "0x1111222233334444")
 
     def test_timestamps_are_timezone_aware_datetimes(self):
         row = self.exporter._build_row(_make_span())
-        self.assertIsInstance(row[1], datetime.datetime)
-        self.assertIsInstance(row[2], datetime.datetime)
-        self.assertIsNotNone(row[1].tzinfo)
+        self.assertIsInstance(row[C_START], datetime.datetime)
+        self.assertIsInstance(row[C_END], datetime.datetime)
+        self.assertIsNotNone(row[C_START].tzinfo)
 
-    def test_json_columns_are_serialized_strings(self):
-        row = self.exporter._build_row(_make_span())
-        self.assertEqual(json.loads(row[3]), {"status_code": "OK"})
-        self.assertEqual(json.loads(row[7]), {"monocle_apptrace.version": "0.8.0"})
-        self.assertEqual(json.loads(row[8]), [])
+    def test_status_split_into_code_and_message(self):
+        row = self.exporter._build_row(
+            _make_span(status={"status_code": "ERROR", "message": "boom"}))
+        self.assertEqual(row[C_STATUS_CODE], "ERROR")
+        self.assertEqual(row[C_STATUS_MSG], "boom")
 
-    def test_metadata_is_none(self):
+    def test_status_message_none_when_absent(self):
+        row = self.exporter._build_row(_make_span(status={"status_code": "OK"}))
+        self.assertEqual(row[C_STATUS_CODE], "OK")
+        self.assertIsNone(row[C_STATUS_MSG])
+
+    def test_attributes_is_dict_for_json_column(self):
+        row = self.exporter._build_row(
+            _make_span(attributes={"span.type": "inference"}))
+        self.assertEqual(row[C_ATTRS], {"span.type": "inference"})
+
+    def test_events_is_list_for_array_json_column(self):
+        events = [{"name": "metadata", "attributes": {"total_tokens": 42}}]
+        row = self.exporter._build_row(_make_span(events=events))
+        self.assertEqual(row[C_EVENTS], events)
+
+    def test_metadata_is_empty_dict(self):
         row = self.exporter._build_row(_make_span())
-        self.assertIsNone(row[9])
+        self.assertEqual(row[C_META], {})
 
 
 class TestExport(unittest.TestCase):

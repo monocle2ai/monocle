@@ -2,7 +2,7 @@ import math
 from typing import List, Optional, Set, Dict
 from opentelemetry.sdk.trace import ReadableSpan
 
-from monocle_test_tools.evals.eval_discovery import discover_fact_evals
+from monocle_test_tools.evals.okahu_eval_discovery import discover_fact_evals
 
 
 # Allowed values for the ``trace_source`` argument. When set, only the loader
@@ -250,18 +250,27 @@ class TestGenerator:
                 eval_source=self.eval_source,
             )
             self._discovery_note = note
-            merged.extend(self._normalise_injected_eval(ev) for ev in discovered)
+            # Discovered specs are already normalised by discover_fact_evals; do NOT
+            # run them through _normalise_injected_eval (it would move a custom eval's
+            # name from 'criteria' into 'template_path', losing it for the comment).
+            merged.extend(discovered)
 
         # De-duplicate, preserving first-seen order. The conflict key ignores the
         # expected value so a discovered spec that only differs by label is dropped
         # when an injected spec already covers the same (eval, fact) pair.
+        # The provenance flag keeps a builtin and a custom-template eval that share
+        # a name (e.g. "hallucination") as distinct entries, while still letting an
+        # injected --eval win over a same-provenance discovered eval.
         deduped: List[Dict[str, object]] = []
         seen: Set[tuple] = set()
         seen_conflict: Set[tuple] = set()
         for ev in merged:
+            custom_flag = bool(ev.get("_discovered_custom"))
             key = (ev.get("criteria"), ev.get("template_path"),
-                   repr(ev.get("expected")), repr(ev.get("not_expected")), ev.get("fact_name"))
-            conflict_key = (ev.get("criteria"), ev.get("template_path"), ev.get("fact_name"))
+                   repr(ev.get("expected")), repr(ev.get("not_expected")),
+                   ev.get("fact_name"), custom_flag)
+            conflict_key = (ev.get("criteria"), ev.get("template_path"),
+                            ev.get("fact_name"), custom_flag)
             if key in seen or conflict_key in seen_conflict:
                 continue
             seen.add(key)
@@ -466,12 +475,39 @@ class TestGenerator:
         if self.evals or self._discovery_note:
             code.append('    # Eval assertions (require an eval service, e.g. Okahu)')
             for ev in self.evals:
-                code.append('    ' + self._eval_assertion_line(ev))
+                if ev.get("_discovered_custom"):
+                    # Custom template: Okahu can't reload it, so emit a commented block.
+                    code.extend(self._discovered_custom_eval_lines(ev))
+                else:
+                    code.append('    ' + self._eval_assertion_line(ev))
             if self._discovery_note:
                 code.append(f'    # {self._discovery_note}')
             code.append('')
 
         return '\n'.join(code)
+
+    def _discovered_custom_eval_lines(self, ev: Dict[str, object]) -> List[str]:
+        """Commented-out assertion for a discovered custom-template eval.
+
+        Okahu does not store custom templates, so the eval cannot be re-run by
+        name. Emit the observed label plus a ``template_path`` placeholder for the
+        developer to point at their own custom template file.
+        """
+        lit = self._eval_literal
+        name = ev.get("criteria") or ev.get("template_path") or ""
+        label = ev.get("expected")
+        fact_id = ev.get("_discovered_fact_id", "")
+        call_args = ['template_path="PATH/TO/your_custom_template.json"']
+        if label is not None:
+            call_args.append(f'expected={lit(label)}')
+        if ev.get("fact_name"):
+            call_args.append(f'fact_name={lit(ev["fact_name"])}')
+        args_str = ", ".join(call_args)
+        return [
+            f'    # Custom eval "{name}" ran on fact {fact_id} (observed label: {lit(label)}),',
+            '    # but Okahu does not store custom templates. Provide your template path to re-enable it:',
+            f'    # asserter.with_evaluation("{self.eval_source}").check_eval({args_str})',
+        ]
 
     def _eval_assertion_line(self, ev: Dict[str, object]) -> str:
         """Build a single active check_eval assertion line from a normalised eval spec.

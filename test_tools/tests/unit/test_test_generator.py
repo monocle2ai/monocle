@@ -570,6 +570,40 @@ def test_discovered_eval_emitted_with_baseline_comment():
     assert "# discovered from fact abc123; adjust as needed" in code
 
 
+def _disc_custom_spec(name, label, fact_id="abc123", fact_name="traces"):
+    return {"criteria": name, "expected": label, "fact_name": fact_name,
+            "eval_type": "custom", "_discovered": True,
+            "_discovered_fact_id": fact_id, "_discovered_custom": True}
+
+
+def test_discovered_custom_eval_is_commented_out_with_path_request():
+    spans = [_span({"span.type": "workflow", "workflow.name": "wf"})]
+    with patch("monocle_test_tools.test_generator.discover_fact_evals",
+               return_value=([_disc_custom_spec("hallucination", "major_hallucination")], None)):
+        code = TestGenerator(spans, trace_file="t.json").generate_test_code()
+    # No ACTIVE check_eval for the custom eval — the assertion line is commented out.
+    assert "\n    asserter.with_evaluation" not in code  # no active eval line
+    assert '# asserter.with_evaluation("okahu").check_eval(template_path="PATH/TO/your_custom_template.json"' in code
+    assert 'expected="major_hallucination"' in code
+    assert 'Custom eval "hallucination"' in code
+    assert "Okahu does not store custom templates" in code
+
+
+def test_discovered_builtin_and_custom_same_name_both_emitted():
+    spans = [_span({"span.type": "workflow", "workflow.name": "wf"})]
+    discovered = [
+        _disc_spec("hallucination", "major_hallucination"),          # builtin (active)
+        _disc_custom_spec("hallucination", "major_hallucination"),   # custom (commented)
+    ]
+    with patch("monocle_test_tools.test_generator.discover_fact_evals",
+               return_value=(discovered, None)):
+        gen = TestGenerator(spans, trace_file="t.json")
+        code = gen.generate_test_code()
+    # Both kept: an active builtin assertion AND a commented custom block.
+    assert 'asserter.with_evaluation("okahu").check_eval("hallucination", expected="major_hallucination"' in code
+    assert 'template_path="PATH/TO/your_custom_template.json"' in code
+
+
 def test_no_evals_found_emits_comment():
     spans = [_span({"span.type": "workflow", "workflow.name": "wf"})]
     with patch("monocle_test_tools.test_generator.discover_fact_evals",

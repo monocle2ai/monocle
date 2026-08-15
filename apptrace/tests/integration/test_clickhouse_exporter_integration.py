@@ -28,6 +28,7 @@ from monocle_apptrace.exporters.clickhouse.clickhouse_exporter import (
     CLIENT_SETTINGS,
 )
 from monocle_apptrace.instrumentation.common.constants import MONOCLE_SDK_VERSION
+from monocle_apptrace.instrumentation.common.utils import get_monocle_version
 
 logger = logging.getLogger(__name__)
 
@@ -42,11 +43,11 @@ def test_clickhouse_schema_roundtrip():
     tracer = provider.get_tracer(__name__)
 
     with tracer.start_as_current_span("clickhouse.workflow") as root:
-        root.set_attribute(MONOCLE_SDK_VERSION, "0.8.0")
+        root.set_attribute(MONOCLE_SDK_VERSION, get_monocle_version())
         trace_hex = f"0x{root.get_span_context().trace_id:032x}"
         root_span_id = f"0x{root.get_span_context().span_id:016x}"
         with tracer.start_as_current_span("clickhouse.child") as child:
-            child.set_attribute(MONOCLE_SDK_VERSION, "0.8.0")
+            child.set_attribute(MONOCLE_SDK_VERSION, get_monocle_version())
             child.set_attribute("span.type", "inference")
             child.add_event("metadata", {"total_tokens": 123})
 

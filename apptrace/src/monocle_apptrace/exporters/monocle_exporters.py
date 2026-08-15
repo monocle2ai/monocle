@@ -23,6 +23,7 @@ monocle_exporters: Dict[str, Any] = {
     },
     "gcs" : {"module": "monocle_apptrace.exporters.gcp.gcs_exporter", "class": "GCSSpanExporter"},
     "postgres": {"module": "monocle_apptrace.exporters.postgres.postgres_exporter", "class": "PostgresSpanExporter"},
+    "clickhouse": {"module": "monocle_apptrace.exporters.clickhouse.clickhouse_exporter", "class": "ClickHouseSpanExporter"},
     "paygentic": {"module": "monocle_apptrace.exporters.paygentic.paygentic_exporter", "class": "PaygenticSpanExporter"}
 }
 

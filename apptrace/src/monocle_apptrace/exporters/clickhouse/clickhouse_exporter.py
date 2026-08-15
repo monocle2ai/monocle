@@ -32,13 +32,14 @@ CREATE_TABLE_SQL = """
         trace_id       String,
         parent_id      Nullable(String),
         attributes     JSON,
-        events         Array(JSON)
+        events         Array(JSON),
+        metadata       JSON
     ) ENGINE = MergeTree() ORDER BY (trace_id, span_id)
 """
 
 INSERT_COLUMNS = [
     "name", "start_time", "end_time", "status_code", "status_message",
-    "span_id", "trace_id", "parent_id", "attributes", "events",
+    "span_id", "trace_id", "parent_id", "attributes", "events", "metadata",
 ]
 
 
@@ -90,6 +91,7 @@ class ClickHouseSpanExporter(SpanExporterBase):
             parent_id,
             serialized.get("attributes") or {},   # JSON
             serialized.get("events") or [],        # Array(JSON)
+            {},                                    # metadata — reserved for future use (mirrors Postgres)
         ]
 
     def _reconnect(self) -> None:

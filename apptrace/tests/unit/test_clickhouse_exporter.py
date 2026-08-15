@@ -18,7 +18,7 @@ from monocle_apptrace.exporters.monocle_exporters import monocle_exporters
 
 # Column positions in the row built by _build_row (mirror of INSERT_COLUMNS).
 C_NAME, C_START, C_END, C_STATUS_CODE, C_STATUS_MSG, \
-    C_SPAN_ID, C_TRACE_ID, C_PARENT_ID, C_ATTRS, C_EVENTS = range(10)
+    C_SPAN_ID, C_TRACE_ID, C_PARENT_ID, C_ATTRS, C_EVENTS, C_METADATA = range(11)
 
 
 def _make_span(name="test-span", trace_id=0xAABBCCDD, span_id=0x1111,
@@ -124,6 +124,11 @@ class TestBuildRow(unittest.TestCase):
         events = [{"name": "metadata", "attributes": {"total_tokens": 42}}]
         row = self.exporter._build_row(_make_span(events=events))
         self.assertEqual(row[C_EVENTS], events)
+
+    def test_metadata_is_empty_dict_reserved_column(self):
+        # metadata column mirrors Postgres: present but reserved (empty) for now.
+        row = self.exporter._build_row(_make_span())
+        self.assertEqual(row[C_METADATA], {})
 
     def test_name_is_first_column(self):
         row = self.exporter._build_row(_make_span(name="my-span"))

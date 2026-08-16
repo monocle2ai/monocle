@@ -47,7 +47,7 @@ jobs:
       - name: Install packages and dev dependencies
         run: |
           uv pip install --system --prerelease=allow \
-            -e './apptrace[dev,azure,aws,gcp,postgres]' \
+            -e './apptrace[dev,azure,aws,gcp,postgres,clickhouse]' \
             -e './test_tools[dev]'
 
       - name: Verify dependency consistency

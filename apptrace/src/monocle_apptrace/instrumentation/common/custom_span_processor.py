@@ -77,11 +77,62 @@ def extract_output(arguments):
         return json.dumps({"error": "Failed to capture output"})
 
 
-# Custom span entity processor following Monocle's pattern
-CUSTOM_SPAN_PROCESSOR = {
-    "type": "custom",
-    "events": [
-        {
+EXCLUDE_INPUTS = "inputs"
+EXCLUDE_OUTPUTS = "outputs"
+VALID_EXCLUSIONS = (EXCLUDE_INPUTS, EXCLUDE_OUTPUTS)
+
+
+def normalize_exclusions(exclude=None):
+    """Normalize an ``exclude`` option into a set of known exclusion names.
+
+    Accepts None, a single string ("inputs"), or any iterable of strings
+    (["inputs", "outputs"]). Comparison is case-insensitive and whitespace is
+    stripped, so values coming from a YAML config behave the same as values
+    passed in code.
+
+    An unrecognised name is warned about and ignored rather than raising:
+    a typo in a tracing option should not take down the application being
+    traced.
+    """
+    if not exclude:
+        return frozenset()
+
+    items = [exclude] if isinstance(exclude, str) else list(exclude)
+    normalized = set()
+
+    for item in items:
+        name = str(item).strip().lower()
+        if name in VALID_EXCLUSIONS:
+            normalized.add(name)
+        else:
+            logger.warning(
+                f"Ignoring unknown custom span exclusion {item!r}; "
+                f"expected one of {', '.join(VALID_EXCLUSIONS)}"
+            )
+
+    return frozenset(normalized)
+
+
+def build_custom_span_processor(exclude=None):
+    """Build a custom span entity processor, optionally omitting inputs/outputs.
+
+    Args:
+        exclude: None, "inputs", "outputs", or an iterable of those names.
+
+    Returns:
+        An output processor dict following Monocle's pattern. Excluded data is
+        never captured — the accessor is not registered at all, so nothing is
+        serialized and then dropped.
+
+    Note that excluding outputs still records ``error_code``. That is not
+    function output, it is whether the call failed, and losing it would leave
+    an excluded span unable to say that anything went wrong.
+    """
+    excluded = normalize_exclusions(exclude)
+    events = []
+
+    if EXCLUDE_INPUTS not in excluded:
+        events.append({
             "name": "data.input",
             "attributes": [
                 {
@@ -90,21 +141,34 @@ CUSTOM_SPAN_PROCESSOR = {
                     "accessor": lambda arguments: extract_input(arguments)
                 }
             ]
-        },
+        })
+
+    output_attributes = [
         {
-            "name": "data.output",
-            "attributes": [
-                {
-                    "_comment": "Error code if any",
-                    "attribute": "error_code",
-                    "accessor": lambda arguments: get_error_message(arguments)
-                },
-                {
-                    "_comment": "Captured function output",
-                    "attribute": "response",
-                    "accessor": lambda arguments: extract_output(arguments)
-                }
-            ]
+            "_comment": "Error code if any",
+            "attribute": "error_code",
+            "accessor": lambda arguments: get_error_message(arguments)
         }
     ]
-}
+
+    if EXCLUDE_OUTPUTS not in excluded:
+        output_attributes.append({
+            "_comment": "Captured function output",
+            "attribute": "response",
+            "accessor": lambda arguments: extract_output(arguments)
+        })
+
+    events.append({
+        "name": "data.output",
+        "attributes": output_attributes
+    })
+
+    return {
+        "type": "custom",
+        "events": events
+    }
+
+
+# Custom span entity processor following Monocle's pattern.
+# The default captures both inputs and outputs, exactly as before.
+CUSTOM_SPAN_PROCESSOR = build_custom_span_processor()

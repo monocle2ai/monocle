@@ -99,9 +99,13 @@ Supported exporters:
 - `memory` - Store traces in memory (useful for testing)
 - `s3` - Upload traces to AWS S3 bucket
 - `blob` - Upload traces to Azure Blob Storage
+- `gcs` - Upload traces to Google Cloud Storage
 - `okahu` - Send traces to Okahu observability platform
 - `otlp` - Send traces to any OTLP-compatible backend (e.g., Jaeger, Zipkin, Grafana Tempo, OpenTelemetry Collector)
 - `otlp-genai-semconv` - Send traces over OTLP and add OpenTelemetry `gen_ai.*` semantic attributes
+- `postgres` - Write traces to a PostgreSQL `traces` table (set `MONOCLE_POSTGRES_CONNECTION_URL`; install the `postgres` extra)
+- `clickhouse` - Write traces to a ClickHouse `traces` table (set `MONOCLE_CLICKHOUSE_CONNECTION_URL`; install the `clickhouse` extra)
+- `paygentic` - Send traces to Paygentic
 
 Examples:
 ```bash
@@ -123,6 +127,22 @@ export MONOCLE_EXPORTER=file,console
 # Use OTLP and file exporters
 export MONOCLE_EXPORTER=otlp,file
 ```
+
+### Using the ClickHouse Exporter
+The `clickhouse` exporter writes each span to a `traces` table (created on first use). Install the extra and point it at a ClickHouse server:
+
+```bash
+pip install "monocle-apptrace[clickhouse]"
+export MONOCLE_EXPORTER=clickhouse
+
+# Self-hosted (native or HTTP interface)
+export MONOCLE_CLICKHOUSE_CONNECTION_URL="clickhouse://user:pass@host:8123/db"
+
+# ClickHouse Cloud — use the secure endpoint (TLS is required)
+export MONOCLE_CLICKHOUSE_CONNECTION_URL="https://user:pass@your-service.clickhouse.cloud:8443/db"
+```
+
+`attributes` and `metadata` are stored as `JSON`, `events` as `Array(JSON)`, and status as `status_code` / `status_message` columns, so span sub-fields are queryable directly (for example `attributes.\`span.type\``). This requires a ClickHouse version that supports the `JSON` type — a recent self-hosted build, or any current ClickHouse Cloud service. The database user needs `CREATE TABLE` on the first run, or you can pre-create the `traces` table and grant the user insert access.
 
 ### Using OTLP Exporter for OpenTelemetry-Compatible Backends
 The OTLP (OpenTelemetry Protocol) exporter allows you to send traces to any OTLP-compatible collectors.

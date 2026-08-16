@@ -23,6 +23,9 @@ DEFAULT_EVAL_TIME_PAD_SECONDS = 8 * 60 * 60      # 8 hours
 class OkahuEval(BaseEval):
     last_judge_output: dict = {}
     last_total_tokens: Optional[int] = None
+    # Per-fact eval results from the most recent evaluate() call, one row per
+    # fact id .
+    last_fact_results: list = []
 
     @classmethod
     def classify_eval_input(cls, name_or_path: str) -> Tuple[str, str]:
@@ -409,6 +412,10 @@ class OkahuEval(BaseEval):
             payload = {"template_name": eval_name}
         label = None
         explanation = ""
+        # Accumulate one result row per fact id so the caller can assert every
+        # fact (e.g. every turn), not just the last one evaluated.
+        fact_results: list = []
+        self.last_fact_results = fact_results
         # A live run submits the eval in shadow mode (compute only); we persist the
         # result via export_results below. A replay (trace already in Okahu, PR #547)
         # submits with shadow_eval False, so the eval service persists the result
@@ -473,6 +480,15 @@ class OkahuEval(BaseEval):
                 raise AssertionError(
                     f"Unexpected response format from evaluation service. Expected 'result' key in response. Received: {data}"
                 ) from exc
+
+
+            fact_results.append({
+                "fact_id": fact_id,
+                "job_id": None,
+                "eval_found": True,
+                "eval_result": {"label": label, "explanation": explanation},
+                "workflow": workflow_name or "",
+            })
             
             # Only persist via export_results when the submit ran in shadow mode. On a
             # replay (shadow_eval False) the submit already stored the result, so

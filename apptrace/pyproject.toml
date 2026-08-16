@@ -180,6 +180,10 @@ postgres = [
     'psycopg2-binary',
 ]
 
+clickhouse = [
+    'clickhouse-connect',
+]
+
 
 [project.urls]
 Homepage = "https://github.com/monocle2ai/monocle"

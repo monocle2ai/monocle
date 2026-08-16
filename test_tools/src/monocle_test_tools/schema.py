@@ -160,6 +160,7 @@ class TestCase(BaseModel):
         expect_warnings: Flag indicating whether the test should expect warnings to occur.
     """
     test_name: Optional[str] = Field("monocle_test", description="Name of the test case.")
+    turn_id: Optional[str] = Field(None, description="Turn identifier used when this case is a turn in a MultiTurnTestCase. Tags every span produced by the turn with scope.turn_id. Defaults to the 1-based turn index when not set.")
     test_input: Optional[Tuple[Any, ...]] = Field(None, description="Input prompt or data for the test case.")
     test_output: Optional[Any] = Field(None, description="Expected output for the test case.")
     comparer: Optional[Union[str, BaseComparer]] = Field(DefaultComparer(), description="Comparison method for the test case.")

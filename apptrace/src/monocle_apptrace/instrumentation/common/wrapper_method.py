@@ -37,6 +37,7 @@ from monocle_apptrace.instrumentation.metamodel.gemini.methods import GEMINI_MET
 from monocle_apptrace.instrumentation.metamodel.fastapi.methods import FASTAPI_METHODS
 from monocle_apptrace.instrumentation.metamodel.fastapi._helper import FastAPISpanHandler, FastAPIResponseSpanHandler
 from monocle_apptrace.instrumentation.metamodel.fastmcp.methods import FASTMCP_METHODS
+from monocle_apptrace.instrumentation.metamodel.agentcore.agentcore_handler import AgentCoreSpanHandler
 from monocle_apptrace.instrumentation.metamodel.lambdafunc._helper import lambdaSpanHandler
 from monocle_apptrace.instrumentation.metamodel.lambdafunc.methods import LAMBDA_HTTP_METHODS
 from monocle_apptrace.instrumentation.metamodel.mcp.methods import MCP_METHODS
@@ -168,6 +169,7 @@ MONOCLE_SPAN_HANDLERS: Dict[str, SpanHandler] = {
     "llamaindex_workflow_handler": LlamaIndexWorkflowHandler(),
     "llamaindex_single_agent_tool_handler": LlamaIndexSingleAgenttToolHandlerWrapper(),
     "lambda_func_handler": lambdaSpanHandler(),
+    "agentcore_handler": AgentCoreSpanHandler(),
     "adk_handler": AdkSpanHandler(),
     "strands_handler": StrandsSpanHandler(),
     "claude_handler": ClaudeSpanHandler(),

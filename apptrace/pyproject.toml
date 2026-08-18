@@ -159,6 +159,13 @@ dev_strands = [
   'strands-agents-tools==0.2.10'
 ]
 
+# separate extra because openhands-sdk requires newer litellm/pydantic/fastmcp
+# than the versions pinned in dev
+dev_openhands = [
+  'openhands-sdk==1.35.0',
+  'openhands-tools==1.35.0'
+]
+
 azure = [
     'azure-storage-blob==12.22.0',
     'azure-ai-inference'

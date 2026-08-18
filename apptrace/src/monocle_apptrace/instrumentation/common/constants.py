@@ -115,6 +115,21 @@ HTTP_SUCCESS_CODES = ("200", "201", "202", "204", "205", "206")
 CHILD_ERROR_CODE = "child.error.code"
 HEALTH_RESET_COUNTER = 100
 HTTP_HEALTH_CHECK_METHODS = ["get", "head"]
+# Well known health check routes. A route matches when it equals one of these or ends
+# with it, eg /actuator/health.
+HTTP_HEALTH_CHECK_ROUTES = [
+    "/health",
+    "/healthz",
+    "/healthcheck",
+    "/health-check",
+    "/livez",
+    "/liveness",
+    "/readyz",
+    "/readiness",
+    "/ping",
+    "/_health",
+]
+HTTP_HEALTH_CHECK_ROUTES_ENV = "MONOCLE_HEALTH_CHECK_ROUTES"
 
 AGENT_PREFIX_KEY = "monocle.agent.prefix"
 AGENT_NAME_KEY = "monocle.agent.name"

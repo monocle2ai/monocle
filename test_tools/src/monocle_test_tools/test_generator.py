@@ -2,20 +2,25 @@ import math
 from typing import List, Optional, Set, Dict
 from opentelemetry.sdk.trace import ReadableSpan
 
+from monocle_test_tools.evals.eval_manager import get_supported_eval_sources
+
 
 # Allowed values for the ``trace_source`` argument. When set, only the loader
 # code for that specific source is generated.
 SUPPORTED_TRACE_SOURCES = ("file", "okahu")
 
 
-SUPPORTED_EVAL_SOURCES = ("okahu",)
+# Eval providers usable as an ``eval_source`` come from the eval registry, so a
+# new evaluator can be registered without editing the generator.
+SUPPORTED_EVAL_SOURCES = get_supported_eval_sources()
 
 
 class TestGenerator:
     """Generates test code by analyzing trace spans.
 
     Emits a complete, runnable test file with assertions for agents, tools,
-    outputs, total tokens, turn duration, and optional eval assertions.
+    outputs, total tokens, turn duration, optional injected eval assertions, and
+    evals auto-discovered from the source fact (see ``discover_fact_evals``).
     The Okahu cloud loader is pre-populated with trace id and workflow name.
     """
 
@@ -24,7 +29,9 @@ class TestGenerator:
                  workflow_name: Optional[str] = None, session_id: Optional[str] = None,
                  scope_name: Optional[str] = None, scope_id: Optional[str] = None,
                  injected_evals: Optional[List[Dict]] = None,
-                 eval_source: Optional[str] = "okahu"):
+                 eval_source: Optional[str] = "okahu",
+                 discover_evals: bool = True,
+                 discovery_fact_name: Optional[str] = None):
         """Initialize with a list of spans to analyze.
 
         Args:
@@ -69,6 +76,9 @@ class TestGenerator:
         self.session_id = session_id
         self.scope_name = scope_name
         self.scope_id = scope_id
+        self.discover_evals = discover_evals
+        self.discovery_fact_name = discovery_fact_name
+        self._discovery_note: Optional[str] = None
         # Evals injected directly via CLI --eval flags (after type detection/normalisation).
         self._injected_evals: List[Dict] = [
             self._normalise_injected_eval(ev) for ev in (injected_evals or [])
@@ -85,17 +95,22 @@ class TestGenerator:
     @classmethod
     def from_json_file(cls, filepath: str, trace_source: Optional[str] = None,
                        injected_evals: Optional[List[Dict]] = None,
-                       eval_source: Optional[str] = "okahu"):
+                       eval_source: Optional[str] = "okahu",
+                       discover_evals: bool = True,
+                       discovery_fact_name: Optional[str] = None):
         """Create generator from a trace JSON file."""
         from monocle_test_tools.span_loader import JSONSpanLoader
         spans = JSONSpanLoader.from_json(filepath)
         return cls(spans, trace_file=filepath, trace_source=trace_source,
-                   injected_evals=injected_evals, eval_source=eval_source)
+                   injected_evals=injected_evals, eval_source=eval_source,
+                   discover_evals=discover_evals, discovery_fact_name=discovery_fact_name)
 
     @classmethod
     def from_okahu(cls, trace_id: str, workflow_name: str, trace_source: Optional[str] = None,
                    injected_evals: Optional[List[Dict]] = None,
-                   eval_source: Optional[str] = "okahu"):
+                   eval_source: Optional[str] = "okahu",
+                   discover_evals: bool = True,
+                   discovery_fact_name: Optional[str] = None):
         """Create generator from an Okahu trace."""
         from monocle_test_tools.span_loader import OkahuSpanLoader
         spans = OkahuSpanLoader.get_spans(
@@ -104,13 +119,16 @@ class TestGenerator:
         )
         return cls(spans, trace_file=None, trace_source=trace_source,
                    trace_id=trace_id, workflow_name=workflow_name,
-                   injected_evals=injected_evals, eval_source=eval_source)
+                   injected_evals=injected_evals, eval_source=eval_source,
+                   discover_evals=discover_evals, discovery_fact_name=discovery_fact_name)
 
     @classmethod
     def from_okahu_scope(cls, scope_name: str, scope_id: str, workflow_name: str,
                          trace_source: Optional[str] = None,
                          injected_evals: Optional[List[Dict]] = None,
-                         eval_source: Optional[str] = "okahu"):
+                         eval_source: Optional[str] = "okahu",
+                         discover_evals: bool = True,
+                         discovery_fact_name: Optional[str] = None):
         """Create generator from any Okahu fact/scope other than a single trace.
 
         Loads spans across every trace under ``scope_name == scope_id`` (e.g.
@@ -129,16 +147,20 @@ class TestGenerator:
         if scope_name == OkahuSpanLoader.AGENT_SESSIONS_SCOPE:
             return cls(spans, trace_file=None, trace_source=trace_source,
                        workflow_name=workflow_name, session_id=scope_id,
-                       injected_evals=injected_evals, eval_source=eval_source)
+                       injected_evals=injected_evals, eval_source=eval_source,
+                       discover_evals=discover_evals, discovery_fact_name=discovery_fact_name)
         return cls(spans, trace_file=None, trace_source=trace_source,
                    workflow_name=workflow_name, scope_name=scope_name, scope_id=scope_id,
-                   injected_evals=injected_evals, eval_source=eval_source)
+                   injected_evals=injected_evals, eval_source=eval_source,
+                   discover_evals=discover_evals, discovery_fact_name=discovery_fact_name)
 
     @classmethod
     def from_okahu_session(cls, session_id: str, workflow_name: str,
                            trace_source: Optional[str] = None,
                            injected_evals: Optional[List[Dict]] = None,
-                           eval_source: Optional[str] = "okahu"):
+                           eval_source: Optional[str] = "okahu",
+                           discover_evals: bool = True,
+                           discovery_fact_name: Optional[str] = None):
         """Create generator from an Okahu agentic session.
 
         A session spans multiple traces; this loads spans across every trace in the
@@ -155,6 +177,8 @@ class TestGenerator:
             trace_source=trace_source,
             injected_evals=injected_evals,
             eval_source=eval_source,
+            discover_evals=discover_evals,
+            discovery_fact_name=discovery_fact_name,
         )
 
     def analyze(self):
@@ -216,16 +240,45 @@ class TestGenerator:
                 duration = (span.end_time - span.start_time) / 1e9
                 self.turn_duration = max(self.turn_duration, duration)
 
-        # Evals are supplied as parameters (CLI --eval flags / injected_evals);
-        # de-duplicate them, preserving first-seen order.
+        # Evals come from CLI --eval flags (injected) and, unless disabled, from
+        # evals already recorded on the source fact (discovered). Injected specs
+        # are placed first so a user's --eval wins the first-seen dedupe on conflict.
+        merged: List[Dict[str, object]] = list(self._injected_evals)
+        self._discovery_note = None
+        if self.discover_evals:
+            evaluator = self._get_discovery_evaluator()
+            if evaluator is None:
+                discovered, note = [], (
+                    f"eval discovery skipped: unsupported eval_source '{self.eval_source}'")
+            else:
+                discovered, note = evaluator.discover_fact_evals(
+                    self.spans, fact_name=self._resolve_discovery_fact_name())
+            self._discovery_note = note
+            # Discovered specs are already normalised by discover_fact_evals; do NOT
+            # run them through _normalise_injected_eval (it would move a custom eval's
+            # name from 'criteria' into 'template_path', losing it for the comment).
+            merged.extend(discovered)
+
+        # De-duplicate, preserving first-seen order. The conflict key ignores the
+        # expected value so a discovered spec that only differs by label is dropped
+        # when an injected spec already covers the same (eval, fact) pair.
+        # The provenance flag keeps a builtin and a custom-template eval that share
+        # a name (e.g. "hallucination") as distinct entries, while still letting an
+        # injected --eval win over a same-provenance discovered eval.
         deduped: List[Dict[str, object]] = []
         seen: Set[tuple] = set()
-        for ev in self._injected_evals:
+        seen_conflict: Set[tuple] = set()
+        for ev in merged:
+            custom_flag = bool(ev.get("_discovered_custom"))
             key = (ev.get("criteria"), ev.get("template_path"),
-                   repr(ev.get("expected")), repr(ev.get("not_expected")), ev.get("fact_name"))
-            if key in seen:
+                   repr(ev.get("expected")), repr(ev.get("not_expected")),
+                   ev.get("fact_name"), custom_flag)
+            conflict_key = (ev.get("criteria"), ev.get("template_path"),
+                            ev.get("fact_name"), custom_flag)
+            if key in seen or conflict_key in seen_conflict:
                 continue
             seen.add(key)
+            seen_conflict.add(conflict_key)
             deduped.append(ev)
         self.evals = deduped
 
@@ -242,6 +295,33 @@ class TestGenerator:
         except Exception:
             pass
         return None
+
+    def _resolve_discovery_fact_name(self) -> str:
+        """Fact level for eval discovery: explicit override wins, else auto-match input mode."""
+        if self.discovery_fact_name:
+            return self.discovery_fact_name
+        if self.session_id:
+            return "agentic_sessions"
+        if self.scope_name:
+            from monocle_test_tools.evals.okahu_eval import OkahuEval
+            try:
+                OkahuEval._map_fact_name(self.scope_name)
+                return self.scope_name
+            except ValueError:
+                return "traces"
+        return "traces"
+
+    def _get_discovery_evaluator(self):
+        """Resolve the eval provider used for discovery from ``eval_source``.
+
+        Looks the provider up in the eval registry (same source of truth as
+        ``_detect_eval_type``) so the generator never imports a specific
+        evaluator. Returns a ``BaseEval`` instance, or ``None`` when the
+        configured ``eval_source`` is not registered.
+        """
+        from monocle_test_tools.evals.eval_manager import EVAL_SOURCE_CLASSES
+        cls = EVAL_SOURCE_CLASSES.get(self.eval_source)
+        return cls(eval_options={}) if cls else None
 
     @staticmethod
     def _detect_eval_type(name_or_path: str, eval_source: str = "okahu") -> str:
@@ -407,14 +487,43 @@ class TestGenerator:
             code.append(f'    asserter.under_duration({duration_limit}, units="seconds", span_type="agent_turn")')
             code.append('')
 
-        # Eval assertions (supplied as parameters; built-in and/or custom).
-        if self.evals:
-            code.append('    # Eval assertions (from eval parameters; require an eval service, e.g. Okahu)')
+        # Eval assertions (injected and/or discovered) + any discovery note.
+        if self.evals or self._discovery_note:
+            code.append('    # Eval assertions (require an eval service, e.g. Okahu)')
             for ev in self.evals:
-                code.append('    ' + self._eval_assertion_line(ev))
+                if ev.get("_discovered_custom"):
+                    # Custom template: Okahu can't reload it, so emit a commented block.
+                    code.extend(self._discovered_custom_eval_lines(ev))
+                else:
+                    code.append('    ' + self._eval_assertion_line(ev))
+            if self._discovery_note:
+                code.append(f'    # {self._discovery_note}')
             code.append('')
 
         return '\n'.join(code)
+
+    def _discovered_custom_eval_lines(self, ev: Dict[str, object]) -> List[str]:
+        """Commented-out assertion for a discovered custom-template eval.
+
+        Okahu does not store custom templates, so the eval cannot be re-run by
+        name. Emit the observed label plus a ``template_path`` placeholder for the
+        developer to point at their own custom template file.
+        """
+        lit = self._eval_literal
+        name = ev.get("criteria") or ev.get("template_path") or ""
+        label = ev.get("expected")
+        fact_id = ev.get("_discovered_fact_id", "")
+        call_args = ['template_path="PATH/TO/your_custom_template.json"']
+        if label is not None:
+            call_args.append(f'expected={lit(label)}')
+        if ev.get("fact_name"):
+            call_args.append(f'fact_name={lit(ev["fact_name"])}')
+        args_str = ", ".join(call_args)
+        return [
+            f'    # Custom eval "{name}" ran on fact {fact_id} (observed label: {lit(label)}),',
+            '    # but Okahu does not store custom templates. Provide your template path to re-enable it:',
+            f'    # asserter.with_evaluation("{self.eval_source}").check_eval({args_str})',
+        ]
 
     def _eval_assertion_line(self, ev: Dict[str, object]) -> str:
         """Build a single active check_eval assertion line from a normalised eval spec.
@@ -441,8 +550,12 @@ class TestGenerator:
         args_str = ", ".join(call_args)
         line = f'asserter.with_evaluation("{evaluator}").check_eval({args_str})'
 
-        # Append inline type comment for injected evals so developers know the type
-        if eval_type in ("builtin", "custom"):
+        # Discovered evals carry a baseline comment (their expected value is the
+        # label observed on the source fact); injected evals get a type comment.
+        if ev.get("_discovered"):
+            fact_id = ev.get("_discovered_fact_id", "")
+            line += f'  # discovered from fact {fact_id}; adjust as needed'
+        elif eval_type in ("builtin", "custom"):
             line += f'  # {eval_type} eval'
 
         return line

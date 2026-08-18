@@ -14,6 +14,18 @@ class BaseEval(BaseModel):
         """Optional cleanup hook called at test end. Override if needed."""
         pass
 
+    def discover_fact_evals(self, spans, *, fact_name: str = "traces") -> Tuple[list, Optional[str]]:
+        """Discover evals already recorded on the source fact for this provider.
+
+        Returns ``(specs, note)``: ``specs`` are eval-spec dicts (shaped like the
+        test generator's injected evals); ``note`` is a human-readable reason when
+        no specs were produced, else ``None``. Non-fatal by contract — never raises.
+
+        Default: no discovery support. Providers that can introspect a recorded-eval
+        store (e.g. :class:`OkahuEval`) override this.
+        """
+        return [], f"eval discovery not supported for evaluator '{type(self).__name__}'"
+
     @classmethod
     def classify_eval_input(cls, name_or_path: str) -> Tuple[str, str]:
         """Classify an eval input as builtin or custom.

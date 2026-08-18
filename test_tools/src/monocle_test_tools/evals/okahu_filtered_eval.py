@@ -14,6 +14,12 @@ import time
 
 import requests
 
+# Production Okahu endpoints. Users never set these — they default to prod, and
+# only developers override them (to stage/dev) via the env vars below. Mirrors
+# OkahuSpanLoader.OKAHU_BASE_URL and okahu_eval.OKAHU_PROD_EVALUATION_ENDPOINT.
+OKAHU_PROD_API_ENDPOINT = "https://api.okahu.co"
+OKAHU_PROD_EVALUATION_ENDPOINT = "https://eval.okahu.co/api"
+
 
 def normalize_fact_id(fid) -> str:
     """Bare-hex fact id (strip a leading 0x). Format-agnostic to caller input."""
@@ -132,14 +138,16 @@ class OkahuFilteredEval:
 
     @classmethod
     def from_env(cls):
-        required = ["OKAHU_API_KEY", "OKAHU_EVALUATION_ENDPOINT", "OKAHU_API_ENDPOINT"]
-        for var in required:
-            if not os.environ.get(var):
-                raise RuntimeError(f"Missing required environment variable: {var}")
+        # Only the API key is required — the endpoints default to prod so users
+        # never have to set them. Developers point at stage/dev by overriding
+        # OKAHU_API_ENDPOINT / OKAHU_EVALUATION_ENDPOINT.
+        api_key = os.environ.get("OKAHU_API_KEY")
+        if not api_key:
+            raise RuntimeError("Missing required environment variable: OKAHU_API_KEY")
         return cls(
-            api_key=os.environ["OKAHU_API_KEY"],
-            eval_base=os.environ["OKAHU_EVALUATION_ENDPOINT"],
-            api_base=os.environ["OKAHU_API_ENDPOINT"],
+            api_key=api_key,
+            eval_base=os.getenv("OKAHU_EVALUATION_ENDPOINT", OKAHU_PROD_EVALUATION_ENDPOINT),
+            api_base=os.getenv("OKAHU_API_ENDPOINT", OKAHU_PROD_API_ENDPOINT),
             poll_interval_s=int(os.getenv("BATCH_EVAL_JOB_POLL_INTERVAL_S", "5")),
             poll_timeout_s=int(os.getenv("BATCH_EVAL_JOB_POLL_TIMEOUT_S", "600")),
         )

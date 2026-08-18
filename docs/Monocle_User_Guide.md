@@ -218,6 +218,24 @@ Monocle isolates automatically instrumented spans from non-Monocle OpenTelemetry
 export MONOCLE_ISOLATE_SPANS=false
 ```
 
+#### Health check sampling
+
+Health checks run every few seconds and would otherwise fill the trace with HTTP spans, so Monocle
+exports only one in every 100 of them. A span is treated as a health check when it is a `GET`/`HEAD`
+request that carries no request params or body, returns a success status, and either has an empty
+response or targets a well known health check route (`/health`, `/healthz`, `/healthcheck`,
+`/health-check`, `/livez`, `/liveness`, `/readyz`, `/readiness`, `/ping`, `/_health`, and any path
+ending in one of those, eg `/actuator/health`). Health checks that **fail** are always exported, so
+a failure is never sampled away.
+
+```bash
+# export every health check span
+export MONOCLE_SAMPLE_HEALTH_CHECKS=false
+
+# replace the health check routes above with your own comma separated list
+export MONOCLE_HEALTH_CHECK_ROUTES=/health,/status-check
+```
+
 #### Example with OpenTelemetry Collector
 ```bash
 # Run OpenTelemetry Collector locally

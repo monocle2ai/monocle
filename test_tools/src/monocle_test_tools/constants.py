@@ -33,3 +33,8 @@ GITHUB_SHA: str = "GITHUB_SHA"
 
 # Local environment
 LOCAL_RUN_ID: str = "LOCAL_RUN_ID"
+
+# check_eval's `eval_type` qualifier: whether `eval_name` names a built-in eval
+# template or points at a JSON file holding a custom eval template. 
+BUILTIN_EVAL_TYPE: str = "builtin"
+CUSTOM_EVAL_TYPE: str = "custom"

@@ -4,14 +4,19 @@ import logging
 import os
 from typing import Any, Optional, Union
 
+from monocle_apptrace.instrumentation.common.constants import (
+    AGENTCORE_CUSTOM_HEADER_PREFIX,
+    MONOCLE_TRACE_RETRIEVAL_KEY_ENV,
+    TRACE_RETURN_REQUEST_HEADER,
+)
 from monocle_test_tools.file_span_loader import JSONSpanLoader
 from monocle_test_tools.runner.agent_runner import AgentRunner
 
 logger = logging.getLogger(__name__)
 
 # A deployed agent running with trace-return enabled appends its spans after a
-# delimiter of the form ``__MONOCLE_TRACES__<hex>__``. The prefix is fixed, so
-# the trailer can be located without the response header the HTTP path uses.
+# delimiter of the form ``__MONOCLE_TRACES__<hex>__``. boto3 surfaces no response
+# header to announce that delimiter, so the fixed prefix is what locates it.
 _DELIMITER_PREFIX = "__MONOCLE_TRACES__"
 _DELIMITER_SUFFIX = "__"
 
@@ -27,6 +32,13 @@ MAX_RUNTIME_SESSION_ID_LENGTH = 256
 
 # Separator in the endpoint-qualified ARN form issued by the AgentCore console/CLI.
 _ENDPOINT_MARKER = "/runtime-endpoint/"
+
+# Header the retrieval key travels in. AgentCore only forwards a caller's headers
+# to the agent under its own custom prefix, so the name the other runners send is
+# nested inside it and unwrapped by the agent's span handler.
+_RETRIEVAL_KEY_HEADER = AGENTCORE_CUSTOM_HEADER_PREFIX + TRACE_RETURN_REQUEST_HEADER
+# Signed with the request, so the key cannot be swapped in transit.
+_SIGN_EVENT = "before-sign.bedrock-agentcore.InvokeAgentRuntime"
 
 DEFAULT_CONTENT_TYPE = "application/json"
 _EVENT_STREAM_CONTENT_TYPE = "text/event-stream"
@@ -163,10 +175,10 @@ class AgentCoreRunner(AgentRunner):
         """Take any trace-return trailer off the response and keep its spans.
 
         A deployed agent running with trace-return enabled appends its spans to
-        the value it returns, after a delimiter. The delimiter starts with a
-        fixed prefix, so it can be found without the response header the HTTP
-        path relies on — boto3 cannot carry one. Returns the text with the
-        trailer removed, so callers only ever see the agent's own answer.
+        the value it returns, after a delimiter. Nothing announces that
+        delimiter — boto3 surfaces no response header — so it is located by its
+        fixed prefix. Returns the text with the trailer removed, so callers only
+        ever see the agent's own answer.
         """
         index = text.find(_DELIMITER_PREFIX)
         if index == -1:
@@ -186,6 +198,50 @@ class AgentCoreRunner(AgentRunner):
     def get_remote_spans(self) -> list:
         """Spans the deployed agent returned alongside its response, if any."""
         return self._remote_spans
+
+    @staticmethod
+    def _retrieval_key_handler():
+        """A botocore hook that presents the trace-retrieval key on the request.
+
+        The deployed agent returns its spans only to a caller that presents the
+        key it was configured with. Returns None when
+        ``MONOCLE_TRACE_RETRIEVAL_KEY`` is unset, so an unconfigured run sends
+        nothing extra.
+        """
+        key = os.environ.get(MONOCLE_TRACE_RETRIEVAL_KEY_ENV)
+        if not key:
+            return None
+
+        def add_retrieval_key(request, **_):
+            already_set = {str(name).lower() for name in request.headers.keys()}
+            if _RETRIEVAL_KEY_HEADER.lower() not in already_set:
+                request.headers.add_header(_RETRIEVAL_KEY_HEADER, key)
+
+        return add_retrieval_key
+
+    def _invoke(self, client: Any, request: dict) -> dict:
+        """Invoke the runtime, presenting the retrieval key when one is set.
+
+        The hook is registered around this one call rather than on the client:
+        the client may have been supplied by the caller and outlive the runner,
+        and a key captured once at construction would go stale if the
+        environment changed between tests.
+
+        A client that takes no botocore hooks — a test double standing in for
+        one — is still invoked, just without the key, since that is what the
+        runner did before the key existed.
+        """
+        handler = self._retrieval_key_handler()
+        events = getattr(getattr(client, "meta", None), "events", None)
+        if handler is None or events is None:
+            if handler is not None:
+                logger.debug("client accepts no botocore hooks; retrieval key not sent")
+            return client.invoke_agent_runtime(**request)
+        events.register_first(_SIGN_EVENT, handler)
+        try:
+            return client.invoke_agent_runtime(**request)
+        finally:
+            events.unregister(_SIGN_EVENT, handler)
 
     @staticmethod
     def _decode_response(response: dict) -> Any:
@@ -278,7 +334,7 @@ class AgentCoreRunner(AgentRunner):
         # AWS errors are left to propagate so the framework's expect_errors
         # handling sees a real failure rather than an error string as a response.
         client = self._get_client(region_hint=self._region_from_arn(runtime_arn))
-        response = client.invoke_agent_runtime(**request)
+        response = self._invoke(client, request)
         logger.debug(f"AgentCore response statusCode={response.get('statusCode')}")
         result = self._decode_response(response)
         if isinstance(result, str):

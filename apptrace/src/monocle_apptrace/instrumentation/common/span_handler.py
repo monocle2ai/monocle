@@ -3,12 +3,15 @@ import os
 from contextlib import contextmanager
 from threading import Lock
 from typing import Union
+from urllib.parse import urlparse
 from opentelemetry.context import get_value, set_value, attach, detach
 from opentelemetry.sdk.trace import Span
 from opentelemetry.sdk.resources import SERVICE_NAME
 from opentelemetry.trace.status import Status, StatusCode
 from monocle_apptrace.instrumentation.common.constants import (
     HTTP_HEALTH_CHECK_METHODS,
+    HTTP_HEALTH_CHECK_ROUTES,
+    HTTP_HEALTH_CHECK_ROUTES_ENV,
     QUERY,
     service_name_map,
     service_type_map,
@@ -432,6 +435,44 @@ class NonFrameworkSpanHandler(SpanHandler):
 
 class HttpSpanHandler(SpanHandler):
     sample_health_checks:bool = os.environ.get("MONOCLE_SAMPLE_HEALTH_CHECKS", "true").lower() == "true"
+    health_check_routes:list[str] = [route.strip().rstrip("/").lower()
+                                     for route in os.environ.get(HTTP_HEALTH_CHECK_ROUTES_ENV,
+                                                                 ",".join(HTTP_HEALTH_CHECK_ROUTES)).split(",")
+                                     if route.strip().rstrip("/")]
+
+    @staticmethod
+    def is_health_check_route(span:Span) -> bool:
+        """True when the span's route/url points at a well known health check path.
+        Health checks commonly answer with a body (eg {"status":"ok"} or OK), so the response
+        alone can't tell them apart from real traffic."""
+        for attribute in ("entity.1.route", "entity.1.url"):
+            value = span.attributes.get(attribute, "")
+            if not isinstance(value, str) or not value:
+                continue
+            path = urlparse(value).path if "://" in value else value.split("?", 1)[0]
+            path = path.rstrip("/").lower()
+            if not path:
+                continue
+            for route in HttpSpanHandler.health_check_routes:
+                if path == route or path.endswith(route):
+                    return True
+        return False
+
+    @staticmethod
+    def has_error(span:Span, event) -> bool:
+        """True when the request failed. Http metamodels report the status under either
+        error_code (lambda, agentcore) or status_code (fastapi, flask, aiohttp, azfunc)."""
+        if span.status.status_code == StatusCode.ERROR or span.attributes.get(MONOCLE_DETECTED_SPAN_ERROR, False):
+            return True
+        for attribute in ("error_code", "status_code"):
+            status = str(event.attributes.get(attribute, "")).strip()
+            if not status or status in HTTP_SUCCESS_CODES:
+                continue
+            # health checks are considered successful on any 2xx/3xx
+            if status.isdigit() and int(status) < 400:
+                continue
+            return True
+        return False
 
     def should_sample(self, to_wrap, wrapped, instance, args, kwargs, result, ex, span:Span, parent_span:Span) -> bool:
         # exclude http health checks spans ie spans with input/output are empty and there's no error or exception
@@ -445,6 +486,10 @@ class HttpSpanHandler(SpanHandler):
         if not method.lower() in HTTP_HEALTH_CHECK_METHODS:
             return True
 
+        # Health check routes are allowed to answer with a body, everything else must have an
+        # empty output to be treated as a health check.
+        is_health_check_route = HttpSpanHandler.is_health_check_route(span)
+
         # Check events for input/output data
         events = span.events
         if events:
@@ -454,9 +499,10 @@ class HttpSpanHandler(SpanHandler):
                         return True
                 elif event.name == "data.output":
                     if event.attributes:
+                        if HttpSpanHandler.has_error(span, event):
+                            return True
                         response = event.attributes.get("response")
-                        error_code = event.attributes.get("error_code")
-                        if (response is not None) or (error_code is not None and error_code not in HTTP_SUCCESS_CODES):
+                        if response is not None and not is_health_check_route:
                             return True
             # if the span has no input/output data and no exception, then just export one out of every HEALTH_RESET_COUNTER
             if http_span_counter.increment() > 0:

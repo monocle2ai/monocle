@@ -865,11 +865,17 @@ monocle_trace_asserter.called_agent("adk_flight_booking_agent")
 monocle_trace_asserter.with_evaluation("okahu") \
     .check_eval(template_path="templates/my_custom_eval.json", expected="pass")
 
+# Custom template passed as eval_name instead — a path is recognised as a template file
+monocle_trace_asserter.with_evaluation("okahu") \
+    .check_eval("templates/my_custom_eval.json", expected="pass")
+
 # Inline dict (no file needed) — pass the template as a keyword-only argument
 monocle_trace_asserter.with_evaluation("okahu") \
     .check_eval(template={"name": "my_eval", "eval_prompt": "...", "structure_output": {...}},
                 expected="pass")
 ```
+
+So `eval_name` takes either kind of template and `check_eval` detects which: a `pathlib.Path`, or a string that ends in `.json` or contains a path separator, is a custom-template JSON file and is handled exactly as `template_path`; any other bare name is a built-in template. It is the same built-in vs. custom rule the test generator applies to its `--eval` values, and each evaluator owns it (`BaseEval.classify_eval_input`). Passing a custom-template path in `eval_name` *and* a `template_path`/`template` raises a `ValueError`.
 
 For `template_path`, the file may be either the inner template (`{"name": ..., "eval_prompt": ..., ...}`) or the full API request body (`{"template": {...}}`) — the outer `template` key is unwrapped automatically. When `eval_name` is omitted, the template's `name` field is used as the eval name (falling back to `"custom_eval"`). Server-side validation errors (HTTP 400) surface as an `AssertionError` prefixed with `Custom template validation failed:`.
 
@@ -1064,7 +1070,7 @@ Configure the evaluator with `with_evaluation` (see the Configuration table) bef
 
 | Method | Description |
 |---|---|
-| `check_eval(eval_name=None, expected=None, not_expected=None, fact_name="traces", template_path=None, *, template=None, min_facts=1, fail_threshold=0, max_facts=None)` | Run an evaluation and assert the result. Provide **exactly one** of `eval_name` (a standard Okahu template), `template_path` (a custom-template JSON file), or `template` (an inline custom-template dict). `expected`/`not_expected` each accept a string or list of strings. `min_facts`/`fail_threshold`/`max_facts` apply **only** in time-window (filtered) mode (see [Time-window evaluation](#time-window-filtered-evaluation)) and raise otherwise |
+| `check_eval(eval_name=None, expected=None, not_expected=None, fact_name="traces", template_path=None, *, template=None, min_facts=1, fail_threshold=0, max_facts=None)` | Run an evaluation and assert the result. Provide **exactly one** of `eval_name` (a standard Okahu template name, or a path to a custom-template JSON file — detected from the value), `template_path` (a custom-template JSON file), or `template` (an inline custom-template dict). `expected`/`not_expected` each accept a string or list of strings. `min_facts`/`fail_threshold`/`max_facts` apply **only** in time-window (filtered) mode (see [Time-window evaluation](#time-window-filtered-evaluation)) and raise otherwise |
 | `get_eval_report()` / `get_eval_failures()` / `write_eval_report(path)` | Read the report stashed by the last `check_eval` — the full report dict, the non-`pass` scenarios, or write it to JSON. Same shape in single-fact and filtered modes |
 
 ---

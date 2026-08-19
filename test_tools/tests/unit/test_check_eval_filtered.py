@@ -5,6 +5,7 @@ plus the end-to-end wiring of `with_trace_source("okahu", start_time=, end_time=
 `check_eval(...)` (filter mode) with OkahuFilteredEval mocked out.
 No live HTTP and no ML deps are touched.
 """
+import json
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -140,6 +141,23 @@ def test_check_eval_filter_mode_runs_filtered_flow_and_stashes_report(monkeypatc
         result = a.check_eval(eval_name="hallucination", expected="no_hallucination", min_facts=1)
     assert result.get_eval_report()["job_id"] == "job-1"
     mk.return_value.run_filtered.assert_called_once()
+
+
+def test_check_eval_filter_mode_custom_eval_name_sends_template(monkeypatch, tmp_path):
+    """A custom template path in eval_name goes through the filtered flow as an inline
+    template (the job API takes either a template_name or a template)."""
+    monkeypatch.delenv("MONOCLE_EVAL_MATRIX", raising=False)
+    template = {"name": "my_eval", "eval_prompt": "x"}
+    path = tmp_path / "tpl.json"
+    path.write_text(json.dumps({"template": template}), encoding="utf-8")
+    a = _asserter().with_trace_source("okahu", workflow_name="wf",
+                                      start_time="s", end_time="e")
+    with patch("monocle_test_tools.evals.okahu_filtered_eval.OkahuFilteredEval.from_env") as mk:
+        mk.return_value.run_filtered.return_value = _report()
+        a.check_eval(str(path), expected="no_hallucination")
+    _, kwargs = mk.return_value.run_filtered.call_args
+    assert kwargs["template"] == template      # unwrapped
+    assert kwargs["eval_name"] is None         # submit() takes exactly one of the two
 
 
 def test_check_eval_filter_mode_records_failure_on_fail_over_threshold(monkeypatch):

@@ -68,6 +68,9 @@ launch.json
 .env
 .env.local
 .env.*.local
+# Written by `monocle` CLI setup with the Okahu API key in it (see cli.py
+# PROJECT_ENV_FILENAME); never commit it.
+.env.monocle
 
 # Monocle specific
 apptrace/monocle_traces/

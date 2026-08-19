@@ -10,6 +10,7 @@
 - feat(test_tools): add `agentcore` runner to invoke an agent deployed to AWS Bedrock AgentCore Runtime remotely via boto3 `invoke_agent_runtime`, with session-based retrieval of the deployed agent's spans from Okahu
 - feat(test_tools): runners can identify their remote spans by a fact other than the trace id via `AgentRunner.get_remote_trace_query()`; the `agentcore` runner uses it to correlate the deployed agent's spans by the AgentCore session, so existing assertions apply to them
 - feat: an agent deployed to AWS Bedrock AgentCore returns its spans in the invocation response when `MONOCLE_ENABLE_TRACE_RETURN` is set, and the `agentcore` runner strips them off before the caller sees the response — no trace backend needed. Falls back to session-based retrieval when the deployed agent does not return them
+- fix!: an agent deployed to AWS Bedrock AgentCore now authorizes each caller before returning its spans, the same gate every HTTP framework applies — the deployment declares a key in `MONOCLE_TRACE_RETRIEVAL_DEFAULT_KEY` (or a callback in `MONOCLE_TRACE_RETRIEVAL_CALLBACK`), and the `agentcore` runner presents `MONOCLE_TRACE_RETRIEVAL_KEY` on the invocation. Previously `MONOCLE_ENABLE_TRACE_RETURN` alone returned spans to every caller. **Migration:** deployments using trace return must set `MONOCLE_TRACE_RETRIEVAL_DEFAULT_KEY` and tests must set `MONOCLE_TRACE_RETRIEVAL_KEY` to match, or no spans come back
 
 ## Version 0.8.12 (2026-08-17)
 

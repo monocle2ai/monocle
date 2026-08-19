@@ -1,6 +1,7 @@
 import logging
 
 from monocle_apptrace.instrumentation.common.constants import (
+    AGENTCORE_CUSTOM_HEADER_PREFIX,
     TRACE_RETURN_RESPONSE_HEADER,
     TRACE_RETURN_SCOPE_NAME,
 )
@@ -20,19 +21,17 @@ __all__ = ["AgentCoreSpanHandler"]
 class AgentCoreSpanHandler(SpanHandler):
     """Returns an invocation's spans to the caller inside the AgentCore response.
 
-    Same idea as the HTTP trace-return path, adapted to how AgentCore builds a
-    response. FastAPI appends the trailer to the response body as it is sent;
-    AgentCore serializes whatever the entrypoint returned, so there is no such
-    hook. The trailer is instead appended to the ``Response`` object that
-    ``_handle_invocation`` produces, which happens after serialization and is
-    mutable — the same shape the Lambda handler uses on its response dict.
+    AgentCore serializes whatever the entrypoint returned, so the trailer is
+    appended to the ``Response`` object ``_handle_invocation`` builds — after
+    serialization, and mutable.
 
-    Unlike the HTTP path there is no per-request authorization: boto3 can only
-    send parameters AgentCore models, so a caller cannot supply the
-    ``x-monocle-retrieve-traces`` header. Returning traces is therefore opt-in
-    on the deployment itself through ``MONOCLE_ENABLE_TRACE_RETURN``, which only
-    whoever deploys the agent controls, and IAM already governs who may invoke
-    it at all.
+    Spans are returned only when the deployment opted in with
+    ``MONOCLE_ENABLE_TRACE_RETURN``, declared the key it accepts in
+    ``MONOCLE_TRACE_RETRIEVAL_DEFAULT_KEY``, and the caller presented that key.
+    The key arrives under AgentCore's
+    ``X-Amzn-Bedrock-AgentCore-Runtime-Custom-`` prefix, since those are the only
+    caller headers AgentCore forwards to the agent; the prefix is stripped before
+    ``is_trace_return_authorized`` decides.
     """
 
     def pre_tracing(self, to_wrap, wrapped, instance, args, kwargs):
@@ -40,10 +39,47 @@ class AgentCoreSpanHandler(SpanHandler):
 
         The scope has to be active while the agent runs, which is why this hooks
         ``_handle_invocation`` (the caller) rather than the entrypoint itself.
+
+        An unauthorized caller is refused here rather than at injection time.
+        Without the scope the exporter captures nothing for this trace, so there
+        is no trailer to build later — and the decision stays with the request
+        that made it, instead of on a handler shared across concurrent
+        invocations.
         """
         if not tr.is_trace_return_enabled():
             return None, None
+        if not tr.is_trace_return_authorized(self._request_headers(args, kwargs)):
+            return None, None
         return set_scopes({TRACE_RETURN_SCOPE_NAME: "true"}), None
+
+    @staticmethod
+    def _request_headers(args, kwargs) -> dict:
+        """Headers of the invocation, with AgentCore's custom prefix removed.
+
+        ``_handle_invocation(request)`` receives the Starlette request, so the
+        headers as the caller sent them are available. Prefixed names are also
+        kept under their original form, so a callback configured with
+        ``MONOCLE_TRACE_RETRIEVAL_CALLBACK`` can still see what actually arrived.
+        Returns an empty dict for anything unrecognizable, which denies.
+        """
+        request = kwargs.get("request") or (args[0] if args else None)
+        raw = getattr(request, "headers", None)
+        if raw is None:
+            return {}
+        try:
+            items = list(raw.items())
+        except Exception:
+            return {}
+
+        headers = dict(items)
+        # Stripped names are added in a second pass so a forwarded header always
+        # wins over one the caller happened to send under the same bare name,
+        # rather than whichever of the two arrived last.
+        prefix = AGENTCORE_CUSTOM_HEADER_PREFIX.lower()
+        for name, value in items:
+            if str(name).lower().startswith(prefix):
+                headers[str(name)[len(prefix):]] = value
+        return headers
 
     def post_tracing(self, to_wrap, wrapped, instance, args, kwargs, return_value, token=None):
         if token is not None:

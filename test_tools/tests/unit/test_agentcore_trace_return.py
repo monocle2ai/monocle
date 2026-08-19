@@ -5,12 +5,24 @@ value it returns; the runner takes them off before the test sees the response.
 These cover the client half against payloads built by the real encoder, so the
 wire format is not restated here.
 """
+import contextlib
 import json
+from types import SimpleNamespace
 
 import pytest
+from botocore.awsrequest import AWSRequest
 
 from monocle_apptrace.instrumentation.common import trace_return as tr
-from monocle_test_tools.runner.agentcore_runner import AgentCoreRunner
+from monocle_apptrace.instrumentation.common.constants import (
+    AGENTCORE_CUSTOM_HEADER_PREFIX,
+    MONOCLE_TRACE_RETRIEVAL_KEY_ENV,
+    TRACE_RETURN_REQUEST_HEADER,
+)
+from monocle_test_tools.runner.agentcore_runner import (
+    _RETRIEVAL_KEY_HEADER,
+    _SIGN_EVENT,
+    AgentCoreRunner,
+)
 from monocle_test_tools.file_span_loader import JSONSpanLoader
 
 RUNTIME_ARN = "arn:aws:bedrock-agentcore:us-west-2:123456789012:runtime/test_agent-AbCdEfGhIj"
@@ -40,13 +52,32 @@ class FakeStream:
         return self._body
 
 
+class FakeEvents:
+    """Records what the runner hooks onto the client, and what it leaves behind."""
+
+    def __init__(self):
+        self.registered = []
+        self.history = []
+
+    def register_first(self, event, handler):
+        self.registered.append((event, handler))
+        self.history.append(event)
+
+    def unregister(self, event, handler):
+        self.registered.remove((event, handler))
+
+
 class FakeClient:
     """Returns a canned response body, as the deployed agent would."""
 
-    def __init__(self, body: bytes):
+    def __init__(self, body: bytes, fail: bool = False):
         self.body = body
+        self.fail = fail
+        self.meta = SimpleNamespace(events=FakeEvents())
 
     def invoke_agent_runtime(self, **kwargs):
+        if self.fail:
+            raise RuntimeError("boom")
         return {"response": FakeStream(self.body), "contentType": "application/json",
                 "statusCode": 200}
 
@@ -170,6 +201,92 @@ def test_round_trip_through_the_real_encoder():
     assert result == AGENT_ANSWER
     decoded = runner.get_remote_spans()
     assert [s.name for s in decoded] == ["agentic.tool.invocation"]
+
+
+KEY = "s3cret"
+
+
+@pytest.fixture
+def with_key(monkeypatch):
+    monkeypatch.setenv(MONOCLE_TRACE_RETRIEVAL_KEY_ENV, KEY)
+
+
+def _signed_request(runner=None) -> AWSRequest:
+    """Run the runner's hook over a request, the way botocore would when signing."""
+    request = AWSRequest(method="POST", url="https://example.invalid/")
+    handler = (runner or AgentCoreRunner())._retrieval_key_handler()
+    if handler is not None:
+        handler(request=request)
+    return request
+
+
+def test_key_is_presented_under_the_prefix_agentcore_forwards(with_key):
+    """Any other header name is dropped before the deployed agent sees it."""
+    assert _RETRIEVAL_KEY_HEADER == AGENTCORE_CUSTOM_HEADER_PREFIX + TRACE_RETURN_REQUEST_HEADER
+    assert _signed_request().headers[_RETRIEVAL_KEY_HEADER] == KEY
+
+
+@pytest.mark.parametrize("value", [None, ""], ids=["unset", "empty"])
+def test_nothing_is_presented_without_a_key(monkeypatch, value):
+    """The common case: a run that never asked for spans in the response."""
+    if value is None:
+        monkeypatch.delenv(MONOCLE_TRACE_RETRIEVAL_KEY_ENV, raising=False)
+    else:
+        monkeypatch.setenv(MONOCLE_TRACE_RETRIEVAL_KEY_ENV, value)
+    client = FakeClient(_agent_response_with_trailer())
+
+    AgentCoreRunner()._invoke(client, {"agentRuntimeArn": RUNTIME_ARN})
+
+    assert _signed_request().headers.get(_RETRIEVAL_KEY_HEADER) is None
+    assert client.meta.events.history == []
+
+
+@pytest.mark.parametrize("fail", [False, True], ids=["call succeeds", "call raises"])
+def test_hook_lives_only_for_the_call(with_key, fail):
+    """The client can be the caller's own and outlive this runner."""
+    client = FakeClient(_agent_response_with_trailer(), fail=fail)
+
+    with contextlib.suppress(RuntimeError):
+        AgentCoreRunner()._invoke(client, {"agentRuntimeArn": RUNTIME_ARN})
+
+    assert client.meta.events.history == [_SIGN_EVENT]
+    assert client.meta.events.registered == []
+
+
+def test_client_that_takes_no_hooks_is_still_invoked(with_key):
+    """A caller can supply any object with invoke_agent_runtime, as before."""
+    class MinimalClient:
+        def __init__(self):
+            self.calls = []
+
+        def invoke_agent_runtime(self, **request):
+            self.calls.append(request)
+            return {"statusCode": 200}
+
+    client = MinimalClient()
+
+    AgentCoreRunner()._invoke(client, {"agentRuntimeArn": RUNTIME_ARN})
+
+    assert client.calls == [{"agentRuntimeArn": RUNTIME_ARN}]
+
+
+def test_key_is_read_per_call(monkeypatch):
+    """Rotating the key must not be masked by one cached at construction."""
+    runner = AgentCoreRunner()
+
+    for key in ("first", "second"):
+        monkeypatch.setenv(MONOCLE_TRACE_RETRIEVAL_KEY_ENV, key)
+        assert _signed_request(runner).headers[_RETRIEVAL_KEY_HEADER] == key
+
+
+def test_caller_supplied_header_is_not_duplicated(with_key):
+    """A second copy would reach the agent as one comma-joined value."""
+    request = AWSRequest(method="POST", url="https://example.invalid/")
+    request.headers.add_header(_RETRIEVAL_KEY_HEADER, "already-there")
+
+    AgentCoreRunner()._retrieval_key_handler()(request=request)
+
+    assert request.headers.get_all(_RETRIEVAL_KEY_HEADER) == ["already-there"]
 
 
 if __name__ == "__main__":

@@ -7,6 +7,7 @@ from typing import Any, Callable, Optional, Sequence, Union
 from monocle_apptrace.instrumentation.common.method_wrappers import monocle_trace_method
 from monocle_apptrace.instrumentation.common.utils import get_workflow_name
 from monocle_test_tools import eval_matrix
+from monocle_test_tools.constants import CUSTOM_EVAL_TYPE
 from monocle_test_tools.evals.okahu_filtered_eval import build_filtered_report
 from monocle_test_tools.schema import Evaluation
 from monocle_test_tools.span_loader import JSONSpanLoader, OkahuSpanLoader
@@ -797,21 +798,54 @@ class TraceAssertion():
                           comparer=TokenMatchComparer(), positive_test=False, custom_message=message)
         return self
 
+    def _apply_eval_type(self, eval_name, template_path, template):
+        """Detect which kind of eval template ``eval_name`` holds, for check_eval.
+
+        A path object or a path-like string (``.json`` suffix, path separator,
+        ``./``, ``../``) is a custom eval template file, so it moves to
+        ``template_path``; a bare name is a built-in template and stays in
+        ``eval_name``. Strings are classified by the configured evaluator's own rules
+        (``BaseEval.classify_eval_input``, which OkahuEval overrides).
+
+        Returns the ``(eval_name, template_path)`` pair check_eval works with.
+        """
+        if not eval_name:
+            return eval_name, template_path
+        if isinstance(eval_name, os.PathLike):
+            eval_type = CUSTOM_EVAL_TYPE
+        else:
+            eval_cls = type(self._eval) if isinstance(self._eval, BaseEval) else BaseEval
+            eval_type, _ = eval_cls.classify_eval_input(eval_name)
+        if eval_type != CUSTOM_EVAL_TYPE:
+            return eval_name, template_path
+        if template_path or template:
+            raise ValueError(
+                f"'eval_name' ({eval_name}) is a custom eval template path; do not also pass "
+                "'template_path' or 'template'.")
+        return None, eval_name
+
     @collect_assertions
-    def check_eval(self, eval_name:Optional[str] = None, expected:Optional[Union[str, list[str]]] = None, not_expected:Optional[Union[str, list[str]]] = None, fact_name:Optional[str] = "traces", message:Optional[str] = None, template_path:Optional[str] = None, *, template:Optional[dict] = None, min_facts:int = 1, fail_threshold:int = 0, max_facts:Optional[int] = None) -> 'TraceAssertion':
+    def check_eval(self, eval_name:Optional[Union[str, Path]] = None, expected:Optional[Union[str, list[str]]] = None, not_expected:Optional[Union[str, list[str]]] = None, fact_name:Optional[str] = "traces", message:Optional[str] = None, template_path:Optional[Union[str, Path]] = None, *, template:Optional[dict] = None, min_facts:int = 1, fail_threshold:int = 0, max_facts:Optional[int] = None) -> 'TraceAssertion':
         """Validate evaluation results for the current filtered spans.
 
         Provide exactly one of:
-          - eval_name: name of a standard Okahu eval template (e.g. "hallucination")
+          - eval_name: the eval template to run — either the name of a standard Okahu
+            eval template (e.g. "hallucination") or the path of a JSON file holding a
+            custom eval template (a Path or a path-like string, e.g.
+            "templates/my_eval.json"). Which one it is is detected from the value, so
+            a path is handled exactly as if passed as ``template_path``.
           - template_path: filesystem path to a custom-template JSON file. The file
             is loaded and the parsed dict is sent to the eval service. Server-side
             validation errors (HTTP 400) surface as AssertionError with the prefix
             'Custom template validation failed: <reason>'.
+          - template: an inline custom-template dict.
 
         When with_trace_source("okahu", start_time=..., end_time=...) has recorded a
         filter scope, this runs the filtered (async job) flow instead of the span
         path; min_facts/fail_threshold/max_facts apply only in that mode.
         """
+        eval_name, template_path = self._apply_eval_type(eval_name, template_path, template)
+
         filter_scope = getattr(self, "_okahu_filter", None)
         if filter_scope is None:
             # Span mode: filter-only params must not be used.

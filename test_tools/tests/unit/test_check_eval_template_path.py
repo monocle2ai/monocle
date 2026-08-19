@@ -146,6 +146,78 @@ class TestCheckEvalTemplatePath:
                 expected="a",
             )
 
+    def test_path_like_string_eval_name_loads_custom_template(self, tmp_path):
+        """A path-like string in eval_name is detected as a custom template, so the
+        file is loaded and sent to evaluate() exactly as template_path would."""
+        path = tmp_path / "tpl.json"
+        path.write_text(json.dumps(WRAPPED_TEMPLATE), encoding="utf-8")
+        asserter = _make_asserter(eval_result=("a", "ok"))
+
+        result = asserter.check_eval(str(path), expected="a")
+
+        assert not result.has_assertions(), result.get_assertion_messages()
+        _, kwargs = asserter._eval.evaluate.call_args
+        assert kwargs["template"] == INNER_TEMPLATE      # unwrapped
+        # The eval name falls back to the template's own "name" field.
+        assert kwargs["eval_name"] == "test_template"
+
+    def test_path_object_eval_name_loads_custom_template(self, tmp_path):
+        """A Path (not just a path-like str) in eval_name is a custom template too."""
+        path = tmp_path / "tpl.json"
+        path.write_text(json.dumps(INNER_TEMPLATE), encoding="utf-8")
+        asserter = _make_asserter(eval_result=("a", "ok"))
+
+        result = asserter.check_eval(path, expected="a")
+
+        assert not result.has_assertions(), result.get_assertion_messages()
+        _, kwargs = asserter._eval.evaluate.call_args
+        assert kwargs["template"] == INNER_TEMPLATE
+        assert kwargs["eval_name"] == "test_template"
+
+    def test_bare_name_eval_name_stays_builtin(self):
+        """A bare name is a built-in template: it reaches evaluate() as eval_name,
+        with no template attached."""
+        asserter = _make_asserter(eval_result=("a", "ok"))
+
+        result = asserter.check_eval("hallucination", expected="a")
+
+        assert not result.has_assertions(), result.get_assertion_messages()
+        _, kwargs = asserter._eval.evaluate.call_args
+        assert kwargs["eval_name"] == "hallucination"
+        assert kwargs["template"] is None
+
+    def test_custom_eval_name_missing_file_raises_clean_assertion(self, tmp_path):
+        """A detected-custom eval_name reports a missing file the same way
+        template_path does."""
+        missing = tmp_path / "does_not_exist.json"
+        asserter = _make_asserter()
+
+        # See the try/finally comment in test_missing_file_raises_clean_assertion.
+        try:
+            result = asserter.check_eval(str(missing), expected="a")
+
+            assert result.has_assertions()
+            assert "Custom template file not found" in result.get_assertion_messages()
+        finally:
+            TraceAssertion._assertion_errors = []
+
+    def test_custom_eval_name_with_template_path_raises_value_error(self, tmp_path):
+        """eval_name resolved to a custom template, so a second custom selector conflicts."""
+        path = tmp_path / "tpl.json"
+        path.write_text(json.dumps(INNER_TEMPLATE), encoding="utf-8")
+        asserter = _make_asserter()
+
+        with pytest.raises(ValueError, match="do not also pass"):
+            asserter.check_eval(path, expected="a", template_path=str(path))
+
+    def test_custom_eval_name_with_inline_template_raises_value_error(self, tmp_path):
+        path = tmp_path / "tpl.json"
+        path.write_text(json.dumps(INNER_TEMPLATE), encoding="utf-8")
+        asserter = _make_asserter()
+
+        with pytest.raises(ValueError, match="do not also pass"):
+            asserter.check_eval(str(path), expected="a", template=dict(INNER_TEMPLATE))
+
     def test_template_dict_selector_reaches_evaluate_unmodified(self):
         """Regression test: an inline `template` dict passed to check_eval in
         span mode must reach self._eval.evaluate(..., template=...) as-is,

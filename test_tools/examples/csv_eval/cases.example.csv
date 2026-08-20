@@ -1,0 +1,4 @@
+case_id,fact_id,workflow_name,fact_name,expected,not_expected,notes
+cc_t01,642dbd9d0dfcfdbdc8849f67f34c8a19,test_cc_customer_care_agent,traces,major_hallucination,,eval-replay row (replace fact_id with your trace id)
+cc_t02,8f127fc9bad5199ff073acbf1cbdece1,test_cc_customer_care_agent,traces,no_hallucination,,eval-replay row
+cc_t03,REPLACE_WITH_YOUR_TRACE_ID,test_cc_customer_care_agent,traces,no_hallucination,,another eval-replay row (replace fact_id with your trace id)

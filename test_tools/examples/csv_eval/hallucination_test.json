@@ -1,0 +1,13 @@
+{
+    "name": "hallucination_test",
+    "eval_prompt": "Evaluate the AI agent's final response for hallucination by checking every factual claim against the tool outputs in the execution trace. A claim is grounded only if a tool output within the trace explicitly supports it; the agent's own knowledge, sub-agent narratives, and outside-world facts are not grounding. Use only the trace.\n\nClassify with exactly one label:\n- no_hallucination: every factual claim traces to a specific tool output field, with no additions or inferences beyond what the tools returned.\n- minor_hallucination: an unsourced but low-impact claim — a general statement not specific to the queried entity, generic guidance, a subjective characterization, or the lossless decoding of a code/abbreviation the tool already returned.\n- major_hallucination: a fabricated specific value (id, amount, price, date, status), an entity substitution (data delivered for or acted on a different entity than requested), an unsourced calculation producing a specific value, or a contradicted/misrepresented status.\n\nAn unsourced claim can never be no_hallucination. If any claim is major, the response is major_hallucination.",
+    "structure_output": {
+        "label": {
+            "description": "Final hallucination classification for the agent's response, based only on how its claims trace to tool outputs in the execution trace.",
+            "enums": ["no_hallucination", "minor_hallucination", "major_hallucination"]
+        },
+        "explanation": {
+            "description": "Identify the specific problematic claims and, for each, what the agent said versus what the tool output actually contained. For no_hallucination, confirm every claim traced to a raw tool output field."
+        }
+    }
+}

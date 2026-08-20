@@ -551,7 +551,7 @@ def test_cases(monocle_trace_asserter, case):
     case.run(monocle_trace_asserter.with_evaluation("okahu"), template_path=TEMPLATE_PATH)
 ```
 
-The stub owns everything constant across the sheet (evaluator, template, trace source); the CSV owns only what varies per row. Columns and the full schema are documented in the [test tools README — CSV eval test cases](../test_tools/README.md#csv-eval-test-cases), with a copy-ready example at `test_tools/examples/`.
+The stub owns everything constant across the sheet (evaluator, template, trace source); the CSV owns only what varies per row. Columns and the full schema are documented in the [test tools README — CSV eval test cases](../test_tools/README.md#csv-eval-test-cases). Three copy-ready examples ship at `test_tools/examples/csv_eval/`, showing the fact-set CSV and template supplied three ways — literals (`csv_cases_example.py`), environment variables (`csv_cases_env_example.py`), and pytest flags (`csv_cases_parametrized_example.py`).
 
 ## Notes
 

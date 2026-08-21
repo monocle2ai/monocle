@@ -252,43 +252,56 @@ def agent_inference_type(arguments):
 
     return INFERENCE_TURN_END
 
+def _extract_react_action_name(response):
+    """Return the tool name from a ReAct-style 'Action: <name>' text reply, or None.
+
+    Frameworks like CrewAI signal a tool call as text ("Action: <tool>") in
+    message.content instead of a native tool_calls entry, so both the
+    finish_reason and the tool name have to be parsed out of the same line.
+    """
+    with suppress(AttributeError, IndexError, TypeError):
+        if response is not None and hasattr(response, "choices") and len(response.choices) > 0:
+            message = getattr(response.choices[0], "message", None)
+            content = getattr(message, "content", None) if message is not None else None
+            if content:
+                content = str(content)
+                if "\nAction:" in content or "\naction:" in content:
+                    match = re.search(r'\n[Aa]ction:\s*([^\n]+)', content)
+                    if match:
+                        action = match.group(1).strip()
+                        # Filter out ReAct agent termination phrases to distinguish from actual tool calls:
+                        # - 'final answer': Used by ReAct agents to signal completion (e.g., "Action: Final Answer: <result>")
+                        # - 'i now know': Indicates the agent has gathered sufficient information to conclude
+                        # These patterns appear in frameworks like CrewAI that use text-based ReAct reasoning, where "Action:" is followed by either a tool name OR a termination signal.
+                        if action and not any(keyword in action.lower() for keyword in ['final answer', 'i now know']):
+                            return action
+    return None
+
 def extract_finish_reason(arguments):
     """Extract finish_reason from LiteLLM response"""
     try:
         if arguments.get("exception") is not None:
             return "error"
-            
+
         response = arguments.get("result")
-        
+
         # Streaming path: SimpleNamespace with .finish_reason directly
         if response is not None and hasattr(response, 'output_text') and hasattr(response, 'finish_reason'):
             return response.finish_reason
-        
+
         # Handle LiteLLM response structure (similar to OpenAI)
         if response is not None and hasattr(response, "choices") and len(response.choices) > 0:
             finish_reason = None
             if hasattr(response.choices[0], "finish_reason"):
                 finish_reason = response.choices[0].finish_reason
-            
+
             # Check if response contains ReAct-style tool calls (Action: tool_name pattern),frameworks like CrewAI that use text-based tool calling
             if finish_reason == "stop" and hasattr(response.choices[0], "message"):
-                message = response.choices[0].message
-                if hasattr(message, "content") and message.content:
-                    content = str(message.content)
-                    if "\nAction:" in content or "\naction:" in content:
-                        action_pattern = r'\n[Aa]ction:\s*([^\n]+)'
-                        match = re.search(action_pattern, content)
-                        if match:
-                            action = match.group(1).strip()
-                            # Filter out ReAct agent termination phrases to distinguish from actual tool calls:
-                            # - 'final answer': Used by ReAct agents to signal completion (e.g., "Action: Final Answer: <result>")
-                            # - 'i now know': Indicates the agent has gathered sufficient information to conclude
-                            # These patterns appear in frameworks like CrewAI that use text-based ReAct reasoning, where "Action:" is followed by either a tool name OR a termination signal.
-                            if action and not any(keyword in action.lower() for keyword in ['final answer', 'i now know']):
-                                return "tool_calls"
-            
+                if _extract_react_action_name(response) is not None:
+                    return "tool_calls"
+
             return finish_reason
-                
+
     except (IndexError, AttributeError) as e:
         logger.warning("Warning: Error occurred in extract_finish_reason: %s", str(e))
         return None
@@ -324,7 +337,9 @@ def extract_tool_name(arguments):
 
         tool_call = _get_first_tool_call(response)
         if not tool_call:
-            return None
+            # No native tool_calls entry: fall back to the ReAct-style
+            # "Action: <tool>" text that made finish_type resolve to tool_call.
+            return _extract_react_action_name(response)
 
         # Try different name extraction approaches
         for getter in [

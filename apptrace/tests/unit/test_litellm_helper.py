@@ -6,13 +6,17 @@ So Monocle must read kwargs["optional_params"]["response_format"], not the top-l
 """
 import json
 import unittest
+from types import SimpleNamespace
 
 from pydantic import BaseModel
 
 from monocle_apptrace.instrumentation.metamodel.litellm._helper import (
+    extract_finish_reason,
     extract_messages,
     extract_response_format,
     extract_temperature,
+    extract_tool_name,
+    extract_tool_type,
 )
 from monocle_apptrace.instrumentation.metamodel.litellm.entities.inference import (
     INFERENCE,
@@ -45,6 +49,29 @@ def _run_data_input(arguments):
             for attr in event["attributes"]:
                 out[attr["attribute"]] = attr["accessor"](arguments)
     return out
+
+
+def _run_tool_attrs(arguments):
+    """Run the tool.name/tool.type accessors from the live INFERENCE metamodel."""
+    out = {}
+    for group in INFERENCE["attributes"]:
+        for attr in group:
+            if attr.get("_comment", "").startswith("Tool"):
+                out[attr["attribute"]] = attr["accessor"](arguments)
+    return out
+
+
+def _make_react_response(content, finish_reason="stop"):
+    message = SimpleNamespace(content=content, tool_calls=None)
+    choice = SimpleNamespace(finish_reason=finish_reason, message=message)
+    return SimpleNamespace(choices=[choice])
+
+
+def _make_native_tool_call_response(tool_name):
+    tool_call = SimpleNamespace(function=SimpleNamespace(name=tool_name))
+    message = SimpleNamespace(content=None, tool_calls=[tool_call])
+    choice = SimpleNamespace(finish_reason="tool_calls", message=message)
+    return SimpleNamespace(choices=[choice])
 
 
 def _run_metadata(arguments):
@@ -237,6 +264,57 @@ class TestLiteLLMInferenceMetadata(unittest.TestCase):
         result = _run_metadata(arguments)
         self.assertIn("temperature", result)
         self.assertIsNone(result["temperature"])
+
+
+class TestLiteLLMReactStyleToolName(unittest.TestCase):
+    """CrewAI-style ReAct text tool calls ('Action: <tool>') carry no native
+    tool_calls entry. extract_finish_reason already reclassifies these as
+    finish_type=tool_call; extract_tool_name/extract_tool_type must agree on
+    the tool identity instead of reporting None for a span already typed as
+    a tool call.
+    """
+
+    def test_react_tool_call_populates_name_and_type(self):
+        response = _make_react_response(
+            "Thought: I should look this up\nAction: search_tool\nAction Input: {}"
+        )
+        arguments = {"result": response, "exception": None}
+        self.assertEqual(extract_finish_reason(arguments), "tool_calls")
+        self.assertEqual(extract_tool_name(arguments), "search_tool")
+        self.assertIsNotNone(extract_tool_type(arguments))
+
+    def test_react_tool_call_strips_surrounding_whitespace(self):
+        response = _make_react_response("Thought: ok\nAction:   spaced_tool  \n")
+        arguments = {"result": response, "exception": None}
+        self.assertEqual(extract_tool_name(arguments), "spaced_tool")
+
+    def test_react_final_answer_is_not_a_tool_call(self):
+        response = _make_react_response("Thought: done\nAction: Final Answer: 42")
+        arguments = {"result": response, "exception": None}
+        self.assertEqual(extract_finish_reason(arguments), "stop")
+        self.assertIsNone(extract_tool_name(arguments))
+        self.assertIsNone(extract_tool_type(arguments))
+
+    def test_plain_stop_without_action_line_returns_none(self):
+        response = _make_react_response("just a normal reply")
+        arguments = {"result": response, "exception": None}
+        self.assertEqual(extract_finish_reason(arguments), "stop")
+        self.assertIsNone(extract_tool_name(arguments))
+
+    def test_native_tool_call_still_resolves(self):
+        # Regression guard: the ReAct fallback must not shadow the existing
+        # native tool_calls path (OpenAI/Bedrock/Azure function calling).
+        response = _make_native_tool_call_response("native_tool")
+        arguments = {"result": response, "exception": None}
+        self.assertEqual(extract_tool_name(arguments), "native_tool")
+        self.assertIsNotNone(extract_tool_type(arguments))
+
+    def test_react_tool_call_through_live_inference_metamodel(self):
+        response = _make_react_response("Thought: ok\nAction: weather_tool")
+        arguments = {"result": response, "exception": None}
+        result = _run_tool_attrs(arguments)
+        self.assertEqual(result["name"], "weather_tool")
+        self.assertIsNotNone(result["type"])
 
 
 if __name__ == "__main__":

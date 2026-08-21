@@ -218,6 +218,34 @@ Monocle isolates automatically instrumented spans from non-Monocle OpenTelemetry
 export MONOCLE_ISOLATE_SPANS=false
 ```
 
+#### Obfuscating sensitive data before export
+
+Span `data.input` / `data.output` payloads can contain API keys, passwords, PCI or PII data. Monocle
+scrubs them before a span reaches any exporter. **This is on by default**: with no configuration,
+credentials — API keys, passwords, tokens and private keys — are redacted, and nothing else is
+touched.
+
+```bash
+# turn it off
+export MONOCLE_DISABLE_SPAN_OBFUSCATION=true
+
+# add PII detection via Presidio (pip install monocle_apptrace[obfuscation]),
+# scoped to the span types that carry model traffic
+export MONOCLE_SPAN_OBFUSCATORS=credentials,presidio
+export MONOCLE_OBFUSCATE_SPAN_TYPES=inference,inference.*
+```
+
+```python
+# an explicit list overrides the environment; [] disables obfuscation
+setup_monocle_telemetry(
+    workflow_name="my_app",
+    span_obfuscators=[RegexSpanObfuscator(span_types=["inference", "inference.*"])],
+)
+```
+
+See [obfuscating sensitive data](monocle_span_obfuscation.md) for the pattern groups, the built-in
+obfuscators, and how to write your own.
+
 #### Health check sampling
 
 Health checks run every few seconds and would otherwise fill the trace with HTTP spans, so Monocle

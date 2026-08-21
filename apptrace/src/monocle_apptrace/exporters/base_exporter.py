@@ -4,6 +4,7 @@ import asyncio
 import random
 import logging
 from abc import ABC, abstractmethod
+from functools import wraps
 from opentelemetry.sdk.trace import ReadableSpan
 from opentelemetry.sdk.trace.export import SpanExportResult
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
@@ -20,6 +21,26 @@ class SpanExporterBase(ABC):
         self.last_export_time = time.time()
         self.export_monocle_only = export_monocle_only or os.environ.get("MONOCLE_EXPORTS_ONLY", True)
 
+    def __init_subclass__(cls, **kwargs):
+        """Route every subclass's export() through obfuscate_spans() first.
+
+        Wrapping here rather than in each exporter means sensitive data.input /
+        data.output payloads are scrubbed for all exporters, including any added
+        later, with no per-exporter code. Obfuscation is idempotent, so spans
+        already scrubbed by the span-processor hook pass straight through.
+        """
+        super().__init_subclass__(**kwargs)
+        export = cls.__dict__.get("export")
+        if export is None or getattr(export, "_monocle_obfuscates", False):
+            return
+
+        @wraps(export)
+        def obfuscating_export(self, spans, *args, **kwargs):
+            return export(self, self.obfuscate_spans(spans), *args, **kwargs)
+
+        obfuscating_export._monocle_obfuscates = True
+        cls.export = obfuscating_export
+
     @abstractmethod
     async def export(self, spans: Sequence[ReadableSpan]) -> SpanExportResult:
         pass
@@ -35,6 +56,19 @@ class SpanExporterBase(ABC):
         if self.export_monocle_only and (not span.attributes.get(MONOCLE_SDK_VERSION)):
             return True
         return False
+
+    def obfuscate_spans(self, spans: Sequence[ReadableSpan]) -> Sequence[ReadableSpan]:
+        """Scrub sensitive data from the spans' data.input/data.output payloads.
+
+        Called for every exporter via ``__init_subclass__``. Idempotent, so
+        calling it on already-obfuscated spans is a no-op. Override to change
+        which obfuscators a specific exporter applies.
+        """
+        from monocle_apptrace.exporters.span_obfuscator import (
+            get_span_obfuscators,
+            obfuscate_spans as _obfuscate_spans,
+        )
+        return _obfuscate_spans(spans, get_span_obfuscators())
 
     @staticmethod
     def _is_running_in_event_loop() -> bool:

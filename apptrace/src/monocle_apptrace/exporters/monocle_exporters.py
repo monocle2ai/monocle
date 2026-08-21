@@ -76,4 +76,7 @@ def get_monocle_exporter(exporters_list:str=None) -> List[SpanExporter]:
             exporters.append(ConsoleSpanExporter())
             logger.debug("MONOCLE_CONSOLE is set: added ConsoleSpanExporter.")
 
+    # Note: sensitive-data obfuscation is applied to the span processors that feed
+    # these exporters (see install_obfuscation_hooks), so the exporters are returned
+    # as-is and callers keep the concrete exporter types they asked for.
     return exporters

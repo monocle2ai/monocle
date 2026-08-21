@@ -19,6 +19,11 @@ from monocle_apptrace.exporters.monocle_exporters import (
     get_monocle_exporter,
     get_monocle_exporter_names,
 )
+from monocle_apptrace.exporters.span_obfuscator import (
+    SpanObfuscator,
+    set_span_obfuscators,
+    install_obfuscation_hooks,
+)
 from monocle_apptrace.instrumentation.common.genai_semantic_conventions import (
     configure_otel_genai_semconv,
 )
@@ -279,7 +284,8 @@ def setup_monocle_telemetry(
         wrapper_methods: List[Union[dict,WrapperMethod]] = None,
         union_with_default_methods: bool = True,
         monocle_exporters_list:str = None,
-        otel_genai_semconv: Optional[Union[str, bool]] = None) -> MonocleInstrumentor:
+        otel_genai_semconv: Optional[Union[str, bool]] = None,
+        span_obfuscators: Optional[List["SpanObfuscator"]] = None) -> MonocleInstrumentor:
     """
     Set up Monocle telemetry for the application.
 
@@ -307,6 +313,12 @@ def setup_monocle_telemetry(
         ``otlp-genai-semconv`` exporter is configured. The existing ``otlp`` exporter leaves them disabled by
         default. ``True`` and ``False`` explicitly enable or disable them. The MONOCLE_OTEL_GENAI_SEMCONV
         environment variable provides the same auto/true/false control.
+    span_obfuscators : List[SpanObfuscator], optional
+        Obfuscators applied to the ``data.input`` / ``data.output`` payloads of matching span types
+        before spans are handed to the exporters, for redacting API keys, passwords, PCI or PII data.
+        If None, the environment decides: obfuscation is **on by default** and redacts credentials,
+        widened with MONOCLE_SPAN_OBFUSCATORS and turned off with MONOCLE_DISABLE_SPAN_OBFUSCATION.
+        Pass an empty list to disable obfuscation regardless of the environment.
     """
     # workflow_name is determined in the following order of precedence:
     # 1. Argument passed to this function
@@ -327,6 +339,7 @@ def setup_monocle_telemetry(
         union_with_default_methods=union_with_default_methods,
         monocle_exporters_list=monocle_exporters_list,
         otel_genai_semconv=otel_genai_semconv,
+        span_obfuscators=span_obfuscators,
     )
 
     if check_duplicate_setup(
@@ -344,9 +357,16 @@ def setup_monocle_telemetry(
         raise ValueError("span_processors and monocle_exporters_list can't be used together")
     exporter_names = tuple(get_monocle_exporter_names(monocle_exporters_list))
     configure_otel_genai_semconv(otel_genai_semconv, exporter_names)
+    # Register obfuscators before building exporters: get_monocle_exporter() wraps
+    # each exporter with whatever is registered at construction time.
+    if span_obfuscators is not None:
+        set_span_obfuscators(span_obfuscators)
     exporters:List[SpanExporter] = get_monocle_exporter(monocle_exporters_list)
     span_processors = span_processors or [BatchSpanProcessor(exporter) for exporter in exporters]
     span_processors = _append_trace_return_processor(span_processors)
+    # Scrub data.input/data.output before any processor sees the span, so caller-supplied
+    # processors and their exporters are covered too. On by default; no-op when disabled.
+    span_processors = install_obfuscation_hooks(span_processors)
     set_monocle_span_processor(MonocleSynchronousMultiSpanProcessor())
     set_tracer_provider(TracerProvider(resource=resource, active_span_processor=get_monocle_span_processor()))
     set_workflow_name(workflow_name)
@@ -400,7 +420,7 @@ def reset_span_processors(span_processors:list[SpanProcessor]):
                     sp.force_flush()
                     sp.shutdown()
                 monocle_span_processor._span_processors = ()
-        for span_processor in span_processors:
+        for span_processor in install_obfuscation_hooks(span_processors):
             monocle_span_processor.add_span_processor(span_processor)
 
 def on_processor_start(span: Span, parent_context):

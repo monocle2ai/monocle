@@ -240,9 +240,13 @@ def build_setup_signature(
         union_with_default_methods: bool = True,
         monocle_exporters_list: str = None,
         otel_genai_semconv: object = None,
+        span_obfuscators: Optional[list] = None,
 ) -> dict:
     return {
         "workflow_name": workflow_name,
+        "span_obfuscators": tuple(
+            type(o).__name__ for o in (span_obfuscators or [])
+        ),
         "span_processors": tuple(type(p).__name__ for p in (span_processors or [])),
         "span_handlers": tuple(sorted((span_handlers or {}).keys())),
         "wrapper_methods": tuple(

@@ -3,8 +3,9 @@ Scrubs sensitive data from span ``data.input`` / ``data.output`` payloads before
 the span reaches any exporter.
 
 On by default, redacting credentials -- API keys, passwords, tokens and private
-keys. For PII (names, addresses, national IDs) add the Presidio obfuscator,
-which needs the optional ``obfuscation`` extra.
+keys -- and replacing inline media with its type and size. For PII (names,
+addresses, national IDs) add the Presidio obfuscator, which needs the optional
+``obfuscation`` extra.
 
     MONOCLE_DISABLE_SPAN_OBFUSCATION=true         # off
     MONOCLE_SPAN_OBFUSCATORS=credentials,presidio # add PII detection
@@ -17,6 +18,7 @@ See docs/monocle_span_obfuscation.md for configuration and examples.
 """
 
 import copy
+import json
 import logging
 import os
 import re
@@ -38,6 +40,12 @@ logger = logging.getLogger(__name__)
 SPAN_OBFUSCATORS_ENV = "MONOCLE_SPAN_OBFUSCATORS"
 OBFUSCATE_SPAN_TYPES_ENV = "MONOCLE_OBFUSCATE_SPAN_TYPES"
 DISABLE_OBFUSCATION_ENV = "MONOCLE_DISABLE_SPAN_OBFUSCATION"
+OBFUSCATE_ENV_VALUES_ENV = "MONOCLE_OBFUSCATE_ENV_VALUES"
+EXTRA_PATTERNS_ENV = "MONOCLE_OBFUSCATE_EXTRA_PATTERNS"
+
+#: Shortest env var value redacted literally. A var set to "1" or "true" would
+#: otherwise blank that text out of every span.
+MIN_ENV_VALUE_LENGTH = 8
 
 OBFUSCATION_OFF_VALUES = ("none", "off", "false", "no", "0", "disabled")
 
@@ -184,6 +192,52 @@ def _split_trailing_punctuation(value: str) -> tuple:
     return stripped, value[len(stripped):]
 
 
+#: Read by both ``credential_key`` and ``credential_assignment``, so the two
+#: cannot drift apart.
+_CREDENTIAL_KEY_NAMES = (
+    r"api[_-]?key|apikey|secret|password|passwd|pwd|"
+    r"access[_-]?token|auth[_-]?token|refresh[_-]?token|id[_-]?token|"
+    r"bearer[_-]?token|session[_-]?token|sas[_-]?token|"
+    r"client[_-]?secret|private[_-]?key|credentials?|authorization"
+)
+
+CREDENTIAL_KEY_PATTERN = "credential_key"
+
+#: Shortest base64 run treated as a blob. Prose never runs this far without a
+#: space, and every credential shape is shorter and matched first.
+BASE64_BLOB_MIN_LENGTH = 512
+
+
+def _format_size(num_bytes: int) -> str:
+    """Render a byte count the way a human reads it."""
+    if num_bytes < 1024:
+        return f"{num_bytes}B"
+    if num_bytes < 1024 * 1024:
+        return f"{num_bytes / 1024:.0f}KB"
+    return f"{num_bytes / (1024 * 1024):.1f}MB"
+
+
+def _decoded_size(encoded: str) -> int:
+    """Decoded byte count of a base64 string, without decoding it."""
+    return len(encoded.rstrip("=")) * 3 // 4
+
+
+def _redact_data_url(match: "re.Match") -> str:
+    """Replace a ``data:`` URL with its media type and size."""
+    media_type = (match.group(1) or "application/octet-stream").lower()
+    label = "IMAGE" if media_type.startswith("image/") else "MEDIA"
+    return f"<{label}:{media_type},{_format_size(_decoded_size(match.group(2)))}>"
+
+
+def _redact_base64_blob(match: "re.Match") -> str:
+    """Replace a bare base64 blob with its size.
+
+    No media type: it sits in a sibling field this leaves alone, so Anthropic's
+    ``media_type`` and Gemini's ``mime_type`` stay readable next to the marker.
+    """
+    return f"<BASE64:{_format_size(_decoded_size(match.group(0)))}>"
+
+
 # Ordered so that specific credential shapes are redacted before the generic
 # "key = value" catch-all gets a chance to mangle them.
 DEFAULT_PATTERNS: Dict[str, Any] = {
@@ -215,24 +269,53 @@ DEFAULT_PATTERNS: Dict[str, Any] = {
     "google_api_key": (re.compile(r"\bAIza[0-9A-Za-z_-]{35}\b"), "<API_KEY>"),
     "github_token": (re.compile(r"\bgh[pousr]_[A-Za-z0-9]{16,}\b"), "<API_KEY>"),
     "slack_token": (re.compile(r"\bxox[baprs]-[A-Za-z0-9-]{10,}\b"), "<API_KEY>"),
+    # Monocle exports to Okahu, so its key is the one most likely to reach a
+    # span -- and, passed positionally, the one no other pattern can name.
+    "okahu_api_key": (re.compile(r"\bokh_[A-Za-z0-9_-]{16,}\b"), "<API_KEY>"),
+    # The inline image, audio clip or PDF a multimodal call sends, as OpenAI's
+    # image_url/input_image blocks carry it.
+    "data_url": (
+        re.compile(r"data:([\w.+-]+/[\w.+-]+)?;base64,([A-Za-z0-9+/]+={0,2})", re.I),
+        _redact_data_url,
+    ),
+    # The same content with no data: prefix, as Anthropic's source.data and
+    # Gemini's inline_data.data send it.
+    "base64_blob": (
+        re.compile(
+            rf"(?<![A-Za-z0-9+/])[A-Za-z0-9+/]{{{BASE64_BLOB_MIN_LENGTH},}}={{0,2}}"
+            r"(?![A-Za-z0-9+/])"
+        ),
+        _redact_base64_blob,
+    ),
     # Generic "api_key": "value" / password=value assignments, including the
     # quoted form found in JSON payloads and the "x-api-key: value" header form.
     "credential_assignment": (
         re.compile(
-            r"(?i)\b((?:api[_-]?key|apikey|secret|password|passwd|pwd|"
-            r"access[_-]?token|auth[_-]?token|refresh[_-]?token|id[_-]?token|"
-            r"bearer[_-]?token|session[_-]?token|sas[_-]?token|"
-            r"client[_-]?secret|private[_-]?key|credentials?|authorization)"
+            rf"(?i)\b((?:{_CREDENTIAL_KEY_NAMES})"
             r"\b[\"']?\s*[:=]\s*)"
             r"(\"[^\"]+\"|'[^']+'|[^\s,;}\"']+)"
         ),
         _redact_credential_assignment,
     ),
+    # Matched against the payload key, not the text -- see obfuscate_text. Last,
+    # so it only sees a value no shape pattern recognized. A credential name has
+    # to end the key: "openai_api_key" matches, "password_hint" does not.
+    CREDENTIAL_KEY_PATTERN: (
+        re.compile(rf"(?i)^(?:.*[._\-])?(?:{_CREDENTIAL_KEY_NAMES})$"),
+        "<REDACTED>",
+    ),
 }
 
-#: All built-in patterns are credential patterns, and all are on by default.
-CREDENTIAL_PATTERNS = tuple(DEFAULT_PATTERNS)
-DEFAULT_ENABLED_PATTERNS = CREDENTIAL_PATTERNS
+#: Patterns that replace an encoded blob with its media type and size.
+MEDIA_PATTERNS = ("data_url", "base64_blob")
+
+#: Everything else -- the credential shapes and the two key-driven patterns.
+CREDENTIAL_PATTERNS = tuple(
+    name for name in DEFAULT_PATTERNS if name not in MEDIA_PATTERNS
+)
+
+#: All built-in patterns are on by default.
+DEFAULT_ENABLED_PATTERNS = tuple(DEFAULT_PATTERNS)
 
 
 def _resolve_pattern_names(patterns: Any) -> tuple:
@@ -263,6 +346,12 @@ class RegexSpanObfuscator(TextSpanObfuscator):
     narrows them. *extra_patterns* takes additional
     ``{name: (compiled_regex, replacement)}`` entries for organization-specific
     secrets, applied after the built-ins.
+
+    Most patterns match the text. ``credential_key`` matches the payload key
+    instead, so a bare secret with no recognizable shape is still redacted when
+    the key names it -- the ``{"api_key": "hunter2"}`` a custom output processor
+    can produce. :data:`MEDIA_PATTERNS` are not about secrets: they replace an
+    inline base64 blob with ``<IMAGE:image/png,1.4MB>``.
     """
 
     def __init__(
@@ -274,17 +363,35 @@ class RegexSpanObfuscator(TextSpanObfuscator):
     ) -> None:
         super().__init__(span_types=span_types, event_names=event_names)
         self.pattern_names = _resolve_pattern_names(patterns)
-        self.patterns: List[Any] = [
-            DEFAULT_PATTERNS[name] for name in self.pattern_names
-        ]
+        self.key_pattern: Optional[Any] = None
+        self.key_replacement: str = ""
+        self.patterns: List[Any] = []
+        for name in self.pattern_names:
+            regex, replacement = DEFAULT_PATTERNS[name]
+            if name == CREDENTIAL_KEY_PATTERN:
+                self.key_pattern, self.key_replacement = regex, replacement
+            else:
+                self.patterns.append((regex, replacement))
         if extra_patterns:
             self.patterns.extend(extra_patterns.values())
+
+    def redacts_key(self, key: str) -> bool:
+        """True if *key* names a credential, making its whole value the secret."""
+        return bool(self.key_pattern and key and self.key_pattern.match(key))
 
     def obfuscate_text(
         self, text: str, key: str, event_name: str, span: ReadableSpan
     ) -> str:
         for regex, replacement in self.patterns:
             text = regex.sub(replacement, text)
+        # The key names a credential, so the whole value is the secret. A value
+        # a pattern above replaced outright keeps that marker -- <API_KEY> does
+        # not degrade to <REDACTED>, and repeated passes stay idempotent. One it
+        # only partly matched is redacted whole, since the key covers all of it.
+        if self.redacts_key(key) and text.strip() and not _is_already_handled(
+            text.strip("\"'")
+        ):
+            return self.key_replacement
         return text
 
 
@@ -503,6 +610,9 @@ BUILTIN_OBFUSCATORS: Dict[str, Any] = {
     "presidio": lambda **kw: PresidioSpanObfuscator(**kw),
 }
 
+#: Names that build a RegexSpanObfuscator, the one that accepts extra patterns.
+REGEX_OBFUSCATOR_NAMES = ("credentials", "regex")
+
 #: What is enabled when nothing is configured. Obfuscation is on by default.
 DEFAULT_OBFUSCATOR_NAME = "credentials"
 
@@ -547,6 +657,91 @@ def obfuscation_disabled_by_env() -> bool:
     return os.environ.get(SPAN_OBFUSCATORS_ENV, "").strip().lower() in OBFUSCATION_OFF_VALUES
 
 
+def _patterns_from_env_values() -> Dict[str, Any]:
+    """Patterns redacting the literal values of the env vars named by
+    ``MONOCLE_OBFUSCATE_ENV_VALUES``.
+
+    An app already holds its own secrets, so this needs no regex and catches
+    them wherever they land -- including a positional argument, where no name
+    identifies them. Values are never logged.
+    """
+    names = [
+        name.strip()
+        for name in os.environ.get(OBFUSCATE_ENV_VALUES_ENV, "").split(",")
+        if name.strip()
+    ]
+    patterns: Dict[str, Any] = {}
+    for name in names:
+        value = os.environ.get(name, "").strip()
+        if not value:
+            logger.warning(
+                "%s names '%s', which is not set; skipping it.",
+                OBFUSCATE_ENV_VALUES_ENV, name,
+            )
+            continue
+        if len(value) < MIN_ENV_VALUE_LENGTH:
+            logger.warning(
+                "Value of '%s' is shorter than %d characters; skipping it rather "
+                "than redacting that text out of every span.",
+                name, MIN_ENV_VALUE_LENGTH,
+            )
+            continue
+        patterns[f"env:{name}"] = (re.compile(re.escape(value)), "<REDACTED>")
+    return patterns
+
+
+def _patterns_from_env_json() -> Dict[str, Any]:
+    """Patterns from ``MONOCLE_OBFUSCATE_EXTRA_PATTERNS``, a JSON object of
+    ``{"name": "regex"}`` or ``{"name": {"pattern": ..., "replacement": ...}}``.
+
+    JSON rather than a delimited list because regexes contain the commas and
+    colons such a list would split on.
+    """
+    raw = os.environ.get(EXTRA_PATTERNS_ENV, "").strip()
+    if not raw:
+        return {}
+    try:
+        spec = json.loads(raw)
+    except ValueError as ex:
+        logger.warning("%s is not valid JSON: %s. Ignoring it.", EXTRA_PATTERNS_ENV, ex)
+        return {}
+    if not isinstance(spec, dict):
+        logger.warning(
+            "%s must be a JSON object of {name: regex}, got %s. Ignoring it.",
+            EXTRA_PATTERNS_ENV, type(spec).__name__,
+        )
+        return {}
+
+    patterns: Dict[str, Any] = {}
+    for name, entry in spec.items():
+        if isinstance(entry, str):
+            pattern, replacement = entry, "<REDACTED>"
+        elif isinstance(entry, dict):
+            pattern = entry.get("pattern")
+            replacement = entry.get("replacement", "<REDACTED>")
+        else:
+            pattern = None
+        if not isinstance(pattern, str) or not isinstance(replacement, str):
+            logger.warning(
+                "%s entry '%s' must be a regex string or {\"pattern\": ..., "
+                "\"replacement\": ...}; skipping it.", EXTRA_PATTERNS_ENV, name,
+            )
+            continue
+        try:
+            patterns[name] = (re.compile(pattern), replacement)
+        except re.error as ex:
+            logger.warning(
+                "%s entry '%s' is not a valid regex: %s. Skipping it.",
+                EXTRA_PATTERNS_ENV, name, ex,
+            )
+    return patterns
+
+
+def extra_patterns_from_env() -> Dict[str, Any]:
+    """Every ``{name: (regex, replacement)}`` configured through the environment."""
+    return {**_patterns_from_env_values(), **_patterns_from_env_json()}
+
+
 def _load_obfuscators_from_env() -> List[SpanObfuscator]:
     """Build obfuscators from the environment.
 
@@ -571,25 +766,48 @@ def _load_obfuscators_from_env() -> List[SpanObfuscator]:
         else [DEFAULT_OBFUSCATOR_NAME]
     )
 
+    extra_patterns = extra_patterns_from_env()
+
     obfuscators: List[SpanObfuscator] = []
     for entry in entries:
         try:
-            obfuscators.append(_instantiate_obfuscator(entry, span_types))
+            obfuscators.append(
+                _instantiate_obfuscator(entry, span_types, extra_patterns)
+            )
         except Exception as ex:
             logger.warning(
                 "Unable to load Monocle span obfuscator '%s': %s. "
                 "Spans will be exported without it.", entry, ex,
             )
+
+    # Env-configured patterns ride on the regex obfuscator. If none was selected
+    # -- MONOCLE_SPAN_OBFUSCATORS=presidio, say -- add one carrying only those,
+    # so configuring a pattern always means it is applied. It goes first: a
+    # literal env value must be matched before another obfuscator rewrites the
+    # text out from under it.
+    if extra_patterns and not any(
+        isinstance(obf, RegexSpanObfuscator) for obf in obfuscators
+    ):
+        obfuscators.insert(
+            0,
+            RegexSpanObfuscator(
+                patterns=[], extra_patterns=extra_patterns, span_types=span_types
+            ),
+        )
     return obfuscators
 
 
 def _instantiate_obfuscator(
-    entry: str, span_types: Optional[Sequence[str]]
+    entry: str,
+    span_types: Optional[Sequence[str]],
+    extra_patterns: Optional[Dict[str, Any]] = None,
 ) -> SpanObfuscator:
     """Build one obfuscator from a built-in name or a ``module:ClassName`` path."""
     kwargs = {"span_types": span_types} if span_types else {}
     factory = BUILTIN_OBFUSCATORS.get(entry.lower())
     if factory is not None:
+        if extra_patterns and entry.lower() in REGEX_OBFUSCATOR_NAMES:
+            kwargs["extra_patterns"] = extra_patterns
         return factory(**kwargs)
     return _import_obfuscator(entry, span_types)
 

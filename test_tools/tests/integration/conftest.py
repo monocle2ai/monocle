@@ -16,3 +16,11 @@ def _plugin_registered_via_entrypoint() -> bool:
 
 if not _plugin_registered_via_entrypoint():
     pytest_plugins = ["monocle_test_tools.pytest_plugin"]
+
+# Must be set before the first setup_monocle_telemetry(), which is when the
+# trace-return SpanProcessor is wired up -- a test module setting it at its own
+# import time loses the race to modules imported earlier during collection.
+# Inert without the retrieval keys, which are read live per request.
+import os
+
+os.environ.setdefault("MONOCLE_ENABLE_TRACE_RETURN", "true")

@@ -32,6 +32,16 @@ class OkahuSpanLoader:
     # those timing out; OKAHU_API_TIMEOUT raises or lowers it per deployment.
     DEFAULT_API_TIMEOUT = 120
 
+    # The server's own DEFAULT_PAGE_SIZE is 100 (common/api/util.py:34) and its
+    # MAX_PAGE_SIZE is 1000, enforced with a 400 rather than a clamp. 200 halves
+    # the round trips and matches what the eval-tune-kit clients already request.
+    DEFAULT_PAGE_SIZE = 200
+    MAX_PAGE_SIZE = 1000
+
+    # The ceiling okahu_filtered_eval applies to a filtered run (evals/
+    # okahu_filtered_eval.py:319), so both paths bound a window the same way.
+    DEFAULT_MAX_FACTS = 1000
+
     @staticmethod
     def _get_api_base(endpoint: Optional[str] = None) -> str:
         """Return the Okahu API base URL (no trailing slash).
@@ -73,6 +83,72 @@ class OkahuSpanLoader:
                 raw, OkahuSpanLoader.DEFAULT_API_TIMEOUT)
             return OkahuSpanLoader.DEFAULT_API_TIMEOUT
         return seconds
+
+    @staticmethod
+    def _resolve_page_size(page_size: Optional[int] = None) -> int:
+        """Rows per page: an explicit value if given, else DEFAULT_PAGE_SIZE.
+
+        parse_page_size on the server (common/api/util.py:558-570) answers an
+        out-of-range value with HTTP 400 rather than clamping, and that 400
+        surfaces mid-collection with no indication of which parameter caused it.
+        Failing here names the bound instead.
+
+        No environment override, unlike the timeout: a timeout is a deployment
+        property, while page size is a tuning detail already exposed as a
+        parameter on setup_test_cases.
+        """
+        if page_size is None:
+            return OkahuSpanLoader.DEFAULT_PAGE_SIZE
+        # bool before int: isinstance(True, int) is True, so page_size=True would
+        # otherwise pass as a page size of 1.
+        if isinstance(page_size, bool) or not isinstance(page_size, int):
+            raise ValueError(
+                f"page_size must be an int, got {type(page_size).__name__}")
+        if not 1 <= page_size <= OkahuSpanLoader.MAX_PAGE_SIZE:
+            raise ValueError(
+                f"page_size must be between 1 and {OkahuSpanLoader.MAX_PAGE_SIZE} "
+                f"(the Okahu server's MAX_PAGE_SIZE), got {page_size}")
+        return page_size
+
+    @staticmethod
+    def _resolve_max_facts(max_facts: Optional[int] = None) -> int:
+        """The most facts one discovery run may yield: argument, else env, else 1000.
+
+        Mirrors the ceiling okahu_filtered_eval applies to a filtered run
+        (evals/okahu_filtered_eval.py:319), so a deployment already setting
+        OKAHU_MAX_FACTS gets the same bound here. Kept as a separate
+        implementation rather than a shared import because okahu_span_loader and
+        the evals modules form an import cycle -- see the local imports in
+        setup_test_cases.
+
+        An unusable OKAHU_MAX_FACTS -- empty, non-numeric, or not positive -- is
+        logged and ignored rather than stopping discovery, matching how
+        OKAHU_API_TIMEOUT resolves. Deliberately more tolerant than
+        okahu_filtered_eval, whose bare int() would raise on a bad value.
+        """
+        if max_facts is not None:
+            # bool before int: isinstance(True, int) is True, so max_facts=True
+            # would otherwise pass as a ceiling of 1.
+            if isinstance(max_facts, bool) or not isinstance(max_facts, int):
+                raise ValueError(
+                    f"max_facts must be an int, got {type(max_facts).__name__}")
+            if max_facts < 1:
+                raise ValueError(f"max_facts must be at least 1, got {max_facts}")
+            return max_facts
+
+        raw = (os.environ.get("OKAHU_MAX_FACTS") or "").strip()
+        if not raw:
+            return OkahuSpanLoader.DEFAULT_MAX_FACTS
+        try:
+            ceiling = int(raw)
+        except ValueError:
+            ceiling = 0
+        if ceiling < 1:
+            logger.warning(
+                "OKAHU_MAX_FACTS=%r is not a positive integer; using %d",
+                raw, OkahuSpanLoader.DEFAULT_MAX_FACTS)
+            return OkahuSpanLoader.DEFAULT_MAX_FACTS
+        return ceiling
 
     @staticmethod
     def _get_headers(api_key: Optional[str] = None) -> dict:
@@ -172,6 +248,73 @@ class OkahuSpanLoader:
             f"Expected a list from Okahu ({context_msg}), got: {type(data).__name__}"
         )
 
+    @staticmethod
+    def _iter_pages(fetch, params: dict, page_size: int, context_msg: str = ""):
+        """Yield each response envelope, following the page token to exhaustion.
+
+        A GET/query-params sibling of okahu_eval._iter_eval_report_rows, which
+        walks the same protocol over POST/body. Both endpoints signal the end by
+        omitting next_page_token.
+
+        ``fetch`` is a callable taking the params dict and returning the parsed
+        envelope. It is supplied by the caller because get_trace_ids resolves its
+        namespace through _get_resource while get_fact_ids has a fixed URL.
+
+        The envelope is yielded whole rather than its items, so a caller wanting
+        something other than ids -- get_spans, eventually -- can reuse this.
+        """
+        page_token, seen_tokens = None, set()
+        while True:
+            page_params = {**params, "page_size": page_size}
+            if page_token:
+                # These GET routes read the token as 'next_page_token'; only the
+                # POST /evals/report pager spells it 'page_token'. The wrong name
+                # is not an error -- it is ignored and page 1 is re-served.
+                # Verified in okahu/routes/{traces,facts}.py, both of which do:
+                #   req.query_params.get('next_page_token') or ...('prev_page_token')
+                page_params["next_page_token"] = page_token
+            envelope = fetch(page_params)
+            yield envelope
+
+            # An envelope is not always a dict: some responses are a bare list.
+            page_token = (envelope.get("next_page_token")
+                          if isinstance(envelope, dict) else None)
+            if not page_token:
+                return
+            if page_token in seen_tokens:
+                logger.warning(
+                    "Okahu repeated a page token (%s); stopping the walk after "
+                    "%d pages", context_msg, len(seen_tokens) + 1)
+                return
+            seen_tokens.add(page_token)
+
+    @staticmethod
+    def _collect_paged(fetch, params: dict, page_size: int, extract,
+                       context_msg: str = "") -> list:
+        """Every item across every page, with a warning if the total falls short.
+
+        ``extract`` turns one envelope into its items, which is where the two
+        endpoints differ: /traces keys a list, /facts/<n>/ids keys a dict.
+
+        fact_count is read from every page, so a mid-walk revision by the server
+        takes effect -- and it costs nothing, the envelope is already open.
+        """
+        items, advertised = [], None
+        for envelope in OkahuSpanLoader._iter_pages(
+                fetch, params, page_size, context_msg):
+            items.extend(extract(envelope))
+            if isinstance(envelope, dict) and isinstance(
+                    envelope.get("fact_count"), int):
+                advertised = envelope["fact_count"]
+
+        if advertised is not None and len(items) != advertised:
+            # The defect this exists to kill was silent. Never return a short
+            # list without saying so.
+            logger.warning(
+                "Okahu returned %d of %d advertised (%s); the result is incomplete",
+                len(items), advertised, context_msg)
+        return items
+
     # ------------------------------------------------------------------ #
     #  Public helpers                                                     #
     # ------------------------------------------------------------------ #
@@ -183,7 +326,8 @@ class OkahuSpanLoader:
                          eval_filter: Optional[str] = None,
                          check_eval: Optional[Union[bool, str]] = None,
                          compare_eval: Optional[str] = None,
-                         page_size: int = 100) -> list:
+                         page_size: int = DEFAULT_PAGE_SIZE,
+                         max_facts: Optional[int] = None) -> list:
         """Build FluentTestCases from the traces recorded for a workflow.
 
         One test case per fact in the window. How the facts are found depends on
@@ -265,7 +409,15 @@ class OkahuSpanLoader:
                 eval-tuning question: does a new template reproduce a golden
                 one's labels? Requires ``check_eval`` to be a name, since there
                 is otherwise nothing to attach the borrowed label to.
-            page_size: Rows per page (server max 1000).
+            page_size: Rows per page for the trace/fact enumeration and the eval
+                report alike -- one knob, so they cannot disagree about page
+                depth. Server maximum 1000.
+            max_facts: The most facts this window may yield. Defaults to
+                OKAHU_MAX_FACTS, then DEFAULT_MAX_FACTS (1000). A wider window
+                raises, naming the count and the variable, rather than
+                generating thousands of cases -- each fact costs a span request
+                and, with check_eval, an eval. Bounds the fact enumeration only;
+                the spans beneath one fact are not counted.
 
         Returns:
             One FluentTestCase per fact that has at least one labelled eval.
@@ -302,14 +454,34 @@ class OkahuSpanLoader:
         # A trace IS its own fact, so the trace list is the fact list. Any level
         # above a trace -- agent requests, sessions -- is enumerated by its own
         # ids API, and each of those facts spans one or more traces.
+        # Resolved before enumeration so a bad argument fails without a request.
+        ceiling = cls._resolve_max_facts(max_facts)
+
         if mapped_fact_name == "traces":
             fact_ids = [normalize_fact_id(tid) for tid in cls.get_trace_ids(
                 workflow_name, start_time=start_time, end_time=end_time,
-                eval_filter=eval_filter)]
+                eval_filter=eval_filter, page_size=page_size)]
         else:
             fact_ids = cls.get_fact_ids(
                 workflow_name, mapped_fact_name,
-                start_time=start_time, end_time=end_time, eval_filter=eval_filter)
+                start_time=start_time, end_time=end_time,
+                eval_filter=eval_filter, page_size=page_size)
+
+        # Paginating the enumerators removed an accidental ceiling: they used to
+        # stop at the server's first page of 100. Every fact here costs a span
+        # request and, with check_eval, an eval, so an oversized window is
+        # refused before any of that -- never truncated, which would hand back a
+        # silent subset.
+        #
+        # Deliberately checked HERE rather than inside the enumerators: they are
+        # shared with load_by_scope, import_traces and from_okahu_scope, which
+        # load one named fact and have no runaway to guard against.
+        if len(fact_ids) > ceiling:
+            raise AssertionError(
+                f"Okahu discovered {len(fact_ids)} '{fact_name}' facts in workflow "
+                f"'{workflow_name}', exceeding max_facts={ceiling} (set "
+                f"OKAHU_MAX_FACTS to raise the ceiling, or narrow the time window).")
+
         if not fact_ids:
             return []
 
@@ -362,7 +534,8 @@ class OkahuSpanLoader:
             try:
                 spans = cls._fact_spans(
                     workflow_name, fact_id, mapped_fact_name=mapped_fact_name,
-                    start_time=start_time, end_time=end_time, eval_filter=eval_filter)
+                    start_time=start_time, end_time=end_time,
+                    eval_filter=eval_filter, page_size=page_size)
             except cls._LOAD_ERRORS as exc:
                 test_cases.append(FluentTestCase(
                     name=fact_id, input=fact,
@@ -390,7 +563,8 @@ class OkahuSpanLoader:
 
     @classmethod
     def _fact_spans(cls, workflow_name, fact_id, *, mapped_fact_name,
-                    start_time, end_time, eval_filter=None) -> list:
+                    start_time, end_time, eval_filter=None,
+                    page_size=None) -> list:
         """Every span belonging to one fact.
 
         A trace-level fact is one trace, so its spans are one call. A higher
@@ -404,7 +578,8 @@ class OkahuSpanLoader:
         spans = []
         for trace_id in cls.get_trace_ids(
                 workflow_name, mapped_fact_name, fact_id,
-                start_time=start_time, end_time=end_time, eval_filter=eval_filter):
+                start_time=start_time, end_time=end_time,
+                eval_filter=eval_filter, page_size=page_size):
             spans.extend(cls.get_spans(
                 workflow_name, trace_id, start_time=start_time, end_time=end_time))
         return spans
@@ -422,6 +597,7 @@ class OkahuSpanLoader:
         start_time: Optional[str] = None,
         end_time: Optional[str] = None,
         eval_filter: Optional[str] = None,
+        page_size: Optional[int] = None,
     ) -> List[str]:
         """Fetch the ids of every fact of one level in a workflow.
 
@@ -452,32 +628,44 @@ class OkahuSpanLoader:
             eval_filter: Optional ``eval`` filter narrowing the result set to
                 facts carrying it -- a bare eval name, or the API's
                 ``name:label;name:label`` form.
+            page_size: Rows per page. Defaults to DEFAULT_PAGE_SIZE (200);
+                the server rejects anything above MAX_PAGE_SIZE (1000).
 
         Returns:
-            The fact ids, in the order the server returned them.
+            The fact ids across every page, in the order the server returned them.
         """
+        page_size = OkahuSpanLoader._resolve_page_size(page_size)
         base = OkahuSpanLoader._get_api_base(endpoint)
         headers = OkahuSpanLoader._get_headers(api_key)
         url = f"{base}/api/v1/workflows/{workflow_name}/facts/{fact_name}/ids"
         params = {"duration_fact": fact_name, "breakdown_filter": fact_name}
         params.update(OkahuSpanLoader._window_params(start_time, end_time))
         params.update(OkahuSpanLoader._eval_param(eval_filter))
+        context_msg = f"{fact_name} ids in workflow '{workflow_name}'"
 
-        data = OkahuSpanLoader._do_get(
-            url, headers, params=params, timeout=timeout,
-            context_msg=f"{fact_name} ids in workflow '{workflow_name}'")
+        def fetch(page_params):
+            return OkahuSpanLoader._do_get(
+                url, headers, params=page_params, timeout=timeout,
+                context_msg=context_msg)
 
-        fact_ids = (data or {}).get("fact_ids")
-        if isinstance(fact_ids, dict):
-            return list(fact_ids)
-        if isinstance(fact_ids, list):
-            return [item.get("fact_id") if isinstance(item, dict) else item
-                    for item in fact_ids]
-        if fact_ids is None:
-            return []
-        raise ConnectionError(
-            f"Okahu returned an unexpected 'fact_ids' for {fact_name} in workflow "
-            f"'{workflow_name}': {type(fact_ids).__name__}")
+        def extract(envelope):
+            """The ids of one page. fact_ids is keyed by id, so its keys ARE the
+            ids and the order is the server's."""
+            fact_ids = (envelope.get("fact_ids")
+                        if isinstance(envelope, dict) else None)
+            if isinstance(fact_ids, dict):
+                return list(fact_ids)
+            if isinstance(fact_ids, list):
+                return [item.get("fact_id") if isinstance(item, dict) else item
+                        for item in fact_ids]
+            if fact_ids is None:
+                return []
+            raise ConnectionError(
+                f"Okahu returned an unexpected 'fact_ids' for {fact_name} in "
+                f"workflow '{workflow_name}': {type(fact_ids).__name__}")
+
+        return OkahuSpanLoader._collect_paged(
+            fetch, params, page_size, extract, context_msg)
 
     @staticmethod
     def get_trace_ids(
@@ -491,6 +679,7 @@ class OkahuSpanLoader:
         start_time: Optional[str] = None,
         end_time: Optional[str] = None,
         eval_filter: Optional[str] = None,
+        page_size: Optional[int] = None,
     ) -> List[str]:
         """Fetch trace IDs from Okahu filtered by a fact.
 
@@ -513,9 +702,11 @@ class OkahuSpanLoader:
             api_key: Okahu API key override.
             timeout: Request timeout in seconds. Defaults to
                 OKAHU_API_TIMEOUT, then ``DEFAULT_API_TIMEOUT`` (120).
+            page_size: Rows per page. Defaults to DEFAULT_PAGE_SIZE (200);
+                the server rejects anything above MAX_PAGE_SIZE (1000).
 
         Returns:
-            A list of trace ID strings.
+            A list of trace ID strings, across every page.
 
         Raises:
             ValueError: If exactly one of fact_name / fact_id is given. Half a
@@ -526,6 +717,7 @@ class OkahuSpanLoader:
                 "fact_name and fact_id must be given together or not at all; "
                 f"got fact_name={fact_name!r}, fact_id={fact_id!r}")
 
+        page_size = OkahuSpanLoader._resolve_page_size(page_size)
         base = OkahuSpanLoader._get_api_base(endpoint)
         headers = OkahuSpanLoader._get_headers(api_key)
         params = {}
@@ -534,24 +726,34 @@ class OkahuSpanLoader:
             params["fact_ids"] = fact_id
         params.update(OkahuSpanLoader._window_params(start_time, end_time))
         params.update(OkahuSpanLoader._eval_param(eval_filter))
+        context_msg = (f"traces for {fact_name}='{fact_id}' in workflow "
+                       f"'{workflow_name}'" if fact_name
+                       else f"traces in workflow '{workflow_name}'")
 
-        data = OkahuSpanLoader._get_resource(
-            base, f"{workflow_name}/traces", headers, params=params, timeout=timeout,
-            context_msg=(f"traces for {fact_name}='{fact_id}' in workflow '{workflow_name}'"
-                         if fact_name else f"traces in workflow '{workflow_name}'")
-        )
+        def fetch(page_params):
+            # _get_resource re-resolves the apps/workflows namespace per page.
+            # When 'apps' is correct it returns on the first attempt, so this
+            # costs nothing; only the fallback path spends one debug-level 404
+            # per page, which is cheaper than threading resolved state through
+            # the pager.
+            return OkahuSpanLoader._get_resource(
+                base, f"{workflow_name}/traces", headers, params=page_params,
+                timeout=timeout, context_msg=context_msg)
 
-        trace_list = OkahuSpanLoader._unwrap_list(
-            data, ("traces", "data", "results"),
-            context_msg=f"traces for {fact_name}='{fact_id}'"
-        )
+        def extract(envelope):
+            trace_list = OkahuSpanLoader._unwrap_list(
+                envelope, ("traces", "data", "results"),
+                context_msg=f"traces for {fact_name}='{fact_id}'")
+            ids = []
+            for item in trace_list:
+                if isinstance(item, dict) and "trace_id" in item:
+                    ids.append(item["trace_id"])
+                elif isinstance(item, str):
+                    ids.append(item)
+            return ids
 
-        trace_ids = []
-        for item in trace_list:
-            if isinstance(item, dict) and "trace_id" in item:
-                trace_ids.append(item["trace_id"])
-            elif isinstance(item, str):
-                trace_ids.append(item)
+        trace_ids = OkahuSpanLoader._collect_paged(
+            fetch, params, page_size, extract, context_msg)
 
         logger.debug(
             "Found %d trace(s) for %s='%s' in workflow '%s'",

@@ -52,16 +52,18 @@ async def test_does_not_call_agent_passes(monocle_trace_asserter):
 @pytest.mark.asyncio
 async def test_has_input_passes(monocle_trace_asserter):
     """has_input - passes when input matches."""
+    # Tool input is serialized JSON with per-run key order, so the exact-match
+    # has_*/does_not_have_* forms cannot be used here.
     await monocle_trace_asserter.run_agent_async(root_agent, "google_adk",
                         "Book a flight from Miami to Orlando for May 1st 2026")
-    monocle_trace_asserter.called_tool("adk_book_flight_5").has_input("Orlando")
+    monocle_trace_asserter.called_tool("adk_book_flight_5").contains_input("Orlando")
 
 @pytest.mark.asyncio
 async def test_has_any_input_passes(monocle_trace_asserter):
     """has_any_input - passes when any input matches."""
     await monocle_trace_asserter.run_agent_async(root_agent, "google_adk",
                         "Book a flight from Seattle to Portland for May 5th 2026")
-    monocle_trace_asserter.called_tool("adk_book_flight_5").has_any_input("Portland", "Seattle", "Vancouver")
+    monocle_trace_asserter.called_tool("adk_book_flight_5").contains_any_input("Portland", "Seattle", "Vancouver")
 
 @pytest.mark.asyncio
 async def test_does_not_have_input_passes(monocle_trace_asserter):
@@ -241,7 +243,7 @@ async def test_fail_input_contains_wrong_value(monocle_trace_asserter):
     """This test will fail - demonstrates custom message when input contains unexpected value."""
     await monocle_trace_asserter.run_agent_async(root_agent, "google_adk",
                         "Book a flight from Dallas to Houston for March 3rd 2027")
-    monocle_trace_asserter.does_not_have_input(
+    monocle_trace_asserter.does_not_contain_input(
         "Dallas",
         message="SECURITY ALERT: Input contains restricted city 'Dallas' which is not allowed in this context"
     )
@@ -318,7 +320,7 @@ async def test_fail_does_not_have_any_input(monocle_trace_asserter):
     """This test will fail - demonstrates custom message when prohibited inputs are detected."""
     await monocle_trace_asserter.run_agent_async(root_agent, "google_adk",
                         "Book a flight from New York to Los Angeles for Sep 1st 2026")
-    monocle_trace_asserter.does_not_have_any_input(
+    monocle_trace_asserter.does_not_contain_any_input(
         "New York", "Los Angeles", "Chicago",
         message="COMPLIANCE ERROR: Blacklisted cities detected in booking request"
     )
@@ -373,7 +375,7 @@ async def test_fail_does_not_have_any_output(monocle_trace_asserter):
     """This test will fail - demonstrates custom message when booking completion terms present."""
     await monocle_trace_asserter.run_agent_async(root_agent, "google_adk",
                         "Book a flight from Las Vegas to Reno for Sep 30th 2026")
-    monocle_trace_asserter.does_not_have_any_output(
+    monocle_trace_asserter.does_not_contain_any_output(
         "booked", "confirmed", "reserved",
         message="STATUS ERROR: Output contains booking completion terms that shouldn't be present"
     )

@@ -1,18 +1,10 @@
 import os
 
-# MONOCLE_ENABLE_TRACE_RETURN must be "true" *before* MonocleValidator() is
-# constructed anywhere in this process: setup_monocle_telemetry() only wires
-# up the TraceReturnSpanExporter processor once, at instrumentor-setup time,
-# and MonocleValidator is a session-wide singleton. Setting it here at module
-# import time guarantees it is in place before the first construction, as
-# long as this file is run on its own / is the first test module to touch
-# MonocleValidator in the pytest session.
+# conftest.py enables trace-return early enough for any import order; this is
+# a belt-and-braces repeat for running this file standalone.
 os.environ["MONOCLE_ENABLE_TRACE_RETURN"] = "true"
-# Server-side key (default_trace_retrieval_callback checks the incoming
-# x-monocle-retrieve-traces header against this) and client-side key
-# (HttpRunner._maybe_inject_retrieval_key reads this to auto-inject the
-# header). Same value == authorized; must be set before MonocleValidator()
-# is constructed for the same reason as MONOCLE_ENABLE_TRACE_RETURN above.
+# Server-side and client-side keys; matching values == authorized. Read live
+# per request, so import order does not matter for these.
 os.environ["MONOCLE_TRACE_RETRIEVAL_DEFAULT_KEY"] = "e2e-s3cret"
 os.environ["MONOCLE_TRACE_RETRIEVAL_KEY"] = "e2e-s3cret"
 
@@ -22,7 +14,8 @@ import time
 
 import pytest
 
-pytest_plugins = ["monocle_test_tools.pytest_plugin"]
+# The monocle_test_tools plugin is registered by conftest.py; declaring
+# pytest_plugins here too double-registers it and fails collection.
 
 
 def _free_port():

@@ -21,9 +21,46 @@ from monocle_test_tools.okahu_span_loader import OkahuSpanLoader
 # A workflow, not an app: Monocle addresses Okahu by workflow name throughout --
 # the span loader, the eval report and the pytest plugin all do. The window is
 # deliberately wide so both fact levels span several pages.
-WORKFLOW = "karmehr-okahu-monocle"
+#
+# The default workflow belongs to one stage account. Another account's key sees
+# a different (often nearly empty) tenant, so the name is overridable and every
+# test below *skips* rather than fails when its window is too small to prove
+# anything -- an unmet precondition is not a defect in the enumerators.
+WORKFLOW = os.environ.get("MONOCLE_OKAHU_PAGINATION_WORKFLOW", "karmehr-okahu-monocle")
 START, END = "2025-01-01T00:00:00.000Z", "2026-09-03T23:59:59.000Z"
 SERVER_DEFAULT_PAGE = 100
+
+
+DEFAULT_MAX_FACTS = 1000
+
+
+def _require_multiple_pages(advertised, what):
+    """Skip unless this window really spans more than one server page."""
+    if not advertised or advertised <= SERVER_DEFAULT_PAGE:
+        pytest.skip(
+            f"workflow {WORKFLOW!r} advertises {advertised} {what} in this "
+            f"window; more than {SERVER_DEFAULT_PAGE} are needed to exercise "
+            f"paging. Set MONOCLE_OKAHU_PAGINATION_WORKFLOW to a workflow with "
+            f"more data.")
+
+
+def _require_over_default_ceiling():
+    """Skip unless the window holds more inferences than the default ceiling.
+
+    Both ceiling tests need the window to exceed max_facts=1000 -- one to see
+    the refusal fire, the other to show enumeration still works at that size.
+    A smaller tenant cannot exercise either.
+    """
+    fact = "inferences"
+    advertised = _advertised(
+        f"{WORKFLOW}/facts/{fact}/ids",
+        {"duration_fact": fact, "breakdown_filter": fact})
+    if not advertised or advertised <= DEFAULT_MAX_FACTS:
+        pytest.skip(
+            f"workflow {WORKFLOW!r} advertises {advertised} {fact} in this "
+            f"window; more than {DEFAULT_MAX_FACTS} are needed to engage the "
+            f"default ceiling. Set MONOCLE_OKAHU_PAGINATION_WORKFLOW to a "
+            f"workflow with more data.")
 
 # Running this against prod would walk an unrelated tenant, so the endpoint is
 # checked rather than assumed -- _get_api_base falls back to the prod base URL
@@ -51,8 +88,7 @@ def _advertised(path_suffix, params):
 
 def test_trace_enumeration_collects_every_page():
     advertised = _advertised(f"{WORKFLOW}/traces", {})
-    assert advertised > SERVER_DEFAULT_PAGE, (
-        "this window must span more than one page or the test proves nothing")
+    _require_multiple_pages(advertised, "traces")
 
     ids = OkahuSpanLoader.get_trace_ids(WORKFLOW, start_time=START, end_time=END)
 
@@ -67,7 +103,7 @@ def test_fact_enumeration_collects_every_page():
     advertised = _advertised(
         f"{WORKFLOW}/facts/{fact}/ids",
         {"duration_fact": fact, "breakdown_filter": fact})
-    assert advertised > SERVER_DEFAULT_PAGE
+    _require_multiple_pages(advertised, fact)
 
     ids = OkahuSpanLoader.get_fact_ids(WORKFLOW, fact,
                                        start_time=START, end_time=END)
@@ -92,6 +128,7 @@ def test_the_default_ceiling_refuses_an_oversized_window(monkeypatch):
     """This window holds ~3368 inferences, comfortably past the default 1000,
     so the ceiling engages against real data rather than a mock."""
     monkeypatch.delenv("OKAHU_MAX_FACTS", raising=False)
+    _require_over_default_ceiling()
 
     with pytest.raises(AssertionError, match="exceeding max_facts=1000"):
         OkahuSpanLoader.setup_test_cases(
@@ -103,6 +140,7 @@ def test_raising_the_ceiling_lets_the_same_window_through(monkeypatch):
     """Enumeration alone must still work at that size -- only span loading is
     expensive, and setup_test_cases is not reached here."""
     monkeypatch.delenv("OKAHU_MAX_FACTS", raising=False)
+    _require_over_default_ceiling()
 
     ids = OkahuSpanLoader.get_fact_ids(WORKFLOW, "inferences",
                                        start_time=START, end_time=END)

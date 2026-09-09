@@ -30,7 +30,7 @@ class OkahuEvalResultExporter:
         if not self.api_key:
             raise ValueError("OKAHU_API_KEY not set. Provide api_key or set environment variable.")
         
-        self.endpoint = (endpoint or os.getenv("OKAHU_EVALUATION_ENDPOINT", OKAHU_PROD_EVALUATION_ENDPOINT)).rstrip("/")
+        self.endpoint = (endpoint or os.getenv("OKAHU_EVALUATION_ENDPOINT") or OKAHU_PROD_EVALUATION_ENDPOINT).rstrip("/")
         self.timeout = timeout or 30
         
         self.session = requests.Session()
@@ -131,7 +131,7 @@ class OkahuEvalResultExporter:
         if not trace_id:
             raise ValueError("trace_id is required.")
         
-        ingest = ingest_endpoint or os.getenv("OKAHU_INGESTION_ENDPOINT", "https://ingest.okahu.co/api/v1/trace/ingest")
+        ingest = ingest_endpoint or os.getenv("OKAHU_INGESTION_ENDPOINT") or "https://ingest.okahu.co/api/v1/trace/ingest"
         delete_url = ingest.rstrip("/").replace("/trace/ingest", "/trace_eval/delete")
         params = {"trace_id": trace_id}
         

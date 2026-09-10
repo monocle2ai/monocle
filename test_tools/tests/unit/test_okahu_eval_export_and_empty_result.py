@@ -112,3 +112,13 @@ def test_empty_time_pad_env_uses_the_default(monkeypatch):
     judge = {"label": "ok", "explanation": "fine"}
     label, explanation = _run_evaluate(_eval(), {"job_id": "job-1", "result": [{"result": json.dumps(judge)}]})
     assert (label, explanation) == ("ok", "fine")
+
+
+def test_missing_api_key_is_reported_before_export(monkeypatch):
+    monkeypatch.delenv("OKAHU_API_KEY", raising=False)
+    ev = _eval()
+    with patch.object(okahu_eval_module.okahu_exporter, "OkahuSpanExporter") as exporter_cls:
+        with pytest.raises(AssertionError, match="OKAHU_API_KEY is not configured"):
+            ev.export_trace([_span()])
+    exporter_cls.assert_not_called()
+    assert ev._trace_exported is False

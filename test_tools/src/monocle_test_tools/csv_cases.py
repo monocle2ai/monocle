@@ -5,14 +5,19 @@ through the existing fluent TraceAssertion API via ``@monocle_csv_cases`` +
 ``CsvCase.run``, so eval test data can be curated in a spreadsheet.
 
 Scope (v0): evaluation tests only. Each row asserts an eval label
-(``expected``/``not_expected`` via ``check_eval``) and, optionally, operational
-guard rails on the run: a token budget (``max_tokens`` -> ``under_token_limit``)
-and an effort ceiling (``max_duration_ms`` -> ``under_duration``). The loader
-bridges exactly these three stable, eval-relevant fluent methods -- not the
-open set of assertions. General non-eval assertions (tool/agent calls,
-input/output, arbitrary fluent methods) and multi-condition rows are
-intentionally out of scope for v0; see the PR for the rationale and future
-considerations.
+(``expected``/``not_expected`` via ``check_eval``). The loader bridges exactly
+this one stable, eval-relevant fluent method -- not the open set of assertions.
+
+Deliberately out of scope for v0: operational guard rails on the run
+(token budget, duration). Those fluent methods (``under_token_limit`` /
+``under_duration``) read the *recorded* run's spans, which are frozen at capture
+time -- so for an evals-only replay they measure the traced run, not the judge,
+and cannot reflect a judge-template change. The number that matters for eval
+tuning is the judge's own token spend; a future ``under_eval_tokens`` assertion
+(sourced from ``check_eval``'s captured ``total_tokens``) is the right home for
+a CSV budget column. General non-eval assertions (tool/agent calls,
+input/output, arbitrary fluent methods) and multi-condition rows are also out of
+scope for v0; see the PR for the rationale and future considerations.
 
 Config-in-code, data-in-CSV: the test stub owns everything constant across the
 sheet (the evaluator via ``with_evaluation(...)``, the eval ``template_path``,
@@ -75,24 +80,6 @@ def parse_multivalue(cell: str) -> Optional[Union[str, List[str]]]:
     return cell
 
 
-def parse_int(cell: str, column: str, case_id: str) -> Optional[int]:
-    if cell == "":
-        return None
-    try:
-        return int(cell)
-    except ValueError:
-        raise CsvCaseError(f"row '{case_id}': column '{column}' must be an integer, got '{cell}'")
-
-
-def parse_float(cell: str, column: str, case_id: str) -> Optional[float]:
-    if cell == "":
-        return None
-    try:
-        return float(cell)
-    except ValueError:
-        raise CsvCaseError(f"row '{case_id}': column '{column}' must be a number, got '{cell}'")
-
-
 @dataclass
 class CsvCase:
     """One CSV row: an okahu-trace evaluation test case driven through the fluent API."""
@@ -102,18 +89,15 @@ class CsvCase:
     fact_name: str = "traces"
     expected: Optional[Union[str, List[str]]] = None
     not_expected: Optional[Union[str, List[str]]] = None
-    max_tokens: Optional[int] = None
-    max_duration_ms: Optional[float] = None
     notes: Optional[str] = None
 
     def run(self, asserter, **check_eval_kwargs) -> None:
         """Drive this row through the fluent TraceAssertion `asserter`.
 
-        Runs the eval (``check_eval``) plus optional operational guard rails
-        (token budget, duration). Independent assertions are each invoked on
-        the base asserter (not threaded): PR #721 collects failures on the
-        asserter and the pytest plugin reports them. Only misconfiguration
-        (an eval row with no evaluator) raises from here.
+        Runs the eval (``check_eval``) against the fact named by ``fact_id``.
+        PR #721 collects failures on the asserter and the pytest plugin reports
+        them. Only misconfiguration (an eval row with no evaluator) raises from
+        here.
         """
         asserter.with_trace_source("okahu", id=self.fact_id, workflow_name=self.workflow_name)
 
@@ -128,11 +112,6 @@ class CsvCase:
             fact_name=self.fact_name,
             **check_eval_kwargs,
         )
-
-        if self.max_tokens is not None:
-            asserter.under_token_limit(self.max_tokens)
-        if self.max_duration_ms is not None:
-            asserter.under_duration(self.max_duration_ms, units="ms")
 
 
 def _require(row: dict, column: str, case_id: str, line: int) -> str:
@@ -165,8 +144,6 @@ def _row_to_case(row: dict, line: int) -> CsvCase:
         fact_name=fact_name,
         expected=expected,
         not_expected=not_expected,
-        max_tokens=parse_int(row.get("max_tokens", "").strip(), "max_tokens", case_id),
-        max_duration_ms=parse_float(row.get("max_duration_ms", "").strip(), "max_duration_ms", case_id),
         notes=(row.get("notes", "").strip() or None),
     )
 

@@ -22,14 +22,6 @@ def test_parse_multivalue_variants():
     assert csv_cases.parse_multivalue('["a","b"]') == ["a", "b"]
 
 
-def test_parse_int_and_float():
-    assert csv_cases.parse_int("", "max_tokens", "c1") is None
-    assert csv_cases.parse_int("5000", "max_tokens", "c1") == 5000
-    assert csv_cases.parse_float("12.5", "max_duration_ms", "c1") == 12.5
-    with pytest.raises(csv_cases.CsvCaseError):
-        csv_cases.parse_int("five", "max_tokens", "c1")
-
-
 def test_row_to_case_valid_eval_row():
     row = {"case_id": "cc_t01", "fact_id": "642d", "workflow_name": "wf",
            "fact_name": "traces", "expected": "major|minor"}
@@ -53,12 +45,15 @@ def test_row_to_case_not_expected_only_is_valid():
     assert case.expected is None
 
 
-def test_row_to_case_maps_guard_rails():
+def test_row_to_case_ignores_unknown_columns():
+    # v0 is eval-labels-only: stray columns (e.g. a would-be guard rail) are
+    # silently ignored, never misapplied. See test_run_eval_row_* for the chain.
     row = {"case_id": "c", "fact_id": "t", "workflow_name": "wf", "expected": "ok",
            "max_tokens": "5000", "max_duration_ms": "4000"}
     case = csv_cases._row_to_case(row, 2)
-    assert case.max_tokens == 5000
-    assert case.max_duration_ms == 4000.0
+    assert case.expected == "ok"
+    assert not hasattr(case, "max_tokens")
+    assert not hasattr(case, "max_duration_ms")
 
 
 @pytest.mark.parametrize("row,needle", [
@@ -66,7 +61,6 @@ def test_row_to_case_maps_guard_rails():
     ({"case_id": "c", "fact_id": "", "workflow_name": "wf", "expected": "ok"}, "fact_id"),
     ({"case_id": "c", "fact_id": "t", "workflow_name": "", "expected": "ok"}, "workflow_name"),
     ({"case_id": "c", "fact_id": "t", "workflow_name": "wf"}, "expected"),
-    ({"case_id": "c", "fact_id": "t", "workflow_name": "wf", "max_tokens": "5000"}, "expected"),
 ])
 def test_row_to_case_errors(row, needle):
     with pytest.raises(csv_cases.CsvCaseError) as exc:
@@ -133,16 +127,16 @@ def test_run_eval_row_issues_trace_source_and_check_eval():
                      "fact_name": "traces", "template_path": "tpl.json"}
 
 
-def test_run_eval_row_maps_guard_rails():
+def test_run_eval_row_issues_only_eval_no_guard_rails():
+    # v0 drives exactly the eval; no token/duration guard rails are wired in.
     case = csv_cases._row_to_case(
         {"case_id": "c", "fact_id": "t1", "workflow_name": "wf", "expected": "ok",
          "max_tokens": "5000", "max_duration_ms": "4000"}, 2)
     a = _RecordingAsserter(has_eval=True)
     case.run(a)
     names = [c[0] for c in a.calls]
-    assert names == ["with_trace_source", "check_eval", "under_token_limit", "under_duration"]
-    assert ("under_token_limit", (5000,), {}) in a.calls
-    assert ("under_duration", (4000.0,), {"units": "ms"}) in a.calls
+    assert names == ["with_trace_source", "check_eval"]
+    assert not any(n in ("under_token_limit", "under_duration") for n in names)
 
 
 def test_run_eval_row_without_evaluator_raises():

@@ -51,7 +51,6 @@ def test_anthropic_streaming_sample(setup):
     stream = client.messages.create(
         model=ANTHROPIC_MODEL,
         max_tokens=512,
-        temperature=0.7,
         system="You are a helpful assistant to answer questions about coffee.",
         messages=[
             {"role": "user", "content": "What is a cappuccino?"}

@@ -131,8 +131,13 @@ def _assemble_tool_calls(chunks) -> list:
     return [acc[i] for i in sorted(acc)]
 
 
-def _assert_has_stream_inference(exporter, min_count=1):
-    """Common assertion: at least ``min_count`` OpenAI inference spans were traced."""
+def _assert_has_stream_inference(exporter, min_count=1, check_metadata=True):
+    """Common assertion: at least ``min_count`` OpenAI inference spans were traced.
+
+    ``check_metadata`` is opt-out for streams that legitimately carry no token
+    usage: OpenAI sends the usage payload in the final chunk, so a stream the
+    consumer abandons never receives it.
+    """
     spans = exporter.get_captured_spans()
     inference_spans = find_spans_by_type(spans, "inference") or find_spans_by_type(
         spans, "inference.framework"
@@ -146,7 +151,7 @@ def _assert_has_stream_inference(exporter, min_count=1):
             entity_type="inference.openai",
             model_name=MODEL,
             model_type=f"model.llm.{MODEL}",
-            check_metadata=True,
+            check_metadata=check_metadata,
             check_input_output=True,
         )
     return inference_spans
@@ -248,7 +253,7 @@ async def test_stream_single_tool_call(setup):
     messages = [{"role": "user", "content": "What is a cappuccino? Use the tool."}]
 
     stream = await client.chat.completions.create(
-        model=MODEL, messages=messages, tools=[GET_COFFEE_TOOL], stream=True
+        model=MODEL, messages=messages, tools=[GET_COFFEE_TOOL], stream=True, stream_options={"include_usage": True}
     )
     chunks, _ = await acollect_stream(stream, openai_chunk_text)
     tool_calls = _assemble_tool_calls(chunks)
@@ -298,7 +303,7 @@ async def test_stream_sequential_tool_calls(setup):
     # Loop the streamed tool protocol until the model stops asking for tools.
     for _ in range(4):
         stream = await client.chat.completions.create(
-            model=MODEL, messages=messages, tools=tools, stream=True
+            model=MODEL, messages=messages, tools=tools, stream=True, stream_options={"include_usage": True}
         )
         chunks, text = await acollect_stream(stream, openai_chunk_text)
         tool_calls = _assemble_tool_calls(chunks)
@@ -345,7 +350,7 @@ async def test_stream_parallel_tool_calls(setup):
         messages=messages,
         tools=tools,
         parallel_tool_calls=True,
-        stream=True,
+        stream=True, stream_options={"include_usage": True},
     )
     chunks, _ = await acollect_stream(stream, openai_chunk_text)
     tool_calls = _assemble_tool_calls(chunks)
@@ -458,7 +463,7 @@ async def test_stream_recoverable_tool_failure(setup):
     ]
     for _ in range(4):
         stream = await client.chat.completions.create(
-            model=MODEL, messages=messages, tools=[GET_COFFEE_TOOL], stream=True
+            model=MODEL, messages=messages, tools=[GET_COFFEE_TOOL], stream=True, stream_options={"include_usage": True}
         )
         chunks, text = await acollect_stream(stream, openai_chunk_text)
         tool_calls = _assemble_tool_calls(chunks)
@@ -514,6 +519,9 @@ async def test_stream_with_retries(setup):
         raise RuntimeError("all retries exhausted")
 
     stream = await create_with_retry()
+    # Scope the assertions to the successful stream: the deliberately failed
+    # attempt above is traced too but carries no usage.
+    setup.reset()
     _chunks, text = await acollect_stream(stream, openai_chunk_text)
     assert text and attempts["n"] >= 2
     await asyncio.sleep(3)
@@ -541,6 +549,9 @@ async def test_stream_model_fallback(setup):
         except Exception as ex:
             logger.info("Model %s failed, falling back: %s", model, ex)
     assert stream is not None
+    # Scope the assertions to the successful stream: the deliberately failed
+    # attempt above is traced too but carries no usage.
+    setup.reset()
     _chunks, text = await acollect_stream(stream, openai_chunk_text)
     assert text
     await asyncio.sleep(3)
@@ -561,7 +572,7 @@ async def test_stream_timeout_then_success(setup):
         stream = await client.chat.completions.create(
             model=MODEL,
             messages=[{"role": "user", "content": "Write 300 words about coffee."}],
-            stream=True,
+            stream=True, stream_options={"include_usage": True},
             timeout=0.001,  # absurdly short -> forces a timeout
         )
         await acollect_stream(stream, openai_chunk_text)
@@ -569,6 +580,9 @@ async def test_stream_timeout_then_success(setup):
     except (APITimeoutError, Exception) as ex:
         logger.info("Expected timeout, retrying with longer timeout: %s", ex)
 
+    # Scope the assertions to the successful stream: the deliberately failed
+    # attempt above is traced too but carries no usage.
+    setup.reset()
     stream = await client.chat.completions.create(
         model=MODEL,
         messages=[{"role": "user", "content": "One coffee fact."}],
@@ -604,8 +618,10 @@ async def test_stream_cancellation(setup):
     await stream.close()  # explicit interruption of the underlying HTTP stream
     assert received >= 1
     await asyncio.sleep(3)
-    # A cancelled stream still yields a (partial) inference span.
-    _assert_has_stream_inference(setup, min_count=1)
+    # A cancelled stream still yields a (partial) inference span. Token usage is
+    # not asserted: OpenAI sends usage in the final chunk, which a consumer that
+    # breaks out early never receives.
+    _assert_has_stream_inference(setup, min_count=1, check_metadata=False)
 
 
 # ---------------------------------------------------------------------------

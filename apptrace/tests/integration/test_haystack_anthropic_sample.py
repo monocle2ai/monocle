@@ -31,7 +31,6 @@ def test_haystack_anthropic_sample(setup):
     generator = AnthropicChatGenerator(model=ANTHROPIC_MODEL,
                                        generation_kwargs={
                                            "max_tokens": 1000,
-                                           "temperature": 0.7,
                                        })
 
     messages = [ChatMessage.from_system("You are a helpful, respectful and honest assistant"),

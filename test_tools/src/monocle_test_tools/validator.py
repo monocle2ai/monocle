@@ -36,7 +36,9 @@ from monocle_apptrace.instrumentation.common.constants import MONOCLE_SKIP_EXECU
 from monocle_apptrace.instrumentation.common.utils import set_workflow_name, get_workflow_name
 
 logger = logging.getLogger(__name__)
-RETRY_TIMEOUT_SECONDS = 10
+# Waits on an out-of-process export reaching the backend, which on a slow
+# ingest takes longer than the previous hard-coded 10s.
+RETRY_TIMEOUT_SECONDS = int(os.getenv("MONOCLE_REMOTE_TRACE_ID_TIMEOUT", "60"))
 # Spans a runner produced in another process are exported by that process, so
 # they land in the trace backend a little after the call returns.
 REMOTE_FACT_TIMEOUT_SECONDS = int(os.getenv("MONOCLE_REMOTE_TRACE_TIMEOUT", "60"))

@@ -415,6 +415,10 @@ async def test_stream_cancellation(setup):
                 break  # Cancel early
     
     assert count >= 3, "Expected to consume at least 3 chunks before cancellation"
+
+    # Explicit interruption, as in the OpenAI cancellation test: breaking out
+    # alone leaves finalization to the garbage collector.
+    await stream.aclose()
     
     # We should still have an inference span (may be incomplete)
     spans = setup.get_captured_spans()

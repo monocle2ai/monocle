@@ -3,6 +3,7 @@ import logging
 import os
 from datetime import datetime, timezone
 from opentelemetry.sdk.trace import Span
+from opentelemetry.sdk.trace.export import SpanExportResult
 import requests
 from opentelemetry.baggage.propagation import W3CBaggagePropagator
 from monocle_apptrace.exporters.okahu import okahu_exporter
@@ -77,6 +78,22 @@ class OkahuEval(BaseEval):
         """
         from monocle_test_tools.evals.okahu_eval_discovery import discover_fact_evals as _discover
         return _discover(spans, fact_name=fact_name)
+
+    @staticmethod
+    def _no_results_message(job_id, data) -> str:
+        """An empty ``result`` list is a data condition, not a malformed response."""
+        return (
+            f"Evaluation service returned no results for this fact (job {job_id}). The trace may not be "
+            "ingested or indexed yet, the fact or workflow name may not match, or the eval template's "
+            f"scoping dropped every span. Received: {data}"
+        )
+
+    @staticmethod
+    def _unexpected_format_message(data) -> str:
+        return (
+            "Unexpected response format from evaluation service: expected result[0].result to be a JSON "
+            f"string carrying 'label' and 'explanation'. Received: {data}"
+        )
 
     @classmethod
     def _eval_report_by_fact(cls, *, workflow_name, fact_ids, fact_name, start_time,
@@ -266,11 +283,28 @@ class OkahuEval(BaseEval):
         if not api_key:
             raise AssertionError("OKAHU_API_KEY is not configured.")
         
-        # Export spans to Okahu
+        # Export spans to Okahu. The exporter reports a failed upload only
+        # through its return value; ignoring it marked the trace as exported and
+        # every later eval then queried a backend that had nothing, surfacing as
+        # "Expected 'result' key in response" instead of the real problem.
         exporter = okahu_exporter.OkahuSpanExporter(evaluate=True)
-        exporter.export(filtered_spans)
-        exporter.shutdown()
-        
+        try:
+            export_result = exporter.export(filtered_spans)
+        finally:
+            exporter.shutdown()
+        if export_result is None:
+            raise AssertionError(
+                "No spans were uploaded to the Okahu evaluation service: every span was "
+                "filtered out before export, so there is nothing to evaluate."
+            )
+        if export_result != SpanExportResult.SUCCESS:
+            status = getattr(exporter, "last_status_code", None)
+            detail = f"HTTP {status}" if status is not None else "no HTTP response (timeout or exporter shut down)"
+            raise AssertionError(
+                f"Trace export to the Okahu evaluation service failed ({detail}); nothing was ingested, "
+                "so the eval cannot run. Check OKAHU_API_KEY and OKAHU_INGESTION_ENDPOINT."
+            )
+
         self._trace_exported = True
         return trace_id
     
@@ -460,13 +494,15 @@ class OkahuEval(BaseEval):
 
         try:
             job_id = data.get("job_id")
-            eval_result = data.get("result")
+            eval_result = data.get("result") or []
+            if not eval_result:
+                raise AssertionError(self._no_results_message(job_id, data))
             label = json.loads(eval_result[0].get('result')).get('label')
             explanation = json.loads(eval_result[0].get('result')).get('explanation')
+        except AssertionError:
+            raise
         except Exception as exc:
-            raise AssertionError(
-                f"Unexpected response format from evaluation service. Expected 'result' key in response. Received: {data}"
-            ) from exc
+            raise AssertionError(self._unexpected_format_message(data)) from exc
 
         return job_id, label, explanation, eval_result
 
@@ -507,7 +543,8 @@ class OkahuEval(BaseEval):
         # Compute a time window around the full span set for trace filtering (compute/perf).
         # Use the earliest start and latest end across all filtered spans (the workflow envelope),
         # then pad uniformly on either side so aggregate facts spanning multiple traces are covered.
-        pad_seconds = int(os.getenv("OKAHU_EVAL_TIME_PAD_SECONDS", DEFAULT_EVAL_TIME_PAD_SECONDS))
+        # `or`: a variable that is set but empty must fall back to the default too.
+        pad_seconds = int(os.getenv("OKAHU_EVAL_TIME_PAD_SECONDS") or DEFAULT_EVAL_TIME_PAD_SECONDS)
         pad_ns = pad_seconds * 1e9
         earliest_start_ns = min(s.start_time for s in filtered_spans)
         latest_end_ns = max(s.end_time for s in filtered_spans)
@@ -582,6 +619,8 @@ class OkahuEval(BaseEval):
             try:
                 job_id = data.get("job_id")
                 eval_result = data.get("result") or []
+                if not eval_result:
+                    raise AssertionError(self._no_results_message(job_id, data))
                 parsed = json.loads(eval_result[0].get("result"))
                 label = parsed.get("label")
                 explanation = parsed.get("explanation")
@@ -590,9 +629,7 @@ class OkahuEval(BaseEval):
             except AssertionError:
                 raise
             except Exception as exc:
-                raise AssertionError(
-                    f"Unexpected response format from evaluation service. Expected 'result' key in response. Received: {data}"
-                ) from exc
+                raise AssertionError(self._unexpected_format_message(data)) from exc
 
 
             fact_results.append({

@@ -284,6 +284,30 @@ monocle_trace_asserter.called_agents(min_count=5, max_count=15)  # Between 5-15 
 monocle_trace_asserter.called_tools(max_count=20)  # At most 20 tool calls total
 ```
 
+#### Any-of selectors
+
+When more than one route is acceptable — the supervisor may book a flight *or* a
+train — assert the set instead of a single name. Names can be separate arguments
+or one list:
+
+```python
+# Passes if either agent ran
+monocle_trace_asserter.called_any_agent("flight_agent", "train_agent")
+
+# Either tool, called by that agent
+monocle_trace_asserter.called_any_tool(["book_flight", "book_train"], agent_name="travel_agent")
+
+# Counts are the total across the named entities
+monocle_trace_asserter.called_any_tool("search_web", "search_docs", max_count=3)
+
+# The negatives pass only if none of them ran
+monocle_trace_asserter.does_not_call_any_tool("book_flight", "book_hotel")
+monocle_trace_asserter.does_not_call_any_agent(PRIVILEGED_AGENTS)
+```
+
+`called_any_agent` / `called_any_tool` narrow the context to the matched spans,
+so the usual input/output checks chain onto them.
+
 #### Scope, attribute, and event assertions
 
 Assert on monocle scopes, span attributes, and span events. `has_scope`, `has_attribute`, and `has_event` narrow the context to matching spans:
@@ -1177,9 +1201,13 @@ Configure the asserter before running assertions. These methods return `self` fo
 | Method | Description |
 |---|---|
 | `called_tool(tool_name, agent_name=None, count=None, min_count=None, max_count=None, testcase=None)` | Assert a tool was called; narrows context to those spans. Optional: `count` for exact count, `min_count`/`max_count` for range. `testcase=` asserts every tool the [test case](#test-cases-as-data-fluenttestcase) names and records each one's spans |
+| `called_any_tool(*tool_names, agent_name=None, count=None, min_count=None, max_count=None)` | Assert at least one of the named tools was called; narrows context to their spans. Names take separate arguments or one list; counts are totals across them |
 | `does_not_call_tool(tool_name, agent_name=None)` | Assert a tool was NOT called |
+| `does_not_call_any_tool(*tool_names, agent_name=None)` | Assert none of the named tools was called |
 | `called_agent(agent_name, count=None, min_count=None, max_count=None, testcase=None)` | Assert an agent was called; narrows context to those spans. Optional: `count` for exact count, `min_count`/`max_count` for range. `testcase=` asserts every agent the [test case](#test-cases-as-data-fluenttestcase) names and records each one's spans |
+| `called_any_agent(*agent_names, count=None, min_count=None, max_count=None)` | Assert at least one of the named agents was called; narrows context to their spans. Names take separate arguments or one list; counts are totals across them |
 | `does_not_call_agent(agent_name)` | Assert an agent was NOT called |
+| `does_not_call_any_agent(*agent_names)` | Assert none of the named agents was called |
 | `called_agents(count=None, min_count=None, max_count=None)` | Assert total number of agent invocations across all agents. Optional: `count` for exact count, `min_count`/`max_count` for range |
 | `called_tools(count=None, min_count=None, max_count=None)` | Assert total number of tool invocations across all tools. Optional: `count` for exact count, `min_count`/`max_count` for range |
 

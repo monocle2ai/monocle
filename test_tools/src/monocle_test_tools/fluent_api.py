@@ -302,6 +302,54 @@ class TraceAssertion():
             if actual_count == 0:
                 raise AssertionError(message or f"No {entity_type} invocations found")
 
+    @staticmethod
+    def _any_of_names(names:tuple, kind:str) -> list[str]:
+        """The names an any-of selector was given, flattened and de-duplicated.
+
+        Both call styles are accepted -- ``called_any_agent("a", "b")`` reads
+        best when the names are literals, and ``called_any_agent(names)`` when
+        the caller already holds a list. Duplicates are dropped so they cannot
+        double up in the failure message; the union of spans is unaffected either
+        way.
+        """
+        if len(names) == 1 and isinstance(names[0], (list, tuple, set, frozenset)):
+            names = tuple(names[0])
+        for name in names:
+            if not isinstance(name, str):
+                raise ValueError(
+                    f"{kind} names must be strings; got {type(name).__name__}")
+        deduped = list(dict.fromkeys(names))
+        if not deduped:
+            raise ValueError(f"At least one {kind} name is required")
+        return deduped
+
+    @staticmethod
+    def _matched_names(spans:Sequence[Span]) -> str:
+        """The distinct entity names in `spans`, quoted, for a negative's failure.
+
+        A negative any-of assertion fails on what ran, so the message lists the
+        offenders rather than every name the caller ruled out -- with ten
+        forbidden tools and one called, the whole list buries the finding.
+        """
+        names = dict.fromkeys(span.attributes.get("entity.1.name") for span in spans)
+        return ", ".join(f"'{name}'" for name in names)
+
+    @staticmethod
+    def _check_any_of_count(actual_count:int, entity_prefix:str, count:Optional[int],
+                            min_count:Optional[int], max_count:Optional[int],
+                            message:Optional[str]) -> None:
+        """Check an any-of selector's total invocations across every name it was given.
+
+        Separate from _check_aggregate_count, whose messages describe all the
+        agents or tools in the trace; these name the ones the caller asked about.
+        """
+        if count is not None and actual_count != count:
+            raise AssertionError(message or f"{entity_prefix} {actual_count} times in total, expected exactly {count}")
+        if min_count is not None and actual_count < min_count:
+            raise AssertionError(message or f"{entity_prefix} {actual_count} times in total, expected at least {min_count}")
+        if max_count is not None and actual_count > max_count:
+            raise AssertionError(message or f"{entity_prefix} {actual_count} times in total, expected at most {max_count}")
+
     def _testcase_run_args(self, testcase:Union[FluentTestCase, dict], args:tuple) -> tuple:
         """The positional arguments a test case says to run the agent with.
 
@@ -514,6 +562,84 @@ class TraceAssertion():
         return self
 
     @collect_assertions
+    def called_any_tool(self, *tool_names:Union[str, Sequence[str]], agent_name:Optional[str] = None, count:Optional[int] = None,
+                        min_count:Optional[int] = None, max_count:Optional[int] = None,
+                        message:Optional[str] = None,
+                        testcase:Optional[Union[FluentTestCase, dict]] = None) -> 'TraceAssertion':
+        """Assert that at least one of the named tools was called.
+
+        Any-of counterpart of ``called_tool``: the assertion holds when any one
+        of the tools was called, which is what a run with more than one
+        acceptable route looks like. The context narrows to every matched tool's
+        spans, in trace order, so the checks that follow see the whole set.
+
+        Args:
+            *tool_names: The tools to accept, as separate arguments or as a
+                single list.
+            agent_name: Only count calls made by this agent, as in ``called_tool``.
+            count/min_count/max_count: Constrain the TOTAL number of invocations
+                across the named tools, not the number of distinct tools called.
+            message: Custom failure message.
+
+        Example:
+            asserter.called_any_tool("book_flight", "book_train")
+            asserter.called_any_tool(["search_web", "search_docs"], min_count=2)
+        """
+        if testcase is not None:
+            raise ValueError(
+                "this method does not support 'testcase'; it takes any-of names, "
+                "and a test case names the tools that all must have been called. "
+                "Use called_tool(testcase=...) for that.")
+        names = TraceAssertion._any_of_names(tool_names, "tool")
+        TraceAssertion._validate_count_params(count, min_count, max_count)
+        self._filtered_spans = self.validator._get_any_tool_invocation_spans(
+            names, agent_name, filtered_spans=self._filtered_spans)
+        actual_count = len(self._filtered_spans)
+        listed = ", ".join(f"'{name}'" for name in names)
+        by_agent = f" by agent '{agent_name}'" if agent_name else ""
+
+        if count is not None or min_count is not None or max_count is not None:
+            TraceAssertion._check_any_of_count(
+                actual_count, f"Tools {listed} were called{by_agent}",
+                count, min_count, max_count, message)
+        else:
+            TraceAssertion._assert_on_spans(
+                self._filtered_spans, f"None of the tools {listed} were called{by_agent}",
+                custom_message=message)
+        return self
+
+    @collect_assertions
+    def does_not_call_any_tool(self, *tool_names:Union[str, Sequence[str]], agent_name:Optional[str] = None,
+                               message:Optional[str] = None) -> 'TraceAssertion':
+        """Assert that none of the named tools was called.
+
+        Negative counterpart of ``called_any_tool``: one call to any of them
+        fails the assertion, which is how a set of forbidden routes is stated --
+        no booking tool ran on a read-only request, say. The failure names the
+        tools that did run rather than the whole candidate list, so it says what
+        happened. Like the other negatives, this does not narrow the context.
+
+        Args:
+            *tool_names: The tools that must not have been called, as separate
+                arguments or as a single list.
+            agent_name: Only look at calls made by this agent; calls to the same
+                tools by another agent are then not failures.
+            message: Custom failure message.
+
+        Example:
+            asserter.does_not_call_any_tool("book_flight", "book_hotel")
+            asserter.does_not_call_any_tool(WRITE_TOOLS, agent_name="reporting_agent")
+        """
+        names = TraceAssertion._any_of_names(tool_names, "tool")
+        matched = self.validator._get_any_tool_invocation_spans(
+            names, agent_name, filtered_spans=self._filtered_spans)
+        by_agent = f" by agent '{agent_name}'" if agent_name else ""
+        TraceAssertion._assert_on_spans(
+            matched, f"Tools {TraceAssertion._matched_names(matched)} were called{by_agent}",
+            positive_test=False, custom_message=message)
+        return self
+
+    @collect_assertions
     def does_not_call_tool(self, tool_names:str, agent_name:Optional[str] = None, message:Optional[str] = None) -> 'TraceAssertion':
         """Assert that the given tool was not called, optionally by a specific agent."""
         _filtered_spans = self.validator._get_tool_invocation_spans(tool_names, agent_name, filtered_spans=self._filtered_spans)
@@ -554,6 +680,50 @@ class TraceAssertion():
                 raise AssertionError(message or f"Agent '{agent_name}' was called {actual_count} times, expected at most {max_count}")
         else:
             TraceAssertion._assert_on_spans(self._filtered_spans, f"Agent '{agent_name}' was not called", custom_message=message)
+        return self
+
+    @collect_assertions
+    def called_any_agent(self, *agent_names:Union[str, Sequence[str]], count:Optional[int] = None, min_count:Optional[int] = None,
+                         max_count:Optional[int] = None, message:Optional[str] = None,
+                         testcase:Optional[Union[FluentTestCase, dict]] = None) -> 'TraceAssertion':
+        """Assert that at least one of the named agents was called.
+
+        Any-of counterpart of ``called_agent``: the assertion holds when any one
+        of the agents was called, which is what a supervisor free to route to
+        several specialists looks like. The context narrows to every matched
+        agent's spans, in trace order, so the checks that follow see the whole set.
+
+        Args:
+            *agent_names: The agents to accept, as separate arguments or as a
+                single list.
+            count/min_count/max_count: Constrain the TOTAL number of invocations
+                across the named agents, not the number of distinct agents called.
+            message: Custom failure message.
+
+        Example:
+            asserter.called_any_agent("flight_agent", "train_agent")
+            asserter.called_any_agent(["worker_a", "worker_b"], min_count=2)
+        """
+        if testcase is not None:
+            raise ValueError(
+                "this method does not support 'testcase'; it takes any-of names, "
+                "and a test case names the agents that all must have been called. "
+                "Use called_agent(testcase=...) for that.")
+        names = TraceAssertion._any_of_names(agent_names, "agent")
+        TraceAssertion._validate_count_params(count, min_count, max_count)
+        self._filtered_spans = self.validator._get_any_agent_invocation_spans(
+            names, filtered_spans=self._filtered_spans)
+        actual_count = len(self._filtered_spans)
+        listed = ", ".join(f"'{name}'" for name in names)
+
+        if count is not None or min_count is not None or max_count is not None:
+            TraceAssertion._check_any_of_count(
+                actual_count, f"Agents {listed} were called",
+                count, min_count, max_count, message)
+        else:
+            TraceAssertion._assert_on_spans(
+                self._filtered_spans, f"None of the agents {listed} were called",
+                custom_message=message)
         return self
 
     def _called_agent_testcase(self, testcase, *, agent_name, count, min_count,
@@ -653,6 +823,34 @@ class TraceAssertion():
         """Assert that the given agent was not called."""
         _filtered_spans = self.validator._get_agent_invocation_spans(agent_name, filtered_spans=self._filtered_spans)
         TraceAssertion._assert_on_spans(_filtered_spans, f"Agent '{agent_name}' was called", positive_test=False, custom_message=message)
+        return self
+
+    @collect_assertions
+    def does_not_call_any_agent(self, *agent_names:Union[str, Sequence[str]],
+                                message:Optional[str] = None) -> 'TraceAssertion':
+        """Assert that none of the named agents was called.
+
+        Negative counterpart of ``called_any_agent``: one invocation of any of
+        them fails the assertion, which is how a set of routes the supervisor
+        must not take is stated. The failure names the agents that did run
+        rather than the whole candidate list, so it says what happened. Like the
+        other negatives, this does not narrow the context.
+
+        Args:
+            *agent_names: The agents that must not have been called, as separate
+                arguments or as a single list.
+            message: Custom failure message.
+
+        Example:
+            asserter.does_not_call_any_agent("billing_agent", "refund_agent")
+            asserter.does_not_call_any_agent(PRIVILEGED_AGENTS)
+        """
+        names = TraceAssertion._any_of_names(agent_names, "agent")
+        matched = self.validator._get_any_agent_invocation_spans(
+            names, filtered_spans=self._filtered_spans)
+        TraceAssertion._assert_on_spans(
+            matched, f"Agents {TraceAssertion._matched_names(matched)} were called",
+            positive_test=False, custom_message=message)
         return self
 
     @collect_assertions

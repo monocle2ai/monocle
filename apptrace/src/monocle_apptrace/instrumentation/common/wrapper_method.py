@@ -20,7 +20,7 @@ from monocle_apptrace.instrumentation.metamodel.langgraph.langgraph_processor im
 from monocle_apptrace.instrumentation.metamodel.crew_ai.methods import CREW_AI_METHODS
 from monocle_apptrace.instrumentation.metamodel.crew_ai.crew_ai_processor import CrewAIAgentHandler, CrewAITaskHandler, CrewAIToolHandler
 from monocle_apptrace.instrumentation.metamodel.msagent.methods import MSAGENT_METHODS
-from monocle_apptrace.instrumentation.metamodel.msagent.msagent_processor import MSAgentRequestHandler, MSAgentAgentHandler, MSAgentInferenceHandler, MSAgentInferenceStreamHandler, MSAgentToolHandler
+from monocle_apptrace.instrumentation.metamodel.msagent.msagent_processor import MSAgentRequestHandler, MSAgentAgentHandler, MSAgentInferenceHandler, MSAgentInferenceStreamHandler, MSAgentToolHandler, MSAgentOrchestratorHandler
 from monocle_apptrace.instrumentation.metamodel.agents.methods import AGENTS_METHODS
 from monocle_apptrace.instrumentation.metamodel.agents.agents_processor import AgentsSpanHandler
 from monocle_apptrace.instrumentation.metamodel.flask.methods import (FLASK_METHODS, )
@@ -163,6 +163,7 @@ MONOCLE_SPAN_HANDLERS: Dict[str, SpanHandler] = {
     "msagent_inference_handler": MSAgentInferenceHandler(),
     "msagent_inference_stream_handler": MSAgentInferenceStreamHandler(),
     "msagent_tool_handler": MSAgentToolHandler(),
+    "msagent_orchestrator_handler": MSAgentOrchestratorHandler(),
     "agents_agent_handler": AgentsSpanHandler(),
     "llamaindex_tool_handler": LlamaIndexToolHandler(),
     "llamaindex_agent_handler": LlamaIndexAgentHandler(),

@@ -172,6 +172,8 @@ dev_msagent = [
   # Replaces agent-framework-azure-ai, which imports BaseContextProvider — a
   # symbol no agent-framework-core release exports — so it fails at import.
   'agent-framework-foundry==1.11.0',
+  # Multi-agent orchestration builders (Sequential/Concurrent/GroupChat/Magentic/Handoff).
+  'agent-framework-orchestrations==1.1.1',
   'openai>=2.8.0',
 ]
 

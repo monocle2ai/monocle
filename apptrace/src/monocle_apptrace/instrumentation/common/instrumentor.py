@@ -406,6 +406,9 @@ def setup_monocle_telemetry(
     return get_monocle_instrumentor()
 
 def reset_span_processors(span_processors:list[SpanProcessor]):
+    # Mirror setup_monocle_telemetry: rebuilding the processor list without this
+    # silently drops trace-return for the rest of the process.
+    span_processors = _append_trace_return_processor(span_processors)
     monocle_span_processor = get_monocle_span_processor()
     if monocle_span_processor:
         clear = getattr(monocle_span_processor, "clear_span_processors", None)

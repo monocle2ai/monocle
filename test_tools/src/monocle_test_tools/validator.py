@@ -36,7 +36,9 @@ from monocle_apptrace.instrumentation.common.constants import MONOCLE_SKIP_EXECU
 from monocle_apptrace.instrumentation.common.utils import set_workflow_name, get_workflow_name
 
 logger = logging.getLogger(__name__)
-RETRY_TIMEOUT_SECONDS = 10
+# Waits on an out-of-process export reaching the backend, which on a slow
+# ingest takes longer than the previous hard-coded 10s.
+RETRY_TIMEOUT_SECONDS = int(os.getenv("MONOCLE_REMOTE_TRACE_ID_TIMEOUT", "60"))
 # Spans a runner produced in another process are exported by that process, so
 # they land in the trace backend a little after the call returns.
 REMOTE_FACT_TIMEOUT_SECONDS = int(os.getenv("MONOCLE_REMOTE_TRACE_TIMEOUT", "60"))
@@ -255,9 +257,9 @@ class MonocleValidator:
                 raise
             finally:
                 test_failed = validation_failed or (request.session.testsfailed > prior_test_failed_count)
+                # post_test_cleanup stops the scope token; a second stop_scope
+                # double-detaches it ("Token ... has already been used once").
                 self.post_test_cleanup(token, request.node.name, test_failed, validation_error_message)
-                if token is not None:
-                    stop_scope(token)
 
     @staticmethod
     def test_id_generator(val):
@@ -294,9 +296,8 @@ class MonocleValidator:
                 request is not None and request.session.testsfailed > prior_test_failed_count
             )
             test_name = request.node.name if request is not None else test_case_name
+            # post_test_cleanup stops the scope token; see monocle_exporter_wrapper.
             self.post_test_cleanup(token, test_name, test_failed, validation_error_message)
-            if token is not None:
-                stop_scope(token)
 
     def monocle_testcase(self, test_cases_array: list[Union[TestCase, dict]]):
         test_cases: list[TestCase] = []

@@ -1,3 +1,4 @@
+import inspect
 import logging
 import time
 import os
@@ -18,6 +19,30 @@ ANTHROPIC_MODEL = os.environ.get("ANTHROPIC_MODEL")
 
 logger = logging.getLogger(__name__)
 
+
+def _sdk_rejects_temperature() -> bool:
+    """True when the installed anthropic SDK has no `temperature` parameter.
+
+    anthropic 1.x removed `temperature`/`top_p`/`top_k` from `messages.create()`.
+    llama-index-llms-anthropic still injects `temperature` into every call - it omits
+    it only for a hardcoded list of newer models, which excludes the models used
+    here - so the call raises TypeError before any request is sent. Drop this marker
+    once llama-index-llms-anthropic routes the parameter through `extra_body`.
+    """
+    from anthropic.resources.messages import Messages
+
+    return "temperature" not in inspect.signature(Messages.create).parameters
+
+
+llama_index_temperature_xfail = pytest.mark.xfail(
+    _sdk_rejects_temperature(),
+    reason="llama-index-llms-anthropic passes temperature= to messages.create(), "
+           "which anthropic>=1 removed",
+    raises=TypeError,
+    strict=True,
+)
+
+
 @pytest.fixture(scope="module")
 def setup():
     custom_exporter = CustomConsoleSpanExporter()
@@ -34,6 +59,7 @@ def setup():
             instrumentor.uninstrument()
 
 
+@llama_index_temperature_xfail
 def test_llama_index_anthropic_sample(setup):
     messages = [
         ChatMessage(

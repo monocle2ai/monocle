@@ -69,12 +69,10 @@ async def execute_simple_hotel_booking(request: str):
 
 
 @MonocleValidator().monocle_testcase(agent_test_cases)
-async def test_crewai_simple_hotel_agent(my_test_case: TestCase):# @pytest.mark.asyncio
-# @pytest.mark.parametrize("test_case", agent_test_cases)
-# async def test_crewai_simple_hotel_agent(monocle_test_case):
+async def test_crewai_simple_hotel_agent(my_test_case: TestCase):
     """Test simple CrewAI hotel booking agent."""
-    # Extract the hotel request from test input
-    hotel_request = agent_test_cases.test_input[0]
+    # The current parametrized case, not the module-level list.
+    hotel_request = my_test_case.test_input[0]
     
     # Execute the simple hotel booking
     result = await execute_simple_hotel_booking(hotel_request)

@@ -338,3 +338,18 @@ class MSAgentToolHandler(SpanHandler):
     def hydrate_span(self, to_wrap, wrapped, instance, args, kwargs, result, span, parent_span=None, ex: Exception = None, is_post_exec: bool = False) -> bool:
         """Hydrate span with tool-specific attributes."""
         return super().hydrate_span(to_wrap, wrapped, instance, args, kwargs, result, span, parent_span, ex, is_post_exec)
+
+
+class MSAgentOrchestratorHandler(SpanHandler):
+    """Handler for Microsoft Agent Framework orchestration coordinator/manager executors.
+
+    Covers GroupChatOrchestrator, AgentBasedGroupChatOrchestrator and MagenticOrchestrator
+    (subclasses of BaseGroupChatOrchestrator) from agent_framework_orchestrations.
+    """
+
+    def pre_tracing(self, to_wrap, wrapped, instance, args, kwargs):
+        return None, None
+
+    def post_tracing(self, to_wrap, wrapped, instance, args, kwargs, result, token):
+        if token is not None:
+            detach(token)

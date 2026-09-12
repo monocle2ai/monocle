@@ -13,6 +13,7 @@ from monocle_apptrace.instrumentation.common.span_handler import SpanHandler
 from monocle_apptrace.instrumentation.metamodel.msagent.entities.inference import (
     AGENT, 
     AGENT_REQUEST,
+    AGENT_ORCHESTRATION,
     TOOL,
 )
 
@@ -80,5 +81,17 @@ MSAGENT_METHODS = [
         "span_handler": "msagent_tool_handler",
         "wrapper_method": atask_wrapper,
         "output_processor": TOOL,
+    },
+    # Orchestration coordinator/manager - multi-agent routing (agent-framework-orchestrations).
+    # BaseGroupChatOrchestrator.execute is inherited by GroupChatOrchestrator,
+    # AgentBasedGroupChatOrchestrator and MagenticOrchestrator. The package is optional;
+    # the instrumentor silently skips this entry when it is not installed.
+    {
+        "package": "agent_framework_orchestrations._base_group_chat_orchestrator",
+        "object": "BaseGroupChatOrchestrator",
+        "method": "execute",
+        "span_handler": "msagent_orchestrator_handler",
+        "wrapper_method": atask_wrapper,
+        "output_processor": AGENT_ORCHESTRATION,
     },
 ]

@@ -10,6 +10,7 @@ Requirements:
 Run with: pytest tests/integration/test_llamaindex_finish_reason_integration.py
 """
 import asyncio
+import inspect
 import logging
 import os
 import time
@@ -52,6 +53,29 @@ def setup():
 
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY")
+
+
+def _sdk_rejects_temperature() -> bool:
+    """True when the installed anthropic SDK has no `temperature` parameter.
+
+    anthropic 1.x removed `temperature`/`top_p`/`top_k` from `messages.create()`.
+    llama-index-llms-anthropic still injects `temperature` into every call - it omits
+    it only for a hardcoded list of newer models, which excludes the models used
+    here - so the call raises TypeError before any request is sent. Drop this marker
+    once llama-index-llms-anthropic routes the parameter through `extra_body`.
+    """
+    from anthropic.resources.messages import Messages
+
+    return "temperature" not in inspect.signature(Messages.create).parameters
+
+
+llama_index_temperature_xfail = pytest.mark.xfail(
+    _sdk_rejects_temperature(),
+    reason="llama-index-llms-anthropic passes temperature= to messages.create(), "
+           "which anthropic>=1 removed",
+    raises=TypeError,
+    strict=True,
+)
 
 
 def find_inference_span_and_event_attributes(spans, event_name="metadata", span_type="inference.framework"):
@@ -233,6 +257,7 @@ def test_llamaindex_openai_finish_reason_length(setup):
     not ANTHROPIC_API_KEY,
     reason="ANTHROPIC_API_KEY not set or llama-index-llms-anthropic not available"
 )
+@llama_index_temperature_xfail
 def test_llamaindex_anthropic_finish_reason(setup):
     """Test finish_reason with LlamaIndex Anthropic integration."""
     try:
@@ -273,6 +298,7 @@ def test_llamaindex_anthropic_finish_reason(setup):
     not ANTHROPIC_API_KEY,
     reason="ANTHROPIC_API_KEY not set or llama-index-llms-anthropic not available"
 )
+@llama_index_temperature_xfail
 def test_llamaindex_anthropic_finish_reason_max_tokens(setup):
     """Test finish_reason when hitting max_tokens with LlamaIndex Anthropic."""
     try:
@@ -751,6 +777,7 @@ def test_anthropic_backend_subtype_tool_call(setup):
 
 
 @pytest.mark.skipif(not ANTHROPIC_API_KEY, reason="ANTHROPIC_API_KEY not set")
+@llama_index_temperature_xfail
 def test_anthropic_backend_subtype_turn_end(setup):
     """span.subtype='turn_end' works when LlamaIndex uses Anthropic as the backend."""
     before = len(setup.get_captured_spans())

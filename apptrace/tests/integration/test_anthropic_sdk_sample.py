@@ -40,6 +40,11 @@ def setup():
         if instrumentor and instrumentor.is_instrumented_by_opentelemetry:
             instrumentor.uninstrument()
 
+@pytest.fixture(autouse=True)
+def pre_test(setup):
+    """Clear the exporter so each test only sees its own spans."""
+    setup.reset()
+
 def test_anthropic_metamodel_sample(setup):
     client = anthropic.Anthropic()
 
@@ -47,7 +52,6 @@ def test_anthropic_metamodel_sample(setup):
     response = client.messages.create(
         model=ANTHROPIC_MODEL,  # You can use claude-3-haiku, claude-3-sonnet, etc.
         max_tokens=512,
-        temperature=0.7,
         system= "You are a helpful assistant to answer questions about coffee.",
         messages=[
             {"role": "user", "content": "What is an americano?"}

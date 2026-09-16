@@ -1,13 +1,7 @@
-"""End-to-end trace-return coverage for the non-FastAPI HTTP server frameworks:
-Flask, aiohttp (Task 6 of the "trace-return across all HTTP frameworks" feature).
+"""End-to-end trace-return coverage for Flask and aiohttp.
 
-Mirrors test_http_trace_return.py (the FastAPI e2e): the env vars below must be
-set *before* MonocleValidator() / setup_monocle_telemetry() is first constructed
-anywhere in the process, because the trace-return SimpleSpanProcessor is wired
-up once, at instrumentor-setup time (see _append_trace_return_processor in
-instrumentor.py). Setting them here at module import time guarantees that, as
-long as this file is the first test module in the pytest session to touch
-MonocleValidator (true when run standalone, per the task's run command).
+Mirrors test_http_trace_return.py. conftest.py enables trace-return early
+enough for any import order; the env vars below repeat that for standalone runs.
 """
 import os
 
@@ -22,7 +16,8 @@ import threading
 
 import pytest
 
-pytest_plugins = ["monocle_test_tools.pytest_plugin"]
+# The monocle_test_tools plugin is registered by conftest.py; declaring
+# pytest_plugins here too double-registers it and fails collection.
 
 
 def _free_port():

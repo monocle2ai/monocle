@@ -1289,10 +1289,12 @@ class TraceAssertion():
 
         Args:
             testcase: A FluentTestCase (or a dict in any shape it accepts) whose
-                evals to run. Each eval's name selects the template -- a str is an
-                Okahu template name, a Path is a custom-template file -- and its
-                result is the expected label. Cannot be combined with eval_name,
-                expected, not_expected, template_path or template.
+                evals to run. Each eval's name selects the template, classified
+                exactly as this method's own ``eval_name`` is: a bare name is an
+                Okahu template, while a Path *or* a path-like string (``.json``
+                suffix, a separator, ``./``, ``../``) is a custom-template file.
+                The eval's result is the expected label. Cannot be combined with
+                eval_name, expected, not_expected, template_path or template.
         """
         eval_name, template_path = self._apply_eval_type(eval_name, template_path, template)
 
@@ -1329,6 +1331,24 @@ class TraceAssertion():
         self._raise_eval_failures(eval_name, failures, len(fact_records), message)
         return self
 
+    def _check_eval_entry(self, entry, *, fact_name) -> tuple:
+        """Run one eval named by a test case, and return its outcome.
+
+        The name is classified the way check_eval classifies its own eval_name --
+        through the evaluator's ``classify_eval_input`` via ``_apply_eval_type``,
+        so a path object *and* a path-like string both resolve to a custom
+        template file while a bare name stays a built-in.
+
+        That matters because a test case usually arrives as JSON, which has no
+        Path type: a custom template reaches us as a string, and testing only
+        for ``pathlib.Path`` sent that string on as a template *name*, leaving
+        the eval service asked for a template called "./evals/my_eval.json".
+        """
+        eval_name, template_path = self._apply_eval_type(entry.name, None, None)
+        return self._check_eval_one(
+            eval_name=eval_name, expected=entry.result, not_expected=None,
+            fact_name=fact_name, template_path=template_path, template=None)
+
     def _check_eval_testcase(self, testcase, *, eval_name, expected, not_expected,
                              template_path, template, fact_name, message) -> 'TraceAssertion':
         """Run every eval a test case names, reporting all their failures at once."""
@@ -1342,12 +1362,8 @@ class TraceAssertion():
 
         failures, fact_records = [], []
         for entry in testcase.evals:
-            is_template = isinstance(entry.name, Path)
-            entry_failures, entry_facts = self._check_eval_one(
-                eval_name=None if is_template else entry.name,
-                expected=entry.result, not_expected=None, fact_name=fact_name,
-                template_path=str(entry.name) if is_template else None,
-                template=None)
+            entry_failures, entry_facts = self._check_eval_entry(
+                entry, fact_name=fact_name)
             failures.extend(entry_failures)
             fact_records.extend(entry_facts)
 

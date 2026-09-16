@@ -49,7 +49,7 @@ class OkahuTraceSource(TraceSource):
             logger.debug("Missing fact_id or workflow_name; skipping test-result label.")
             return False
 
-        base = os.getenv("OKAHU_EVALUATION_ENDPOINT", OKAHU_PROD_EVALUATION_ENDPOINT).rstrip("/")
+        base = (os.getenv("OKAHU_EVALUATION_ENDPOINT") or OKAHU_PROD_EVALUATION_ENDPOINT).rstrip("/")
         value = "FAIL" if test_failed else "PASS"
         payload = {
             "result": {

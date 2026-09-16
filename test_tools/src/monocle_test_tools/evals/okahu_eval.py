@@ -13,6 +13,17 @@ from typing import Optional, Union, Tuple
 logger = logging.getLogger(__name__)
 OKAHU_PROD_EVALUATION_ENDPOINT = "https://eval.okahu.co/api"
 
+
+def _eval_base_url() -> str:
+    """Evaluation service base URL, falling back to prod.
+
+    `or` rather than a getenv default: CI sets the variable to an empty string
+    when the repository variable is undefined, and a getenv default only applies
+    when the name is absent -- an empty base yields "/v1/eval/..." and requests
+    then raises "No scheme supplied".
+    """
+    return (os.getenv("OKAHU_EVALUATION_ENDPOINT") or OKAHU_PROD_EVALUATION_ENDPOINT).rstrip("/")
+
 # Time window padding (seconds) applied around the span envelope when filtering traces
 # for evals. Applied uniformly on either side of the earliest-start/latest-end span
 # envelope. Defaults to 8 hours to cover long-lived aggregate facts (sessions,
@@ -251,7 +262,7 @@ class OkahuEval(BaseEval):
         self._current_trace_id = trace_id
         
         # Get API credentials
-        api_key = (os.getenv("OKAHU_API_KEY")).strip()
+        api_key = (os.getenv("OKAHU_API_KEY") or "").strip()
         if not api_key:
             raise AssertionError("OKAHU_API_KEY is not configured.")
         
@@ -268,11 +279,11 @@ class OkahuEval(BaseEval):
         
         Note: fact_name should already be mapped to the okahu fact_name when this method is called.
         """
-        api_key = (os.getenv("OKAHU_API_KEY")).strip()
+        api_key = (os.getenv("OKAHU_API_KEY") or "").strip()
         if not api_key:
             raise AssertionError("OKAHU_API_KEY is not configured.")
         
-        base = os.getenv("OKAHU_EVALUATION_ENDPOINT", OKAHU_PROD_EVALUATION_ENDPOINT).rstrip("/")
+        base = _eval_base_url()
         list_url = f"{base}/v1/eval/templates"
         headers = {"x-api-key": api_key}
         params = {"fact_name": fact_name}
@@ -312,7 +323,7 @@ class OkahuEval(BaseEval):
         if not api_key:
             raise AssertionError("OKAHU_API_KEY is not configured.")
         
-        base = os.getenv("OKAHU_EVALUATION_ENDPOINT", OKAHU_PROD_EVALUATION_ENDPOINT).rstrip("/")
+        base = _eval_base_url()
         fact_map_url = f"{base}/v1/eval/fact_map"
         headers = {"x-api-key": api_key}
         
@@ -486,7 +497,7 @@ class OkahuEval(BaseEval):
 
         span = filtered_spans[0]
         workflow_name = span.attributes.get("workflow.name")
-        base = os.getenv("OKAHU_EVALUATION_ENDPOINT", OKAHU_PROD_EVALUATION_ENDPOINT).rstrip("/")
+        base = _eval_base_url()
         submit_url = f"{base}/v1/eval/jobs"
 
         fact_ids = self.enumerate_fact_ids(filtered_spans=filtered_spans, fact_name=fact_name)
@@ -618,7 +629,7 @@ class OkahuEval(BaseEval):
             raise AssertionError("OKAHU_API_KEY is not configured.")
         
         trace_id = self._current_trace_id
-        base = os.getenv("OKAHU_EVALUATION_ENDPOINT", OKAHU_PROD_EVALUATION_ENDPOINT).rstrip("/")
+        base = _eval_base_url()
 
         try:
             if self._trace_source != "okahu":

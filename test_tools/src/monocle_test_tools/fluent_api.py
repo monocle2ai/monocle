@@ -21,7 +21,9 @@ from .comparer.token_match_comparer import TokenMatchComparer
 from .evals.eval_manager import get_evaluator
 from .evals.base_eval import BaseEval
 from .validator import MonocleValidator
-from .trace_utils import get_function_signature, get_caller_file_line
+from .custom_validator import ValidatorRef, get_validator, read_verdict
+from .trace_utils import (get_function_signature, get_caller_file_line,
+                          get_input_from_span, get_output_from_span)
 from .schema import MockTool
 from opentelemetry.sdk.trace import Span
 
@@ -1562,6 +1564,112 @@ class TraceAssertion():
         """Write the class-scoped eval report to a JSON file."""
         with open(path, "w", encoding="utf-8") as f:
             json.dump(getattr(TraceAssertion, "_eval_report", {}) or {}, f, indent=2)
+
+    @collect_assertions
+    def check_validator(self, validator:Optional[ValidatorRef] = None, message:Optional[str] = None,
+                        *, testcase:Optional[Union[FluentTestCase, dict]] = None) -> 'TraceAssertion':
+        """Validate the recorded responses with the test author's own logic.
+
+        Each selected span's recorded input and output are passed to the validator,
+        which returns True when the response is valid, and False or a message when
+        it is not. Needs no evaluator and makes no network call. All rejections are
+        reported together, not just the first.
+
+        Args:
+            validator: A function callable as ``func(input=..., output=...)``, a
+                BaseValidator (instance or subclass), or an import path to either
+                (``"my_pkg.checks:valid_order"``). Required without a testcase.
+            message: Replaces the generated failure message.
+            testcase: A FluentTestCase (or dict) whose ``validators`` to run instead.
+                Cannot be combined with ``validator``.
+
+        Returns:
+            This asserter, so the chain continues.
+        """
+        if testcase is not None:
+            testcase = resolve_testcase(testcase, validator=validator)
+            if not testcase.validators:
+                raise ValueError(
+                    f"testcase '{testcase.name}' has no validators to run; a test case "
+                    "with nothing to assert must not read as a passing test")
+            validators = [get_validator(entry) for entry in testcase.validators]
+            label = testcase.name
+        else:
+            if validator is None:
+                raise ValueError("'validator' is required without a testcase")
+            validators = [get_validator(validator)]
+            label = validators[0].name
+
+        spans = self._validatable_spans()
+        failures = []
+        for each_validator in validators:
+            failures.extend(self._run_validator(each_validator, spans))
+        self._raise_validator_failures(label, failures, len(spans) * len(validators), message)
+        return self
+
+    def _validatable_spans(self) -> list[Span]:
+        """The selected spans that recorded something for a validator to judge.
+
+        A span holding neither (the workflow span, for one) would reach the
+        validator as a pair of Nones, so it is skipped. Nothing left to judge means
+        the test asserts on an empty set, which must not read as a pass.
+        """
+        spans = [span for span in self._filtered_spans or []
+                 if get_input_from_span(span) is not None or get_output_from_span(span) is not None]
+        if not spans:
+            raise AssertionError(
+                "No spans with a recorded input or output to validate. Chain a span "
+                "selector before check_validator.")
+        return spans
+
+    @staticmethod
+    def _run_validator(validator, spans:list[Span]) -> list[str]:
+        """Run one validator over every span, and return the rejections.
+
+        Returns rather than raises so several validators report all their failures:
+        record_assertion keeps only the first AssertionError of a chain.
+        """
+        failures = []
+        for span in spans:
+            try:
+                verdict = validator.validate_response(input=get_input_from_span(span),
+                                                      output=get_output_from_span(span))
+            except AssertionError as exc:
+                # A validator written with `assert` rather than a return value. Treat it
+                # as the rejection it plainly is, so the remaining spans are still judged
+                # and the failure carries the span it came from.
+                failures.append(f"{span.name}: {exc or f'validator {validator.name!r} failed an assertion'}")
+                continue
+            except Exception as exc:
+                # A bug in the validator, not a failing response. The traceback already
+                # points at their code; what it cannot say is which span was in hand --
+                # and a validator that works on three spans and dies on the fourth (an
+                # agent that recorded no output) is the usual way this happens.
+                raise RuntimeError(
+                    f"validator {validator.name!r} raised on span {span.name!r}: "
+                    f"{type(exc).__name__}: {exc}") from exc
+            reason = read_verdict(verdict, name=validator.name)
+            if reason is not None:
+                failures.append(f"{span.name}: {reason}")
+        return failures
+
+    @staticmethod
+    def _raise_validator_failures(label:str, failures:list[str], checked:int,
+                                  message:Optional[str]) -> None:
+        """Raise one AssertionError covering every rejection, or return quietly."""
+        if not failures:
+            return
+        if message:
+            raise AssertionError(message)
+        if len(failures) == 1:
+            raise AssertionError(failures[0])
+        # A reason can be several lines (pytest's assertion rewriting appends the
+        # expression it introspected), so continuation lines are indented under the
+        # bullet rather than breaking out of the list.
+        raise AssertionError(
+            f"Validation '{label}' failed for {len(failures)} of {checked} checks:"
+            + "".join(f"{os.linesep}  - " + failure.replace("\n", f"{os.linesep}    ")
+                      for failure in failures))
 
     @collect_assertions
     def under_token_limit(self, token_limit:int, message:Optional[str] = None) -> 'TraceAssertion':

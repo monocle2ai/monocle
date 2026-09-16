@@ -40,6 +40,9 @@ class OkahuSpanExporter(SpanExporterBase):
         self.endpoint = endpoint or okahu_endpoint
         api_key: Optional[str] = _get_okahu_api_key()
         self._closed = False
+        # HTTP status of the most recent synchronous upload, so a caller that
+        # gets SpanExportResult.FAILURE can say why (None: no response, e.g. timeout).
+        self.last_status_code: Optional[int] = None
         if not api_key:
             raise ValueError("OKAHU_API_KEY not set.")
         self.timeout = timeout or 15
@@ -81,11 +84,13 @@ class OkahuSpanExporter(SpanExporterBase):
 
         def send_spans_to_okahu(span_list_local=None, is_root=False):
             try:
+                self.last_status_code = None
                 result = self.session.post(
                     url=self.endpoint,
                     data=json.dumps(span_list_local),
                     timeout=self.timeout,
                 )
+                self.last_status_code = result.status_code
                 if result.status_code not in REQUESTS_SUCCESS_STATUS_CODES:
                     logger.error(
                         "Traces cannot be uploaded; status code: %s, message %s",

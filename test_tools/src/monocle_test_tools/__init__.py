@@ -23,6 +23,7 @@ from .schema import (
 
 from .evals import ( BaseEval, BertScorerEval, OkahuEval)
 from .comparer import ( BaseComparer, BertScoreComparer, DefaultComparer)
+from .custom_validator import BaseValidator
 from . import trace_utils
 from .runner import AgentRunner, get_agent_runner
 from .fluent_api import TraceAssertion, setup_test_cases
@@ -43,6 +44,7 @@ __all__ = [
     "Evaluation",
     "BertScorerEval",
     "OkahuEval",
+    "BaseValidator",
     "BaseComparer",
     "BertScoreComparer",
     "DefaultComparer",

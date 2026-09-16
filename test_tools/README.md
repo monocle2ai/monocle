@@ -14,7 +14,7 @@ A comprehensive testing and validation framework for monocle AI agent tracing. T
 - **Fluent API**: Chain assertions using a readable, expressive builder pattern.
 - **Mock Tools**: Simulate tool behavior without invoking external dependencies.
 - **Offline Testing**: Assert against pre-recorded trace JSON files without running live agents.
-- **Test Cases as Data**: Describe a run once as a `FluentTestCase` and let `run_agent`, the span selectors, the input/output checks and `check_eval` all read it via `testcase=`.
+- **Test Cases as Data**: Describe a run once as a `FluentTestCase` and let `run_agent`, the span selectors, the input/output checks, `check_eval` and `check_validator` all read it via `testcase=`.
 - **Generated Test Cases**: Turn what a workflow already recorded into a parametrizable suite with `setup_test_cases()`, from Okahu or a committed JSON file.
 
 ## How does it work
@@ -562,6 +562,7 @@ A test case is a dict (or a `FluentTestCase`); both are accepted everywhere `tes
 | `has_input` / `contains_input` / `does_not_have_input` / `does_not_contain_input` | `agents[].input` or `tools[].input` | Checks each entity's own expected input against that entity's spans |
 | `has_output` / `contains_output` / `does_not_have_output` / `does_not_contain_output` | `agents[].output` or `tools[].output` | Same, for outputs |
 | `check_eval` | `evals` | Runs each eval and compares against its recorded result |
+| `check_validator` | `validators` | Runs each custom validator over the selected spans |
 
 The input/output checks read `agents` or `tools` depending on which selector opened the chain.
 
@@ -579,7 +580,7 @@ Every failure is collected and reported together: one missing agent out of four 
 - **A chain is all-testcase or none of it.** `called_agent(testcase=tc).contains_output("literal")` raises. Start a new chain to switch styles.
 - **One selector kind per chain.** `called_agent(testcase=tc).called_tool(testcase=tc)` raises — each selector builds its own entity map and combining them is ambiguous. Plain (non-testcase) chains are unaffected.
 - **Silence is not failure.** An entry that sets no `input`/`output` is skipped, and a check where nothing sets one passes quietly. A test case describes what it knows.
-- **Emptiness is failure.** `called_agent`/`called_tool`/`check_eval` raise when the test case names nothing for them to act on — a selector with nothing to select must not read as a pass.
+- **Emptiness is failure.** `called_agent`/`called_tool`/`check_eval`/`check_validator` raise when the test case names nothing for them to act on — a selector with nothing to select must not read as a pass.
 
 ### Generating test cases from recorded runs
 
@@ -1058,6 +1059,86 @@ So `eval_name` takes either kind of template and `check_eval` detects which: a `
 
 For `template_path`, the file may be either the inner template (`{"name": ..., "eval_prompt": ..., ...}`) or the full API request body (`{"template": {...}}`) — the outer `template` key is unwrapped automatically. When `eval_name` is omitted, the template's `name` field is used as the eval name (falling back to `"custom_eval"`). Server-side validation errors (HTTP 400) surface as an `AssertionError` prefixed with `Custom template validation failed:`.
 
+### Custom Validators
+
+`check_validator` runs **your own Python** against what the agent actually said. Use it when the check is specific to your agent and no eval template fits — a booking reference that must be present, a schema the answer must parse into, a rule it must not break.
+
+Write a function taking `input` and `output`, and say whether the response is valid:
+
+```python
+def has_booking_ref(input, output):
+    if "ORDER-" not in output:
+        return f"no booking reference in: {output!r}"
+    return True
+
+monocle_trace_asserter.called_agent("booking_agent").check_validator(has_booking_ref)
+```
+
+`input` and `output` are what the span recorded. No eval service, no network call, no `with_evaluation(...)` needed.
+
+#### What to return
+
+| Return | Meaning |
+|---|---|
+| `True` | Valid — the check passes |
+| `False` | Invalid — fails with a generated message |
+| A string | Invalid — your string becomes the failure message |
+| Anything else | `TypeError` — the validator itself has a bug |
+
+Returning a message is usually best: it tells whoever reads the failure what went wrong. You can also use `assert` instead of returning — an `AssertionError` counts as invalid.
+
+#### Which spans get checked
+
+Every span the chain selected that recorded an input or an output:
+
+```python
+.called_agent("booking_agent").check_validator(...)   # that agent's spans
+.called_tool("book_flight").check_validator(...)      # that tool's spans
+.check_validator(...)                                 # everything in the trace
+```
+
+All rejections are reported together, not just the first.
+
+> **Checking the final answer? Select the turn, not the agent.** A supervisor runs once per delegation, so `called_agent("supervisor")` checks *every* one of those steps — including early ones that have only done part of the work.
+>
+> ```python
+> monocle_trace_asserter.where(attribute={"span.type": "agentic.turn"}) \
+>     .check_validator(answer_covers_every_request)
+> ```
+
+#### Validators with settings
+
+Subclass `BaseValidator` when the check needs configuration:
+
+```python
+from monocle_test_tools import BaseValidator
+
+class MinimumLength(BaseValidator):
+    def validate_response(self, input=None, output=None):
+        minimum = self.validator_options.get("minimum", 1)
+        return True if len(output or "") >= minimum else f"shorter than {minimum} characters"
+
+monocle_trace_asserter.check_validator(MinimumLength(validator_options={"minimum": 50}))
+```
+
+#### From a test case
+
+A `FluentTestCase` holds its validators in a `validators` field. In Python you can pass the function itself; in JSON, name it by import path:
+
+```python
+testcase = {"validators": ["my_pkg.checks:has_booking_ref"]}
+monocle_trace_asserter.called_agent("booking_agent").check_validator(testcase=testcase)
+```
+
+Both `"my_pkg.checks:has_booking_ref"` and `"my_pkg.checks.has_booking_ref"` work.
+
+#### Good to know
+
+- **A crashing validator is an error, not a verdict.** If it raises (say `output.lower()` on a span that recorded no output), you get an error naming the validator *and* the span it died on — it never silently counts as a pass or a fail.
+- **Nothing to check is a failure.** If the selection is empty, the assertion fails rather than passing on an empty set.
+- **Mistakes are caught where you write them.** A bad import path, or a function that can't be called as `func(input=..., output=...)`, fails at that line — not midway through a run.
+- **Validators are synchronous.** Async ones are rejected up front; the response they judge was already recorded, so there is nothing to await.
+
 ### Time-window (filtered) evaluation
 
 The examples above evaluate a **specific** trace/fact that you selected (by running an agent, or by `with_trace_source("okahu", id=...)`). You can instead evaluate **every fact discovered in a time window** for one or more workflows — without knowing the trace ids up front — by setting `start_time`/`end_time` on `with_trace_source("okahu", ...)`. This runs the evaluation as a single asynchronous Okahu job that discovers the matching facts server-side, applies one **blanket** `expected`/`not_expected` to each, and reports per fact.
@@ -1254,6 +1335,7 @@ Configure the evaluator with `with_evaluation` (see the Configuration table) bef
 | Method | Description |
 |---|---|
 | `check_eval(eval_name=None, expected=None, not_expected=None, fact_name="traces", template_path=None, *, template=None, min_facts=1, fail_threshold=0, max_facts=None)` | Run an evaluation and assert the result. Provide **exactly one** of `eval_name` (a standard Okahu template name, or a path to a custom-template JSON file — detected from the value), `template_path` (a custom-template JSON file), or `template` (an inline custom-template dict). `expected`/`not_expected` each accept a string or list of strings. `min_facts`/`fail_threshold`/`max_facts` apply **only** in time-window (filtered) mode (see [Time-window evaluation](#time-window-filtered-evaluation)) and raise otherwise |
+| `check_validator(validator=None, message=None, *, testcase=None)` | Run your own pass/fail logic over the selected spans — a function callable as `func(input=..., output=...)`, a `BaseValidator`, or an import path to either. Needs no evaluator and no network call. `testcase=` runs the case's `validators` instead. See [Custom Validators](#custom-validators) |
 | `get_eval_report()` / `get_eval_failures()` / `write_eval_report(path)` | Read the report stashed by the last `check_eval` — the full report dict, the non-`pass` scenarios, or write it to JSON. Same shape in single-fact and filtered modes |
 
 ---

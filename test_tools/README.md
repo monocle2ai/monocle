@@ -14,6 +14,8 @@ A comprehensive testing and validation framework for monocle AI agent tracing. T
 - **Fluent API**: Chain assertions using a readable, expressive builder pattern.
 - **Mock Tools**: Simulate tool behavior without invoking external dependencies.
 - **Offline Testing**: Assert against pre-recorded trace JSON files without running live agents.
+- **Test Cases as Data**: Describe a run once as a `FluentTestCase` and let `run_agent`, the span selectors, the input/output checks and `check_eval` all read it via `testcase=`.
+- **Generated Test Cases**: Turn what a workflow already recorded into a parametrizable suite with `setup_test_cases()`, from Okahu or a committed JSON file.
 
 ## How does it work
 
@@ -494,6 +496,183 @@ def test_tool_span(validator):
         ]
     )
     validator.validate(test_case)
+```
+
+---
+
+## Test Cases as Data (`FluentTestCase`)
+
+A `FluentTestCase` describes what a run should do — its input, the agents it invokes, the tools they call, the evals it should satisfy — as plain data. Pass it to the fluent API with `testcase=` and each method reads what it needs, instead of you unpacking the same dict by hand into a dozen calls.
+
+```python
+TESTCASE = {
+    "input": "Book a flight from SFO to Mumbai",
+    "expected": {
+        "agents": {
+            "supervisor":     {"output": "travel arrangements"},
+            "flight_agent":   {"output": "flight booked"},
+        },
+        "evals": {"hallucination": "no_hallucination"},
+    },
+}
+
+@pytest.mark.parametrize("testcase", [TESTCASE])
+@pytest.mark.asyncio
+async def test_booking(monocle_trace_asserter, testcase):
+    await monocle_trace_asserter.run_agent_async(root_agent, "google_adk", testcase=testcase)
+
+    monocle_trace_asserter.called_agent(testcase=testcase).contains_output(testcase=testcase)
+    monocle_trace_asserter.with_evaluation("okahu").check_eval(testcase=testcase)
+```
+
+The same dict drives the run, the agent assertions and the evals. Add an agent to the data and every one of those calls covers it.
+
+### Writing a test case
+
+A test case is a dict (or a `FluentTestCase`); both are accepted everywhere `testcase=` is.
+
+```python
+{
+  "name": "books a flight",              # optional; names the case in failures
+  "input": "Book a flight",              # a string, a tuple of args, or a FactID (below)
+  "expected": {                          # optional wrapper; these may also sit at the top level
+      "output": ["Booked flight", "Mumbai"],   # end-to-end check, no entity named
+      "agents": {"supervisor": {"input": "...", "output": "..."}},
+      "tools":  {"book_flight": {"output": "confirmed", "agent": {"flight_agent": {}}}},
+      "evals":  {"hallucination": "no_hallucination"},
+      "token_limit": 10000,
+  },
+}
+```
+
+- **A top-level `output`** is an end-to-end check that names no entity: a string, or a list where *every* entry must appear. The input/output checks fall back to it when no selector was chained, so `contains_output(testcase=tc)` on its own asserts against the whole trace. When a selector *did* run, the per-entity expectations are what count.
+- **`agents` / `tools` / `evals` accept a mapping** (`{name: body}`) or a list of single-key entries (`[{name: body}, ...]`). The mapping form reads better by hand; the list form allows the same name twice.
+- **An eval may name a category** in its key: `{"hallucination@llm": "minor_hallucination"}` is the `hallucination` eval in the `llm` category. Without `@`, no category.
+- **Unknown keys are rejected.** A typo like `"evels"` raises rather than silently asserting nothing.
+- **`input` may be a `FactID`** — `{"fact_id": "abc123", "fact_name": "traces", "source": "okahu"}` — pointing at a recorded fact instead of a literal prompt. `with_trace_source(testcase=...)` loads that fact's spans, and `run_agent(testcase=...)` fetches it purely to recover the prompt it was driven with and replays that against a live agent.
+
+### Where `testcase=` is accepted
+
+| Method | Reads | Behaviour |
+|---|---|---|
+| `run_agent` / `run_agent_async` | `input` | Runs with those args. A `FactID` input is resolved to the prompt it recorded and replayed |
+| `with_trace_source` | `input` (must be a `FactID`) | Loads that fact's spans. `source`/`workflow_name` stay explicit; `id`/`fact_name`/`scope_name` come from the FactID |
+| `called_agent` | `agents` | Asserts every named agent was invoked, and records each one's spans for the checks that follow |
+| `called_tool` | `tools` | Asserts every named tool was called, and records each one's spans |
+| `has_input` / `contains_input` / `does_not_have_input` / `does_not_contain_input` | `agents[].input` or `tools[].input` | Checks each entity's own expected input against that entity's spans |
+| `has_output` / `contains_output` / `does_not_have_output` / `does_not_contain_output` | `agents[].output` or `tools[].output` | Same, for outputs |
+| `check_eval` | `evals` | Runs each eval and compares against its recorded result |
+
+The input/output checks read `agents` or `tools` depending on which selector opened the chain.
+
+### How entities are matched
+
+`called_agent` and `called_tool` build a span list per entity, which the input/output checks then read.
+
+- **Agents key on the name.** Two entries naming the same agent share one span list, and each entry's own expectations are checked against it. That matters because `from_spans` records the same agent twice when it was invoked with different inputs.
+- **Tools key on the name *and* the calling agent.** `{"book_flight": {"agent": {"supervisor": {}}}}` matches only calls made by `supervisor`; an entry naming no agent matches any caller. Unlike agents, one tool called by two agents really is two different span sets.
+
+Every failure is collected and reported together: one missing agent out of four names all four in a single failure, rather than stopping at the first.
+
+### Rules
+
+- **A chain is all-testcase or none of it.** `called_agent(testcase=tc).contains_output("literal")` raises. Start a new chain to switch styles.
+- **One selector kind per chain.** `called_agent(testcase=tc).called_tool(testcase=tc)` raises — each selector builds its own entity map and combining them is ambiguous. Plain (non-testcase) chains are unaffected.
+- **Silence is not failure.** An entry that sets no `input`/`output` is skipped, and a check where nothing sets one passes quietly. A test case describes what it knows.
+- **Emptiness is failure.** `called_agent`/`called_tool`/`check_eval` raise when the test case names nothing for them to act on — a selector with nothing to select must not read as a pass.
+
+### Generating test cases from recorded runs
+
+`setup_test_cases()` turns what a workflow already recorded into a parametrizable list. Each returned case points at one fact and carries the agents it invoked, the tools they called, its token count, and optionally its eval results.
+
+```python
+from monocle_test_tools import setup_test_cases
+
+CASES = setup_test_cases(source="okahu", workflow_name="my_app",
+                         start_time="2026-05-01", end_time="2026-06-30",
+                         check_eval="hallucination")
+
+@pytest.mark.parametrize("testcase", CASES)
+def test_evals_still_reproduce(monocle_trace_asserter, testcase):
+    monocle_trace_asserter.with_trace_source(testcase=testcase, workflow_name="my_app")
+    monocle_trace_asserter.with_evaluation("okahu").check_eval(testcase=testcase)
+```
+
+Re-running the evals against their own recorded labels is a regression test: it catches an eval template change that would re-label previously graded facts.
+
+| Argument | Description |
+|---|---|
+| `source` | `"okahu"` (default) to discover from the eval store, or `"local"` to load a committed JSON file |
+| `workflow_name`, `start_time`, `end_time` | Required for Okahu. The window has no silent default |
+| `fact_name` | Fact level, default `"traces"`. Above trace level (`"agentic_turns"`, `"agentic_sessions"`, ...) each fact spans several traces and all their spans describe it |
+| `check_eval` | `True` for every eval recorded, a string for one, `False`/omitted for none. A fact with no labelled result is dropped |
+| `compare_eval` | Borrow the expected result from a *different* eval: the report is asked about this one, but each case still names `check_eval`. So the case reads "run `check_eval`, expect what `compare_eval` recorded" — the eval-tuning question of whether a new template reproduces a golden one's labels. Requires `check_eval` to be a name |
+| `eval_filter` | Narrows *which facts are considered*, as an `eval` query filter. Independent of `check_eval` |
+| `category` | Which eval runs count — `"llm"` (default), `"manual"`, `"test"`, or a list |
+| `path` | For `source="local"`: the JSON file to load |
+
+Because the model serializes into a shape it also accepts, a discovered set can be frozen and replayed with no network call:
+
+```python
+json.dump([c.model_dump() for c in CASES], open("cases.json", "w"))
+# later, offline:
+CASES = setup_test_cases(source="local", path="cases.json")
+```
+
+Since these cases carry agents and tools as well as evals, they feed the selectors too — `called_agent(testcase=tc).contains_output(testcase=tc)` asserts that a re-run still produces what the recording did.
+
+Each fact costs a request for its spans, plus one per fact above trace level to find its traces, plus one for the report. A wide window is a lot of calls — freeze the result to JSON if you will re-run it.
+
+**Every page is walked.** Discovery used to read only the server's first page of 100 and stop, with no indication more existed — a window holding 309 traces produced 100 test cases, and the rest were not dropped or reported, they simply never appeared. `page_size` (default 200, server maximum 1000) now governs the trace enumeration, the fact enumeration and the eval report alike, so they cannot disagree about page depth. If a walk still comes back short of the count the server advertises, a warning names both numbers rather than handing back a short list in silence.
+
+Since a wide window now yields every fact rather than the first hundred, it also costs proportionally more collection time — roughly one span request per trace. Freeze to JSON, or narrow the window, if that matters to you.
+
+**Discovery is capped.** Because every page is now walked, a wide window can yield thousands of facts — and each one costs a span request plus, with `check_eval`, an eval. `max_facts` bounds that, defaulting to 1000 and overridable per call or with the `OKAHU_MAX_FACTS` environment variable (the same variable `okahu_filtered_eval` already honours). A window holding more raises, naming the count and the ceiling, rather than silently returning the first 1000 — a truncated subset is what the pagination fix set out to remove. Narrow the window, or raise the ceiling deliberately. The cap applies to `setup_test_cases` only: loading one named session or scope with `with_trace_source` is never bounded by it.
+
+**A fact that will not load does not cost you the window.** `setup_test_cases` runs at collection time, so raising would mean *no* tests run at all. Instead the fact is still returned, carrying the reason, and the first `testcase=` call it reaches fails with it — so it shows up as one failing test named after the fact while every other case runs normally. The bulk eval report is one call for all facts, so if *it* fails the reason is recorded against each of them.
+
+```
+test_regression[642dbd9d…]  PASSED
+test_regression[9ade6084…]  FAILED
+    testcase '9ade6084…' could not be loaded, so it cannot be asserted on:
+    could not load spans for fact '9ade6084…': Okahu returned HTTP 404
+```
+
+This is distinct from a fact being *dropped*: with `check_eval` set, a fact that loaded fine but has no label for that eval is simply not part of the suite, and is logged rather than reported.
+
+### Three flows this enables
+
+**Eval regression** — do the recorded labels still reproduce? Cases carry each fact and the label it already has; re-running the eval must agree.
+
+```python
+CASES = setup_test_cases(source="okahu", workflow_name="my_app",
+                         start_time=ST, end_time=ET, check_eval="hallucination")
+
+@pytest.mark.parametrize("testcase", CASES)
+def test_regression(monocle_trace_asserter, testcase):
+    monocle_trace_asserter.with_trace_source(testcase=testcase, workflow_name="my_app")
+    monocle_trace_asserter.with_evaluation("okahu").check_eval(testcase=testcase)
+```
+
+**Eval tuning** — does a new template reproduce a golden one? `compare_eval` sources the expected label from the golden eval while the case still names the new one, so a failure means the two disagree.
+
+```python
+CASES = setup_test_cases(source="okahu", workflow_name="my_app",
+                         start_time=ST, end_time=ET,
+                         check_eval="hallucination_v2",       # what the test runs
+                         compare_eval="hallucination_v1")     # where "expected" comes from
+```
+
+**A/B replay** — does a *live* agent still behave like the recording? The `FactID` input is resolved to the prompt it was driven with and replayed against the running agent, then the fresh trace is asserted against what the recording did.
+
+```python
+@pytest.mark.parametrize("testcase", CASES)
+@pytest.mark.asyncio
+async def test_ab(monocle_trace_asserter, testcase):
+    await monocle_trace_asserter.run_agent_async(root_agent, "google_adk", testcase=testcase)
+
+    monocle_trace_asserter.called_agent(testcase=testcase).contains_output(testcase=testcase)
+    monocle_trace_asserter.called_tool(testcase=testcase)
 ```
 
 ---
@@ -989,17 +1168,17 @@ Configure the asserter before running assertions. These methods return `self` fo
 
 | Method | Description |
 |---|---|
-| `run_agent(agent, agent_type, *args)` | Run a sync agent |
-| `await run_agent_async(agent, agent_type, *args, session_id=None)` | Run an async agent |
+| `run_agent(agent, agent_type, *args, testcase=None)` | Run a sync agent. `testcase=` takes the input from a [test case](#test-cases-as-data-fluenttestcase) instead of positional args |
+| `await run_agent_async(agent, agent_type, *args, session_id=None, testcase=None)` | Run an async agent, same `testcase=` support |
 | `load_spans(spans)` | Load pre-recorded `ReadableSpan` objects for offline assertions |
 
 ### Span selectors (narrow context for subsequent assertions)
 
 | Method | Description |
 |---|---|
-| `called_tool(tool_name, agent_name=None, count=None, min_count=None, max_count=None)` | Assert a tool was called; narrows context to those spans. Optional: `count` for exact count, `min_count`/`max_count` for range |
+| `called_tool(tool_name, agent_name=None, count=None, min_count=None, max_count=None, testcase=None)` | Assert a tool was called; narrows context to those spans. Optional: `count` for exact count, `min_count`/`max_count` for range. `testcase=` asserts every tool the [test case](#test-cases-as-data-fluenttestcase) names and records each one's spans |
 | `does_not_call_tool(tool_name, agent_name=None)` | Assert a tool was NOT called |
-| `called_agent(agent_name, count=None, min_count=None, max_count=None)` | Assert an agent was called; narrows context to those spans. Optional: `count` for exact count, `min_count`/`max_count` for range |
+| `called_agent(agent_name, count=None, min_count=None, max_count=None, testcase=None)` | Assert an agent was called; narrows context to those spans. Optional: `count` for exact count, `min_count`/`max_count` for range. `testcase=` asserts every agent the [test case](#test-cases-as-data-fluenttestcase) names and records each one's spans |
 | `does_not_call_agent(agent_name)` | Assert an agent was NOT called |
 | `called_agents(count=None, min_count=None, max_count=None)` | Assert total number of agent invocations across all agents. Optional: `count` for exact count, `min_count`/`max_count` for range |
 | `called_tools(count=None, min_count=None, max_count=None)` | Assert total number of tool invocations across all tools. Optional: `count` for exact count, `min_count`/`max_count` for range |
@@ -1017,6 +1196,8 @@ Configure the asserter before running assertions. These methods return `self` fo
 | `does_not_contain_input(substring)` | Input does not contain the substring |
 | `does_not_contain_any_input(*substrings)` | Input does not contain any of the substrings |
 
+Each of the four singular forms also accepts `testcase=`, checking each entity's own expected value from a [test case](#test-cases-as-data-fluenttestcase) against that entity's spans. The `_any_` variants do not: they take any-of values, and an entry records exactly one input and one output.
+
 ### Output assertions
 
 | Method | Description |
@@ -1029,6 +1210,8 @@ Configure the asserter before running assertions. These methods return `self` fo
 | `contains_any_output(*substrings)` | Output contains any of the given substrings |
 | `does_not_contain_output(substring)` | Output does not contain the substring |
 | `does_not_contain_any_output(*substrings)` | Output does not contain any of the substrings |
+
+Each of the four singular forms also accepts `testcase=`, checking each entity's own expected value from a [test case](#test-cases-as-data-fluenttestcase) against that entity's spans. The `_any_` variants do not: they take any-of values, and an entry records exactly one input and one output.
 
 ### Attribute assertions
 
@@ -1108,7 +1291,7 @@ validator.check_duration_limits(max_duration=30.0, units="seconds", span_type="w
 | `MONOCLE_TRACE_OUTPUT_PATH` | Directory for file-based trace output | `.monocle/test_traces` |
 | `OKAHU_API_KEY` | API key for Okahu evaluation and trace export | — |
 | `OKAHU_EVALUATION_ENDPOINT` | Override the Okahu evaluation endpoint | `https://eval.okahu.co/api` |
-| `OKAHU_MAX_FACTS` | Runaway guard for time-window (filtered) evals: fail loudly if a filter discovers more than this many facts (see [Time-window evaluation](#time-window-filtered-evaluation)) | `1000` |
+| `OKAHU_MAX_FACTS` | Runaway guard: fail loudly if a time-window (filtered) eval discovers, or `setup_test_cases` enumerates, more than this many facts (see [Time-window evaluation](#time-window-filtered-evaluation)) | `1000` |
 | `MONOCLE_EVAL_MATRIX` | Set (to any value, optionally a path) to enable the opt-in eval-result-matrix recorder (see [Eval result matrix](#eval-result-matrix)). Off when unset | unset (off) |
 | `LOCAL_RUN_ID` | Run identifier applied to all spans in a session | ISO datetime at session start |
 

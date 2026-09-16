@@ -266,3 +266,80 @@ def test_record_eval_rows_from_report_self_skips_when_disabled(monkeypatch):
     monkeypatch.delenv("MONOCLE_EVAL_MATRIX", raising=False)
     eval_matrix.record_eval_rows_from_report({"scenarios": [{"fact_id": "aa", "status": "pass"}]})
     assert get_records() == []
+
+
+class TestEvalStashes:
+    """One matrix row per eval run, not one per test.
+
+    record_eval_row_for used to read the single `_last_eval` stash, so a call
+    that ran several evals reported only the last one -- silently, which is the
+    kind of gap a results matrix exists to close.
+    """
+
+    def _asserter(self, label="good"):
+        from unittest.mock import MagicMock
+
+        eval_mock = MagicMock()
+        eval_mock.evaluate.return_value = (label, "because")
+        eval_mock.last_fact_results = None
+        return TraceAssertion(filtered_spans=[MagicMock()], _eval=eval_mock)
+
+    def test_one_eval_appends_one_stash(self):
+        TraceAssertion._eval_stashes = []
+
+        self._asserter().check_eval(eval_name="hallucination", expected="good")
+
+        assert len(TraceAssertion._eval_stashes) == 1
+        assert TraceAssertion._eval_stashes[0]["label"] == "good"
+
+    def test_two_evals_append_two_stashes(self):
+        TraceAssertion._eval_stashes = []
+        asserter = self._asserter()
+
+        asserter.check_eval(eval_name="hallucination", expected="good")
+        asserter.check_eval(eval_name="frustration", expected="good")
+
+        assert len(TraceAssertion._eval_stashes) == 2
+
+    def test_last_eval_still_points_at_the_most_recent(self):
+        TraceAssertion._eval_stashes = []
+
+        self._asserter().check_eval(eval_name="hallucination", expected="good")
+
+        assert TraceAssertion._last_eval is TraceAssertion._eval_stashes[-1]
+
+    def test_cleanup_clears_the_stashes(self):
+        TraceAssertion._eval_stashes = [{"label": "stale"}]
+
+        TraceAssertion().cleanup()
+
+        assert TraceAssertion._eval_stashes == []
+
+
+def test_recorder_emits_one_row_per_eval(monkeypatch):
+    reset_records()
+    monkeypatch.setenv("MONOCLE_EVAL_MATRIX", "1")
+    TraceAssertion._last_eval = None
+    TraceAssertion._eval_stashes = [
+        {"trace_id": "t", "expected": "good", "fact_name": "traces",
+         "label": "good", "explanation": "", "judge_output": {}, "total_tokens": 1},
+        {"trace_id": "t", "expected": "good", "fact_name": "traces",
+         "label": "bad", "explanation": "", "judge_output": {}, "total_tokens": 2},
+    ]
+
+    mock_config = Mock()
+    mock_config.getoption.return_value = None
+    mock_node = Mock()
+    mock_node.name = "test_x"
+    mock_node.callspec = None
+    mock_rep_call = Mock()
+    mock_rep_call.passed = True
+    mock_node.rep_call = mock_rep_call
+    mock_request = Mock()
+    mock_request.config = mock_config
+    mock_request.node = mock_node
+
+    record_eval_row_for(mock_config, mock_request, TraceAssertion())
+
+    assert [row["actual"] for row in get_records()] == ["good", "bad"]
+    TraceAssertion._eval_stashes = []

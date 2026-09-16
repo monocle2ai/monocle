@@ -38,7 +38,7 @@ flight_booking_agent = LlmAgent(
     name="adk_flight_booking_agent_5",
     model=GOOGLE_GENAI_MODEL,
     description="Agent to book flights based on user queries.",
-    instruction="You are a helpful agent who can assist users in booking flights. You only handle flight booking. Just handle that part from what the user says, ignore other parts of the requests.",
+    instruction="You are a helpful agent who can assist users in booking flights. You only handle flight booking. Just handle that part from what the user says, ignore other parts of the requests. Pass the departure and destination to the tool exactly as the user wrote them, as full city names; never substitute airport codes.",
     tools=[adk_book_flight_5]
 )
 
@@ -75,7 +75,7 @@ flight_booking_agent_parallel = LlmAgent(
     name="adk_flight_booking_agent_5",
     model=GOOGLE_GENAI_MODEL,
     description="Agent to book flights based on user queries.",
-    instruction="You are a helpful agent who can assist users in booking flights. You only handle flight booking. Just handle that part from what the user says, ignore other parts of the requests.",
+    instruction="You are a helpful agent who can assist users in booking flights. You only handle flight booking. Just handle that part from what the user says, ignore other parts of the requests. Pass the departure and destination to the tool exactly as the user wrote them, as full city names; never substitute airport codes.",
     tools=[adk_book_flight_5]
 )
 
@@ -154,7 +154,7 @@ remote_flight_booking_agent = LlmAgent(
     name="adk_flight_booking_agent",
     model=GOOGLE_GENAI_MODEL,
     description="Agent to book flights based on user queries.",
-    instruction="You are a helpful agent who can assist users in booking flights. You only handle flight booking. Just handle that part from what the user says, ignore other parts of the requests.",
+    instruction="You are a helpful agent who can assist users in booking flights. You only handle flight booking. Just handle that part from what the user says, ignore other parts of the requests. Pass the departure and destination to the tool exactly as the user wrote them, as full city names; never substitute airport codes.",
     generate_content_config=contentConfig,
     tools=[adk_book_flight]
 )

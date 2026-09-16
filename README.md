@@ -253,8 +253,8 @@ This flexibility is especially useful when platform teams want to inject tracing
 | **MCP / A2A** | 🟢 FastMCP · 🟢 MCP client · 🟢 A2A client |
 | **Web / App** | 🟢 Flask · 🟢 AIO Http · 🟢 FastAPI · 🟢 Azure Function · 🟢 AWS Lambda · 🟢 Vercel (TS) · 🟢 Microsoft Teams AI SDK · 🟢 Web/REST client · 🔜 Google Function |
 | **LLM frameworks** | 🟢 Langchain · 🟢 Llamaindex · 🟢 Haystack |
-| **Agent Runtime** | 🟢 AWS Bedrock Agentcore |
-| **LLM inference** | 🟢 OpenAI · 🟢 Azure OpenAI · 🟢 Azure AI · 🟢 Nvidia Triton · 🟢 AWS Bedrock · 🟢 AWS Sagemaker · 🟢 Google Vertex · 🟢 Google Gemini · 🟢 Hugging Face · 🟢 Deepseek · 🟢 Anthropic · 🟢 Mistral · 🟢 LiteLLM · 🔜 Azure ML |
+| **Agent Runtime** | 🟢 AWS Bedrock Agentcore · 🟢 Azure AI Foundry |
+| **LLM inference** | 🟢 OpenAI · 🟢 Azure OpenAI · 🟢 Azure AI · 🟢 Azure AI Foundry · 🟢 Nvidia Triton · 🟢 AWS Bedrock · 🟢 AWS Sagemaker · 🟢 Google Vertex · 🟢 Google Gemini · 🟢 Hugging Face · 🟢 Deepseek · 🟢 Anthropic · 🟢 Mistral · 🟢 LiteLLM · 🔜 Azure ML |
 | **AI coding assistants** | 🟢 Claude CLI · 🟢 OpenAI Codex CLI · 🟢 GitHub Copilot (CLI + VS Code Chat) |
 | **Vector stores** | 🟢 FAISS · 🔜 OpenSearch · 🔜 Milvus |
 | **Exporters** | 🟢 stdout · 🟢 file · 🟢 Memory · 🟢 Azure Blob Storage · 🟢 AWS S3 · 🟢 Okahu cloud · 🟢 OTEL collectors · 🟢 Google Cloud Storage · 🟢 PostgreSQL · 🟢 ClickHouse · 🟢 [Paygentic](https://docs.paygentic.io/integrations/monocle) |

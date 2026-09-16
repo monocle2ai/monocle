@@ -141,13 +141,19 @@ class OkahuFilteredEval:
         # Only the API key is required — the endpoints default to prod so users
         # never have to set them. Developers point at stage/dev by overriding
         # OKAHU_API_ENDPOINT / OKAHU_EVALUATION_ENDPOINT.
+        #
+        # `or DEFAULT`, not os.getenv(name, DEFAULT): a set-but-empty value must
+        # fall back too. tests/integration/__init__.py does
+        # os.environ.setdefault("OKAHU_API_ENDPOINT", ""), so under pytest the
+        # name exists and getenv's default never applies — which silently built
+        # the hostless URL "/api/v1/..." and failed with MissingSchema.
         api_key = os.environ.get("OKAHU_API_KEY")
         if not api_key:
             raise RuntimeError("Missing required environment variable: OKAHU_API_KEY")
         return cls(
             api_key=api_key,
-            eval_base=os.getenv("OKAHU_EVALUATION_ENDPOINT", OKAHU_PROD_EVALUATION_ENDPOINT),
-            api_base=os.getenv("OKAHU_API_ENDPOINT", OKAHU_PROD_API_ENDPOINT),
+            eval_base=os.getenv("OKAHU_EVALUATION_ENDPOINT") or OKAHU_PROD_EVALUATION_ENDPOINT,
+            api_base=os.getenv("OKAHU_API_ENDPOINT") or OKAHU_PROD_API_ENDPOINT,
             poll_interval_s=int(os.getenv("BATCH_EVAL_JOB_POLL_INTERVAL_S", "5")),
             poll_timeout_s=int(os.getenv("BATCH_EVAL_JOB_POLL_TIMEOUT_S", "600")),
         )

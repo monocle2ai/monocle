@@ -5,7 +5,7 @@ from llama_index.core.tools import FunctionTool
 from llama_index.core.agent.workflow import AgentWorkflow, FunctionAgent
 from llama_index.llms.openai import OpenAI
 from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
-from llama_index.core.agent import ReActAgent
+from llama_index.core.agent.workflow import ReActAgent
 from llama_index.tools.mcp import aget_tools_from_mcp_url
 import logging
 
@@ -129,6 +129,18 @@ async def run_agent(user_msg: str = None):
         else:
             return str(resp)
 
+def _agent_text(response) -> str:
+    """Text of a workflow-agent result.
+
+    AgentOutput.response is a ChatMessage; str() on it adds an "assistant: "
+    prefix that breaks the similarity comparer.
+    """
+    content = getattr(getattr(response, "response", None), "content", None)
+    if content is not None:
+        return str(content)
+    return str(response)
+
+
 async def setup_react_agent():
     """Create a simple ReActAgent for testing achat/arun methods."""
     llm = OpenAI(model="gpt-4o")
@@ -145,56 +157,40 @@ async def setup_react_agent():
         description="Books a hotel stay."
     )
     
-    agent = ReActAgent.from_tools(
-        [flight_tool, hotel_tool],
-        llm=llm,
-        verbose=True
-    )
+    agent = ReActAgent(tools=[flight_tool, hotel_tool], llm=llm, verbose=True)
     return agent
 
 async def run_react_agent_achat(user_msg: str):
-    """Test ReActAgent with achat method (async chat)."""
+    """Test ReActAgent via its async run() entrypoint."""
     agent = await setup_react_agent()
-    response = await agent.achat(user_msg)
-    
-    if hasattr(response, 'response'):
-        return str(response.response)
-    else:
-        return str(response)
+    response = await agent.run(user_msg=user_msg)
+    return _agent_text(response)
 
 async def run_react_agent_aquery(user_msg: str):
-    """Test ReActAgent with aquery method if available."""
+    """Test ReActAgent driven with chat_history rather than a bare user_msg."""
     agent = await setup_react_agent()
-    
-    # Some agents have aquery method
-    if hasattr(agent, 'aquery'):
-        response = await agent.aquery(user_msg)
-    else:
-        # Fallback to achat
-        response = await agent.achat(user_msg)
-    
-    if hasattr(response, 'response'):
-        return str(response.response)
-    else:
-        return str(response)
+    from llama_index.core.base.llms.types import ChatMessage
+    response = await agent.run(chat_history=[ChatMessage(role="user", content=user_msg)])
+    return _agent_text(response)
 
-def run_react_agent_chat(user_msg: str):
-    """Test ReActAgent with synchronous chat method."""
+async def run_react_agent_chat(user_msg: str):
+    """Test a single-tool ReActAgent.
+
+    Async because the workflow ReActAgent has no synchronous chat()/query()
+    entrypoint -- run() is the only one. The test that drives this asserts on
+    the emitted tool-invocation span, which is unaffected.
+    """
     llm = OpenAI(model="gpt-4o")
-    
+
     flight_tool = FunctionTool.from_defaults(
         fn=book_flight,
         name="lmx_book_flight_tool_sync",
         description="Books a flight from one airport to another."
     )
-    
-    agent = ReActAgent.from_tools([flight_tool], llm=llm, verbose=True)
-    response = agent.chat(user_msg)
-    
-    if hasattr(response, 'response'):
-        return str(response.response)
-    else:
-        return str(response)
+
+    agent = ReActAgent(tools=[flight_tool], llm=llm, verbose=True)
+    response = await agent.run(user_msg=user_msg)
+    return _agent_text(response)
 
 def run_query_engine(user_msg: str):
     """Test QueryEngine with synchronous query method."""

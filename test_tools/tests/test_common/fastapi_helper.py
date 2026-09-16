@@ -17,7 +17,7 @@ _server_process: Optional[multiprocessing.Process] = None
 logger = logging.getLogger(__name__)
 
 
-def _run_server(port: int = PORT) -> None:
+def _run_server(port: int = PORT, workflow_name: str = "okahu_test_fastapi_service") -> None:
     """Subprocess entry point.
 
     All heavy imports and Monocle telemetry setup happen *inside* this function
@@ -31,7 +31,7 @@ def _run_server(port: int = PORT) -> None:
     from test_common.adk_travel_agent import run_agent
 
     setup_monocle_telemetry(
-        workflow_name="okahu_test_fastapi_service",
+        workflow_name=workflow_name,
         span_processors=[SimpleSpanProcessor(OkahuSpanExporter())]
     )
 
@@ -60,6 +60,17 @@ def _run_server(port: int = PORT) -> None:
     uvicorn.run(app, host="127.0.0.1", port=port, log_level="warning")
 
 
+def _test_workflow_name() -> str:
+    """Workflow the test process resolves to, mirroring MonocleValidator."""
+    import os
+    from monocle_test_tools.constants import DEFAULT_WORKFLOW_NAME
+    from monocle_test_tools.gitutils import get_repo_name
+    return (os.getenv("MONOCLE_TEST_WORKFLOW_NAME")
+            or os.getenv("MONOCLE_WORKFLOW_NAME")
+            or get_repo_name()
+            or DEFAULT_WORKFLOW_NAME)
+
+
 def start_fastapi() -> None:
     """Launch the FastAPI server in a separate process using the 'spawn' start
     method. Spawn ensures the child re-imports modules from scratch so the
@@ -70,9 +81,13 @@ def start_fastapi() -> None:
         logger.info("FastAPI server already running (pid=%s)", _server_process.pid)
         return
     ctx = multiprocessing.get_context("spawn")
+    # The validator looks the server's spans up under the *test process's*
+    # workflow (validator.import_traces -> get_workflow_name()), so the server
+    # has to export under that same name or the lookup 404s no matter how long
+    # it waits.
     _server_process = ctx.Process(
         target=_run_server,
-        args=(PORT,),
+        args=(PORT, _test_workflow_name()),
         name="fastapi-test-server",
         daemon=True,
     )

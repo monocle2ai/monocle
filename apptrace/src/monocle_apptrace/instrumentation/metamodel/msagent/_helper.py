@@ -141,6 +141,12 @@ def get_tool_description(instance: Any) -> str:
         return ""
 
 
+def _fallback_text(value: Any) -> str:
+    """Stringify a value, unless that yields an object repr."""
+    rendered = str(value)
+    return "" if "object at 0x" in rendered else rendered
+
+
 def extract_request_agent_input(arguments: Dict[str, Any]) -> str:
     """
     Extract input from agent request (turn level) arguments.
@@ -153,31 +159,17 @@ def extract_request_agent_input(arguments: Dict[str, Any]) -> str:
         # For request level, we want the user's query/message
         # which is typically the first argument or 'input'/'message' kwarg
         if args and len(args) > 0:
-            input_val = args[0]
-            # Handle string inputs
-            if isinstance(input_val, str):
-                return input_val
-            # Handle message objects
-            elif hasattr(input_val, "content"):
-                return str(input_val.content)
-            else:
-                return str(input_val)
-        
+            return _extract_text_from_content(args[0]) or _fallback_text(args[0])
+
         # Check kwargs for input
-        if "input" in kwargs:
-            return str(kwargs["input"])
-        elif "message" in kwargs:
-            return str(kwargs["message"])
-        elif "query" in kwargs:
-            return str(kwargs["query"])
-        elif "messages" in kwargs:
+        for key in ("input", "message", "query"):
+            if key in kwargs:
+                return _extract_text_from_content(kwargs[key]) or _fallback_text(kwargs[key])
+        if "messages" in kwargs:
             messages = kwargs["messages"]
             if isinstance(messages, list) and len(messages) > 0:
                 # Get the user message (first or last depending on structure)
-                first_msg = messages[0] if messages else ""
-                if hasattr(first_msg, "content"):
-                    return str(first_msg.content)
-                return str(first_msg)
+                return _extract_text_from_content(messages[0]) or _fallback_text(messages[0])
             return str(messages)
         
         return ""
@@ -693,6 +685,89 @@ def uses_chat_client(instance: Any) -> bool:
     except Exception as e:
         logger.debug(f"Error detecting client type: {e}")
         return False
+
+
+# Orchestration coordinator/manager helpers
+# (agent_framework_orchestrations: GroupChatOrchestrator,
+#  AgentBasedGroupChatOrchestrator, MagenticOrchestrator)
+
+_ORCHESTRATOR_PATTERNS = {
+    "MagenticOrchestrator": "magentic",
+    "GroupChatOrchestrator": "group_chat",
+    "AgentBasedGroupChatOrchestrator": "group_chat",
+}
+
+
+def get_orchestrator_name(instance: Any) -> str:
+    """Get the name/id of an orchestration coordinator executor."""
+    try:
+        for attr in ("_name", "name", "id"):
+            value = getattr(instance, attr, None)
+            if value:
+                return str(value)
+        return instance.__class__.__name__
+    except Exception as e:
+        logger.warning(f"Error getting orchestrator name: {e}")
+        return "Orchestrator"
+
+
+def get_orchestrator_pattern(instance: Any) -> str:
+    """Return the orchestration pattern (magentic, group_chat, ...) for the coordinator."""
+    try:
+        return _ORCHESTRATOR_PATTERNS.get(instance.__class__.__name__, "orchestration")
+    except Exception as e:
+        logger.warning(f"Error getting orchestrator pattern: {e}")
+        return "orchestration"
+
+
+def _unwrap_orchestrator_message(message: Any) -> Any:
+    """Unwrap a WorkflowMessage envelope to its underlying data payload."""
+    if (
+        message is not None
+        and message.__class__.__name__ == "WorkflowMessage"
+        and hasattr(message, "data")
+    ):
+        return message.data
+    return message
+
+
+def extract_orchestrator_input(arguments: Dict[str, Any]) -> str:
+    """Extract the message the coordinator is routing (initial task or participant response)."""
+    try:
+        kwargs = arguments.get("kwargs", {})
+        args = arguments.get("args", ())
+        message = kwargs.get("message")
+        if message is None and args:
+            message = args[0]
+        message = _unwrap_orchestrator_message(message)
+
+        if message is None:
+            return ""
+        if isinstance(message, str):
+            return message
+        # AgentExecutorResponse / GroupChatResponseMessage -> reuse agent response extraction
+        text = extract_agent_response({"result": message, "kwargs": kwargs})
+        if text:
+            return text
+        # list[Message] or a single Message object
+        return _extract_text_from_content(
+            message if isinstance(message, list) else getattr(message, "content", message)
+        )
+    except Exception as e:
+        logger.warning(f"Error extracting orchestrator input: {e}")
+        return ""
+
+
+def extract_orchestrator_response(arguments: Any) -> str:
+    """Extract the coordinator result. Coordinators route via context and usually return None."""
+    try:
+        result = arguments.get("result") if isinstance(arguments, dict) else arguments
+        if result is None:
+            return ""
+        return extract_agent_response({"result": result, "kwargs": {}})
+    except Exception as e:
+        logger.warning(f"Error extracting orchestrator response: {e}")
+        return ""
 
 
 # Additional helper functions for INFERENCE entity

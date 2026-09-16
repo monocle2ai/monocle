@@ -4,10 +4,17 @@ Health check endpoints answer with a body (eg {"status":"ok"}), so a non empty r
 alone can't mark a span as real traffic. A failing health check must always be exported,
 no matter how empty its output is.
 """
+import os
+import subprocess
+import sys
+
 import pytest
 from opentelemetry.trace.status import Status, StatusCode
 
-from monocle_apptrace.instrumentation.common.constants import HEALTH_RESET_COUNTER
+from monocle_apptrace.instrumentation.common.constants import (
+    HEALTH_RESET_COUNTER,
+    HTTP_HEALTH_CHECK_ROUTES_ENV,
+)
 from monocle_apptrace.instrumentation.common.span_handler import HttpSpanHandler, http_span_counter
 
 
@@ -111,6 +118,66 @@ def test_custom_health_check_routes(monkeypatch):
     assert sample_count(lambda: FakeSpan(route="/status-check", response="OK")) == 1
     http_span_counter.reset()
     assert sample_count(lambda: FakeSpan(route="/healthz", response="OK"), requests=3) == 3
+
+
+def test_root_route_with_response_body_is_exported_by_default():
+    """The root path serves real traffic in plenty of apps, so it is never a health check
+    route unless it is configured as one."""
+    assert sample_count(lambda: FakeSpan(route="/", response="OK"), requests=3) == 3
+
+
+@pytest.mark.parametrize("route,url", [
+    ("/", "https://sre-agent-stage.okahu.co/"),
+    ("/", "https://sre-agent-stage.okahu.co"),
+    ("", "https://sre-agent-stage.okahu.co/"),
+])
+def test_configured_root_route_is_sampled_out(monkeypatch, route, url):
+    """A health probe on / answering with a body, once / is opted in."""
+    monkeypatch.setattr(HttpSpanHandler, "health_check_routes", ["/healthz", "/"])
+    assert sample_count(lambda: FakeSpan(route=route, url=url, response="OK")) == 1
+
+
+def test_configured_root_route_does_not_swallow_other_routes(monkeypatch):
+    """Matching / must stay an exact match and not act as a suffix match on every path."""
+    monkeypatch.setattr(HttpSpanHandler, "health_check_routes", ["/"])
+    assert sample_count(lambda: FakeSpan(route="/chat", response="OK"), requests=3) == 3
+    http_span_counter.reset()
+    assert sample_count(lambda: FakeSpan(route="/chat/", url="http://10.1.2.3:8080/chat/",
+                                         response="OK"), requests=3) == 3
+
+
+def test_configured_root_route_does_not_swallow_a_mounted_sub_app(monkeypatch):
+    """A sub app mounted under /api reports its root endpoint as route "/" while the url is
+    /api/, so the route pattern alone must not be taken for the root."""
+    monkeypatch.setattr(HttpSpanHandler, "health_check_routes", ["/"])
+    assert sample_count(lambda: FakeSpan(route="/", url="http://testserver:80/api/",
+                                         response='{"data": "real traffic"}'), requests=3) == 3
+
+
+def test_configured_root_route_matches_on_route_when_there_is_no_url(monkeypatch):
+    """Metamodels that report no url, eg agentcore, still match on the route alone."""
+    monkeypatch.setattr(HttpSpanHandler, "health_check_routes", ["/"])
+    span = FakeSpan(route="/", response="OK")
+    del span.attributes["entity.1.url"]
+    assert sample_count(lambda: span) == 1
+
+
+def test_configured_root_route_still_exports_failures(monkeypatch):
+    monkeypatch.setattr(HttpSpanHandler, "health_check_routes", ["/"])
+    assert sample_count(lambda: FakeSpan(route="/", status_code="503",
+                                         span_status=StatusCode.ERROR), requests=3) == 3
+
+
+def test_root_route_from_env():
+    """MONOCLE_HEALTH_CHECK_ROUTES keeps / instead of dropping it as an empty route.
+    It is read when the class is defined, so it has to be set before the import."""
+    env = {**os.environ, HTTP_HEALTH_CHECK_ROUTES_ENV: "/health, /, ,/Healthz/"}
+    routes = subprocess.run(
+        [sys.executable, "-c",
+         "from monocle_apptrace.instrumentation.common.span_handler import HttpSpanHandler;"
+         "print(HttpSpanHandler.health_check_routes)"],
+        env=env, capture_output=True, text=True, check=True).stdout.strip()
+    assert routes == str(["/health", "/", "/healthz"])
 
 
 def test_exception_is_always_exported():

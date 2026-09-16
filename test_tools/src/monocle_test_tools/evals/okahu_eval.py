@@ -13,6 +13,17 @@ from typing import Optional, Union, Tuple
 logger = logging.getLogger(__name__)
 OKAHU_PROD_EVALUATION_ENDPOINT = "https://eval.okahu.co/api"
 
+
+def _eval_base_url() -> str:
+    """Evaluation service base URL, falling back to prod.
+
+    `or` rather than a getenv default: CI sets the variable to an empty string
+    when the repository variable is undefined, and a getenv default only applies
+    when the name is absent -- an empty base yields "/v1/eval/..." and requests
+    then raises "No scheme supplied".
+    """
+    return (os.getenv("OKAHU_EVALUATION_ENDPOINT") or OKAHU_PROD_EVALUATION_ENDPOINT).rstrip("/")
+
 # Time window padding (seconds) applied around the span envelope when filtering traces
 # for evals. Applied uniformly on either side of the earliest-start/latest-end span
 # envelope. Defaults to 8 hours to cover long-lived aggregate facts (sessions,
@@ -66,6 +77,108 @@ class OkahuEval(BaseEval):
         """
         from monocle_test_tools.evals.okahu_eval_discovery import discover_fact_evals as _discover
         return _discover(spans, fact_name=fact_name)
+
+    @classmethod
+    def _eval_report_by_fact(cls, *, workflow_name, fact_ids, fact_name, start_time,
+                             end_time, category, eval_name, page_size,
+                             name_as=None) -> dict:
+        """Labelled evals for the given facts, keyed by bare-hex fact id.
+
+        Sends fact_ids, which takes /evals/report OUT of discovery mode -- the
+        absence of fact_ids is what selects discovery -- so this reports on the
+        traces already enumerated rather than re-discovering them.
+
+        ``eval_name`` of None asks for every eval the fact level supports, which
+        the API expresses the same way: by omitting ``eval_names``.
+
+        ``name_as`` renames the evals it builds, so a label recorded by one eval
+        becomes the expected result for another -- see compare_eval.
+        """
+        from monocle_test_tools.evals.okahu_filtered_eval import (OkahuFilteredEval,
+                                                                  normalize_fact_id)
+        from monocle_test_tools.testcase import Eval
+
+        body = {
+            "fact_name": fact_name,
+            "fact_ids": list(fact_ids),
+            "start_time": start_time,
+            "end_time": end_time,
+            "category": [category] if isinstance(category, str) else list(category),
+            "page_size": page_size,
+        }
+        if eval_name:
+            body["eval_names"] = [eval_name]
+        client = OkahuFilteredEval.from_env()
+        url = f"{client.api_base}/v1/workflows/{workflow_name}/evals/report"
+
+        by_fact = {}
+        for row in cls._iter_eval_report_rows(client, url, body):
+            label = cls._report_row_label(row)
+            if label is None:
+                continue
+            fact_id = normalize_fact_id(row.get("fact_id"))
+            if not fact_id:
+                continue
+            by_fact.setdefault(fact_id, []).append(
+                Eval(name=name_as or row.get("eval_name"), result=label))
+        return by_fact
+
+    @staticmethod
+    def _iter_eval_report_rows(client, url: str, body: dict):
+        """Yield every ``results`` row of ``/evals/report``, following page tokens.
+
+        A separate pager from ``OkahuFilteredEval._paginate_post``: that one walks
+        ``limit``/``offset``, while the report endpoint walks
+        ``page_size``/``page_token`` and signals the end by omitting
+        ``next_page_token``.
+        """
+        page_token = None
+        while True:
+            page_body = {**body, "page_token": page_token} if page_token else body
+            try:
+                response = requests.post(url=url, headers=client.headers,
+                                         json=page_body, timeout=60)
+                response.raise_for_status()
+                payload = response.json()
+            except requests.Timeout as exc:
+                raise AssertionError(f"Eval report request timed out: {exc}") from exc
+            except requests.HTTPError as exc:
+                raise AssertionError(
+                    f"Eval report service returned HTTP {response.status_code}: "
+                    f"{response.text or '<empty body>'}") from exc
+            except requests.RequestException as exc:
+                raise AssertionError(f"Failed to reach eval report service: {exc}") from exc
+            except ValueError as exc:
+                raise AssertionError(
+                    f"Eval report service returned invalid JSON: {response.text}") from exc
+
+            yield from payload.get("results") or []
+
+            page_token = payload.get("next_page_token")
+            if not page_token:
+                return
+
+    @staticmethod
+    def _report_row_label(row: dict) -> Optional[str]:
+        """The settled label of one /evals/report row, or None when it has none.
+
+        ``authoritative`` is the row's decided run; ``latest`` holds recent runs
+        newest-first and is the fallback for a row with no authoritative pick. Both
+        are *run* envelopes (eval_timestamp, job_id, category, ...) that carry the
+        label one level down in ``eval_result`` -- reading ``label`` off the
+        envelope itself matches nothing and silently yields no test cases.
+        """
+        if not row or not row.get("eval_found"):
+            return None
+
+        def _label(run):
+            return ((run or {}).get("eval_result") or {}).get("label")
+
+        label = _label(row.get("authoritative"))
+        if label:
+            return label
+        latest = row.get("latest") or []
+        return _label(latest[0]) if latest else None
 
     @staticmethod
     def _map_fact_name(fact_name: str) -> str:
@@ -149,7 +262,7 @@ class OkahuEval(BaseEval):
         self._current_trace_id = trace_id
         
         # Get API credentials
-        api_key = (os.getenv("OKAHU_API_KEY")).strip()
+        api_key = (os.getenv("OKAHU_API_KEY") or "").strip()
         if not api_key:
             raise AssertionError("OKAHU_API_KEY is not configured.")
         
@@ -166,11 +279,11 @@ class OkahuEval(BaseEval):
         
         Note: fact_name should already be mapped to the okahu fact_name when this method is called.
         """
-        api_key = (os.getenv("OKAHU_API_KEY")).strip()
+        api_key = (os.getenv("OKAHU_API_KEY") or "").strip()
         if not api_key:
             raise AssertionError("OKAHU_API_KEY is not configured.")
         
-        base = os.getenv("OKAHU_EVALUATION_ENDPOINT", OKAHU_PROD_EVALUATION_ENDPOINT).rstrip("/")
+        base = _eval_base_url()
         list_url = f"{base}/v1/eval/templates"
         headers = {"x-api-key": api_key}
         params = {"fact_name": fact_name}
@@ -210,7 +323,7 @@ class OkahuEval(BaseEval):
         if not api_key:
             raise AssertionError("OKAHU_API_KEY is not configured.")
         
-        base = os.getenv("OKAHU_EVALUATION_ENDPOINT", OKAHU_PROD_EVALUATION_ENDPOINT).rstrip("/")
+        base = _eval_base_url()
         fact_map_url = f"{base}/v1/eval/fact_map"
         headers = {"x-api-key": api_key}
         
@@ -384,7 +497,7 @@ class OkahuEval(BaseEval):
 
         span = filtered_spans[0]
         workflow_name = span.attributes.get("workflow.name")
-        base = os.getenv("OKAHU_EVALUATION_ENDPOINT", OKAHU_PROD_EVALUATION_ENDPOINT).rstrip("/")
+        base = _eval_base_url()
         submit_url = f"{base}/v1/eval/jobs"
 
         fact_ids = self.enumerate_fact_ids(filtered_spans=filtered_spans, fact_name=fact_name)
@@ -516,7 +629,7 @@ class OkahuEval(BaseEval):
             raise AssertionError("OKAHU_API_KEY is not configured.")
         
         trace_id = self._current_trace_id
-        base = os.getenv("OKAHU_EVALUATION_ENDPOINT", OKAHU_PROD_EVALUATION_ENDPOINT).rstrip("/")
+        base = _eval_base_url()
 
         try:
             if self._trace_source != "okahu":

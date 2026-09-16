@@ -122,19 +122,25 @@ def record_row(row: dict[str, Any]) -> None:
 
 
 def record_eval_row_for(config, request, trace_assertion) -> None:
-    """Record a matrix row for `trace_assertion`'s last eval, if enabled.
+    """Record one matrix row per eval `trace_assertion` ran, if enabled.
 
-    Self-skips when the feature is disabled or when the asserter has no
-    `_last_eval` (i.e. the test never called `check_eval`).
+    Self-skips when the feature is disabled or when the asserter ran no evals
+    (i.e. the test never called `check_eval`). One `check_eval` call can run
+    several evals, so the rows come from `_eval_stashes` rather than the single
+    `_last_eval` -- reading only the latter silently dropped all but the last.
     """
     option_value = config.getoption("monocle_eval_matrix", default=None)
     env_value = os.environ.get("MONOCLE_EVAL_MATRIX")
     if not is_enabled(option_value, env_value):
         return
 
-    last_eval = getattr(trace_assertion, "_last_eval", None)
-    if last_eval is None:
-        return
+    stashes = getattr(trace_assertion, "_eval_stashes", None) or []
+    if not stashes:
+        # Nothing ran, or a caller that only set the single stash.
+        last_eval = getattr(trace_assertion, "_last_eval", None)
+        if last_eval is None:
+            return
+        stashes = [last_eval]
 
     node = request.node
     callspec = getattr(node, "callspec", None)
@@ -145,8 +151,9 @@ def record_eval_row_for(config, request, trace_assertion) -> None:
 
     run_id = os.getenv("RUN_ID") or os.getenv("LOCAL_RUN_ID") or "local"
 
-    row = build_eval_matrix_row(run_id=run_id, scenario=scenario, last_eval=last_eval, passed=passed)
-    record_row(row)
+    for stash in stashes:
+        record_row(build_eval_matrix_row(run_id=run_id, scenario=scenario,
+                                         last_eval=stash, passed=passed))
 
 
 def record_eval_rows_from_report(report: dict) -> None:

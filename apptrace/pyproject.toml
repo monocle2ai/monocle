@@ -144,11 +144,10 @@ dev = [
   'google-adk',
   'openai-agents',
   'azure-identity',
-  'agent-framework-azure-ai',
   'bedrock-agentcore==1.6.1',
   'opentelemetry-semantic-conventions==0.60b1',
   'opentelemetry-semantic-conventions-ai==0.4.13',
-  'agent-framework-core==1.5.0',
+  'agent-framework-core==1.15.0',
 ]
 
 dev_tranformers = [
@@ -162,6 +161,20 @@ dev_gemini = [
 dev_strands = [
   'strands-agents==1.11.0',
   'strands-agents-tools==0.2.10'
+]
+
+# Separate from dev because these require openai>=2, while dev pins
+# llama-index-llms-openai==0.5.0, which caps openai<2 — the two cannot resolve
+# together. agent-framework-openai imports FunctionShellTool, added in openai 2.8,
+# so its own declared floor of 1.99.0 is too low to import.
+dev_msagent = [
+  'agent-framework-openai==1.14.0',
+  # Replaces agent-framework-azure-ai, which imports BaseContextProvider — a
+  # symbol no agent-framework-core release exports — so it fails at import.
+  'agent-framework-foundry==1.11.0',
+  # Multi-agent orchestration builders (Sequential/Concurrent/GroupChat/Magentic/Handoff).
+  'agent-framework-orchestrations==1.1.1',
+  'openai>=2.8.0',
 ]
 
 azure = [

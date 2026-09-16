@@ -12,6 +12,7 @@ class AgentTypes(str, Enum):
     HTTP = "http"
     HTTP_WITH_OKAHU = "http_with_okahu"
     AGENTCORE = "agentcore"
+    FOUNDRY = "foundry"
 
 def get_agent_runner(runner_type: str) -> AgentRunner:
     if runner_type == AgentTypes.GOOGLE_ADK:
@@ -44,5 +45,8 @@ def get_agent_runner(runner_type: str) -> AgentRunner:
     elif runner_type == AgentTypes.AGENTCORE:
         from .agentcore_runner import AgentCoreRunner
         return AgentCoreRunner()
+    elif runner_type == AgentTypes.FOUNDRY:
+        from .foundry_runner import FoundryRunner
+        return FoundryRunner()
     else:
         raise ValueError(f"Unknown runner type: {runner_type}")

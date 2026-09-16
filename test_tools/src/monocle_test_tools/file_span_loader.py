@@ -15,15 +15,31 @@ class JSONSpanLoader:
     """Utility class to load spans from JSON trace files."""
 
     @staticmethod
-    def from_json(json_file_path: str) -> List[ReadableSpan]:
+    def from_json(json_file_path: str, start_time: Optional[str] = None,
+                  end_time: Optional[str] = None) -> List[ReadableSpan]:
         """Load spans from a JSON file.
 
         Args:
             json_file_path: Absolute path to the JSON file containing span data.
+            start_time: Not supported. Accepted only so that a caller threading a
+                time window through every trace source gets a named error here
+                rather than an opaque TypeError.
+            end_time: Not supported, as above.
 
         Returns:
             A list of ReadableSpan instances.
+
+        Raises:
+            ValueError: If start_time or end_time is given. A trace file holds
+                exactly one trace's spans, so there is nothing to narrow -- the
+                window is a server-side query filter.
         """
+        for name, value in (("start_time", start_time), ("end_time", end_time)):
+            if value is not None:
+                raise ValueError(
+                    f"'{name}' is not supported for the file trace source; a time "
+                    "window only filters a server-side query.")
+
         span_list = []
         with open(json_file_path, 'r') as f:
             span_data = json.load(f)

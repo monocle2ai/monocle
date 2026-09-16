@@ -9,8 +9,11 @@ from monocle_apptrace.instrumentation.common.utils import get_workflow_name
 from monocle_test_tools import eval_matrix
 from monocle_test_tools.constants import CUSTOM_EVAL_TYPE
 from monocle_test_tools.evals.okahu_filtered_eval import build_filtered_report
-from monocle_test_tools.schema import Evaluation
+from monocle_test_tools.schema import Evaluation, FactID
 from monocle_test_tools.span_loader import JSONSpanLoader, OkahuSpanLoader
+from monocle_test_tools.testcase import Agent, FluentTestCase, Tool
+from monocle_test_tools.testcase_args import (factid_import_kwargs, resolve_testcase,
+                                              turn_inputs_from_spans)
 from .comparer.comparer_manager import get_comparer
 from .comparer.base_comparer import BaseComparer
 from .comparer.default_comparer import DefaultComparer
@@ -21,6 +24,85 @@ from .validator import MonocleValidator
 from .trace_utils import get_function_signature, get_caller_file_line
 from .schema import MockTool
 from opentelemetry.sdk.trace import Span
+
+def setup_test_cases(source:str = "okahu", **kwargs) -> list[FluentTestCase]:
+    """Build FluentTestCases from evals already recorded on a trace source.
+
+    Turns a recorded population into a parametrizable list: each returned case
+    points at one fact and carries the evals recorded on it as the expected
+    results, ready to hand to ``with_trace_source(testcase=...)`` /
+    ``run_agent(testcase=...)`` and ``check_eval(testcase=...)``.
+
+    Args:
+        source: Where the cases come from:
+            - ``"okahu"`` (default) -- discover them from the evals recorded in
+              the Okahu eval store.
+            - ``"local"`` -- load a committed JSON array from ``path``.
+        eval_name: Restrict to a single eval. Omitted means every eval recorded.
+            Only meaningful for okahu, where it filters the query.
+        **kwargs: Passed to the source. For okahu: workflow_name, start_time and
+            end_time (all required), plus optional fact_name, category and
+            page_size and compare_eval -- see OkahuSpanLoader.setup_test_cases.
+            For local: ``path``.
+
+    Returns:
+        For okahu, one FluentTestCase per fact that has at least one labelled
+        eval; for local, one per element of the file, in file order.
+
+    Raises:
+        ValueError: If *source* is unsupported, if ``path`` is missing or given
+            alongside eval_name for the local source, or if the file is malformed.
+        FileNotFoundError: If the local ``path`` does not exist.
+
+    Example:
+        CASES = setup_test_cases(source="okahu", workflow_name="wf",
+                               start_time="2026-05-01", end_time="2026-06-30")
+
+        @pytest.mark.parametrize("testcase", CASES)
+        def test_regression(monocle_trace_asserter, testcase):
+            monocle_trace_asserter.with_trace_source(testcase=testcase,
+                                                     workflow_name="wf")
+            monocle_trace_asserter.check_eval(testcase=testcase)
+
+        # Freeze that set once, then re-run it with no network call:
+        #   json.dump([c.model_dump() for c in CASES], open("cases.json", "w"))
+        CASES = setup_test_cases(source="local", path="cases.json")
+    """
+    if source == "local":
+        path = kwargs.pop("path", None)
+        if not path:
+            raise ValueError(
+                "'path' is required for source='local'; it names the JSON file "
+                "holding the array of test cases.")
+        if kwargs:
+            raise ValueError(
+                f"source='local' takes only 'path'; got {sorted(kwargs)}")
+        from .testcase import load_test_cases_from_json
+        return load_test_cases_from_json(path)
+
+    if source != "okahu":
+        raise ValueError(
+            f"setup_test_cases does not support source '{source}'; supported sources "
+            "are 'okahu' (discover from the eval store) and 'local' (a JSON file).")
+    from .okahu_span_loader import OkahuSpanLoader
+    return OkahuSpanLoader.setup_test_cases(**kwargs)
+
+# Fluent methods that select entities, and the kind of entity each selects. A
+# testcase-driven chain may use only one kind, since each builds its own map.
+_SELECTOR_KINDS = {"called_agent": "agent", "called_tool": "tool"}
+
+
+def _entity_key(entity) -> tuple:
+    """What makes two test-case entries the same queue.
+
+    An Agent has no calling agent of its own, so agents key on the name alone --
+    two same-name entries describe one agent and share its spans. A Tool keys on
+    the name AND its caller, because from_spans records that caller and the same
+    tool called by two agents is two different span sets. An entry naming no
+    agent keys on the name alone and matches any caller.
+    """
+    agent = getattr(entity, "agent", None)
+    return (entity.name, agent.name if agent else None)
 
 def collect_assertions(func):
     """
@@ -39,9 +121,46 @@ def collect_assertions(func):
         for signature in asserter.fluent_chain:
             fluent_chain.append(signature)
         fluent_chain.append(func_signature)
+
+        # Chain-mixing guard. A chain either drives its assertions from a test
+        # case or spells them out, never both -- a half-driven chain reads as if
+        # the test case were being validated when most of it is being ignored.
+        # The mode is set by the first decorated call and carried forward; it
+        # lives on the derived asserter, so an independent chain starting from
+        # the same fixture asserter is unaffected.
+        testcase_given = kwargs.get("testcase") is not None
+        if asserter.fluent_chain and asserter._testcase_mode is not None:
+            if asserter._testcase_mode and not testcase_given:
+                raise ValueError(
+                    f"this chain is driven by a testcase; pass testcase= to "
+                    f"{func.__name__}() as well, or start a new chain")
+            if not asserter._testcase_mode and testcase_given:
+                raise ValueError(
+                    f"this chain does not use a testcase; drop testcase= from "
+                    f"{func.__name__}(), or start a new chain")
+        testcase_mode = (asserter._testcase_mode if asserter.fluent_chain
+                         else testcase_given)
+
+        # One selector kind per testcase chain. Each testcase-driven selector
+        # builds its own entity map, so mixing two is ambiguous. Deliberately
+        # scoped to testcase mode: called_agent("A").called_tool("T") is the
+        # documented narrowing pattern and must keep working.
+        selector = _SELECTOR_KINDS.get(func.__name__)
+        testcase_selector = asserter._testcase_selector
+        if testcase_given and selector is not None:
+            if testcase_selector is not None and testcase_selector != selector:
+                raise ValueError(
+                    f"this chain already selects by {testcase_selector}; "
+                    f"{func.__name__}() selects by {selector}, and a testcase chain "
+                    "may use only one selector kind. Start a new chain.")
+            testcase_selector = selector
+
         asserter = TraceAssertion(filtered_spans=asserter._filtered_spans, fluent_chain=fluent_chain,
                             is_assertion_failed=asserter.is_assertion_failed, _eval=asserter._eval,
-                            okahu_filter=getattr(asserter, "_okahu_filter", None))
+                            okahu_filter=getattr(asserter, "_okahu_filter", None),
+                            testcase_mode=testcase_mode,
+                            entity_spans=asserter._entity_spans,
+                            testcase_selector=testcase_selector)
         try:
             func(asserter, *args, **kwargs)
         except AssertionError as e:
@@ -63,10 +182,27 @@ class TraceAssertion():
     # (class-qualified) and otherwise mutate in place (`.update(...)`) so
     # the fixture's `traceAssertion.__last_eval` sees the same object.
     _last_eval: Optional[dict[str, Any]] = None
+    # Every eval run this test performed, oldest first. `_last_eval` is the final
+    # entry; this list exists because one check_eval call can now run several
+    # evals, and the results matrix must show all of them rather than the last.
+    # Class-level for the same reason `_last_eval` is -- see the note above.
+    _eval_stashes: list[dict[str, Any]] = []
     # Filter scope recorded by with_trace_source("okahu", start_time=..., end_time=...)
     # for eval-only filtered runs. Threaded through @collect_assertions like
     # _filtered_spans so the (decorated) check_eval can read it.
     _okahu_filter: Optional[dict] = None
+    # Whether this chain drives its assertions from a testcase. Set by the first
+    # decorated call and threaded per-chain by @collect_assertions; declared here
+    # like _okahu_filter so an instance built outside __init__ still reads None.
+    _testcase_mode: Optional[bool] = None
+    # Spans of each entity a testcase-driven selector matched, in test-case order,
+    # one pair per DISTINCT name. A list of pairs rather than a dict because Agent
+    # is a pydantic model and therefore unhashable. Threaded per-chain by
+    # @collect_assertions; class-level so an instance built outside __init__ reads None.
+    _entity_spans: Optional[list] = None
+    # Which selector kind opened this testcase chain ("agent" / "tool"). Two
+    # different kinds in one chain would mean two entity maps; see collect_assertions.
+    _testcase_selector: Optional[str] = None
     # Uniform eval report (filter mode = N facts; span mode = 1 fact). Class-scoped
     # like _last_eval so accessors on the fixture's original asserter can read it.
     _eval_report: Optional[dict] = None
@@ -79,7 +215,11 @@ class TraceAssertion():
 
     def __init__(self, filtered_spans:Optional[list[Span]] = None, fluent_chain:list[str] = []
                 ,is_assertion_failed:bool = False, _eval:Optional[Union[str, BaseEval]] = None,
-                okahu_filter:Optional[dict] = None) -> None:
+                okahu_filter:Optional[dict] = None,
+                testcase_mode:Optional[bool] = None,
+                *,
+                entity_spans:Optional[list] = None,
+                testcase_selector:Optional[str] = None) -> None:
         self._eval:Union[str, BaseEval]  = _eval
         self.validator = MonocleValidator()
         if filtered_spans is None:
@@ -91,6 +231,11 @@ class TraceAssertion():
         self._skip_export = False
         self.mock_tools: Optional[list[MockTool]] = []
         self._okahu_filter = okahu_filter
+        # None until the chain's first decorated call decides. See collect_assertions.
+        self._testcase_mode = testcase_mode
+        # Populated by a testcase-driven selector; read by the I/O assertions.
+        self._entity_spans = entity_spans
+        self._testcase_selector = testcase_selector
         
     def record_assertion(self, e:AssertionError, fluent_chain:list[str]) -> None:
         """Record an assertion error with its fluent chain context."""
@@ -130,6 +275,9 @@ class TraceAssertion():
         self._okahu_filter = None
         TraceAssertion._assertion_errors = []
         TraceAssertion._last_eval = None
+        TraceAssertion._eval_stashes = []
+        TraceAssertion._entity_spans = None
+        TraceAssertion._testcase_selector = None
         TraceAssertion._eval_report = None
 
     @staticmethod
@@ -154,16 +302,50 @@ class TraceAssertion():
             if actual_count == 0:
                 raise AssertionError(message or f"No {entity_type} invocations found")
 
-    def run_agent(self, agent, agent_type:str, *args, **kwargs) -> any:
-        """Run the given agent with provided args and kwargs."""
+    def _testcase_run_args(self, testcase:Union[FluentTestCase, dict], args:tuple) -> tuple:
+        """The positional arguments a test case says to run the agent with.
+
+        A FactID input means the run is a replay: the recorded trace is fetched
+        only to recover the prompt it was driven with, so it is fetched with
+        load_spans=False. Loading it would leave the *source* trace's spans and
+        fact id on the validator, and the assertions that follow are about the
+        new run, not the old one.
+
+        workflow_name is deliberately not taken from the caller's kwargs -- those
+        belong to the agent runner. The okahu fetch falls back to
+        import_traces' own get_workflow_name(), which raises a clear error of its
+        own when it cannot resolve.
+        """
+        testcase = resolve_testcase(testcase, args=args)
+        if testcase.input is None:
+            raise ValueError(
+                f"testcase '{testcase.name}' has no input to run the agent with")
+        if isinstance(testcase.input, FactID):
+            spans = self.validator.import_traces(
+                **factid_import_kwargs(testcase.input), load_spans=False)
+            return turn_inputs_from_spans(spans)
+        return tuple(testcase.input)
+
+    def run_agent(self, agent, agent_type:str, *args, testcase:Optional[Union[FluentTestCase, dict]] = None, **kwargs) -> any:
+        """Run the given agent with provided args and kwargs.
+
+        Pass ``testcase`` instead of positional args to take the input from a
+        FluentTestCase. When its input is a FactID, the recorded trace is loaded
+        and the prompt it was run with is replayed against this agent.
+        """
+        if testcase is not None:
+            args = self._testcase_run_args(testcase, args)
         return self.validator.run_agent(agent, agent_type, *args, mock_tools=self.mock_tools, **kwargs)
 
-    async def run_agent_async(self, agent, agent_type:str, *args, session_id:str=None, turn_id:str=None, **kwargs) -> any:
+    async def run_agent_async(self, agent, agent_type:str, *args, session_id:str=None, turn_id:str=None, testcase:Optional[Union[FluentTestCase, dict]] = None, **kwargs) -> any:
         """Run the given async agent with provided args and kwargs.
 
         Pass ``turn_id`` to tag every span produced by this run with a
-        ``scope.turn_id`` attribute.
+        ``scope.turn_id`` attribute. Pass ``testcase`` instead of positional args
+        to take the input from a FluentTestCase, as ``run_agent`` does.
         """
+        if testcase is not None:
+            args = self._testcase_run_args(testcase, args)
         return await self.validator.run_agent_async(agent, agent_type, *args, session_id=session_id, turn_id=turn_id, mock_tools=self.mock_tools, **kwargs)
 
     def with_mock_tool(self, mock_tool:MockTool) -> 'TraceAssertion':
@@ -183,7 +365,9 @@ class TraceAssertion():
         self._comparer = get_comparer(comparer)
         return self
 
-    def with_trace_source(self, source: str = "local", **kwargs) -> 'TraceAssertion':
+    def with_trace_source(self, source: Optional[str] = None,
+                          testcase:Optional[Union[FluentTestCase, dict]] = None,
+                          **kwargs) -> 'TraceAssertion':
         """Configure trace source for assertions.
 
         Args:
@@ -191,6 +375,11 @@ class TraceAssertion():
                 - ``"local"`` (default) — Use traces from memory (current execution).
                 - ``"file"`` — Load traces from local .monocle/*.json files.
                 - ``"okahu"`` — Fetch traces from Okahu cloud.
+            testcase: A FluentTestCase (or a dict in any shape it accepts) whose
+                input is a FactID. It supplies ``id``, ``fact_name`` and
+                ``scope_name``, which therefore may not also be passed.
+                ``source`` and ``workflow_name`` remain explicit configuration
+                and may accompany it; ``source`` falls back to the FactID's own.
             **kwargs: Additional arguments passed to ``import_traces()`` when
                 source is "file" or "okahu". Common arguments:
                 - id (str): Trace/session/scope ID
@@ -228,6 +417,23 @@ class TraceAssertion():
                 workflow_name="my_app"
             ).called_tool("search")
         """
+        if testcase is not None:
+            # Only the *identifying* arguments conflict: source and workflow_name
+            # stay explicit configuration a test case does not carry.
+            testcase = resolve_testcase(
+                testcase, id=kwargs.get("id"), fact_name=kwargs.get("fact_name"),
+                scope_name=kwargs.get("scope_name"))
+            if not isinstance(testcase.input, FactID):
+                raise ValueError(
+                    f"with_trace_source needs a FactID input to load from; testcase "
+                    f"'{testcase.name}' has {type(testcase.input).__name__}")
+            kwargs.update(factid_import_kwargs(testcase.input))
+            source = source or kwargs.pop("trace_source")
+            kwargs.pop("trace_source", None)
+
+        if source is None:
+            source = "local"
+
         window_kwargs = ("start_time", "end_time")
         has_window = any(kwargs.get(k) is not None for k in window_kwargs)
 
@@ -242,8 +448,12 @@ class TraceAssertion():
         elif source == "okahu":
             has_id = kwargs.get("id") is not None
             if has_window and has_id:
-                raise ValueError("Provide an 'id' or a time window (start_time/end_time), not both.")
-            if has_window:
+                # A window *with* an id is a bounded lookup: import that fact's
+                # spans, narrowing the server-side query to the window. That is
+                # not filter mode -- filter mode is eval-only and imports no
+                # spans, which is what a window on its own selects.
+                self.validator.import_traces(trace_source=source, **kwargs)
+            elif has_window:
                 # Filter mode: eval-only. Record the scope; import no spans.
                 start_time, end_time = kwargs.get("start_time"), kwargs.get("end_time")
                 if start_time is None or end_time is None:
@@ -268,9 +478,24 @@ class TraceAssertion():
         return self
 
     @collect_assertions
-    def called_tool(self, tool_name:str, agent_name:Optional[str] = None, count:Optional[int] = None,
-                    min_count:Optional[int] = None, max_count:Optional[int] = None, message:Optional[str] = None) -> 'TraceAssertion':
-        """Assert tool invocation with optional agent filter and count constraints (count, min_count, max_count)."""
+    def called_tool(self, tool_name:Optional[str] = None, agent_name:Optional[str] = None, count:Optional[int] = None,
+                    min_count:Optional[int] = None, max_count:Optional[int] = None, message:Optional[str] = None,
+                    *,
+                    testcase:Optional[Union[FluentTestCase, dict]] = None) -> 'TraceAssertion':
+        """Assert tool invocation with optional agent filter and count constraints (count, min_count, max_count).
+
+        Args:
+            testcase: Assert every tool the test case names instead of one, and
+                record each one's spans for the input/output checks that follow.
+                Cannot be combined with
+                tool_name/agent_name/count/min_count/max_count.
+        """
+        if testcase is not None:
+            return self._called_tool_testcase(
+                testcase, tool_name=tool_name, agent_name=agent_name, count=count,
+                min_count=min_count, max_count=max_count, message=message)
+        if tool_name is None:
+            raise ValueError("tool_name is required")
         TraceAssertion._validate_count_params(count, min_count, max_count)
         self._filtered_spans = self.validator._get_tool_invocation_spans(tool_name, agent_name, filtered_spans=self._filtered_spans)
         actual_count = len(self._filtered_spans)
@@ -299,9 +524,23 @@ class TraceAssertion():
         return self
 
     @collect_assertions
-    def called_agent(self, agent_name:str, count:Optional[int] = None, min_count:Optional[int] = None, 
-                     max_count:Optional[int] = None, message:Optional[str] = None) -> 'TraceAssertion':
-        """Assert agent invocation with optional count constraints (count, min_count, max_count)."""
+    def called_agent(self, agent_name:Optional[str] = None, count:Optional[int] = None, min_count:Optional[int] = None, 
+                     max_count:Optional[int] = None, message:Optional[str] = None,
+                     *,
+                     testcase:Optional[Union[FluentTestCase, dict]] = None) -> 'TraceAssertion':
+        """Assert agent invocation with optional count constraints (count, min_count, max_count).
+
+        Args:
+            testcase: Assert every agent the test case names instead of one, and
+                record each one's spans for the input/output checks that follow.
+                Cannot be combined with agent_name/count/min_count/max_count.
+        """
+        if testcase is not None:
+            return self._called_agent_testcase(
+                testcase, agent_name=agent_name, count=count,
+                min_count=min_count, max_count=max_count, message=message)
+        if agent_name is None:
+            raise ValueError("agent_name is required without a testcase")
         TraceAssertion._validate_count_params(count, min_count, max_count)
         self._filtered_spans = self.validator._get_agent_invocation_spans(agent_name, filtered_spans=self._filtered_spans)
         actual_count = len(self._filtered_spans)
@@ -316,6 +555,98 @@ class TraceAssertion():
         else:
             TraceAssertion._assert_on_spans(self._filtered_spans, f"Agent '{agent_name}' was not called", custom_message=message)
         return self
+
+    def _called_agent_testcase(self, testcase, *, agent_name, count, min_count,
+                              max_count, message) -> 'TraceAssertion':
+        """Resolve every agent a test case names into the entity-span map.
+
+        One entry per DISTINCT name: from_spans keeps same-name agents with
+        different input/output as separate entries, so a discovered test case
+        routinely names one agent twice. Both entries describe one agent whose
+        spans are one set, so the map holds it once and the per-entry
+        expectations are checked against that shared list by the I/O assertions.
+
+        Every missing agent is reported in a single AssertionError, because
+        record_assertion keeps only the first failure of a chain.
+        """
+        testcase = resolve_testcase(testcase, agent_name=agent_name, count=count,
+                                    min_count=min_count, max_count=max_count)
+        if not testcase.agents:
+            raise ValueError(
+                f"testcase '{testcase.name}' names no agents to select; a selector "
+                "with nothing to select must not read as a passing test")
+
+        entity_spans, missing, matched = [], [], []
+        for name in dict.fromkeys(agent.name for agent in testcase.agents):
+            spans = self.validator._get_agent_invocation_spans(
+                name, filtered_spans=self._filtered_spans)
+            if spans:
+                entity_spans.append((Agent(name=name), spans))
+                matched.extend(spans)
+            else:
+                missing.append(name)
+
+        self._entity_spans = entity_spans
+        self._filtered_spans = matched
+
+        if missing:
+            raise AssertionError(message or (
+                f"{len(missing)} of {len(missing) + len(entity_spans)} agents named by "
+                f"testcase '{testcase.name}' were not called: " + ", ".join(
+                    f"'{name}'" for name in missing)))
+        return self
+
+    def _called_tool_testcase(self, testcase, *, tool_name, agent_name, count,
+                             min_count, max_count, message) -> 'TraceAssertion':
+        """Resolve every tool a test case names into the entity-span map.
+
+        Keyed by tool AND calling agent, unlike agents which key on the name
+        alone: from_spans records the caller, and the same tool called by two
+        agents is two different span sets. An entry naming no agent matches any
+        caller.
+
+        Every missing tool is reported in a single AssertionError, because
+        record_assertion keeps only the first failure of a chain.
+        """
+        testcase = resolve_testcase(testcase, tool_name=tool_name,
+                                    agent_name=agent_name, count=count,
+                                    min_count=min_count, max_count=max_count)
+        if not testcase.tools:
+            raise ValueError(
+                f"testcase '{testcase.name}' names no tools to select; a selector "
+                "with nothing to select must not read as a passing test")
+
+        entity_spans, missing, matched, seen = [], [], [], set()
+        for tool in testcase.tools:
+            key = _entity_key(tool)
+            if key in seen:
+                continue
+            seen.add(key)
+            name, caller = key
+            spans = self.validator._get_tool_invocation_spans(
+                name, caller, filtered_spans=self._filtered_spans)
+            if spans:
+                entity_spans.append((Tool(name=name, agent=tool.agent), spans))
+                matched.extend(spans)
+            else:
+                missing.append(f"'{name}'" + (f" called by '{caller}'" if caller else ""))
+
+        self._entity_spans = entity_spans
+        self._filtered_spans = matched
+
+        if missing:
+            raise AssertionError(message or (
+                f"{len(missing)} of {len(missing) + len(entity_spans)} tools named by "
+                f"testcase '{testcase.name}' were not called: " + ", ".join(missing)))
+        return self
+
+    def _entity_span_list(self, entity) -> Optional[list]:
+        """Spans matched for `entity`, or None when the selector did not match it."""
+        key = _entity_key(entity)
+        for matched, spans in self._entity_spans or []:
+            if _entity_key(matched) == key:
+                return spans
+        return None
 
     @collect_assertions
     def does_not_call_agent(self, agent_name:str, message:Optional[str] = None) -> 'TraceAssertion':
@@ -527,15 +858,29 @@ class TraceAssertion():
         return self._filter_spans_where(spans, None, event_spec, None)
 
     @collect_assertions
-    def has_input(self, expected_input:str, message:Optional[str] = None) -> 'TraceAssertion':
+    def has_input(self, expected_input:Optional[str] = None, message:Optional[str] = None,
+                       *,
+                       testcase:Optional[Union[FluentTestCase, dict]] = None) -> 'TraceAssertion':
         """Assert that the input matches the expected input."""
+        if testcase is not None:
+            resolve_testcase(testcase, expected_input=expected_input)
+            self._verify_io_testcase(testcase, field="input", comparer=self._comparer,
+                                     positive_test=True, message=message)
+            return self
+        if expected_input is None:
+            raise ValueError("expected_input is required without a testcase")
         self._verify_input_output(self._filtered_spans, expected_inputs=[expected_input],
                                     expected_outputs=[], comparer=self._comparer, eval=self._eval, custom_message=message)
         return self
 
     @collect_assertions
-    def has_any_input(self, *expected_inputs:str, message:Optional[str] = None) -> 'TraceAssertion':
+    def has_any_input(self, *expected_inputs:str, message:Optional[str] = None, testcase:Optional[Union[FluentTestCase, dict]] = None) -> 'TraceAssertion':
         """Assert that any of the expected inputs match."""
+        if testcase is not None:
+            raise ValueError(
+                "this method does not support 'testcase'; it takes any-of values, "
+                "and an agent records exactly one input and one output. Use the "
+                "singular form (e.g. contains_output) with a testcase.")
         if not expected_inputs:
             raise ValueError("At least one expected_input is required")
         self._verify_input_output(self._filtered_spans, expected_inputs=list(expected_inputs),
@@ -543,15 +888,29 @@ class TraceAssertion():
         return self
 
     @collect_assertions
-    def does_not_have_input(self, unexpected_input:str, message:Optional[str] = None) -> 'TraceAssertion':
+    def does_not_have_input(self, unexpected_input:Optional[str] = None, message:Optional[str] = None,
+                                 *,
+                                 testcase:Optional[Union[FluentTestCase, dict]] = None) -> 'TraceAssertion':
         """Assert that the input does not match the unexpected input."""
+        if testcase is not None:
+            resolve_testcase(testcase, unexpected_input=unexpected_input)
+            self._verify_io_testcase(testcase, field="input", comparer=self._comparer,
+                                     positive_test=False, message=message)
+            return self
+        if unexpected_input is None:
+            raise ValueError("unexpected_input is required without a testcase")
         self._verify_input_output(self._filtered_spans, expected_inputs=[unexpected_input],
                                     expected_outputs=[], comparer=self._comparer, eval=self._eval, positive_test=False, custom_message=message)
         return self
 
     @collect_assertions
-    def does_not_have_any_input(self, *unexpected_inputs:str, message:Optional[str] = None) -> 'TraceAssertion':
+    def does_not_have_any_input(self, *unexpected_inputs:str, message:Optional[str] = None, testcase:Optional[Union[FluentTestCase, dict]] = None) -> 'TraceAssertion':
         """Assert that none of the unexpected inputs match."""
+        if testcase is not None:
+            raise ValueError(
+                "this method does not support 'testcase'; it takes any-of values, "
+                "and an agent records exactly one input and one output. Use the "
+                "singular form (e.g. contains_output) with a testcase.")
         if not unexpected_inputs:
             raise ValueError("At least one unexpected_input is required")
         self._verify_input_output(self._filtered_spans, expected_inputs=list(unexpected_inputs),
@@ -559,15 +918,29 @@ class TraceAssertion():
         return self
 
     @collect_assertions
-    def contains_input(self, expected_input_substring:str, message:Optional[str] = None) -> 'TraceAssertion':
+    def contains_input(self, expected_input_substring:Optional[str] = None, message:Optional[str] = None,
+                            *,
+                            testcase:Optional[Union[FluentTestCase, dict]] = None) -> 'TraceAssertion':
         """Assert that the input contains the expected substring"""
+        if testcase is not None:
+            resolve_testcase(testcase, expected_input_substring=expected_input_substring)
+            self._verify_io_testcase(testcase, field="input", comparer=TokenMatchComparer(),
+                                     positive_test=True, message=message)
+            return self
+        if expected_input_substring is None:
+            raise ValueError("expected_input_substring is required without a testcase")
         self._verify_input_output(self._filtered_spans, expected_inputs=[expected_input_substring],
                                     expected_outputs=[], comparer=TokenMatchComparer(), eval=self._eval, custom_message=message)
         return self
 
     @collect_assertions
-    def contains_any_input(self, *expected_input_substrings:str, message:Optional[str] = None) -> 'TraceAssertion':
+    def contains_any_input(self, *expected_input_substrings:str, message:Optional[str] = None, testcase:Optional[Union[FluentTestCase, dict]] = None) -> 'TraceAssertion':
         """Assert that any input contains the expected substring"""
+        if testcase is not None:
+            raise ValueError(
+                "this method does not support 'testcase'; it takes any-of values, "
+                "and an agent records exactly one input and one output. Use the "
+                "singular form (e.g. contains_output) with a testcase.")
         if not expected_input_substrings:
             raise ValueError("At least one expected_input_substring is required")
         self._verify_input_output(self._filtered_spans, expected_inputs=list(expected_input_substrings),
@@ -575,15 +948,29 @@ class TraceAssertion():
         return self
 
     @collect_assertions
-    def does_not_contain_input(self, unexpected_input_substring:str, message:Optional[str] = None) -> 'TraceAssertion':
+    def does_not_contain_input(self, unexpected_input_substring:Optional[str] = None, message:Optional[str] = None,
+                                    *,
+                                    testcase:Optional[Union[FluentTestCase, dict]] = None) -> 'TraceAssertion':
         """Assert that the input does not contain the given substring"""
+        if testcase is not None:
+            resolve_testcase(testcase, unexpected_input_substring=unexpected_input_substring)
+            self._verify_io_testcase(testcase, field="input", comparer=TokenMatchComparer(),
+                                     positive_test=False, message=message)
+            return self
+        if unexpected_input_substring is None:
+            raise ValueError("unexpected_input_substring is required without a testcase")
         self._verify_input_output(self._filtered_spans, expected_inputs=[unexpected_input_substring],
                                     expected_outputs=[], comparer=TokenMatchComparer(), eval=self._eval, positive_test=False, custom_message=message)
         return self
 
     @collect_assertions
-    def does_not_contain_any_input(self, *unexpected_input_substrings:str, message:Optional[str] = None) -> 'TraceAssertion':
+    def does_not_contain_any_input(self, *unexpected_input_substrings:str, message:Optional[str] = None, testcase:Optional[Union[FluentTestCase, dict]] = None) -> 'TraceAssertion':
         """Assert that no input contains the given substrings"""
+        if testcase is not None:
+            raise ValueError(
+                "this method does not support 'testcase'; it takes any-of values, "
+                "and an agent records exactly one input and one output. Use the "
+                "singular form (e.g. contains_output) with a testcase.")
         if not unexpected_input_substrings:
             raise ValueError("At least one unexpected_input_substring is required")
         self._verify_input_output(self._filtered_spans, expected_inputs=list(unexpected_input_substrings),
@@ -591,15 +978,29 @@ class TraceAssertion():
         return self
 
     @collect_assertions
-    def has_output(self, expected_output:str, message:Optional[str] = None) -> 'TraceAssertion':
+    def has_output(self, expected_output:Optional[str] = None, message:Optional[str] = None,
+                        *,
+                        testcase:Optional[Union[FluentTestCase, dict]] = None) -> 'TraceAssertion':
         """Assert that the output matches the expected output."""
+        if testcase is not None:
+            resolve_testcase(testcase, expected_output=expected_output)
+            self._verify_io_testcase(testcase, field="output", comparer=self._comparer,
+                                     positive_test=True, message=message)
+            return self
+        if expected_output is None:
+            raise ValueError("expected_output is required without a testcase")
         self._verify_input_output(self._filtered_spans, expected_inputs=[], expected_outputs=[expected_output],
                                  comparer=self._comparer, eval=self._eval, custom_message=message)
         return self
 
     @collect_assertions
-    def has_any_output(self, *expected_outputs:str, message:Optional[str] = None) -> 'TraceAssertion':
+    def has_any_output(self, *expected_outputs:str, message:Optional[str] = None, testcase:Optional[Union[FluentTestCase, dict]] = None) -> 'TraceAssertion':
         """Assert that the output matches any of the expected outputs."""
+        if testcase is not None:
+            raise ValueError(
+                "this method does not support 'testcase'; it takes any-of values, "
+                "and an agent records exactly one input and one output. Use the "
+                "singular form (e.g. contains_output) with a testcase.")
         if not expected_outputs:
             raise ValueError("At least one expected_output is required")
         self._verify_input_output(self._filtered_spans, expected_inputs=[],
@@ -607,15 +1008,29 @@ class TraceAssertion():
         return self
 
     @collect_assertions
-    def does_not_have_output(self, unexpected_output:str, message:Optional[str] = None) -> 'TraceAssertion':
+    def does_not_have_output(self, unexpected_output:Optional[str] = None, message:Optional[str] = None,
+                                  *,
+                                  testcase:Optional[Union[FluentTestCase, dict]] = None) -> 'TraceAssertion':
         """Assert that the output does not have the given output."""
+        if testcase is not None:
+            resolve_testcase(testcase, unexpected_output=unexpected_output)
+            self._verify_io_testcase(testcase, field="output", comparer=self._comparer,
+                                     positive_test=False, message=message)
+            return self
+        if unexpected_output is None:
+            raise ValueError("unexpected_output is required without a testcase")
         self._verify_input_output(self._filtered_spans, expected_inputs=[] , expected_outputs=[unexpected_output],
                                  comparer=self._comparer, eval=self._eval, positive_test=False, custom_message=message)
         return self
 
     @collect_assertions
-    def does_not_have_any_output(self, *unexpected_outputs:str, message:Optional[str] = None) -> 'TraceAssertion':
+    def does_not_have_any_output(self, *unexpected_outputs:str, message:Optional[str] = None, testcase:Optional[Union[FluentTestCase, dict]] = None) -> 'TraceAssertion':
         """Assert that the output does not have any of the given outputs."""
+        if testcase is not None:
+            raise ValueError(
+                "this method does not support 'testcase'; it takes any-of values, "
+                "and an agent records exactly one input and one output. Use the "
+                "singular form (e.g. contains_output) with a testcase.")
         if not unexpected_outputs:
             raise ValueError("At least one unexpected_output is required")
         self._verify_input_output(self._filtered_spans, expected_inputs=[],
@@ -623,15 +1038,29 @@ class TraceAssertion():
         return self
 
     @collect_assertions
-    def contains_output(self, expected_output_substring:str, message:Optional[str] = None) -> 'TraceAssertion':
+    def contains_output(self, expected_output_substring:Optional[str] = None, message:Optional[str] = None,
+                             *,
+                             testcase:Optional[Union[FluentTestCase, dict]] = None) -> 'TraceAssertion':
         """Assert that the output contains the expected substring."""
+        if testcase is not None:
+            resolve_testcase(testcase, expected_output_substring=expected_output_substring)
+            self._verify_io_testcase(testcase, field="output", comparer=TokenMatchComparer(),
+                                     positive_test=True, message=message)
+            return self
+        if expected_output_substring is None:
+            raise ValueError("expected_output_substring is required without a testcase")
         self._verify_input_output(self._filtered_spans, expected_inputs=[],
                                 expected_outputs=[expected_output_substring], comparer=TokenMatchComparer(), eval=self._eval, custom_message=message)
         return self
 
     @collect_assertions
-    def contains_any_output(self, *expected_output_substrings:str, message:Optional[str] = None) -> 'TraceAssertion':
+    def contains_any_output(self, *expected_output_substrings:str, message:Optional[str] = None, testcase:Optional[Union[FluentTestCase, dict]] = None) -> 'TraceAssertion':
         """Assert that any output contains the expected substring."""
+        if testcase is not None:
+            raise ValueError(
+                "this method does not support 'testcase'; it takes any-of values, "
+                "and an agent records exactly one input and one output. Use the "
+                "singular form (e.g. contains_output) with a testcase.")
         if not expected_output_substrings:
             raise ValueError("At least one expected_output_substring is required")
         self._verify_input_output(self._filtered_spans, expected_inputs=[],
@@ -639,16 +1068,30 @@ class TraceAssertion():
         return self
 
     @collect_assertions
-    def does_not_contain_output(self, unexpected_output_substring:str, message:Optional[str] = None) -> 'TraceAssertion':
+    def does_not_contain_output(self, unexpected_output_substring:Optional[str] = None, message:Optional[str] = None,
+                                     *,
+                                     testcase:Optional[Union[FluentTestCase, dict]] = None) -> 'TraceAssertion':
         """Assert that the output does not contain the given substring."""
+        if testcase is not None:
+            resolve_testcase(testcase, unexpected_output_substring=unexpected_output_substring)
+            self._verify_io_testcase(testcase, field="output", comparer=TokenMatchComparer(),
+                                     positive_test=False, message=message)
+            return self
+        if unexpected_output_substring is None:
+            raise ValueError("unexpected_output_substring is required without a testcase")
         self._verify_input_output(self._filtered_spans, expected_inputs=[],
                                 expected_outputs=[unexpected_output_substring], comparer=TokenMatchComparer(), eval=self._eval,
                                 positive_test=False, custom_message=message)
         return self
 
     @collect_assertions
-    def does_not_contain_any_output(self, *unexpected_output_substrings:str, message:Optional[str] = None) -> 'TraceAssertion':
+    def does_not_contain_any_output(self, *unexpected_output_substrings:str, message:Optional[str] = None, testcase:Optional[Union[FluentTestCase, dict]] = None) -> 'TraceAssertion':
         """Assert that no output contains the given substrings."""
+        if testcase is not None:
+            raise ValueError(
+                "this method does not support 'testcase'; it takes any-of values, "
+                "and an agent records exactly one input and one output. Use the "
+                "singular form (e.g. contains_output) with a testcase.")
         if not unexpected_output_substrings:
             raise ValueError("At least one unexpected_output_substring is required")
         self._verify_input_output(self._filtered_spans, expected_inputs=[],
@@ -825,7 +1268,7 @@ class TraceAssertion():
         return None, eval_name
 
     @collect_assertions
-    def check_eval(self, eval_name:Optional[Union[str, Path]] = None, expected:Optional[Union[str, list[str]]] = None, not_expected:Optional[Union[str, list[str]]] = None, fact_name:Optional[str] = "traces", message:Optional[str] = None, template_path:Optional[Union[str, Path]] = None, *, template:Optional[dict] = None, min_facts:int = 1, fail_threshold:int = 0, max_facts:Optional[int] = None) -> 'TraceAssertion':
+    def check_eval(self, eval_name:Optional[Union[str, Path]] = None, expected:Optional[Union[str, list[str]]] = None, not_expected:Optional[Union[str, list[str]]] = None, fact_name:Optional[str] = "traces", message:Optional[str] = None, template_path:Optional[Union[str, Path]] = None, *, template:Optional[dict] = None, min_facts:int = 1, fail_threshold:int = 0, max_facts:Optional[int] = None, testcase:Optional[Union[FluentTestCase, dict]] = None) -> 'TraceAssertion':
         """Validate evaluation results for the current filtered spans.
 
         Provide exactly one of:
@@ -843,10 +1286,29 @@ class TraceAssertion():
         When with_trace_source("okahu", start_time=..., end_time=...) has recorded a
         filter scope, this runs the filtered (async job) flow instead of the span
         path; min_facts/fail_threshold/max_facts apply only in that mode.
+
+        Args:
+            testcase: A FluentTestCase (or a dict in any shape it accepts) whose
+                evals to run. Each eval's name selects the template, classified
+                exactly as this method's own ``eval_name`` is: a bare name is an
+                Okahu template, while a Path *or* a path-like string (``.json``
+                suffix, a separator, ``./``, ``../``) is a custom-template file.
+                The eval's result is the expected label. Cannot be combined with
+                eval_name, expected, not_expected, template_path or template.
         """
         eval_name, template_path = self._apply_eval_type(eval_name, template_path, template)
 
         filter_scope = getattr(self, "_okahu_filter", None)
+        if testcase is not None:
+            if filter_scope is not None:
+                raise ValueError(
+                    "testcase= is not supported with a time-window (filtered) source: "
+                    "a time window identifies no single fact for the test case to name.")
+            return self._check_eval_testcase(
+                testcase, eval_name=eval_name, expected=expected,
+                not_expected=not_expected, template_path=template_path,
+                template=template, fact_name=fact_name, message=message)
+
         if filter_scope is None:
             # Span mode: filter-only params must not be used.
             if min_facts != 1 or fail_threshold != 0 or max_facts is not None:
@@ -860,6 +1322,82 @@ class TraceAssertion():
                 min_facts=min_facts, fail_threshold=fail_threshold, max_facts=max_facts,
                 message=message)
 
+        failures, fact_records = self._check_eval_one(
+            eval_name=eval_name, expected=expected, not_expected=not_expected,
+            fact_name=fact_name, template_path=template_path, template=template,
+            message=message)
+        TraceAssertion._eval_report = build_filtered_report(
+            expected, not_expected, fact_records, job_id=None)
+        self._raise_eval_failures(eval_name, failures, len(fact_records), message)
+        return self
+
+    def _check_eval_entry(self, entry, *, fact_name) -> tuple:
+        """Run one eval named by a test case, and return its outcome.
+
+        The name is classified the way check_eval classifies its own eval_name --
+        through the evaluator's ``classify_eval_input`` via ``_apply_eval_type``,
+        so a path object *and* a path-like string both resolve to a custom
+        template file while a bare name stays a built-in.
+
+        That matters because a test case usually arrives as JSON, which has no
+        Path type: a custom template reaches us as a string, and testing only
+        for ``pathlib.Path`` sent that string on as a template *name*, leaving
+        the eval service asked for a template called "./evals/my_eval.json".
+        """
+        eval_name, template_path = self._apply_eval_type(entry.name, None, None)
+        return self._check_eval_one(
+            eval_name=eval_name, expected=entry.result, not_expected=None,
+            fact_name=fact_name, template_path=template_path, template=None)
+
+    def _check_eval_testcase(self, testcase, *, eval_name, expected, not_expected,
+                             template_path, template, fact_name, message) -> 'TraceAssertion':
+        """Run every eval a test case names, reporting all their failures at once."""
+        testcase = resolve_testcase(testcase, eval_name=eval_name, expected=expected,
+                                    not_expected=not_expected,
+                                    template_path=template_path, template=template)
+        if not testcase.evals:
+            raise ValueError(
+                f"testcase '{testcase.name}' has no evals to check; a test case with "
+                "nothing to assert must not read as a passing test")
+
+        failures, fact_records = [], []
+        for entry in testcase.evals:
+            entry_failures, entry_facts = self._check_eval_entry(
+                entry, fact_name=fact_name)
+            failures.extend(entry_failures)
+            fact_records.extend(entry_facts)
+
+        TraceAssertion._eval_report = build_filtered_report(
+            [entry.result for entry in testcase.evals], None, fact_records, job_id=None)
+        self._raise_eval_failures(testcase.name, failures, len(fact_records), message)
+        return self
+
+    @staticmethod
+    def _raise_eval_failures(eval_name:str, failures:list[str], fact_count:int,
+                             message:Optional[str]) -> None:
+        """Raise one AssertionError covering every failure, or return quietly."""
+        if not failures:
+            return
+        if message:
+            raise AssertionError(message)
+        if len(failures) == 1:
+            raise AssertionError(failures[0])
+        raise AssertionError(
+            f"Evaluation '{eval_name}' failed for {len(failures)} of {fact_count} facts:"
+            + "".join(f"{os.linesep}  - {failure}" for failure in failures))
+
+    def _check_eval_one(self, *, eval_name, expected, not_expected, fact_name,
+                        template_path, template, message=None) -> tuple:
+        """Run one eval against the current spans and return its outcome.
+
+        Returns rather than raises so a caller running several evals can report
+        every failure: record_assertion only keeps the first AssertionError of a
+        chain, so N raises would surface as one.
+
+        Returns:
+            ``(failures, fact_records)`` -- the failure messages, and one report
+            record per graded fact for build_filtered_report.
+        """
         if sum(bool(x) for x in (eval_name, template_path, template)) != 1:
             raise ValueError(
                 "Provide exactly one of 'eval_name' (for Okahu templates), "
@@ -929,6 +1467,9 @@ class TraceAssertion():
             "judge_output": {},
             "total_tokens": None,
         }
+        # Appended, not replaced: one check_eval call can run several evals and
+        # the results matrix must show every one of them.
+        TraceAssertion._eval_stashes = TraceAssertion._eval_stashes + [TraceAssertion._last_eval]
 
         eval_result, explanation = self._eval.evaluate(filtered_spans=self._filtered_spans, eval_name=eval_name, fact_name=fact_name, template=template)
 
@@ -950,14 +1491,6 @@ class TraceAssertion():
         else:
             facts = [(trace_id, eval_result, explanation)]
 
-        TraceAssertion._eval_report = build_filtered_report(
-            expected, not_expected,
-            [{"fact_id": fact_id, "job_id": None, "eval_found": True,
-              "eval_result": {"label": eval_result, "explanation": explanation}, "workflow": ""}
-             for fact_id, eval_result, explanation in facts],
-            job_id=None)
-
-
         failures = []
         for fact_id, eval_result, explanation in facts:
             if positive and eval_result not in positive:
@@ -965,16 +1498,10 @@ class TraceAssertion():
             elif negative and eval_result in negative:
                 failures.append(f"Evaluation '{eval_name}' matched an unexpected result for fact '{fact_id}'. Should not be any of {negative}. Received '{eval_result}'. \n Explanation: {explanation}")
 
-        if failures:
-            if message:
-                raise AssertionError(message)
-            if len(failures) == 1:
-                raise AssertionError(failures[0])
-            raise AssertionError(
-                f"Evaluation '{eval_name}' failed for {len(failures)} of {len(facts)} facts:"
-                + "".join(f"{os.linesep}  - {failure}" for failure in failures))
-
-        return self
+        return failures, [{"fact_id": fact_id, "job_id": None, "eval_found": True,
+                           "eval_result": {"label": label, "explanation": explanation},
+                           "workflow": ""}
+                          for fact_id, label, explanation in facts]
 
     def _check_eval_filtered(self, scope, *, eval_name, expected, not_expected,
                              template_path, template, min_facts, fail_threshold,
@@ -1051,6 +1578,108 @@ class TraceAssertion():
     def load_spans(self, spans:list[Span]) -> None:
         """Load spans into the validator's memory exporter for assertions."""
         self.validator.add_remote_spans(spans)
+
+    def _verify_top_level_io(self, expected, *, field:str, comparer:BaseComparer,
+                             positive_test:bool, message:Optional[str]) -> None:
+        """Check a test case's own `field` against the spans currently in scope.
+
+        A list means every entry must hold -- they are separate expectations
+        about one output, not alternatives, so each is checked on its own and
+        all the failures are reported together.
+        """
+        expectations = [expected] if isinstance(expected, str) else list(expected)
+        failures = []
+        for value in expectations:
+            if not value:
+                continue
+            io_kwargs = {"expected_inputs": [value], "expected_outputs": []} \
+                if field == "input" else \
+                {"expected_inputs": [], "expected_outputs": [value]}
+            matched = self.validator._check_input_output(
+                self._filtered_spans, comparer=comparer, eval=self._eval,
+                positive_test=positive_test, **io_kwargs)
+            if positive_test and not matched:
+                failures.append(f"no {field} matching {value!r}")
+            elif not positive_test and matched:
+                failures.append(
+                    f"{field} matching {value!r}, which was not expected")
+
+        if failures:
+            raise AssertionError(message or (
+                f"{len(failures)} of {len(expectations)} {field} checks failed:"
+                + "".join(f"{os.linesep}  - {failure}" for failure in failures)))
+
+    def _verify_io_testcase(self, testcase, *, field:str, comparer:BaseComparer,
+                            positive_test:bool, message:Optional[str]) -> None:
+        """Check each test-case agent's own `field` against that agent's spans.
+
+        Walks EVERY entry in tc.agents, duplicates included, and looks its spans
+        up by name -- so two entries for one agent run two checks against one
+        span list. That is what a single queue per agent name means: the
+        expectations are per entry, the spans are per name.
+
+        An entry that sets no value for `field` -- unset or empty -- states no
+        expectation, so it is skipped. A call where *no* entry sets one asserts
+        nothing and passes quietly: a test case describes what it knows, and a
+        check it says nothing about is not a failure of that check.
+
+        Uses validator._check_input_output, which returns the matching spans
+        rather than raising, so failures can be accumulated. All of them are
+        raised together because record_assertion keeps only the first per chain.
+        """
+        testcase = resolve_testcase(testcase)
+        if self._entity_spans is None:
+            # No selector ran, so there are no per-entity expectations. A
+            # top-level `output` is the plain end-to-end check -- assert it
+            # against whatever spans are in scope and stop there.
+            top_level = getattr(testcase, field, None)
+            if top_level:
+                self._verify_top_level_io(
+                    top_level, field=field, comparer=comparer,
+                    positive_test=positive_test, message=message)
+                return
+            raise ValueError(
+                "no entities selected; chain called_agent(testcase=...) or "
+                "called_tool(testcase=...) before an input/output check that "
+                f"takes a testcase, or give the testcase a top-level '{field}'.")
+
+        # The selector that built the map decides which list describes it.
+        kind = self._testcase_selector or "agent"
+        entities = (testcase.tools if kind == "tool" else testcase.agents) or []
+
+        checked, failures = 0, []
+        for agent in entities:
+            expected = getattr(agent, field)
+            if not expected:
+                # Unset or empty: the test case states no expectation for this
+                # agent's input/output, so there is nothing to check. Covers ""
+                # as well as None -- an empty string asserts nothing either.
+                continue
+            spans = self._entity_span_list(agent)
+            if spans is None:
+                # called_agent already reported this agent as not called; saying
+                # so again in every I/O check would bury the real failures.
+                continue
+            checked += 1
+            if field == "input":
+                io_kwargs = {"expected_inputs": [expected], "expected_outputs": []}
+            else:
+                io_kwargs = {"expected_inputs": [], "expected_outputs": [expected]}
+            matched = self.validator._check_input_output(
+                spans, comparer=comparer, eval=self._eval,
+                positive_test=positive_test, **io_kwargs)
+            if positive_test and not matched:
+                failures.append(
+                    f"{kind} '{agent.name}' has no {field} matching {expected!r}")
+            elif not positive_test and matched:
+                failures.append(
+                    f"{kind} '{agent.name}' has a {field} matching {expected!r}, "
+                    "which was not expected")
+
+        if failures:
+            raise AssertionError(message or (
+                f"{len(failures)} of {checked} {kind} {field} checks failed:"
+                + "".join(f"{os.linesep}  - {failure}" for failure in failures)))
 
     def _verify_input_output(self, spans:list[Span], expected_inputs:Optional[list[str]], expected_outputs:Optional[list[str]],
                         comparer:BaseComparer, eval:Optional[Evaluation], positive_test:Optional[bool]=True,

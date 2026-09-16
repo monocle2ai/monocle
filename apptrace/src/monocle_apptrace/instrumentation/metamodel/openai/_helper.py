@@ -51,6 +51,13 @@ def _normalize_result_object(result):
     if isinstance(candidate, (tuple, list)) and len(candidate) > 0:
         candidate = candidate[0]
 
+
+    if type(candidate).__name__ in ("LegacyAPIResponse", "APIResponse"):
+        try:
+            return candidate.parse()
+        except Exception as e:
+            logger.debug(f"Could not parse raw openai response: {e}")
+
     if hasattr(candidate, "response") and getattr(candidate, "response") is not None:
         return getattr(candidate, "response")
 

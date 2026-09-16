@@ -36,7 +36,9 @@ from monocle_apptrace.instrumentation.common.constants import MONOCLE_SKIP_EXECU
 from monocle_apptrace.instrumentation.common.utils import set_workflow_name, get_workflow_name
 
 logger = logging.getLogger(__name__)
-RETRY_TIMEOUT_SECONDS = 10
+# Waits on an out-of-process export reaching the backend, which on a slow
+# ingest takes longer than the previous hard-coded 10s.
+RETRY_TIMEOUT_SECONDS = int(os.getenv("MONOCLE_REMOTE_TRACE_ID_TIMEOUT", "60"))
 # Spans a runner produced in another process are exported by that process, so
 # they land in the trace backend a little after the call returns.
 REMOTE_FACT_TIMEOUT_SECONDS = int(os.getenv("MONOCLE_REMOTE_TRACE_TIMEOUT", "60"))
@@ -255,9 +257,9 @@ class MonocleValidator:
                 raise
             finally:
                 test_failed = validation_failed or (request.session.testsfailed > prior_test_failed_count)
+                # post_test_cleanup stops the scope token; a second stop_scope
+                # double-detaches it ("Token ... has already been used once").
                 self.post_test_cleanup(token, request.node.name, test_failed, validation_error_message)
-                if token is not None:
-                    stop_scope(token)
 
     @staticmethod
     def test_id_generator(val):
@@ -294,9 +296,8 @@ class MonocleValidator:
                 request is not None and request.session.testsfailed > prior_test_failed_count
             )
             test_name = request.node.name if request is not None else test_case_name
+            # post_test_cleanup stops the scope token; see monocle_exporter_wrapper.
             self.post_test_cleanup(token, test_name, test_failed, validation_error_message)
-            if token is not None:
-                stop_scope(token)
 
     def monocle_testcase(self, test_cases_array: list[Union[TestCase, dict]]):
         test_cases: list[TestCase] = []
@@ -629,7 +630,10 @@ class MonocleValidator:
                       trace_path: Optional[str] = None,
                       fact_name: Optional[str] = "trace",
                       scope_name: Optional[str] = None,
-                      workflow_name: Optional[str] = None) -> None:
+                      workflow_name: Optional[str] = None,
+                      load_spans: bool = True,
+                      start_time: Optional[str] = None,
+                      end_time: Optional[str] = None) -> list[Span]:
         """Import traces from a source for assertion.
 
         Loads previously exported trace spans into the asserter's memory
@@ -651,9 +655,20 @@ class MonocleValidator:
                 defaults to "agent_sessions".
             workflow_name: Okahu workflow / service name
                 (required when ``trace_source="okahu"``).
+            load_spans: When True (default) the fetched spans are loaded into the
+                validator for assertions and the trace source is recorded. When
+                False this is a pure fetch: the spans are returned and no
+                validator state is touched. Callers that only need the *content*
+                of a recorded trace -- replaying its input into a fresh run --
+                use False, so the source trace's fact id does not end up
+                attached to the new run's result.
+            start_time: Optional window start, narrowing the server-side lookup.
+                Okahu only -- a trace file holds one trace, so there is nothing
+                to narrow and passing it for the file source raises.
+            end_time: Optional window end, as above.
 
         Returns:
-            self for fluent chaining.
+            The fetched spans.
 
         Raises:
             ValueError: If arguments are invalid or incomplete.
@@ -709,6 +724,8 @@ class MonocleValidator:
                     workflow_name=workflow_name,
                     scope_name=okahu_fact_name,
                     scope_id=id,
+                    start_time=start_time,
+                    end_time=end_time,
                 )
             elif fact_name == "scope":
                 # Custom scope: requires scope_name
@@ -719,6 +736,8 @@ class MonocleValidator:
                     workflow_name=workflow_name,
                     scope_name=okahu_fact_name,
                     scope_id=id,
+                    start_time=start_time,
+                    end_time=end_time,
                 )
             else:
                 # Direct trace_id lookup
@@ -726,13 +745,24 @@ class MonocleValidator:
                 spans = OkahuSpanLoader.get_spans(
                     workflow_name=workflow_name,
                     trace_id=id,
+                    start_time=start_time,
+                    end_time=end_time,
                 )
             # Capture the fact details so the test outcome can be recorded back
-            # to Okahu during post_test_cleanup.
-            self._trace_source_fact_id = id
-            self._trace_source_fact_name = okahu_fact_name
-            self._trace_source_workflow_name = workflow_name
+            # to Okahu during post_test_cleanup. Skipped for a pure fetch: those
+            # spans are not what the assertions will run against.
+            if load_spans:
+                self._trace_source_fact_id = id
+                self._trace_source_fact_name = okahu_fact_name
+                self._trace_source_workflow_name = workflow_name
         else:
+            # File source — a time window only filters a server-side query, so
+            # it is rejected here rather than silently ignored.
+            for _name, _value in (("start_time", start_time), ("end_time", end_time)):
+                if _value is not None:
+                    raise ValueError(
+                        f"'{_name}' is not supported for the file trace source; a "
+                        "time window only filters a server-side query.")
             # File source — fact_name must be "trace"
             if fact_name != "trace":
                 raise ValueError(
@@ -754,9 +784,10 @@ class MonocleValidator:
 
             spans = JSONSpanLoader.from_json(trace_file)
 
-        self.add_remote_spans(spans)
-        self._trace_source = trace_source
-        return None
+        if load_spans:
+            self.add_remote_spans(spans)
+            self._trace_source = trace_source
+        return spans
 
     def _get_current_trace_id(self) -> Optional[str]:
         """Helper to get the current trace ID from the validator's spans."""

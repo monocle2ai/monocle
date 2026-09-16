@@ -45,6 +45,11 @@ class Evaluation(BaseModel):
         self.comparer = get_comparer(self.comparer)
         self.eval = get_evaluator(self.eval, self.eval_options or {})
 
+class FactID(BaseModel):
+    fact_id: str = Field("", description="fact ID")
+    fact_name: str = Field("traces", description= "fact name")
+    source: str = Field("file", description= "trace source")
+
 class TestSpan(BaseModel):
     """
     Represents a specific interaction or event within a test case in the Monocle testing framework.

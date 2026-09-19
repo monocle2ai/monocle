@@ -650,6 +650,28 @@ class TestConfiguration:
         assert expected_warning in caplog.text
         assert all(isinstance(o, RegexSpanObfuscator) for o in obfuscators)
 
+    @pytest.mark.parametrize("configured", [
+        "presidio",                       # the obfuscation extra is not installed
+        "my_pkg.missing:Obfuscator",      # a custom obfuscator that cannot import
+    ])
+    def test_falls_back_to_the_builtin_when_nothing_else_loads(self, configured, caplog):
+        """Never export raw payloads because an optional dependency is missing."""
+        with patch.dict(os.environ, {"MONOCLE_SPAN_OBFUSCATORS": configured}):
+            os.environ.pop("MONOCLE_DISABLE_SPAN_OBFUSCATION", None)
+            set_span_obfuscators(None)
+            obfuscators = get_span_obfuscators()
+
+        assert [type(o).__name__ for o in obfuscators] == ["RegexSpanObfuscator"]
+        assert "falling back to 'credentials'" in caplog.text
+
+    def test_explicit_opt_out_is_not_overridden_by_the_fallback(self):
+        """The fallback must not resurrect obfuscation the user turned off."""
+        for env in ({"MONOCLE_SPAN_OBFUSCATORS": "none"},
+                    {"MONOCLE_DISABLE_SPAN_OBFUSCATION": "true"}):
+            with patch.dict(os.environ, env):
+                set_span_obfuscators(None)
+                assert get_span_obfuscators() == []
+
     def test_registry_set_and_register(self):
         first, second = UpperObfuscator(), RegexSpanObfuscator()
 

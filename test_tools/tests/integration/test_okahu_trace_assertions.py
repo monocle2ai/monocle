@@ -1,10 +1,33 @@
+import os
+
 import pytest
+import requests
 from monocle_test_tools import TraceAssertion
 from monocle_test_tools.okahu_span_loader import OkahuSpanLoader
 
-# Update these constants with real values from your Okahu environment to run the tests
-DEMO_WORKFLOW_NAME = "Okahu-Loader-Demo"
-PLACEHOLDER_TRACE_ID = "642dbd9d0dfcfdbdc8849f67f34c8a19"
+# Point at your own tenant's data via OKAHU_DEMO_WORKFLOW_NAME / OKAHU_DEMO_TRACE_ID.
+DEMO_WORKFLOW_NAME = os.getenv("OKAHU_DEMO_WORKFLOW_NAME", "Okahu-Loader-Demo")
+PLACEHOLDER_TRACE_ID = os.getenv("OKAHU_DEMO_TRACE_ID", "642dbd9d0dfcfdbdc8849f67f34c8a19")
+
+
+def _load_demo_spans(asserter: TraceAssertion):
+    """Load the demo trace, skipping if this tenant does not have it.
+
+    A missing trace is an absent fixture, not a product defect.
+    """
+    try:
+        spans = OkahuSpanLoader.get_spans(DEMO_WORKFLOW_NAME, PLACEHOLDER_TRACE_ID)
+    except requests.HTTPError as exc:
+        status = exc.response.status_code if exc.response is not None else None
+        if status in (401, 403, 404):
+            pytest.skip(
+                f"Okahu demo trace {DEMO_WORKFLOW_NAME}/{PLACEHOLDER_TRACE_ID} unavailable "
+                f"(HTTP {status}); set OKAHU_DEMO_WORKFLOW_NAME / OKAHU_DEMO_TRACE_ID "
+                f"(and OKAHU_API_KEY / OKAHU_API_ENDPOINT) to a trace in your tenant."
+            )
+        raise
+    asserter.load_spans(spans)
+
 
 @pytest.fixture()
 def monocle_trace_asserter():
@@ -16,7 +39,7 @@ def monocle_trace_asserter():
 
 
 def test_agent_tool_and_io_assertions(monocle_trace_asserter: TraceAssertion):
-    monocle_trace_asserter.load_spans(OkahuSpanLoader.get_spans(DEMO_WORKFLOW_NAME, PLACEHOLDER_TRACE_ID))
+    _load_demo_spans(monocle_trace_asserter)
 
     # Verify expected agents were invoked (and one was not)
     monocle_trace_asserter.called_agent("okahu_demo_cc_agent_supervisor")
@@ -35,7 +58,7 @@ def test_agent_tool_and_io_assertions(monocle_trace_asserter: TraceAssertion):
     monocle_trace_asserter.does_not_contain_output("ORD-B1042")
 
 def test_performance_and_eval(monocle_trace_asserter: TraceAssertion):
-    monocle_trace_asserter.load_spans(OkahuSpanLoader.get_spans(DEMO_WORKFLOW_NAME, PLACEHOLDER_TRACE_ID))
+    _load_demo_spans(monocle_trace_asserter)
 
     # Performance: token usage and workflow duration
     monocle_trace_asserter.under_token_limit(10000)

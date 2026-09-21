@@ -208,6 +208,69 @@ CHAT_AGENT_INVOCATION = {
     ]
 }
 
+# Orchestration coordinator/manager span (agentic.invocation with routing subtype).
+# Used for GroupChatOrchestrator / AgentBasedGroupChatOrchestrator / MagenticOrchestrator.
+AGENT_ORCHESTRATION = {
+    "type": SPAN_TYPES.AGENTIC_INVOCATION,
+    "subtype": SPAN_SUBTYPES.ROUTING,
+    "attributes": [
+        [
+            {
+                "_comment": "agent type",
+                "attribute": "type",
+                "accessor": lambda arguments: "agent.microsoft",
+            },
+            {
+                "_comment": "name of the orchestrator/coordinator",
+                "attribute": "name",
+                "accessor": lambda arguments: _helper.get_orchestrator_name(arguments["instance"]),
+            },
+            {
+                "_comment": "orchestration pattern (magentic, group_chat, ...)",
+                "attribute": "description",
+                "accessor": lambda arguments: _helper.get_orchestrator_pattern(arguments["instance"]),
+            },
+            {
+                "_comment": "delegating agent name",
+                "attribute": "from_agent",
+                "accessor": lambda arguments: _helper.get_from_agent_name(arguments)
+            },
+            {
+                "_comment": "from_agent invocation id",
+                "attribute": "from_agent_span_id",
+                "accessor": lambda arguments: _helper.get_from_agent_span_id(arguments)
+            }
+        ]
+    ],
+    "events": [
+        {
+            "name": "data.input",
+            "attributes": [
+                {
+                    "_comment": "message the coordinator is routing",
+                    "attribute": "input",
+                    "accessor": lambda arguments: _helper.extract_orchestrator_input(arguments)
+                }
+            ]
+        },
+        {
+            "name": "data.output",
+            "attributes": [
+                {
+                    "attribute": "error_code",
+                    "accessor": lambda arguments: get_error_message(arguments),
+                },
+                {
+                    "_comment": "coordinator result (usually routed via context)",
+                    "attribute": "response",
+                    "accessor": lambda arguments: _helper.extract_orchestrator_response(arguments)
+                }
+            ]
+        }
+    ]
+}
+
+
 TOOL = {
     "type": SPAN_TYPES.AGENTIC_TOOL_INVOCATION,
     "subtype": SPAN_SUBTYPES.CONTENT_GENERATION,
@@ -217,8 +280,7 @@ TOOL = {
                 "_comment": "tool type",
                 "attribute": "type",
                 "accessor": lambda arguments: "tool.microsoft",
-            },
-            {
+            },            {
                 "_comment": "name of the tool",
                 "attribute": "name",
                 "accessor": lambda arguments: _helper.get_tool_name(arguments["instance"]),

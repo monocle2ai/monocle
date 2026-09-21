@@ -516,7 +516,7 @@ monocle_trace_asserter \
 |---|---|---|
 | `min_facts` | `1` | Fail the run if fewer than this many facts were discovered — guards against a vacuous pass on an empty window. |
 | `fail_threshold` | `0` | Allow up to this many non-matching facts before the assertion fails. |
-| `max_facts` | `OKAHU_MAX_FACTS` (`1000`) | Runaway guard — fail loudly if the window discovers more than this many facts. |
+| `max_facts` | `OKAHU_MAX_FACTS` (`1000`) | Runaway guard — fail loudly if the window discovers more than this many facts. Applies to filtered evals and to `setup_test_cases` discovery. |
 
 **Reading results.** Both the filtered and single-fact paths populate the same report (filtered = N facts; single-fact = a 1-fact report), on pass **and** failure:
 

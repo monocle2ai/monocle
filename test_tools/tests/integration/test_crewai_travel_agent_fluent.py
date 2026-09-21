@@ -13,7 +13,7 @@ async def test_tool_invocation(monocle_trace_asserter:TraceAssertion):
     crew = create_crewai_travel_crew(travel_request)
     
     # Run the agent
-    await monocle_trace_asserter.run_async_agent(crew, "crewai", travel_request)
+    await monocle_trace_asserter.run_agent_async(crew, "crewai", travel_request)
     
     # Verify tool was called
     monocle_trace_asserter.called_tool("crew_book_hotel", "CrewAI Hotel Booking Agent").contains_output("success")
@@ -26,7 +26,7 @@ async def test_agent_invocation(monocle_trace_asserter:TraceAssertion):
     crew = create_crewai_travel_crew(travel_request)
     
     # Run the agent
-    await monocle_trace_asserter.run_async_agent(crew, "crewai", travel_request)
+    await monocle_trace_asserter.run_agent_async(crew, "crewai", travel_request)
     
     # Verify agent was invoked
     monocle_trace_asserter.called_agent("CrewAI Hotel Booking Agent").contains_output("success")

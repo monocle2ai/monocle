@@ -1301,3 +1301,119 @@ class TestCompareEval:
     def test_custom_compare_eval_is_rejected(self, okahu, post):
         with pytest.raises(ValueError, match="custom"):
             OkahuSpanLoader.setup_test_cases(**WINDOW, check_eval="v2", compare_eval="custom")
+
+
+@pytest.mark.usefixtures("stub_traces")
+class TestPartialLoadFailures:
+    """One unloadable fact must not cost the whole window.
+
+    setup_test_cases runs at collection time, feeding parametrize, so raising
+    means zero tests run. A fact that cannot be loaded is emitted carrying its
+    error instead: it still appears under its own id and fails as one test,
+    while the facts that did load run normally.
+    """
+
+    @pytest.fixture(name="spans")
+    def spans_fixture(self, monkeypatch):
+        """get_spans succeeds for every trace except the ones named."""
+        from monocle_test_tools.okahu_span_loader import OkahuSpanLoader
+
+        state = {"broken": set()}
+
+        def fake(workflow_name, trace_id, **kwargs):
+            if trace_id in state["broken"]:
+                raise ConnectionError(f"Okahu returned HTTP 404 for {trace_id}")
+            return []
+
+        monkeypatch.setattr(OkahuSpanLoader, "get_spans", staticmethod(fake))
+        return state
+
+    def test_a_failed_fact_does_not_abort_the_rest(self, spans, post):
+        spans["broken"] = {"bbb"}
+
+        cases = OkahuSpanLoader.setup_test_cases(**WINDOW)
+
+        assert [c.name for c in cases] == TRACE_IDS
+
+    def test_the_failed_fact_records_its_error(self, spans, post):
+        spans["broken"] = {"bbb"}
+
+        cases = OkahuSpanLoader.setup_test_cases(**WINDOW)
+
+        failed = [c for c in cases if c.name == "bbb"][0]
+        assert failed.load_error and "404" in failed.load_error
+
+    def test_the_healthy_facts_carry_no_error(self, spans, post):
+        spans["broken"] = {"bbb"}
+
+        cases = OkahuSpanLoader.setup_test_cases(**WINDOW)
+
+        assert [c.load_error for c in cases if c.name != "bbb"] == [None, None]
+
+    def test_every_fact_failing_still_returns_them_all(self, spans, post):
+        spans["broken"] = set(TRACE_IDS)
+
+        cases = OkahuSpanLoader.setup_test_cases(**WINDOW)
+
+        assert len(cases) == len(TRACE_IDS)
+        assert all(c.load_error for c in cases)
+
+    def test_a_failed_eval_report_marks_every_fact(self, spans, post, monkeypatch):
+        """The report is one bulk call, so its failure belongs to all of them."""
+        from monocle_test_tools.evals.okahu_eval import OkahuEval
+
+        def boom(**kwargs):
+            raise AssertionError("Eval report service returned HTTP 503")
+
+        monkeypatch.setattr(OkahuEval, "_eval_report_by_fact", staticmethod(boom))
+
+        cases = OkahuSpanLoader.setup_test_cases(**WINDOW, check_eval=EVAL)
+
+        assert len(cases) == len(TRACE_IDS)
+        assert all("503" in (c.load_error or "") for c in cases)
+
+    def test_a_broken_fact_that_has_the_eval_is_reported(self, spans, post):
+        """A load failure only matters for a fact that would be in the suite."""
+        spans["broken"] = {"aaa"}
+        _queue(post, {"results": [_row("aaa", "hallucination", "minor")]})
+
+        cases = OkahuSpanLoader.setup_test_cases(**WINDOW, check_eval=EVAL)
+
+        assert [c.name for c in cases] == ["aaa"]
+        assert "could not load spans" in cases[0].load_error
+
+    def test_a_fact_without_the_eval_stays_dropped_even_if_broken(self, spans, post):
+        """The missing label is why it is absent; the broken load is incidental.
+
+        The drop check runs before the span fetch, so such a fact never costs a
+        request either.
+        """
+        spans["broken"] = {"bbb"}
+        _queue(post, {"results": [_row("aaa", "hallucination", "minor")]})
+
+        cases = OkahuSpanLoader.setup_test_cases(**WINDOW, check_eval=EVAL)
+
+        assert [c.name for c in cases] == ["aaa"]
+
+
+class TestLoadErrorFailsTheTest:
+    """A recorded load error must fail the test that uses the case."""
+
+    def test_resolve_testcase_raises_it(self):
+        from monocle_test_tools.testcase_args import resolve_testcase
+
+        with pytest.raises(AssertionError, match="could not be loaded"):
+            resolve_testcase({"name": "bbb", "load_error": "HTTP 404"})
+
+    def test_a_clean_case_is_unaffected(self):
+        from monocle_test_tools.testcase_args import resolve_testcase
+
+        assert resolve_testcase({"name": "aaa"}).name == "aaa"
+
+    def test_the_error_names_the_fact_and_the_cause(self):
+        from monocle_test_tools.testcase_args import resolve_testcase
+
+        with pytest.raises(AssertionError) as exc:
+            resolve_testcase({"name": "bbb", "load_error": "Okahu HTTP 404"})
+
+        assert "bbb" in str(exc.value) and "Okahu HTTP 404" in str(exc.value)

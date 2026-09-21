@@ -13,6 +13,24 @@ from monocle_test_tools.testcase import TURN_SPAN_TYPES, FluentTestCase
 from monocle_test_tools.trace_utils import get_input_from_span
 
 
+def _reject_unloadable(testcase: FluentTestCase) -> FluentTestCase:
+    """Fail the test when the case's data could not be loaded.
+
+    setup_test_cases emits a case per fact even when that fact's spans or evals
+    could not be fetched, so the gap is reported rather than silently shrinking
+    the suite. Every ``testcase=`` entry point resolves through here, so this is
+    the one place the recorded error has to surface.
+
+    AssertionError rather than ValueError: nothing is wrong with how the test was
+    written, so it belongs in the failure column with the other assertions.
+    """
+    if testcase.load_error:
+        raise AssertionError(
+            f"testcase '{testcase.name}' could not be loaded, so it cannot be "
+            f"asserted on: {testcase.load_error}")
+    return testcase
+
+
 def resolve_testcase(testcase: Union[FluentTestCase, dict], **forbidden: Any) -> FluentTestCase:
     """Normalize *testcase* to a model, rejecting arguments it conflicts with.
 
@@ -43,9 +61,9 @@ def resolve_testcase(testcase: Union[FluentTestCase, dict], **forbidden: Any) ->
             "supplies these values")
 
     if isinstance(testcase, FluentTestCase):
-        return testcase
+        return _reject_unloadable(testcase)
     if isinstance(testcase, dict):
-        return FluentTestCase.model_validate(testcase)
+        return _reject_unloadable(FluentTestCase.model_validate(testcase))
     raise TypeError(
         f"testcase must be a FluentTestCase or dict, got {type(testcase).__name__}")
 

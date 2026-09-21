@@ -156,6 +156,11 @@ class FluentTestCase(BaseModel):
     tools: Optional[list[Tool]] = Field([], description="tools to validate")
     evals: Optional[list[Eval]] = Field([], description="evals to run")
     token_limit: Optional[int] = Field(None, description="Token limit")
+    load_error: Optional[str] = Field(
+        None,
+        description="why this case's data could not be loaded; set by "
+                    "setup_test_cases so an unloadable fact is reported as a "
+                    "failing test rather than dropped from the suite")
 
     @model_validator(mode="before")
     @classmethod

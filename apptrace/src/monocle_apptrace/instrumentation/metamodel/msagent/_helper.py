@@ -687,6 +687,89 @@ def uses_chat_client(instance: Any) -> bool:
         return False
 
 
+# Orchestration coordinator/manager helpers
+# (agent_framework_orchestrations: GroupChatOrchestrator,
+#  AgentBasedGroupChatOrchestrator, MagenticOrchestrator)
+
+_ORCHESTRATOR_PATTERNS = {
+    "MagenticOrchestrator": "magentic",
+    "GroupChatOrchestrator": "group_chat",
+    "AgentBasedGroupChatOrchestrator": "group_chat",
+}
+
+
+def get_orchestrator_name(instance: Any) -> str:
+    """Get the name/id of an orchestration coordinator executor."""
+    try:
+        for attr in ("_name", "name", "id"):
+            value = getattr(instance, attr, None)
+            if value:
+                return str(value)
+        return instance.__class__.__name__
+    except Exception as e:
+        logger.warning(f"Error getting orchestrator name: {e}")
+        return "Orchestrator"
+
+
+def get_orchestrator_pattern(instance: Any) -> str:
+    """Return the orchestration pattern (magentic, group_chat, ...) for the coordinator."""
+    try:
+        return _ORCHESTRATOR_PATTERNS.get(instance.__class__.__name__, "orchestration")
+    except Exception as e:
+        logger.warning(f"Error getting orchestrator pattern: {e}")
+        return "orchestration"
+
+
+def _unwrap_orchestrator_message(message: Any) -> Any:
+    """Unwrap a WorkflowMessage envelope to its underlying data payload."""
+    if (
+        message is not None
+        and message.__class__.__name__ == "WorkflowMessage"
+        and hasattr(message, "data")
+    ):
+        return message.data
+    return message
+
+
+def extract_orchestrator_input(arguments: Dict[str, Any]) -> str:
+    """Extract the message the coordinator is routing (initial task or participant response)."""
+    try:
+        kwargs = arguments.get("kwargs", {})
+        args = arguments.get("args", ())
+        message = kwargs.get("message")
+        if message is None and args:
+            message = args[0]
+        message = _unwrap_orchestrator_message(message)
+
+        if message is None:
+            return ""
+        if isinstance(message, str):
+            return message
+        # AgentExecutorResponse / GroupChatResponseMessage -> reuse agent response extraction
+        text = extract_agent_response({"result": message, "kwargs": kwargs})
+        if text:
+            return text
+        # list[Message] or a single Message object
+        return _extract_text_from_content(
+            message if isinstance(message, list) else getattr(message, "content", message)
+        )
+    except Exception as e:
+        logger.warning(f"Error extracting orchestrator input: {e}")
+        return ""
+
+
+def extract_orchestrator_response(arguments: Any) -> str:
+    """Extract the coordinator result. Coordinators route via context and usually return None."""
+    try:
+        result = arguments.get("result") if isinstance(arguments, dict) else arguments
+        if result is None:
+            return ""
+        return extract_agent_response({"result": result, "kwargs": {}})
+    except Exception as e:
+        logger.warning(f"Error extracting orchestrator response: {e}")
+        return ""
+
+
 # Additional helper functions for INFERENCE entity
 
 def get_inference_type(instance):

@@ -4,6 +4,8 @@ A test case can carry several evals, so one call runs several. They must all be
 graded and all reported: record_assertion keeps only the first AssertionError of
 a chain, so failures are accumulated into one.
 """
+import json
+
 from unittest.mock import MagicMock
 
 import pytest
@@ -145,3 +147,81 @@ class TestChainMixingGuard:
         asserter.check_eval(eval_name="hallucination", expected="minor")
 
         assert _drain() == []
+
+
+class TestEvalNameClassification:
+    """A test-case eval name is classified the way check_eval classifies its own.
+
+    A test case usually arrives as JSON, which has no Path type, so a custom
+    template reaches us as a *string* path. Treating only pathlib.Path as a
+    template sent that string on as a built-in template name, and the eval
+    service was asked for a template called "./evals/my_eval.json".
+    """
+
+    TEMPLATE = {"name": "my_eval", "eval_prompt": "p"}
+
+    def _template_file(self, tmp_path):
+        path = tmp_path / "my_eval.json"
+        path.write_text(json.dumps(self.TEMPLATE), encoding="utf-8")
+        return path
+
+    def _spy(self):
+        """An asserter recording exactly what evaluate() was handed."""
+        eval_mock = MagicMock()
+        eval_mock.last_fact_results = None
+        eval_mock.evaluate.return_value = ("good", "because")
+        return TraceAssertion(filtered_spans=[MagicMock()], _eval=eval_mock), eval_mock
+
+    def test_a_string_path_is_loaded_as_a_template(self, tmp_path):
+        """The regression: a str path must route to template_path, not eval_name."""
+        path = self._template_file(tmp_path)
+        asserter, eval_mock = self._spy()
+
+        asserter.check_eval(testcase={"evals": [{str(path): "good"}]})
+
+        assert _drain() == []
+        kwargs = eval_mock.evaluate.call_args.kwargs
+        assert kwargs["template"] == self.TEMPLATE
+        assert kwargs["eval_name"] == "my_eval"
+
+    def test_a_path_object_still_works(self, tmp_path):
+        path = self._template_file(tmp_path)
+        asserter, eval_mock = self._spy()
+
+        asserter.check_eval(testcase={"evals": [{path: "good"}]})
+
+        assert _drain() == []
+        assert eval_mock.evaluate.call_args.kwargs["template"] == self.TEMPLATE
+
+    def test_a_bare_name_stays_a_builtin(self, tmp_path):
+        asserter, eval_mock = self._spy()
+
+        asserter.check_eval(testcase={"evals": {"hallucination": "good"}})
+
+        assert _drain() == []
+        kwargs = eval_mock.evaluate.call_args.kwargs
+        assert kwargs["eval_name"] == "hallucination"
+        assert kwargs["template"] is None
+
+    def test_a_relative_path_without_json_suffix_is_a_template(self, tmp_path):
+        """classify_eval_input keys off ./ and separators too, not just .json."""
+        nested = tmp_path / "evals"
+        nested.mkdir()
+        path = nested / "my_eval.json"
+        path.write_text(json.dumps(self.TEMPLATE), encoding="utf-8")
+        asserter, eval_mock = self._spy()
+
+        asserter.check_eval(testcase={"evals": [{str(path): "good"}]})
+
+        assert _drain() == []
+        assert eval_mock.evaluate.call_args.kwargs["template"] == self.TEMPLATE
+
+    def test_a_missing_template_file_is_reported(self, tmp_path):
+        asserter, _ = self._spy()
+
+        asserter.check_eval(
+            testcase={"evals": [{str(tmp_path / "nope.json"): "good"}]})
+
+        messages = _drain()
+        assert len(messages) == 1
+        assert "not found" in messages[0].lower()

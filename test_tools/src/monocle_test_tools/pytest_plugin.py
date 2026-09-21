@@ -150,6 +150,29 @@ def pytest_runtest_makereport(item, call):
             rep.outcome = "failed"
 
             rep.longrepr = traceAssertion.get_assertion_messages()
+            _apply_xfail_to_deferred_failure(item, rep)
+
+
+def _apply_xfail_to_deferred_failure(item, rep) -> None:
+    """Honour @pytest.mark.xfail for assertions that were recorded, not raised.
+
+    Fluent assertions record instead of raising, so pytest's own xfail
+    hookwrapper already saw a passing call and left the marker unapplied.
+    """
+    if item.config.getoption("runxfail", False):
+        return
+    marker = item.get_closest_marker("xfail")
+    if marker is None:
+        return
+    # A falsy literal condition disables it; leave string conditions to pytest.
+    condition = marker.args[0] if marker.args else marker.kwargs.get("condition", True)
+    if not isinstance(condition, str) and not condition:
+        return
+    # `raises=` cannot match a failure that never produced an exception.
+    if marker.kwargs.get("raises") is not None:
+        return
+    rep.outcome = "skipped"
+    rep.wasxfail = marker.kwargs.get("reason", "")
 
 def _is_test_failed(request:pytest.FixtureRequest) -> bool:
     """Check if the test has failed based on the pytest request object."""

@@ -105,14 +105,26 @@ class OpenAIStreamProcessor(BaseStreamProcessor):
                         choice.delta.tool_calls):
 
                         for tool_call in choice.delta.tool_calls:
-                            if (hasattr(tool_call, "id") and tool_call.id and
-                                hasattr(tool_call, "function") and tool_call.function):
-
+                            if not getattr(tool_call, "function", None):
+                                continue
+                            # A streamed tool call is split across chunks: the
+                            # first carries id and name, later ones carry slices
+                            # of the argument JSON. Recording only the first
+                            # chunk dropped the arguments entirely.
+                            if getattr(tool_call, "id", None):
                                 state.tools.append({
                                     "id": tool_call.id,
-                                    "name": tool_call.function.name,
-                                    "arguments": getattr(tool_call.function, "arguments", ""),
+                                    "name": tool_call.function.name or "",
+                                    "arguments": "",
                                 })
+                            if not state.tools:
+                                continue
+                            current = state.tools[-1]
+                            if tool_call.function.name and not current["name"]:
+                                current["name"] = tool_call.function.name
+                            fragment = getattr(tool_call.function, "arguments", None)
+                            if fragment:
+                                current["arguments"] += fragment
 
                     # Extract finish_reason
                     if hasattr(choice, "finish_reason") and choice.finish_reason:

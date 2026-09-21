@@ -79,6 +79,19 @@ def extract_assistant_message(arguments):
             role = getattr(result, "role", "assistant")
             return get_json_dumps({role: result.output_text})
 
+        # A tool-call turn emits no text, so report the tool calls instead --
+        # same shape the OpenAI metamodel uses.
+        tools = getattr(result, "tools", None)
+        if tools:
+            return get_json_dumps({"tools": [
+                {
+                    "tool_id": tool.get("id", ""),
+                    "tool_name": tool.get("name", ""),
+                    "tool_arguments": tool.get("arguments", ""),
+                }
+                for tool in tools if isinstance(tool, dict)
+            ]})
+
         # Handle full response
         if hasattr(result, "choices") and result.choices:
             msg_obj = result.choices[0].message

@@ -3,6 +3,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Optional, Sequence, Tuple, Union
 from pydantic import BaseModel, ConfigDict, Field, model_serializer, model_validator
 from opentelemetry.sdk.trace import ReadableSpan
+from monocle_test_tools.custom_validator import ValidatorRef
 from monocle_test_tools.schema import FactID, SpanType
 from monocle_test_tools.trace_utils import get_input_from_span, get_output_from_span
 
@@ -155,6 +156,9 @@ class FluentTestCase(BaseModel):
     agents: Optional[list[Agent]] = Field([], description="agents to validate")
     tools: Optional[list[Tool]] = Field([], description="tools to validate")
     evals: Optional[list[Eval]] = Field([], description="evals to run")
+    validators: Optional[list[ValidatorRef]] = Field(
+        [], description="custom validators to run: a function, a BaseValidator, or "
+                        "an import path to either")
     token_limit: Optional[int] = Field(None, description="Token limit")
     load_error: Optional[str] = Field(
         None,
@@ -177,6 +181,7 @@ class FluentTestCase(BaseModel):
            become the list of keyed entries the fields are declared as.
         3. A scalar ``input`` becomes a one-tuple, so ``"Book a flight"`` works
            where ``("Book a flight",)`` was required.
+        4. A single ``validators`` entry becomes a one-item list.
         """
         if not isinstance(data, dict):
             return data
@@ -201,6 +206,10 @@ class FluentTestCase(BaseModel):
         value = data.get("input")
         if value is not None and not isinstance(value, (tuple, list, dict, FactID)):
             data["input"] = (value,)
+
+        value = data.get("validators")
+        if value is not None and not isinstance(value, (tuple, list)):
+            data["validators"] = [value]
 
         return data
 

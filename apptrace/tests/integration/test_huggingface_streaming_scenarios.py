@@ -296,17 +296,26 @@ async def test_stream_single_tool_call(setup):
         max_tokens=300,
     )
     
-    # Consume stream and extract tool calls
+    # Consume stream and reassemble tool calls. They arrive in fragments: the
+    # first carries id and name, later ones slices of the argument JSON. Taking
+    # a single fragment sends arguments=None back and the provider returns 400.
     tool_calls = []
     async for chunk in stream1:
-        if chunk.choices and chunk.choices[0].delta.tool_calls:
-            for tc in chunk.choices[0].delta.tool_calls:
-                if tc.function:
-                    tool_calls.append({
-                        "id": getattr(tc, "id", f"call_{len(tool_calls)}"),
-                        "name": tc.function.name,
-                        "arguments": getattr(tc.function, "arguments", "{}"),
-                    })
+        if not (chunk.choices and chunk.choices[0].delta.tool_calls):
+            continue
+        for tc in chunk.choices[0].delta.tool_calls:
+            if not tc.function:
+                continue
+            tc_id = getattr(tc, "id", None)
+            if tc_id or not tool_calls:
+                tool_calls.append({"id": tc_id or f"call_{len(tool_calls)}",
+                                   "name": "", "arguments": ""})
+            if tc.function.name:
+                tool_calls[-1]["name"] = tc.function.name
+            if tc.function.arguments:
+                tool_calls[-1]["arguments"] += tc.function.arguments
+    for call in tool_calls:
+        call["arguments"] = call["arguments"] or "{}"
     
     if not tool_calls:
         # Model didn't call tool, just verify we have one span

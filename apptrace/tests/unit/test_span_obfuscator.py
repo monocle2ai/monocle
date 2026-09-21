@@ -858,6 +858,28 @@ class TestConfiguration:
         assert expected_warning in caplog.text
         assert all(isinstance(o, RegexSpanObfuscator) for o in obfuscators)
 
+    @pytest.mark.parametrize("configured", [
+        "presidio",                       # the obfuscation extra is not installed
+        "my_pkg.missing:Obfuscator",      # a custom obfuscator that cannot import
+    ])
+    def test_falls_back_to_the_builtin_when_nothing_else_loads(self, configured, caplog):
+        """Never export raw payloads because an optional dependency is missing."""
+        with patch.dict(os.environ, {"MONOCLE_SPAN_OBFUSCATORS": configured}):
+            os.environ.pop("MONOCLE_DISABLE_SPAN_OBFUSCATION", None)
+            set_span_obfuscators(None)
+            obfuscators = get_span_obfuscators()
+
+        assert [type(o).__name__ for o in obfuscators] == ["RegexSpanObfuscator"]
+        assert "falling back to 'credentials'" in caplog.text
+
+    def test_explicit_opt_out_is_not_overridden_by_the_fallback(self):
+        """The fallback must not resurrect obfuscation the user turned off."""
+        for env in ({"MONOCLE_SPAN_OBFUSCATORS": "none"},
+                    {"MONOCLE_DISABLE_SPAN_OBFUSCATION": "true"}):
+            with patch.dict(os.environ, env):
+                set_span_obfuscators(None)
+                assert get_span_obfuscators() == []
+
     def test_registry_set_and_register(self):
         first, second = UpperObfuscator(), RegexSpanObfuscator()
 
@@ -963,6 +985,22 @@ class TestConfiguration:
         # First, so a literal value is matched before anything rewrites the text.
         assert isinstance(obfuscators[0], RegexSpanObfuscator)
         assert isinstance(obfuscators[1], UpperObfuscator)
+
+    def test_the_fallback_still_carries_the_env_patterns(self):
+        """A failed load must cost neither the built-in patterns nor the env ones."""
+        env = {
+            # presidio needs the obfuscation extra, so nothing loads and the
+            # built-in stands in -- it has to bring the configured patterns along.
+            "MONOCLE_SPAN_OBFUSCATORS": "presidio",
+            "MONOCLE_OBFUSCATE_EXTRA_PATTERNS": '{"corp": "CORP-[0-9]{6}"}',
+        }
+
+        assert [type(o).__name__ for o in self._obfuscators_with(env)] == [
+            "RegexSpanObfuscator"
+        ]
+        assert self._scrub_with(
+            env, f"key {MOCK_OPENAI_KEY} and CORP-123456"
+        ) == "key <API_KEY> and <REDACTED>"
 
     def test_exporter_factory_returns_concrete_exporter_types(self):
         """Obfuscation attaches to processors, so exporter types stay intact."""

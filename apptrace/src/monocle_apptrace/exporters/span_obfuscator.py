@@ -580,6 +580,22 @@ def _load_obfuscators_from_env() -> List[SpanObfuscator]:
                 "Unable to load Monocle span obfuscator '%s': %s. "
                 "Spans will be exported without it.", entry, ex,
             )
+
+    # Nothing loaded, e.g. MONOCLE_SPAN_OBFUSCATORS=presidio without the
+    # obfuscation extra installed. Fall back to the built-in obfuscator rather
+    # than exporting payloads unscrubbed -- obfuscation is only ever turned off
+    # by an explicit opt-out, which returned earlier.
+    if not obfuscators and entries != [DEFAULT_OBFUSCATOR_NAME]:
+        logger.warning(
+            "No configured Monocle span obfuscator could be loaded; falling back to "
+            "'%s' so span payloads are still scrubbed.", DEFAULT_OBFUSCATOR_NAME,
+        )
+        try:
+            obfuscators.append(
+                _instantiate_obfuscator(DEFAULT_OBFUSCATOR_NAME, span_types)
+            )
+        except Exception as ex:  # pragma: no cover - built-in cannot fail
+            logger.warning("Fallback span obfuscator failed to load: %s", ex)
     return obfuscators
 
 

@@ -1145,7 +1145,8 @@ A row must declare an `expected` or `not_expected` label — a guard rail alone 
 | `llamaindex` | LlamaIndex |
 | `strands` | Strands Agents |
 | `msagent` | Microsoft Semantic Kernel / AutoGen |
-| `agentcore` | AWS Bedrock AgentCore Runtime 
+| `agentcore` | AWS Bedrock AgentCore Runtime |
+| `a2a` | A2A protocol agent — [README_A2A_RUNNER.md](src/monocle_test_tools/runner/README_A2A_RUNNER.md) |
 
 ---
 

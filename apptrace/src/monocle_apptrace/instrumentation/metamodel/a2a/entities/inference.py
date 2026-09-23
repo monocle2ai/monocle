@@ -42,12 +42,12 @@ A2A_CLIENT = {
                 {
                     "_comment": "this is a2a output",
                     "attribute": "status",
-                    "accessor": lambda arguments: _helper.get_status(arguments, "status")
+                    "accessor": lambda arguments: _helper.get_status(arguments)
                 },
                 {
                     "_comment": "this is a2a output",
                     "attribute": "response",
-                    "accessor": lambda arguments: _helper.get_response(arguments)   
+                    "accessor": lambda arguments: _helper.get_response(arguments)
                 },
             ],
         },

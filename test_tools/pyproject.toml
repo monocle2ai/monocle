@@ -79,7 +79,15 @@ dev = [
     'strands-agents-tools==0.2.20',
     "transformers>=4.0.0",
     "sentence-transformers>=3.3.0",
-    'boto3==1.42.86'  # AgentCore runner (>=1.42.86 required by bedrock-agentcore 1.6.1)
+    'boto3==1.42.86',  # AgentCore runner (>=1.42.86 required by bedrock-agentcore 1.6.1)
+    "monocle_test_tools[a2a]"
+]
+
+a2a = [
+    # A2A runner: the SDK the test drives the remote agent with, and the HTTP
+    # client it talks over (which the runner wraps to carry trace context).
+    "a2a-sdk>=0.3.0",
+    "httpx>=0.27"
 ]
 
 all = [

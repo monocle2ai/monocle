@@ -11,6 +11,7 @@ class AgentTypes(str, Enum):
     MSAGENT = "msagent"
     HTTP = "http"
     HTTP_WITH_OKAHU = "http_with_okahu"
+    A2A = "a2a"
     AGENTCORE = "agentcore"
     FOUNDRY = "foundry"
 
@@ -42,6 +43,9 @@ def get_agent_runner(runner_type: str) -> AgentRunner:
     elif runner_type == AgentTypes.HTTP_WITH_OKAHU:
         from .http_runner import HttpOkahuRunner
         return HttpOkahuRunner()
+    elif runner_type == AgentTypes.A2A:
+        from .a2a_runner import A2ARunner
+        return A2ARunner()
     elif runner_type == AgentTypes.AGENTCORE:
         from .agentcore_runner import AgentCoreRunner
         return AgentCoreRunner()

@@ -186,5 +186,47 @@ async def test_no_session_has_no_turn_scope(monkeypatch):
     validator.cleanup()
 
 
+class RemoteSpanRunner(AgentRunner):
+    """Fake runner that returns its spans with the answer, as the a2a runner does."""
+
+    def __init__(self, spans_per_turn):
+        self._spans_per_turn = spans_per_turn
+        self._turn = 0
+
+    async def run_agent_async(self, root_agent, *args, session_id: str = None):
+        self._turn += 1
+        return f"turn {self._turn}"
+
+    def get_remote_spans(self) -> list:
+        return self._spans_per_turn[self._turn - 1]
+
+
+@pytest.mark.asyncio
+async def test_multi_turn_sees_the_spans_the_agent_returned(monkeypatch):
+    """Each turn sees the spans the agent sent back on that turn.
+
+    Without this, a multi-turn test of a remote agent sees only local spans.
+    """
+    validator = MonocleValidator()
+    validator.cleanup()
+
+    all_spans = _load_spans()
+    midpoint = max(1, len(all_spans) // 2)
+    spans_per_turn = [all_spans[:midpoint], all_spans[midpoint:]]
+    monkeypatch.setattr(validator_module, "get_agent_runner",
+                        lambda t: RemoteSpanRunner(spans_per_turn))
+
+    mtc = MultiTurnTestCase(
+        session_id="remote_span_session",
+        turns=[{"test_input": ["one"]}, {"test_input": ["two"]}],
+    )
+    per_turn_spans, _results, _turn_ids = await validator.run_multi_turn_agent_async(
+        None, "fake", mtc)
+
+    assert [len(spans) for spans in per_turn_spans] == [len(spans_per_turn[0]),
+                                                        len(spans_per_turn[1])]
+    validator.cleanup()
+
+
 if __name__ == "__main__":
     pytest.main([__file__])

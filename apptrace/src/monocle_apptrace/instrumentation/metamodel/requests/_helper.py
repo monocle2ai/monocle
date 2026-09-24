@@ -96,6 +96,7 @@ class RequestSpanHandler(SpanHandler):
                         if payload is not None:
                             result._content = clean
                             result._monocle_remote_spans = tr.decode_payload(payload)
+                            tr.record_returned_spans(result._monocle_remote_spans)
         except Exception as e:
             logger.debug(f"trace-return strip failed: {e}")
         super().post_task_processing(to_wrap, wrapped, instance, args, kwargs, result, ex, span, parent_span)

@@ -132,7 +132,25 @@ class MonocleValidator:
         self._spans = ()
 
     def add_remote_spans(self, spans:list[Span]):
-        self._spans = self.spans + tuple(spans)
+        """Add spans from another process, skipping any already held.
+
+        The same span can arrive twice: an agent can return its spans with its
+        answer and also export them, and a test may read both. A span counted
+        twice doubles every count assertion, so identity is the trace and span
+        id and each span is added once.
+        """
+        def identity(span):
+            context = span.get_span_context()
+            return (context.trace_id, context.span_id)
+
+        seen = {identity(span) for span in self.spans}
+        fresh = []
+        for span in spans:
+            if identity(span) in seen:
+                continue
+            seen.add(identity(span))
+            fresh.append(span)
+        self._spans = self.spans + tuple(fresh)
 
     def flush_to_exporters(self, test_name:str, test_failed:bool, test_assertion_message:str = None):
         """Flush the current spans and prepare for validation."""
@@ -540,6 +558,12 @@ class MonocleValidator:
 
                 self._trace_source = agent_runner.get_remote_traces_source()
                 self._fetch_remote_traces(**agent_runner.get_remote_trace_query())
+                # Spans the runner took off the response belong to this turn,
+                # so add them before the turn's spans are read, as the
+                # single-turn path does.
+                remote_spans = agent_runner.get_remote_spans()
+                if remote_spans:
+                    self.add_remote_spans(remote_spans)
                 turn_spans = self.spans
                 per_turn_spans.append(turn_spans)
                 results.append(result)

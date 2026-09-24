@@ -1,4 +1,6 @@
 import base64
+import contextlib
+import contextvars
 import gzip
 import hmac
 import importlib
@@ -146,3 +148,35 @@ def get_response_trailer(trace_id: int) -> "tuple[str, bytes] | None":
     if trailer is None:
         return None
     return build_response_header_value(delimiter), trailer
+
+
+# Spans a server returned, for the caller that asked for them. The caller
+# usually never sees the response -- an SDK owns it -- so they are recorded
+# here instead, for the block that asked.
+_returned_spans = contextvars.ContextVar("monocle_returned_spans", default=None)
+
+
+@contextlib.contextmanager
+def collect_returned_spans():
+    """Collect the spans servers return while this block runs.
+
+    Yields a list that gets one entry of span JSON per response that carried
+    spans. Outside a block nothing is recorded, so this costs nothing when
+    no one is collecting::
+
+        with collect_returned_spans() as returned:
+            client.send_message(request)      # over requests or httpx
+    """
+    collected = []
+    token = _returned_spans.set(collected)
+    try:
+        yield collected
+    finally:
+        _returned_spans.reset(token)
+
+
+def record_returned_spans(payload: str) -> None:
+    """Hand a response's spans to whoever is collecting, if anyone is."""
+    collected = _returned_spans.get()
+    if collected is not None:
+        collected.append(payload)

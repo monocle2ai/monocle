@@ -3,7 +3,7 @@ from functools import wraps
 import inspect
 import uuid
 import jsonschema, json
-from typing import Optional, Union
+from typing import Optional, Sequence, Union
 from opentelemetry.sdk.trace import Span, StatusCode
 from opentelemetry.sdk.trace.export import SpanProcessor, SimpleSpanProcessor
 from opentelemetry.sdk.trace.export import SpanExporter
@@ -1346,13 +1346,19 @@ class MonocleValidator:
                 return span
         return None
 
-    def _filter_spans_by_type(self, span_type: str, filtered_spans: Optional[list[Span]] = None, 
+    def _filter_spans_by_type(self, span_type: str, filtered_spans: Optional[list[Span]] = None,
                              name_filter: Optional[str] = None, entity_key: str = "entity.1.name",
-                             parent_filter: Optional[str] = None, parent_key: str = "entity.2.name") -> list:
-        """Filter spans by type with optional name and parent filters."""
+                             parent_filter: Optional[str] = None, parent_key: str = "entity.2.name",
+                             name_filters: Optional[Sequence[str]] = None) -> list:
+        """Filter spans by type with optional name and parent filters.
+
+        ``name_filter`` matches one name; ``name_filters`` matches any of several
+        (the any-of selectors). Callers use one or the other.
+        """
         spans_to_check = filtered_spans if filtered_spans is not None else self.spans
         matching_spans = []
-        
+        allowed_names = None if name_filters is None else set(name_filters)
+
         for span in spans_to_check:
             span_attributes = span.attributes
             
@@ -1362,7 +1368,11 @@ class MonocleValidator:
             if name_filter is not None:
                 if span_attributes.get(entity_key, "") != name_filter:
                     continue
-                    
+
+            if allowed_names is not None:
+                if span_attributes.get(entity_key, "") not in allowed_names:
+                    continue
+
             if parent_filter is not None:
                 if span_attributes.get(parent_key, "") != parent_filter:
                     continue
@@ -1387,6 +1397,29 @@ class MonocleValidator:
             span_type="agentic.invocation",
             filtered_spans=filtered_spans,
             name_filter=agent_name
+        )
+
+    def _get_any_tool_invocation_spans(self, tool_names: Sequence[str], agent_name: str = None,
+                                       filtered_spans: Optional[list[Span]] = None) -> list:
+        """Get invocation spans of any of the named tools, optionally filtered by agent.
+
+        Returned in trace order rather than grouped by tool, so the spans read
+        the way the run happened.
+        """
+        return self._filter_spans_by_type(
+            span_type="agentic.tool.invocation",
+            filtered_spans=filtered_spans,
+            name_filters=tool_names,
+            parent_filter=agent_name
+        )
+
+    def _get_any_agent_invocation_spans(self, agent_names: Sequence[str],
+                                        filtered_spans: Optional[list[Span]] = None) -> list:
+        """Get invocation spans of any of the named agents, in trace order."""
+        return self._filter_spans_by_type(
+            span_type="agentic.invocation",
+            filtered_spans=filtered_spans,
+            name_filters=agent_names
         )
 
     def _get_all_agent_invocation_spans(self, filtered_spans: Optional[list[Span]] = None) -> list:

@@ -477,6 +477,33 @@ def extract_content_text(content) -> str:
         return ' '.join(texts)
     return str(content)
 
+MONOCLE_RETRIEVAL_OUTPUT_MAX_CHARS_ENV = "MONOCLE_RETRIEVAL_OUTPUT_MAX_CHARS"
+DEFAULT_RETRIEVAL_OUTPUT_MAX_CHARS = 64 * 1024
+RETRIEVAL_DOCUMENT_SEPARATOR = "\n\n"
+
+def get_retrieval_output_max_chars() -> int:
+    """Size cap for retrieved context on retrieval spans; override with MONOCLE_RETRIEVAL_OUTPUT_MAX_CHARS."""
+    value = os.environ.get(MONOCLE_RETRIEVAL_OUTPUT_MAX_CHARS_ENV)
+    if value:
+        try:
+            max_chars = int(value)
+            if max_chars > 0:
+                return max_chars
+        except ValueError:
+            pass
+        logger.warning("Ignoring invalid %s=%r, using default %d",
+                       MONOCLE_RETRIEVAL_OUTPUT_MAX_CHARS_ENV, value, DEFAULT_RETRIEVAL_OUTPUT_MAX_CHARS)
+    return DEFAULT_RETRIEVAL_OUTPUT_MAX_CHARS
+
+def format_retrieved_documents(texts) -> str:
+    """Join every retrieved document's text so evals see the full retrieved context,
+    truncated only if it exceeds the configured size cap."""
+    output = RETRIEVAL_DOCUMENT_SEPARATOR.join(str(text) for text in texts if text is not None)
+    max_chars = get_retrieval_output_max_chars()
+    if len(output) > max_chars:
+        output = output[:max_chars] + "..."
+    return output
+
 class Option(Generic[T]):
     def __init__(self, value: Optional[T]):
         self.value = value

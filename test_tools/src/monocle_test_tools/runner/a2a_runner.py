@@ -16,6 +16,13 @@ import os
 from typing import Any, Optional
 from uuid import uuid4
 
+from monocle_apptrace.instrumentation.common.constants import (
+    MONOCLE_TRACE_RETRIEVAL_KEY_ENV,
+    TRACE_RETURN_REQUEST_HEADER,
+)
+from monocle_apptrace.instrumentation.common.trace_return import collect_returned_spans
+from monocle_apptrace.instrumentation.metamodel.httpx._helper import HttpxSpanHandler
+from monocle_test_tools.file_span_loader import JSONSpanLoader
 from monocle_test_tools.runner.agent_runner import AgentRunner
 
 logger = logging.getLogger(__name__)
@@ -55,6 +62,7 @@ class A2ARunner(AgentRunner):
         self._trace_workflow_name = trace_workflow_name or os.environ.get(
             A2A_TRACE_WORKFLOW_ENV)
         self._timeout = timeout
+        self._remote_spans: list = []
         # A2A continuation ids per session, so a turn lands in the task and
         # context the turn before it created.
         self._sessions: dict = {}
@@ -125,7 +133,7 @@ class A2ARunner(AgentRunner):
             raise ValueError("For A2ARunner, a message to send is required.")
 
         a2a_client, a2a_types = _import_a2a()
-        from monocle_test_tools.a2a_transport import make_traced_httpx_client
+        import httpx
 
         remembered = self._sessions.get(session_id, {})
         params = self._build_params(
@@ -134,18 +142,53 @@ class A2ARunner(AgentRunner):
             context_id or remembered.get("context_id"),
         )
 
-        async with make_traced_httpx_client(transport=self._transport,
-                                            timeout=self._timeout) as httpx_client:
+        self._remote_spans = []
+        client_kwargs = {"timeout": self._timeout}
+        if self._transport is not None:
+            client_kwargs["transport"] = self._transport
+
+        async with httpx.AsyncClient(**client_kwargs) as httpx_client:
+            # The card fetch stays untraced. It runs before the message span
+            # exists, so a span for it would start a second trace.
             agent_card = await self._resolve_agent_card(a2a_client, httpx_client, root_agent)
             client = a2a_client.A2AClient(httpx_client=httpx_client, agent_card=agent_card)
             request = a2a_types.SendMessageRequest(
                 id=str(uuid4()),
                 params=a2a_types.MessageSendParams(**params),
             )
-            response = await client.send_message(request, http_kwargs=http_kwargs)
 
+            # Monocle traces an httpx call only for a host it was told about,
+            # so the agent is opted in for the length of the message. The same
+            # instrumentation strips any spans the agent returns and reports
+            # them to the collector.
+            HttpxSpanHandler.set_trace_all_urls_for_test(True)
+            try:
+                with collect_returned_spans() as returned:
+                    response = await client.send_message(
+                        request, http_kwargs=self._http_kwargs(http_kwargs))
+            finally:
+                HttpxSpanHandler.set_trace_all_urls_for_test(False)
+
+        self._capture_remote_spans(returned)
         self._remember_turn(session_id, response)
         return response
+
+    @staticmethod
+    def _http_kwargs(http_kwargs: Optional[dict]) -> dict:
+        """The call's http kwargs, plus the key that asks for the agent's spans.
+
+        A caller that set the header keeps its own value. With no key set,
+        nothing is asked for and the agent returns nothing.
+        """
+        http_kwargs = dict(http_kwargs or {})
+        key = os.environ.get(MONOCLE_TRACE_RETRIEVAL_KEY_ENV)
+        if not key:
+            return http_kwargs
+        headers = dict(http_kwargs.get("headers") or {})
+        if not any(str(name).lower() == TRACE_RETURN_REQUEST_HEADER for name in headers):
+            headers[TRACE_RETURN_REQUEST_HEADER] = key
+        http_kwargs["headers"] = headers
+        return http_kwargs
 
     async def _resolve_agent_card(self, a2a_client, httpx_client, root_agent: Any) -> Any:
         """Return the card to talk to: the configured one, one passed in, or the agent's."""
@@ -175,12 +218,28 @@ class A2ARunner(AgentRunner):
         """Drop the continuation ids held for a finished session."""
         self._sessions.pop(session_id, None)
 
+    def _capture_remote_spans(self, returned: list) -> None:
+        """Load whatever the agent returned with its answer."""
+        spans = []
+        for payload in returned:
+            try:
+                spans.extend(JSONSpanLoader.from_json_str(payload))
+            except Exception as e:
+                logger.warning(f"Failed to read the spans the agent returned: {e}")
+        self._remote_spans = spans
+
+    def get_remote_spans(self) -> list:
+        """Spans the agent sent back with its answer, if any."""
+        return self._remote_spans
+
     def get_remote_traces_source(self) -> Optional[str]:
         """Pull from Okahu only when the agent's workflow is known.
 
         Without it there is nothing to ask Okahu for, so the runner fetches
         nothing and the test reads the agent's trace file instead.
         """
+        if self._remote_spans:
+            return None
         return REMOTE_TRACE_SOURCE if self._trace_workflow_name else None
 
     def get_remote_trace_query(self) -> dict:
@@ -189,7 +248,7 @@ class A2ARunner(AgentRunner):
         The agent's spans are in the test's trace, so the validator resolves
         the trace id from the local spans and only the workflow is needed here.
         """
-        if not self._trace_workflow_name:
+        if self._remote_spans or not self._trace_workflow_name:
             return {}
         return {"workflow_name": self._trace_workflow_name}
 

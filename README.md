@@ -126,6 +126,37 @@ Each file contains an array of OpenTelemetry spans capturing agent runs, tool ca
   Async equivalents (`amonocle_trace_scope`) and full reference: [Scope API docs](docs/monocle_scope_api.md).
 </details>
 
+<details>
+  <summary><b>Example: scrub secrets from traces (obfuscation)</b></summary>
+
+  Span payloads are scrubbed inside your process before export, **on by default** — API keys, passwords, tokens and private keys are redacted, and an inline image becomes `<IMAGE:image/png,1.4MB>` instead of megabytes of base64.
+
+  Add your own secrets without writing any code:
+
+  ```bash
+  # redact these variables' values wherever they appear in a span
+  export MONOCLE_OBFUSCATE_ENV_VALUES=OKAHU_API_KEY,DB_PASSWORD
+
+  # add regexes for shapes whose value you don't hold
+  export MONOCLE_OBFUSCATE_EXTRA_PATTERNS='{"corp_token": "CORP-[0-9]{6}"}'
+  ```
+
+  `MONOCLE_OBFUSCATE_ENV_VALUES` is the stronger of the two: your app already holds its own secrets, so no regex has to describe them and they are caught wherever they land — including as a positional argument, where nothing names them. Bad configuration (a missing variable, a value under 8 characters, invalid JSON, a regex that does not compile) is skipped with a warning rather than failing startup.
+
+  Both apply to obfuscators built from the environment. Passing `span_obfuscators=[...]` to `setup_monocle_telemetry` replaces that configuration entirely, so pass them along to keep them:
+
+  ```python
+  from monocle_apptrace.exporters import RegexSpanObfuscator, extra_patterns_from_env
+
+  setup_monocle_telemetry(
+      workflow_name="my-agent",
+      span_obfuscators=[RegexSpanObfuscator(extra_patterns=extra_patterns_from_env())],
+  )
+  ```
+
+  Full reference: [obfuscating sensitive data](docs/monocle_span_obfuscation.md).
+</details>
+
 ## Testing AI agents with `monocle-test-tools`
 
 **[`monocle-test-tools`](test_tools/)** is the companion test framework that lets you write pytest-style tests that assert on traces, not just return values.

@@ -44,7 +44,7 @@ that configure telemetry in stages.
 ### `RegexSpanObfuscator`
 
 The default. No extra packages, cheap enough to run on every span. Covers PEM private keys, JWTs,
-bearer tokens, AWS/OpenAI/Anthropic/Google/GitHub/Slack keys, and a `credential_assignment`
+bearer tokens, AWS/OpenAI/Anthropic/Google/GitHub/Slack/Okahu keys, and a `credential_assignment`
 catch-all that redacts the value of any `api_key`/`password`/`client_secret`-style assignment in
 `key=value`, `key: value` and `"key": "value"` form — preserving the quotes, so a redacted JSON
 payload stays parseable. `DEFAULT_PATTERNS` in
@@ -61,6 +61,51 @@ RegexSpanObfuscator(
 
 `extra_patterns` is the hook for organization-specific secret shapes. An unknown pattern name
 raises rather than being ignored.
+
+#### Redacting on the payload key
+
+Those patterns match the *text*. `credential_key` matches the **payload key**, catching a bare
+secret they cannot recognize:
+
+```python
+{"response": "connected", "api_key": "hunter2"}
+{"response": "connected", "api_key": "<REDACTED>"}
+```
+
+Only a custom output processor produces such a key — an accessor with no `attribute` name has its
+dict flattened into the payload.
+
+A credential name has to *end* the key: `api_key`, `openai_api_key` and `db.password` match,
+`password_hint` and `api_key_id` do not. It errs toward redacting, so `has_credentials` matches too.
+
+It runs last, so a value a pattern replaced outright keeps that marker (`sk-proj-…` stays
+`<API_KEY>`). One only partly matched is redacted whole, since the key covers all of it.
+
+#### Inline media
+
+A multimodal call sends its image, audio clip or PDF inline as base64, and the whole blob otherwise
+lands in the span verbatim. Two patterns replace it with its media type and decoded size:
+
+```python
+# OpenAI image_url / input_image — data_url reads the media type from the URL
+{"image_url": {"url": "data:image/png;base64,iVBORw0…"}}
+{"image_url": {"url": "<IMAGE:image/png,1.4MB>"}}
+
+# Anthropic source.data, Gemini inline_data.data — base64_blob, no prefix to read
+{"source": {"media_type": "image/png", "data": "iVBORw0…"}}
+{"source": {"media_type": "image/png", "data": "<BASE64:1.4MB>"}}
+```
+
+`data_url` labels `image/*` as `<IMAGE>` and anything else `<MEDIA>`. `base64_blob` matches any
+unbroken base64 run of `BASE64_BLOB_MIN_LENGTH` (512) characters or more, covering providers not
+listed here; it cannot know the media type, but leaves the neighbouring `media_type` / `mime_type`
+field readable beside the marker.
+
+The threshold keeps prose safe — text never runs 512 characters without a space — and credential
+patterns run first, so a key keeps its own marker instead of being called base64.
+
+These two are `MEDIA_PATTERNS`, the rest `CREDENTIAL_PATTERNS`, so `patterns=list(CREDENTIAL_PATTERNS)`
+turns media redaction off. The bytes never reach the exporter, so this is redaction, not truncation.
 
 ### Adding PII detection
 

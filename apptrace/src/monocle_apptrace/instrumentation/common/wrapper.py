@@ -179,6 +179,9 @@ def monocle_wrapper_span_processor(tracer: Tracer, handler: SpanHandler, to_wrap
     auto_close_span = get_auto_close_span(to_wrap, kwargs)
     parent_span = get_current_monocle_span()
     with start_as_monocle_span(tracer, name, auto_close_span) as span:
+        if not span.is_recording():
+            # Unsampled trace: a NonRecordingSpan is never exported, so just run the call.
+            return wrapped(*args, **kwargs), None
         pre_process_span(name, tracer, handler, add_workflow_span, to_wrap, wrapped, instance, args, kwargs, span, source_path)
         
         if SpanHandler.is_root_span(span) or add_workflow_span or SpanHandler.is_remote_parent_span(span):
@@ -247,6 +250,10 @@ def monocle_iter_wrapper_span_processor(tracer: Tracer, handler: SpanHandler, to
     last_item = None
 
     with start_as_monocle_span(tracer, name, auto_close_span) as span:
+        if not span.is_recording():
+            # Unsampled trace: just run the call.
+            yield from wrapped(*args, **kwargs)
+            return
         pre_process_span(name, tracer, handler, add_workflow_span, to_wrap, wrapped, instance, args, kwargs, span, source_path)
 
         if SpanHandler.is_root_span(span) or add_workflow_span or SpanHandler.is_remote_parent_span(span):
@@ -411,6 +418,9 @@ async def amonocle_wrapper_span_processor(tracer: Tracer, handler: SpanHandler, 
     auto_close_span = get_auto_close_span(to_wrap, kwargs)
     parent_span = get_current_monocle_span()
     with start_as_monocle_span(tracer, name, auto_close_span) as span:
+        if not span.is_recording():
+            # Unsampled trace: just run the call.
+            return await wrapped(*args, **kwargs), None
         pre_process_span(name, tracer, handler, add_workflow_span, to_wrap, wrapped, instance, args, kwargs, span, source_path)
         
         if SpanHandler.is_root_span(span) or add_workflow_span or SpanHandler.is_remote_parent_span(span):
@@ -479,6 +489,11 @@ async def amonocle_iter_wrapper_span_processor(tracer: Tracer, handler: SpanHand
     last_item = None
 
     with start_as_monocle_span(tracer, name, auto_close_span) as span:
+        if not span.is_recording():
+            # Unsampled trace: just run the call.
+            async for item in wrapped(*args, **kwargs):
+                yield item
+            return
         pre_process_span(name, tracer, handler, add_workflow_span, to_wrap, wrapped, instance, args, kwargs, span, source_path)
 
         if SpanHandler.is_root_span(span) or add_workflow_span or SpanHandler.is_remote_parent_span(span):

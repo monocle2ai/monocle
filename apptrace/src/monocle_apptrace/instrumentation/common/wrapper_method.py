@@ -27,6 +27,8 @@ from monocle_apptrace.instrumentation.metamodel.flask.methods import (FLASK_METH
 from monocle_apptrace.instrumentation.metamodel.flask._helper import FlaskSpanHandler, FlaskResponseSpanHandler
 from monocle_apptrace.instrumentation.metamodel.requests.methods import (REQUESTS_METHODS, )
 from monocle_apptrace.instrumentation.metamodel.requests._helper import RequestSpanHandler
+from monocle_apptrace.instrumentation.metamodel.httpx.methods import (HTTPX_METHODS, )
+from monocle_apptrace.instrumentation.metamodel.httpx._helper import HttpxSpanHandler
 from monocle_apptrace.instrumentation.metamodel.teamsai.methods import (TEAMAI_METHODS, )
 from monocle_apptrace.instrumentation.metamodel.anthropic.methods import (ANTHROPIC_METHODS, )
 from monocle_apptrace.instrumentation.metamodel.aiohttp.methods import (AIOHTTP_METHODS, )
@@ -111,7 +113,8 @@ DEFAULT_METHODS_LIST = (
     HAYSTACK_METHODS + 
     BOTOCORE_METHODS + 
     FLASK_METHODS + 
-    REQUESTS_METHODS + 
+    REQUESTS_METHODS +
+    HTTPX_METHODS + 
     LANGGRAPH_METHODS + 
     CREW_AI_METHODS +
     MSAGENT_METHODS +
@@ -146,6 +149,7 @@ MONOCLE_SPAN_HANDLERS: Dict[str, SpanHandler] = {
     "flask_handler": FlaskSpanHandler(),
     "flask_response_handler": FlaskResponseSpanHandler(),
     "request_handler": RequestSpanHandler(),
+    "httpx_handler": HttpxSpanHandler(),
     "non_framework_handler": NonFrameworkSpanHandler(),
     "openai_handler": OpenAISpanHandler(),
     "openai_agents_handler": OpenAIAgentsSpanHandler(),

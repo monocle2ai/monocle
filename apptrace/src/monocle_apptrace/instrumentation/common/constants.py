@@ -19,6 +19,10 @@ AZURE_FOUNDRY_PROJECT_ENDPOINT_ENV_NAME = "PROJECT_ENDPOINT"
 AZURE_FOUNDRY_ALT_PROJECT_ENDPOINT_ENV_NAME = "AZURE_AI_PROJECT_ENDPOINT"
 # The name agent-framework-foundry's own samples and FoundryChatClient callers use.
 AZURE_FOUNDRY_SDK_PROJECT_ENDPOINT_ENV_NAME = "FOUNDRY_PROJECT_ENDPOINT"
+# Set by the Vertex AI Agent Engine runtime.
+GCP_AGENT_ENGINE_ENV_NAME = "GOOGLE_CLOUD_AGENT_ENGINE_ID"
+GCP_AGENT_ENGINE_LOCATION_ENV_NAME = "GOOGLE_CLOUD_AGENT_ENGINE_LOCATION"
+GCP_PROJECT_ENV_NAME = "GOOGLE_CLOUD_PROJECT"
 
 # Azure naming reference can be found here
 # https://learn.microsoft.com/en-us/azure/cloud-adoption-framework/ready/azure-best-practices/resource-abbreviations
@@ -30,9 +34,12 @@ AWS_LAMBDA_SERVICE_NAME = "aws_lambda"
 GITHUB_CODESPACE_SERVICE_NAME = "github_codespace"
 AWS_AGENTCORE_SERVICE_NAME = "aws_agentcore"
 AZURE_FOUNDRY_SERVICE_NAME = "azure_ai_foundry"
+GCP_AGENT_ENGINE_SERVICE_NAME = "gcp_agent_engine"
 
-# Env variables to identify infra service type
+# Env variables to identify infra service type; the first match wins
 service_type_map = {
+    # Keep ahead of any Cloud Run entry: Agent Engine also sets K_SERVICE.
+    GCP_AGENT_ENGINE_ENV_NAME: GCP_AGENT_ENGINE_SERVICE_NAME,
     AZURE_ML_ENDPOINT_ENV_NAME: AZURE_ML_SERVICE_NAME,
     AZURE_FUNCTION_WORKER_ENV_NAME: AZURE_FUNCTION_NAME,
     AZURE_APP_SERVICE_ENV_NAME: AZURE_APP_SERVICE_NAME,
@@ -53,6 +60,7 @@ service_name_map = {
     GITHUB_CODESPACE_SERVICE_NAME: GITHUB_CODESPACE_IDENTIFIER_ENV_NAME,
     AWS_AGENTCORE_SERVICE_NAME: AGENTCORE_ENV_NAME,
     AZURE_FOUNDRY_SERVICE_NAME: AZURE_FOUNDRY_PROJECT_ENDPOINT_ENV_NAME,
+    GCP_AGENT_ENGINE_SERVICE_NAME: GCP_AGENT_ENGINE_ENV_NAME,
 }
 
 

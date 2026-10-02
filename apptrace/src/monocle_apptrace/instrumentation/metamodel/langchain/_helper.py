@@ -8,6 +8,7 @@ from urllib.parse import urlparse
 from opentelemetry.context import get_value
 from monocle_apptrace.instrumentation.common.constants import AGENT_PREFIX_KEY, INFERENCE_AGENT_DELEGATION, INFERENCE_TURN_END, INFERENCE_TOOL_CALL, TOOL_TYPE
 from monocle_apptrace.instrumentation.common.utils import (
+    format_retrieved_documents,
     Option,
     get_json_dumps,
     get_keys_as_tuple,
@@ -203,10 +204,7 @@ def update_input_span_events(args):
 
 
 def update_output_span_events(results):
-    output_arg_text = " ".join([doc.page_content for doc in results if hasattr(doc, 'page_content')])
-    if len(output_arg_text) > 100:
-        output_arg_text = output_arg_text[:100] + "..."
-    return output_arg_text
+    return format_retrieved_documents(doc.page_content for doc in results if hasattr(doc, 'page_content'))
 
 
 def update_span_from_llm_response(response, instance):

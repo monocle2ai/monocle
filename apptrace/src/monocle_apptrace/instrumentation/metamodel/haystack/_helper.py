@@ -2,6 +2,7 @@ import logging
 
 from monocle_apptrace.instrumentation.common.constants import TOOL_TYPE, INFERENCE_TOOL_CALL, INFERENCE_TURN_END
 from monocle_apptrace.instrumentation.common.utils import (
+    format_retrieved_documents,
     Option,
     get_json_dumps,
     get_keys_as_tuple,
@@ -154,10 +155,7 @@ def update_span_from_llm_response(response, instance):
 
 
 def update_output_span_events(results):
-    output_arg_text = " ".join([doc.content for doc in results['documents']])
-    if len(output_arg_text) > 100:
-        output_arg_text = output_arg_text[:100] + "..."
-    return output_arg_text
+    return format_retrieved_documents(doc.content for doc in results['documents'])
 
 def extract_finish_reason(arguments):
     """Extract finish_reason from Haystack response."""

@@ -10,18 +10,8 @@ _IDENTIFIER = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 
 
 class ScenarioParam(BaseModel):
-    """One detail of the request the test agent is making of the target agent.
-
-    Each param becomes a zero-arg tool on the test agent, which is why ``name`` has
-    to be identifier-safe. ``description`` becomes the tool description -- word it the
-    way the target agent would refer to the detail, so the test agent can match the
-    target's question to the right tool.
-
-    ``is_initial`` params are stated in the opening message. The values of the rest are
-    withheld from the prompt entirely and reach the test agent only through a tool call,
-    which is what makes progressive disclosure structural rather than a matter of the
-    model following instructions.
-    """
+    """One detail of the request. Becomes a zero-arg tool on the test agent, so a
+    withheld value can only reach the conversation when the target asks for it."""
 
     name: str = Field(..., description="Param name; becomes the tool name.")
     value: Any = Field(..., description="The value the tool returns.")
@@ -53,6 +43,8 @@ class ScenarioTestCase(BaseModel):
                                         description="Details of the request.")
     success_criteria: str = Field(..., description="Judged by the response evaluator.")
     max_turns: int = Field(10, description="Maximum target-agent invocations.")
+    min_turns: int = Field(1, description="The criteria do not count as met before this turn, so a "
+                                          "pressure scenario plays out; a violation still ends it at once.")
     session_id: Optional[str] = Field(None, description="Auto-generated when omitted.")
 
     @field_validator("scenario", "success_criteria")
@@ -66,6 +58,8 @@ class ScenarioTestCase(BaseModel):
     def _validate_case(self) -> "ScenarioTestCase":
         if self.max_turns < 1:
             raise ValueError("max_turns must be at least 1")
+        if not 1 <= self.min_turns <= self.max_turns:
+            raise ValueError("min_turns must be between 1 and max_turns")
         names = [param.name for param in self.params]
         duplicates = sorted({name for name in names if names.count(name) > 1})
         if duplicates:
@@ -80,18 +74,7 @@ class ScenarioTestCase(BaseModel):
         return self
 
     def missing_required_params(self, requested: set[str]) -> list[str]:
-        """Required on-request params the target agent never asked for.
-
-        ``requested`` is the set of param names whose tools the test agent called --
-        it calls one only when the target agent asks for that detail, so a name absent
-        from the set means the target never asked. Initial params are exempt: their
-        values are stated in the opening message, so nothing is left for the target to
-        ask for. Names come back in declaration order.
-
-        A non-empty result fails the scenario even when the judge is satisfied, which
-        is what catches an agent that meets the success criteria by inventing a detail
-        instead of asking for it.
-        """
+        """Required withheld params whose tool was never called: the target never asked."""
         return [param.name for param in self.params
                 if param.required and not param.is_initial
                 and param.name not in requested]

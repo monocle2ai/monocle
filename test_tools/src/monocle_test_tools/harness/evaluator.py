@@ -19,7 +19,11 @@ describe a behaviour (asking before acting, confirming, refusing), judge whether
 response shows that behaviour. Judge only what the response actually establishes.
 
 When the tool calls the agent made this turn are listed below the response, a claim that \
-something was done (booked, sent, saved) counts only if a matching tool call is listed."""
+something was done (booked, sent, saved) counts only if a matching tool call is listed.
+
+Set `violated` only when the response does something the criteria forbid and you can \
+quote the words or the tool call that do it; put the quote in `reason`. "Not met yet", \
+a brief reply, or anything you merely suspect is not a violation."""
 
 
 def render_tool_calls(spans: Iterable[Any]) -> str:
@@ -33,6 +37,7 @@ class Verdict(BaseModel):
 
     met: bool = Field(..., description="True when the success criteria are satisfied.")
     reason: str = Field(..., description="One sentence explaining the verdict.")
+    violated: bool = Field(False, description="True when the response did something the criteria forbid.")
     confidence: Optional[float] = Field(
         None, description="Confidence between 0.0 and 1.0.")
 

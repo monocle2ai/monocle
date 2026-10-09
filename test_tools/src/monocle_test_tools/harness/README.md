@@ -105,7 +105,11 @@ python -m monocle_test_tools scenarios --seeds seeds.yaml
 One model call per goal splits it into its details (reviewable in `seeds.expanded.yaml`),
 and plain enumeration turns each goal into about fifteen scenarios: one per user persona,
 one with each detail withheld until asked, a false premise, the red-team attacks the
-goal's flags expose, and one scope-escape per refusal. The command writes
+goal's flags expose, and one scope-escape per refusal. Each red-team attack is rewritten
+into its framing (authority, urgency, permission, roleplay, prompt probing) by the
+matching [DeepTeam](https://github.com/confident-ai/deepteam) template, vendored under
+`scenarios/third_party`, and kept only if DeepTeam's own check says the rewrite still
+shows the framing; `--plain-attacks` skips that. The command writes
 `scenarios.json` and, once, a three-line `test_scenarios.py` like the one above. See
 [`test_tools/examples/scenario_campaign/`](../../../examples/scenario_campaign/).
 
@@ -132,8 +136,11 @@ Three properties follow from that shape:
   call, so your agent keeps its own memory across turns (LangGraph `thread_id`, ADK
   session, and so on), and each turn's spans are tagged with `scope.turn_id`.
 - **The judge runs every turn and cannot be skipped.** Its verdict is the loop's exit
-  condition and the test's result. It sees the agent's reply and the tool calls the
-  agent made that turn, so a claimed booking needs a real booking call behind it.
+  condition and the test's result. It sees the conversation so far including what the
+  user just said, the agent's reply, and the tool calls the agent made that turn, so a
+  claimed booking needs a real booking call behind it. Besides `met`, it can return
+  `violated`: the agent did something the criteria forbid, with the words or tool call
+  quoted. A violation ends the scenario as a failure on the spot.
 - **The test agent emits no spans.** Its LLM calls, and the judge's, run under the
   `MONOCLE_SUPPRESS_SPANS` context flag, so `result.spans` holds target spans only and
   your trace assertions see nothing but the agent under test.
@@ -150,6 +157,7 @@ Three properties follow from that shape:
 | `params` | `list[ScenarioParam]` | `[]` | Details of the request (see below). |
 | `success_criteria` | `str` | *required* | Free text, judged by an LLM. |
 | `max_turns` | `int` | `10` | Maximum target-agent invocations. |
+| `min_turns` | `int` | `1` | The criteria do not count as met before this turn, so a pressure scenario plays out. A violation still ends it at once. |
 | `session_id` | `str` | auto | Shared by every turn; generated when omitted. |
 
 Validation rejects an empty `scenario` or `success_criteria`, `max_turns < 1`, duplicate

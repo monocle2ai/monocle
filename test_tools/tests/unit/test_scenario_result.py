@@ -77,3 +77,12 @@ def test_repr_hides_spans_and_transcript_but_keeps_the_failure():
     assert "SPAN-REPR-MARKER" not in text and "tester_message" not in text
     assert "passed=False" in text and "never requested: date" in text and len(text) < 400
     assert "I need a damn flight." in result.report()
+
+
+def test_the_judge_transcript_ends_with_what_the_user_just_said():
+    from monocle_test_tools.harness.driver import ScenarioHarness
+    records = [TurnRecord(turn=1, tester_message="book it", target_response="which date?",
+                          verdict=Verdict(met=False, reason="asked"))]
+    text = ScenarioHarness._transcript(records, 2, "22 Oct 2026, go ahead")
+    assert text.splitlines() == ["turn 1 user> book it", "turn 1 agent> which date?",
+                                 "turn 2 user> 22 Oct 2026, go ahead"]

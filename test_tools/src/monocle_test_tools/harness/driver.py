@@ -27,8 +27,7 @@ TEST_AGENT_MODEL_ENV = "MONOCLE_TEST_AGENT_MODEL"
 TEST_JUDGE_MODEL_ENV = "MONOCLE_TEST_JUDGE_MODEL"
 TRACE_TEST_AGENT_ENV = "MONOCLE_TRACE_TEST_AGENT"
 
-# Turn 1 has no target message to react to, so the test agent is kicked off with this
-# instruction instead of an empty message list (which some providers reject).
+# Some providers reject an empty message list, so turn 1 starts from this.
 KICKOFF = ("Start the conversation with the target agent. Send your first message now, "
            "in persona.")
 
@@ -45,10 +44,7 @@ class ScenarioHarness:
         if trace_test_agent is None:
             trace_test_agent = os.getenv(TRACE_TEST_AGENT_ENV, "false").lower() == "true"
         self.trace_test_agent = trace_test_agent
-        # MonocleValidator is a singleton, so this is the same instance the
-        # monocle_trace_asserter fixture holds. Instrumentation setup stays the
-        # fixture's job via pre_test_run_setup.
-        self.validator = MonocleValidator()
+        self.validator = MonocleValidator()   # the singleton the fixture set up
 
     @staticmethod
     def _resolve_model(spec: Any, env_var: str, fallback: Optional[str] = None) -> Any:
@@ -78,12 +74,13 @@ class ScenarioHarness:
             detach(token)
 
     @staticmethod
-    def _transcript(records: list[TurnRecord]) -> str:
-        """Compact conversation history for the judge prompt."""
+    def _transcript(records: list[TurnRecord], current_turn: int, current_message: str) -> str:
+        """The conversation so far, ending with what the user just said this turn."""
         lines = []
         for record in records:
             lines.append(f"turn {record.turn} user> {record.tester_message}")
             lines.append(f"turn {record.turn} agent> {record.target_response}")
+        lines.append(f"turn {current_turn} user> {current_message}")
         return "\n".join(lines)
 
     async def run_scenario_async(self, target_agent: Any, agent_type: str,
@@ -127,7 +124,7 @@ class ScenarioHarness:
 
                 with self._suppress_spans():
                     verdict = await evaluator.judge(target_response,
-                                                    self._transcript(records),
+                                                    self._transcript(records, turn, tester_message),
                                                     spans=turn_spans)
 
                 records.append(TurnRecord(
@@ -135,21 +132,16 @@ class ScenarioHarness:
                     target_response=target_response, verdict=verdict,
                     param_tools_called=called))
 
-                if verdict.met:
+                if verdict.violated:
+                    failure_reason = f"criteria violated: {verdict.reason}"
+                    break
+                if verdict.met and turn >= case.min_turns:
                     passed = True
                     break
 
-                # Carry the tester's OWN output forward verbatim -- tool calls and
-                # tool results included -- rather than replaying just its final text.
-                # Replaying only the text leaves a history in which the tester appears
-                # to produce param values out of nowhere, and it imitates that: it
-                # invents the next value instead of calling the tool. Measured at the
-                # turn where the target asks for the date, carrying full history called
-                # the tool 10/10 versus 4/10 for text-only.
-                #
-                # Judge verdicts do NOT go in. Injecting them -- as a HumanMessage, a
-                # SystemMessage, or folded into the target turn -- makes the tester lose
-                # track of who is who (the Human in its history IS the target agent).
+                # Keep the tester's tool calls in its history, or it starts inventing
+                # values instead of calling the tools (10/10 vs 4/10 in testing).
+                # Verdicts stay out: the Human role in this history is the target.
                 messages = list(state["messages"])
                 messages.append(HumanMessage(content=str(target_response)))
             else:
@@ -160,10 +152,7 @@ class ScenarioHarness:
             except Exception as error:  # pylint: disable=broad-except
                 logger.debug("end_session cleanup failed: %s", error)
 
-        # A required detail the target agent never asked for fails the scenario even
-        # when the judge is satisfied -- that combination is exactly an agent meeting
-        # the success criteria by inventing a detail instead of asking for it. When the
-        # run already failed, the original cause leads and this is appended.
+        # Met the criteria without asking for a required detail = invented it.
         requested = {call.name for record in records
                      for call in record.param_tools_called}
         missing = case.missing_required_params(requested)
@@ -172,9 +161,7 @@ class ScenarioHarness:
             clause = f"required params never requested: {', '.join(missing)}"
             failure_reason = f"{failure_reason}; {clause}" if failure_reason else clause
 
-        # Re-point the validator's pool at every target span this scenario produced, so
-        # the monocle_trace_asserter fixture asserts over the whole run rather than the
-        # last turn. Same idiom as MonocleValidator.test_multi_turn_agent_async.
+        # Let the fixture assert over the whole run, as test_multi_turn_agent_async does.
         all_spans = tuple(self.validator._test_all_up_spans)  # pylint: disable=protected-access
         self.validator._spans = all_spans  # pylint: disable=protected-access
 

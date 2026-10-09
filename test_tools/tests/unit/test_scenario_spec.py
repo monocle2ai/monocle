@@ -68,3 +68,10 @@ def test_missing_required_params_ignores_optional_params():
         {"name": "seat", "value": "aisle", "is_initial": False, "description": "b", "required": False},
     ]}
     assert ScenarioTestCase.model_validate(optional).missing_required_params(set()) == []
+
+
+def test_min_turns_must_sit_between_one_and_max_turns():
+    assert ScenarioTestCase.model_validate(VALID).min_turns == 1
+    assert ScenarioTestCase.model_validate({**VALID, "min_turns": 3}).min_turns == 3
+    with pytest.raises(ValidationError, match="min_turns"):
+        ScenarioTestCase.model_validate({**VALID, "min_turns": 9})

@@ -21,15 +21,8 @@ class TurnRecord(BaseModel):
 
 
 class ScenarioResult(BaseModel):
-    """The outcome of one scenario run.
-
-    ``turns``, ``spans`` and ``per_turn_spans`` are excluded from ``repr`` on purpose.
-    A failing ``assert result.passed`` makes pytest print ``repr(result)``, and the
-    default Pydantic repr dumps every span object and every message -- hundreds of lines
-    of ``<ReadableSpan object at 0x...>`` burying the actual failure. The transcript
-    belongs in :meth:`report`, which is what callers pass as the assert message; the
-    fields are still fully readable as attributes.
-    """
+    """The outcome of one scenario run. Spans and turns are kept out of ``repr`` so a
+    failing ``assert result.passed`` prints the failure, not every span object."""
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
@@ -63,10 +56,6 @@ class ScenarioResult(BaseModel):
         if self.turns and self.turns[-1].verdict is not None:
             lines.append(f"  last verdict: {self.turns[-1].verdict.reason}")
         for record in self.turns:
-            # The turn number labels the turn's first line, and every following line of
-            # that turn is indented to line up under it. Each tool call gets its own
-            # line showing what it returned, so the tester's message stays verbatim --
-            # what actually went to the target agent, with nothing prepended to it.
             prefix = f"  turn {record.turn}  "
             indent = " " * len(prefix)
             for call in record.param_tools_called:

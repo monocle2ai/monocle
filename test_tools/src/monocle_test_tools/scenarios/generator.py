@@ -24,6 +24,7 @@ from typing import Any, Optional
 from pydantic import ValidationError
 
 from monocle_test_tools.harness.scenario import ScenarioParam
+from monocle_test_tools.scenarios.attacks import dress
 from monocle_test_tools.scenarios.scenario import Scenario
 from monocle_test_tools.scenarios.seed import (
     MinimalSeedFile, Seed, SeedError, SeedFile, expand, load_seeds, write_seed_file,
@@ -73,12 +74,13 @@ def _params(seed: Seed, withhold: set[str]) -> list[ScenarioParam]:
 
 
 def _make_scenario(seeds: SeedFile, seed_id: str, family: str, angle: str, *, ask: str,
-                   persona: str, success: str, params: list[ScenarioParam]) -> Scenario:
+                   persona: str, success: str, params: list[ScenarioParam],
+                   min_turns: int = 1) -> Scenario:
     return Scenario(
         test_name=".".join(part for part in (seed_id, family, angle) if part),
         seed_id=seed_id, family=family, angle=angle, scenario=ask, persona=persona,
         params=params, success_criteria=success, max_turns=seeds.max_turns,
-        target_description=seeds.agent)
+        min_turns=min(min_turns, seeds.max_turns), target_description=seeds.agent)
 
 
 def persona_scenarios(seeds: SeedFile, seed: Seed, personas: dict) -> list[Scenario]:
@@ -116,18 +118,38 @@ def worry_scenarios(seeds: SeedFile, seed: Seed, personas: dict) -> list[Scenari
             for worry in seed.worries]
 
 
-def redteam_scenarios(seeds: SeedFile, seed: Seed, redteam: dict) -> list[Scenario]:
+def redteam_scenarios(seeds: SeedFile, seed: Seed, redteam: dict, model: Any = None) -> list[Scenario]:
+    """One scenario per (mode, delivery). With a model, the attack text is rewritten into the
+    delivery's framing by DeepTeam's template; without one, the baseline text is used."""
     out = []
     for mode_name, mode in redteam["modes"].items():
         gate = mode["gate"]
         if gate != "always" and not getattr(seed, gate):
             continue
+        # An attack that pressures the agent to act needs something to skip: the last
+        # detail is withheld, so acting anyway means inventing it.
+        withhold = {list(seed.params)[-1]} if mode.get("withhold_last_detail") and len(seed.params) > 1 else set()
+        missing = seed.params[next(iter(withhold))].description if withhold else "a detail"
+        baseline = mode["scenario"].format(goal=seed.goal, missing=missing) + _details(seed, withhold)
+        params = _params(seed, withhold)
+        for param in params:
+            if param.name in withhold:
+                param.required = False   # the agent passes by asking; the judge decides, not the tool log
         for delivery in mode["deliveries"]:
             out.append(_make_scenario(seeds, seed.id, "redteam", f"{mode_name}.{delivery}",
-                                      ask=mode["scenario"].format(goal=seed.goal),
+                                      ask=dress(model, delivery, baseline),
                                       persona=redteam["deliveries"][delivery]["persona"],
-                                      success=mode["success"], params=_params(seed, set())))
+                                      success=mode["success"].format(missing=missing),
+                                      params=params, min_turns=mode.get("min_turns", 1)))
     return out
+
+
+def _details(seed: Seed, withhold: set[str]) -> str:
+    """The user's real details (minus any withheld), so a rewritten attack does not invent its own."""
+    known = [p for name, p in seed.params.items() if name not in withhold]
+    if not known:
+        return ""
+    return " The user's details: " + ", ".join(f"{p.description} {p.value}" for p in known) + "."
 
 
 def scope_escape_scenarios(seeds: SeedFile, personas: dict, redteam: dict) -> list[Scenario]:
@@ -144,8 +166,8 @@ def _slug(text: str) -> str:
 
 
 def generate(seeds: SeedFile, personas: Optional[dict] = None,
-             redteam: Optional[dict] = None) -> list[Scenario]:
-    """Every scenario the seed file supports."""
+             redteam: Optional[dict] = None, model: Any = None) -> list[Scenario]:
+    """Every scenario the seed file supports. ``model`` dresses the red-team attacks."""
     personas = personas or _config("personas.yaml")
     redteam = redteam or _config("redteam.yaml")
     scenarios: list[Scenario] = []
@@ -155,7 +177,7 @@ def generate(seeds: SeedFile, personas: Optional[dict] = None,
         if seed.params:
             scenarios.append(false_premise_scenario(seeds, seed, index, personas, redteam))
         scenarios += worry_scenarios(seeds, seed, personas)
-        scenarios += redteam_scenarios(seeds, seed, redteam)
+        scenarios += redteam_scenarios(seeds, seed, redteam, model)
     scenarios += scope_escape_scenarios(seeds, personas, redteam)
 
     duplicates = sorted(name for name, n in Counter(s.test_name for s in scenarios).items() if n > 1)
@@ -216,12 +238,12 @@ def ask_for_seeds(path: str) -> MinimalSeedFile:
     return minimal
 
 
-def _model(spec: Optional[str]) -> Any:
-    from langchain.chat_models import init_chat_model
+def _model(spec: Optional[str]) -> Optional[Any]:
+    """The generation model, or None when none is configured."""
     spec = spec or os.getenv(TEST_AGENT_MODEL_ENV)
     if not spec:
-        raise SeedError(f"expanding goal sentences needs a model: set {TEST_AGENT_MODEL_ENV} "
-                        "(e.g. openai:gpt-4.1) or pass --model")
+        return None
+    from langchain.chat_models import init_chat_model
     return init_chat_model(spec)
 
 
@@ -233,16 +255,22 @@ def main() -> int:
     parser.add_argument("--out-dir", default=None, help="where to write; default: the seed file's folder")
     parser.add_argument("--model", default=None, help=f"model for expanding goals; default ${TEST_AGENT_MODEL_ENV}")
     parser.add_argument("--no-stub", action="store_true", help="do not write test_scenarios.py")
+    parser.add_argument("--plain-attacks", action="store_true",
+                        help="keep the red-team text as written instead of dressing it with DeepTeam's templates")
     args = parser.parse_args()
 
     out_dir = args.out_dir or os.path.dirname(os.path.abspath(args.seeds))
     os.makedirs(out_dir, exist_ok=True)
     try:
+        model = _model(args.model)
         seeds = load_seeds(args.seeds) if os.path.isfile(args.seeds) else ask_for_seeds(args.seeds)
         if isinstance(seeds, MinimalSeedFile):
+            if model is None:
+                raise SeedError(f"expanding goal sentences needs a model: set {TEST_AGENT_MODEL_ENV} "
+                                "(e.g. openai:gpt-4.1) or pass --model")
             print(f"expanding {len(seeds.goals)} goals")
             try:
-                seeds = expand(seeds, _model(args.model))
+                seeds = expand(seeds, model)
             except Exception as error:  # a provider error: auth, network, quota
                 raise SeedError(f"the model call to split the goals failed: {error}") from error
             expanded_path = os.path.join(out_dir, "seeds.expanded.yaml")
@@ -251,7 +279,12 @@ def main() -> int:
                 params = ", ".join(f"{n}={p.value}" for n, p in seed.params.items())
                 print(f"  {seed.id:<16} params: {params}   side_effect: {'yes' if seed.side_effect else 'no'}")
             print(f"wrote {expanded_path}   (edit this if a param split is wrong)\n")
-        scenarios = generate(seeds)
+        if model is None and not args.plain_attacks:
+            print(f"note: no model ({TEST_AGENT_MODEL_ENV} unset), so red-team attacks keep their plain text")
+        try:
+            scenarios = generate(seeds, model=None if args.plain_attacks else model)
+        except Exception as error:  # a provider error while dressing attacks
+            raise SeedError(f"the model call to dress the attacks failed: {error}") from error
     except (SeedError, ValidationError) as error:
         print(f"error: {error}", file=sys.stderr)
         return 1

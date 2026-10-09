@@ -49,3 +49,9 @@ def test_judge_prompt_shows_tool_calls_after_the_response_when_given():
 
 def test_judge_prompt_omits_the_tool_section_when_no_spans_were_given():
     assert "[TOOL CALLS THIS TURN]" not in _evaluator().build_judge_prompt("r")
+
+
+def test_verdict_violated_defaults_false_and_the_preamble_defines_it():
+    from monocle_test_tools.harness.evaluator import JUDGE_PREAMBLE
+    assert Verdict(met=False, reason="r").violated is False
+    assert "violated" in JUDGE_PREAMBLE

@@ -306,10 +306,5 @@ MONOCLE_TRACE_RETRIEVAL_KEY_ENV = "MONOCLE_TRACE_RETRIEVAL_KEY"
 # AgentCore forwards a caller's headers to the agent only when they carry this
 # prefix, so the retrieval key travels as
 AGENTCORE_CUSTOM_HEADER_PREFIX = "X-Amzn-Bedrock-AgentCore-Runtime-Custom-"
-# Context flag that suppresses span generation entirely for the duration of a
-# scope: the instrumented method still runs, but no span is created, nested or
-# exported. Distinct from MONOCLE_SKIP_EXECUTIONS, which skips a tool's
-# execution but still emits its span. Set by the scenario test harness around
-# its own test-agent and judge LLM calls so they stay out of the traces of the
-# agent under test.
+# Unlike MONOCLE_SKIP_EXECUTIONS, the method still runs; only the span is dropped.
 MONOCLE_SUPPRESS_SPANS = "monocle.suppress_spans"

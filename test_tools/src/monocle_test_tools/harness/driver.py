@@ -122,11 +122,13 @@ class ScenarioHarness:
                                               param_tools_called=called))
                     break
 
-                per_turn_spans.append(self.validator.spans)
+                turn_spans = self.validator.spans
+                per_turn_spans.append(turn_spans)
 
                 with self._suppress_spans():
                     verdict = await evaluator.judge(target_response,
-                                                    self._transcript(records))
+                                                    self._transcript(records),
+                                                    spans=turn_spans)
 
                 records.append(TurnRecord(
                     turn=turn, tester_message=tester_message,

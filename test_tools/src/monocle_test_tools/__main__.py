@@ -5,12 +5,14 @@ import importlib
 
 SUBCOMMANDS = {
     "generate_test": "monocle_test_tools.generate_test",
+    "scenarios": "monocle_test_tools.scenarios.generator",
 }
 
 HELP_TEXT = """Usage: python -m monocle_test_tools <command> [options]
 
 Available commands:
   generate_test  —  Generate test code from a trace file
+  scenarios      —  Turn a seed file into scenarios.json and a pytest stub
 """
 
 

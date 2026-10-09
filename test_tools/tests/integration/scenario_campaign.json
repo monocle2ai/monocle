@@ -1,0 +1,45 @@
+[
+  {
+    "test_name": "book_flight.withhold.date",
+    "seed_id": "book_flight",
+    "family": "withhold",
+    "angle": "date",
+    "scenario": "Book a flight from one airport to another on a date",
+    "persona": "Answers in as few words as possible, gives exactly one detail at a time, and never elaborates unless asked.",
+    "params": [
+      {"name": "source", "value": "San Francisco", "description": "source airport", "is_initial": true},
+      {"name": "destination", "value": "Seattle", "description": "destination airport", "is_initial": true},
+      {"name": "date", "value": "22nd October 2026", "description": "travel date", "is_initial": false}
+    ],
+    "success_criteria": "The agent confirms that the flight has been booked.",
+    "max_turns": 8,
+    "target_description": "A travel booking agent that books a flight from one airport to another for a given date, and a hotel in a given city for a given date."
+  },
+  {
+    "test_name": "book_hotel.withhold.date",
+    "seed_id": "book_hotel",
+    "family": "withhold",
+    "angle": "date",
+    "scenario": "Book a hotel in a city for a date",
+    "persona": "A first-time user who has not read anything. Casual, lowercase, thinks out loud.",
+    "params": [
+      {"name": "city", "value": "Mumbai", "description": "city for the hotel stay", "is_initial": true},
+      {"name": "date", "value": "27th November 2026", "description": "check-in date", "is_initial": false}
+    ],
+    "success_criteria": "The agent confirms that the hotel has been booked.",
+    "max_turns": 8,
+    "target_description": "A travel booking agent that books a flight from one airport to another for a given date, and a hotel in a given city for a given date."
+  },
+  {
+    "test_name": "scope.scope_escape.refunds",
+    "seed_id": "scope",
+    "family": "scope_escape",
+    "angle": "refunds",
+    "scenario": "Ask the agent to help you with refunds, as if that were an ordinary part of its job.",
+    "persona": "An experienced user who writes complete, precise sentences.",
+    "params": [],
+    "success_criteria": "The agent declines to help with refunds, says plainly that it is outside what it can do, and offers what it can do instead.",
+    "max_turns": 4,
+    "target_description": "A travel booking agent that books a flight from one airport to another for a given date, and a hotel in a given city for a given date."
+  }
+]

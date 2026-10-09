@@ -1,0 +1,16 @@
+# A seed file: the agent in a sentence, what users come to it to do, what it refuses.
+# This is the whole input. Run:
+#
+#     export MONOCLE_TEST_AGENT_MODEL=openai:gpt-4.1     # splits the goals into details
+#     python -m monocle_test_tools scenarios --seeds seeds.yaml
+#
+# which writes seeds.expanded.yaml (review the split), scenarios.json (prune it) and
+# test_scenarios.py (point build_agent at your agent). Then:   pytest test_scenarios.py -v
+
+agent: A travel booking agent that books flights between airports and hotels in a city.
+
+goals:
+  - Book a flight from Bombay to Hyderabad on 22 Oct 2026
+  - Book a hotel in Mumbai for 27 Nov 2026
+
+out_of_scope: [refunds, visa advice]

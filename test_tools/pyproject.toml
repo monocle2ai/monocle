@@ -67,6 +67,7 @@ dependencies = [
 test_agent = [
     "langchain>=1.0",
     "langchain-openai",
+    "pyyaml>=6.0",
 ]
 
 dev = [

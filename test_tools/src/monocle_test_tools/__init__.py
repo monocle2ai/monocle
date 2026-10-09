@@ -27,6 +27,7 @@ from . import trace_utils
 from .runner import AgentRunner, get_agent_runner
 from .fluent_api import TraceAssertion, setup_test_cases
 from .csv_cases import CsvCase, load_cases_from_csv, monocle_csv_cases
+from .scenarios import Scenario, load_scenarios, monocle_scenarios
 from .test_generator import TestGenerator
 from . import pytest_plugin
 from . import gitutils
@@ -55,6 +56,9 @@ __all__ = [
     "CsvCase",
     "load_cases_from_csv",
     "monocle_csv_cases",
+    "Scenario",
+    "load_scenarios",
+    "monocle_scenarios",
     "TestGenerator",
     "pytest_plugin",
     "gitutils"

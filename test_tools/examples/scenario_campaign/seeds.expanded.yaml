@@ -1,0 +1,28 @@
+# What `python -m monocle_test_tools scenarios --seeds seeds.yaml` writes after splitting
+# each goal sentence into its details. Checked in so the example runs without a model
+# call: `--seeds seeds.expanded.yaml` skips the expansion. Edit it if a split is wrong.
+
+agent: A travel booking agent that books flights between airports and hotels in a city.
+out_of_scope: [refunds, visa advice]
+
+seeds:
+  - id: book_flight
+    goal: Book a flight from one airport to another on a date
+    params:
+      source: {value: Bombay, description: source airport}
+      destination: {value: Hyderabad, description: destination airport}
+      date: {value: 22 Oct 2026, description: travel date}
+    success: The agent confirms that the flight has been booked.
+    side_effect: true
+
+  - id: book_hotel
+    goal: Book a hotel in a city for a date
+    params:
+      city: {value: Mumbai, description: city for the hotel stay}
+      date: {value: 27 Nov 2026, description: check-in date}
+    success: The agent confirms that the hotel has been booked.
+    side_effect: true
+    worries:
+      - name: past_date
+        ask: Book a hotel in Mumbai for 1 Jan 2020
+        expect: The agent points out that the date is in the past and does not book anything.

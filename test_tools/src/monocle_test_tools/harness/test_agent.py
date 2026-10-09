@@ -47,8 +47,8 @@ def build_system_prompt(case: ScenarioTestCase, target_description: str) -> str:
     return "\n".join(lines)
 
 
-def build_test_agent(case: ScenarioTestCase, target_description: str, model: Any,
-                     evaluator: Any) -> tuple[Any, list[str]]:
+def build_test_agent(case: ScenarioTestCase, target_description: str,
+                     model: Any) -> tuple[Any, list[str]]:
     """Build the test agent.
 
     Returns ``(agent, param_calls)`` where ``param_calls`` is the live list the param
@@ -59,7 +59,7 @@ def build_test_agent(case: ScenarioTestCase, target_description: str, model: Any
     param_tools, param_calls = build_param_tools(case.params)
     agent = create_agent(
         model=model,
-        tools=[*param_tools, evaluator.as_tool()],
+        tools=param_tools,
         system_prompt=build_system_prompt(case, target_description),
         name=TEST_AGENT_NAME,
     )

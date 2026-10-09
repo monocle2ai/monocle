@@ -96,7 +96,7 @@ class ScenarioHarness:
         judge = self._resolve_model(self._judge_model_spec, TEST_JUDGE_MODEL_ENV,
                                     fallback=os.getenv(TEST_AGENT_MODEL_ENV))
         evaluator = ResponseEvaluator(judge, case.success_criteria)
-        tester, param_calls = build_test_agent(case, target_description, model, evaluator)
+        tester, param_calls = build_test_agent(case, target_description, model)
 
         messages: list[Any] = [HumanMessage(content=KICKOFF)]
         records: list[TurnRecord] = []
@@ -147,11 +147,9 @@ class ScenarioHarness:
                 # turn where the target asks for the date, carrying full history called
                 # the tool 10/10 versus 4/10 for text-only.
                 #
-                # Judge verdicts still do NOT go in. Injecting them -- as a
-                # HumanMessage, a SystemMessage, or folded into the target turn -- makes
-                # the tester lose track of who is who (the Human in its history IS the
-                # target agent). The tester self-checks through its own
-                # evaluate_response tool; the authoritative verdict stays in the driver.
+                # Judge verdicts do NOT go in. Injecting them -- as a HumanMessage, a
+                # SystemMessage, or folded into the target turn -- makes the tester lose
+                # track of who is who (the Human in its history IS the target agent).
                 messages = list(state["messages"])
                 messages.append(HumanMessage(content=str(target_response)))
             else:

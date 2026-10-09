@@ -1,8 +1,21 @@
-"""Tests for the response evaluator's pure parts (prompt building, tool metadata).
+"""The judge prompt. judge() itself needs a live model and is covered by the integration test."""
+from monocle_test_tools.harness.evaluator import ResponseEvaluator, Verdict, render_tool_calls
 
-judge() itself needs a live model and is covered by the worked example integration test.
-"""
-from monocle_test_tools.harness.evaluator import ResponseEvaluator, Verdict
+
+class FakeEvent:
+    def __init__(self, name, attributes):
+        self.name = name
+        self.attributes = attributes
+
+
+class FakeSpan:
+    def __init__(self, span_type, name, input_text=None, output_text=None):
+        self.attributes = {"span.type": span_type, "entity.1.name": name}
+        self.events = []
+        if input_text is not None:
+            self.events.append(FakeEvent("data.input", {"input": input_text}))
+        if output_text is not None:
+            self.events.append(FakeEvent("data.output", {"response": output_text}))
 
 
 def _evaluator():
@@ -11,36 +24,28 @@ def _evaluator():
 
 def test_verdict_requires_met_and_reason():
     verdict = Verdict(met=True, reason="booking confirmed")
-    assert verdict.met is True
-    assert verdict.confidence is None
+    assert verdict.met is True and verdict.confidence is None
 
 
-def test_judge_prompt_contains_the_success_criteria():
-    prompt = _evaluator().build_judge_prompt("Your flight is booked.", "")
-    assert "Flight is booked" in prompt
+def test_judge_prompt_carries_criteria_transcript_and_response():
+    prompt = _evaluator().build_judge_prompt({"status": "booked"}, "turn 1 tester> hi")
+    assert "Flight is booked" in prompt and "turn 1 tester> hi" in prompt and "booked" in prompt
+    assert "(none)" in _evaluator().build_judge_prompt("ok", "")
 
 
-def test_judge_prompt_contains_the_target_response():
-    prompt = _evaluator().build_judge_prompt("Your flight is booked.", "")
-    assert "Your flight is booked." in prompt
+def test_render_tool_calls_lists_only_tool_invocations():
+    spans = [FakeSpan("inference", "gpt-4.1", "prompt", "reply"),
+             FakeSpan("agentic.tool.invocation", "book_flight", "Bombay->Hyderabad", "MNCL123")]
+    assert render_tool_calls(spans) == "- book_flight(input=Bombay->Hyderabad) -> MNCL123"
+    assert render_tool_calls([FakeSpan("inference", "gpt")]) == ""
 
 
-def test_judge_prompt_contains_the_transcript_when_given():
-    prompt = _evaluator().build_judge_prompt("ok", "turn 1 tester> hi")
-    assert "turn 1 tester> hi" in prompt
+def test_judge_prompt_shows_tool_calls_after_the_response_when_given():
+    prompt = _evaluator().build_judge_prompt("Booked!", "", "- book_flight(input=x) -> ok")
+    assert prompt.index("[LATEST TARGET AGENT RESPONSE]") < prompt.index("[TOOL CALLS THIS TURN]")
+    assert "- book_flight(input=x) -> ok" in prompt
+    assert "[TOOL CALLS THIS TURN]\n(none)" in _evaluator().build_judge_prompt("r", tool_calls="")
 
 
-def test_judge_prompt_marks_an_empty_transcript():
-    prompt = _evaluator().build_judge_prompt("ok", "")
-    assert "(none)" in prompt
-
-
-def test_judge_prompt_stringifies_a_non_string_response():
-    prompt = _evaluator().build_judge_prompt({"status": "booked"}, "")
-    assert "booked" in prompt
-
-
-def test_as_tool_exposes_evaluate_response():
-    tool = _evaluator().as_tool()
-    assert tool.name == "evaluate_response"
-    assert "success criteria" in tool.description
+def test_judge_prompt_omits_the_tool_section_when_no_spans_were_given():
+    assert "[TOOL CALLS THIS TURN]" not in _evaluator().build_judge_prompt("r")

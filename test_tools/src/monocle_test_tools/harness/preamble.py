@@ -13,6 +13,6 @@ commentary -- it is how you learn a detail you do not know.
 agent asks you for that detail. Do NOT reveal a detail from the on-request list before \
 the target agent asks for it. That restriction covers ONLY the on-request list -- the \
 details you already know are yours to state freely, and you should open with them.
-- Use the evaluate_response tool to check whether the success criteria have been met, \
-then adjust your next message accordingly.
+- Keep going until the success criteria are met, and adjust your next message to what \
+the target agent just said.
 - If the target agent goes off track, push it back toward the scenario, in persona."""

@@ -65,23 +65,49 @@ async def test_books_a_flight(monocle_trace_asserter):
     monocle_trace_asserter.called_tool("book_flight")   # trace assertions still apply
 ```
 
-The scenario spec is plain JSON, so keeping cases in a file needs no special loader:
+To keep scenarios in a file and run one pytest case per entry, use the
+`monocle_scenarios` decorator from `monocle_test_tools.scenarios`:
 
 ```python
-with open("scenario_test_cases.json", encoding="utf-8") as handle:
-    cases = json.load(handle)
+from monocle_test_tools import monocle_scenarios
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("case", cases, ids=lambda c: c["test_name"])
-async def test_scenario(case, monocle_trace_asserter):
-    harness = ScenarioHarness(ScenarioTestCase.model_validate(case))
-    ...
+@monocle_scenarios("scenarios.json")
+async def test_scenarios(monocle_trace_asserter, scenario):
+    await scenario.run(my_agent, AgentTypes.LANGGRAPH)   # runs the harness, asserts result.passed
 ```
 
-A complete worked example lives in
-[`test_tools/tests/integration/test_scenario_harness.py`](../../../tests/integration/test_scenario_harness.py),
-with its target agent in
+Each entry is a `ScenarioTestCase` plus a `target_description`. A complete worked example
+lives in
+[`test_tools/tests/integration/test_scenario_campaign.py`](../../../tests/integration/test_scenario_campaign.py),
+with its scenario file beside it and its target agent in
 [`test_tools/tests/test_common/langgraph_travel_agent.py`](../../../tests/test_common/langgraph_travel_agent.py).
+
+### Many scenarios from one seed
+
+You do not have to write scenarios by hand. Describe the agent and what users ask it
+to do, three keys in `seeds.yaml`:
+
+```yaml
+agent: A travel booking agent that books flights between airports and hotels in a city.
+goals:
+  - Book a flight from Bombay to Hyderabad on 22 Oct 2026
+  - Book a hotel in Mumbai for 27 Nov 2026
+out_of_scope: [refunds, visa advice]
+```
+
+then:
+
+```bash
+python -m monocle_test_tools scenarios --seeds seeds.yaml
+```
+
+One model call per goal splits it into its details (reviewable in `seeds.expanded.yaml`),
+and plain enumeration turns each goal into about fifteen scenarios: one per user persona,
+one with each detail withheld until asked, a false premise, the red-team attacks the
+goal's flags expose, and one scope-escape per refusal. The command writes
+`scenarios.json` and, once, a three-line `test_scenarios.py` like the one above. See
+[`test_tools/examples/scenario_campaign/`](../../../examples/scenario_campaign/).
 
 ---
 
@@ -106,9 +132,8 @@ Three properties follow from that shape:
   call, so your agent keeps its own memory across turns (LangGraph `thread_id`, ADK
   session, and so on), and each turn's spans are tagged with `scope.turn_id`.
 - **The judge runs every turn and cannot be skipped.** Its verdict is the loop's exit
-  condition and the test's result. The test agent also gets the same judge as an
-  `evaluate_response` tool, but that copy is advisory — it only shapes what the tester
-  says next.
+  condition and the test's result. It sees the agent's reply and the tool calls the
+  agent made that turn, so a claimed booking needs a real booking call behind it.
 - **The test agent emits no spans.** Its LLM calls, and the judge's, run under the
   `MONOCLE_SUPPRESS_SPANS` context flag, so `result.spans` holds target spans only and
   your trace assertions see nothing but the agent under test.

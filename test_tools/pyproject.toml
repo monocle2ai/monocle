@@ -72,6 +72,7 @@ test_agent = [
 
 dev = [
     "pytest-cov>=4.0.0",
+    "pyarrow<26",  # sentence-transformers -> datasets -> pyarrow; 26.0.0 requires NumPy 2, apptrace pins numpy 1.26
     "black>=23.0.0",
     "flake8>=6.0.0",
     "mypy>=1.0.0",

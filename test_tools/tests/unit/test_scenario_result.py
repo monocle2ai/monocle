@@ -1,4 +1,4 @@
-"""The scenario result's failure report and its terminal-safe repr. Pure formatting."""
+"""A failed scenario explains itself: the reason, the last verdict, and the transcript, without span noise."""
 from monocle_test_tools.harness.evaluator import Verdict
 from monocle_test_tools.harness.param_tools import ParamCall
 from monocle_test_tools.harness.result import ScenarioResult, TurnRecord

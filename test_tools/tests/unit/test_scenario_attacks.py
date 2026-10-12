@@ -1,4 +1,4 @@
-"""Dressing attacks with DeepTeam's templates: rewrite, check, retry, fall back. Stub model."""
+"""A red-team attack keeps DeepTeam's framing only when DeepTeam's own check agrees, else it stays plain."""
 from monocle_test_tools.scenarios.attacks import TEMPLATES, dress, template_for
 
 

@@ -1,4 +1,4 @@
-"""The judge prompt. judge() itself needs a live model and is covered by the integration test."""
+"""The judge is told the criteria, the whole conversation, and the agent's tool calls, so a claim needs a call behind it."""
 from monocle_test_tools.harness.evaluator import ResponseEvaluator, Verdict, render_tool_calls
 
 

@@ -1,4 +1,4 @@
-"""The generator: which scenarios a seed yields, gated on what the seed says."""
+"""One seed yields every conversation worth having: each persona, each detail withheld, a false premise, the attacks its flags allow, each refusal."""
 import json
 
 import pytest

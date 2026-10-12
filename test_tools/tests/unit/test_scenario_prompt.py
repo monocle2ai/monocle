@@ -1,4 +1,4 @@
-"""Tests for the test agent's system prompt. Pure string assembly, no LLM."""
+"""The tester's prompt states what it knows and names what it is withholding, never the withheld values."""
 from monocle_test_tools.harness.scenario import ScenarioTestCase
 from monocle_test_tools.harness.test_agent import build_system_prompt
 

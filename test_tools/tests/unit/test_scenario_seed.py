@@ -1,4 +1,4 @@
-"""Seed files: both forms, validation, and expansion with a stub model."""
+"""Three lines from the user become a seed the generator can enumerate, with the goal split into its details."""
 import json
 
 import pytest

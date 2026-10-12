@@ -1,4 +1,4 @@
-"""Validation of the scenario spec models. Pure Pydantic, no LLM."""
+"""A scenario spec rejects what would make a run meaningless: no opening detail, duplicate details, an impossible turn budget."""
 import pytest
 from pydantic import ValidationError
 

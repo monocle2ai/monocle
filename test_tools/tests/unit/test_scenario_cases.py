@@ -1,4 +1,4 @@
-"""Loading a scenario file and the decorator."""
+"""A scenario file loads into pytest cases, one per entry, named so a failure says which conversation broke."""
 import json
 
 import pytest

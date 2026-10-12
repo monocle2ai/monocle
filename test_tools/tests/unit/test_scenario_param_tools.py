@@ -1,4 +1,4 @@
-"""Tests for turning scenario params into LangChain tools. No LLM involved."""
+"""A withheld detail can only reach the conversation through a tool call, so the tester cannot leak it."""
 from monocle_test_tools.harness.param_tools import ParamCall, build_param_tools
 from monocle_test_tools.harness.scenario import ScenarioParam
 

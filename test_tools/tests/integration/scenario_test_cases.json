@@ -1,0 +1,25 @@
+[
+  {
+    "test_name": "book_flight_foul_mouthed_user",
+    "scenario": "Book a flight from source to destination.",
+    "persona": "A foul mouthed, impatient user who swears mildly and gives one detail at a time",
+    "params": [
+      {"name": "source", "value": "San Francisco", "is_initial": true, "description": "source airport"},
+      {"name": "destination", "value": "Seattle", "is_initial": false, "description": "destination airport"},
+      {"name": "date", "value": "22nd October 2026", "is_initial": false, "description": "travel date"}
+    ],
+    "success_criteria": "The agent confirms that the flight has been booked.",
+    "max_turns": 8
+  },
+  {
+    "test_name": "book_hotel_terse_user",
+    "scenario": "Book a hotel in a city for a date.",
+    "persona": "A terse user who answers in as few words as possible and never elaborates",
+    "params": [
+      {"name": "city", "value": "Mumbai", "is_initial": true, "description": "city for the hotel stay"},
+      {"name": "date", "value": "27th November 2026", "is_initial": false, "description": "check-in date"}
+    ],
+    "success_criteria": "The agent confirms that the hotel has been booked.",
+    "max_turns": 8
+  }
+]

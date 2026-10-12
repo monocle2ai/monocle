@@ -61,6 +61,14 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# Dependencies of the scenario test harness (monocle_test_tools.harness): an
+# LLM-backed test agent that drives a target agent. Optional so the base package
+# stays dependency-light.
+test_agent = [
+    "langchain>=1.0",
+    "langchain-openai",
+]
+
 dev = [
     "pytest-cov>=4.0.0",
     "black>=23.0.0",

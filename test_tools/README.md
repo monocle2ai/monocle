@@ -14,7 +14,7 @@ A comprehensive testing and validation framework for monocle AI agent tracing. T
 - **Fluent API**: Chain assertions using a readable, expressive builder pattern.
 - **Mock Tools**: Simulate tool behavior without invoking external dependencies.
 - **Offline Testing**: Assert against pre-recorded trace JSON files without running live agents.
-- **Test Cases as Data**: Describe a run once as a `FluentTestCase` and let `run_agent`, the span selectors, the input/output checks, `check_eval` and `check_validator` all read it via `testcase=`.
+- **Test Cases as Data**: Describe a run once as a `FluentTestCase` and let `run_agent`, the span selectors, the input/output checks`check_eval` and `check_validator` all read it via `testcase=`.
 - **Generated Test Cases**: Turn what a workflow already recorded into a parametrizable suite with `setup_test_cases()`, from Okahu or a committed JSON file.
 
 ## How does it work

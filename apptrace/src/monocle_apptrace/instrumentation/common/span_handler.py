@@ -16,6 +16,7 @@ from monocle_apptrace.instrumentation.common.constants import (
     QUERY,
     service_name_map,
     service_type_map,
+    GCP_AGENT_ENGINE_SERVICE_NAME, GCP_AGENT_ENGINE_LOCATION_ENV_NAME, GCP_PROJECT_ENV_NAME,
     MONOCLE_SDK_VERSION, MONOCLE_SDK_LANGUAGE, MONOCLE_DETECTED_SPAN_ERROR,
     HTTP_SUCCESS_CODES, HEALTH_RESET_COUNTER
 )
@@ -337,8 +338,19 @@ class SpanHandler:
                 span.set_attribute(f"entity.{span_index}.type", f"app_hosting.{type_name}")
                 entity_name_env = service_name_map.get(type_name, "unknown")
                 name = os.environ.get(entity_name_env) or os.environ.get(type_env, "generic")
+                if type_name == GCP_AGENT_ENGINE_SERVICE_NAME:
+                    name = SpanHandler.get_agent_engine_resource_name(name)
                 span.set_attribute(f"entity.{span_index}.name", name)
                 break
+
+    @staticmethod
+    def get_agent_engine_resource_name(engine_id: str) -> str:
+        """Full resource name, or the bare engine id if project or location is unset."""
+        project = os.environ.get(GCP_PROJECT_ENV_NAME)
+        location = os.environ.get(GCP_AGENT_ENGINE_LOCATION_ENV_NAME)
+        if not (project and location):
+            return engine_id
+        return f"projects/{project}/locations/{location}/reasoningEngines/{engine_id}"
 
     @staticmethod
     def get_workflow_name(span: Span) -> str:

@@ -12,6 +12,7 @@ from opentelemetry.sdk.trace import Span
 from opentelemetry.context import get_value
 from monocle_apptrace.instrumentation.common.constants import TOOL_TYPE, INFERENCE_TOOL_CALL, INFERENCE_TURN_END
 from monocle_apptrace.instrumentation.common.utils import (
+    format_retrieved_documents,
     Option,
     get_json_dumps,
     get_keys_as_tuple,
@@ -441,10 +442,7 @@ def update_input_span_events(args):
 
 def update_output_span_events(results):
     if isinstance(results, list) and len(results) >0:
-        output_arg_text = results[0].text
-        if len(output_arg_text) > 100:
-            output_arg_text = output_arg_text[:100] + "..."
-        return output_arg_text
+        return format_retrieved_documents(result.text for result in results if hasattr(result, 'text'))
 
 
 def update_span_from_llm_response(response, instance):

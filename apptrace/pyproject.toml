@@ -88,6 +88,7 @@ dev = [
   'langchain==1.2.15',
   'datasets==4.3.0',
   'numpy==1.26.4',
+  'pyarrow<26',  # pyarrow 26 needs numpy>=2 at import time but doesn't declare it
   'types-requests==2.31.0.20240106',
   'InstructorEmbedding==1.0.1',
   'faiss-cpu==1.8.0',

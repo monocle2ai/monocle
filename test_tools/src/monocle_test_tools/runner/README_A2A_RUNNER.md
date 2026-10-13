@@ -16,6 +16,9 @@ Where the **agent's** spans come from depends on one setting:
 | set | Pulls the agent's spans from Okahu after the call. |
 | unset | Fetches nothing; the test reads the agent's [trace file](#reading-the-agents-spans-from-a-file). |
 
+An agent with trace return on sends its spans back with the answer instead, and
+nothing is fetched at all — see [below](#getting-the-spans-back-with-the-answer).
+
 The call carries the trace context outward, so **the agent's spans land in the
 test's trace**. That is what both lookups are keyed on, and it is why the Okahu
 pull needs only a workflow name.
@@ -134,10 +137,27 @@ To pull the agent's spans from Okahu:
 | Env var | Purpose |
 |---|---|
 | `A2A_TRACE_WORKFLOW` | Workflow the **agent** exports its spans under — not the test's. Also settable as `A2ARunner(trace_workflow_name=...)`. Unset means no pull. |
+| `MONOCLE_TRACE_RETRIEVAL_KEY` | Key asking the agent to return its spans with the answer. |
 | `OKAHU_API_KEY`, `OKAHU_API_ENDPOINT` | Okahu credentials and endpoint. |
 
 Okahu serves traces only for a workflow that exists in your account, so use the
 name the agent is registered under; an unknown name answers 404.
+
+### Getting the spans back with the answer
+
+An agent with trace return on appends its spans to its A2A response, and the
+runner takes them off it — no trace backend, no access to its filesystem:
+
+```bash
+export MONOCLE_ENABLE_TRACE_RETURN=true                  # on the agent
+export MONOCLE_TRACE_RETRIEVAL_DEFAULT_KEY=some-secret   # on the agent
+export MONOCLE_TRACE_RETRIEVAL_KEY=some-secret           # on the test, matching
+```
+
+A missing or wrong key returns no spans and leaves the answer alone. What comes
+back is the spans that finished before the response was sent, so the agent's own
+request span is not among them, and the agent has to be served by
+`A2AFastAPIApplication` for Monocle's hook to fire.
 
 ### Reading the agent's spans from a file
 
@@ -169,10 +189,10 @@ as usual (`agent_type="langgraph"`, …) and give its `A2AClient` a traced httpx
 client, so the far side joins the same trace:
 
 ```python
-from monocle_test_tools.a2a_transport import make_traced_httpx_client
 from a2a.client import A2AClient
+import httpx
 
-async with make_traced_httpx_client() as httpx_client:
+async with httpx.AsyncClient() as httpx_client:
     client = A2AClient(httpx_client=httpx_client, agent_card=card)
     response = await client.send_message(request)
 ```

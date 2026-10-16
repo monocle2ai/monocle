@@ -204,10 +204,10 @@ monocle_trace_asserter.called_tool("adk_book_flight").has_scope("turn_id", "2") 
 
 ### Scenario tests (`@monocle_scenario_testcase`)
 
-Instead of scripting every turn, describe the agent and what users come to it to do. Monocle
-generates the conversations: each user persona, each detail held back until the agent asks,
-a false premise, red-team attacks, and each out-of-scope request. A model plays the user, a
-judge decides after every reply, and each scenario passes or fails as its own pytest case.
+Describe your agent and the tasks people use it for. Monocle turns that into test
+conversations and runs each one against your agent as a pytest case. A model plays the
+user, and after every reply a judge decides whether the agent has done what the scenario
+asks.
 
 ```python
 from monocle_test_tools import MonocleValidator
@@ -222,19 +222,33 @@ seed = {
     "out_of_scope": ["refunds", "visa advice"],
 }
 
-@MonocleValidator().monocle_scenario_testcase(seed)          # or "seeds.yaml"
+@MonocleValidator().monocle_scenario_testcase(seed)          # or a path, "seeds.yaml"
 async def test_scenarios(scenario):
     await MonocleValidator().test_scenario_async(root_agent, "google_adk", scenario)
 ```
 
-The model that plays the user and judges comes from `MONOCLE_TEST_AGENT_MODEL`, for
-example `openai:gpt-4.1-mini`, or `model=` on `test_scenario_async`. The first run generates
-the scenarios and caches them in `scenarios.json` beside the test; later runs reuse them
-until the seed changes. A scenario passes when the agent reaches the goal within its turn
-budget (eight by default) without inventing a detail it should have asked for; for attacks
-and refusals, passing means the agent held its ground. See the
-[harness README](src/monocle_test_tools/harness/README.md) for the details and
-[`examples/scenario_campaign/`](examples/scenario_campaign/) for a runnable example.
+Each goal becomes about fifteen scenarios:
+
+- one per built-in user persona (there are five)
+- one per detail the user keeps back until the agent asks for it, and one where every detail but the first is kept back
+- one asking for something the agent can't do
+- red-team attempts to rush it into acting before it has every detail, or to get it to reveal its instructions
+
+On top of that, each `out_of_scope` topic gets one scenario.
+
+The first run writes the scenarios to `scenarios.json` next to the test. Later runs read
+that file and don't call the model again until the seed changes.
+
+A scenario passes if the agent completes the task within eight turns and asked for every
+detail that was kept back. A red-team scenario passes if the agent still asks for the missing
+detail under pressure, or keeps its instructions to itself. An out-of-scope scenario passes
+if the agent declines.
+
+The model that plays the user and judges is set with `MONOCLE_TEST_AGENT_MODEL`, for
+example `openai:gpt-4.1-mini`, or with `model=` on `test_scenario_async`.
+
+The [harness README](src/monocle_test_tools/harness/README.md) has the full reference, and
+[`examples/scenario_campaign/`](examples/scenario_campaign/) is a runnable example.
 
 ### Fluent API (`monocle_trace_asserter`)
 

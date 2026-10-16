@@ -64,11 +64,19 @@ async def test_books_a_flight(monocle_trace_asserter):
     monocle_trace_asserter.called_tool("book_flight")   # trace assertions still apply
 ```
 
-### Scenario tests: many scenarios from one seed
+### Scenario tests from a seed
 
-You do not have to write scenarios by hand. Describe the agent and what users ask it to
-do, and run each generated scenario as one pytest case. This is the same shape as
-`monocle_testcase` and `test_agent_async`:
+Writing every scenario by hand gets old fast. A seed is three keys that describe the agent,
+and `monocle_scenario_testcase` generates the scenarios from it:
+
+```yaml
+# seeds.yaml
+agent: A travel booking agent that books flights between airports and hotels in a city.
+goals:
+  - Book a flight from Bombay to Hyderabad on 22 Oct 2026
+  - Book a hotel in Mumbai for 27 Nov 2026
+out_of_scope: [refunds, visa advice]
+```
 
 ```python
 from monocle_test_tools import MonocleValidator
@@ -79,38 +87,42 @@ async def test_scenarios(scenario):
     await MonocleValidator().test_scenario_async(root_agent, "langgraph", scenario)
 ```
 
-with `seeds.yaml` beside the test (or the same three keys as a dict, inline):
+Write goals the way a user would type them, with real values. The seed can also be a dict
+in the test file instead of a YAML or JSON file.
 
-```yaml
-agent: A travel booking agent that books flights between airports and hotels in a city.
-goals:
-  - Book a flight from Bombay to Hyderabad on 22 Oct 2026
-  - Book a hotel in Mumbai for 27 Nov 2026
-out_of_scope: [refunds, visa advice]
-```
+The first time the test is collected, the model splits each goal into its details
+(`source=Bombay`, `destination=Hyderabad`, `date=22 Oct 2026`) and writes a success
+sentence for it. The rest is plain code. It crosses each goal with the personas in
+`scenarios/personas.yaml` and the attacks in `scenarios/redteam.yaml`, which gives about
+fifteen scenarios per goal. The red-team text is then rewritten by the matching
+[DeepTeam](https://github.com/confident-ai/deepteam) template (authority, urgency,
+permission, roleplay or prompt probing). The templates are vendored under
+`scenarios/third_party/deepteam`. If DeepTeam's own check rejects a rewrite three times,
+the plain text is used.
 
-Then `pytest test_scenarios.py -v`.
+All of it is saved to `scenarios.json` next to the test, together with a hash of the seed
+and the expanded seed. Later runs load that file with no model call. Changing the seed
+regenerates it.
 
-On the first run, one model call per goal splits it into its details, and plain enumeration
-turns each goal into about fifteen scenarios: one per user persona, one with each detail
-withheld until asked, a false premise, the red-team attacks the goal's flags expose, and
-one scope-escape per refusal. Each red-team attack is rewritten into its framing
-(authority, urgency, permission, roleplay, prompt probing) by the matching
-[DeepTeam](https://github.com/confident-ai/deepteam) template, vendored under
-`scenarios/third_party`, and kept only if DeepTeam's own check says the rewrite still shows
-the framing. The result is cached in `scenarios.json` beside the test, keyed on the seed:
-later runs reuse it with no model call, and editing the seed regenerates it.
+`monocle_scenario_testcase` accepts:
 
-`monocle_scenario_testcase` also takes an expanded seed (`agent` plus `seeds`, with each
-goal's details already split, as written into the cache) or a list of ready-made scenarios,
-each a `ScenarioTestCase` plus a `target_description`. `test_scenario_async` takes the same
-`agent` and `agent_type` as `test_agent_async`, plus optional `model=` and `judge_model=`
-objects, and raises `AssertionError` with the transcript when the scenario fails.
+| Argument | What happens |
+|---|---|
+| a seed (dict, or `.yaml` / `.json` path) | expanded, generated and cached as above |
+| an expanded seed (`agent` and `seeds`, like the `expanded_seed` in the cache) | generated and cached, without the goal-splitting call |
+| a list of scenarios (or a `.json` file with one) | run as written |
 
-A complete example is in
-[`test_tools/examples/scenario_campaign/`](../../../examples/scenario_campaign/); the live
-integration test is
-[`test_tools/tests/integration/test_scenario_campaign.py`](../../../tests/integration/test_scenario_campaign.py).
+`cache=` changes the cache file name.
+
+`test_scenario_async(agent, agent_type, scenario, model=None, judge_model=None)` takes
+`agent` and `agent_type` exactly as `test_agent_async` does. It runs the conversation and
+raises `AssertionError` with the transcript if the scenario fails. `model` and
+`judge_model` are optional model objects. Without them, `MONOCLE_TEST_AGENT_MODEL` is used.
+
+See [`test_tools/examples/scenario_campaign/`](../../../examples/scenario_campaign/) for a
+runnable example, and
+[`test_tools/tests/integration/test_scenario_campaign.py`](../../../tests/integration/test_scenario_campaign.py)
+for the live integration test.
 
 ---
 

@@ -112,7 +112,7 @@ class TestGenerator:
                    discover_evals: bool = True,
                    discovery_fact_name: Optional[str] = None):
         """Create generator from an Okahu trace."""
-        from monocle_test_tools.span_loader import OkahuSpanLoader
+        from monocle_test_tools.providers.okahu.okahu_span_loader import OkahuSpanLoader
         spans = OkahuSpanLoader.get_spans(
             workflow_name=workflow_name,
             trace_id=trace_id,
@@ -138,7 +138,7 @@ class TestGenerator:
         The ``agent_sessions`` scope is emitted with the idiomatic
         ``fact_name="session"`` loader; every other scope uses ``fact_name="scope"``.
         """
-        from monocle_test_tools.span_loader import OkahuSpanLoader
+        from monocle_test_tools.providers.okahu.okahu_span_loader import OkahuSpanLoader
         spans = OkahuSpanLoader.load_by_scope(
             workflow_name=workflow_name,
             scope_name=scope_name,
@@ -169,7 +169,7 @@ class TestGenerator:
         session tests being generated with no assertions). Thin wrapper over
         ``from_okahu_scope`` with the ``agent_sessions`` scope.
         """
-        from monocle_test_tools.span_loader import OkahuSpanLoader
+        from monocle_test_tools.providers.okahu.okahu_span_loader import OkahuSpanLoader
         return cls.from_okahu_scope(
             scope_name=OkahuSpanLoader.AGENT_SESSIONS_SCOPE,
             scope_id=session_id,
@@ -303,7 +303,7 @@ class TestGenerator:
         if self.session_id:
             return "agentic_sessions"
         if self.scope_name:
-            from monocle_test_tools.evals.okahu_eval import OkahuEval
+            from monocle_test_tools.providers.okahu.okahu_eval import OkahuEval
             try:
                 OkahuEval._map_fact_name(self.scope_name)
                 return self.scope_name
@@ -319,20 +319,20 @@ class TestGenerator:
         evaluator. Returns a ``BaseEval`` instance, or ``None`` when the
         configured ``eval_source`` is not registered.
         """
-        from monocle_test_tools.evals.eval_manager import EVAL_SOURCE_CLASSES
-        cls = EVAL_SOURCE_CLASSES.get(self.eval_source)
+        from monocle_test_tools.evals.eval_manager import get_eval_source_class
+        cls = get_eval_source_class(self.eval_source)
         return cls(eval_options={}) if cls else None
 
     @staticmethod
     def _detect_eval_type(name_or_path: str, eval_source: str = "okahu") -> str:
         """Classify eval input as ``"builtin"`` or ``"custom"`` using the eval
         source's own rules (via its ``BaseEval.classify_eval_input``)."""
-        from monocle_test_tools.evals.eval_manager import EVAL_SOURCE_CLASSES
-        evaluator_cls = EVAL_SOURCE_CLASSES.get(eval_source)
+        from monocle_test_tools.evals.eval_manager import get_eval_source_class, get_supported_eval_sources
+        evaluator_cls = get_eval_source_class(eval_source)
         if evaluator_cls is None:
             raise ValueError(
                 f"Unsupported eval_source: '{eval_source}'. "
-                f"Supported values: {', '.join(sorted(EVAL_SOURCE_CLASSES))}."
+                f"Supported values: {', '.join(get_supported_eval_sources())}."
             )
         eval_type, _ = evaluator_cls.classify_eval_input(name_or_path)
         return eval_type

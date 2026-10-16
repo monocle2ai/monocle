@@ -11,7 +11,7 @@ import os
 
 import pytest
 
-from monocle_test_tools.okahu_span_loader import OkahuSpanLoader
+from monocle_test_tools.providers.okahu.okahu_span_loader import OkahuSpanLoader
 from monocle_test_tools.fluent_api import setup_test_cases
 from monocle_test_tools.schema import FactID
 from monocle_test_tools.testcase import Eval, FluentTestCase
@@ -63,7 +63,7 @@ def post_fixture(monkeypatch):
         calls.append({"url": url, "headers": headers, "body": json})
         return _Response(pages[len(calls) - 1] if len(calls) <= len(pages) else {"results": []})
 
-    monkeypatch.setattr("monocle_test_tools.evals.okahu_eval.requests.post", fake_post)
+    monkeypatch.setattr("monocle_test_tools.providers.okahu.okahu_eval.requests.post", fake_post)
     return {"calls": calls, "pages": pages}
 
 
@@ -88,7 +88,7 @@ def _stub_get_spans(monkeypatch):
     tools -- all the report-focused tests need. TestPopulatedFromSpans overrides
     this with a real recorded trace.
     """
-    from monocle_test_tools.okahu_span_loader import OkahuSpanLoader
+    from monocle_test_tools.providers.okahu.okahu_span_loader import OkahuSpanLoader
 
     monkeypatch.setattr(OkahuSpanLoader, "get_spans", staticmethod(lambda *a, **k: []))
 
@@ -101,7 +101,7 @@ def stub_traces_fixture(monkeypatch):
     TestOptionalFactFilter exercise get_trace_ids itself and must not have it
     stubbed out from under them.
     """
-    from monocle_test_tools.okahu_span_loader import OkahuSpanLoader
+    from monocle_test_tools.providers.okahu.okahu_span_loader import OkahuSpanLoader
 
     monkeypatch.setattr(OkahuSpanLoader, "get_trace_ids",
                         staticmethod(lambda *a, **k: list(TRACE_IDS)))
@@ -473,7 +473,7 @@ class TestEmptyEndpointFallsBackToProd:
         assert post["calls"][0]["url"].startswith("https://api-stage.okahu.co/api/")
 
     def test_empty_eval_endpoint_uses_prod_too(self, monkeypatch):
-        from monocle_test_tools.evals.okahu_filtered_eval import OkahuFilteredEval
+        from monocle_test_tools.providers.okahu.okahu_filtered_eval import OkahuFilteredEval
 
         monkeypatch.setenv("OKAHU_EVALUATION_ENDPOINT", "")
 
@@ -488,14 +488,14 @@ class TestSpanLoaderEmptyEndpoint:
     """
 
     def test_empty_api_endpoint_uses_prod_host(self, monkeypatch):
-        from monocle_test_tools.okahu_span_loader import OkahuSpanLoader
+        from monocle_test_tools.providers.okahu.okahu_span_loader import OkahuSpanLoader
 
         monkeypatch.setenv("OKAHU_API_ENDPOINT", "")
 
         assert OkahuSpanLoader._get_api_base() == "https://api.okahu.co"
 
     def test_explicit_endpoint_argument_still_wins(self, monkeypatch):
-        from monocle_test_tools.okahu_span_loader import OkahuSpanLoader
+        from monocle_test_tools.providers.okahu.okahu_span_loader import OkahuSpanLoader
 
         monkeypatch.setenv("OKAHU_API_ENDPOINT", "")
 
@@ -503,7 +503,7 @@ class TestSpanLoaderEmptyEndpoint:
             "https://api-stage.okahu.co")
 
     def test_env_endpoint_still_wins_when_set(self, monkeypatch):
-        from monocle_test_tools.okahu_span_loader import OkahuSpanLoader
+        from monocle_test_tools.providers.okahu.okahu_span_loader import OkahuSpanLoader
 
         monkeypatch.setenv("OKAHU_API_ENDPOINT", "https://api-stage.okahu.co")
 
@@ -616,7 +616,7 @@ class TestTraceIdEnumeration:
     @pytest.fixture(name="traces")
     def traces_fixture(self, monkeypatch):
         """Stub get_trace_ids, recording its kwargs."""
-        from monocle_test_tools.okahu_span_loader import OkahuSpanLoader
+        from monocle_test_tools.providers.okahu.okahu_span_loader import OkahuSpanLoader
 
         seen = {"ids": ["aaa", "bbb"]}
 
@@ -702,7 +702,7 @@ class TestOptionalFactFilter:
 
     @pytest.fixture(name="get")
     def get_fixture(self, monkeypatch):
-        from monocle_test_tools.okahu_span_loader import OkahuSpanLoader
+        from monocle_test_tools.providers.okahu.okahu_span_loader import OkahuSpanLoader
 
         seen = {}
 
@@ -714,7 +714,7 @@ class TestOptionalFactFilter:
         return seen
 
     def test_no_fact_filter_omits_both_params(self, get):
-        from monocle_test_tools.okahu_span_loader import OkahuSpanLoader
+        from monocle_test_tools.providers.okahu.okahu_span_loader import OkahuSpanLoader
 
         OkahuSpanLoader.get_trace_ids("wf", start_time="a", end_time="b")
 
@@ -723,7 +723,7 @@ class TestOptionalFactFilter:
         assert get["params"]["start_time"] == "a"
 
     def test_a_fact_filter_is_still_sent(self, get):
-        from monocle_test_tools.okahu_span_loader import OkahuSpanLoader
+        from monocle_test_tools.providers.okahu.okahu_span_loader import OkahuSpanLoader
 
         OkahuSpanLoader.get_trace_ids("wf", "agent_sessions", "sess_1")
 
@@ -734,7 +734,7 @@ class TestOptionalFactFilter:
         {"fact_name": "agent_sessions"}, {"fact_id": "sess_1"},
     ])
     def test_half_a_filter_raises(self, get, half):
-        from monocle_test_tools.okahu_span_loader import OkahuSpanLoader
+        from monocle_test_tools.providers.okahu.okahu_span_loader import OkahuSpanLoader
 
         with pytest.raises(ValueError, match="fact_name and fact_id"):
             OkahuSpanLoader.get_trace_ids("wf", **half)
@@ -758,7 +758,7 @@ class TestPopulatedFromSpans:
     @pytest.fixture(name="spans")
     def spans_fixture(self, monkeypatch):
         """Stub get_spans with a real recorded trace, recording its calls."""
-        from monocle_test_tools.okahu_span_loader import OkahuSpanLoader
+        from monocle_test_tools.providers.okahu.okahu_span_loader import OkahuSpanLoader
         from monocle_test_tools.span_loader import JSONSpanLoader
 
         loaded = JSONSpanLoader.from_json(self.TRACE)
@@ -828,7 +828,7 @@ class TestPopulatedFromSpans:
         assert [a.name for a in cases[0].agents] == self.AGENTS
 
     def test_no_traces_means_no_get_spans_calls(self, monkeypatch, spans, post):
-        from monocle_test_tools.okahu_span_loader import OkahuSpanLoader
+        from monocle_test_tools.providers.okahu.okahu_span_loader import OkahuSpanLoader
 
         monkeypatch.setattr(OkahuSpanLoader, "get_trace_ids",
                             staticmethod(lambda *a, **k: []))
@@ -858,7 +858,7 @@ class TestGetFactIds:
 
     @pytest.fixture(name="get")
     def get_fixture(self, monkeypatch):
-        from monocle_test_tools.okahu_span_loader import OkahuSpanLoader
+        from monocle_test_tools.providers.okahu.okahu_span_loader import OkahuSpanLoader
 
         seen = {"payload": self.RESPONSE}
 
@@ -871,7 +871,7 @@ class TestGetFactIds:
         return seen
 
     def test_hits_the_ids_path_for_the_fact(self, get):
-        from monocle_test_tools.okahu_span_loader import OkahuSpanLoader
+        from monocle_test_tools.providers.okahu.okahu_span_loader import OkahuSpanLoader
 
         OkahuSpanLoader.get_fact_ids("wf", "agent_requests",
                                      start_time="a", end_time="b")
@@ -879,7 +879,7 @@ class TestGetFactIds:
         assert get["url"].endswith("/api/v1/workflows/wf/facts/agent_requests/ids")
 
     def test_sends_duration_fact_and_breakdown_filter(self, get):
-        from monocle_test_tools.okahu_span_loader import OkahuSpanLoader
+        from monocle_test_tools.providers.okahu.okahu_span_loader import OkahuSpanLoader
 
         OkahuSpanLoader.get_fact_ids("wf", "agent_requests",
                                      start_time="a", end_time="b")
@@ -890,13 +890,13 @@ class TestGetFactIds:
         assert get["params"]["end_time"] == "b"
 
     def test_returns_the_keys_in_response_order(self, get):
-        from monocle_test_tools.okahu_span_loader import OkahuSpanLoader
+        from monocle_test_tools.providers.okahu.okahu_span_loader import OkahuSpanLoader
 
         assert OkahuSpanLoader.get_fact_ids("wf", "agent_requests") == [
             "e-3f7fa612", "e-66d09ec8", "e-654de171"]
 
     def test_no_facts_gives_an_empty_list(self, get):
-        from monocle_test_tools.okahu_span_loader import OkahuSpanLoader
+        from monocle_test_tools.providers.okahu.okahu_span_loader import OkahuSpanLoader
 
         get["payload"] = {"fact_ids": {}, "fact_count": 0}
 
@@ -915,7 +915,7 @@ class TestNonTraceFactLevel:
 
     @pytest.fixture(name="okahu")
     def okahu_fixture(self, monkeypatch):
-        from monocle_test_tools.okahu_span_loader import OkahuSpanLoader
+        from monocle_test_tools.providers.okahu.okahu_span_loader import OkahuSpanLoader
         from monocle_test_tools.span_loader import JSONSpanLoader
 
         loaded = JSONSpanLoader.from_json(self.TRACE)
@@ -1011,7 +1011,7 @@ class TestEvalFilter:
 
     @pytest.fixture(name="get")
     def get_fixture(self, monkeypatch):
-        from monocle_test_tools.okahu_span_loader import OkahuSpanLoader
+        from monocle_test_tools.providers.okahu.okahu_span_loader import OkahuSpanLoader
 
         seen = {"payload": {"fact_ids": {}}}
 
@@ -1023,21 +1023,21 @@ class TestEvalFilter:
         return seen
 
     def test_get_fact_ids_sends_the_filter(self, get):
-        from monocle_test_tools.okahu_span_loader import OkahuSpanLoader
+        from monocle_test_tools.providers.okahu.okahu_span_loader import OkahuSpanLoader
 
         OkahuSpanLoader.get_fact_ids("wf", "agent_requests", eval_filter="frustration")
 
         assert get["params"]["eval"] == "frustration"
 
     def test_get_fact_ids_omits_it_when_absent(self, get):
-        from monocle_test_tools.okahu_span_loader import OkahuSpanLoader
+        from monocle_test_tools.providers.okahu.okahu_span_loader import OkahuSpanLoader
 
         OkahuSpanLoader.get_fact_ids("wf", "agent_requests")
 
         assert "eval" not in get["params"]
 
     def test_get_trace_ids_sends_the_filter(self, get):
-        from monocle_test_tools.okahu_span_loader import OkahuSpanLoader
+        from monocle_test_tools.providers.okahu.okahu_span_loader import OkahuSpanLoader
 
         get["payload"] = []
         OkahuSpanLoader.get_trace_ids("wf", eval_filter="frustration")
@@ -1045,7 +1045,7 @@ class TestEvalFilter:
         assert get["params"]["eval"] == "frustration"
 
     def test_get_trace_ids_omits_it_when_absent(self, get):
-        from monocle_test_tools.okahu_span_loader import OkahuSpanLoader
+        from monocle_test_tools.providers.okahu.okahu_span_loader import OkahuSpanLoader
 
         get["payload"] = []
         OkahuSpanLoader.get_trace_ids("wf")
@@ -1054,7 +1054,7 @@ class TestEvalFilter:
 
     def test_a_name_label_string_passes_through_unencoded(self, get):
         """Encoding is requests' job; the loader must not double-encode."""
-        from monocle_test_tools.okahu_span_loader import OkahuSpanLoader
+        from monocle_test_tools.providers.okahu.okahu_span_loader import OkahuSpanLoader
 
         OkahuSpanLoader.get_fact_ids("wf", "agent_requests",
                                      eval_filter="frustration:ok;bias:biased")
@@ -1067,7 +1067,7 @@ class TestEvalFilterThreading:
 
     @pytest.fixture(name="okahu")
     def okahu_fixture(self, monkeypatch):
-        from monocle_test_tools.okahu_span_loader import OkahuSpanLoader
+        from monocle_test_tools.providers.okahu.okahu_span_loader import OkahuSpanLoader
 
         seen = {"fact_calls": [], "trace_calls": []}
 
@@ -1122,7 +1122,7 @@ class TestFiltersAreIndependent:
 
     @pytest.fixture(name="okahu")
     def okahu_fixture(self, monkeypatch):
-        from monocle_test_tools.okahu_span_loader import OkahuSpanLoader
+        from monocle_test_tools.providers.okahu.okahu_span_loader import OkahuSpanLoader
 
         seen = {"trace_calls": []}
 
@@ -1189,7 +1189,7 @@ class TestCheckEvalModes:
 
     @pytest.fixture(name="okahu")
     def okahu_fixture(self, monkeypatch):
-        from monocle_test_tools.okahu_span_loader import OkahuSpanLoader
+        from monocle_test_tools.providers.okahu.okahu_span_loader import OkahuSpanLoader
 
         monkeypatch.setattr(OkahuSpanLoader, "get_trace_ids",
                             staticmethod(lambda *a, **k: ["aaa"]))
@@ -1247,7 +1247,7 @@ class TestCompareEval:
 
     @pytest.fixture(name="okahu")
     def okahu_fixture(self, monkeypatch):
-        from monocle_test_tools.okahu_span_loader import OkahuSpanLoader
+        from monocle_test_tools.providers.okahu.okahu_span_loader import OkahuSpanLoader
 
         monkeypatch.setattr(OkahuSpanLoader, "get_trace_ids",
                             staticmethod(lambda *a, **k: ["aaa"]))
@@ -1316,7 +1316,7 @@ class TestPartialLoadFailures:
     @pytest.fixture(name="spans")
     def spans_fixture(self, monkeypatch):
         """get_spans succeeds for every trace except the ones named."""
-        from monocle_test_tools.okahu_span_loader import OkahuSpanLoader
+        from monocle_test_tools.providers.okahu.okahu_span_loader import OkahuSpanLoader
 
         state = {"broken": set()}
 
@@ -1360,7 +1360,7 @@ class TestPartialLoadFailures:
 
     def test_a_failed_eval_report_marks_every_fact(self, spans, post, monkeypatch):
         """The report is one bulk call, so its failure belongs to all of them."""
-        from monocle_test_tools.evals.okahu_eval import OkahuEval
+        from monocle_test_tools.providers.okahu.okahu_eval import OkahuEval
 
         def boom(**kwargs):
             raise AssertionError("Eval report service returned HTTP 503")

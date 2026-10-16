@@ -8,9 +8,9 @@ from monocle_apptrace.instrumentation.common.method_wrappers import monocle_trac
 from monocle_apptrace.instrumentation.common.utils import get_workflow_name
 from monocle_test_tools import eval_matrix
 from monocle_test_tools.constants import CUSTOM_EVAL_TYPE
-from monocle_test_tools.evals.okahu_filtered_eval import build_filtered_report
+from monocle_test_tools.providers.okahu.okahu_filtered_eval import build_filtered_report
 from monocle_test_tools.schema import Evaluation, FactID
-from monocle_test_tools.span_loader import JSONSpanLoader, OkahuSpanLoader
+from monocle_test_tools.span_loader import JSONSpanLoader
 from monocle_test_tools.testcase import Agent, FluentTestCase, Tool
 from monocle_test_tools.testcase_args import (factid_import_kwargs, resolve_testcase,
                                               turn_inputs_from_spans)
@@ -84,7 +84,7 @@ def setup_test_cases(source:str = "okahu", **kwargs) -> list[FluentTestCase]:
         raise ValueError(
             f"setup_test_cases does not support source '{source}'; supported sources "
             "are 'okahu' (discover from the eval store) and 'local' (a JSON file).")
-    from .okahu_span_loader import OkahuSpanLoader
+    from .providers.okahu.okahu_span_loader import OkahuSpanLoader
     return OkahuSpanLoader.setup_test_cases(**kwargs)
 
 # Fluent methods that select entities, and the kind of entity each selects. A
@@ -1704,7 +1704,7 @@ class TraceAssertion():
     def _check_eval_filtered(self, scope, *, eval_name, expected, not_expected,
                              template_path, template, min_facts, fail_threshold,
                              max_facts, message):
-        from monocle_test_tools.evals.okahu_filtered_eval import OkahuFilteredEval
+        from monocle_test_tools.providers.okahu.okahu_filtered_eval import OkahuFilteredEval
         selectors = [s for s in (eval_name, template_path, template) if s]
         if len(selectors) != 1:
             raise ValueError("Provide exactly one of 'eval_name', 'template_path', or 'template'.")

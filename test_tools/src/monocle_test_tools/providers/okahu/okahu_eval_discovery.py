@@ -11,8 +11,8 @@ from typing import List, Optional, Tuple
 
 import requests
 
-from monocle_test_tools.evals.okahu_eval import OkahuEval
-from monocle_test_tools.evals.okahu_filtered_eval import OkahuFilteredEval, has_label
+from monocle_test_tools.providers.okahu.okahu_eval import OkahuEval
+from monocle_test_tools.providers.okahu.okahu_filtered_eval import OkahuFilteredEval, has_label
 
 logger = logging.getLogger(__name__)
 

@@ -6,7 +6,7 @@ sent neither, so every enumeration stopped at the server's DEFAULT_PAGE_SIZE of
 """
 import pytest
 
-from monocle_test_tools.okahu_span_loader import OkahuSpanLoader
+from monocle_test_tools.providers.okahu.okahu_span_loader import OkahuSpanLoader
 
 
 @pytest.fixture(autouse=True)
@@ -333,7 +333,7 @@ class TestPageSizeThreading:
                             staticmethod(fake_fact_ids))
         monkeypatch.setattr(OkahuSpanLoader, "get_spans", staticmethod(fake_spans))
 
-        from monocle_test_tools.evals.okahu_eval import OkahuEval
+        from monocle_test_tools.providers.okahu.okahu_eval import OkahuEval
 
         def fake_report(**kwargs):
             seen["report"].append(kwargs)

@@ -21,7 +21,7 @@ from monocle_apptrace.instrumentation.common.instrumentor import MonocleInstrume
 from pydantic import BaseModel, ValidationError
 from monocle_test_tools.file_span_loader import JSONSpanLoader
 from monocle_test_tools.gitutils import get_git_context, get_repo_name
-from monocle_test_tools.okahu_span_loader import OkahuSpanLoader
+from monocle_test_tools.providers.okahu.okahu_span_loader import OkahuSpanLoader
 from monocle_test_tools.schema import SpanType, TestSpan, TestCase, MultiTurnTestCase, Evaluation, EvalInputs, MockTool
 from monocle_test_tools.constants import TEST_SCOPE_NAME, SESSION_SCOPE_NAME, TURN_SCOPE_NAME, DEFAULT_WORKFLOW_NAME, TEST_STATUS_ATTRIBUTE, TEST_ASSERTION_ATTRIBUTE, TEST_WORKFLOW_ENV
 from monocle_test_tools.comparer.base_comparer import BaseComparer

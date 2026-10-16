@@ -7,7 +7,7 @@ from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 
 import requests
 
-from monocle_apptrace.exporters.okahu.okahu_exporter import OkahuSpanExporter
+from monocle_apptrace.providers.okahu.okahu_exporter import OkahuSpanExporter
 
 PORT = 8096
 CONVERSATION_SCOPE_NAME = "discussion"

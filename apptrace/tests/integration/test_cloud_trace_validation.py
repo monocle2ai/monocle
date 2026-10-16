@@ -28,7 +28,7 @@ from monocle_apptrace.instrumentation.common.instrumentor import (
     set_monocle_instrumentor,
     set_monocle_setup_signature
 )
-from monocle_apptrace.exporters.okahu.okahu_exporter import OkahuSpanExporter
+from monocle_apptrace.providers.okahu.okahu_exporter import OkahuSpanExporter
 from monocle_apptrace.instrumentation.common.scope_wrapper import (
     start_scope,
     stop_scope

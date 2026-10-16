@@ -16,13 +16,13 @@ class _MemoryProvider(Provider):
 
 class TestProviderRegistry(unittest.TestCase):
     def setUp(self):
-        self._saved = dict(registry._providers)
+        self._saved = dict(registry._providers._loaded)
         self._env_patcher = patch.dict(os.environ, {}, clear=True)
         self._env_patcher.start()
 
     def tearDown(self):
-        registry._providers.clear()
-        registry._providers.update(self._saved)
+        registry._providers._loaded.clear()
+        registry._providers._loaded.update(self._saved)
         self._env_patcher.stop()
 
     def test_unknown_name_has_no_provider(self):
@@ -30,7 +30,7 @@ class TestProviderRegistry(unittest.TestCase):
 
     def test_builtin_provider_loads_only_when_asked_for(self):
         target = f"{__name__}:_MemoryProvider"
-        with patch.dict(registry._BUILTIN_PROVIDERS, {"builtin-test": target}), \
+        with patch.dict(registry._providers.builtins, {"builtin-test": target}), \
              patch.object(registry, "import_module", wraps=registry.import_module) as loader:
             self.assertIn("builtin-test", provider_names())
             loader.assert_not_called()
@@ -44,12 +44,12 @@ class TestProviderRegistry(unittest.TestCase):
 
     def test_entry_point_provider_is_found(self):
         target = f"{__name__}:_MemoryProvider"
-        with patch.object(registry, "_entry_point_targets", return_value={"from-entry-point": target}):
+        with patch.object(registry._providers, "_entry_point_targets", return_value={"from-entry-point": target}):
             self.assertIn("from-entry-point", provider_names())
             self.assertIsInstance(get_provider("from-entry-point"), _MemoryProvider)
 
     def test_broken_provider_is_skipped_with_warning(self):
-        with patch.object(registry, "_entry_point_targets", return_value={"broken": "no.such.module:X"}):
+        with patch.object(registry._providers, "_entry_point_targets", return_value={"broken": "no.such.module:X"}):
             with self.assertWarns(UserWarning):
                 exporters = get_monocle_exporter("broken")
         # Nothing usable was configured, so the default file exporter is used.

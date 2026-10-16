@@ -202,7 +202,7 @@ def test_root_agent_must_be_a_url():
 # -- remote trace retrieval -------------------------------------------------
 
 def test_remote_trace_query_names_the_trace_id(captured_post):
-    runner = FoundryRunner(credential=FakeCredential(), trace_workflow_name=REMOTE_WORKFLOW)
+    runner = FoundryRunner(credential=FakeCredential(), trace_workflow_name=REMOTE_WORKFLOW, trace_source="okahu")
 
     runner.run_agent(AGENT_URL, "hi")
 

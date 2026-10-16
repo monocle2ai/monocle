@@ -2,31 +2,32 @@
 
 Input is one of:
     - a local trace file, or
-    - an Okahu trace (--trace-id + --workflow-name), or
-    - an Okahu agentic session (--session-id + --workflow-name), or
-    - any other Okahu fact/scope (--fact-name + --fact-id + --workflow-name).
+    - a trace from a trace source (--source + --trace-id + --workflow-name), or
+    - an agentic session (--source + --session-id + --workflow-name), or
+    - any other fact/scope (--source + --fact-name + --fact-id + --workflow-name).
 
 Usage:
     python -m monocle_test_tools generate_test --trace-file trace.json
-    python -m monocle_test_tools generate_test --trace-id <id> --workflow-name <name>
-    python -m monocle_test_tools generate_test --session-id <id> --workflow-name <name>
-    python -m monocle_test_tools generate_test --fact-name test_id --fact-id <id> --workflow-name <name>
+    python -m monocle_test_tools generate_test --source <name> --trace-id <id> --workflow-name <name>
+    python -m monocle_test_tools generate_test --source <name> --session-id <id> --workflow-name <name>
+    python -m monocle_test_tools generate_test --source <name> --fact-name test_id --fact-id <id> --workflow-name <name>
 
 Generated tests assert on agents, tools, outputs, tokens, and turn duration.
-The Okahu cloud loader is pre-populated with trace id and workflow name.
+The trace-source loader is pre-populated with trace id and workflow name.
 
 --eval [TYPE:]NAME_OR_PATH=EXPECTED   Inject eval assertions (repeatable).
   Type auto-detected (path -> custom, else built-in) or forced via 'builtin:'/'custom:'.
 
-Evals already recorded on the source fact are auto-discovered and added as
-check_eval() baseline assertions; disable with --no-discover-evals.
+With --eval-source, evals already recorded on the source fact are auto-discovered
+and added as check_eval() baseline assertions; disable with --no-discover-evals.
 """
 
 import argparse
 import sys
+from typing import Optional
 
 
-def _parse_eval_spec(raw: str, default_fact: str, eval_source: str = "okahu") -> dict:
+def _parse_eval_spec(raw: str, default_fact: str, eval_source: Optional[str] = None) -> dict:
     """Parse ``[TYPE:]NAME_OR_PATH=EXPECTED`` into an eval spec.
 
     A ``builtin:``/``custom:`` prefix forces the type, else it is auto-detected
@@ -74,18 +75,23 @@ def main():
 
     parser.add_argument("trace_file", nargs="?", default=None, help="Path to trace JSON file")
     parser.add_argument("--trace-file", dest="_trace_file_flag", metavar="TRACE_FILE", default=None, help="Path to trace JSON file")
-    parser.add_argument("--trace-id", default=None, help="Okahu trace ID to fetch spans from")
-    parser.add_argument("--session-id", default=None, help="Okahu agentic session ID to fetch all session spans from")
-    parser.add_argument("--fact-name", default=None, help="Okahu fact/scope name to fetch spans by (e.g. test_id, conversations); use with --fact-id")
+    from monocle_test_tools.trace_sources import get_trace_source_names
+    source_names = get_trace_source_names()
+
+    parser.add_argument("--source", choices=source_names, default=None,
+                        help="Trace source to fetch spans from (required with --trace-id / --session-id / --fact-name)")
+    parser.add_argument("--trace-id", default=None, help="Trace ID to fetch spans from")
+    parser.add_argument("--session-id", default=None, help="Agentic session ID to fetch all session spans from")
+    parser.add_argument("--fact-name", default=None, help="Fact/scope name to fetch spans by (e.g. test_id, conversations); use with --fact-id")
     parser.add_argument("--fact-id", default=None, help="Value of the --fact-name fact/scope")
-    parser.add_argument("--workflow-name", default=None, help="Okahu workflow name (required with --trace-id / --session-id / --fact-name)")
+    parser.add_argument("--workflow-name", default=None, help="Workflow name (required with --trace-id / --session-id / --fact-name)")
     parser.add_argument("--test-name", default="test_generated", help="Test function name (default: test_generated)")
-    
+
     parser.add_argument(
         "--trace-source",
-        choices=["file", "okahu"],
+        choices=["file", *source_names],
         default=None,
-        help="Only generate loader code for this trace source (file|okahu). "
+        help="Only generate loader code for this trace source. "
              "If omitted, code for all sources is generated.",
     )
     parser.add_argument(
@@ -109,9 +115,9 @@ def main():
     parser.add_argument(
         "--eval-source",
         default=None,
-        help="Evaluator for the generated with_evaluation(...) calls; also drives how "
-             "eval names/paths are classified as built-in vs custom. "
-             "Required when --eval is used (e.g. okahu).",
+        help="Evaluator for the generated with_evaluation(...) calls and for eval "
+             "discovery; also drives how eval names/paths are classified as built-in "
+             "vs custom. Required when --eval is used.",
     )
     parser.add_argument(
         "--no-discover-evals",
@@ -126,18 +132,21 @@ def main():
     has_fact = bool(args.fact_name or args.fact_id)
 
     if args.evals and not args.eval_source:
-        parser.error("--eval-source is required when --eval is used (e.g. --eval-source okahu)")
+        parser.error("--eval-source is required when --eval is used")
 
-    # Exactly one input mode: file, okahu trace, okahu session, or okahu fact/scope.
+    # Exactly one input mode: file, trace, session, or fact/scope.
+    remote = bool(args.trace_id or args.session_id or has_fact)
     modes = [bool(trace_file), bool(args.trace_id), bool(args.session_id), has_fact]
     if sum(modes) > 1:
         parser.error("provide only one of: a trace file, --trace-id, --session-id, or --fact-name/--fact-id")
     if not any(modes):
-        parser.error("input is required: a trace file, or --trace-id/--session-id/--fact-name with --workflow-name")
+        parser.error("input is required: a trace file, or --trace-id/--session-id/--fact-name with --source and --workflow-name")
     if has_fact and not (args.fact_name and args.fact_id):
         parser.error("--fact-name and --fact-id must be provided together")
-    if (args.trace_id or args.session_id or has_fact) and not args.workflow_name:
+    if remote and not args.workflow_name:
         parser.error("--workflow-name is required with --trace-id / --session-id / --fact-name")
+    if remote and not args.source:
+        parser.error("--source is required with --trace-id / --session-id / --fact-name")
 
     # Parse injected evals (malformed specs / unknown eval-source surface as a clean error).
     try:
@@ -148,23 +157,11 @@ def main():
     from monocle_test_tools.test_generator import TestGenerator
     
     try:
-        if args.session_id:
-            generator = TestGenerator.from_okahu_session(
-                session_id=args.session_id, workflow_name=args.workflow_name,
-                trace_source=args.trace_source,
-                injected_evals=injected_evals, eval_source=args.eval_source,
-                discover_evals=args.discover_evals, discovery_fact_name=args.eval_fact,
-            )
-        elif has_fact:
-            generator = TestGenerator.from_okahu_scope(
+        if remote:
+            generator = TestGenerator.from_source(
+                args.source, args.workflow_name,
+                trace_id=args.trace_id, session_id=args.session_id,
                 scope_name=args.fact_name, scope_id=args.fact_id,
-                workflow_name=args.workflow_name, trace_source=args.trace_source,
-                injected_evals=injected_evals, eval_source=args.eval_source,
-                discover_evals=args.discover_evals, discovery_fact_name=args.eval_fact,
-            )
-        elif args.trace_id:
-            generator = TestGenerator.from_okahu(
-                trace_id=args.trace_id, workflow_name=args.workflow_name,
                 trace_source=args.trace_source,
                 injected_evals=injected_evals, eval_source=args.eval_source,
                 discover_evals=args.discover_evals, discovery_fact_name=args.eval_fact,

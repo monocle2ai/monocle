@@ -197,6 +197,14 @@ class OkahuEval(BaseEval):
         latest = row.get("latest") or []
         return _label(latest[0]) if latest else None
 
+    @classmethod
+    def knows_fact_name(cls, fact_name: str) -> bool:
+        try:
+            cls._map_fact_name(fact_name)
+            return True
+        except ValueError:
+            return False
+
     @staticmethod
     def _map_fact_name(fact_name: str) -> str:
         """

@@ -1,15 +1,17 @@
 """Okahu trace source.
 
-Records a test's pass/fail outcome back to Okahu as an evaluation label via
-``POST /v1/eval/label`` (server side:
+Loads spans from Okahu, and records a test's pass/fail outcome back to Okahu
+as an evaluation label via ``POST /v1/eval/label`` (server side:
 ``okahu/observability/azure-fn/eval-api/function_app.py::eval_label``).
 """
 import logging
 import os
-from typing import Optional
+from typing import Optional, Tuple
 
 import requests
 
+from monocle_test_tools.providers.okahu.okahu_filtered_eval import OkahuFilteredEval
+from monocle_test_tools.providers.okahu.okahu_span_loader import OkahuSpanLoader
 from monocle_test_tools.trace_sources.trace_source import TraceSource
 
 logger = logging.getLogger(__name__)
@@ -25,6 +27,31 @@ class OkahuTraceSource(TraceSource):
     """Trace source backed by the Okahu cloud service."""
 
     name = "okahu"
+    supports_time_window = True
+
+    def setup_test_cases(self, **kwargs) -> list:
+        return OkahuSpanLoader.setup_test_cases(**kwargs)
+
+    def run_filtered_eval(self, *, workflows, fact_name, start_time, end_time, accepted,
+                          not_expected, eval_name, template, min_facts, max_facts) -> dict:
+        return OkahuFilteredEval.from_env().run_filtered(
+            workflows, accepted=accepted, not_expected=not_expected,
+            eval_name=eval_name, template=template, fact_name=fact_name,
+            start_time=start_time, end_time=end_time,
+            min_facts=min_facts, max_facts=max_facts)
+
+    def load_spans(self, *, id: str, fact_name: str, scope_name: Optional[str],
+                   workflow_name: str, start_time: Optional[str] = None,
+                   end_time: Optional[str] = None) -> Tuple[list, str]:
+        window = {k: v for k, v in (("start_time", start_time), ("end_time", end_time)) if v is not None}
+        if fact_name in ("session", "scope"):
+            # A session is Okahu's agent_sessions scope.
+            okahu_fact_name = OkahuSpanLoader.AGENT_SESSIONS_SCOPE if fact_name == "session" else scope_name
+            spans = OkahuSpanLoader.load_by_scope(workflow_name=workflow_name, scope_name=okahu_fact_name,
+                                                  scope_id=id, **window)
+            return spans, okahu_fact_name
+        spans = OkahuSpanLoader.get_spans(workflow_name=workflow_name, trace_id=id, **window)
+        return spans, "traces"
 
     def record_test_result(self, *, fact_id: Optional[str], fact_name: Optional[str],
                            workflow_name: Optional[str], test_name: str,

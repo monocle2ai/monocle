@@ -69,7 +69,7 @@ def resolve_testcase(testcase: Union[FluentTestCase, dict], **forbidden: Any) ->
 
 
 # FactID.fact_name values import_traces understands as-is. Its own default,
-# "traces", is Okahu's name for the same thing import_traces calls "trace".
+# "traces", is the trace source's name for what import_traces calls "trace".
 _PASSTHROUGH_FACT_NAMES = ("trace", "session")
 
 
@@ -78,7 +78,7 @@ def factid_import_kwargs(fact_id: FactID) -> dict:
 
     Any fact name that is not one import_traces recognizes is taken to be a
     custom scope name, matching how import_traces already treats the scope
-    branch (it assigns the caller's scope_name straight to okahu_fact_name).
+    branch (it passes the caller's scope_name straight to the trace source).
 
     ``workflow_name`` and ``load_spans`` are not derived here -- neither is a
     property of the fact, and the two call sites source them differently.

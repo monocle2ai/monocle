@@ -123,7 +123,7 @@ def test_run_eval_row_issues_trace_source_and_check_eval():
     case = csv_cases._row_to_case(
         {"case_id": "c", "fact_id": "t1", "workflow_name": "wf", "expected": "ok"}, 2)
     a = _RecordingAsserter(has_eval=True)
-    case.run(a, template_path="tpl.json")
+    case.run(a, trace_source="okahu", template_path="tpl.json")
     names = [c[0] for c in a.calls]
     assert names == ["with_trace_source", "check_eval"]
     ts = a.calls[0]
@@ -138,7 +138,7 @@ def test_run_eval_row_maps_guard_rails():
         {"case_id": "c", "fact_id": "t1", "workflow_name": "wf", "expected": "ok",
          "max_tokens": "5000", "max_duration_ms": "4000"}, 2)
     a = _RecordingAsserter(has_eval=True)
-    case.run(a)
+    case.run(a, trace_source="okahu")
     names = [c[0] for c in a.calls]
     assert names == ["with_trace_source", "check_eval", "under_token_limit", "under_duration"]
     assert ("under_token_limit", (5000,), {}) in a.calls
@@ -150,7 +150,7 @@ def test_run_eval_row_without_evaluator_raises():
         {"case_id": "needs_eval", "fact_id": "t", "workflow_name": "wf", "expected": "ok"}, 2)
     a = _RecordingAsserter(has_eval=False)
     with pytest.raises(csv_cases.CsvCaseError) as exc:
-        case.run(a)
+        case.run(a, trace_source="okahu")
     assert "needs_eval" in str(exc.value)
     assert "with_evaluation" in str(exc.value)
 

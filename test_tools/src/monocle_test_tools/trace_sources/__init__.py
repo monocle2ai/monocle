@@ -1,11 +1,11 @@
 """Trace-source abstraction for the Monocle test tools."""
-from typing import Optional
+from typing import List, Optional
 
 from monocle_apptrace.providers import NamedRegistry
 from monocle_apptrace.providers.moved import moved_attr
 from monocle_test_tools.trace_sources.trace_source import TraceSource
 
-__all__ = ["TraceSource", "get_trace_source"]
+__all__ = ["TraceSource", "get_trace_source", "get_trace_source_names"]
 
 # Known trace sources by name.
 _trace_sources = NamedRegistry("monocle.trace_sources", {
@@ -21,6 +21,11 @@ def get_trace_source(name: Optional[str]) -> Optional[TraceSource]:
     """
     source_cls = _trace_sources.get(name) if name else None
     return source_cls() if source_cls is not None else None
+
+
+def get_trace_source_names() -> List[str]:
+    """Names of all registered trace sources."""
+    return _trace_sources.names()
 
 
 def __getattr__(name):

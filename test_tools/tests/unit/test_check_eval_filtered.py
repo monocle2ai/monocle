@@ -29,11 +29,11 @@ def _reset_trace_assertion_class_state():
     """
     TraceAssertion._assertion_errors = []
     TraceAssertion._eval_report = None
-    TraceAssertion._okahu_filter = None
+    TraceAssertion._source_filter = None
     yield
     TraceAssertion._assertion_errors = []
     TraceAssertion._eval_report = None
-    TraceAssertion._okahu_filter = None
+    TraceAssertion._source_filter = None
 
 
 def _asserter():
@@ -41,7 +41,7 @@ def _asserter():
 
 
 def _make_span_asserter(eval_result=("no_hallucination", "ok")):
-    """Span-mode asserter: one span, mocked evaluator, NO `_okahu_filter` set.
+    """Span-mode asserter: one span, mocked evaluator, NO `_source_filter` set.
 
     Mirrors `_make_asserter` in test_check_eval_template_path.py's
     `test_template_dict_selector_reaches_evaluate_unmodified`.
@@ -94,14 +94,14 @@ def test_with_trace_source_okahu_window_records_scope_no_import():
     with patch.object(a.validator, "import_traces") as imp:
         a.with_trace_source("okahu", workflow_name="wf", start_time="s", end_time="e")
     imp.assert_not_called()
-    assert a._okahu_filter == {"workflows": ["wf"], "start_time": "s",
+    assert a._source_filter == {"source": "okahu", "workflows": ["wf"], "start_time": "s",
                                "end_time": "e", "fact_name": "traces"}
 
 
 def test_with_trace_source_okahu_window_accepts_workflow_list():
     a = _asserter().with_trace_source("okahu", workflow_name=["a", "b"],
                                       start_time="s", end_time="e")
-    assert a._okahu_filter["workflows"] == ["a", "b"]
+    assert a._source_filter["workflows"] == ["a", "b"]
 
 
 def test_with_trace_source_okahu_id_and_window_conflict():
@@ -129,7 +129,7 @@ def test_with_trace_source_okahu_id_still_imports():
     with patch.object(a.validator, "import_traces") as imp:
         a.with_trace_source("okahu", id="t1", workflow_name="wf")
     imp.assert_called_once()
-    assert a._okahu_filter is None
+    assert a._source_filter is None
 
 
 def test_check_eval_filter_mode_runs_filtered_flow_and_stashes_report(monkeypatch):
@@ -187,7 +187,7 @@ def test_check_eval_filter_mode_records_failure_on_fail_over_threshold(monkeypat
 
 def test_check_eval_filter_only_params_rejected_in_span_mode():
     a = _asserter()
-    a._filtered_spans = ["not-empty"]  # span mode (no _okahu_filter)
+    a._filtered_spans = ["not-empty"]  # span mode (no _source_filter)
     with pytest.raises(ValueError):
         a.check_eval(eval_name="hallucination", expected="x", min_facts=5)
     with pytest.raises(ValueError):
@@ -198,7 +198,7 @@ def test_get_eval_report_uniform_filter_mode(monkeypatch, tmp_path):
     # Filter-mode: run_filtered's report is stashed as-is via check_eval (mocked client).
     a = _asserter()
     a._filtered_spans = None
-    a._okahu_filter = {"workflows": ["wf"], "start_time": "s", "end_time": "e", "fact_name": "traces"}
+    a._source_filter = {"source": "okahu", "workflows": ["wf"], "start_time": "s", "end_time": "e", "fact_name": "traces"}
     with patch("monocle_test_tools.providers.okahu.okahu_filtered_eval.OkahuFilteredEval.from_env") as mk:
         mk.return_value.run_filtered.return_value = _report()
         a.check_eval(eval_name="hallucination", expected="no_hallucination")
@@ -211,7 +211,7 @@ def test_get_eval_report_uniform_filter_mode(monkeypatch, tmp_path):
 
 
 def test_check_eval_span_mode_pass_stashes_uniform_report():
-    """Real span-mode (no `_okahu_filter`): matching `expected` -> report is a 1-fact
+    """Real span-mode (no `_source_filter`): matching `expected` -> report is a 1-fact
     uniform report (same shape as filter mode) with no failures."""
     a = _make_span_asserter(eval_result=("no_hallucination", "looks fine"))
 

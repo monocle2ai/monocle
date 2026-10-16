@@ -10,7 +10,7 @@ from monocle_apptrace.instrumentation.common.constants import (
     TRACE_RETURN_REQUEST_HEADER,
 )
 from monocle_test_tools.file_span_loader import JSONSpanLoader
-from monocle_test_tools.runner.agent_runner import AgentRunner
+from monocle_test_tools.runner.agent_runner import AgentRunner, remote_trace_source
 
 logger = logging.getLogger(__name__)
 
@@ -20,8 +20,7 @@ logger = logging.getLogger(__name__)
 _DELIMITER_PREFIX = "__MONOCLE_TRACES__"
 _DELIMITER_SUFFIX = "__"
 
-# Okahu indexes the deployed agent's session scope under this fact name.
-REMOTE_TRACE_SOURCE = "okahu"
+# The trace source indexes the deployed agent's session scope under this fact name.
 REMOTE_SESSION_FACT = "session"
 # Workflow the deployed agent exports under, when not passed to the constructor.
 AGENTCORE_TRACE_WORKFLOW_ENV = "AGENTCORE_TRACE_WORKFLOW"
@@ -67,7 +66,8 @@ class AgentCoreRunner(AgentRunner):
     """
 
     def __init__(self, client: Any = None, region_name: Optional[str] = None,
-                 trace_workflow_name: Optional[str] = None):
+                 trace_workflow_name: Optional[str] = None,
+                 trace_source: Optional[str] = None):
         """
         Args:
             client: Optional pre-built boto3 ``bedrock-agentcore`` client. When
@@ -80,7 +80,11 @@ class AgentCoreRunner(AgentRunner):
                 back to the ``AGENTCORE_TRACE_WORKFLOW`` environment variable;
                 when neither is set the runner reports no remote trace source
                 and retrieval is skipped.
+            trace_source: Trace source to retrieve the spans from. Falls back
+                to ``MONOCLE_REMOTE_TRACE_SOURCE``; without either, retrieval
+                is skipped.
         """
+        self._trace_source = trace_source
         self._client = client
         self._region_name = region_name
         self._trace_workflow_name = trace_workflow_name or os.environ.get(
@@ -355,7 +359,7 @@ class AgentCoreRunner(AgentRunner):
         if self._remote_spans:
             return None
         if self._trace_workflow_name and self._last_session_id:
-            return REMOTE_TRACE_SOURCE
+            return remote_trace_source(self._trace_source)
         return None
 
     def get_remote_trace_query(self) -> dict:

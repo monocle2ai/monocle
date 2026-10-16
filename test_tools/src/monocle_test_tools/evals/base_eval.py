@@ -22,9 +22,17 @@ class BaseEval(BaseModel):
         no specs were produced, else ``None``. Non-fatal by contract — never raises.
 
         Default: no discovery support. Providers that can introspect a recorded-eval
-        store (e.g. :class:`OkahuEval`) override this.
+        store override this.
         """
         return [], f"eval discovery not supported for evaluator '{type(self).__name__}'"
+
+    @classmethod
+    def knows_fact_name(cls, fact_name: str) -> bool:
+        """True if this evaluator can discover evals at this fact level.
+
+        Default: only ``"traces"``. Providers with more fact levels override this.
+        """
+        return fact_name == "traces"
 
     @classmethod
     def classify_eval_input(cls, name_or_path: str) -> Tuple[str, str]:
@@ -32,7 +40,7 @@ class BaseEval(BaseModel):
 
         Returns ``(eval_type, value)`` where eval_type is ``"builtin"`` or ``"custom"``.
         Default: path-like strings (.json / path separator) → custom, else → builtin.
-        Subclasses (e.g. OkahuEval) may override.
+        Subclasses may override.
         """
         is_path_like = (
             name_or_path.endswith(".json")

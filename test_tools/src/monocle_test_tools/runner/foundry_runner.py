@@ -6,12 +6,11 @@ from typing import Any, Optional, Union
 
 import requests
 
-from monocle_test_tools.runner.agent_runner import AgentRunner
+from monocle_test_tools.runner.agent_runner import AgentRunner, remote_trace_source
 
 logger = logging.getLogger(__name__)
 
-# Okahu holds the deployed agent's spans; the trace is looked up by id, not by a fact.
-REMOTE_TRACE_SOURCE = "okahu"
+# The trace source holds the deployed agent's spans; the trace is looked up by id, not by a fact.
 REMOTE_TRACE_FACT = "trace"
 # Workflow the deployed agent exports under, when not passed to the constructor.
 FOUNDRY_TRACE_WORKFLOW_ENV = "FOUNDRY_TRACE_WORKFLOW"
@@ -49,14 +48,17 @@ class FoundryRunner(AgentRunner):
     project's ``/openai/v1/responses``, which resolves model deployments.
 
     Spans come from the deployed agent's own instrumentation and are retrieved
-    from Okahu by the trace id in ``x-request-id``. That needs the workflow name
-    it exports under (``trace_workflow_name`` or ``FOUNDRY_TRACE_WORKFLOW``);
-    without it retrieval is skipped and only the response can be asserted on.
+    from a trace source by the trace id in ``x-request-id``. That needs the
+    source (``trace_source`` or ``MONOCLE_REMOTE_TRACE_SOURCE``) and the workflow
+    name it exports under (``trace_workflow_name`` or ``FOUNDRY_TRACE_WORKFLOW``);
+    without them retrieval is skipped and only the response can be asserted on.
     """
 
-    def __init__(self, credential: Any = None, trace_workflow_name: Optional[str] = None):
+    def __init__(self, credential: Any = None, trace_workflow_name: Optional[str] = None,
+                 trace_source: Optional[str] = None):
         """A ``DefaultAzureCredential`` is built lazily when none is passed, so
         ``az login`` and CI workload identity both work unchanged."""
+        self._trace_source = trace_source
         self._credential = credential
         self._trace_workflow_name = trace_workflow_name or os.environ.get(
             FOUNDRY_TRACE_WORKFLOW_ENV)
@@ -169,7 +171,7 @@ class FoundryRunner(AgentRunner):
         """Report a source only once retrieval can succeed, so an unconfigured
         runner skips it instead of importing nothing."""
         if self._trace_workflow_name and self._last_trace_id:
-            return REMOTE_TRACE_SOURCE
+            return remote_trace_source(self._trace_source)
         return None
 
     def get_remote_trace_query(self) -> dict:

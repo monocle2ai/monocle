@@ -9,7 +9,7 @@ os.environ["MONOCLE_EXPORT_FAILED_TESTS_ONLY"] = "true"
 def _reset_trace_assertion_class_state():
     """Reset shared class-level TraceAssertion state before AND after each test.
 
-    `test_okahu_filter_threads_through_collect_assertions` below builds a
+    `test_source_filter_threads_through_collect_assertions` below builds a
     `TraceAssertion()` directly (bypassing the `monocle_trace_asserter` fixture,
     whose teardown calls `cleanup()`) and intentionally leaves a recorded
     assertion behind. A manual reset as the LAST statement of a test body is
@@ -21,11 +21,11 @@ def _reset_trace_assertion_class_state():
     """
     TraceAssertion._assertion_errors = []
     TraceAssertion._eval_report = None
-    TraceAssertion._okahu_filter = None
+    TraceAssertion._source_filter = None
     yield
     TraceAssertion._assertion_errors = []
     TraceAssertion._eval_report = None
-    TraceAssertion._okahu_filter = None
+    TraceAssertion._source_filter = None
 
 def test_tool_invocation_span(monocle_trace_asserter:TraceAssertion):
     monocle_trace_asserter.load_spans(JSONSpanLoader.load_spans("traces/trace1.json"))
@@ -140,9 +140,9 @@ def test_event_filter_distinguishes_missing_and_non_matching_values(monocle_trac
     assert not loaded._filter_spans_by_event(spans, "metadata", "missing", None)
     assert not loaded._filter_spans_by_event(spans, "metadata", "total_tokens", "229")
 
-def test_okahu_filter_threads_through_collect_assertions():
+def test_source_filter_threads_through_collect_assertions():
     a = TraceAssertion()
-    a._okahu_filter = {"workflows": ["wf"], "start_time": "s",
+    a._source_filter = {"source": "okahu", "workflows": ["wf"], "start_time": "s",
                        "end_time": "e", "fact_name": "traces"}
     # called_tool is @collect_assertions-decorated: it returns a *new* asserter,
     # and (on empty spans) records an assertion on the shared class-level list.
@@ -155,7 +155,7 @@ def test_okahu_filter_threads_through_collect_assertions():
     # guarantees it runs even if the assertion below fails.
     try:
         b = a.called_tool("anything")
-        assert b._okahu_filter == {"workflows": ["wf"], "start_time": "s",
+        assert b._source_filter == {"source": "okahu", "workflows": ["wf"], "start_time": "s",
                                    "end_time": "e", "fact_name": "traces"}
     finally:
         TraceAssertion._assertion_errors = []

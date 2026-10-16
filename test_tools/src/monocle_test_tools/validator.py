@@ -21,12 +21,11 @@ from monocle_apptrace.instrumentation.common.instrumentor import MonocleInstrume
 from pydantic import BaseModel, ValidationError
 from monocle_test_tools.file_span_loader import JSONSpanLoader
 from monocle_test_tools.gitutils import get_git_context, get_repo_name
-from monocle_test_tools.providers.okahu.okahu_span_loader import OkahuSpanLoader
 from monocle_test_tools.schema import SpanType, TestSpan, TestCase, MultiTurnTestCase, Evaluation, EvalInputs, MockTool
 from monocle_test_tools.constants import TEST_SCOPE_NAME, SESSION_SCOPE_NAME, TURN_SCOPE_NAME, DEFAULT_WORKFLOW_NAME, TEST_STATUS_ATTRIBUTE, TEST_ASSERTION_ATTRIBUTE, TEST_WORKFLOW_ENV
 from monocle_test_tools.comparer.base_comparer import BaseComparer
 from monocle_test_tools.runner.runner import get_agent_runner
-from monocle_test_tools.trace_sources import get_trace_source
+from monocle_test_tools.trace_sources import get_trace_source, get_trace_source_names
 from monocle_test_tools import trace_utils
 from monocle_apptrace.instrumentation.metamodel.adk.methods import ADK_METHODS
 from monocle_apptrace.instrumentation.metamodel.adk.entities.tool import TOOL as ADK_TOOL
@@ -209,8 +208,8 @@ class MonocleValidator:
     def _maybe_record_test_result(self, test_name:str, test_failed:bool, description:str) -> None:
         """Record the test outcome back to the trace source, when supported.
 
-        Resolves the current trace source (only Okahu records today) and asks it
-        to record a label for this test. Fully best-effort: it never raises, so
+        Resolves the current trace source and asks it to record a label for
+        this test. Fully best-effort: it never raises, so
         it cannot fail the test or mask its real result. Must run before
         ``cleanup()`` clears the captured fact details.
         """
@@ -640,7 +639,7 @@ class MonocleValidator:
         so assertions can be run against them without re-running the agent.
 
         Args:
-            trace_source: Source type — ``"file"`` or ``"okahu"``.
+            trace_source: ``"file"``, or the name of a registered trace source.
             id: Identifier whose meaning depends on *fact_name*:
                 - When fact_name is ``"trace"`` → a trace ID (hex string).
                 - When fact_name is ``"session"`` → an agent session ID.
@@ -651,10 +650,10 @@ class MonocleValidator:
                 ``"scope"`` — *id* is a custom scope; requires *scope_name*.
                 For ``trace_source="file"`` only ``"trace"`` is supported.
             scope_name: Name of custom scope/fact (e.g., "test_id", "my_scope").
-                Required when ``fact_name="scope"``. For fact_name="session",
-                defaults to "agent_sessions".
-            workflow_name: Okahu workflow / service name
-                (required when ``trace_source="okahu"``).
+                Required when ``fact_name="scope"``.
+            workflow_name: Workflow / service name the spans belong to
+                (required for a remote trace source; defaults to the current
+                workflow name).
             load_spans: When True (default) the fetched spans are loaded into the
                 validator for assertions and the trace source is recorded. When
                 False this is a pure fetch: the spans are returned and no
@@ -662,9 +661,9 @@ class MonocleValidator:
                 of a recorded trace -- replaying its input into a fresh run --
                 use False, so the source trace's fact id does not end up
                 attached to the new run's result.
-            start_time: Optional window start, narrowing the server-side lookup.
-                Okahu only -- a trace file holds one trace, so there is nothing
-                to narrow and passing it for the file source raises.
+            start_time: Optional window start, narrowing a remote source's
+                lookup. A trace file holds one trace, so there is nothing to
+                narrow and passing it for the file source raises.
             end_time: Optional window end, as above.
 
         Returns:
@@ -673,87 +672,45 @@ class MonocleValidator:
         Raises:
             ValueError: If arguments are invalid or incomplete.
             FileNotFoundError: If no local trace file is found (file source).
-            ConnectionError: If fetching from Okahu fails (okahu source).
 
         Examples:
-            # Load by session (agent_sessions scope)
+            # Load a session from a remote trace source
             asserter.import_traces(
-                trace_source="okahu",
+                trace_source="my_source",
                 id="session_123",
                 fact_name="session",
                 workflow_name="my_app"
             )
-
-            # Load by custom scope
-            asserter.import_traces(
-                trace_source="okahu",
-                id="test_456",
-                fact_name="scope",
-                scope_name="test_id",
-                workflow_name="my_app"
-            )
-
-            # Load by trace ID
-            asserter.import_traces(
-                trace_source="okahu",
-                id="abc123",
-                fact_name="trace",
-                workflow_name="my_app"
-            )
         """
-        if trace_source not in ("file", "okahu"):
+        remote_source = None if trace_source == "file" else get_trace_source(trace_source)
+        if trace_source != "file" and remote_source is None:
+            supported = ", ".join(repr(n) for n in ["file", *get_trace_source_names()])
             raise ValueError(
                 f"Unsupported trace_source: '{trace_source}'. "
-                "Supported sources: 'file', 'okahu'."
+                f"Supported sources: {supported}."
             )
         if not id:
             id = self._get_current_trace_id()
 
-        if trace_source == "okahu":
+        if remote_source is not None:
             if not id:
                 raise ValueError("'id' is required.")
             if workflow_name is None:
                 workflow_name = get_workflow_name()
             if not workflow_name:
-                raise ValueError("'workflow_name' is required for okahu trace source.")
+                raise ValueError(f"'workflow_name' is required for the {trace_source} trace source.")
+            if fact_name == "scope" and not scope_name:
+                raise ValueError("'scope_name' is required when fact_name='scope'.")
 
-            if fact_name == "session":
-                # Session-based: use agent_sessions scope
-                okahu_fact_name = OkahuSpanLoader.AGENT_SESSIONS_SCOPE
-                spans = OkahuSpanLoader.load_by_scope(
-                    workflow_name=workflow_name,
-                    scope_name=okahu_fact_name,
-                    scope_id=id,
-                    start_time=start_time,
-                    end_time=end_time,
-                )
-            elif fact_name == "scope":
-                # Custom scope: requires scope_name
-                if not scope_name:
-                    raise ValueError("'scope_name' is required when fact_name='scope'.")
-                okahu_fact_name = scope_name
-                spans = OkahuSpanLoader.load_by_scope(
-                    workflow_name=workflow_name,
-                    scope_name=okahu_fact_name,
-                    scope_id=id,
-                    start_time=start_time,
-                    end_time=end_time,
-                )
-            else:
-                # Direct trace_id lookup
-                okahu_fact_name = "traces"
-                spans = OkahuSpanLoader.get_spans(
-                    workflow_name=workflow_name,
-                    trace_id=id,
-                    start_time=start_time,
-                    end_time=end_time,
-                )
+            spans, source_fact_name = remote_source.load_spans(
+                id=id, fact_name=fact_name, scope_name=scope_name,
+                workflow_name=workflow_name, start_time=start_time, end_time=end_time)
             # Capture the fact details so the test outcome can be recorded back
-            # to Okahu during post_test_cleanup. Skipped for a pure fetch: those
-            # spans are not what the assertions will run against.
+            # to the source during post_test_cleanup. Skipped for a pure fetch:
+            # those spans are not what the assertions will run against.
             if load_spans:
                 self._trace_source_fact_id = id
-                self._trace_source_fact_name = okahu_fact_name
+                self._trace_source_fact_name = source_fact_name
                 self._trace_source_workflow_name = workflow_name
         else:
             # File source — a time window only filters a server-side query, so

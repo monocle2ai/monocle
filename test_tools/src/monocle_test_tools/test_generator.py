@@ -1,18 +1,26 @@
 import math
+import warnings
 from typing import List, Optional, Set, Dict
 from opentelemetry.sdk.trace import ReadableSpan
 
-from monocle_test_tools.evals.eval_manager import get_supported_eval_sources
+from monocle_test_tools.evals.base_eval import BaseEval
+from monocle_test_tools.evals.eval_manager import get_eval_source_class, get_supported_eval_sources
+from monocle_test_tools.trace_sources import get_trace_source, get_trace_source_names
 
 
 # Allowed values for the ``trace_source`` argument. When set, only the loader
 # code for that specific source is generated.
-SUPPORTED_TRACE_SOURCES = ("file", "okahu")
+SUPPORTED_TRACE_SOURCES = ("file", *get_trace_source_names())
 
 
 # Eval providers usable as an ``eval_source`` come from the eval registry, so a
 # new evaluator can be registered without editing the generator.
 SUPPORTED_EVAL_SOURCES = get_supported_eval_sources()
+
+
+def _warn_renamed(old: str) -> None:
+    warnings.warn(f"TestGenerator.{old} is deprecated; use TestGenerator.from_source",
+                  DeprecationWarning, stacklevel=3)
 
 
 class TestGenerator:
@@ -21,7 +29,7 @@ class TestGenerator:
     Emits a complete, runnable test file with assertions for agents, tools,
     outputs, total tokens, turn duration, optional injected eval assertions, and
     evals auto-discovered from the source fact (see ``discover_fact_evals``).
-    The Okahu cloud loader is pre-populated with trace id and workflow name.
+    A trace-source loader is pre-populated with trace id and workflow name.
     """
 
     def __init__(self, spans: List[ReadableSpan], trace_file: str = None,
@@ -29,33 +37,36 @@ class TestGenerator:
                  workflow_name: Optional[str] = None, session_id: Optional[str] = None,
                  scope_name: Optional[str] = None, scope_id: Optional[str] = None,
                  injected_evals: Optional[List[Dict]] = None,
-                 eval_source: Optional[str] = "okahu",
+                 eval_source: Optional[str] = None,
                  discover_evals: bool = True,
-                 discovery_fact_name: Optional[str] = None):
+                 discovery_fact_name: Optional[str] = None,
+                 source: Optional[str] = None):
         """Initialize with a list of spans to analyze.
 
         Args:
             spans: Spans to analyze.
             trace_file: Path to the trace file the spans were loaded from (if any).
-            trace_source: Optional loader to generate code for. One of
-                ``"file"`` or ``"okahu"``. When ``None`` (default), loader code
-                for all supported sources is emitted.
-            trace_id: Trace id, used when generating "okahu" loader code.
-            workflow_name: Okahu workflow name, used when generating "okahu" loader code.
+            trace_source: Optional loader to generate code for: ``"file"`` or a
+                registered trace source. When ``None`` (default), loader code for
+                all supported sources is emitted.
+            trace_id: Trace id, used in the generated trace-source loader.
+            workflow_name: Workflow name, used in the generated trace-source loader.
             session_id: Agentic session id. When set, the spans span multiple traces
-                (a whole session) and the generated Okahu loader targets the session
+                (a whole session) and the generated loader targets the session
                 (``fact_name="session"``) instead of a single trace.
-            scope_name / scope_id: A custom Okahu fact/scope (e.g. ``"test_id"``) and
-                its value. When set, the spans span every trace under that fact and the
-                generated Okahu loader targets it (``fact_name="scope"``). This is the
-                general form; ``session_id`` is the ``agent_sessions`` special case.
+            scope_name / scope_id: A custom fact/scope (e.g. ``"test_id"``) and its
+                value. When set, the spans span every trace under that fact and the
+                generated loader targets it (``fact_name="scope"``).
             injected_evals: Optional list of eval spec dicts passed directly from the CLI
                 (``--eval`` flags). Each dict may contain ``criteria`` (built-in eval name)
                 or ``template_path`` (custom JSON template), plus optional ``expected``,
                 ``not_expected``, ``fact_name``, and ``eval_type`` (``"builtin"`` or
                 ``"custom"``, auto-detected when absent).
-            eval_source: Evaluator to use in generated ``with_evaluation()`` calls.
-                Defaults to ``"okahu"``.
+            eval_source: Evaluator to use in generated ``with_evaluation()`` calls and
+                for eval discovery. Required with ``injected_evals``; without it,
+                discovery is skipped.
+            source: The trace source the spans were fetched from, if any. Its
+                loader is the one shown in the generated code.
         """
         if trace_source is not None and trace_source not in SUPPORTED_TRACE_SOURCES:
             raise ValueError(
@@ -65,12 +76,15 @@ class TestGenerator:
         self.spans = spans
         self.trace_file = trace_file
         self.trace_source = trace_source
-        self.eval_source = eval_source or "okahu"
-        if self.eval_source not in SUPPORTED_EVAL_SOURCES:
+        self.source = source
+        self.eval_source = eval_source
+        if self.eval_source is not None and self.eval_source not in SUPPORTED_EVAL_SOURCES:
             raise ValueError(
                 f"Unsupported eval_source: '{self.eval_source}'. "
                 f"Supported values: {', '.join(SUPPORTED_EVAL_SOURCES)}."
             )
+        if injected_evals and self.eval_source is None:
+            raise ValueError("eval_source is required when evals are injected.")
         self.trace_id = trace_id
         self.workflow_name = workflow_name
         self.session_id = session_id
@@ -95,7 +109,7 @@ class TestGenerator:
     @classmethod
     def from_json_file(cls, filepath: str, trace_source: Optional[str] = None,
                        injected_evals: Optional[List[Dict]] = None,
-                       eval_source: Optional[str] = "okahu",
+                       eval_source: Optional[str] = None,
                        discover_evals: bool = True,
                        discovery_fact_name: Optional[str] = None):
         """Create generator from a trace JSON file."""
@@ -106,21 +120,49 @@ class TestGenerator:
                    discover_evals=discover_evals, discovery_fact_name=discovery_fact_name)
 
     @classmethod
+    def from_source(cls, source: str, workflow_name: str, *,
+                    trace_id: Optional[str] = None, session_id: Optional[str] = None,
+                    scope_name: Optional[str] = None, scope_id: Optional[str] = None,
+                    trace_source: Optional[str] = None,
+                    injected_evals: Optional[List[Dict]] = None,
+                    eval_source: Optional[str] = None,
+                    discover_evals: bool = True,
+                    discovery_fact_name: Optional[str] = None):
+        """Create generator from spans fetched from a trace source.
+
+        Give exactly one of: ``trace_id`` (one trace), ``session_id`` (every trace
+        in an agentic session), or ``scope_name`` + ``scope_id`` (every trace under
+        a custom fact/scope). Loading a whole session or scope extracts assertions
+        from all its turns, not just one.
+        """
+        if sum(bool(x) for x in (trace_id, session_id, scope_id)) != 1 or bool(scope_id) != bool(scope_name):
+            raise ValueError("Give exactly one of: trace_id, session_id, or scope_name with scope_id.")
+        trace_source_obj = get_trace_source(source)
+        if trace_source_obj is None:
+            raise ValueError(f"Unsupported source: '{source}'. "
+                             f"Supported values: {', '.join(get_trace_source_names())}.")
+        fact_id, fact_name = ((session_id, "session") if session_id else
+                              (scope_id, "scope") if scope_id else (trace_id, "trace"))
+        spans, _ = trace_source_obj.load_spans(id=fact_id, fact_name=fact_name,
+                                               scope_name=scope_name, workflow_name=workflow_name)
+        return cls(spans, trace_file=None, trace_source=trace_source, source=source,
+                   trace_id=trace_id, workflow_name=workflow_name, session_id=session_id,
+                   scope_name=scope_name, scope_id=scope_id,
+                   injected_evals=injected_evals, eval_source=eval_source,
+                   discover_evals=discover_evals, discovery_fact_name=discovery_fact_name)
+
+    # Old constructors, kept for one release. They keep their old eval_source
+    # default so existing callers behave the same.
+    @classmethod
     def from_okahu(cls, trace_id: str, workflow_name: str, trace_source: Optional[str] = None,
                    injected_evals: Optional[List[Dict]] = None,
                    eval_source: Optional[str] = "okahu",
                    discover_evals: bool = True,
                    discovery_fact_name: Optional[str] = None):
-        """Create generator from an Okahu trace."""
-        from monocle_test_tools.providers.okahu.okahu_span_loader import OkahuSpanLoader
-        spans = OkahuSpanLoader.get_spans(
-            workflow_name=workflow_name,
-            trace_id=trace_id,
-        )
-        return cls(spans, trace_file=None, trace_source=trace_source,
-                   trace_id=trace_id, workflow_name=workflow_name,
-                   injected_evals=injected_evals, eval_source=eval_source,
-                   discover_evals=discover_evals, discovery_fact_name=discovery_fact_name)
+        _warn_renamed("from_okahu")
+        return cls.from_source("okahu", workflow_name, trace_id=trace_id, trace_source=trace_source,
+                               injected_evals=injected_evals, eval_source=eval_source,
+                               discover_evals=discover_evals, discovery_fact_name=discovery_fact_name)
 
     @classmethod
     def from_okahu_scope(cls, scope_name: str, scope_id: str, workflow_name: str,
@@ -129,30 +171,14 @@ class TestGenerator:
                          eval_source: Optional[str] = "okahu",
                          discover_evals: bool = True,
                          discovery_fact_name: Optional[str] = None):
-        """Create generator from any Okahu fact/scope other than a single trace.
-
-        Loads spans across every trace under ``scope_name == scope_id`` (e.g.
-        ``"agent_sessions"``, ``"test_id"``, ``"conversations"``, or any custom
-        scope), so assertions are extracted from the whole fact rather than one turn.
-
-        The ``agent_sessions`` scope is emitted with the idiomatic
-        ``fact_name="session"`` loader; every other scope uses ``fact_name="scope"``.
-        """
-        from monocle_test_tools.providers.okahu.okahu_span_loader import OkahuSpanLoader
-        spans = OkahuSpanLoader.load_by_scope(
-            workflow_name=workflow_name,
-            scope_name=scope_name,
-            scope_id=scope_id,
-        )
-        if scope_name == OkahuSpanLoader.AGENT_SESSIONS_SCOPE:
-            return cls(spans, trace_file=None, trace_source=trace_source,
-                       workflow_name=workflow_name, session_id=scope_id,
-                       injected_evals=injected_evals, eval_source=eval_source,
-                       discover_evals=discover_evals, discovery_fact_name=discovery_fact_name)
-        return cls(spans, trace_file=None, trace_source=trace_source,
-                   workflow_name=workflow_name, scope_name=scope_name, scope_id=scope_id,
-                   injected_evals=injected_evals, eval_source=eval_source,
-                   discover_evals=discover_evals, discovery_fact_name=discovery_fact_name)
+        _warn_renamed("from_okahu_scope")
+        # The agent_sessions scope is a session.
+        fact = ({"session_id": scope_id} if scope_name == "agent_sessions"
+                else {"scope_name": scope_name, "scope_id": scope_id})
+        return cls.from_source("okahu", workflow_name, trace_source=trace_source,
+                               injected_evals=injected_evals, eval_source=eval_source,
+                               discover_evals=discover_evals, discovery_fact_name=discovery_fact_name,
+                               **fact)
 
     @classmethod
     def from_okahu_session(cls, session_id: str, workflow_name: str,
@@ -161,25 +187,10 @@ class TestGenerator:
                            eval_source: Optional[str] = "okahu",
                            discover_evals: bool = True,
                            discovery_fact_name: Optional[str] = None):
-        """Create generator from an Okahu agentic session.
-
-        A session spans multiple traces; this loads spans across every trace in the
-        session so agent/tool/inference assertions are extracted from the whole
-        session (loading a single trace id would miss most turns — the cause of
-        session tests being generated with no assertions). Thin wrapper over
-        ``from_okahu_scope`` with the ``agent_sessions`` scope.
-        """
-        from monocle_test_tools.providers.okahu.okahu_span_loader import OkahuSpanLoader
-        return cls.from_okahu_scope(
-            scope_name=OkahuSpanLoader.AGENT_SESSIONS_SCOPE,
-            scope_id=session_id,
-            workflow_name=workflow_name,
-            trace_source=trace_source,
-            injected_evals=injected_evals,
-            eval_source=eval_source,
-            discover_evals=discover_evals,
-            discovery_fact_name=discovery_fact_name,
-        )
+        _warn_renamed("from_okahu_session")
+        return cls.from_source("okahu", workflow_name, session_id=session_id, trace_source=trace_source,
+                               injected_evals=injected_evals, eval_source=eval_source,
+                               discover_evals=discover_evals, discovery_fact_name=discovery_fact_name)
 
     def analyze(self):
         """Scan spans and extract agents, tools, outputs, tokens and duration.
@@ -249,7 +260,8 @@ class TestGenerator:
             evaluator = self._get_discovery_evaluator()
             if evaluator is None:
                 discovered, note = [], (
-                    f"eval discovery skipped: unsupported eval_source '{self.eval_source}'")
+                    "eval discovery skipped: no eval_source given" if self.eval_source is None
+                    else f"eval discovery skipped: unsupported eval_source '{self.eval_source}'")
             else:
                 discovered, note = evaluator.discover_fact_evals(
                     self.spans, fact_name=self._resolve_discovery_fact_name())
@@ -303,12 +315,10 @@ class TestGenerator:
         if self.session_id:
             return "agentic_sessions"
         if self.scope_name:
-            from monocle_test_tools.providers.okahu.okahu_eval import OkahuEval
-            try:
-                OkahuEval._map_fact_name(self.scope_name)
+            evaluator_cls = get_eval_source_class(self.eval_source) if self.eval_source else None
+            if evaluator_cls is not None and evaluator_cls.knows_fact_name(self.scope_name):
                 return self.scope_name
-            except ValueError:
-                return "traces"
+            return "traces"
         return "traces"
 
     def _get_discovery_evaluator(self):
@@ -316,19 +326,18 @@ class TestGenerator:
 
         Looks the provider up in the eval registry (same source of truth as
         ``_detect_eval_type``) so the generator never imports a specific
-        evaluator. Returns a ``BaseEval`` instance, or ``None`` when the
-        configured ``eval_source`` is not registered.
+        evaluator. Returns a ``BaseEval`` instance, or ``None`` when no
+        ``eval_source`` is set or it is not registered.
         """
-        from monocle_test_tools.evals.eval_manager import get_eval_source_class
-        cls = get_eval_source_class(self.eval_source)
+        cls = get_eval_source_class(self.eval_source) if self.eval_source else None
         return cls(eval_options={}) if cls else None
 
     @staticmethod
-    def _detect_eval_type(name_or_path: str, eval_source: str = "okahu") -> str:
+    def _detect_eval_type(name_or_path: str, eval_source: Optional[str] = None) -> str:
         """Classify eval input as ``"builtin"`` or ``"custom"`` using the eval
-        source's own rules (via its ``BaseEval.classify_eval_input``)."""
-        from monocle_test_tools.evals.eval_manager import get_eval_source_class, get_supported_eval_sources
-        evaluator_cls = get_eval_source_class(eval_source)
+        source's own rules (via its ``BaseEval.classify_eval_input``), or the
+        default rules when no eval source is given."""
+        evaluator_cls = get_eval_source_class(eval_source) if eval_source else BaseEval
         if evaluator_cls is None:
             raise ValueError(
                 f"Unsupported eval_source: '{eval_source}'. "
@@ -376,8 +385,8 @@ class TestGenerator:
     def _generate_loading_lines(self) -> List[str]:
         """Generate the trace-loading section using the with_trace_source API.
 
-        Honors ``self.trace_source``: when set to "file" or "okahu", only the
-        loader for that source is emitted (as active code). When ``None``, all
+        Honors ``self.trace_source``: when set to "file" or a trace source, only
+        the loader for that source is emitted (as active code). When ``None``, all
         supported loaders are shown with the file loader active (if a trace file
         is known) and the rest commented out.
         """
@@ -386,46 +395,46 @@ class TestGenerator:
             if self.trace_file
             else '    monocle_trace_asserter.with_trace_source("file", trace_path="path/to/trace.json")'
         )
-        okahu_workflow = self.workflow_name or "WORKFLOW_NAME"
-        if self.session_id:
-            # Session: load spans across every trace in the agent session.
-            okahu_line = (
-                f'    monocle_trace_asserter.with_trace_source("okahu", '
-                f'id="{self.session_id}", fact_name="session", workflow_name="{okahu_workflow}")'
-            )
-        elif self.scope_id:
-            # Any other fact/scope: load spans across every trace under the scope.
-            okahu_line = (
-                f'    monocle_trace_asserter.with_trace_source("okahu", '
-                f'id="{self.scope_id}", fact_name="scope", scope_name="{self.scope_name}", '
-                f'workflow_name="{okahu_workflow}")'
-            )
-        else:
-            okahu_id = self.trace_id or "TRACE_ID"
-            okahu_line = (
-                f'    monocle_trace_asserter.with_trace_source("okahu", '
-                f'id="{okahu_id}", workflow_name="{okahu_workflow}")'
-            )
-
         if self.trace_source == "file":
             return ['    # Load traces from a local trace file', file_line]
 
-        # For okahu source (or default), always emit all three loaders.
-        # Active loader depends on trace_source: okahu → okahu line active, else file line active.
-        okahu_active = self.trace_source == "okahu"
+        # Remote loaders: the requested source, else the one the spans came
+        # from, else every registered trace source.
+        remote_active = self.trace_source is not None
+        remote_names = ([self.trace_source] if remote_active else
+                        [self.source] if self.source else get_trace_source_names())
 
         lines = ['    # Option 1: Load from a local trace file']
-        lines.append(('    # ' + file_line.strip()) if okahu_active else file_line)
+        lines.append(('    # ' + file_line.strip()) if remote_active else file_line)
+        option = 2
+        for name in remote_names:
+            remote_line = self._remote_loading_line(name)
+            lines.extend([
+                '',
+                f'    # Option {option}: Load from {name}',
+                (remote_line if remote_active else ('    # ' + remote_line.strip())),
+            ])
+            option += 1
         lines.extend([
             '',
-            '    # Option 2: Load from Okahu',
-            (okahu_line if okahu_active else ('    # ' + okahu_line.strip())),
-            '',
-            '    # Option 3: Run agent directly',
+            f'    # Option {option}: Run agent directly',
             '    # from your_module import your_agent',
             '    # await monocle_trace_asserter.run_agent_async(your_agent, "framework_name", "user input")',
         ])
         return lines
+
+    def _remote_loading_line(self, source: str) -> str:
+        """The with_trace_source(...) line that loads this fact from a trace source."""
+        workflow = self.workflow_name or "WORKFLOW_NAME"
+        if self.session_id:
+            # Session: load spans across every trace in the agent session.
+            fact = f'id="{self.session_id}", fact_name="session", '
+        elif self.scope_id:
+            # Any other fact/scope: load spans across every trace under the scope.
+            fact = f'id="{self.scope_id}", fact_name="scope", scope_name="{self.scope_name}", '
+        else:
+            fact = f'id="{self.trace_id or "TRACE_ID"}", '
+        return f'    monocle_trace_asserter.with_trace_source("{source}", {fact}workflow_name="{workflow}")'
 
     def generate_test_code(self, test_name: str = "test_generated") -> str:
         """Generate Python test code with assertions."""
@@ -489,10 +498,10 @@ class TestGenerator:
 
         # Eval assertions (injected and/or discovered) + any discovery note.
         if self.evals or self._discovery_note:
-            code.append('    # Eval assertions (require an eval service, e.g. Okahu)')
+            code.append('    # Eval assertions (require an eval service)')
             for ev in self.evals:
                 if ev.get("_discovered_custom"):
-                    # Custom template: Okahu can't reload it, so emit a commented block.
+                    # Custom template: the eval source can't reload it, so emit a commented block.
                     code.extend(self._discovered_custom_eval_lines(ev))
                 else:
                     code.append('    ' + self._eval_assertion_line(ev))
@@ -505,7 +514,7 @@ class TestGenerator:
     def _discovered_custom_eval_lines(self, ev: Dict[str, object]) -> List[str]:
         """Commented-out assertion for a discovered custom-template eval.
 
-        Okahu does not store custom templates, so the eval cannot be re-run by
+        The eval source does not store custom templates, so the eval cannot be re-run by
         name. Emit the observed label plus a ``template_path`` placeholder for the
         developer to point at their own custom template file.
         """
@@ -521,7 +530,7 @@ class TestGenerator:
         args_str = ", ".join(call_args)
         return [
             f'    # Custom eval "{name}" ran on fact {fact_id} (observed label: {lit(label)}),',
-            '    # but Okahu does not store custom templates. Provide your template path to re-enable it:',
+            '    # but the eval source does not store custom templates. Provide your template path to re-enable it:',
             f'    # asserter.with_evaluation("{self.eval_source}").check_eval({args_str})',
         ]
 

@@ -8,7 +8,7 @@ from monocle_apptrace.instrumentation.common.method_wrappers import monocle_trac
 from monocle_apptrace.instrumentation.common.utils import get_workflow_name
 from monocle_test_tools import eval_matrix
 from monocle_test_tools.constants import CUSTOM_EVAL_TYPE
-from monocle_test_tools.providers.okahu.okahu_filtered_eval import build_filtered_report
+from monocle_test_tools.eval_report import build_filtered_report
 from monocle_test_tools.schema import Evaluation, FactID
 from monocle_test_tools.span_loader import JSONSpanLoader
 from monocle_test_tools.testcase import Agent, FluentTestCase, Tool
@@ -21,11 +21,12 @@ from .comparer.token_match_comparer import TokenMatchComparer
 from .evals.eval_manager import get_evaluator
 from .evals.base_eval import BaseEval
 from .validator import MonocleValidator
+from .trace_sources import get_trace_source, get_trace_source_names
 from .trace_utils import get_function_signature, get_caller_file_line
 from .schema import MockTool
 from opentelemetry.sdk.trace import Span
 
-def setup_test_cases(source:str = "okahu", **kwargs) -> list[FluentTestCase]:
+def setup_test_cases(source: Optional[str] = None, **kwargs) -> list[FluentTestCase]:
     """Build FluentTestCases from evals already recorded on a trace source.
 
     Turns a recorded population into a parametrizable list: each returned case
@@ -35,27 +36,23 @@ def setup_test_cases(source:str = "okahu", **kwargs) -> list[FluentTestCase]:
 
     Args:
         source: Where the cases come from:
-            - ``"okahu"`` (default) -- discover them from the evals recorded in
-              the Okahu eval store.
+            - the name of a registered trace source -- discover them from the
+              evals recorded there.
             - ``"local"`` -- load a committed JSON array from ``path``.
-        eval_name: Restrict to a single eval. Omitted means every eval recorded.
-            Only meaningful for okahu, where it filters the query.
-        **kwargs: Passed to the source. For okahu: workflow_name, start_time and
-            end_time (all required), plus optional fact_name, category and
-            page_size and compare_eval -- see OkahuSpanLoader.setup_test_cases.
+        **kwargs: Passed to the source; see its ``setup_test_cases``.
             For local: ``path``.
 
     Returns:
-        For okahu, one FluentTestCase per fact that has at least one labelled
-        eval; for local, one per element of the file, in file order.
+        For a trace source, one FluentTestCase per fact that has at least one
+        labelled eval; for local, one per element of the file, in file order.
 
     Raises:
-        ValueError: If *source* is unsupported, if ``path`` is missing or given
-            alongside eval_name for the local source, or if the file is malformed.
+        ValueError: If *source* is missing or unsupported, if ``path`` is
+            missing for the local source, or if the file is malformed.
         FileNotFoundError: If the local ``path`` does not exist.
 
     Example:
-        CASES = setup_test_cases(source="okahu", workflow_name="wf",
+        CASES = setup_test_cases(source="my_source", workflow_name="wf",
                                start_time="2026-05-01", end_time="2026-06-30")
 
         @pytest.mark.parametrize("testcase", CASES)
@@ -80,12 +77,12 @@ def setup_test_cases(source:str = "okahu", **kwargs) -> list[FluentTestCase]:
         from .testcase import load_test_cases_from_json
         return load_test_cases_from_json(path)
 
-    if source != "okahu":
-        raise ValueError(
-            f"setup_test_cases does not support source '{source}'; supported sources "
-            "are 'okahu' (discover from the eval store) and 'local' (a JSON file).")
-    from .providers.okahu.okahu_span_loader import OkahuSpanLoader
-    return OkahuSpanLoader.setup_test_cases(**kwargs)
+    trace_source = get_trace_source(source)
+    if trace_source is None:
+        supported = ", ".join(repr(n) for n in ["local", *get_trace_source_names()])
+        problem = "needs a source" if source is None else f"does not support source {source!r}"
+        raise ValueError(f"setup_test_cases {problem}; supported sources are {supported}.")
+    return trace_source.setup_test_cases(**kwargs)
 
 # Fluent methods that select entities, and the kind of entity each selects. A
 # testcase-driven chain may use only one kind, since each builds its own map.
@@ -157,7 +154,7 @@ def collect_assertions(func):
 
         asserter = TraceAssertion(filtered_spans=asserter._filtered_spans, fluent_chain=fluent_chain,
                             is_assertion_failed=asserter.is_assertion_failed, _eval=asserter._eval,
-                            okahu_filter=getattr(asserter, "_okahu_filter", None),
+                            source_filter=getattr(asserter, "_source_filter", None),
                             testcase_mode=testcase_mode,
                             entity_spans=asserter._entity_spans,
                             testcase_selector=testcase_selector)
@@ -187,13 +184,13 @@ class TraceAssertion():
     # evals, and the results matrix must show all of them rather than the last.
     # Class-level for the same reason `_last_eval` is -- see the note above.
     _eval_stashes: list[dict[str, Any]] = []
-    # Filter scope recorded by with_trace_source("okahu", start_time=..., end_time=...)
+    # Filter scope recorded by with_trace_source(<source>, start_time=..., end_time=...)
     # for eval-only filtered runs. Threaded through @collect_assertions like
     # _filtered_spans so the (decorated) check_eval can read it.
-    _okahu_filter: Optional[dict] = None
+    _source_filter: Optional[dict] = None
     # Whether this chain drives its assertions from a testcase. Set by the first
     # decorated call and threaded per-chain by @collect_assertions; declared here
-    # like _okahu_filter so an instance built outside __init__ still reads None.
+    # like _source_filter so an instance built outside __init__ still reads None.
     _testcase_mode: Optional[bool] = None
     # Spans of each entity a testcase-driven selector matched, in test-case order,
     # one pair per DISTINCT name. A list of pairs rather than a dict because Agent
@@ -215,7 +212,7 @@ class TraceAssertion():
 
     def __init__(self, filtered_spans:Optional[list[Span]] = None, fluent_chain:list[str] = []
                 ,is_assertion_failed:bool = False, _eval:Optional[Union[str, BaseEval]] = None,
-                okahu_filter:Optional[dict] = None,
+                source_filter:Optional[dict] = None,
                 testcase_mode:Optional[bool] = None,
                 *,
                 entity_spans:Optional[list] = None,
@@ -230,7 +227,7 @@ class TraceAssertion():
         self.is_assertion_failed = is_assertion_failed
         self._skip_export = False
         self.mock_tools: Optional[list[MockTool]] = []
-        self._okahu_filter = okahu_filter
+        self._source_filter = source_filter
         # None until the chain's first decorated call decides. See collect_assertions.
         self._testcase_mode = testcase_mode
         # Populated by a testcase-driven selector; read by the I/O assertions.
@@ -272,7 +269,7 @@ class TraceAssertion():
         # Clean up validator state
         self.validator.cleanup()
         self._filtered_spans = None
-        self._okahu_filter = None
+        self._source_filter = None
         TraceAssertion._assertion_errors = []
         TraceAssertion._last_eval = None
         TraceAssertion._eval_stashes = []
@@ -360,7 +357,7 @@ class TraceAssertion():
         new run, not the old one.
 
         workflow_name is deliberately not taken from the caller's kwargs -- those
-        belong to the agent runner. The okahu fetch falls back to
+        belong to the agent runner. A trace-source fetch falls back to
         import_traces' own get_workflow_name(), which raises a clear error of its
         own when it cannot resolve.
         """
@@ -422,18 +419,21 @@ class TraceAssertion():
             source: Trace source type:
                 - ``"local"`` (default) — Use traces from memory (current execution).
                 - ``"file"`` — Load traces from local .monocle/*.json files.
-                - ``"okahu"`` — Fetch traces from Okahu cloud.
+                - the name of a registered trace source — Fetch traces from it.
             testcase: A FluentTestCase (or a dict in any shape it accepts) whose
                 input is a FactID. It supplies ``id``, ``fact_name`` and
                 ``scope_name``, which therefore may not also be passed.
                 ``source`` and ``workflow_name`` remain explicit configuration
                 and may accompany it; ``source`` falls back to the FactID's own.
             **kwargs: Additional arguments passed to ``import_traces()`` when
-                source is "file" or "okahu". Common arguments:
+                source is not "local". Common arguments:
                 - id (str): Trace/session/scope ID
                 - fact_name (str): "trace", "session", or "scope"
                 - scope_name (str): Custom scope name (when fact_name="scope")
-                - workflow_name (str): Okahu workflow name (required for "okahu")
+                - workflow_name (str): Workflow name (required for a trace source)
+                - start_time / end_time (str): Time window, for a trace source
+                  that supports one. Without an id, this selects filter mode:
+                  check_eval then grades every fact in the window.
 
         Returns:
             self for fluent chaining.
@@ -448,20 +448,11 @@ class TraceAssertion():
                 id="abc123"
             ).called_tool("search")
 
-            # Load from Okahu by session
+            # Load a session from a trace source
             asserter.with_trace_source(
-                "okahu",
+                "my_source",
                 id="session_123",
                 fact_name="session",
-                workflow_name="my_app"
-            ).called_tool("search")
-
-            # Load from Okahu by custom scope
-            asserter.with_trace_source(
-                "okahu",
-                id="test_456",
-                fact_name="scope",
-                scope_name="test_id",
                 workflow_name="my_app"
             ).called_tool("search")
         """
@@ -484,16 +475,27 @@ class TraceAssertion():
 
         window_kwargs = ("start_time", "end_time")
         has_window = any(kwargs.get(k) is not None for k in window_kwargs)
+        window_error = (f"Time-window filtering is not supported for source={source!r}; "
+                        "use a trace source that supports it.")
 
         if source == "local":
             # Default behavior: use traces already in memory.
             if has_window:
-                raise ValueError("Time-window filtering is only supported for source='okahu'.")
+                raise ValueError(window_error)
         elif source == "file":
             if has_window:
-                raise ValueError("Time-window filtering is only supported for source='okahu'.")
+                raise ValueError(window_error)
             self.validator.import_traces(trace_source=source, **kwargs)
-        elif source == "okahu":
+        else:
+            trace_source = get_trace_source(source)
+            if trace_source is None:
+                supported = ", ".join(repr(n) for n in ["local", "file", *get_trace_source_names()])
+                raise ValueError(
+                    f"Unsupported trace source: '{source}'. "
+                    f"Supported sources: {supported}."
+                )
+            if has_window and not trace_source.supports_time_window:
+                raise ValueError(window_error)
             has_id = kwargs.get("id") is not None
             if has_window and has_id:
                 # A window *with* an id is a bounded lookup: import that fact's
@@ -511,17 +513,12 @@ class TraceAssertion():
                     raise ValueError("Filter mode requires 'workflow_name'.")
                 workflows = ([workflow_name] if isinstance(workflow_name, str)
                              else list(workflow_name))
-                self._okahu_filter = {"workflows": workflows, "start_time": start_time,
-                                      "end_time": end_time,
-                                      "fact_name": kwargs.get("fact_name", "traces")}
+                self._source_filter = {"source": source, "workflows": workflows,
+                                       "start_time": start_time, "end_time": end_time,
+                                       "fact_name": kwargs.get("fact_name", "traces")}
             else:
                 # Direct id mode (unchanged): single id imported into memory.
                 self.validator.import_traces(trace_source=source, **kwargs)
-        else:
-            raise ValueError(
-                f"Unsupported trace source: '{source}'. "
-                "Supported sources: 'local', 'file', 'okahu'."
-            )
 
         return self
 
@@ -1446,7 +1443,7 @@ class TraceAssertion():
         ``./``, ``../``) is a custom eval template file, so it moves to
         ``template_path``; a bare name is a built-in template and stays in
         ``eval_name``. Strings are classified by the configured evaluator's own rules
-        (``BaseEval.classify_eval_input``, which OkahuEval overrides).
+        (``BaseEval.classify_eval_input``, which an evaluator may override).
 
         Returns the ``(eval_name, template_path)`` pair check_eval works with.
         """
@@ -1470,7 +1467,7 @@ class TraceAssertion():
         """Validate evaluation results for the current filtered spans.
 
         Provide exactly one of:
-          - eval_name: the eval template to run — either the name of a standard Okahu
+          - eval_name: the eval template to run — either the name of a built-in
             eval template (e.g. "hallucination") or the path of a JSON file holding a
             custom eval template (a Path or a path-like string, e.g.
             "templates/my_eval.json"). Which one it is is detected from the value, so
@@ -1481,22 +1478,22 @@ class TraceAssertion():
             'Custom template validation failed: <reason>'.
           - template: an inline custom-template dict.
 
-        When with_trace_source("okahu", start_time=..., end_time=...) has recorded a
-        filter scope, this runs the filtered (async job) flow instead of the span
+        When with_trace_source(<source>, start_time=..., end_time=...) has recorded a
+        filter scope, this runs the source's filtered flow instead of the span
         path; min_facts/fail_threshold/max_facts apply only in that mode.
 
         Args:
             testcase: A FluentTestCase (or a dict in any shape it accepts) whose
                 evals to run. Each eval's name selects the template, classified
-                exactly as this method's own ``eval_name`` is: a bare name is an
-                Okahu template, while a Path *or* a path-like string (``.json``
+                exactly as this method's own ``eval_name`` is: a bare name is a
+                built-in template, while a Path *or* a path-like string (``.json``
                 suffix, a separator, ``./``, ``../``) is a custom-template file.
                 The eval's result is the expected label. Cannot be combined with
                 eval_name, expected, not_expected, template_path or template.
         """
         eval_name, template_path = self._apply_eval_type(eval_name, template_path, template)
 
-        filter_scope = getattr(self, "_okahu_filter", None)
+        filter_scope = getattr(self, "_source_filter", None)
         if testcase is not None:
             if filter_scope is not None:
                 raise ValueError(
@@ -1512,7 +1509,7 @@ class TraceAssertion():
             if min_facts != 1 or fail_threshold != 0 or max_facts is not None:
                 raise ValueError(
                     "min_facts/fail_threshold/max_facts apply only to a time-window "
-                    "(filtered) source; set start_time/end_time on with_trace_source('okahu', ...).")
+                    "(filtered) source; set start_time/end_time on with_trace_source(<source>, ...).")
         else:
             return self._check_eval_filtered(
                 filter_scope, eval_name=eval_name, expected=expected,
@@ -1598,7 +1595,7 @@ class TraceAssertion():
         """
         if sum(bool(x) for x in (eval_name, template_path, template)) != 1:
             raise ValueError(
-                "Provide exactly one of 'eval_name' (for Okahu templates), "
+                "Provide exactly one of 'eval_name' (for built-in templates), "
                 "'template_path' (for a custom-template JSON file), or "
                 "'template' (for an inline custom-template dict).")
 
@@ -1704,7 +1701,6 @@ class TraceAssertion():
     def _check_eval_filtered(self, scope, *, eval_name, expected, not_expected,
                              template_path, template, min_facts, fail_threshold,
                              max_facts, message):
-        from monocle_test_tools.providers.okahu.okahu_filtered_eval import OkahuFilteredEval
         selectors = [s for s in (eval_name, template_path, template) if s]
         if len(selectors) != 1:
             raise ValueError("Provide exactly one of 'eval_name', 'template_path', or 'template'.")
@@ -1728,9 +1724,8 @@ class TraceAssertion():
             else:
                 template = loaded
 
-        client = OkahuFilteredEval.from_env()
-        report = client.run_filtered(
-            scope["workflows"], accepted=expected, not_expected=not_expected,
+        report = get_trace_source(scope["source"]).run_filtered_eval(
+            workflows=scope["workflows"], accepted=expected, not_expected=not_expected,
             eval_name=eval_name, template=template, fact_name=scope["fact_name"],
             start_time=scope["start_time"], end_time=scope["end_time"],
             min_facts=min_facts, max_facts=max_facts)

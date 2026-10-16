@@ -26,11 +26,11 @@ END = "2026-07-23T20:29:22.846181Z"
 def _reset_trace_assertion_class_state():
     TraceAssertion._assertion_errors = []
     TraceAssertion._eval_report = None
-    TraceAssertion._okahu_filter = None
+    TraceAssertion._source_filter = None
     yield
     TraceAssertion._assertion_errors = []
     TraceAssertion._eval_report = None
-    TraceAssertion._okahu_filter = None
+    TraceAssertion._source_filter = None
 
 
 # --------------------------------------------------------------------------- #
@@ -157,7 +157,7 @@ def test_with_trace_source_okahu_id_and_window_imports():
     assert imp.call_args.kwargs["start_time"] == START
     assert imp.call_args.kwargs["end_time"] == END
     # id + window is a bounded lookup, NOT the eval-only filter mode.
-    assert a._okahu_filter is None
+    assert a._source_filter is None
 
 
 def test_with_trace_source_okahu_window_only_still_filter_mode():
@@ -166,7 +166,7 @@ def test_with_trace_source_okahu_window_only_still_filter_mode():
         a.with_trace_source("okahu", workflow_name="wf",
                             start_time=START, end_time=END)
     imp.assert_not_called()
-    assert a._okahu_filter is not None
+    assert a._source_filter is not None
 
 
 if __name__ == "__main__":

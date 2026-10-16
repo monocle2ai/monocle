@@ -1,6 +1,6 @@
 """CSV -> fluent eval test-case adapter for monocle_test_tools.
 
-Loads a flat CSV of okahu-trace *evaluation* test cases and drives each row
+Loads a flat CSV of trace *evaluation* test cases and drives each row
 through the existing fluent TraceAssertion API via ``@monocle_csv_cases`` +
 ``CsvCase.run``, so eval test data can be curated in a spreadsheet.
 
@@ -16,16 +16,15 @@ considerations.
 
 Config-in-code, data-in-CSV: the test stub owns everything constant across the
 sheet (the evaluator via ``with_evaluation(...)``, the eval ``template_path``,
-and the trace source, fixed to ``okahu`` in this version); the CSV owns only
-what varies per row (fact id, workflow, expected labels, guard rails).
-One row = one test.
+and the ``trace_source``); the CSV owns only what varies per row (fact id,
+workflow, expected labels, guard rails). One row = one test.
 
 Example test stub::
 
     @monocle_csv_cases("cases.csv")
     def test_cases(monocle_trace_asserter, case):
-        case.run(monocle_trace_asserter.with_evaluation("okahu"),
-                 template_path=TEMPLATE_PATH)
+        case.run(monocle_trace_asserter.with_evaluation("my_evaluator"),
+                 trace_source="my_source", template_path=TEMPLATE_PATH)
 """
 import csv
 import inspect
@@ -95,7 +94,7 @@ def parse_float(cell: str, column: str, case_id: str) -> Optional[float]:
 
 @dataclass
 class CsvCase:
-    """One CSV row: an okahu-trace evaluation test case driven through the fluent API."""
+    """One CSV row: a trace evaluation test case driven through the fluent API."""
     case_id: str
     fact_id: str
     workflow_name: str
@@ -106,16 +105,17 @@ class CsvCase:
     max_duration_ms: Optional[float] = None
     notes: Optional[str] = None
 
-    def run(self, asserter, **check_eval_kwargs) -> None:
+    def run(self, asserter, *, trace_source: str, **check_eval_kwargs) -> None:
         """Drive this row through the fluent TraceAssertion `asserter`.
 
-        Runs the eval (``check_eval``) plus optional operational guard rails
-        (token budget, duration). Independent assertions are each invoked on
-        the base asserter (not threaded): PR #721 collects failures on the
-        asserter and the pytest plugin reports them. Only misconfiguration
-        (an eval row with no evaluator) raises from here.
+        Loads the row's fact from ``trace_source``, then runs the eval
+        (``check_eval``) plus optional operational guard rails (token budget,
+        duration). Independent assertions are each invoked on the base asserter
+        (not threaded): PR #721 collects failures on the asserter and the
+        pytest plugin reports them. Only misconfiguration (an eval row with no
+        evaluator) raises from here.
         """
-        asserter.with_trace_source("okahu", id=self.fact_id, workflow_name=self.workflow_name)
+        asserter.with_trace_source(trace_source, id=self.fact_id, workflow_name=self.workflow_name)
 
         if getattr(asserter, "_eval", None) is None:
             raise CsvCaseError(
@@ -200,8 +200,8 @@ def monocle_csv_cases(path: str):
     Usage:
         @monocle_csv_cases("cases.csv")
         def test_cases(monocle_trace_asserter, case):
-            case.run(monocle_trace_asserter.with_evaluation("okahu"),
-                     template_path=TEMPLATE_PATH)
+            case.run(monocle_trace_asserter.with_evaluation("my_evaluator"),
+                     trace_source="my_source", template_path=TEMPLATE_PATH)
 
     Relative paths resolve against the calling test file's directory, so the
     test works regardless of pytest's invocation directory.

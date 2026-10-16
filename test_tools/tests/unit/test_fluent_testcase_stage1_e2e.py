@@ -32,12 +32,12 @@ def _reset_trace_assertion_class_state():
     TraceAssertion._assertion_errors = []
     TraceAssertion._eval_report = None
     TraceAssertion._eval_stashes = []
-    TraceAssertion._okahu_filter = None
+    TraceAssertion._source_filter = None
     yield
     TraceAssertion._assertion_errors = []
     TraceAssertion._eval_report = None
     TraceAssertion._eval_stashes = []
-    TraceAssertion._okahu_filter = None
+    TraceAssertion._source_filter = None
 
 
 @pytest.fixture(name="spans")

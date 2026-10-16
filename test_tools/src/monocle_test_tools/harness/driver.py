@@ -13,7 +13,10 @@ from typing import Any, Optional, Union
 
 from opentelemetry.context import attach, detach, set_value
 
-from monocle_apptrace.instrumentation.common.constants import MONOCLE_SUPPRESS_SPANS
+try:
+    from monocle_apptrace.instrumentation.common.constants import MONOCLE_SUPPRESS_SPANS
+except ImportError:  # an older monocle_apptrace; only scenario runs need it, so fail there
+    MONOCLE_SUPPRESS_SPANS = None
 from monocle_test_tools.harness.evaluator import ResponseEvaluator
 from monocle_test_tools.harness.result import ScenarioResult, TurnRecord
 from monocle_test_tools.harness.scenario import ScenarioTestCase
@@ -69,6 +72,9 @@ class ScenarioHarness:
         if self.trace_test_agent:
             yield
             return
+        if MONOCLE_SUPPRESS_SPANS is None:
+            raise RuntimeError("Scenario tests need a newer monocle_apptrace, one that can suppress the "
+                               "test agent's spans. Run: pip install -U monocle_apptrace")
         token = attach(set_value(MONOCLE_SUPPRESS_SPANS, True))
         try:
             yield

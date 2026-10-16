@@ -121,6 +121,21 @@ def test_expand_makes_model_names_identifier_safe():
     assert list(seeds.seeds[0].params) == ["check_in_date", "detail_2nd_guest"]
 
 
+def test_expand_keeps_params_whose_names_sanitise_alike():
+    split = GoalSplit(id="g", goal="g", success="s", side_effect=False,
+                      params=[ParamSplit(name="check-in", value="a", description="d"),
+                              ParamSplit(name="check in", value="b", description="d")])
+    seeds = expand(MinimalSeedFile(agent="a", goals=["x"]), StubModel([split]))
+    assert list(seeds.seeds[0].params) == ["check_in", "check_in_2"]
+
+
+def test_a_yaml_typo_is_a_seed_error_naming_the_file(tmp_path):
+    path = tmp_path / "seeds.yaml"
+    path.write_text("agent: [unclosed\ngoals: x\n", encoding="utf-8")
+    with pytest.raises(SeedError, match="seeds.yaml: not valid YAML"):
+        load_seeds(str(path))
+
+
 def test_write_then_load_round_trips(tmp_path):
     seeds = SeedFile(agent="a", seeds=[Seed(id="s", goal="g", success="ok",
                                            params={"p": SeedParam(value="v", description="d")})])

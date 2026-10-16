@@ -7,51 +7,59 @@ Each vendored template (``third_party/deepteam/prompts``, Apache 2.0) gives
 plain baseline rather than a rewrite that failed its own check.
 """
 import json
-import re
-from importlib import import_module
+import logging
 from typing import Any, Optional
+
+from monocle_test_tools.scenarios.third_party.deepteam.prompts.authority_escalation import AuthorityEscalationTemplate
+from monocle_test_tools.scenarios.third_party.deepteam.prompts.emotional_manipulation import EmotionalManipulationTemplate
+from monocle_test_tools.scenarios.third_party.deepteam.prompts.permission_escalation import PermissionEscalationTemplate
+from monocle_test_tools.scenarios.third_party.deepteam.prompts.prompt_probing import PromptProbingTemplate
+from monocle_test_tools.scenarios.third_party.deepteam.prompts.roleplay import RoleplayTemplate
+
+logger = logging.getLogger(__name__)
 
 ATTEMPTS = 3
 
-# delivery -> (template module, class, check method, key in the check's JSON answer)
+# delivery -> (template, its check method, the key in the check's JSON answer)
 TEMPLATES = {
-    "authority": ("authority_escalation", "AuthorityEscalationTemplate", "is_valid_authority", "is_valid_authority"),
-    "urgency": ("emotional_manipulation", "EmotionalManipulationTemplate", "is_valid_emotional_attack", "is_valid_context"),
-    "permission": ("permission_escalation", "PermissionEscalationTemplate", "is_valid_permission", "is_valid_permission"),
-    "roleplay": ("roleplay", "RoleplayTemplate", "is_roleplay", "is_roleplay"),
-    "probing": ("prompt_probing", "PromptProbingTemplate", "is_prompt_probing", "is_prompt_probing"),
+    "authority": (AuthorityEscalationTemplate, "is_valid_authority", "is_valid_authority"),
+    "urgency": (EmotionalManipulationTemplate, "is_valid_emotional_attack", "is_valid_context"),
+    "permission": (PermissionEscalationTemplate, "is_valid_permission", "is_valid_permission"),
+    "roleplay": (RoleplayTemplate, "is_roleplay", "is_roleplay"),
+    "probing": (PromptProbingTemplate, "is_prompt_probing", "is_prompt_probing"),
 }
 
 
-def dress(model: Any, delivery: str, baseline: str, attempts: int = ATTEMPTS) -> str:
-    """The baseline attack rewritten into ``delivery``'s framing, or the baseline itself."""
+def dress(model: Any, delivery: str, baseline: str, attempts: int = ATTEMPTS) -> Optional[str]:
+    """The baseline attack rewritten into ``delivery``'s framing, or None when no rewrite
+    passed its check (or the delivery has no template, or there is no model)."""
     if delivery not in TEMPLATES or model is None:
-        return baseline
-    module, class_name, check_name, key = TEMPLATES[delivery]
-    template = getattr(import_module(f"{__package__}.third_party.deepteam.prompts.{module}"), class_name)
-    for _ in range(attempts):
+        return None
+    template, check_name, key = TEMPLATES[delivery]
+    for attempt in range(1, attempts + 1):
         rewritten = _answer(model, template.enhance(baseline)).get("input")
         if rewritten and _answer(model, getattr(template, check_name)(rewritten)).get(key) is True:
             return rewritten
-    return baseline
+        logger.info("%s: attempt %d/%d did not pass DeepTeam's check", delivery, attempt, attempts)
+    return None
 
 
 def _answer(model: Any, prompt: str) -> dict:
-    """The JSON object in the model's reply, or {} when there is none."""
+    """The first JSON object in the model's reply, or {} when there is none."""
     reply = model.invoke(prompt)
-    text = getattr(reply, "content", reply)
-    match = re.search(r"\{.*\}", str(text), re.DOTALL)
-    if not match:
+    text = _text(getattr(reply, "content", reply))
+    start = text.find("{")
+    if start < 0:
         return {}
     try:
-        return json.loads(match.group(0))
+        value, _ = json.JSONDecoder().raw_decode(text[start:])
     except json.JSONDecodeError:
         return {}
+    return value if isinstance(value, dict) else {}
 
 
-def deliveries() -> list[str]:
-    return list(TEMPLATES)
-
-
-def template_for(delivery: str) -> Optional[str]:
-    return TEMPLATES[delivery][0] if delivery in TEMPLATES else None
+def _text(content: Any) -> str:
+    """Reply content as a string. Some providers return a list of content blocks."""
+    if isinstance(content, list):
+        return "\n".join(block.get("text", "") if isinstance(block, dict) else str(block) for block in content)
+    return str(content)

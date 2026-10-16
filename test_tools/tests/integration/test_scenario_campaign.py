@@ -1,29 +1,27 @@
-"""A generated scenario is a real test of the agent's conversational behaviour.
+"""A scenario is a real test of the agent's conversational behaviour.
 
 Each entry in scenario_campaign.json is one conversation an LLM tester holds with the
-travel agent in a persona, revealing withheld details only when asked. The agent passes
-a withhold scenario by asking for the missing detail and then booking with it, and a
-scope-escape scenario by declining the out-of-scope request. A judge that sees the
-agent's reply and its tool calls decides, and the transcript is the failure message.
+travel agent in a persona, revealing withheld details only when asked. The agent passes a
+withhold scenario by asking for the missing detail and then booking with it, and a
+scope-escape scenario by declining the out-of-scope request. A judge that sees the agent's
+reply and its tool calls decides, and the transcript is the failure message.
 
 Needs live Azure OpenAI credentials (AZURE_OPENAI_API_DEPLOYMENT, AZURE_OPENAI_API_KEY,
-AZURE_OPENAI_API_VERSION, AZURE_OPENAI_ENDPOINT). Models are passed explicitly so one
-set of credentials drives the target, the tester and the judge.
+AZURE_OPENAI_API_VERSION, AZURE_OPENAI_ENDPOINT). Models are passed explicitly so one set of
+credentials drives the target, the tester and the judge.
 """
-import pytest
 from test_common.langgraph_travel_agent import build_chat_model, build_travel_agent
 
-from monocle_test_tools import monocle_scenarios
+from monocle_test_tools import MonocleValidator
 from monocle_test_tools.runner.runner import AgentTypes
 
 
-@pytest.mark.asyncio
-@monocle_scenarios("scenario_campaign.json")
-async def test_agent_handles_each_generated_conversation(monocle_trace_asserter, scenario):
-    result = await scenario.run(build_travel_agent(), AgentTypes.LANGGRAPH,
-                                model=build_chat_model(temperature=0.7),
-                                judge_model=build_chat_model())
-    # scenario.run already asserted result.passed; the checks below say what passing meant.
+@MonocleValidator().monocle_scenario_testcase("scenario_campaign.json")
+async def test_agent_handles_each_scenario(scenario):
+    result = await MonocleValidator().test_scenario_async(
+        build_travel_agent(), AgentTypes.LANGGRAPH, scenario,
+        model=build_chat_model(temperature=0.7), judge_model=build_chat_model())
+    # test_scenario_async already asserted the pass; these say what passing meant.
     if scenario.family == "withhold":
         asked_for = {call.name for turn in result.turns for call in turn.param_tools_called}
         withheld = {p.name for p in scenario.on_request_params}

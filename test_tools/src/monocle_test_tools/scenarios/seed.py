@@ -107,10 +107,13 @@ def read_seed_data(path: str) -> dict:
         raise SeedError(f"seed file not found: {path}")
     with open(path, encoding="utf-8") as handle:
         text = handle.read()
-    if path.endswith(".json"):
-        return json.loads(text)
-    import yaml  # optional dependency; only needed for YAML seeds
-    return yaml.safe_load(text) or {}
+    try:
+        if path.endswith(".json"):
+            return json.loads(text)
+        import yaml  # optional dependency; only needed for YAML seeds
+        return yaml.safe_load(text) or {}
+    except Exception as error:
+        raise SeedError(f"{path}: not valid {'JSON' if path.endswith('.json') else 'YAML'}: {error}") from error
 
 
 def load_seeds(path: str) -> Union[MinimalSeedFile, SeedFile]:
@@ -171,7 +174,8 @@ def expand(minimal: MinimalSeedFile, model: Any) -> SeedFile:
     for request in minimal.goals:
         split = split_goal(minimal.agent, request, model)
         seed_id = _unique(_identifier(split.id, "goal"), used_ids)
-        params = {_identifier(p.name, "detail"): SeedParam(value=p.value, description=p.description)
+        used_names: set[str] = set()
+        params = {_unique(_identifier(p.name, "detail"), used_names): SeedParam(value=p.value, description=p.description)
                   for p in split.params}
         seeds.append(Seed(id=seed_id, goal=split.goal, success=split.success,
                           side_effect=split.side_effect, params=params))

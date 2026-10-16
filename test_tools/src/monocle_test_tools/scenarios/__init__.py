@@ -1,17 +1,13 @@
-"""Scenario campaigns: many harness scenarios from one seed, run as pytest cases.
+"""Scenario tests: many harness scenarios from one seed, run as pytest cases.
 
-Install with ``pip install "monocle_test_tools[test_agent]"``; LangChain and YAML are
-imported lazily, so importing ``monocle_test_tools`` needs neither.
+Use them through ``MonocleValidator().monocle_scenario_testcase(seed)`` and
+``MonocleValidator().test_scenario_async(agent, agent_type, scenario)``.
 
-- ``seed.py``       the seed file: the agent in a sentence, goals as sentences
-- ``generator.py``  seeds -> ``scenarios.json`` (``python -m monocle_test_tools scenarios``)
-- ``scenario.py``   ``Scenario``, ``load_scenarios``, ``monocle_scenarios``, ``Scenario.run``
+- ``seed.py``       the seed: the agent in a sentence, goals as sentences, what it refuses
+- ``generator.py``  an expanded seed -> scenarios, across personas, withheld details and attacks
+- ``attacks.py``    red-team text rewritten with DeepTeam's vendored templates
+- ``scenario.py``   ``Scenario``, and turning a seed, an expanded seed or a list into scenarios
 """
-from monocle_test_tools.scenarios.scenario import (
-    Scenario,
-    ScenarioError,
-    load_scenarios,
-    monocle_scenarios,
-)
+from monocle_test_tools.scenarios.scenario import Scenario, ScenarioError, load_scenarios
 
-__all__ = ["Scenario", "ScenarioError", "load_scenarios", "monocle_scenarios"]
+__all__ = ["Scenario", "ScenarioError", "load_scenarios"]

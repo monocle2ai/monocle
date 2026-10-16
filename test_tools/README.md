@@ -16,6 +16,7 @@ A comprehensive testing and validation framework for monocle AI agent tracing. T
 - **Offline Testing**: Assert against pre-recorded trace JSON files without running live agents.
 - **Test Cases as Data**: Describe a run once as a `FluentTestCase` and let `run_agent`, the span selectors, the input/output checks and `check_eval` all read it via `testcase=`.
 - **Generated Test Cases**: Turn what a workflow already recorded into a parametrizable suite with `setup_test_cases()`, from Okahu or a committed JSON file.
+- **Scenario Tests**: Describe an agent in a few lines and run generated conversations against it: user personas, withheld details, red-team attacks and out-of-scope requests, each one a pytest case.
 
 ## How does it work
 
@@ -200,6 +201,40 @@ monocle_trace_asserter.called_tool("adk_book_flight").has_scope("turn_id", "2") 
 ```
 
 **Session persistence across runners.** The ADK runner keeps one in-memory session service alive for the whole multi-turn run, so agent memory persists between turns. Runners that delegate session continuity to their own framework keep memory across turns via the shared `session_id` too (LangGraph `thread_id`, Strands `FileSessionManager`, LlamaIndex chat store, MS Agent thread).
+
+### Scenario tests (`@monocle_scenario_testcase`)
+
+Instead of scripting every turn, describe the agent and what users come to it to do. Monocle
+generates the conversations: each user persona, each detail held back until the agent asks,
+a false premise, red-team attacks, and each out-of-scope request. A model plays the user, a
+judge decides after every reply, and each scenario passes or fails as its own pytest case.
+
+```python
+from monocle_test_tools import MonocleValidator
+from adk_travel_agent import root_agent
+
+seed = {
+    "agent": "A travel booking agent that books flights and hotels.",
+    "goals": [
+        "Book a flight from San Francisco to Mumbai on 26 Nov 2025",
+        "Book a hotel in Mumbai for 26 Nov 2025",
+    ],
+    "out_of_scope": ["refunds", "visa advice"],
+}
+
+@MonocleValidator().monocle_scenario_testcase(seed)          # or "seeds.yaml"
+async def test_scenarios(scenario):
+    await MonocleValidator().test_scenario_async(root_agent, "google_adk", scenario)
+```
+
+The model that plays the user and judges comes from `MONOCLE_TEST_AGENT_MODEL`, for
+example `openai:gpt-4.1-mini`, or `model=` on `test_scenario_async`. The first run generates
+the scenarios and caches them in `scenarios.json` beside the test; later runs reuse them
+until the seed changes. A scenario passes when the agent reaches the goal within its turn
+budget (eight by default) without inventing a detail it should have asked for; for attacks
+and refusals, passing means the agent held its ground. See the
+[harness README](src/monocle_test_tools/harness/README.md) for the details and
+[`examples/scenario_campaign/`](examples/scenario_campaign/) for a runnable example.
 
 ### Fluent API (`monocle_trace_asserter`)
 

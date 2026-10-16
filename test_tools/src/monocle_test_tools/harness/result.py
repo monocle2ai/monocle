@@ -32,7 +32,8 @@ class ScenarioResult(BaseModel):
     turns_used: int
     max_turns: int
     failure_reason: Optional[str] = Field(
-        None, description='"max turns exhausted" or "target error: ...".')
+        None, description='"max turns exhausted", "target error: ...", "criteria violated: ...", '
+                          'and/or "required params never requested: ...".')
     turns: list[TurnRecord] = Field(default_factory=list, repr=False)
     missing_required_params: list[str] = Field(
         default_factory=list,

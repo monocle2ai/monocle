@@ -44,3 +44,4 @@ personas:
       never elaborates unless asked.
 
 withholding: terse
+default: power_user

@@ -1,11 +1,6 @@
-# A seed file: the agent in a sentence, what users come to it to do, what it refuses.
-# This is the whole input. Run:
-#
-#     export MONOCLE_TEST_AGENT_MODEL=openai:gpt-4.1     # splits the goals into details
-#     python -m monocle_test_tools scenarios --seeds seeds.yaml
-#
-# which writes seeds.expanded.yaml (review the split), scenarios.json (prune it) and
-# test_scenarios.py (point build_agent at your agent). Then:   pytest test_scenarios.py -v
+# A seed: the agent in a sentence, what users come to it to do, what it refuses.
+# test_scenarios.py turns it into scenarios on the first run and caches them in
+# scenarios.json beside this file; later runs reuse that until the seed changes.
 
 agent: A travel booking agent that books flights between airports and hotels in a city.
 

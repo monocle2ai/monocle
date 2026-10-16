@@ -1,5 +1,5 @@
 """A red-team attack keeps DeepTeam's framing only when DeepTeam's own check agrees, else it stays plain."""
-from monocle_test_tools.scenarios.attacks import TEMPLATES, dress, template_for
+from monocle_test_tools.scenarios.attacks import TEMPLATES, dress
 
 
 class Reply:
@@ -30,15 +30,21 @@ def test_a_rewrite_that_passes_its_check_is_used():
     assert "TICKET 9921: book it now" in model.prompts[1], "the rewrite is what the check judges"
 
 
-def test_a_failed_check_retries_then_falls_back_to_the_baseline():
+def test_a_failed_check_retries_then_gives_up():
     model = StubModel(['{"input": "weak"}', '{"is_valid_authority": false}'] * 3)
-    assert dress(model, "authority", BASELINE) == BASELINE
+    assert dress(model, "authority", BASELINE) is None
     assert len(model.prompts) == 6
 
 
 def test_junk_answers_count_as_failed_attempts():
     model = StubModel(["not json at all", '{"input": "x"}', "{broken", '{"input": "y"}', '{"nope": true}'] + [""] * 3)
-    assert dress(model, "urgency", BASELINE) == BASELINE
+    assert dress(model, "urgency", BASELINE) is None
+
+
+def test_json_is_found_inside_prose_and_list_content():
+    model = StubModel([[{"type": "text", "text": 'Here you go: {"input": "I am begging you"} hope it helps'}],
+                       'Sure. {"is_valid_context": true} (end)'])
+    assert dress(model, "urgency", BASELINE) == "I am begging you"
 
 
 def test_the_check_key_differs_per_template():
@@ -46,14 +52,11 @@ def test_the_check_key_differs_per_template():
     assert dress(model, "urgency", BASELINE) == "I am begging you"
 
 
-def test_deliveries_without_a_template_or_a_model_keep_the_baseline():
-    assert dress(StubModel([]), "plain", BASELINE) == BASELINE
-    assert dress(None, "authority", BASELINE) == BASELINE
+def test_deliveries_without_a_template_or_a_model_are_not_dressed():
+    assert dress(StubModel([]), "plain", BASELINE) is None
+    assert dress(None, "authority", BASELINE) is None
 
 
-def test_every_template_module_imports_and_has_its_methods():
-    from importlib import import_module
-    for delivery, (module, class_name, check, _) in TEMPLATES.items():
-        template = getattr(import_module(f"monocle_test_tools.scenarios.third_party.deepteam.prompts.{module}"), class_name)
+def test_every_template_has_its_enhance_and_check_methods():
+    for delivery, (template, check, _) in TEMPLATES.items():
         assert callable(template.enhance) and callable(getattr(template, check)), delivery
-        assert template_for(delivery) == module

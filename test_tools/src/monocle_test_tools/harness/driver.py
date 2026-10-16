@@ -32,6 +32,19 @@ KICKOFF = ("Start the conversation with the target agent. Send your first messag
            "in persona.")
 
 
+def resolve_model(spec: Any, env_var: str = TEST_AGENT_MODEL_ENV, fallback: Any = None) -> Any:
+    """A chat model from: an explicit model object, a model string, the env var, or ``fallback``."""
+    if spec is None:
+        spec = os.getenv(env_var) or fallback
+    if spec is None:
+        raise ValueError(f"No model configured for scenario tests. Set {env_var} "
+                         "(e.g. 'openai:gpt-4.1-mini') or pass model=.")
+    if not isinstance(spec, str):
+        return spec
+    from langchain.chat_models import init_chat_model
+    return init_chat_model(spec)
+
+
 class ScenarioHarness:
     """Runs one scenario against one target agent."""
 
@@ -47,19 +60,8 @@ class ScenarioHarness:
         self.validator = MonocleValidator()   # the singleton the fixture set up
 
     @staticmethod
-    def _resolve_model(spec: Any, env_var: str, fallback: Optional[str] = None) -> Any:
-        """Resolve a model spec: an explicit model object, a model string, or an env var."""
-        from langchain.chat_models import init_chat_model
-
-        if spec is None:
-            spec = os.getenv(env_var) or fallback
-        if spec is None:
-            raise ValueError(
-                f"No model configured for the scenario harness. Set {env_var} "
-                f"(e.g. 'openai:gpt-4.1') or pass one to ScenarioHarness().")
-        if isinstance(spec, str):
-            return init_chat_model(spec)
-        return spec
+    def _resolve_model(spec: Any, env_var: str, fallback: Any = None) -> Any:
+        return resolve_model(spec, env_var, fallback)
 
     @contextmanager
     def _suppress_spans(self):
@@ -90,10 +92,10 @@ class ScenarioHarness:
 
         case = self.case
         model = self._resolve_model(self._model_spec, TEST_AGENT_MODEL_ENV)
-        judge = self._resolve_model(self._judge_model_spec, TEST_JUDGE_MODEL_ENV,
-                                    fallback=os.getenv(TEST_AGENT_MODEL_ENV))
+        judge = self._resolve_model(self._judge_model_spec, TEST_JUDGE_MODEL_ENV, fallback=model)
         evaluator = ResponseEvaluator(judge, case.success_criteria)
         tester, param_calls = build_test_agent(case, target_description, model)
+        runner = get_agent_runner(agent_type)   # one instance for the whole conversation: ADK keeps session state on it
 
         messages: list[Any] = [HumanMessage(content=KICKOFF)]
         records: list[TurnRecord] = []
@@ -112,7 +114,7 @@ class ScenarioHarness:
                 try:
                     target_response = await self.validator.run_agent_async(
                         target_agent, agent_type, tester_message,
-                        session_id=case.session_id)
+                        session_id=case.session_id, agent_runner=runner)
                 except Exception as error:  # pylint: disable=broad-except
                     failure_reason = f"target error: {error}"
                     records.append(TurnRecord(turn=turn, tester_message=tester_message,
@@ -148,9 +150,9 @@ class ScenarioHarness:
                 failure_reason = "max turns exhausted"
         finally:
             try:
-                await get_agent_runner(agent_type).end_session(case.session_id)
+                await runner.end_session(case.session_id)
             except Exception as error:  # pylint: disable=broad-except
-                logger.debug("end_session cleanup failed: %s", error)
+                logger.warning("end_session cleanup failed for %s: %s", case.session_id, error)
 
         # Met the criteria without asking for a required detail = invented it.
         requested = {call.name for record in records

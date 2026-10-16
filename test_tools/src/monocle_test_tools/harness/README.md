@@ -18,14 +18,13 @@ know every turn in advance; use the harness when the point is that you *don't*.
 
 ## Installation
 
-The harness needs LangChain, which is an optional extra:
+The harness ships in the base install:
 
 ```bash
-pip install "monocle_test_tools[test_agent]"
+pip install monocle_test_tools
 ```
 
-Importing `monocle_test_tools` without it still works — the harness imports LangChain
-lazily, so only the harness itself requires the extra.
+Its LangChain imports are lazy, so importing `monocle_test_tools` stays cheap.
 
 ---
 
@@ -65,28 +64,22 @@ async def test_books_a_flight(monocle_trace_asserter):
     monocle_trace_asserter.called_tool("book_flight")   # trace assertions still apply
 ```
 
-To keep scenarios in a file and run one pytest case per entry, use the
-`monocle_scenarios` decorator from `monocle_test_tools.scenarios`:
+### Scenario tests: many scenarios from one seed
+
+You do not have to write scenarios by hand. Describe the agent and what users ask it to
+do, and run each generated scenario as one pytest case. This is the same shape as
+`monocle_testcase` and `test_agent_async`:
 
 ```python
-from monocle_test_tools import monocle_scenarios
+from monocle_test_tools import MonocleValidator
+from my_app import root_agent
 
-@pytest.mark.asyncio
-@monocle_scenarios("scenarios.json")
-async def test_scenarios(monocle_trace_asserter, scenario):
-    await scenario.run(my_agent, AgentTypes.LANGGRAPH)   # runs the harness, asserts result.passed
+@MonocleValidator().monocle_scenario_testcase("seeds.yaml")
+async def test_scenarios(scenario):
+    await MonocleValidator().test_scenario_async(root_agent, "langgraph", scenario)
 ```
 
-Each entry is a `ScenarioTestCase` plus a `target_description`. A complete worked example
-lives in
-[`test_tools/tests/integration/test_scenario_campaign.py`](../../../tests/integration/test_scenario_campaign.py),
-with its scenario file beside it and its target agent in
-[`test_tools/tests/test_common/langgraph_travel_agent.py`](../../../tests/test_common/langgraph_travel_agent.py).
-
-### Many scenarios from one seed
-
-You do not have to write scenarios by hand. Describe the agent and what users ask it
-to do, three keys in `seeds.yaml`:
+with `seeds.yaml` beside the test (or the same three keys as a dict, inline):
 
 ```yaml
 agent: A travel booking agent that books flights between airports and hotels in a city.
@@ -96,22 +89,28 @@ goals:
 out_of_scope: [refunds, visa advice]
 ```
 
-then:
+Then `pytest test_scenarios.py -v`.
 
-```bash
-python -m monocle_test_tools scenarios --seeds seeds.yaml
-```
+On the first run, one model call per goal splits it into its details, and plain enumeration
+turns each goal into about fifteen scenarios: one per user persona, one with each detail
+withheld until asked, a false premise, the red-team attacks the goal's flags expose, and
+one scope-escape per refusal. Each red-team attack is rewritten into its framing
+(authority, urgency, permission, roleplay, prompt probing) by the matching
+[DeepTeam](https://github.com/confident-ai/deepteam) template, vendored under
+`scenarios/third_party`, and kept only if DeepTeam's own check says the rewrite still shows
+the framing. The result is cached in `scenarios.json` beside the test, keyed on the seed:
+later runs reuse it with no model call, and editing the seed regenerates it.
 
-One model call per goal splits it into its details (reviewable in `seeds.expanded.yaml`),
-and plain enumeration turns each goal into about fifteen scenarios: one per user persona,
-one with each detail withheld until asked, a false premise, the red-team attacks the
-goal's flags expose, and one scope-escape per refusal. Each red-team attack is rewritten
-into its framing (authority, urgency, permission, roleplay, prompt probing) by the
-matching [DeepTeam](https://github.com/confident-ai/deepteam) template, vendored under
-`scenarios/third_party`, and kept only if DeepTeam's own check says the rewrite still
-shows the framing; `--plain-attacks` skips that. The command writes
-`scenarios.json` and, once, a three-line `test_scenarios.py` like the one above. See
-[`test_tools/examples/scenario_campaign/`](../../../examples/scenario_campaign/).
+`monocle_scenario_testcase` also takes an expanded seed (`agent` plus `seeds`, with each
+goal's details already split, as written into the cache) or a list of ready-made scenarios,
+each a `ScenarioTestCase` plus a `target_description`. `test_scenario_async` takes the same
+`agent` and `agent_type` as `test_agent_async`, plus optional `model=` and `judge_model=`
+objects, and raises `AssertionError` with the transcript when the scenario fails.
+
+A complete example is in
+[`test_tools/examples/scenario_campaign/`](../../../examples/scenario_campaign/); the live
+integration test is
+[`test_tools/tests/integration/test_scenario_campaign.py`](../../../tests/integration/test_scenario_campaign.py).
 
 ---
 

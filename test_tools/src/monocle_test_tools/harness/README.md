@@ -58,7 +58,31 @@ SEED = [{
 `params` without `is_initial` are held back until asked; `required: false` lets the agent skip
 one. `min_turns` stops the criteria counting as met before that turn.
 
-**Models.** `test_scenario_async(..., model=, judge_model=)` takes a model object or a
-`provider:model` string. Otherwise `MONOCLE_TEST_AGENT_MODEL` plays the user and
-`MONOCLE_TEST_JUDGE_MODEL` (default: the same) judges. `MONOCLE_TRACE_TEST_AGENT=true` traces
-the simulated user and the judge too, for debugging them.
+**Models.** `test_scenario_async(..., model=, judge_model=)` takes a model object, a
+`provider:model` string, or a local model below. Otherwise `MONOCLE_TEST_AGENT_MODEL` plays the
+user and `MONOCLE_TEST_JUDGE_MODEL` (default: the same) judges. `MONOCLE_TRACE_TEST_AGENT=true`
+traces the simulated user and the judge too, for debugging them.
+
+## Local models
+
+For when there's no API key to use: `model="local"` runs a small open model on your machine.
+The first time, test_tools installs `llama-cpp-python` from a prebuilt wheel and downloads the
+model (about 2.5 GB). The simulated user and the judge must use the same local model.
+
+| `model=` | Model | Made by | Same result as gpt-4.1-mini | Time per scenario |
+|---|---|---|---|---|
+| `local` | Qwen3-4B-Instruct-2507 | Alibaba (Qwen) | 7 of 8 | 21 s |
+| `local:llama-3.2-3b` | Llama 3.2 3B Instruct | Meta | 6 of 8 | 16 s |
+| `local:phi-4-mini` | Phi-4-mini-instruct | Microsoft | 4 of 8 | 15 s |
+
+Measured on eight scenarios against the example travel agent, each model playing the user and
+judging, on an M4 MacBook's GPU; each needs about 4 to 5 GB of memory. Qwen3-4B is the default
+because it handled held-back details best. Llama 3.2 3B was close and slipped on two red-team
+scenarios. Phi-4-mini often missed held-back details and misjudged a red-team scenario. On a CPU
+alone they work, but a scenario takes minutes. A hosted model is faster and more reliable.
+
+Small models are weaker at writing the scenarios than at running them: Qwen3-4B, for one, may
+not notice that a goal has the agent read an email or document, so the injection attacks for it
+aren't generated. For the full set, generate once with a hosted model on the decorator
+(`monocle_scenario_testcase(SEED, model="openai:gpt-4.1-mini")`) and run the conversations with
+`model="local"`; the scenarios are cached, so that's the only call that needs a key.

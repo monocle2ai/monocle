@@ -1,28 +1,22 @@
-"""What a scenario run produces: the per-turn record and the overall result."""
+"""What a scenario run produces."""
 from typing import Any, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
 from monocle_test_tools.harness.evaluator import Verdict
-from monocle_test_tools.harness.param_tools import ParamCall
+from monocle_test_tools.harness.test_agent import ParamCall
 
 
 class TurnRecord(BaseModel):
-    """One exchange: what the test agent said, what the target replied, the verdict."""
-
-    turn: int = Field(..., description="1-based turn number.")
-    tester_message: str = Field(..., description="Message sent to the target agent.")
-    target_response: Any = Field(None, description="The target agent's reply.")
-    verdict: Optional[Verdict] = Field(
-        None, description="Driver's verdict; None when the turn ended in an error.")
-    param_tools_called: list[ParamCall] = Field(
-        default_factory=list,
-        description="Param tools the test agent called this turn, with their values.")
+    turn: int
+    tester_message: str
+    target_response: Any = None
+    verdict: Optional[Verdict] = None                       # None when the agent errored
+    param_tools_called: list[ParamCall] = Field(default_factory=list)
 
 
 class ScenarioResult(BaseModel):
-    """The outcome of one scenario run. Spans and turns are kept out of ``repr`` so a
-    failing ``assert result.passed`` prints the failure, not every span object."""
+    """Turns and spans stay out of ``repr``, so a failed assert prints the failure, not every span."""
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
@@ -31,31 +25,18 @@ class ScenarioResult(BaseModel):
     passed: bool
     turns_used: int
     max_turns: int
-    failure_reason: Optional[str] = Field(
-        None, description='"max turns exhausted", "target error: ...", "criteria violated: ...", '
-                          'and/or "required params never requested: ...".')
+    failure_reason: Optional[str] = None
     turns: list[TurnRecord] = Field(default_factory=list, repr=False)
-    missing_required_params: list[str] = Field(
-        default_factory=list,
-        description="Required params the target agent never asked for. Non-empty fails "
-                    "the scenario even when the judge is satisfied.")
-    spans: tuple = Field((), repr=False,
-                         description="Target spans across every turn.")
-    per_turn_spans: list[tuple] = Field(default_factory=list, repr=False,
-                                        description="Target spans, one tuple per turn.")
+    missing_required_params: list[str] = Field(default_factory=list)
+    spans: tuple = Field((), repr=False)                    # the agent's spans across every turn
+    per_turn_spans: list[tuple] = Field(default_factory=list, repr=False)
 
     def report(self) -> str:
-        """Render the run as a transcript, for use as an assertion message."""
-        outcome = "PASSED" if self.passed else "FAILED"
-        lines = [f"{outcome} scenario '{self.scenario}' after "
-                 f"{self.turns_used}/{self.max_turns} turns"]
+        """The run as a transcript, used as the failure message."""
+        lines = [f"{'PASSED' if self.passed else 'FAILED'} scenario '{self.scenario}' "
+                 f"after {self.turns_used}/{self.max_turns} turns"]
         if self.failure_reason:
             lines.append(f"  reason: {self.failure_reason}")
-        if self.missing_required_params:
-            lines.append("  never requested: "
-                         + ", ".join(self.missing_required_params))
-        if self.turns and self.turns[-1].verdict is not None:
-            lines.append(f"  last verdict: {self.turns[-1].verdict.reason}")
         for record in self.turns:
             prefix = f"  turn {record.turn}  "
             indent = " " * len(prefix)
@@ -65,6 +46,5 @@ class ScenarioResult(BaseModel):
             lines.append(f"{prefix}tester> {record.tester_message}")
             lines.append(f"{indent}target> {record.target_response}")
             if record.verdict is not None:
-                state = "met" if record.verdict.met else "not met"
-                lines.append(f"{indent}verdict> {state} -- {record.verdict.reason}")
+                lines.append(f"{indent}verdict> {'met' if record.verdict.met else 'not met'} -- {record.verdict.reason}")
         return "\n".join(lines)

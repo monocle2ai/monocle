@@ -351,25 +351,21 @@ class MonocleValidator:
             return wrapper
         return decorator
 
-    def monocle_scenario_testcase(self, source, cache: Optional[str] = None, model: Any = None):
-        """Decorator to parametrize an async test over generated scenarios, one pytest case each.
-
-        ``source`` is a seed (a dict with ``agent`` and ``goals``, or a .yaml/.json file of
-        one), an expanded seed, or a list of ready-made scenarios. A seed is expanded and
-        enumerated once and cached in ``cache`` (default ``scenarios.json`` beside the test),
-        keyed on the seed, so later runs make no model call. The decorated body typically
-        just awaits ``test_scenario_async``.
-        """
+    def monocle_scenario_testcase(self, seed, cache: Optional[str] = None, model: Any = None):
+        """One pytest case per scenario generated from ``seed`` (or per scenario, when ``seed``
+        is a list of them). Generated scenarios are cached in ``cache``, ``scenarios.json`` by default."""
         from monocle_test_tools.scenarios.scenario import scenarios_from
 
         caller_dir = os.path.dirname(os.path.abspath(inspect.stack()[1].filename))
-        scenarios = scenarios_from(source, caller_dir, cache=cache, model=model)
+        scenarios = scenarios_from(seed, caller_dir, cache=cache, model=model)
 
         def decorator(func):
             if not inspect.iscoroutinefunction(func):
                 raise ValueError("monocle_scenario_testcase can only decorate async test functions.")
 
-            @pytest.mark.asyncio
+            # One loop for every scenario: openai's client keeps a connection pool shared
+            # across instances, and a per-test loop leaves it bound to a closed one.
+            @pytest.mark.asyncio(loop_scope="session")
             @pytest.mark.parametrize("scenario", scenarios, ids=[s.test_name for s in scenarios])
             async def wrapper(scenario, request, *args, **kwargs):
                 async with self.monocle_multi_turn_wrapper(scenario, request):
@@ -379,16 +375,10 @@ class MonocleValidator:
 
     async def test_scenario_async(self, agent, agent_type: str, scenario, *, model: Any = None,
                                   judge_model: Any = None):
-        """Run one scenario as a live conversation with ``agent`` and assert it passed.
-
-        ``agent`` and ``agent_type`` work as in ``test_agent_async``. The conversation runs
-        for up to the scenario's ``max_turns``; on failure the transcript is the message.
-        """
+        """Run ``scenario`` as a live conversation with ``agent``; on failure the transcript is the message.
+        ``model`` plays the user and ``judge_model`` judges, defaulting to ``MONOCLE_TEST_AGENT_MODEL``."""
         from monocle_test_tools.harness.driver import ScenarioHarness
-        from monocle_test_tools.scenarios.scenario import Scenario
 
-        if isinstance(scenario, dict):
-            scenario = Scenario.model_validate(scenario)
         result = await ScenarioHarness(scenario, model=model, judge_model=judge_model).run_scenario_async(
             agent, agent_type, scenario.target_description)
         if not result.passed:

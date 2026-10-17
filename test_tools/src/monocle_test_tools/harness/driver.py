@@ -28,13 +28,16 @@ KICKOFF = "Start the conversation with the target agent. Send your first message
 
 
 def resolve_model(spec: Any, env_var: str = TEST_AGENT_MODEL_ENV, fallback: Any = None) -> Any:
-    """A model object, a ``provider:model`` string, the env var, or ``fallback``."""
+    """A model object, a ``provider:model`` string, ``local`` / ``local:<name>``, the env var, or ``fallback``."""
     spec = spec if spec is not None else (os.getenv(env_var) or fallback)
     if spec is None:
-        raise ValueError(f"No model configured for scenario tests. Set {env_var} "
-                         "(e.g. 'openai:gpt-4.1-mini') or pass model=.")
+        raise ValueError(f"No model configured for scenario tests. Pass model= (e.g. 'openai:gpt-4.1-mini'), "
+                         f"set {env_var}, or use 'local' to run an open model on this machine with no API key.")
     if not isinstance(spec, str):
         return spec
+    from monocle_test_tools.harness.local_model import is_local_spec, local_chat_model
+    if is_local_spec(spec):
+        return local_chat_model(spec)
     from langchain.chat_models import init_chat_model
     return init_chat_model(spec)
 

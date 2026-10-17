@@ -237,6 +237,9 @@ pytest test_scenarios.py
 The first run generates about fifteen scenarios per goal into `scenarios.json`; later runs
 reuse it. A failure prints the conversation and the reason. `-k redteam` runs one kind.
 
+No API key, or none you can use? Set `MONOCLE_TEST_AGENT_MODEL=local` (or pass `model="local"`)
+to run a small open model on your machine instead. See [local models](src/monocle_test_tools/harness/README.md#local-models).
+
 **3. Send the conversations to Okahu (optional):** set `MONOCLE_EXPORTER=okahu` and
 `OKAHU_API_KEY`. Each conversation arrives as its own session.
 

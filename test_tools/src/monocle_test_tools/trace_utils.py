@@ -32,6 +32,21 @@ def get_output_from_span(span: Span) -> str:
             return event.attributes.get("response")
     return None
 
+TOOL_INVOCATION_SPAN_TYPE = "agentic.tool.invocation"
+
+
+def get_tool_invocations(spans) -> list[tuple[str, str, str]]:
+    """``(tool name, input, output)`` for every tool-invocation span, in order."""
+    calls = []
+    for span in spans:
+        attributes = getattr(span, "attributes", None) or {}
+        if attributes.get("span.type") == TOOL_INVOCATION_SPAN_TYPE:
+            calls.append((attributes.get("entity.1.name", ""),
+                          str(get_input_from_span(span) or ""),
+                          str(get_output_from_span(span) or "")))
+    return calls
+
+
 def get_agent_description_from_span(span: Span) -> str:
     """
     Extracts the agent description from the span attributes.

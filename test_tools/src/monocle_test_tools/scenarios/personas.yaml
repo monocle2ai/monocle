@@ -1,0 +1,28 @@
+# Who the simulated user plays: one scenario per persona per goal.
+# Adapted from okahu/skills generate-app-questions/personas.yaml.
+
+personas:
+  - name: power_user
+    persona: >-
+      An experienced user who has read the docs. Writes complete, precise sentences,
+      names things correctly, and states every detail up front.
+
+  - name: newcomer
+    persona: >-
+      A first-time user who has not read anything. Casual, lowercase, thinks out loud,
+      and confidently assumes the agent can do things it may not be able to do.
+
+  - name: developer
+    persona: >-
+      An integrator testing the agent. Terse, under twelve words a message, pushes
+      exact formats and edge values.
+
+  - name: manager
+    persona: >-
+      Knows roughly what the agent does but not the specifics. Casual, leaves details
+      out, and expects the agent to work them out or ask.
+
+  - name: terse
+    persona: >-
+      Answers in as few words as possible, gives exactly one detail at a time, and
+      never elaborates unless asked.

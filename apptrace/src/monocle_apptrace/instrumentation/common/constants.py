@@ -306,3 +306,5 @@ MONOCLE_TRACE_RETRIEVAL_KEY_ENV = "MONOCLE_TRACE_RETRIEVAL_KEY"
 # AgentCore forwards a caller's headers to the agent only when they carry this
 # prefix, so the retrieval key travels as
 AGENTCORE_CUSTOM_HEADER_PREFIX = "X-Amzn-Bedrock-AgentCore-Runtime-Custom-"
+# Unlike MONOCLE_SKIP_EXECUTIONS, the method still runs; only the span is dropped.
+MONOCLE_SUPPRESS_SPANS = "monocle.suppress_spans"

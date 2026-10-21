@@ -1,15 +1,5 @@
-import os
 from abc import abstractmethod
-from typing import Any, Optional
-
-# Trace source a remote runner pulls the agent's spans from, when not passed to its constructor.
-REMOTE_TRACE_SOURCE_ENV = "MONOCLE_REMOTE_TRACE_SOURCE"
-
-
-def remote_trace_source(explicit: Optional[str] = None) -> Optional[str]:
-    """The trace source to pull remote spans from: the explicit one, else the env setting."""
-    return explicit or os.environ.get(REMOTE_TRACE_SOURCE_ENV) or None
-
+from typing import Any
 
 class AgentRunner:
     @abstractmethod

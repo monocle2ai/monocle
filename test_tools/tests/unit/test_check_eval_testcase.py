@@ -18,12 +18,12 @@ def _reset_trace_assertion_class_state():
     TraceAssertion._assertion_errors = []
     TraceAssertion._eval_report = None
     TraceAssertion._eval_stashes = []
-    TraceAssertion._source_filter = None
+    TraceAssertion._okahu_filter = None
     yield
     TraceAssertion._assertion_errors = []
     TraceAssertion._eval_report = None
     TraceAssertion._eval_stashes = []
-    TraceAssertion._source_filter = None
+    TraceAssertion._okahu_filter = None
 
 
 def _asserter(labels):
@@ -107,7 +107,7 @@ def test_conflicting_arguments_raise(conflicting):
 
 def test_filter_mode_with_testcase_raises():
     asserter = _asserter({"hallucination": "minor"})
-    asserter._source_filter = {"source": "okahu", "workflows": ["wf"], "start_time": "a",
+    asserter._okahu_filter = {"workflows": ["wf"], "start_time": "a",
                               "end_time": "b", "fact_name": "traces"}
 
     with pytest.raises(ValueError, match="time-window"):

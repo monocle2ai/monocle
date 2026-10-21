@@ -50,7 +50,7 @@ class JSONSpanLoader:
 
     @staticmethod
     def from_json_str(json_str: str) -> List[ReadableSpan]:
-        """Load spans from a JSON string (list of span dicts in file or API format)."""
+        """Load spans from a JSON string (list of span dicts in file/Okahu format)."""
         span_data = json.loads(json_str)
         return [JSONSpanLoader._from_dict(item) for item in span_data]
 
@@ -85,14 +85,14 @@ class JSONSpanLoader:
     def _from_dict(span_data: Dict[str, Any]) -> ReadableSpan:
         """Create a ReadableSpan instance from a dictionary.
 
-        Handles both the local file export format and the flat API format:
+        Handles both the local file export format and the Okahu API format:
         - File format: name, context.trace_id, context.span_id, parent_id, kind, resource, links
-        - API format: span_name, trace_id, span_id (top-level), no parent_id/kind/resource/links
+        - Okahu format: span_name, trace_id, span_id (top-level), no parent_id/kind/resource/links
         """
-        # Resolve span name: "name" (file format) or "span_name" (API format)
+        # Resolve span name: "name" (file format) or "span_name" (Okahu format)
         span_name = span_data.get("name") or span_data.get("span_name", "unknown")
 
-        # Parse context — file format uses nested "context" dict, the API format uses top-level fields
+        # Parse context — file format uses nested "context" dict, Okahu uses top-level fields
         context = None
         if span_data.get("context"):
             context = JSONSpanLoader._parse_context(span_data["context"])
@@ -179,7 +179,7 @@ class JSONSpanLoader:
         if span_data.get("resource"):
             resource = Resource.create(span_data["resource"].get("attributes", {}))
 
-        # Normalise attributes – flatten the structured "entity" list (API format)
+        # Normalise attributes – flatten structured "entity" list from Okahu
         # into the flat "entity.N.key" format used by the validator.
         attributes = span_data.get("attributes") or {}
         attributes = JSONSpanLoader._normalize_attributes(attributes)
@@ -219,9 +219,9 @@ class JSONSpanLoader:
 
     @staticmethod
     def _normalize_attributes(attributes: Dict[str, Any]) -> Dict[str, Any]:
-        """Normalise attributes from the structured API format to flat format.
+        """Normalise attributes from Okahu structured format to flat format.
 
-        The API format holds entities as:
+        Okahu returns entities as:
             {"entity": [{"name": "foo", "type": "tool.adk"}, ...], "entity.count": 2}
         The validator expects:
             {"entity.1.name": "foo", "entity.1.type": "tool.adk", "entity.count": 2}
@@ -236,7 +236,7 @@ class JSONSpanLoader:
         if not isinstance(entity_list, list):
             return attributes
 
-        # Check if the list contains dicts (structured API format)
+        # Check if the list contains dicts (Okahu structured format)
         if not entity_list or not isinstance(entity_list[0], dict):
             return attributes
 

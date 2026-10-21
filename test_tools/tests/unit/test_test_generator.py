@@ -317,7 +317,7 @@ def test_injected_builtin_eval_emitted():
     """A built-in eval passed as a parameter emits check_eval(eval_name, expected=...)."""
     spans = [_span({"span.type": "workflow", "workflow.name": "wf"})]
     evals = [{"criteria": "hallucination", "expected": "no_hallucination", "eval_type": "builtin"}]
-    code = TestGenerator(spans, eval_source="okahu", trace_file="t.json", injected_evals=evals).generate_test_code()
+    code = TestGenerator(spans, trace_file="t.json", injected_evals=evals).generate_test_code()
 
     assert 'with_evaluation("okahu")' in code
     assert 'check_eval("hallucination", expected="no_hallucination"' in code
@@ -328,7 +328,7 @@ def test_injected_custom_eval_emitted():
     """A custom template eval passed as a parameter emits check_eval(template_path=...)."""
     spans = [_span({"span.type": "workflow", "workflow.name": "wf"})]
     evals = [{"template_path": "./my_eval.json", "expected": "pass", "eval_type": "custom"}]
-    code = TestGenerator(spans, eval_source="okahu", trace_file="t.json", injected_evals=evals).generate_test_code()
+    code = TestGenerator(spans, trace_file="t.json", injected_evals=evals).generate_test_code()
 
     assert 'check_eval(template_path="./my_eval.json", expected="pass"' in code
     assert "# custom eval" in code
@@ -338,7 +338,7 @@ def test_explicit_eval_type_is_honored_over_detection():
     """An explicitly-passed eval_type wins; a plain name marked custom moves to template_path."""
     spans = [_span({"span.type": "workflow", "workflow.name": "wf"})]
     evals = [{"criteria": "my_template", "expected": "ok", "eval_type": "custom"}]
-    gen = TestGenerator(spans, eval_source="okahu", trace_file="t.json", injected_evals=evals)
+    gen = TestGenerator(spans, trace_file="t.json", injected_evals=evals)
     gen.analyze()
 
     assert gen.evals[0]["eval_type"] == "custom"
@@ -350,7 +350,7 @@ def test_injected_evals_deduplicated():
     """The same eval passed twice as a parameter yields a single assertion."""
     spans = [_span({"span.type": "workflow", "workflow.name": "wf"})]
     dup = {"criteria": "bias", "expected": "unbiased", "eval_type": "builtin"}
-    gen = TestGenerator(spans, eval_source="okahu", trace_file="t.json", injected_evals=[dict(dup), dict(dup)])
+    gen = TestGenerator(spans, trace_file="t.json", injected_evals=[dict(dup), dict(dup)])
     gen.analyze()
     assert len(gen.evals) == 1
 
@@ -527,22 +527,22 @@ def test_session_loader_line_targets_the_session():
 def test_resolve_discovery_fact_name_auto_match():
     spans = [_span({"span.type": "workflow", "workflow.name": "wf"})]
 
-    trace_gen = TestGenerator(spans, eval_source="okahu", trace_file="t.json")
+    trace_gen = TestGenerator(spans, trace_file="t.json")
     assert trace_gen._resolve_discovery_fact_name() == "traces"
 
-    sess_gen = TestGenerator(spans, eval_source="okahu", session_id="s1", workflow_name="wf")
+    sess_gen = TestGenerator(spans, session_id="s1", workflow_name="wf")
     assert sess_gen._resolve_discovery_fact_name() == "agentic_sessions"
 
     # A supported scope stays; an unsupported one falls back to traces.
-    scope_ok = TestGenerator(spans, eval_source="okahu", scope_name="conversations", scope_id="c1", workflow_name="wf")
+    scope_ok = TestGenerator(spans, scope_name="conversations", scope_id="c1", workflow_name="wf")
     assert scope_ok._resolve_discovery_fact_name() == "conversations"
-    scope_bad = TestGenerator(spans, eval_source="okahu", scope_name="test_id", scope_id="r1", workflow_name="wf")
+    scope_bad = TestGenerator(spans, scope_name="test_id", scope_id="r1", workflow_name="wf")
     assert scope_bad._resolve_discovery_fact_name() == "traces"
 
 
 def test_discovery_fact_name_override_wins():
     spans = [_span({"span.type": "workflow", "workflow.name": "wf"})]
-    gen = TestGenerator(spans, eval_source="okahu", session_id="s1", workflow_name="wf",
+    gen = TestGenerator(spans, session_id="s1", workflow_name="wf",
                         discovery_fact_name="traces")
     assert gen._resolve_discovery_fact_name() == "traces"
 
@@ -565,7 +565,7 @@ def test_discovered_eval_emitted_with_baseline_comment():
     spans = [_span({"span.type": "workflow", "workflow.name": "wf"})]
     with patch("monocle_test_tools.providers.okahu.okahu_eval.OkahuEval.discover_fact_evals",
                return_value=([_disc_spec("correctness", "correct")], None)):
-        code = TestGenerator(spans, eval_source="okahu", trace_file="t.json").generate_test_code()
+        code = TestGenerator(spans, trace_file="t.json").generate_test_code()
     assert 'check_eval("correctness", expected="correct", fact_name="traces")' in code
     assert "# discovered from fact abc123; adjust as needed" in code
 
@@ -580,13 +580,13 @@ def test_discovered_custom_eval_is_commented_out_with_path_request():
     spans = [_span({"span.type": "workflow", "workflow.name": "wf"})]
     with patch("monocle_test_tools.providers.okahu.okahu_eval.OkahuEval.discover_fact_evals",
                return_value=([_disc_custom_spec("hallucination", "major_hallucination")], None)):
-        code = TestGenerator(spans, eval_source="okahu", trace_file="t.json").generate_test_code()
+        code = TestGenerator(spans, trace_file="t.json").generate_test_code()
     # No ACTIVE check_eval for the custom eval — the assertion line is commented out.
     assert "\n    asserter.with_evaluation" not in code  # no active eval line
     assert '# asserter.with_evaluation("okahu").check_eval(template_path="PATH/TO/your_custom_template.json"' in code
     assert 'expected="major_hallucination"' in code
     assert 'Custom eval "hallucination"' in code
-    assert "the eval source does not store custom templates" in code
+    assert "Okahu does not store custom templates" in code
 
 
 def test_discovered_builtin_and_custom_same_name_both_emitted():
@@ -597,7 +597,7 @@ def test_discovered_builtin_and_custom_same_name_both_emitted():
     ]
     with patch("monocle_test_tools.providers.okahu.okahu_eval.OkahuEval.discover_fact_evals",
                return_value=(discovered, None)):
-        gen = TestGenerator(spans, eval_source="okahu", trace_file="t.json")
+        gen = TestGenerator(spans, trace_file="t.json")
         code = gen.generate_test_code()
     # Both kept: an active builtin assertion AND a commented custom block.
     assert 'asserter.with_evaluation("okahu").check_eval("hallucination", expected="major_hallucination"' in code
@@ -608,7 +608,7 @@ def test_no_evals_found_emits_comment():
     spans = [_span({"span.type": "workflow", "workflow.name": "wf"})]
     with patch("monocle_test_tools.providers.okahu.okahu_eval.OkahuEval.discover_fact_evals",
                return_value=([], "No existing evals found on this fact")):
-        code = TestGenerator(spans, eval_source="okahu", trace_file="t.json").generate_test_code()
+        code = TestGenerator(spans, trace_file="t.json").generate_test_code()
     assert "# No existing evals found on this fact" in code
 
 
@@ -616,7 +616,7 @@ def test_discovery_skipped_emits_comment():
     spans = [_span({"span.type": "workflow", "workflow.name": "wf"})]
     with patch("monocle_test_tools.providers.okahu.okahu_eval.OkahuEval.discover_fact_evals",
                return_value=([], "eval discovery skipped: OKAHU_API_KEY not configured")):
-        code = TestGenerator(spans, eval_source="okahu", trace_file="t.json").generate_test_code()
+        code = TestGenerator(spans, trace_file="t.json").generate_test_code()
     assert "# eval discovery skipped: OKAHU_API_KEY not configured" in code
 
 
@@ -625,7 +625,7 @@ def test_injected_eval_wins_over_discovered_conflict():
     injected = [{"criteria": "correctness", "expected": "perfect", "eval_type": "builtin"}]
     with patch("monocle_test_tools.providers.okahu.okahu_eval.OkahuEval.discover_fact_evals",
                return_value=([_disc_spec("correctness", "correct")], None)):
-        gen = TestGenerator(spans, eval_source="okahu", trace_file="t.json", injected_evals=injected)
+        gen = TestGenerator(spans, trace_file="t.json", injected_evals=injected)
         gen.analyze()
     correctness = [e for e in gen.evals if e.get("criteria") == "correctness"]
     assert len(correctness) == 1
@@ -636,7 +636,7 @@ def test_injected_eval_wins_over_discovered_conflict():
 def test_discovery_disabled_makes_no_call():
     spans = [_span({"span.type": "workflow", "workflow.name": "wf"})]
     with patch("monocle_test_tools.providers.okahu.okahu_eval.OkahuEval.discover_fact_evals") as disc:
-        TestGenerator(spans, eval_source="okahu", trace_file="t.json", discover_evals=False).generate_test_code()
+        TestGenerator(spans, trace_file="t.json", discover_evals=False).generate_test_code()
     disc.assert_not_called()
 
 
@@ -678,6 +678,7 @@ def test_cli_discover_evals_default_on(monkeypatch):
     assert mock_ff.call_args.kwargs.get("discover_evals") is True
 
 
+
 def test_from_source_loads_from_any_trace_source():
     """from_source asks the named trace source and shows its loader in the code."""
     from monocle_test_tools.trace_sources import TraceSource, _trace_sources
@@ -692,7 +693,7 @@ def test_from_source_loads_from_any_trace_source():
 
     _trace_sources.register("fake", _FakeSource)
     try:
-        gen = TestGenerator.from_source("fake", "wf", session_id="s1")
+        gen = TestGenerator.from_source("fake", "wf", session_id="s1", discover_evals=False)
         code = gen.generate_test_code()
     finally:
         _trace_sources._loaded.pop("fake", None)
@@ -700,13 +701,13 @@ def test_from_source_loads_from_any_trace_source():
     assert '# monocle_trace_asserter.with_trace_source("fake", id="s1", fact_name="session"' in code
 
 
-def test_no_eval_source_skips_discovery():
-    with patch("monocle_test_tools.providers.okahu.okahu_eval.OkahuEval.discover_fact_evals") as discover:
+def test_eval_source_defaults_to_okahu():
+    with patch("monocle_test_tools.providers.okahu.okahu_eval.OkahuEval.discover_fact_evals",
+               return_value=([], None)) as discover:
         gen = TestGenerator([_span({"span.type": "workflow", "workflow.name": "wf"})], trace_file="t.json")
-        code = gen.generate_test_code()
-    discover.assert_not_called()
-    assert "# eval discovery skipped: no eval_source given" in code
-
+        gen.generate_test_code()
+    assert gen.eval_source == "okahu"
+    discover.assert_called_once()
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

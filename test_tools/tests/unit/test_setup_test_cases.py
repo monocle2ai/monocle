@@ -336,10 +336,12 @@ class TestFluentEntryPoint:
 
         assert post["calls"][0]["body"]["eval_names"] == ["hallucination"]
 
-    def test_source_is_required(self, post):
-        with pytest.raises(ValueError, match="needs a source"):
-            setup_test_cases(check_eval=EVAL, **WINDOW)
-        assert post["calls"] == []
+    def test_defaults_to_okahu(self, post):
+        _queue(post, {"results": []})
+
+        setup_test_cases(check_eval=EVAL, **WINDOW)
+
+        assert post["calls"][0]["url"].endswith("/evals/report")
 
     @pytest.mark.parametrize("source", ["file", "s3", "memory"])
     def test_unsupported_sources_are_rejected(self, source):

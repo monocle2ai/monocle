@@ -26,8 +26,6 @@ load_dotenv()
 
 AGENTCORE_RUNTIME_URL = os.getenv("AGENTCORE_RUNTIME_URL")
 AGENTCORE_TRACE_WORKFLOW = os.getenv("AGENTCORE_TRACE_WORKFLOW")
-# The runner pulls the deployed agent's spans from this trace source.
-os.environ.setdefault("MONOCLE_REMOTE_TRACE_SOURCE", "okahu")
 
 # Spans are exported from inside AWS, so they land in Okahu a little after the
 # call returns.

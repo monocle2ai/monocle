@@ -10,7 +10,7 @@ Real usage — a teammate writes this stub once; non-engineers edit the CSV:
     @monocle_csv_cases("cases.example.csv")
     def test_cases(monocle_trace_asserter, case):
         case.run(monocle_trace_asserter.with_evaluation("okahu"),
-                 trace_source="okahu", template_path=TEMPLATE_PATH)
+                 template_path=TEMPLATE_PATH)
 
 The smoke test below runs offline: it only checks the CSV loads and maps.
 """

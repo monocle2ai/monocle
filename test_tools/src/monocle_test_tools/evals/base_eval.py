@@ -22,7 +22,7 @@ class BaseEval(BaseModel):
         no specs were produced, else ``None``. Non-fatal by contract — never raises.
 
         Default: no discovery support. Providers that can introspect a recorded-eval
-        store override this.
+        store (e.g. :class:`OkahuEval`) override this.
         """
         return [], f"eval discovery not supported for evaluator '{type(self).__name__}'"
 
@@ -40,7 +40,7 @@ class BaseEval(BaseModel):
 
         Returns ``(eval_type, value)`` where eval_type is ``"builtin"`` or ``"custom"``.
         Default: path-like strings (.json / path separator) → custom, else → builtin.
-        Subclasses may override.
+        Subclasses (e.g. OkahuEval) may override.
         """
         is_path_like = (
             name_or_path.endswith(".json")

@@ -1,22 +1,13 @@
 import json
 from monocle_test_tools.runner.runner import get_agent_runner, AgentTypes
-from monocle_test_tools.runner.http_runner import HttpRunner, HttpOkahuRunner, HttpRemoteTraceRunner
+from monocle_test_tools.runner.http_runner import HttpRunner, HttpOkahuRunner
 
 
 def test_agent_type_mapping():
     assert isinstance(get_agent_runner(AgentTypes.HTTP), HttpRunner)
-    assert isinstance(get_agent_runner(AgentTypes.HTTP_WITH_REMOTE_TRACES), HttpRemoteTraceRunner)
     assert isinstance(get_agent_runner(AgentTypes.HTTP_WITH_OKAHU), HttpOkahuRunner)
     assert AgentTypes.HTTP == "http"
     assert AgentTypes.HTTP_WITH_OKAHU == "http_with_okahu"
-
-
-def test_remote_trace_runner_reports_its_source(monkeypatch):
-    monkeypatch.delenv("MONOCLE_REMOTE_TRACE_SOURCE", raising=False)
-    assert HttpRemoteTraceRunner().get_remote_traces_source() is None
-    assert HttpRemoteTraceRunner(trace_source="my_source").get_remote_traces_source() == "my_source"
-    # The old name keeps its old behavior.
-    assert HttpOkahuRunner().get_remote_traces_source() == "okahu"
 
 
 def test_httprunner_extracts_stashed_spans():

@@ -1,8 +1,10 @@
 """Trace-source abstraction.
 
-A ``TraceSource`` is a remote place a test's spans come from, and the side
-effects it supports around a test run. A provider adds one by registering it
-under its name (see ``monocle_test_tools.trace_sources``).
+A ``TraceSource`` represents where a test's spans come from (Okahu, a local
+file, ...) and what side effects that source supports around a test run: loading
+spans, setting up test cases, running filtered evals and recording a test outcome
+back to the source. A provider registers one under its name (see
+``monocle_test_tools.trace_sources``).
 """
 from abc import ABC
 from typing import Optional, Tuple
@@ -11,16 +13,22 @@ from typing import Optional, Tuple
 class TraceSource(ABC):
     """Base class for trace sources.
 
-    Every method has a default, so a source overrides only what it supports.
+    ``record_test_result`` is a concrete no-op by default so sources that don't
+    support recording an outcome (e.g. a local file source) inherit the no-op
+    without extra code. Sources that do support it override the method.
     """
 
     #: Short name of the source, matching the ``trace_source`` string used by
-    #: ``MonocleValidator``.
+    #: ``MonocleValidator`` (e.g. ``"okahu"``, ``"file"``).
     name: str = ""
 
     #: True if the source can select facts by a time window, which enables
     #: ``with_trace_source(..., start_time=, end_time=)`` and filtered evals.
     supports_time_window: bool = False
+
+    #: The source's own scope name for an agentic session, if it has one, so a
+    #: scope given by that name is treated as a session.
+    session_scope_name: Optional[str] = None
 
     def setup_test_cases(self, **kwargs) -> list:
         """Build FluentTestCases from evals already recorded on this source."""

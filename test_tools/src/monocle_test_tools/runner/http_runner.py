@@ -1,10 +1,9 @@
 import asyncio
 import logging
 import os
-import warnings
-from typing import Any, Optional
+from typing import Any
 import requests
-from monocle_test_tools.runner.agent_runner import AgentRunner, remote_trace_source
+from monocle_test_tools.runner.agent_runner import AgentRunner
 from monocle_test_tools.file_span_loader import JSONSpanLoader
 from monocle_apptrace.instrumentation.metamodel.requests._helper import RequestSpanHandler
 from monocle_apptrace.instrumentation.common.constants import (
@@ -49,28 +48,12 @@ class _BaseHttpRunner(AgentRunner):
         return asyncio.run(self.run_agent_async(root_agent, *args, **kwargs))
 
 
-class HttpRemoteTraceRunner(_BaseHttpRunner):
-    """HTTP runner that fetches server-side traces from a trace source after the request.
+class HttpOkahuRunner(_BaseHttpRunner):
+    """HTTP runner that fetches server-side traces from Okahu (legacy behavior)."""
 
-    The server exports its spans to that source; ``trace_source`` names it
-    (falls back to ``MONOCLE_REMOTE_TRACE_SOURCE``).
-    """
-
-    def __init__(self, trace_source: Optional[str] = None):
-        super().__init__()
-        self._trace_source = trace_source
-
-    def get_remote_traces_source(self) -> Optional[str]:
-        return remote_trace_source(self._trace_source)
-
-
-class HttpOkahuRunner(HttpRemoteTraceRunner):
-    """Old name, kept for one release: HttpRemoteTraceRunner(trace_source="okahu")."""
-
-    def __init__(self):
-        warnings.warn("HttpOkahuRunner is deprecated; use HttpRemoteTraceRunner(trace_source=\"okahu\")",
-                      DeprecationWarning, stacklevel=2)
-        super().__init__(trace_source="okahu")
+    def get_remote_traces_source(self) -> str:
+        """HttpOkahuRunner fetches remote traces from Okahu after the HTTP request triggers spans exported to that backend."""
+        return "okahu"
 
 
 class HttpRunner(_BaseHttpRunner):

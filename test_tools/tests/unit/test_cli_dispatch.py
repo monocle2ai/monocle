@@ -65,8 +65,6 @@ def test_generate_test_accepts_okahu_trace_id_and_workflow_name():
         "argv",
         [
             "generate_test",
-            "--source",
-            "okahu",
             "--trace-id",
             "abc123",
             "--workflow-name",
@@ -75,15 +73,6 @@ def test_generate_test_accepts_okahu_trace_id_and_workflow_name():
     ):
         result = main()
     assert result != 2  # Not an arg-parse error
-
-
-def test_generate_test_remote_input_without_source_exits_2():
-    """A trace id names no source on its own, so --source is required."""
-    from monocle_test_tools.generate_test import main
-    with patch.object(sys, "argv", ["generate_test", "--trace-id", "abc123", "--workflow-name", "my_app"]):
-        with pytest.raises(SystemExit) as exc:
-            main()
-    assert exc.value.code == 2
 
 
 def test_generate_test_with_only_trace_id_exits_2():

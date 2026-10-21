@@ -4,11 +4,11 @@ A remote runner: `root_agent` is the agent's base URL, not an agent object, and
 the agent runs in another process. The test drives it with the A2A SDK, which
 Monocle instruments, so the call itself produces a client-side span.
 
-The agent's own spans are collected afterwards. Set the trace source and the
-workflow the agent exports under and the runner pulls them from that source;
-leave either unset and it fetches nothing, so the test can import the trace
-file the agent writes. Both work because the call carries the trace context, so
-the agent's spans share the test's trace id.
+The agent's own spans are collected afterwards. Set the workflow the agent
+exports under and the runner pulls them from Okahu; leave it unset and it
+fetches nothing, so the test can import the trace file the agent writes. Both
+work because the call carries the trace context, so the agent's spans share the
+test's trace id.
 """
 import asyncio
 import logging
@@ -16,10 +16,11 @@ import os
 from typing import Any, Optional
 from uuid import uuid4
 
-from monocle_test_tools.runner.agent_runner import AgentRunner, remote_trace_source
+from monocle_test_tools.runner.agent_runner import AgentRunner
 
 logger = logging.getLogger(__name__)
 
+REMOTE_TRACE_SOURCE = "okahu"
 # Workflow the A2A agent exports under, when not passed to the constructor.
 A2A_TRACE_WORKFLOW_ENV = "A2A_TRACE_WORKFLOW"
 
@@ -37,21 +38,17 @@ class A2ARunner(AgentRunner):
     def __init__(self, agent_card: Any = None, agent_card_path: Optional[str] = None,
                  trace_workflow_name: Optional[str] = None,
                  timeout: float = DEFAULT_TIMEOUT_SECONDS,
-                 transport: Any = None,
-                 trace_source: Optional[str] = None):
+                 transport: Any = None):
         """
         Args:
             agent_card: Ready-made `AgentCard`. Fetched from the agent if omitted.
             agent_card_path: Non-default path to fetch the card from.
             trace_workflow_name: Workflow the agent exports its spans under,
-                needed to find them in the trace source since it is not the
-                test's workflow. Falls back to `A2A_TRACE_WORKFLOW`.
+                needed to find them in Okahu since it is not the test's
+                workflow. Falls back to `A2A_TRACE_WORKFLOW`.
             timeout: httpx timeout for the card fetch and the message.
             transport: httpx transport to wrap, for tests standing in for the network.
-            trace_source: Trace source to pull the agent's spans from. Falls
-                back to `MONOCLE_REMOTE_TRACE_SOURCE`.
         """
-        self._trace_source = trace_source
         self._agent_card = agent_card
         self._agent_card_path = agent_card_path
         self._transport = transport
@@ -179,12 +176,12 @@ class A2ARunner(AgentRunner):
         self._sessions.pop(session_id, None)
 
     def get_remote_traces_source(self) -> Optional[str]:
-        """Pull from the trace source only when the agent's workflow is known.
+        """Pull from Okahu only when the agent's workflow is known.
 
-        Without it there is nothing to ask for, so the runner fetches nothing
-        and the test reads the agent's trace file instead.
+        Without it there is nothing to ask Okahu for, so the runner fetches
+        nothing and the test reads the agent's trace file instead.
         """
-        return remote_trace_source(self._trace_source) if self._trace_workflow_name else None
+        return REMOTE_TRACE_SOURCE if self._trace_workflow_name else None
 
     def get_remote_trace_query(self) -> dict:
         """Name the workflow the agent exports under.

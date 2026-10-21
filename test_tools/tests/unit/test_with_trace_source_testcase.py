@@ -13,10 +13,10 @@ from monocle_test_tools.fluent_api import TraceAssertion
 @pytest.fixture(autouse=True)
 def _reset_trace_assertion_class_state():
     TraceAssertion._assertion_errors = []
-    TraceAssertion._source_filter = None
+    TraceAssertion._okahu_filter = None
     yield
     TraceAssertion._assertion_errors = []
-    TraceAssertion._source_filter = None
+    TraceAssertion._okahu_filter = None
 
 
 @pytest.fixture(name="imported")

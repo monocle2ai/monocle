@@ -252,19 +252,9 @@ async def test_message_result_is_remembered_too():
 
 # -- where the agent's spans come from -------------------------------------
 
-def test_pulls_nothing_without_a_trace_source(monkeypatch):
-    monkeypatch.delenv("MONOCLE_REMOTE_TRACE_SOURCE", raising=False)
-    assert A2ARunner(trace_workflow_name="currency_agent").get_remote_traces_source() is None
-
-
-def test_trace_source_can_come_from_the_env(monkeypatch):
-    monkeypatch.setenv("MONOCLE_REMOTE_TRACE_SOURCE", "my_source")
-    assert A2ARunner(trace_workflow_name="currency_agent").get_remote_traces_source() == "my_source"
-
-
-def test_pulls_from_the_trace_source_when_the_workflow_is_known(monkeypatch):
+def test_pulls_from_okahu_when_the_workflow_is_known(monkeypatch):
     monkeypatch.delenv("A2A_TRACE_WORKFLOW", raising=False)
-    runner = A2ARunner(trace_workflow_name="currency_agent", trace_source="okahu")
+    runner = A2ARunner(trace_workflow_name="currency_agent")
 
     assert runner.get_remote_traces_source() == "okahu"
     # No id: the agent's spans are in the test's trace, which the validator

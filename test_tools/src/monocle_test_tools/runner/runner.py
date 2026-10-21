@@ -10,8 +10,6 @@ class AgentTypes(str, Enum):
     STRANDS = "strands"
     MSAGENT = "msagent"
     HTTP = "http"
-    HTTP_WITH_REMOTE_TRACES = "http_with_remote_traces"
-    # Old name, kept for one release: HTTP_WITH_REMOTE_TRACES with the okahu source.
     HTTP_WITH_OKAHU = "http_with_okahu"
     A2A = "a2a"
     AGENTCORE = "agentcore"
@@ -42,9 +40,6 @@ def get_agent_runner(runner_type: str) -> AgentRunner:
     elif runner_type == AgentTypes.HTTP:
         from .http_runner import HttpRunner
         return HttpRunner()
-    elif runner_type == AgentTypes.HTTP_WITH_REMOTE_TRACES:
-        from .http_runner import HttpRemoteTraceRunner
-        return HttpRemoteTraceRunner()
     elif runner_type == AgentTypes.HTTP_WITH_OKAHU:
         from .http_runner import HttpOkahuRunner
         return HttpOkahuRunner()

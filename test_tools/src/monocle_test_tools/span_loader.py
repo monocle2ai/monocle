@@ -1,7 +1,12 @@
 """
 Backward compatibility module for span loaders.
 
-For new code, import JSONSpanLoader from monocle_test_tools.file_span_loader.
+This module re-exports JSONSpanLoader and OkahuSpanLoader from their new
+separate modules to maintain backward compatibility with existing code.
+
+For new code, prefer importing directly from:
+- monocle_test_tools.file_span_loader import JSONSpanLoader
+- monocle_test_tools.providers.okahu.okahu_span_loader import OkahuSpanLoader
 """
 from monocle_apptrace.providers.moved import moved_attr
 from monocle_test_tools.file_span_loader import JSONSpanLoader

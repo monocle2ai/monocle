@@ -168,7 +168,7 @@ def test_session_lookup_still_used_when_no_spans_returned():
     """An agent without trace-return enabled falls back to fetching by session."""
     body = json.dumps(AGENT_ANSWER).encode("utf-8")
     runner = AgentCoreRunner(client=FakeClient(body),
-                             trace_workflow_name="deployed_agent_workflow", trace_source="okahu")
+                             trace_workflow_name="deployed_agent_workflow")
 
     runner.run_agent(RUNTIME_ARN, "hi", session_id="monocle_test_session_" + "a" * 32)
 

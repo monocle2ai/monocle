@@ -279,7 +279,7 @@ def test_no_remote_source_until_a_workflow_is_configured(monkeypatch):
 def test_remote_query_uses_the_session_id_that_was_sent():
     """The lookup key is the exact runtimeSessionId AgentCore received."""
     client = FakeClient()
-    runner = AgentCoreRunner(client=client, trace_workflow_name=REMOTE_WORKFLOW, trace_source="okahu")
+    runner = AgentCoreRunner(client=client, trace_workflow_name=REMOTE_WORKFLOW)
 
     runner.run_agent(RUNTIME_ARN, "hi", session_id=VALID_SESSION_ID)
 

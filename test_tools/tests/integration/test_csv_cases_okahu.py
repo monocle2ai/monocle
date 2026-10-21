@@ -43,7 +43,6 @@ def test_csv_case_replays_and_evaluates(monocle_trace_asserter, cases_csv):
     # Stub owns evaluator + template selection; CSV owns fact_id/workflow/expected.
     cases[0].run(
         monocle_trace_asserter.with_evaluation("okahu"),
-        trace_source="okahu",
         eval_name="hallucination",
     )
 

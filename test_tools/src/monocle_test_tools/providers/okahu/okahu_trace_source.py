@@ -28,6 +28,7 @@ class OkahuTraceSource(TraceSource):
 
     name = "okahu"
     supports_time_window = True
+    session_scope_name = OkahuSpanLoader.AGENT_SESSIONS_SCOPE
 
     def setup_test_cases(self, **kwargs) -> list:
         return OkahuSpanLoader.setup_test_cases(**kwargs)

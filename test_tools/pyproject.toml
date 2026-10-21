@@ -38,7 +38,12 @@ with-no-comparer= [
     "monocle_apptrace>=0.5.0",
 
     # git
-    "GitPython==3.1.58"
+    "GitPython==3.1.58",
+
+    # scenario tests: the simulated user, the judge and the seed files
+    "langchain>=1.0",
+    "langchain-openai",
+    "pyyaml>=6.0",
 ]
 
 dependencies = [
@@ -57,12 +62,20 @@ dependencies = [
     "sentence-transformers>=3.3.0",
 
     # git
-    "GitPython==3.1.58"
+    "GitPython==3.1.58",
+
+    # scenario tests: the simulated user, the judge and the seed files
+    "langchain>=1.0",
+    "langchain-openai",
+    "pyyaml>=6.0",
 ]
 
 [project.optional-dependencies]
+test_agent = []   # kept so existing installs keep working; scenario tests now ship in the base install
+
 dev = [
     "pytest-cov>=4.0.0",
+    "pyarrow<26",  # sentence-transformers -> datasets -> pyarrow; 26.0.0 requires NumPy 2, apptrace pins numpy 1.26
     "black>=23.0.0",
     "flake8>=6.0.0",
     "mypy>=1.0.0",

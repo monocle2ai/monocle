@@ -16,6 +16,7 @@ A comprehensive testing and validation framework for monocle AI agent tracing. T
 - **Offline Testing**: Assert against pre-recorded trace JSON files without running live agents.
 - **Test Cases as Data**: Describe a run once as a `FluentTestCase` and let `run_agent`, the span selectors, the input/output checks and `check_eval` all read it via `testcase=`.
 - **Generated Test Cases**: Turn what a workflow already recorded into a parametrizable suite with `setup_test_cases()`, from Okahu or a committed JSON file.
+- **Scenario Tests**: Describe an agent in a sentence or two and what people use it for. Monocle generates multi-turn conversations with simulated users, runs each against the agent as a pytest case, and traces them for later evaluation.
 
 ## How does it work
 
@@ -200,6 +201,47 @@ monocle_trace_asserter.called_tool("adk_book_flight").has_scope("turn_id", "2") 
 ```
 
 **Session persistence across runners.** The ADK runner keeps one in-memory session service alive for the whole multi-turn run, so agent memory persists between turns. Runners that delegate session continuity to their own framework keep memory across turns via the shared `session_id` too (LangGraph `thread_id`, Strands `FileSessionManager`, LlamaIndex chat store, MS Agent thread).
+
+### Scenario tests (`@monocle_scenario_testcase`)
+
+Realistic test conversations are hard to write by hand. Describe your agent and what people
+use it for, and Monocle generates them: different kinds of users, users who hold details
+back, requests the agent should refuse, and red-team attacks adapted from open-source
+projects. Each one runs as a live multi-turn conversation with your agent, passes or fails,
+and is traced for later evaluation.
+
+**1. Write the test**
+
+```python
+from monocle_test_tools import MonocleValidator
+from travel_agent import build_travel_agent
+
+SEED = {
+    "agent": "A travel booking agent that books flights between airports and hotels in a city.",
+    "goals": ["Book a flight from Bombay to Hyderabad on 22 Oct 2026"],
+}
+
+@MonocleValidator().monocle_scenario_testcase(SEED)
+async def test_scenarios(scenario):
+    await MonocleValidator().test_scenario_async(build_travel_agent(), "langgraph", scenario)
+```
+
+**2. Run it**
+
+```
+export OPENAI_API_KEY=...
+export MONOCLE_TEST_AGENT_MODEL=openai:gpt-4.1-mini
+pytest test_scenarios.py
+```
+
+The first run generates about fifteen scenarios per goal into `scenarios.json`; later runs
+reuse it. A failure prints the conversation and the reason. `-k redteam` runs one kind.
+
+**3. Send the conversations to Okahu (optional):** set `MONOCLE_EXPORTER=okahu` and
+`OKAHU_API_KEY`. Each conversation arrives as its own session.
+
+[How it works and the options](src/monocle_test_tools/harness/README.md) ·
+[runnable example](examples/scenario_campaign/)
 
 ### Fluent API (`monocle_trace_asserter`)
 

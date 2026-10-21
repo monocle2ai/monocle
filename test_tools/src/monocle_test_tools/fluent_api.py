@@ -8,9 +8,9 @@ from monocle_apptrace.instrumentation.common.method_wrappers import monocle_trac
 from monocle_apptrace.instrumentation.common.utils import get_workflow_name
 from monocle_test_tools import eval_matrix
 from monocle_test_tools.constants import CUSTOM_EVAL_TYPE
-from monocle_test_tools.evals.okahu_filtered_eval import build_filtered_report
+from monocle_test_tools.eval_report import build_filtered_report
 from monocle_test_tools.schema import Evaluation, FactID
-from monocle_test_tools.span_loader import JSONSpanLoader, OkahuSpanLoader
+from monocle_test_tools.span_loader import JSONSpanLoader
 from monocle_test_tools.testcase import Agent, FluentTestCase, Tool
 from monocle_test_tools.testcase_args import (factid_import_kwargs, resolve_testcase,
                                               turn_inputs_from_spans)
@@ -21,6 +21,7 @@ from .comparer.token_match_comparer import TokenMatchComparer
 from .evals.eval_manager import get_evaluator
 from .evals.base_eval import BaseEval
 from .validator import MonocleValidator
+from .trace_sources import get_trace_source
 from .trace_utils import get_function_signature, get_caller_file_line
 from .schema import MockTool
 from opentelemetry.sdk.trace import Span
@@ -80,12 +81,12 @@ def setup_test_cases(source:str = "okahu", **kwargs) -> list[FluentTestCase]:
         from .testcase import load_test_cases_from_json
         return load_test_cases_from_json(path)
 
-    if source != "okahu":
+    trace_source = get_trace_source(source)
+    if trace_source is None:
         raise ValueError(
             f"setup_test_cases does not support source '{source}'; supported sources "
             "are 'okahu' (discover from the eval store) and 'local' (a JSON file).")
-    from .okahu_span_loader import OkahuSpanLoader
-    return OkahuSpanLoader.setup_test_cases(**kwargs)
+    return trace_source.setup_test_cases(**kwargs)
 
 # Fluent methods that select entities, and the kind of entity each selects. A
 # testcase-driven chain may use only one kind, since each builds its own map.
@@ -493,7 +494,9 @@ class TraceAssertion():
             if has_window:
                 raise ValueError("Time-window filtering is only supported for source='okahu'.")
             self.validator.import_traces(trace_source=source, **kwargs)
-        elif source == "okahu":
+        elif get_trace_source(source) is not None:
+            if has_window and not get_trace_source(source).supports_time_window:
+                raise ValueError(f"Time-window filtering is not supported for source='{source}'.")
             has_id = kwargs.get("id") is not None
             if has_window and has_id:
                 # A window *with* an id is a bounded lookup: import that fact's
@@ -511,7 +514,7 @@ class TraceAssertion():
                     raise ValueError("Filter mode requires 'workflow_name'.")
                 workflows = ([workflow_name] if isinstance(workflow_name, str)
                              else list(workflow_name))
-                self._okahu_filter = {"workflows": workflows, "start_time": start_time,
+                self._okahu_filter = {"source": source, "workflows": workflows, "start_time": start_time,
                                       "end_time": end_time,
                                       "fact_name": kwargs.get("fact_name", "traces")}
             else:
@@ -1704,7 +1707,6 @@ class TraceAssertion():
     def _check_eval_filtered(self, scope, *, eval_name, expected, not_expected,
                              template_path, template, min_facts, fail_threshold,
                              max_facts, message):
-        from monocle_test_tools.evals.okahu_filtered_eval import OkahuFilteredEval
         selectors = [s for s in (eval_name, template_path, template) if s]
         if len(selectors) != 1:
             raise ValueError("Provide exactly one of 'eval_name', 'template_path', or 'template'.")
@@ -1728,9 +1730,8 @@ class TraceAssertion():
             else:
                 template = loaded
 
-        client = OkahuFilteredEval.from_env()
-        report = client.run_filtered(
-            scope["workflows"], accepted=expected, not_expected=not_expected,
+        report = get_trace_source(scope.get("source", "okahu")).run_filtered_eval(
+            workflows=scope["workflows"], accepted=expected, not_expected=not_expected,
             eval_name=eval_name, template=template, fact_name=scope["fact_name"],
             start_time=scope["start_time"], end_time=scope["end_time"],
             min_facts=min_facts, max_facts=max_facts)

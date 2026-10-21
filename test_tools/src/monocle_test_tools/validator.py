@@ -21,7 +21,6 @@ from monocle_apptrace.instrumentation.common.instrumentor import MonocleInstrume
 from pydantic import BaseModel, ValidationError
 from monocle_test_tools.file_span_loader import JSONSpanLoader
 from monocle_test_tools.gitutils import get_git_context, get_repo_name
-from monocle_test_tools.okahu_span_loader import OkahuSpanLoader
 from monocle_test_tools.schema import SpanType, TestSpan, TestCase, MultiTurnTestCase, Evaluation, EvalInputs, MockTool
 from monocle_test_tools.constants import TEST_SCOPE_NAME, SESSION_SCOPE_NAME, TURN_SCOPE_NAME, DEFAULT_WORKFLOW_NAME, TEST_STATUS_ATTRIBUTE, TEST_ASSERTION_ATTRIBUTE, TEST_WORKFLOW_ENV
 from monocle_test_tools.comparer.base_comparer import BaseComparer
@@ -738,7 +737,7 @@ class MonocleValidator:
                 workflow_name="my_app"
             )
         """
-        if trace_source not in ("file", "okahu"):
+        if trace_source != "file" and get_trace_source(trace_source) is None:
             raise ValueError(
                 f"Unsupported trace_source: '{trace_source}'. "
                 "Supported sources: 'file', 'okahu'."
@@ -746,7 +745,7 @@ class MonocleValidator:
         if not id:
             id = self._get_current_trace_id()
 
-        if trace_source == "okahu":
+        if trace_source != "file":
             if not id:
                 raise ValueError("'id' is required.")
             if workflow_name is None:
@@ -754,37 +753,11 @@ class MonocleValidator:
             if not workflow_name:
                 raise ValueError("'workflow_name' is required for okahu trace source.")
 
-            if fact_name == "session":
-                # Session-based: use agent_sessions scope
-                okahu_fact_name = OkahuSpanLoader.AGENT_SESSIONS_SCOPE
-                spans = OkahuSpanLoader.load_by_scope(
-                    workflow_name=workflow_name,
-                    scope_name=okahu_fact_name,
-                    scope_id=id,
-                    start_time=start_time,
-                    end_time=end_time,
-                )
-            elif fact_name == "scope":
-                # Custom scope: requires scope_name
-                if not scope_name:
-                    raise ValueError("'scope_name' is required when fact_name='scope'.")
-                okahu_fact_name = scope_name
-                spans = OkahuSpanLoader.load_by_scope(
-                    workflow_name=workflow_name,
-                    scope_name=okahu_fact_name,
-                    scope_id=id,
-                    start_time=start_time,
-                    end_time=end_time,
-                )
-            else:
-                # Direct trace_id lookup
-                okahu_fact_name = "traces"
-                spans = OkahuSpanLoader.get_spans(
-                    workflow_name=workflow_name,
-                    trace_id=id,
-                    start_time=start_time,
-                    end_time=end_time,
-                )
+            if fact_name == "scope" and not scope_name:
+                raise ValueError("'scope_name' is required when fact_name='scope'.")
+            spans, okahu_fact_name = get_trace_source(trace_source).load_spans(
+                id=id, fact_name=fact_name, scope_name=scope_name, workflow_name=workflow_name,
+                start_time=start_time, end_time=end_time)
             # Capture the fact details so the test outcome can be recorded back
             # to Okahu during post_test_cleanup. Skipped for a pure fetch: those
             # spans are not what the assertions will run against.

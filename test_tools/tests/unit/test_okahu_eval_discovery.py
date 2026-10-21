@@ -5,8 +5,8 @@ from unittest.mock import patch
 
 import pytest
 
-from monocle_test_tools.evals import okahu_eval_discovery
-from monocle_test_tools.evals.okahu_eval_discovery import _DiscoverySkipped, _derive_query_inputs
+from monocle_test_tools.providers.okahu import okahu_eval_discovery
+from monocle_test_tools.providers.okahu.okahu_eval_discovery import _DiscoverySkipped, _derive_query_inputs
 
 
 def _span(attributes, trace_id=0xABC123, start=None, end=None):
@@ -25,7 +25,7 @@ def test_derive_query_inputs_for_traces():
               trace_id=0xABC123, start=1_000_000_000_000_000_000, end=1_000_000_002_000_000_000),
     ]
     # fact_map: mapped okahu fact "traces" -> id source "trace_id"
-    with patch("monocle_test_tools.evals.okahu_eval.OkahuEval.get_fact_map",
+    with patch("monocle_test_tools.providers.okahu.okahu_eval.OkahuEval.get_fact_map",
                return_value={"traces": "trace_id"}):
         wf, fact_ids, start_time, end_time = _derive_query_inputs(spans, "traces")
     assert wf == "wf"
@@ -39,7 +39,7 @@ def test_derive_query_inputs_for_traces():
 def test_derive_query_inputs_no_span_times_omits_window():
     spans = [_span({"span.type": "workflow", "workflow.name": "wf"},
                    trace_id=0xABC123, start=None, end=None)]
-    with patch("monocle_test_tools.evals.okahu_eval.OkahuEval.get_fact_map",
+    with patch("monocle_test_tools.providers.okahu.okahu_eval.OkahuEval.get_fact_map",
                return_value={"traces": "trace_id"}):
         wf, fact_ids, start_time, end_time = _derive_query_inputs(spans, "traces")
     assert wf == "wf"
@@ -48,7 +48,7 @@ def test_derive_query_inputs_no_span_times_omits_window():
 
 def test_derive_query_inputs_missing_workflow_skips():
     spans = [_span({"span.type": "workflow"}, start=1, end=2)]
-    with patch("monocle_test_tools.evals.okahu_eval.OkahuEval.get_fact_map",
+    with patch("monocle_test_tools.providers.okahu.okahu_eval.OkahuEval.get_fact_map",
                return_value={"traces": "trace_id"}):
         with pytest.raises(_DiscoverySkipped):
             _derive_query_inputs(spans, "traces")
@@ -56,7 +56,7 @@ def test_derive_query_inputs_missing_workflow_skips():
 
 # --- query body / time window ----------------------------------------------------
 
-from monocle_test_tools.evals.okahu_eval_discovery import _query_fact_evals
+from monocle_test_tools.providers.okahu.okahu_eval_discovery import _query_fact_evals
 
 
 class _FakeClient:
@@ -91,7 +91,7 @@ def test_query_fact_evals_omits_window_when_absent():
 
 # --- discover_fact_evals orchestration -------------------------------------------
 
-from monocle_test_tools.evals.okahu_eval_discovery import discover_fact_evals
+from monocle_test_tools.providers.okahu.okahu_eval_discovery import discover_fact_evals
 
 
 def _labeled_row(fact_id, label, eval_name=None, eval_id=None):
@@ -124,9 +124,9 @@ def test_discover_returns_specs_and_classifies_custom(monkeypatch):
         {"fact_id": "abc123", "eval_name": "bias",
          "eval_id": "evaluation__traces__bias", "eval_found": False},  # skipped
     ]
-    with patch("monocle_test_tools.evals.okahu_eval_discovery._derive_query_inputs",
+    with patch("monocle_test_tools.providers.okahu.okahu_eval_discovery._derive_query_inputs",
                return_value=("wf", ["abc123"], "2001-09-08T00:00:00.000Z", "2001-09-10T00:00:00.000Z")), \
-         patch("monocle_test_tools.evals.okahu_eval_discovery._query_fact_evals",
+         patch("monocle_test_tools.providers.okahu.okahu_eval_discovery._query_fact_evals",
                return_value=rows):
         specs, note = discover_fact_evals(_traces_spans(), fact_name="traces")
 
@@ -148,9 +148,9 @@ def test_discover_returns_specs_and_classifies_custom(monkeypatch):
 
 def test_discover_empty_when_no_labels(monkeypatch):
     _set_okahu_env(monkeypatch)
-    with patch("monocle_test_tools.evals.okahu_eval_discovery._derive_query_inputs",
+    with patch("monocle_test_tools.providers.okahu.okahu_eval_discovery._derive_query_inputs",
                return_value=("wf", ["abc123"], "2001-09-08T00:00:00.000Z", "2001-09-10T00:00:00.000Z")), \
-         patch("monocle_test_tools.evals.okahu_eval_discovery._query_fact_evals",
+         patch("monocle_test_tools.providers.okahu.okahu_eval_discovery._query_fact_evals",
                return_value=[]):
         specs, note = discover_fact_evals(_traces_spans(), fact_name="traces")
     assert specs == []
@@ -169,9 +169,9 @@ def test_base_eval_discovery_default_is_noop():
 
 def test_okahu_eval_discovery_delegates_to_module():
     """OkahuEval.discover_fact_evals delegates to the okahu_eval_discovery module fn."""
-    from monocle_test_tools.evals.okahu_eval import OkahuEval
+    from monocle_test_tools.providers.okahu.okahu_eval import OkahuEval
     sentinel = ([{"criteria": "correctness"}], None)
-    with patch("monocle_test_tools.evals.okahu_eval_discovery.discover_fact_evals",
+    with patch("monocle_test_tools.providers.okahu.okahu_eval_discovery.discover_fact_evals",
                return_value=sentinel) as mod_fn:
         result = OkahuEval(eval_options={}).discover_fact_evals(_traces_spans(), fact_name="agentic_sessions")
     assert result == sentinel
@@ -193,14 +193,14 @@ def test_discover_defaults_endpoints_to_prod(monkeypatch):
     monkeypatch.delenv("OKAHU_API_ENDPOINT", raising=False)
     rows = [_labeled_row("abc123", "yes", eval_name="answer_relevancy",
                          eval_id="evaluation__traces__answer_relevancy")]
-    with patch("monocle_test_tools.evals.okahu_eval_discovery._derive_query_inputs",
+    with patch("monocle_test_tools.providers.okahu.okahu_eval_discovery._derive_query_inputs",
                return_value=("wf", ["abc123"], None, None)), \
-         patch("monocle_test_tools.evals.okahu_eval_discovery._query_fact_evals",
+         patch("monocle_test_tools.providers.okahu.okahu_eval_discovery._query_fact_evals",
                return_value=rows):
         specs, note = discover_fact_evals(_traces_spans(), fact_name="traces")
     assert note is None
     assert len(specs) == 1
-    from monocle_test_tools.evals import okahu_filtered_eval as ofe
+    from monocle_test_tools.providers.okahu import okahu_filtered_eval as ofe
     client = ofe.OkahuFilteredEval.from_env()
     assert client.api_base == ofe.OKAHU_PROD_API_ENDPOINT + "/api"
     assert client.eval_base == ofe.OKAHU_PROD_EVALUATION_ENDPOINT.rstrip("/")
@@ -208,7 +208,7 @@ def test_discover_defaults_endpoints_to_prod(monkeypatch):
 
 def test_discover_http_error_is_non_fatal(monkeypatch):
     _set_okahu_env(monkeypatch)
-    with patch("monocle_test_tools.evals.okahu_eval_discovery._derive_query_inputs",
+    with patch("monocle_test_tools.providers.okahu.okahu_eval_discovery._derive_query_inputs",
                side_effect=RuntimeError("boom")):
         specs, note = discover_fact_evals(_traces_spans(), fact_name="traces")
     assert specs == []

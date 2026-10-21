@@ -21,7 +21,8 @@ from .schema import (
     ToolType,
 )
 
-from .evals import ( BaseEval, BertScorerEval, OkahuEval)
+from monocle_apptrace.providers.moved import moved_attr
+from .evals import ( BaseEval, BertScorerEval)
 from .comparer import ( BaseComparer, BertScoreComparer, DefaultComparer)
 from . import trace_utils
 from .runner import AgentRunner, get_agent_runner
@@ -43,7 +44,6 @@ __all__ = [
     "BaseEval",
     "Evaluation",
     "BertScorerEval",
-    "OkahuEval",
     "BaseComparer",
     "BertScoreComparer",
     "DefaultComparer",
@@ -61,3 +61,7 @@ __all__ = [
     "pytest_plugin",
     "gitutils"
 ]
+
+
+def __getattr__(name):
+    return moved_attr(__name__, name, {"OkahuEval": "monocle_test_tools.providers.okahu.okahu_eval"})

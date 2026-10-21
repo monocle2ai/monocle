@@ -3,7 +3,7 @@ import os
 import pytest
 import requests
 from monocle_test_tools import TraceAssertion
-from monocle_test_tools.okahu_span_loader import OkahuSpanLoader
+from monocle_test_tools.providers.okahu.okahu_span_loader import OkahuSpanLoader
 
 # Point at your own tenant's data via OKAHU_DEMO_WORKFLOW_NAME / OKAHU_DEMO_TRACE_ID.
 DEMO_WORKFLOW_NAME = os.getenv("OKAHU_DEMO_WORKFLOW_NAME", "Okahu-Loader-Demo")

@@ -94,7 +94,7 @@ def test_with_trace_source_okahu_window_records_scope_no_import():
     with patch.object(a.validator, "import_traces") as imp:
         a.with_trace_source("okahu", workflow_name="wf", start_time="s", end_time="e")
     imp.assert_not_called()
-    assert a._okahu_filter == {"workflows": ["wf"], "start_time": "s",
+    assert a._okahu_filter == {"source": "okahu", "workflows": ["wf"], "start_time": "s",
                                "end_time": "e", "fact_name": "traces"}
 
 
@@ -136,7 +136,7 @@ def test_check_eval_filter_mode_runs_filtered_flow_and_stashes_report(monkeypatc
     monkeypatch.delenv("MONOCLE_EVAL_MATRIX", raising=False)
     a = _asserter().with_trace_source("okahu", workflow_name="wf",
                                       start_time="s", end_time="e")
-    with patch("monocle_test_tools.evals.okahu_filtered_eval.OkahuFilteredEval.from_env") as mk:
+    with patch("monocle_test_tools.providers.okahu.okahu_filtered_eval.OkahuFilteredEval.from_env") as mk:
         mk.return_value.run_filtered.return_value = _report()
         result = a.check_eval(eval_name="hallucination", expected="no_hallucination", min_facts=1)
     assert result.get_eval_report()["job_id"] == "job-1"
@@ -152,7 +152,7 @@ def test_check_eval_filter_mode_custom_eval_name_sends_template(monkeypatch, tmp
     path.write_text(json.dumps({"template": template}), encoding="utf-8")
     a = _asserter().with_trace_source("okahu", workflow_name="wf",
                                       start_time="s", end_time="e")
-    with patch("monocle_test_tools.evals.okahu_filtered_eval.OkahuFilteredEval.from_env") as mk:
+    with patch("monocle_test_tools.providers.okahu.okahu_filtered_eval.OkahuFilteredEval.from_env") as mk:
         mk.return_value.run_filtered.return_value = _report()
         a.check_eval(str(path), expected="no_hallucination")
     _, kwargs = mk.return_value.run_filtered.call_args
@@ -175,7 +175,7 @@ def test_check_eval_filter_mode_records_failure_on_fail_over_threshold(monkeypat
     # fails, so a real regression here can't also contaminate whichever test
     # runs next.
     try:
-        with patch("monocle_test_tools.evals.okahu_filtered_eval.OkahuFilteredEval.from_env") as mk:
+        with patch("monocle_test_tools.providers.okahu.okahu_filtered_eval.OkahuFilteredEval.from_env") as mk:
             mk.return_value.run_filtered.return_value = _report(passed=0, failed=1, scenarios=fail_scn)
             result = a.check_eval(eval_name="hallucination", expected="no_hallucination")
         # @collect_assertions records the gate failure rather than raising inline.
@@ -199,7 +199,7 @@ def test_get_eval_report_uniform_filter_mode(monkeypatch, tmp_path):
     a = _asserter()
     a._filtered_spans = None
     a._okahu_filter = {"workflows": ["wf"], "start_time": "s", "end_time": "e", "fact_name": "traces"}
-    with patch("monocle_test_tools.evals.okahu_filtered_eval.OkahuFilteredEval.from_env") as mk:
+    with patch("monocle_test_tools.providers.okahu.okahu_filtered_eval.OkahuFilteredEval.from_env") as mk:
         mk.return_value.run_filtered.return_value = _report()
         a.check_eval(eval_name="hallucination", expected="no_hallucination")
     report = a.get_eval_report()

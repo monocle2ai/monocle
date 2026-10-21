@@ -72,9 +72,9 @@ def test_pure_fetch_leaves_trace_source_unset(validator, trace_dir):
 
 def test_pure_fetch_leaves_okahu_fact_fields_unset(validator, monkeypatch):
     """The okahu branch captures fact ids for result recording -- not in fetch mode."""
-    from monocle_test_tools import validator as validator_module
+    from monocle_test_tools.providers.okahu.okahu_span_loader import OkahuSpanLoader
 
-    monkeypatch.setattr(validator_module.OkahuSpanLoader, "get_spans",
+    monkeypatch.setattr(OkahuSpanLoader, "get_spans",
                         staticmethod(lambda **kwargs: []))
     validator._trace_source_fact_id = None
     validator._trace_source_fact_name = None
@@ -89,9 +89,9 @@ def test_pure_fetch_leaves_okahu_fact_fields_unset(validator, monkeypatch):
 
 
 def test_okahu_loading_still_captures_fact_fields(validator, monkeypatch):
-    from monocle_test_tools import validator as validator_module
+    from monocle_test_tools.providers.okahu.okahu_span_loader import OkahuSpanLoader
 
-    monkeypatch.setattr(validator_module.OkahuSpanLoader, "get_spans",
+    monkeypatch.setattr(OkahuSpanLoader, "get_spans",
                         staticmethod(lambda **kwargs: []))
 
     validator.import_traces(trace_source="okahu", id="t1", workflow_name="wf")

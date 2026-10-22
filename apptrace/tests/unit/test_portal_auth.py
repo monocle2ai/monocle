@@ -8,7 +8,7 @@ import urllib.error
 import urllib.request
 from unittest import mock
 
-from monocle_apptrace.auth import (
+from monocle_apptrace.providers.okahu.auth import (
     callback_server,
     config,
     okahu_api,

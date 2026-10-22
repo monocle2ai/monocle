@@ -18,7 +18,7 @@ Two things are centralised here:
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 
 from common.custom_exporter import CustomConsoleSpanExporter
-from monocle_apptrace.exporters.okahu.okahu_exporter import OkahuSpanExporter
+from monocle_apptrace.providers.okahu.okahu_exporter import OkahuSpanExporter
 
 
 def build_stream_span_processors(exporter=None):

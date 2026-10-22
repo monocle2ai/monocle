@@ -9,7 +9,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from opentelemetry.sdk.trace.export import SpanExportResult
 
-from monocle_apptrace.exporters.okahu.okahu_eval_result_exporter import OkahuEvalResultExporter
+from monocle_apptrace.providers.okahu.okahu_eval_result_exporter import OkahuEvalResultExporter
 from monocle_test_tools.evals import okahu_eval as okahu_eval_module
 from monocle_test_tools.evals.okahu_eval import OkahuEval
 

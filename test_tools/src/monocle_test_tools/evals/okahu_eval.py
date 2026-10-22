@@ -6,8 +6,8 @@ from opentelemetry.sdk.trace import Span
 from opentelemetry.sdk.trace.export import SpanExportResult
 import requests
 from opentelemetry.baggage.propagation import W3CBaggagePropagator
-from monocle_apptrace.exporters.okahu import okahu_exporter
-from monocle_apptrace.exporters.okahu.okahu_eval_result_exporter import OkahuEvalResultExporter
+from monocle_apptrace.providers.okahu import okahu_exporter
+from monocle_apptrace.providers.okahu.okahu_eval_result_exporter import OkahuEvalResultExporter
 from monocle_test_tools.evals.base_eval import BaseEval
 from typing import Optional, Union, Tuple
 

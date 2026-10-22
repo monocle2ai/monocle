@@ -269,7 +269,7 @@ def get_provider_name(instance: Any) -> str:
     """Extract provider name from azure-ai-inference client instance."""
     try:
         # extract hostname from instance._config.endpoint
-        # https://okahu-openai-dev.openai.azure.com/openai/deployments/kshitiz-gpt => okahu-openai-dev.openai.azure.com
+        # https://my-resource.openai.azure.com/openai/deployments/my-gpt => my-resource.openai.azure.com
         endpoint = instance._config.endpoint
         if endpoint:
             # Extract the hostname part

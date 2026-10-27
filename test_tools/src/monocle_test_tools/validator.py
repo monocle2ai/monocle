@@ -3,7 +3,7 @@ from functools import wraps
 import inspect
 import uuid
 import jsonschema, json
-from typing import Optional, Sequence, Union
+from typing import Any, Optional, Sequence, Union
 from opentelemetry.sdk.trace import Span, StatusCode
 from opentelemetry.sdk.trace.export import SpanProcessor, SimpleSpanProcessor
 from opentelemetry.sdk.trace.export import SpanExporter
@@ -25,6 +25,7 @@ from monocle_test_tools.okahu_span_loader import OkahuSpanLoader
 from monocle_test_tools.schema import SpanType, TestSpan, TestCase, MultiTurnTestCase, Evaluation, EvalInputs, MockTool
 from monocle_test_tools.constants import TEST_SCOPE_NAME, SESSION_SCOPE_NAME, TURN_SCOPE_NAME, DEFAULT_WORKFLOW_NAME, TEST_STATUS_ATTRIBUTE, TEST_ASSERTION_ATTRIBUTE, TEST_WORKFLOW_ENV
 from monocle_test_tools.comparer.base_comparer import BaseComparer
+from monocle_test_tools.runner.agent_runner import AgentRunner
 from monocle_test_tools.runner.runner import get_agent_runner
 from monocle_test_tools.trace_sources import get_trace_source
 from monocle_test_tools import trace_utils
@@ -368,6 +369,40 @@ class MonocleValidator:
             return wrapper
         return decorator
 
+    def monocle_scenario_testcase(self, seed, cache: Optional[str] = None, model: Any = None):
+        """One pytest case per scenario generated from ``seed`` (or per scenario, when ``seed``
+        is a list of them). Generated scenarios are cached in ``cache``, ``scenarios.json`` by default."""
+        from monocle_test_tools.scenarios.scenario import scenarios_from
+
+        caller_dir = os.path.dirname(os.path.abspath(inspect.stack()[1].filename))
+        scenarios = scenarios_from(seed, caller_dir, cache=cache, model=model)
+
+        def decorator(func):
+            if not inspect.iscoroutinefunction(func):
+                raise ValueError("monocle_scenario_testcase can only decorate async test functions.")
+
+            # One loop for every scenario: openai's client keeps a connection pool shared
+            # across instances, and a per-test loop leaves it bound to a closed one.
+            @pytest.mark.asyncio(loop_scope="session")
+            @pytest.mark.parametrize("scenario", scenarios, ids=[s.test_name for s in scenarios])
+            async def wrapper(scenario, request, *args, **kwargs):
+                async with self.monocle_multi_turn_wrapper(scenario, request):
+                    return await func(scenario, *args, **kwargs)
+            return wrapper
+        return decorator
+
+    async def test_scenario_async(self, agent, agent_type: str, scenario, *, model: Any = None,
+                                  judge_model: Any = None):
+        """Run ``scenario`` as a live conversation with ``agent``; on failure the transcript is the message.
+        ``model`` plays the user and ``judge_model`` judges, defaulting to ``MONOCLE_TEST_AGENT_MODEL``."""
+        from monocle_test_tools.harness.driver import ScenarioHarness
+
+        result = await ScenarioHarness(scenario, model=model, judge_model=judge_model).run_scenario_async(
+            agent, agent_type, scenario.target_description)
+        if not result.passed:
+            raise AssertionError(result.report())
+        return result
+
     async def test_workflow_async(self, workflow_func, test_case:Union[TestCase, dict]):
         """Run the workflow function with the test case input and validate the output.
         Args:
@@ -425,9 +460,11 @@ class MonocleValidator:
             self.add_remote_spans(remote_spans)
         return result
 
-    async def run_agent_async(self, agent, agent_type:str, *args, session_id:str=None, turn_id:str=None, mock_tools:list[MockTool]=[], **kwargs):
+    async def run_agent_async(self, agent, agent_type:str, *args, session_id:str=None, turn_id:str=None, mock_tools:list[MockTool]=[], agent_runner:Optional[AgentRunner]=None, **kwargs):
+        """Run one turn. Pass ``agent_runner`` to reuse a runner across turns: runners that
+        keep per-session state on the instance (ADK) need the same one for a whole conversation."""
         self.clear_spans()
-        agent_runner = get_agent_runner(agent_type)
+        agent_runner = agent_runner or get_agent_runner(agent_type)
         if agent_runner is None:
             raise ValueError(f"Unsupported agent type: {agent_type}")
         mock_tool_token = None

@@ -675,6 +675,26 @@ def get_input_event_from_span(events: list[dict], search_key:str) -> Optional[Ma
             break
     return input_request
 
+def get_input_arguments_from_span(events: list[dict]) -> dict:
+    """The tool arguments recorded in the span's 'data.input' event, as a mapping.
+
+    The input attribute holds the arguments as JSON or as a Python repr of a dict. An input that
+    does not parse to a mapping is returned as {"input": <raw text>}; no input event gives {}.
+    """
+    for event in events:
+        if event.name == "data.input":
+            raw_input = event.attributes.get("input", "{}")
+            try:
+                try:
+                    input_dict = json.loads(raw_input)
+                except json.JSONDecodeError:
+                    input_dict = ast.literal_eval(raw_input)
+            except Exception as e:
+                logger.debug(f"Error parsing input event attribute: {e}")
+                input_dict = None
+            return dict(input_dict) if isinstance(input_dict, Mapping) else {"input": raw_input}
+    return {}
+
 def replace_placeholders(obj: Union[dict, list, str], span: Span) -> Union[dict, list, str]:
     """Replace placeholders in strings with span context values."""
     if isinstance(obj, dict):

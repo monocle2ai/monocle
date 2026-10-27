@@ -1,6 +1,7 @@
 from enum import Enum
-from typing import Any, Optional, Tuple, Union
-from pydantic import BaseModel, Field
+from typing import Any, Callable, Literal, Optional, Tuple, Union
+from pydantic import BaseModel, Field, model_validator
+from monocle_test_tools.mock_tools import MockToolState, build_response_fn
 from monocle_test_tools.evals.base_eval import BaseEval
 from monocle_test_tools.evals.bert_eval import BertScorerEval
 from monocle_test_tools.comparer.base_comparer import BaseComparer
@@ -137,12 +138,43 @@ class MockTool(BaseModel):
         name: Name of the mock tool.
         description: Description of what the mock tool does.
         response: Predefined response that the mock tool will return when invoked.
+        responses: Responses in call order, one per call, for tools called more than once.
+        handler: Computes each response from the tool's arguments: handler(args, state).
+        on_exhausted: With responses, what a call past the end of the list gets.
+
+    Set exactly one of response, responses and handler. Call counts and the handler state last
+    for the whole test case, across its turns, and start again with the next test case.
     """
     name: str = Field(..., description="Name of the tool.")
     type: ToolType = Field(..., description="Type of the tool.")
     raise_error: Optional[bool] = Field(False, description="Whether the mock tool should simulate an error when invoked.")
     error_message: Optional[str] = Field("Simulated tool error", description="Error message to raise if raise_error is True.")
-    response: Optional[Any] = Field(..., description="Predefined response from the mock tool. Placeholder for tool input are supported.")
+    response: Optional[Any] = Field(None, description="Predefined response from the mock tool. Placeholder for tool input are supported.")
+    responses: Optional[list[Any]] = Field(None, description="Responses in call order. An item {\"raise_error\": true, \"error_message\": ...} makes that call fail. Placeholders for tool input are supported.")
+    handler: Optional[Union[str, Callable[[dict, dict], Any]]] = Field(None, description="handler(args, state) -> response, or 'package.module:function'. state is shared by all mocks of the test case.")
+    on_exhausted: Literal["repeat_last", "error"] = Field("repeat_last", description="With responses: repeat the last response, or fail the call, once the list runs out.")
+
+    @model_validator(mode="after")
+    def _exactly_one_way_to_respond(self) -> "MockTool":
+        given = [field for field in ("response", "responses", "handler")
+                 if field in self.model_fields_set and (field == "response" or getattr(self, field) is not None)]
+        if len(given) != 1:
+            raise ValueError(f"MockTool {self.name}: set exactly one of response, responses and handler (got {given or 'none'})")
+        if given == ["responses"] and not self.responses:
+            raise ValueError(f"MockTool {self.name}: responses must not be empty")
+        if self.raise_error and given != ["response"]:
+            raise ValueError(f"MockTool {self.name}: raise_error applies only to a single response; "
+                             "with responses use an error item, with a handler raise MonocleSpanException")
+        return self
+
+    @property
+    def varies_per_call(self) -> bool:
+        """True when the response depends on the call (responses or handler), not one fixed response."""
+        return self.responses is not None or self.handler is not None
+
+    def response_fn(self, state: MockToolState) -> Callable[[dict], Any]:
+        """The function apptrace calls with the tool's arguments to get this call's response."""
+        return build_response_fn(self.name, self.responses, self.handler, self.on_exhausted, state)
 
 class TestCase(BaseModel):
     """

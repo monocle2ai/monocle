@@ -154,6 +154,9 @@ LAST_AGENT_INVOCATION_ID = "monocle.last.agent.invocation.id"
 
 MONOCLE_SKIP_EXECUTIONS = "monocle.skip_executions"
 SKIPPED_EXECUTION = "monocle.skipped_execution"
+# Optional key of a MONOCLE_SKIP_EXECUTIONS entry: a callable that gets the tool's arguments
+# (a mapping) and returns the response for this call. It takes precedence over "response".
+SKIP_EXECUTION_RESPONSE_FN = "response_fn"
 
 TOOL_TYPE = "tool.function"
 

@@ -21,9 +21,10 @@ from monocle_apptrace.instrumentation.common.constants import (
     HTTP_SUCCESS_CODES, HEALTH_RESET_COUNTER
 )
 
-from monocle_apptrace.instrumentation.common.utils import CyclicCounter, set_attribute, get_scopes, MonocleSpanException, get_monocle_version, replace_placeholders, propogate_inference_info_to_parent_span, get_workflow_name
+from monocle_apptrace.instrumentation.common.utils import CyclicCounter, set_attribute, get_scopes, MonocleSpanException, get_monocle_version, replace_placeholders, propogate_inference_info_to_parent_span, get_workflow_name, get_input_arguments_from_span
 from monocle_apptrace.instrumentation.common.constants import \
-    (WORKFLOW_TYPE_KEY, WORKFLOW_TYPE_GENERIC, CHILD_ERROR_CODE, MONOCLE_SKIP_EXECUTIONS, SKIPPED_EXECUTION, MONOCLE_WORKFLOW_NAME_KEY)
+    (WORKFLOW_TYPE_KEY, WORKFLOW_TYPE_GENERIC, CHILD_ERROR_CODE, MONOCLE_SKIP_EXECUTIONS, SKIPPED_EXECUTION, MONOCLE_WORKFLOW_NAME_KEY,
+     SKIP_EXECUTION_RESPONSE_FN)
 
 logger = logging.getLogger(__name__)
 http_span_counter = CyclicCounter(HEALTH_RESET_COUNTER)
@@ -421,9 +422,15 @@ class SpanHandler:
             if ((span.attributes.get("span.type") is not None and skip_exec_entity.get("span.type", "") == span.attributes.get("span.type")) and
                 (span.attributes.get("entity.1.type") is not None and skip_exec_entity.get("entity.type", "") == span.attributes.get("entity.1.type"))):
                 span.set_attribute(SKIPPED_EXECUTION, True)
-                if skip_exec_entity.get("raise_error", False):
-                    raise MonocleSpanException(skip_exec_entity.get("error_message", ""))
-                response = skip_exec_entity.get("response", None)
+                response_fn = skip_exec_entity.get(SKIP_EXECUTION_RESPONSE_FN)
+                if response_fn is not None:
+                    # The response depends on this call: computed from the tool's arguments.
+                    # The callable raises MonocleSpanException itself to simulate an error.
+                    response = response_fn(get_input_arguments_from_span(span.events))
+                else:
+                    if skip_exec_entity.get("raise_error", False):
+                        raise MonocleSpanException(skip_exec_entity.get("error_message", ""))
+                    response = skip_exec_entity.get("response", None)
                 response = replace_placeholders(response, span)
                 return True, response
         return False, None

@@ -58,6 +58,18 @@ SEED = [{
 `params` without `is_initial` are held back until asked; `required: false` lets the agent skip
 one. `min_turns` stops the criteria counting as met before that turn.
 
+**Mock tools.** A scenario can carry `mock_tools`, in the same shape as `MockTool` (see the
+[test_tools README](../../../README.md#mock-tools)). They apply on every turn of the conversation, so
+the agent's tools never reach a real service. With `responses` or a `handler`, the call count and the
+handler state carry on from turn to turn, and each scenario starts again from the first response:
+
+```python
+"mock_tools": [{"name": "search_flights", "type": "tool.adk",
+                "responses": [[], [{"flight_id": "FL101"}]]},
+               {"name": "book_flight", "type": "tool.adk",
+                "handler": "my_tests.fakes:book_flight"}],
+```
+
 **Models.** `test_scenario_async(..., model=, judge_model=)` takes a model object or a
 `provider:model` string. Otherwise `MONOCLE_TEST_AGENT_MODEL` plays the user and
 `MONOCLE_TEST_JUDGE_MODEL` (default: the same) judges. `MONOCLE_TRACE_TEST_AGENT=true` traces

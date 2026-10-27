@@ -908,6 +908,51 @@ MockTool(
 )
 ```
 
+### A different response for each call
+
+When the agent calls the same tool more than once, give `responses` instead of `response`. Each call
+gets the next item. After the last item, the last response repeats; set `on_exhausted="error"` to fail
+the call instead. An item `{"raise_error": True, "error_message": "..."}` fails only that call.
+Placeholders work in every item.
+
+```python
+MockTool(
+    name="search_flights",
+    type=ToolType.ADK,
+    responses=[
+        [],                                                   # first search: nothing on that date
+        {"raise_error": True, "error_message": "timeout"},    # second search: the service times out
+        [{"flight_id": "FL101", "to": "{{destination}}"}],    # third search: a result
+    ],
+)
+```
+
+### A response computed from the arguments
+
+A `handler` computes each response from the tool's arguments: `handler(args, state)`. `state` is a
+dict shared by every mock of the test case, so one tool can see what another returned. Raise
+`MonocleSpanException` to fail a call. In a JSON or YAML file, name the handler as
+`"package.module:function"`.
+
+```python
+def search_flights(args, state):
+    state["offered"] = [f for f in FLIGHTS if f["to"] == args["destination"]]
+    return state["offered"]
+
+def book_flight(args, state):
+    offered = {f["flight_id"] for f in state.get("offered", [])}
+    return {"status": "confirmed"} if args["flight_id"] in offered else {"status": "unknown flight"}
+
+mock_tools = [MockTool(name="search_flights", type=ToolType.ADK, handler=search_flights),
+              MockTool(name="book_flight", type=ToolType.ADK, handler=book_flight)]
+```
+
+Set exactly one of `response`, `responses` and `handler`. Call counts and handler state last for the
+whole test case, across all of its turns (multi-turn and scenario tests), and start again with the
+next test case. When you drive `run_agent_async` yourself for several independent cases, call
+`MonocleValidator().reset_mock_tool_state()` between them. `responses` and `handler` need a
+`monocle_apptrace` that supports them; with an older one, the run stops and says to upgrade.
+
 Supported `ToolType` values: `tool.openai`, `tool.adk`, `tool.llama_index`, `tool.langgraph`, `tool.strands`.
 
 ### Fluent API

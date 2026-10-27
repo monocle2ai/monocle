@@ -18,11 +18,16 @@ from contextlib import contextmanager, asynccontextmanager
 import logging
 from monocle_apptrace.exporters.monocle_exporters import get_monocle_exporter
 from monocle_apptrace.instrumentation.common.instrumentor import MonocleInstrumentor, setup_monocle_telemetry, reset_span_processors, get_monocle_instrumentor
+try:
+    from monocle_apptrace.instrumentation.common.constants import SKIP_EXECUTION_RESPONSE_FN
+except ImportError:  # an older monocle_apptrace; only mocks with responses or a handler need it
+    SKIP_EXECUTION_RESPONSE_FN = None
 from pydantic import BaseModel, ValidationError
 from monocle_test_tools.file_span_loader import JSONSpanLoader
 from monocle_test_tools.gitutils import get_git_context, get_repo_name
 from monocle_test_tools.okahu_span_loader import OkahuSpanLoader
 from monocle_test_tools.schema import SpanType, TestSpan, TestCase, MultiTurnTestCase, Evaluation, EvalInputs, MockTool
+from monocle_test_tools.mock_tools import MockToolState
 from monocle_test_tools.constants import TEST_SCOPE_NAME, SESSION_SCOPE_NAME, TURN_SCOPE_NAME, DEFAULT_WORKFLOW_NAME, TEST_STATUS_ATTRIBUTE, TEST_ASSERTION_ATTRIBUTE, TEST_WORKFLOW_ENV
 from monocle_test_tools.comparer.base_comparer import BaseComparer
 from monocle_test_tools.runner.agent_runner import AgentRunner
@@ -78,6 +83,9 @@ class MonocleValidator:
         # Per-session run_agent_async count, used to default an unset turn_id to
         # the next 1-based turn index for that session. Reset per test.
         self._session_turn_counters: dict[str, int] = {}
+        # Call counts and handler state of mock tools with responses or a handler.
+        # Kept across the turns of a test case. Reset per test.
+        self._mock_tool_state = MockToolState()
         test_trace_path:str = os.path.join(".", DEFAULT_TRACE_FOLDER, "test_traces")
         os.environ["MONOCLE_TRACE_OUTPUT_PATH"] = test_trace_path
         if exporter_list is None:
@@ -120,6 +128,15 @@ class MonocleValidator:
         self._trace_source_fact_name = None
         self._trace_source_workflow_name = None
         self._session_turn_counters = {}
+        self.reset_mock_tool_state()
+
+    def reset_mock_tool_state(self) -> None:
+        """Start mock tools again from their first response, with empty handler state.
+
+        Done at the start of every test case and scenario. Call it yourself when you drive
+        run_agent_async directly for several independent cases.
+        """
+        self._mock_tool_state = MockToolState()
 
     @property
     def spans(self):
@@ -173,6 +190,7 @@ class MonocleValidator:
         Prepares the validator for a new test run by clearing existing spans.
         """
         context:Context = None
+        self.reset_mock_tool_state()
         if mock_tools is not None:
             context = self._set_wrapper_methods(mock_tools)
         test_scope = {TEST_SCOPE_NAME: test_case_name}
@@ -190,6 +208,7 @@ class MonocleValidator:
         each turn's run (see ``run_multi_turn_agent_async``), so they are not set
         here. Returns the scope token to stop once the run finishes.
         """
+        self.reset_mock_tool_state()
         session_scope = {TEST_SCOPE_NAME: test_case_name, SESSION_SCOPE_NAME: session_id}
         git_scopes = get_git_context()
         all_scopes = {**session_scope, **git_scopes}
@@ -843,6 +862,12 @@ class MonocleValidator:
                 "raise_error": mock_tool.raise_error,
                 "error_message": mock_tool.error_message
             }
+            if mock_tool.varies_per_call:
+                if SKIP_EXECUTION_RESPONSE_FN is None:
+                    raise RuntimeError(
+                        f"MockTool {mock_tool.name} uses responses or a handler, which needs a newer "
+                        "monocle_apptrace. Run: pip install -U monocle_apptrace")
+                skip_exec[mock_tool.name][SKIP_EXECUTION_RESPONSE_FN] = mock_tool.response_fn(self._mock_tool_state)
         if len(skip_exec) > 0:
             context = set_value(MONOCLE_SKIP_EXECUTIONS, skip_exec)
         return context

@@ -86,6 +86,7 @@ class ScenarioHarness:
         evaluator = ResponseEvaluator(judge, case.success_criteria)
         tester, param_calls = build_test_agent(case, target_description, model)
         runner = get_agent_runner(agent_type)   # one for the whole conversation: ADK keeps session state on it
+        self.validator.reset_mock_tool_state()  # mocks start from their first response for each scenario
 
         messages: list[Any] = [HumanMessage(content=KICKOFF)]
         records: list[TurnRecord] = []
@@ -101,7 +102,8 @@ class ScenarioHarness:
 
                 try:
                     reply = await self.validator.run_agent_async(
-                        target_agent, agent_type, tester_message, session_id=case.session_id, agent_runner=runner)
+                        target_agent, agent_type, tester_message, session_id=case.session_id, agent_runner=runner,
+                        mock_tools=case.mock_tools)
                 except Exception as error:  # pylint: disable=broad-except
                     failure_reason = f"target error: {error}"
                     records.append(TurnRecord(turn=turn, tester_message=tester_message, param_tools_called=called))

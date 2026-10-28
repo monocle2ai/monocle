@@ -3,7 +3,7 @@ from datetime import datetime
 import pytest
 from .fluent_api import TraceAssertion
 from .testcase import FluentTestCase
-from . import eval_matrix, scenario_results
+from . import eval_matrix
 
 
 def pytest_addoption(parser) -> None:
@@ -14,21 +14,6 @@ def pytest_addoption(parser) -> None:
     MONOCLE_EVAL_MATRIX env var set records nothing and writes no file.
     """
     eval_matrix.pytest_addoption(parser)
-    parser.addoption(
-        "--monocle-scenario-results", action="store_true", default=False,
-        help="Save scenario results (a summary and one report per failure) under "
-             f".monocle/test_results/<run>/. Also enabled by {scenario_results.RESULTS_ENV}=true.",
-    )
-
-
-def pytest_configure(config) -> None:
-    if config.getoption("monocle_scenario_results", default=False):
-        scenario_results.enable()
-
-
-def pytest_terminal_summary(terminalreporter) -> None:
-    if scenario_results.run_dir():
-        terminalreporter.write_line(f"Scenario results saved to {scenario_results.run_dir()}")
 
 
 def pytest_sessionfinish(session) -> None:

@@ -368,7 +368,6 @@ class MonocleValidator:
             @pytest.mark.asyncio(loop_scope="session")
             @pytest.mark.parametrize("scenario", scenarios, ids=[s.test_name for s in scenarios])
             async def wrapper(scenario, request, *args, **kwargs):
-                __tracebackhide__ = True  # the failure report says it all; these frames add nothing
                 async with self.monocle_multi_turn_wrapper(scenario, request):
                     return await func(scenario, *args, **kwargs)
             return wrapper
@@ -379,15 +378,12 @@ class MonocleValidator:
         """Run ``scenario`` as a live conversation with ``agent``; on failure the transcript is the message.
         ``model`` plays the user and ``judge_model`` judges, defaulting to ``MONOCLE_TEST_AGENT_MODEL``.
         ``"local"`` runs an open model on this machine, with no API key."""
-        __tracebackhide__ = True
-        from monocle_test_tools import scenario_results
         from monocle_test_tools.harness.driver import ScenarioHarness
 
         result = await ScenarioHarness(scenario, model=model, judge_model=judge_model).run_scenario_async(
             agent, agent_type, scenario.target_description)
-        saved = scenario_results.record(result)
         if not result.passed:
-            raise AssertionError(result.report(saved=saved))
+            raise AssertionError(result.report())
         return result
 
     async def test_workflow_async(self, workflow_func, test_case:Union[TestCase, dict]):

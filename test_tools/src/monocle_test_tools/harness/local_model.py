@@ -41,14 +41,14 @@ def is_local_spec(spec: Any) -> bool:
     return isinstance(spec, str) and (spec == "local" or spec.startswith("local:"))
 
 
-def local_chat_model(spec: str = "local", temperature: float = 0.0) -> Any:
+def local_chat_model(spec: str = "local") -> Any:
     if spec not in MODELS:
         raise ValueError(f"unknown local model '{spec}'; known: {', '.join(MODELS)}")
     ensure_runtime()
     path = ensure_model(*MODELS[spec])
     port = ensure_server(path)
     return _local_chat_openai_class()(base_url=f"http://127.0.0.1:{port}/v1", api_key="local",
-                                      model=os.path.basename(path), temperature=temperature, timeout=600)
+                                      model=os.path.basename(path), temperature=0, timeout=600)
 
 
 def ensure_runtime() -> None:
@@ -136,16 +136,16 @@ def _free_port() -> int:
 TOOL_TAGS = re.compile(r"</?tool_call>|<\|/?tool_call\|>|<\|python_tag\|>")
 
 
-def lift_tool_calls(message: Any, tool_names: Optional[set] = None) -> None:
+def lift_tool_calls(message: Any, tool_names: set) -> None:
     """The server returns a model's tool calls as text, and each model writes them its own way:
     Qwen as ``<tool_call>{...}</tool_call>``, Phi as a JSON list, Llama as a bare
     ``{"name": ..., "parameters": ...}``. Any JSON naming an offered tool becomes a tool call."""
     text = message.content if isinstance(message.content, str) else ""
-    if not text or message.tool_calls:
+    if not text or not tool_names or message.tool_calls:
         return
     found, spans = [], []
     for value, start, end in _json_values(text):
-        calls = [c for c in _calls(value) if tool_names is None or c[0] in tool_names]
+        calls = [c for c in _calls(value) if c[0] in tool_names]
         if calls:
             found.extend(calls)
             spans.append((start, end))
@@ -196,11 +196,8 @@ def _calls(value: Any):
         yield value["name"], args
 
 
-def _tool_names(kwargs: dict) -> Optional[set]:
-    tools = kwargs.get("tools")
-    if not tools:
-        return None
-    return {t.get("function", {}).get("name") for t in tools if isinstance(t, dict)}
+def _tool_names(kwargs: dict) -> set:
+    return {t.get("function", {}).get("name") for t in kwargs.get("tools") or () if isinstance(t, dict)}
 
 
 def _local_chat_openai_class():

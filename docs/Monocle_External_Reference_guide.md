@@ -157,7 +157,7 @@ Paygentic is a usage-based billing and metering platform for AI applications tha
 | Variable | Description | Example |
 |----------|-------------|---------|
 | `PAYGENTIC_API_KEY` | Paygentic API key for authentication | `pg_1234567890abcdef` |
-| `PAYGENTIC_ENDPOINT` | (Optional) API endpoint | `https://api.paygentic.io/v0/events` (production) |
+| `PAYGENTIC_EVENT_ENDPOINT` | (Optional) API endpoint | `https://api.paygentic.io/v0/events` (production) |
 
 #### Required Scope Attributes
 

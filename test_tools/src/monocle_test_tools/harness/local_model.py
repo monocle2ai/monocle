@@ -1,21 +1,23 @@
 """``model="local"``: a small open model on this machine, so scenario tests need no API key.
 
-On first use: installs ``llama-cpp-python`` from a prebuilt wheel if it's missing
-(``MONOCLE_LOCAL_AUTOINSTALL=0`` prints the command instead), downloads the model into the
-Hugging Face cache, and starts llama.cpp's OpenAI-compatible server as a child process.
+Needs ``llama-cpp-python``; the error says how to install it. On first use the model is
+downloaded into the Hugging Face cache and llama.cpp's OpenAI-compatible server starts as a
+child process.
 """
 import atexit
 import json
 import logging
 import os
-import re
 import platform
+import re
 import socket
 import subprocess
 import sys
 import time
 import urllib.request
 from typing import Any, Optional
+
+from langchain_openai import ChatOpenAI
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +28,6 @@ MODELS = {                                   # name -> (Hugging Face repo, 4-bit
     "local:phi-4-mini": ("bartowski/microsoft_Phi-4-mini-instruct-GGUF", "microsoft_Phi-4-mini-instruct-Q4_K_M.gguf"),
     "local:llama-3.2-3b": ("bartowski/Llama-3.2-3B-Instruct-GGUF", "Llama-3.2-3B-Instruct-Q4_K_M.gguf"),
 }
-AUTOINSTALL_ENV = "MONOCLE_LOCAL_AUTOINSTALL"
 WHEEL_INDEX = "https://abetlen.github.io/llama-cpp-python/whl/"
 RUNTIME_VERSION = "0.3.19"                    # newest release with prebuilt wheels
 CONTEXT_TOKENS = 8192
@@ -44,38 +45,23 @@ def is_local_spec(spec: Any) -> bool:
 def local_chat_model(spec: str = "local") -> Any:
     if spec not in MODELS:
         raise ValueError(f"unknown local model '{spec}'; known: {', '.join(MODELS)}")
-    ensure_runtime()
-    path = ensure_model(*MODELS[spec])
-    port = ensure_server(path)
-    return _local_chat_openai_class()(base_url=f"http://127.0.0.1:{port}/v1", api_key="local",
-                                      model=os.path.basename(path), temperature=0, timeout=600)
-
-
-def ensure_runtime() -> None:
     try:
         import llama_cpp.server  # noqa: F401
-        return
     except ImportError:
-        pass
-    command = _install_command()
-    if os.getenv(AUTOINSTALL_ENV, "1").lower() in ("0", "false", "no", "off"):
-        raise RuntimeError("llama-cpp-python is not installed. Run:\n  " + " ".join(command))
-    print(f"local model: installing llama-cpp-python (one time)\n  {' '.join(command)}", flush=True)
-    subprocess.run(command, check=True)
-    import llama_cpp.server  # noqa: F401  # fails loudly if the install did not take
+        raise ImportError("model='local' needs llama-cpp-python. Install it with "
+                          f"`{install_command()}`") from None
+    path = ensure_model(*MODELS[spec])
+    port = ensure_server(path)
+    return LocalChatOpenAI(base_url=f"http://127.0.0.1:{port}/v1", api_key="local",
+                           model=os.path.basename(path), temperature=0, timeout=600)
 
 
-def _install_command() -> list[str]:
+def install_command() -> str:
     """Pinned to the newest release with prebuilt wheels: later PyPI releases are source only and
     need a compiler. Metal wheels stop at Python 3.12; later Pythons get the CPU wheel."""
     metal = sys.platform == "darwin" and platform.machine() == "arm64" and sys.version_info < (3, 13)
-    args = ["install", f"llama-cpp-python[server]=={RUNTIME_VERSION}", "--only-binary", "llama-cpp-python",
-            "--extra-index-url", WHEEL_INDEX + ("metal" if metal else "cpu")]
-    try:
-        import pip  # noqa: F401
-        return [sys.executable, "-m", "pip"] + args
-    except ImportError:
-        return ["uv", "pip", "--python", sys.executable] + args
+    return (f'pip install "llama-cpp-python[server]=={RUNTIME_VERSION}" --only-binary llama-cpp-python '
+            f"--extra-index-url {WHEEL_INDEX}{'metal' if metal else 'cpu'}")
 
 
 def ensure_model(repo: str, filename: str) -> str:
@@ -84,7 +70,7 @@ def ensure_model(repo: str, filename: str) -> str:
     cached = try_to_load_from_cache(repo, filename)
     if isinstance(cached, str):
         return cached
-    print(f"local model: downloading {repo}/{filename} (one time, about 2.5 GB)", flush=True)
+    logger.info("downloading %s/%s (one time, about 2.5 GB)", repo, filename)
     return hf_hub_download(repo, filename)
 
 
@@ -200,36 +186,31 @@ def _tool_names(kwargs: dict) -> set:
     return {t.get("function", {}).get("name") for t in kwargs.get("tools") or () if isinstance(t, dict)}
 
 
-def _local_chat_openai_class():
-    from langchain_openai import ChatOpenAI
+class LocalChatOpenAI(ChatOpenAI):
+    """Lifts tool calls out of the text; structured output uses a forced tool call, the only
+    structured-output path the server supports."""
 
-    class LocalChatOpenAI(ChatOpenAI):
-        """Lifts tool calls out of the text; structured output uses a forced tool call, the only
-        structured-output path the server supports."""
+    def _generate(self, *args, **kwargs):
+        result = super()._generate(*args, **kwargs)
+        for generation in result.generations:
+            lift_tool_calls(generation.message, _tool_names(kwargs))
+        return result
 
-        def _generate(self, *args, **kwargs):
-            result = super()._generate(*args, **kwargs)
-            for generation in result.generations:
-                lift_tool_calls(generation.message, _tool_names(kwargs))
-            return result
+    async def _agenerate(self, *args, **kwargs):
+        result = await super()._agenerate(*args, **kwargs)
+        for generation in result.generations:
+            lift_tool_calls(generation.message, _tool_names(kwargs))
+        return result
 
-        async def _agenerate(self, *args, **kwargs):
-            result = await super()._agenerate(*args, **kwargs)
-            for generation in result.generations:
-                lift_tool_calls(generation.message, _tool_names(kwargs))
-            return result
+    def _get_request_payload(self, *args, **kwargs):
+        # llama.cpp's server requires a string `content` even on an assistant message
+        # that only carries tool calls; OpenAI clients send null there.
+        payload = super()._get_request_payload(*args, **kwargs)
+        for message in payload.get("messages", []):
+            if message.get("content") is None:
+                message["content"] = ""
+        return payload
 
-        def _get_request_payload(self, *args, **kwargs):
-            # llama.cpp's server requires a string `content` even on an assistant message
-            # that only carries tool calls; OpenAI clients send null there.
-            payload = super()._get_request_payload(*args, **kwargs)
-            for message in payload.get("messages", []):
-                if message.get("content") is None:
-                    message["content"] = ""
-            return payload
-
-        def with_structured_output(self, schema, **kwargs):
-            kwargs["method"] = "function_calling"
-            return super().with_structured_output(schema, **kwargs)
-
-    return LocalChatOpenAI
+    def with_structured_output(self, schema, **kwargs):
+        kwargs["method"] = "function_calling"
+        return super().with_structured_output(schema, **kwargs)

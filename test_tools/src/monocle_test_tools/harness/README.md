@@ -65,9 +65,17 @@ traces the simulated user and the judge too, for debugging them.
 
 ## Local models
 
-For when there's no API key to use: `model="local"` runs a small open model on your machine.
-The first time, test_tools installs `llama-cpp-python` from a prebuilt wheel and downloads the
-model (about 2.5 GB). The simulated user and the judge must use the same local model.
+For when there's no API key to use: `model="local"` runs a small open model on your machine
+with [llama.cpp](https://github.com/ggml-org/llama.cpp). Install it once (on an Intel Mac,
+Linux or Windows, or Python 3.13+, end the URL in `cpu` instead of `metal`):
+
+```bash
+pip install "llama-cpp-python[server]==0.3.19" --only-binary llama-cpp-python \
+  --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/metal
+```
+
+The first run downloads the model (about 2.5 GB). The simulated user and the judge must use the
+same local model.
 
 | `model=` | Model | Made by | Same result as gpt-4.1-mini | Time per scenario |
 |---|---|---|---|---|

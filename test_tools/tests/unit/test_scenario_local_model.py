@@ -28,11 +28,10 @@ def test_an_unknown_local_model_names_the_known_ones():
         local_model.local_chat_model("local:nope")
 
 
-def test_the_install_is_a_pinned_prebuilt_wheel_into_this_interpreter():
-    command = local_model._install_command()
-    assert command[0] in (sys.executable, "uv")
-    assert f"llama-cpp-python[server]=={local_model.RUNTIME_VERSION}" in command
-    assert command[command.index("--only-binary") + 1] == "llama-cpp-python"
+def test_without_llama_cpp_the_error_gives_the_pinned_prebuilt_install(monkeypatch):
+    monkeypatch.setitem(sys.modules, "llama_cpp.server", None)
+    with pytest.raises(ImportError, match=r"llama-cpp-python\[server\]==0\.3\.19.* --only-binary llama-cpp-python "):
+        local_model.local_chat_model("local")
 
 
 def test_a_second_local_model_in_one_run_is_refused(monkeypatch):

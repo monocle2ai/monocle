@@ -39,6 +39,15 @@ def resolve_model(spec: Any, env_var: str = TEST_AGENT_MODEL_ENV, fallback: Any 
     return init_chat_model(spec)
 
 
+def model_label(model: Any) -> str:
+    """The model's name as its provider knows it, for the failure report."""
+    return str(getattr(model, "model_name", None) or getattr(model, "model", None) or type(model).__name__)
+
+
+def trace_id_of(spans: tuple) -> Optional[str]:
+    return format(spans[0].get_span_context().trace_id, "032x") if spans else None
+
+
 class ScenarioHarness:
     def __init__(self, case: Union[ScenarioTestCase, dict], model: Any = None,
                  judge_model: Any = None, trace_test_agent: Optional[bool] = None):
@@ -112,7 +121,7 @@ class ScenarioHarness:
                 with self._suppress_spans():
                     verdict = await evaluator.judge(reply, self._transcript(records, turn, tester_message), spans=spans)
                 records.append(TurnRecord(turn=turn, tester_message=tester_message, target_response=reply,
-                                          verdict=verdict, param_tools_called=called))
+                                          verdict=verdict, param_tools_called=called, trace_id=trace_id_of(spans)))
 
                 if verdict.violated:
                     failure_reason = f"criteria violated: {verdict.reason}"
@@ -145,5 +154,7 @@ class ScenarioHarness:
 
         return ScenarioResult(test_name=case.test_name, scenario=case.scenario, passed=passed,
                               turns_used=len(records), max_turns=case.max_turns, failure_reason=failure_reason,
+                              success_criteria=case.success_criteria, session_id=case.session_id,
+                              tester_model=model_label(model), judge_model=model_label(judge),
                               turns=records, missing_required_params=missing,
                               spans=all_spans, per_turn_spans=per_turn_spans)

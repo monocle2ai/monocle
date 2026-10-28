@@ -72,11 +72,11 @@ def agent_inference_type(arguments):
         if get_value(AGENT_PREFIX_KEY):
             agent_prefix = get_value(AGENT_PREFIX_KEY)
             if hasattr(arguments['result'], "tool_calls") and arguments['result'].tool_calls:
-                tool_call = arguments['result'].tool_calls[0] if arguments['result'].tool_calls else None
-                if tool_call and 'name' in tool_call and tool_call["name"].startswith(agent_prefix):
+                # A delegation can sit anywhere in the list, not just first.
+                if any('name' in tool_call and tool_call["name"].startswith(agent_prefix)
+                       for tool_call in arguments['result'].tool_calls):
                     return INFERENCE_AGENT_DELEGATION
-                else:
-                    return INFERENCE_TOOL_CALL
+                return INFERENCE_TOOL_CALL
         return INFERENCE_TURN_END
             
     except Exception as e:
@@ -96,9 +96,12 @@ def extract_assistant_message(arguments):
         elif hasattr(arguments['result'], "message") and hasattr(arguments['result'].message, "content") and arguments['result'].message.content != "":
             role = arguments['result'].type if hasattr(arguments['result'], 'type') else role
             messages.append({role: arguments['result'].message.content})
-        elif hasattr(arguments['result'], "tool_calls"):
+        elif hasattr(arguments['result'], "tool_calls") and arguments['result'].tool_calls:
             role = arguments['result'].type if hasattr(arguments['result'], 'type') else role
-            messages.append({role: arguments['result'].tool_calls[0]})
+            # One call keeps its old shape; several are listed, since a model
+            # can ask for more than one tool in a single response.
+            tool_calls = arguments['result'].tool_calls
+            messages.append({role: tool_calls[0] if len(tool_calls) == 1 else tool_calls})
     else:
         if arguments["exception"] is not None:
             messages.append({role: get_exception_message(arguments)})
@@ -312,38 +315,36 @@ def map_finish_reason_to_finish_type(finish_reason):
     return map_langchain_finish_reason_to_finish_type(finish_reason)
 
 
-def _get_first_tool_call(response):
-    """Helper function to extract the first tool call from various LangChain response formats"""
+def _get_tool_call_names(response):
+    """Names of the tools a LangChain response asked for, in order.
 
-    with suppress(AttributeError, IndexError, TypeError):
-        if response.tool_calls:
-            return response.tool_calls[0]
+    An entry that carries no name is skipped rather than losing the rest.
+    """
 
-    return None
+    with suppress(AttributeError, TypeError):
+        return [tool_call['name'] for tool_call in response.tool_calls or []
+                if isinstance(tool_call, dict) and tool_call.get('name')]
+
+    return []
 
 def extract_tool_name(arguments):
-    """Extract tool name from LangChain response when finish_type is tool_call"""
+    """Extract tool name from LangChain response when finish_type is tool_call.
+
+    A response can ask for several tools at once. One name is reported on its
+    own, several as a list, so a single call reads as it always has.
+    """
     try:
         finish_type = map_finish_reason_to_finish_type(extract_finish_reason(arguments))
         if finish_type != "tool_call":
             return None
 
-        tool_call = _get_first_tool_call(arguments["result"])
-        if not tool_call:
-            return None
+        names = _get_tool_call_names(arguments["result"])
+        if names:
+            return names[0] if len(names) == 1 else names
 
-        # Try different name extraction approaches
-        for getter in [
-            lambda tc: tc['name'],  # dict with name key
-        ]:
-            try:
-                return getter(tool_call)
-            except (KeyError, AttributeError, TypeError):
-                continue
-                            
     except Exception as e:
         logger.warning("Warning: Error occurred in extract_tool_name: %s", str(e))
-    
+
     return None
 
 def extract_tool_type(arguments):

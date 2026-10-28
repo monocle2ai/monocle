@@ -27,34 +27,27 @@ class ScenarioResult(BaseModel):
     turns_used: int
     max_turns: int
     failure_reason: Optional[str] = None
+    reason: Optional[str] = None                            # the judge's explanation, or the agent's error
     success_criteria: Optional[str] = None
     session_id: Optional[str] = None
-    tester_model: Optional[str] = None
-    judge_model: Optional[str] = None
     turns: list[TurnRecord] = Field(default_factory=list, repr=False)
     missing_required_params: list[str] = Field(default_factory=list)
     spans: tuple = Field((), repr=False)                    # the agent's spans across every turn
     per_turn_spans: list[tuple] = Field(default_factory=list, repr=False)
 
-    @property
-    def headline(self) -> str:
-        return "passed" if self.passed else (self.failure_reason or "failed")
-
     def report(self, saved: Optional[str] = None) -> str:
-        """The failure message: why it failed, where to look, then the conversation."""
-        details = [("test", self.test_name), ("turns", f"{self.turns_used} of {self.max_turns}"),
-                   ("criteria", self.success_criteria),
-                   ("models", self.tester_model and f"tester {self.tester_model}, judge {self.judge_model}"),
-                   ("session", self.session_id), ("saved", saved)]
-        lines = [self.headline, ""]
-        lines += [_field(f"  {label:<10}", value) for label, value in details if value]
+        """The failure message: what went wrong, where to look, then the conversation."""
+        lines = [self.failure_reason or ("passed" if self.passed else "failed")]
+        lines += [_field(f"  {label:<10}", value) for label, value in
+                  [("reason", self.reason), ("criteria", self.success_criteria),
+                   ("session", self.session_id), ("saved", saved)] if value]
         for record in self.turns:
             lines += ["", f"  turn {record.turn}" + (f"  trace {record.trace_id}" if record.trace_id else "")]
             for call in record.param_tools_called:
                 lines.append(_field("    param  ", f"{call.name} = {call.value}"))
             lines.append(_field("    user   ", record.tester_message))
             if record.verdict is None:
-                lines.append(_field("    agent  ", "(raised an error)"))
+                lines.append("    agent  (error, see reason)")
                 continue
             lines.append(_field("    agent  ", record.target_response))
             outcome = "violated" if record.verdict.violated else "met" if record.verdict.met else "not met"

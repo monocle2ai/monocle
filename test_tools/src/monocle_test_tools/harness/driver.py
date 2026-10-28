@@ -39,11 +39,6 @@ def resolve_model(spec: Any, env_var: str = TEST_AGENT_MODEL_ENV, fallback: Any 
     return init_chat_model(spec)
 
 
-def model_label(model: Any) -> str:
-    """The model's name as its provider knows it, for the failure report."""
-    return str(getattr(model, "model_name", None) or getattr(model, "model", None) or type(model).__name__)
-
-
 def trace_id_of(spans: tuple) -> Optional[str]:
     return format(spans[0].get_span_context().trace_id, "032x") if spans else None
 
@@ -99,7 +94,7 @@ class ScenarioHarness:
         messages: list[Any] = [HumanMessage(content=KICKOFF)]
         records: list[TurnRecord] = []
         per_turn_spans: list[tuple] = []
-        passed, failure_reason = False, None
+        passed, failure_reason, reason = False, None, None
         try:
             for turn in range(1, case.max_turns + 1):
                 param_calls.clear()
@@ -112,7 +107,7 @@ class ScenarioHarness:
                     reply = await self.validator.run_agent_async(
                         target_agent, agent_type, tester_message, session_id=case.session_id, agent_runner=runner)
                 except Exception as error:  # pylint: disable=broad-except
-                    failure_reason = f"target error: {error}"
+                    failure_reason, reason = f"agent raised an error at turn {turn} of {case.max_turns}", str(error)
                     records.append(TurnRecord(turn=turn, tester_message=tester_message, param_tools_called=called))
                     break
 
@@ -124,7 +119,8 @@ class ScenarioHarness:
                                           verdict=verdict, param_tools_called=called, trace_id=trace_id_of(spans)))
 
                 if verdict.violated:
-                    failure_reason = f"criteria violated: {verdict.reason}"
+                    failure_reason = f"criteria violated at turn {turn} of {case.max_turns}"
+                    reason = verdict.reason
                     break
                 if verdict.met and turn >= case.min_turns:
                     passed = True
@@ -133,7 +129,8 @@ class ScenarioHarness:
                 # instead of calling the tools. The target's reply comes back as the next user turn.
                 messages = list(state["messages"]) + [HumanMessage(content=str(reply))]
             else:
-                failure_reason = "max turns exhausted"
+                failure_reason = f"criteria not met in {case.max_turns} turns"
+                reason = records[-1].verdict.reason if records else None
         finally:
             try:
                 await runner.end_session(case.session_id)
@@ -145,7 +142,7 @@ class ScenarioHarness:
         missing = case.missing_required_params(requested)
         if missing:
             passed = False
-            clause = f"required params never requested: {', '.join(missing)}"
+            clause = f"never asked for {', '.join(missing)}"
             failure_reason = f"{failure_reason}; {clause}" if failure_reason else clause
 
         # Let the trace-asserter fixture check the whole conversation, not just the last turn.
@@ -154,7 +151,6 @@ class ScenarioHarness:
 
         return ScenarioResult(test_name=case.test_name, scenario=case.scenario, passed=passed,
                               turns_used=len(records), max_turns=case.max_turns, failure_reason=failure_reason,
-                              success_criteria=case.success_criteria, session_id=case.session_id,
-                              tester_model=model_label(model), judge_model=model_label(judge),
+                              reason=reason, success_criteria=case.success_criteria, session_id=case.session_id,
                               turns=records, missing_required_params=missing,
                               spans=all_spans, per_turn_spans=per_turn_spans)

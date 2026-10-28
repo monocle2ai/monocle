@@ -7,28 +7,22 @@ from . import eval_matrix, scenario_results
 
 
 def pytest_addoption(parser) -> None:
-    """Register the opt-in --monocle-eval-matrix option.
+    """Register the opt-in --monocle-eval-matrix and --monocle-scenario-results options.
 
-    See `eval_matrix.py` for the recorder implementation. Off by default:
-    a plain `pytest` invocation with neither this flag nor the
-    MONOCLE_EVAL_MATRIX env var set records nothing and writes no file.
+    See `eval_matrix.py` and `scenario_results.py`. Both are off by default:
+    a plain `pytest` invocation with neither flag nor its env var set
+    records nothing and writes no file.
     """
     eval_matrix.pytest_addoption(parser)
-    parser.addoption(
-        "--monocle-scenario-results", action="store_true", default=False,
-        help="Save scenario results (a summary and one report per failure) under "
-             f".monocle/test_results/<run>/. Also enabled by {scenario_results.RESULTS_ENV}=true.",
-    )
+    scenario_results.pytest_addoption(parser)
 
 
 def pytest_configure(config) -> None:
-    if config.getoption("monocle_scenario_results", default=False):
-        scenario_results.enable()
+    scenario_results.pytest_configure(config)
 
 
 def pytest_terminal_summary(terminalreporter) -> None:
-    if scenario_results.run_dir():
-        terminalreporter.write_line(f"Scenario results saved to {scenario_results.run_dir()}")
+    scenario_results.pytest_terminal_summary(terminalreporter)
 
 
 def pytest_sessionfinish(session) -> None:

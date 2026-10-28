@@ -1,8 +1,19 @@
 import json
 import unittest
 from types import SimpleNamespace
+from unittest.mock import patch
 
-from monocle_apptrace.instrumentation.metamodel.langchain._helper import extract_messages
+from monocle_apptrace.instrumentation.common.constants import (
+    INFERENCE_AGENT_DELEGATION,
+    INFERENCE_TOOL_CALL,
+    INFERENCE_TURN_END,
+)
+from monocle_apptrace.instrumentation.metamodel.langchain._helper import (
+    agent_inference_type,
+    extract_assistant_message,
+    extract_messages,
+    extract_tool_name,
+)
 
 
 class _Msg:
@@ -87,6 +98,72 @@ class TestExtractMessagesInputShapes(unittest.TestCase):
 
     def test_empty_args(self):
         self.assertEqual(extract_messages(()), [])
+
+
+FLIGHT = {"name": "book_flight", "args": {"to": "SEA"}, "id": "c1", "type": "tool_call"}
+HOTEL = {"name": "book_hotel", "args": {"hotel": "Hyatt"}, "id": "c2", "type": "tool_call"}
+
+
+def _arguments(tool_calls):
+    return {"result": SimpleNamespace(content="", type="ai", tool_calls=tool_calls),
+            "exception": None}
+
+
+class TestAssistantMessageToolCalls(unittest.TestCase):
+    """A model can ask for several tools in one response; record them all."""
+
+    def test_every_tool_call_is_recorded(self):
+        recorded = json.loads(extract_assistant_message(_arguments([FLIGHT, HOTEL])))
+        self.assertEqual([call["name"] for call in recorded["ai"]],
+                         ["book_flight", "book_hotel"])
+
+    def test_a_single_tool_call_keeps_its_old_shape(self):
+        recorded = json.loads(extract_assistant_message(_arguments([FLIGHT])))
+        self.assertEqual(recorded["ai"], FLIGHT)
+
+    def test_no_tool_calls_records_nothing(self):
+        self.assertEqual(extract_assistant_message(_arguments([])), "")
+
+
+class TestToolName(unittest.TestCase):
+    """entity.3.name: one name on its own, several as a list."""
+
+    def _name_for(self, tool_calls):
+        result = SimpleNamespace(content="", type="ai", tool_calls=tool_calls,
+                                 response_metadata={"finish_reason": "tool_calls"})
+        return extract_tool_name({"result": result, "exception": None})
+
+    def test_one_tool_call_is_reported_as_a_plain_name(self):
+        self.assertEqual(self._name_for([FLIGHT]), "book_flight")
+
+    def test_several_tool_calls_are_all_reported(self):
+        self.assertEqual(self._name_for([FLIGHT, HOTEL]), ["book_flight", "book_hotel"])
+
+    def test_no_tool_calls_reports_nothing(self):
+        self.assertIsNone(self._name_for([]))
+
+    def test_an_entry_without_a_name_does_not_lose_the_others(self):
+        self.assertEqual(self._name_for([FLIGHT, {"args": {}}, HOTEL]),
+                         ["book_flight", "book_hotel"])
+
+
+class TestAgentInferenceType(unittest.TestCase):
+    """A delegation counts wherever it sits in the list, not only first."""
+
+    def _type_for(self, tool_calls):
+        with patch("monocle_apptrace.instrumentation.metamodel.langchain._helper.get_value",
+                   return_value="transfer_to_"):
+            return agent_inference_type(_arguments(tool_calls))
+
+    def test_delegation_after_a_plain_tool_call(self):
+        handoff = {"name": "transfer_to_hotel_agent", "args": {}, "id": "c3"}
+        self.assertEqual(self._type_for([FLIGHT, handoff]), INFERENCE_AGENT_DELEGATION)
+
+    def test_plain_tool_calls_only(self):
+        self.assertEqual(self._type_for([FLIGHT, HOTEL]), INFERENCE_TOOL_CALL)
+
+    def test_no_tool_calls_ends_the_turn(self):
+        self.assertEqual(self._type_for([]), INFERENCE_TURN_END)
 
 
 if __name__ == "__main__":

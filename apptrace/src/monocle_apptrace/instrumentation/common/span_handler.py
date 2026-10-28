@@ -301,6 +301,10 @@ class SpanHandler:
             span.set_attribute(f"entity.{span_index}.name", workflow_name)
         workflow_type = SpanHandler.get_workflow_type(to_wrap)
         span.set_attribute(f"entity.{span_index}.type", workflow_type)
+        # Parent came from another process (e.g. an A2A caller), so this is the root of this app's trace.
+        parent = getattr(span, "parent", None)
+        if getattr(parent, "is_remote", False) is True:
+            span.set_attribute("parent.is_remote", True)
 
     @staticmethod
     def is_workflow_span(span: Span) -> bool:

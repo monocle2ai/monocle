@@ -351,6 +351,7 @@ async def test_stream_single_tool_call(setup):
             },
         ],
         tools=COFFEE_TOOLS,
+        tool_choice="none",  # force a text answer, not another tool call
         stream=True,
         max_tokens=200,
     )

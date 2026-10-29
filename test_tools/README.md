@@ -235,7 +235,9 @@ pytest test_scenarios.py
 ```
 
 The first run generates about fifteen scenarios per goal into `scenarios.json`; later runs
-reuse it. A failure prints the conversation and the reason. `-k redteam` runs one kind.
+reuse it. A failure prints the reason and the conversation, with each turn's trace id.
+`-k redteam` runs one kind. Add `--monocle-scenario-results` to also log every result to
+`.monocle/test_results/scenarios_<time>.log`.
 
 **3. Send the conversations to Okahu (optional):** set `MONOCLE_EXPORTER=okahu` and
 `OKAHU_API_KEY`. Each conversation arrives as its own session.

@@ -3,10 +3,18 @@
 A MockTransport serves the agent card and the JSON-RPC answers, so these run
 the real a2a SDK client without a server.
 """
+import base64
+import gzip
 import json
 
 import httpx
 import pytest
+
+from monocle_apptrace.instrumentation.common import trace_return as tr
+from monocle_apptrace.instrumentation.common.constants import (
+    TRACE_RETURN_REQUEST_HEADER,
+    TRACE_RETURN_RESPONSE_HEADER,
+)
 
 from monocle_test_tools.runner.a2a_runner import A2ARunner
 from monocle_test_tools.runner.runner import AgentTypes, get_agent_runner
@@ -42,6 +50,22 @@ def _task_result(request_id, text="10 USD is 830 INR", task_id="task-1",
     }
 
 
+SPAN_JSON = json.dumps([{
+    "name": "get_exchange_rate",
+    "context": {"trace_id": "0x" + "0" * 31 + "1", "span_id": "0x" + "0" * 15 + "1",
+                "trace_state": "[]"},
+    "kind": "SpanKind.INTERNAL",
+    "parent_id": None,
+    "start_time": "2026-07-21T00:00:00.000000Z",
+    "end_time": "2026-07-21T00:00:01.000000Z",
+    "status": {"status_code": "OK"},
+    "attributes": {"span.type": "agentic.tool.invocation"},
+    "events": [],
+    "links": [],
+    "resource": {"attributes": {"service.name": "currency_agent"}, "schema_url": ""}
+}])
+
+
 def _open_task_result(request_id):
     """A task still waiting on the user, so the next message continues it."""
     return _task_result(request_id, text="Which currency?", state="input-required")
@@ -53,8 +77,9 @@ class FakeA2AServer:
     Records every request, so a test can check what the runner put on the wire.
     """
 
-    def __init__(self, *, answer=_task_result):
+    def __init__(self, *, answer=_task_result, return_spans: bool = False):
         self.answer = answer
+        self.return_spans = return_spans
         self.requests = []
         self.sent_messages = []
 
@@ -69,8 +94,18 @@ class FakeA2AServer:
         body = json.loads(request.content)
         self.sent_messages.append(body["params"]["message"])
         payload = json.dumps(self.answer(body["id"])).encode("utf-8")
-        return httpx.Response(200, content=payload,
-                              headers={"content-type": "application/json"})
+        if not self.return_spans:
+            return httpx.Response(200, content=payload,
+                                  headers={"content-type": "application/json"})
+
+        delimiter = tr.make_delimiter()
+        trailer = base64.b64encode(gzip.compress(SPAN_JSON.encode("utf-8")))
+        return httpx.Response(
+            200,
+            content=payload + delimiter.encode("utf-8") + trailer,
+            headers={"content-type": "application/json",
+                     TRACE_RETURN_RESPONSE_HEADER: tr.build_response_header_value(delimiter)},
+        )
 
 
 # -- registration ----------------------------------------------------------
@@ -249,6 +284,49 @@ async def test_message_result_is_remembered_too():
 
 
 # -- trace sources --------------------------------------------------------
+
+# -- spans the agent returns with its answer -------------------------------
+
+@pytest.mark.asyncio
+async def test_returned_spans_are_loaded(monkeypatch):
+    monkeypatch.setenv("MONOCLE_TRACE_RETRIEVAL_KEY", "s3cret")
+    server = FakeA2AServer(return_spans=True)
+    runner = A2ARunner(transport=server.transport())
+
+    response = await runner.run_agent_async(BASE_URL, "hi")
+
+    # The answer still parses: the spans came off before the SDK saw it.
+    assert response.root.result.artifacts[0].parts[0].root.text == "10 USD is 830 INR"
+    assert [span.name for span in runner.get_remote_spans()] == ["get_exchange_rate"]
+    assert server.requests[-1].headers[TRACE_RETURN_REQUEST_HEADER] == "s3cret"
+
+
+@pytest.mark.asyncio
+async def test_returned_spans_do_not_carry_into_the_next_turn():
+    server = FakeA2AServer(return_spans=True)
+    runner = A2ARunner(transport=server.transport())
+    await runner.run_agent_async(BASE_URL, "hi", session_id="s1")
+    assert runner.get_remote_spans()
+
+    server.return_spans = False
+    await runner.run_agent_async(BASE_URL, "again", session_id="s1")
+    assert runner.get_remote_spans() == []
+
+
+@pytest.mark.asyncio
+async def test_nothing_is_fetched_when_the_agent_returned_its_spans(monkeypatch):
+    """The same spans twice would double every assertion, so the pull is skipped."""
+    monkeypatch.delenv("A2A_TRACE_WORKFLOW", raising=False)
+    server = FakeA2AServer(return_spans=True)
+    runner = A2ARunner(trace_workflow_name="currency_agent",
+                       transport=server.transport())
+
+    await runner.run_agent_async(BASE_URL, "hi")
+
+    assert runner.get_remote_spans()
+    assert runner.get_remote_traces_source() is None
+    assert runner.get_remote_trace_query() == {}
+
 
 # -- where the agent's spans come from -------------------------------------
 

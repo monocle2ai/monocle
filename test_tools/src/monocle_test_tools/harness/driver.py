@@ -13,7 +13,7 @@ except ImportError:  # an older monocle_apptrace; only scenario runs need it, so
 from monocle_test_tools.harness.evaluator import ResponseEvaluator
 from monocle_test_tools.harness.result import ScenarioResult, TurnRecord
 from monocle_test_tools.harness.scenario import ScenarioTestCase
-from monocle_test_tools.harness.test_agent import build_test_agent
+from monocle_test_tools.harness.test_agent import build_test_agent, from_target
 from monocle_test_tools.runner.runner import get_agent_runner
 from monocle_test_tools.validator import MonocleValidator
 
@@ -128,8 +128,9 @@ class ScenarioHarness:
                     passed = True
                     break
                 # The tester's tool calls stay in its history, or it starts inventing values
-                # instead of calling the tools. The target's reply comes back as the next user turn.
-                messages = list(state["messages"]) + [HumanMessage(content=str(reply))]
+                # instead of calling the tools. The target's reply comes back as the next user turn,
+                # marked as the target's so the tester doesn't answer it in the target's role.
+                messages = list(state["messages"]) + [HumanMessage(content=from_target(reply))]
             else:
                 if evaluator:
                     failure_reason = "max turns exhausted"

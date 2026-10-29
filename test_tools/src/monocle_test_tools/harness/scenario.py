@@ -28,7 +28,7 @@ class ScenarioTestCase(BaseModel):
     scenario: str = Field(..., min_length=1)
     persona: str
     params: list[ScenarioParam] = Field(default_factory=list)
-    success_criteria: str = Field(..., min_length=1)
+    success_criteria: Optional[str] = Field(None, min_length=1)   # None: nothing is judged
     max_turns: int = Field(10, ge=1)
     min_turns: int = Field(1, ge=1)  # the criteria don't count as met before this turn
     session_id: Optional[str] = None

@@ -19,6 +19,14 @@ class MinimalSeedFile(BaseModel):
     max_turns: int = 8
 
 
+class DescriptionSeed(BaseModel):
+    """A seed with no goals: the model writes the requests, and nothing is judged."""
+
+    agent: str
+    count: int = Field(50, ge=1)
+    max_turns: int = 8
+
+
 class SeedParam(BaseModel):
     value: Any
     description: str
@@ -47,7 +55,7 @@ class SeedFile(BaseModel):
 class ParamSplit(BaseModel):
     name: str = Field(..., description="short snake_case name, e.g. destination")
     value: str = Field(..., description="the value as it appears in the sentence")
-    description: str = Field(..., description="what the detail is, as the agent would ask for it")
+    description: str = Field(..., description="a short label for the detail, e.g. destination airport; never a question")
 
 
 class GoalSplit(BaseModel):
@@ -71,8 +79,9 @@ Rules:
 "Book a flight from Bombay to Hyderabad on 22 Oct 2026" -> "Book a flight from one airport \
 to another on a date".
 - `params` has one entry per specific value in the request, with a short snake_case name, \
-the value exactly as written, and a description worded the way the agent would ask for it \
-("destination airport", "check-in date").
+the value exactly as written, and a description that is a short label for the detail, \
+worded the way the agent would refer to it ("destination airport", "number of guests"). \
+The description is never a question.
 - `success` is the one sentence the agent would say when the goal is achieved, written \
 generally ("The flight has been booked.") rather than repeating the details.
 - `side_effect` is true when the goal creates, sends, books, pays for or changes something.
@@ -110,3 +119,22 @@ def unique(name: str, used: set[str]) -> str:
         name, n = f"{base}_{n}", n + 1
     used.add(name)
     return name
+
+
+class Requests(BaseModel):
+    requests: list[str] = Field(..., description="what each user asks, one sentence each, with concrete details")
+
+
+REQUESTS_PROMPT = """Here is a description of an AI agent:
+
+{agent}
+
+Write {count} different requests that real users would bring to this agent, one sentence each, \
+with concrete, plausible details (names, places, dates, amounts) instead of placeholders. Cover \
+everything the description says the agent does, and the ordinary variety of real users: simple \
+requests, ones with several parts, vague ones, ones with a detail missing."""
+
+
+def write_requests(seed: DescriptionSeed, model: Any) -> list[str]:
+    prompt = REQUESTS_PROMPT.format(agent=seed.agent, count=seed.count)
+    return model.with_structured_output(Requests).invoke(prompt).requests[:seed.count]

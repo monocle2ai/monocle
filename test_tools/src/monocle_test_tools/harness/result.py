@@ -13,6 +13,7 @@ class TurnRecord(BaseModel):
     target_response: Any = None
     verdict: Optional[Verdict] = None                       # None when the agent errored
     param_tools_called: list[ParamCall] = Field(default_factory=list)
+    trace_id: Optional[str] = None                          # the agent's trace for this turn
 
 
 class ScenarioResult(BaseModel):
@@ -26,25 +27,34 @@ class ScenarioResult(BaseModel):
     turns_used: int
     max_turns: int
     failure_reason: Optional[str] = None
+    reason: Optional[str] = None                            # the judge's explanation, or the agent's error
+    success_criteria: Optional[str] = None
+    session_id: Optional[str] = None
     turns: list[TurnRecord] = Field(default_factory=list, repr=False)
     missing_required_params: list[str] = Field(default_factory=list)
     spans: tuple = Field((), repr=False)                    # the agent's spans across every turn
     per_turn_spans: list[tuple] = Field(default_factory=list, repr=False)
 
-    def report(self) -> str:
-        """The run as a transcript, used as the failure message."""
-        lines = [f"{'PASSED' if self.passed else 'FAILED'} scenario '{self.scenario}' "
-                 f"after {self.turns_used}/{self.max_turns} turns"]
-        if self.failure_reason:
-            lines.append(f"  reason: {self.failure_reason}")
+    def report(self, saved: Optional[str] = None) -> str:
+        """The failure message: what went wrong, where to look, then the conversation."""
+        lines = [self.failure_reason or ("passed" if self.passed else "failed")]
+        lines += [_field(f"  {label:<10}", value) for label, value in
+                  [("reason", self.reason), ("criteria", self.success_criteria),
+                   ("session", self.session_id), ("saved", saved)] if value]
         for record in self.turns:
-            prefix = f"  turn {record.turn}  "
-            indent = " " * len(prefix)
+            lines += ["", f"  turn {record.turn}" + (f"  trace {record.trace_id}" if record.trace_id else "")]
             for call in record.param_tools_called:
-                lines.append(f"{prefix}tester> [called {call.name}()] ==> {call.value}")
-                prefix = indent
-            lines.append(f"{prefix}tester> {record.tester_message}")
-            lines.append(f"{indent}target> {record.target_response}")
-            if record.verdict is not None:
-                lines.append(f"{indent}verdict> {'met' if record.verdict.met else 'not met'} -- {record.verdict.reason}")
+                lines.append(_field("    param  ", f"{call.name} = {call.value}"))
+            lines.append(_field("    user   ", record.tester_message))
+            if record.verdict is None:
+                lines.append("    agent  (error, see reason)")
+                continue
+            lines.append(_field("    agent  ", record.target_response))
+            outcome = "violated" if record.verdict.violated else "met" if record.verdict.met else "not met"
+            lines.append(_field("    judge  ", f"[{outcome}] {record.verdict.reason}"))
         return "\n".join(lines)
+
+
+def _field(label: str, value: Any) -> str:
+    """``label`` then ``value``, with any further lines of ``value`` lined up under the first."""
+    return label + str(value).replace("\n", "\n" + " " * len(label))

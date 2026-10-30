@@ -239,6 +239,9 @@ reuse it. A failure prints the reason and the conversation, with each turn's tra
 `-k redteam` runs one kind. Add `--monocle-scenario-results` to also log every result to
 `.monocle/test_results/scenarios_<time>.log`.
 
+No API key, or none you can use? Set `MONOCLE_TEST_AGENT_MODEL=local` (or pass `model="local"`)
+to run a small open model on your machine instead. See [local models](src/monocle_test_tools/harness/README.md#local-models).
+
 **3. Send the conversations to Okahu (optional):** set `MONOCLE_EXPORTER=okahu` and
 `OKAHU_API_KEY`. Each conversation arrives as its own session.
 

@@ -377,6 +377,8 @@ class MonocleValidator:
     async def test_scenario_async(self, agent, agent_type: str, scenario, *, model: Any = None,
                                   judge_model: Any = None):
         """Run ``scenario`` as a live conversation with ``agent``; on failure the transcript is the message.
+        ``model`` plays the user and ``judge_model`` judges, defaulting to ``MONOCLE_TEST_AGENT_MODEL``.
+        ``"local"`` runs an open model on this machine, with no API key."""
         ``model`` plays the user and ``judge_model`` judges, defaulting to ``MONOCLE_TEST_AGENT_MODEL``."""
         __tracebackhide__ = True
         from monocle_test_tools import scenario_results

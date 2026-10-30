@@ -305,7 +305,8 @@ def setup_monocle_telemetry(
         If False, only use the provided wrapper_methods.
     monocle_exporters_list : str, optional
         Comma-separated list of exporters to use. This will override the env setting MONOCLE_EXPORTER.
-        Supported exporters are: s3, blob, okahu, file, memory, console, otlp, otlp-genai-semconv.
+        Supported exporters are the names in ``monocle_exporters`` (for example s3, blob,
+        gcs, file, memory, console, otlp, otlp-genai-semconv).
         For OTLP exporter, configure the endpoint via OTEL_EXPORTER_OTLP_ENDPOINT environment variable.
         This can't be combined with `span_processors`.
     otel_genai_semconv : str or bool, optional

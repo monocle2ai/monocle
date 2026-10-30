@@ -120,7 +120,7 @@ def _instrument(workflow_name, with_okahu=False):
     memory_exporter = MonocleInMemorySpanExporter()
     processors = [SimpleSpanProcessor(memory_exporter)]
     if with_okahu:
-        from monocle_apptrace.exporters.okahu.okahu_exporter import OkahuSpanExporter
+        from monocle_apptrace.providers.okahu.okahu_exporter import OkahuSpanExporter
 
         processors.append(BatchSpanProcessor(OkahuSpanExporter()))
     instrumentor = setup_monocle_telemetry(

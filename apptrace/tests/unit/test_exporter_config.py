@@ -14,14 +14,19 @@ class TestHandler(unittest.TestCase):
         # Isolate each test from ambient env vars and .env file lookups to prevent config leakage.
         self._env_patcher = patch.dict(os.environ, {}, clear=True)
         self._env_patcher.start()
-        self._env_value_patcher = patch(
-            "monocle_apptrace.exporters.okahu.okahu_exporter.get_monocle_env_value",
-            side_effect=lambda key: os.environ.get(key),
-        )
-        self._env_value_patcher.start()
+        self._env_value_patchers = [
+            patch(target, side_effect=lambda key: os.environ.get(key))
+            for target in (
+                "monocle_apptrace.exporters.monocle_exporters.get_monocle_env_value",
+                "monocle_apptrace.providers.okahu.okahu_exporter.get_monocle_env_value",
+            )
+        ]
+        for patcher in self._env_value_patchers:
+            patcher.start()
 
     def tearDown(self):
-        self._env_value_patcher.stop()
+        for patcher in self._env_value_patchers:
+            patcher.stop()
         self._env_patcher.stop()
 
     def test_default_exporter(self):

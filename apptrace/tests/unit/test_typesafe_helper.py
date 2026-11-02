@@ -123,5 +123,30 @@ class TestAdapter(unittest.TestCase):
         self.assertIs(_helper.TYPESAFE_ADAPTER.extract_answers, _helper.extract_answers)
 
 
+class TestTypesafeMethods(unittest.TestCase):
+    def test_methods_target_sync_and_async_system_one(self):
+        from monocle_apptrace.instrumentation.metamodel.typesafe.methods import TYPESAFE_METHODS
+        targets = {(m["package"], m["object"], m["method"]) for m in TYPESAFE_METHODS}
+        self.assertIn(
+            ("typesafe_sdk._core.client.sync.client", "TypeSafeClient", "system_one"), targets
+        )
+        self.assertIn(
+            ("typesafe_sdk._core.client.aio.client", "AsyncTypeSafeClient", "system_one"), targets
+        )
+
+    def test_methods_use_decision_processor_and_handler(self):
+        from monocle_apptrace.instrumentation.common.constants import SPAN_TYPES
+        from monocle_apptrace.instrumentation.metamodel.typesafe.methods import TYPESAFE_METHODS
+        for m in TYPESAFE_METHODS:
+            self.assertEqual(m["output_processor"]["type"], SPAN_TYPES.INFERENCE)
+            self.assertEqual(m["span_handler"], "non_framework_handler")
+
+    def test_registered_in_default_methods_list(self):
+        from monocle_apptrace.instrumentation.common.wrapper_method import DEFAULT_METHODS_LIST
+        from monocle_apptrace.instrumentation.metamodel.typesafe.methods import TYPESAFE_METHODS
+        for m in TYPESAFE_METHODS:
+            self.assertIn(m, DEFAULT_METHODS_LIST)
+
+
 if __name__ == "__main__":
     unittest.main()

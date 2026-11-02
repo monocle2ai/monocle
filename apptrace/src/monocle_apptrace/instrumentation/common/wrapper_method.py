@@ -51,6 +51,7 @@ from monocle_apptrace.instrumentation.metamodel.adk.methods import ADK_METHODS
 from monocle_apptrace.instrumentation.metamodel.adk.adk_handler import AdkSpanHandler
 from monocle_apptrace.instrumentation.metamodel.mistral.methods import MISTRAL_METHODS
 from monocle_apptrace.instrumentation.metamodel.strands.methods import STRAND_METHODS
+from monocle_apptrace.instrumentation.metamodel.typesafe.methods import TYPESAFE_METHODS
 from monocle_apptrace.instrumentation.metamodel.strands.strands_processor import StrandsSpanHandler
 from monocle_apptrace.instrumentation.metamodel.agentcore.methods import AGENTCORE_METHODS
 from monocle_apptrace.instrumentation.metamodel.claude_cli.methods import CLAUDE_CLI_PROXY_METHODS
@@ -135,6 +136,7 @@ DEFAULT_METHODS_LIST = (
     ADK_METHODS +
     MISTRAL_METHODS +
     HUGGING_FACE_METHODS +
+    TYPESAFE_METHODS +
     STRAND_METHODS +
     AGENTCORE_METHODS +
     CLAUDE_CLI_PROXY_METHODS +

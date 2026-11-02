@@ -77,6 +77,12 @@ class TestDecisionProcessorFactory(unittest.TestCase):
         self.assertEqual(_find_attr(model, "name")["accessor"](self.arguments), "demo-1.0.0")
         self.assertEqual(_find_attr(model, "type")["accessor"](self.arguments), "model.decision.demo-1.0.0")
 
+    def test_model_block_is_post_execution(self):
+        # entity.2 (model) reads result.model, so it MUST run in the post-execution pass.
+        model = self.processor["attributes"][1]
+        self.assertEqual(_find_attr(model, "name").get("phase"), "post_execution")
+        self.assertEqual(_find_attr(model, "type").get("phase"), "post_execution")
+
     def test_input_output_events(self):
         data_input = _find_event(self.processor, "data.input")
         self.assertEqual(_find_attr(data_input["attributes"], "input")["accessor"](self.arguments), ["in"])

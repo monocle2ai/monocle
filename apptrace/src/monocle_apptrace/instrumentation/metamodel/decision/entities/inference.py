@@ -36,10 +36,12 @@ def make_decision_inference(adapter: "_helper.DecisionAdapter") -> dict:
                 {
                     "_comment": "resolved decision model name",
                     "attribute": "name",
+                    "phase": "post_execution",
                     "accessor": lambda arguments: adapter.get_model(arguments),
                 },
                 {
                     "attribute": "type",
+                    "phase": "post_execution",
                     "accessor": lambda arguments: "model.decision."
                     + (adapter.get_model(arguments) or "unknown"),
                 },

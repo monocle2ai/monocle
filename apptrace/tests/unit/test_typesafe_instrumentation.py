@@ -4,6 +4,7 @@ produces an INFERENCE span with the expected entity attributes and events.
 No typesafe_sdk required — the fake client is registered via wrapper_methods at this
 module's import path.
 """
+import asyncio
 import json
 import unittest
 from types import SimpleNamespace
@@ -15,7 +16,7 @@ from monocle_apptrace.instrumentation.common.instrumentor import (
     get_monocle_instrumentor,
     setup_monocle_telemetry,
 )
-from monocle_apptrace.instrumentation.common.wrapper import task_wrapper
+from monocle_apptrace.instrumentation.common.wrapper import atask_wrapper, task_wrapper
 from monocle_apptrace.instrumentation.metamodel.typesafe.methods import DECISION_INFERENCE
 
 
@@ -37,6 +38,17 @@ class FakeSystemOneResponse:
 class FakeTypeSafeClient:
     base_url = "https://api.typesafe.ai"
     def system_one(self, state, questions, *, model=None):
+        return FakeSystemOneResponse(
+            model="jev-1.13.0",
+            input_tokens=120,
+            output_tokens=5,
+            answers={"label": FakeChoiceAnswer("angry", 0.9, {"angry": 0.8, "calm": 0.2})},
+        )
+
+
+class FakeAsyncTypeSafeClient:
+    base_url = "https://api.typesafe.ai"
+    async def system_one(self, state, questions, *, model=None):
         return FakeSystemOneResponse(
             model="jev-1.13.0",
             input_tokens=120,
@@ -69,7 +81,15 @@ class TestTypesafeInstrumentation(unittest.TestCase):
                     "wrapper_method": task_wrapper,
                     "output_processor": DECISION_INFERENCE,
                     "span_handler": "non_framework_handler",
-                }
+                },
+                {
+                    "package": __name__,
+                    "object": "FakeAsyncTypeSafeClient",
+                    "method": "system_one",
+                    "wrapper_method": atask_wrapper,
+                    "output_processor": DECISION_INFERENCE,
+                    "span_handler": "non_framework_handler",
+                },
             ],
             union_with_default_methods=False,
         )
@@ -102,6 +122,9 @@ class TestTypesafeInstrumentation(unittest.TestCase):
         # Resolved model, not the requested "jev-latest" alias.
         self.assertEqual(_attr(span, "entity.2.name"), "jev-1.13.0")
         self.assertEqual(_attr(span, "entity.2.type"), "model.decision.jev-1.13.0")
+        # Model is the 2nd entity; lock the count so a regression where the model block
+        # fails to register as entity.2 (the bug fixed on this branch) is caught.
+        self.assertEqual(_attr(span, "entity.count"), 2)
 
     def test_events(self):
         span = self._run()
@@ -120,6 +143,29 @@ class TestTypesafeInstrumentation(unittest.TestCase):
         self.assertEqual(meta["completion_tokens"], 5)
         self.assertEqual(meta["total_tokens"], 125)
         self.assertEqual(meta["finish_reason"], "success")
+        self.assertEqual(meta["finish_type"], "success")
+
+    def test_async_resolved_model_and_events(self):
+        asyncio.run(FakeAsyncTypeSafeClient().system_one(
+            state="I was charged twice.",
+            questions={"label": SimpleNamespace(type="choice", instructions="Tone?",
+                                                criteria={"calm": None, "angry": None})},
+            model="jev-latest",
+        ))
+        spans = self.exporter.get_finished_spans()
+        inference = [s for s in spans if s.attributes.get("span.type") == "inference"]
+        self.assertTrue(inference, f"no inference span; got "
+                                   f"{[s.attributes.get('span.type') for s in spans]}")
+        span = inference[0]
+        # Resolved model via the async path, not the requested alias.
+        self.assertEqual(_attr(span, "entity.2.name"), "jev-1.13.0")
+        self.assertEqual(_attr(span, "entity.2.type"), "model.decision.jev-1.13.0")
+        self.assertEqual(_attr(span, "entity.count"), 2)
+        events = {e.name: dict(e.attributes) for e in span.events}
+        response = json.loads(events["data.output"]["response"])
+        self.assertEqual(response["label"]["choice"], "angry")
+        meta = events["metadata"]
+        self.assertEqual(meta["total_tokens"], 125)
         self.assertEqual(meta["finish_type"], "success")
 
 

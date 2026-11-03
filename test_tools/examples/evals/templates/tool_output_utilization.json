@@ -1,0 +1,29 @@
+{
+    "name": "tool_output_utilization",
+    "eval_prompt": "You are evaluating how an agent used the results of the tools it called. For every tool call in the trace, compare what the tool returned with what the agent then told the customer about it.\n\nWork tool by tool. For each one, list the fields the tool returned, then find every claim in the agent's messages that draws on that tool. A claim is faithful when the tool output states it or it follows directly from the output. 'submitted' does not support 'approved', 'processed' or 'completed'. A refund ID, a status or a timeline that the tool did not return is invented, even if it is plausible.\n\nLabels:\n- faithful: every claim the agent makes about a tool's result is supported by that result, and nothing the tool returned was contradicted.\n- embellished: the agent reported the results correctly but added details the tools did not return, such as an identifier, a status or a timeline.\n- misread: a value a tool returned was reported as a different value, or a tool result was ignored: a wrong amount, a wrong order id, eligibility reported the opposite way, a returned error presented as success.\n\nThe two are different kinds of mistake. Reporting a returned value wrongly is 'misread'. Adding a value no tool returned, including a status such as 'processed' or 'approved' when the tool only said 'submitted', is 'embellished'. An agent that reports every returned value correctly and adds nothing is 'faithful'.",
+    "structure_output": {
+        "label": {
+            "description": "'faithful', 'embellished' or 'misread'",
+            "enums": ["faithful", "embellished", "misread"]
+        },
+        "unsupported_claims": {
+            "description": "Each claim the agent made that no tool result supports, quoted, with the tool it was checked against.",
+            "type": "array",
+            "items": {"type": "string"}
+        },
+        "explanation": {
+            "description": "Tool by tool, what was returned and how the agent used it, and why the label follows."
+        }
+    },
+
+    "evidence_scope": {
+        "span_types": ["agentic.turn", "agentic.invocation", "agentic.tool.invocation"],
+        "roles": ["user", "assistant", "tool"],
+        "events": ["input", "output"]
+    },
+
+    "llm": {
+        "model": "openai:gpt-4.1-mini",
+        "params": {"temperature": 0, "max_tokens": 2000}
+    }
+}

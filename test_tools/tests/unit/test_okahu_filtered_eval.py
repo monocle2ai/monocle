@@ -136,6 +136,24 @@ def test_submit_custom_sends_template_object():
     assert "trace_id" not in kwargs["params"]
 
 
+def test_submit_custom_prepares_monocle_template_and_sends_evidence_scope():
+    c = _client()
+    scope = {"span_types": ["inference"], "roles": ["user", "assistant"], "events": ["input", "output"]}
+    tmpl = {"name": "grounding", "eval_prompt": "p",
+            "structure_output": {"label": {"description": "d", "enums": ["a", "b"]}},
+            "evidence_scope": scope,
+            "llm": {"model": "openai:gpt-4.1-mini", "params": {"temperature": 0}}}
+    original = json.loads(json.dumps(tmpl))
+    with patch.object(feval.requests, "post",
+                      return_value=_resp({"job_id": "job-3", "result": None})) as mock_post:
+        c.submit("wf", template=tmpl, fact_name="traces", start_time="s", end_time="e")
+    _, kwargs = mock_post.call_args
+    assert kwargs["json"]["evidence_scope"] == scope
+    assert kwargs["json"]["template"] == {"name": "grounding", "eval_prompt": "p",
+                                          "structure_output": {"label": {"description": "d", "enums": ["a", "b"]}}}
+    assert tmpl == original
+
+
 # --- Task 5: poll / fact-id discovery / query / coverage --------------------
 
 def test_query_results_builtin_sends_eval_name_and_bare_hex_ids():

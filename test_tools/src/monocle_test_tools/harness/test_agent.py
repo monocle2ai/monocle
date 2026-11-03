@@ -24,7 +24,19 @@ the target agent asks for it. That restriction covers ONLY the on-request list -
 details you already know are yours to state freely, and you should open with them.
 - Keep going until the success criteria are met, and adjust your next message to what \
 the target agent just said.
-- If the target agent goes off track, push it back toward the scenario, in persona."""
+- If the target agent goes off track, push it back toward the scenario, in persona.
+- You only ever write the customer's side. Never take the target agent's role: do not \
+ask it the questions it should be asking you, do not summarise the request back to it, \
+do not offer help. If it asks for something you were not given, answer as a real \
+customer would, for example that you have no preference."""
+
+# Naming this marker in the prompt makes the model write the target agent's lines itself.
+TARGET_REPLIED = "The target agent replied:\n"
+
+
+def from_target(reply: Any) -> str:
+    """The target agent's reply as the simulated user receives it, marked so it isn't answered in the agent's role."""
+    return TARGET_REPLIED + str(reply)
 
 
 class ParamCall(BaseModel):

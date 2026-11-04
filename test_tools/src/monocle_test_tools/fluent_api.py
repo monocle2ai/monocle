@@ -404,22 +404,29 @@ class TraceAssertion():
         self.mock_tools.append(mock_tool)
         return self
 
-    def with_evaluation(self, eval:Union[str, BaseEval], eval_options:Optional[dict] = None, repeat:int = 1) -> 'TraceAssertion':
-        """Set the evaluation method for input/output comparisons; ``repeat`` is how many times the judge runs per trace.
+    def with_evaluation(self, eval:Union[str, BaseEval], eval_options:Optional[dict] = None, repeat:int = 1,
+                        model:Optional[str] = None) -> 'TraceAssertion':
+        """Set the evaluation method for input/output comparisons.
 
-        Raises ValueError when eval_options holds a ``repeat`` key, ``repeat`` is below 1, or
-        ``repeat`` is above 1 for an evaluator other than ``"monocle"``.
+        ``repeat`` is how many times the judge runs per trace. ``model`` runs the judge on a model
+        served on this machine, ``"local"`` or ``"local:<name>"``, in place of the template's, so no
+        API key is needed. Both are for ``"monocle"``.
+
+        Raises ValueError when eval_options holds a ``repeat`` or ``model`` key, ``repeat`` is below 1,
+        or either is given for an evaluator other than ``"monocle"``.
         """
-        if eval_options and 'repeat' in eval_options:
-            raise ValueError("pass repeat= to with_evaluation as a keyword, not in eval_options")
+        if eval_options and ('repeat' in eval_options or 'model' in eval_options):
+            raise ValueError("pass repeat= and model= to with_evaluation as keywords, not in eval_options")
         if repeat < 1:
             raise ValueError(f"repeat must be at least 1, got {repeat}")
         updated_eval_options = eval_options.copy() if eval_options else {}
         updated_eval_options['trace_source'] = self.validator._trace_source
         updated_eval_options['repeat'] = repeat
+        if model is not None:
+            updated_eval_options['model'] = model
         self._eval = get_evaluator(eval, updated_eval_options)
-        if repeat > 1 and not isinstance(self._eval, MonocleEval):
-            raise ValueError("repeat is supported by with_evaluation('monocle') only")
+        if (repeat > 1 or model is not None) and not isinstance(self._eval, MonocleEval):
+            raise ValueError("repeat and model are supported by with_evaluation('monocle') only")
         return self
 
     def with_comparer(self, comparer:Union[str, BaseComparer]) -> 'TraceAssertion':

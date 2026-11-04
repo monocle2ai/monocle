@@ -289,12 +289,26 @@ def test_llm_judge_works_with_base_structured_output_and_params(monkeypatch):
     assert run.total_tokens == 42
 
 
-def test_local_judge_model_is_value_error(monkeypatch):
-    builder = use_chat_model(monkeypatch, FakeChatModel(None))
-    with pytest.raises(ValueError) as raised:
-        LlmJudge(LlmConfig(model="local:qwen"))
-    assert str(raised.value) == "local judge models arrive with Monocle PR #831; use a provider:model string for now"
-    assert builder.calls == []
+def use_local_chat_model(monkeypatch, chat_model) -> ModelBuilder:
+    from monocle_test_tools.harness import local_model
+
+    builder = ModelBuilder(chat_model)
+    monkeypatch.setattr(local_model, "local_chat_model", builder)
+    return builder
+
+
+def test_local_judge_is_served_on_this_machine_with_the_default_context(monkeypatch):
+    hosted = use_chat_model(monkeypatch, FakeChatModel(None))
+    local = use_local_chat_model(monkeypatch, FakeChatModel(None))
+
+    LlmJudge(LlmConfig(model="local"))
+    LlmJudge(LlmConfig(model="local:llama-3.2-3b", context_tokens=32768))
+
+    assert local.calls == [
+        {"model": "local", "context_tokens": 12288},
+        {"model": "local:llama-3.2-3b", "context_tokens": 32768},
+    ]
+    assert hosted.calls == []
 
 
 def test_llm_judge_builds_its_model_once_across_repeats(monkeypatch):

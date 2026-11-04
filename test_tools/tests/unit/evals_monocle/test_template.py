@@ -297,3 +297,19 @@ def test_unhashable_field_type_rejected():
 def test_min_confidence_that_is_not_a_number_rejected(min_confidence):
     message = rejected_message(llm={"model": "typesafe:judge", "min_confidence": min_confidence})
     assert "min_confidence" in message
+
+
+def test_context_tokens_on_a_local_model_is_kept():
+    template = load_with(llm={"model": "local:qwen3-4b", "context_tokens": 32768})
+    assert template.llm.context_tokens == 32768
+
+
+def test_context_tokens_on_a_hosted_model_rejected():
+    message = rejected_message(llm={"model": "openai:gpt-4.1", "context_tokens": 32768})
+    assert "local model only" in message
+
+
+@pytest.mark.parametrize("context_tokens", [0, -1, 1.5, "8192", True])
+def test_context_tokens_that_is_not_a_positive_whole_number_rejected(context_tokens):
+    message = rejected_message(llm={"model": "local", "context_tokens": context_tokens})
+    assert "context_tokens" in message

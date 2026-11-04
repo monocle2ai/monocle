@@ -36,13 +36,14 @@ STARTUP_SECONDS = 180
 _server: Optional[subprocess.Popen] = None
 _port: Optional[int] = None
 _model_path: Optional[str] = None
+_context_tokens: int = CONTEXT_TOKENS
 
 
 def is_local_spec(spec: Any) -> bool:
     return isinstance(spec, str) and (spec == "local" or spec.startswith("local:"))
 
 
-def local_chat_model(spec: str = "local") -> Any:
+def local_chat_model(spec: str = "local", context_tokens: int = CONTEXT_TOKENS) -> Any:
     if spec not in MODELS:
         raise ValueError(f"unknown local model '{spec}'; known: {', '.join(MODELS)}")
     try:
@@ -51,7 +52,7 @@ def local_chat_model(spec: str = "local") -> Any:
         raise ImportError("model='local' needs llama-cpp-python. Install it with "
                           f"`{install_command()}`") from None
     path = ensure_model(*MODELS[spec])
-    port = ensure_server(path)
+    port = ensure_server(path, context_tokens)
     return LocalChatOpenAI(base_url=f"http://127.0.0.1:{port}/v1", api_key="local",
                            model=os.path.basename(path), temperature=0, timeout=600)
 
@@ -74,19 +75,23 @@ def ensure_model(repo: str, filename: str) -> str:
     return hf_hub_download(repo, filename)
 
 
-def ensure_server(model_path: str) -> int:
-    """Start the server once per process and return its port. One server, one model."""
-    global _server, _port, _model_path
+def ensure_server(model_path: str, context_tokens: int = CONTEXT_TOKENS) -> int:
+    """Start the server once per process and return its port. One server, one model; a request
+    for a larger context than the running server has restarts it with the larger one."""
+    global _server, _port, _model_path, _context_tokens
     if _server is not None and _server.poll() is None:
         if model_path != _model_path:
             raise ValueError(f"a local model is already running ({os.path.basename(_model_path)}); "
                              "use the same local model for the test agent and the judge")
-        return _port
+        if context_tokens <= _context_tokens:
+            return _port
+        stop_server()
     _model_path = model_path
+    _context_tokens = context_tokens
     _port = _free_port()
     _server = subprocess.Popen(
         [sys.executable, "-m", "llama_cpp.server", "--model", model_path, "--n_gpu_layers", "-1",
-         "--n_ctx", str(CONTEXT_TOKENS), "--host", "127.0.0.1", "--port", str(_port)],
+         "--n_ctx", str(context_tokens), "--host", "127.0.0.1", "--port", str(_port)],
         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     atexit.register(stop_server)
     deadline = time.monotonic() + STARTUP_SECONDS

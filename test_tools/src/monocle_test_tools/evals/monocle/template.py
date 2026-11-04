@@ -36,6 +36,7 @@ class LlmConfig(BaseModel):
     model: str
     params: dict[str, int | float] = {}
     min_confidence: float | None = None
+    context_tokens: int | None = None
 
     @property
     def provider(self) -> str:
@@ -77,7 +78,7 @@ SPAN_TYPES = set(EvidenceScope.default().span_types)
 ROLES = set(EvidenceScope.default().roles)
 EVENTS = set(EvidenceScope.default().events)
 SCOPE_KEYS = {"span_types", "roles", "events"}
-LLM_KEYS = {"model", "params", "min_confidence"}
+LLM_KEYS = {"model", "params", "min_confidence", "context_tokens"}
 LLM_PARAMS = {"temperature", "top_p", "top_k", "max_tokens", "seed"}
 
 
@@ -285,6 +286,7 @@ def _check_llm(llm) -> LlmConfig:
         )
     _check_llm_params(llm.get("params", {}))
     _check_min_confidence(llm.get("min_confidence"))
+    _check_context_tokens(llm["model"], llm.get("context_tokens"))
     return LlmConfig(**llm)
 
 
@@ -300,6 +302,15 @@ def _check_llm_params(params) -> None:
     for param_name, value in params.items():
         if isinstance(value, bool) or not isinstance(value, (int, float)):
             raise TemplateError(f"'llm.params.{param_name}' must be a number.")
+
+
+def _check_context_tokens(model: str, context_tokens) -> None:
+    if context_tokens is None:
+        return
+    if isinstance(context_tokens, bool) or not isinstance(context_tokens, int) or context_tokens < 1:
+        raise TemplateError("'llm.context_tokens' must be a whole number of tokens above 0.")
+    if not (model == "local" or model.startswith("local:")):
+        raise TemplateError("'llm.context_tokens' applies to a local model only ('local' or 'local:<name>').")
 
 
 def _check_min_confidence(min_confidence) -> None:

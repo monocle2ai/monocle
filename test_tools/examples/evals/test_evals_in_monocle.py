@@ -7,11 +7,13 @@ eligibility agent and a refund agent, each with one tool. The refund tool return
 and a 3-5 day timeline.
 
 Each test skips unless the key for its template's llm.model is set: the provider before the
-colon, upper-cased, plus _API_KEY. "openai:gpt-4.1-mini" needs OPENAI_API_KEY.
+colon, upper-cased, plus _API_KEY. "openai:gpt-4.1-mini" needs OPENAI_API_KEY. The last test
+needs no key: model="local" judges on an open model on this machine.
 
 Run from test_tools:
     pytest examples/evals -v
 """
+import importlib.util
 import json
 import os
 from pathlib import Path
@@ -19,6 +21,7 @@ from pathlib import Path
 import pytest
 from monocle_test_tools import TraceAssertion
 from monocle_test_tools.file_span_loader import JSONSpanLoader
+from monocle_test_tools.harness.local_model import install_command
 
 HERE = Path(__file__).parent
 TEMPLATES = HERE / "templates"
@@ -43,6 +46,11 @@ def needs_model_key(name: str):
     model = json.loads(Path(template(name)).read_text(encoding="utf-8"))["llm"]["model"]
     key = f"{model.partition(':')[0].upper()}_API_KEY"
     return pytest.mark.skipif(not os.getenv(key), reason=f"needs {key} for {model}")
+
+
+needs_local_runtime = pytest.mark.skipif(
+    importlib.util.find_spec("llama_cpp") is None, reason=f"needs llama-cpp-python: {install_command()}"
+)
 
 
 @needs_model_key("tool_output_utilization")
@@ -102,3 +110,15 @@ def test_tool_output_utilization_on_a_decision_model(monocle_trace_asserter: Tra
 
     monocle_trace_asserter.with_evaluation("monocle") \
         .check_eval(template("tool_output_utilization_decision"), expected="embellished")
+
+
+@needs_local_runtime
+def test_agent_reports_only_what_its_tools_returned_on_a_local_model(monocle_trace_asserter: TraceAssertion):
+    """The first question again, with no API key: model="local" runs the judge on Qwen3-4B on this
+    machine through llama.cpp, in place of the model the template names. Everything else is the
+    same template and the same evidence. The first run downloads the model (about 2.5 GB) and
+    starts the server; each verdict takes a few seconds on an Apple-silicon GPU."""
+    monocle_trace_asserter.load_spans(refund_trace_spans())
+
+    monocle_trace_asserter.with_evaluation("monocle", repeat=3, model="local") \
+        .check_eval(template("tool_output_utilization"), expected="embellished")

@@ -18,7 +18,7 @@ An eval is an LLM-judge question asked of a trace: *was the answer grounded in w
 
 | | `"okahu"` | `"monocle"` |
 |---|---|---|
-| What you need | `OKAHU_API_KEY` | the key for the model the template names, e.g. `OPENAI_API_KEY` |
+| What you need | `OKAHU_API_KEY` | the key for the model the template names, e.g. `OPENAI_API_KEY`; or nothing, with `model="local"` |
 | Templates | built-in by name, and custom files | custom files only |
 | Model | operated by the service | any chat model LangChain can build (`openai:`, `anthropic:`, ...) or a decision model (`typesafe:`) |
 | Scope | one trace, or every trace of a workflow in a time window | one trace at a time |
@@ -650,9 +650,13 @@ monocle_trace_asserter.with_evaluation("monocle") \
 # Run the judge five times and assert the majority label
 monocle_trace_asserter.with_evaluation("monocle", repeat=5) \
     .check_eval("path/to/template.json", expected="ungrounded")
+
+# Judge on an open model on this machine, with no API key
+monocle_trace_asserter.with_evaluation("monocle", repeat=3, model="local") \
+    .check_eval("path/to/template.json", expected="ungrounded")
 ```
 
-`"monocle"` runs custom templates only. A built-in name such as `"hallucination"` raises `ValueError("'monocle' runs custom templates only; pass a template file path")`. `repeat` is a keyword of `with_evaluation`. It is not an option, and `repeat` inside `eval_options` raises.
+`"monocle"` runs custom templates only. A built-in name such as `"hallucination"` raises `ValueError("'monocle' runs custom templates only; pass a template file path")`. `repeat` and `model` are keywords of `with_evaluation`. They are not options, and either inside `eval_options` raises. `model` takes `"local"` or `"local:<name>"` and runs the judge on that model in place of the template's; the template still says what the judge asks and sees. Any other value raises: a hosted judge is named by the template.
 
 `"monocle"` judges traces: one verdict per trace in the asserter. `fact_name` is `"traces"` (the default); any other value raises `ValueError('with_evaluation("monocle") judges traces; fact_name="…" is not supported')`.
 
@@ -679,10 +683,16 @@ Unknown fields are rejected. A prompt that asks for evidence the scope leaves ou
 `llm.model` is one of:
 
 - `provider:model`, such as `openai:gpt-4.1-mini`. It is loaded through LangChain, so the provider's package and API key (for example `OPENAI_API_KEY`) must be present.
-- `local...` does not work yet. A model string starting with `local` raises `ValueError("local judge models arrive with Monocle PR #831; use a provider:model string for now")`.
+- `local` or `local:<name>`, an open model served on this machine through llama.cpp, with no API key: `local` is Qwen3-4B-Instruct; `local:llama-3.2-3b` and `local:phi-4-mini` are the others. `llama-cpp-python` is not a dependency; the error says how to install it (a pinned prebuilt wheel). The model is downloaded once into the Hugging Face cache, about 2.5 GB, and the server starts as a child process of the test run. See Local models below.
 - `typesafe:<model>`, a decision model: one that answers once with a probability per label. TypeSafe is the one provider today; another is one class in `judge.py`'s `DECISION_JUDGES`, keyed by its prefix. It needs the `TYPESAFE_API_KEY` environment variable (and `TYPESAFE_API_URL` when the endpoint is not `https://api.typesafe.ai`) and `llm.min_confidence`, a number above 0 and up to 1. It does not take `llm.params`, and it cannot use `repeat`.
 
-`llm.params` are passed to the model when it is built. `temperature` defaults to 0; `top_p` and `max_tokens` are widely supported. `top_k` and `seed` are provider-dependent: OpenAI rejects `top_k`. `llm.min_confidence` is only for `typesafe:` models.
+`llm.params` are passed to a hosted model when it is built. `temperature` defaults to 0; `top_p` and `max_tokens` are widely supported. `top_k` and `seed` are provider-dependent: OpenAI rejects `top_k`. A local model runs at temperature 0 and ignores `params`. `llm.min_confidence` is only for `typesafe:` models.
+
+### Local models
+
+The judge sees a whole trace, so the server's context window has to hold the evidence plus the prompt. Evals start the server with 12,288 tokens, enough for the default `evidence_scope` on a trace of a few dozen spans; a template can set `"llm": {"model": "local", "context_tokens": 32768}` for more (allowed on local models only). The window costs memory for the key-value cache, about 150 KB per token on Qwen3-4B, and time to read the evidence, not a different model: all three take 128k tokens or more. Narrowing `evidence_scope` to the spans the question needs is the other way to fit.
+
+`model="local"` cannot run a `typesafe:` template: a decision model has no local form. Scenario tests and evals in one run share the server, so they must use the same local model.
 
 Monocle does not count tokens before calling the judge. If a trace's evidence is larger than the model's context, the provider rejects the request before generating anything and the test fails with the provider's own message (TypeSafe answers `400 max_tokens_exceeded`); narrow `evidence_scope` or pick a model with a larger context.
 

@@ -19,7 +19,7 @@ monocle_trace_asserter.with_evaluation("monocle", repeat=5) \
 ## What is here
 
 ```
-test_evals_in_monocle.py   three tests: two questions on a chat model, one of them on a decision model too
+test_evals_in_monocle.py   four tests: two questions on a chat model, the first on a decision model and on a local model too
 templates/                 the three templates those tests use
 ```
 
@@ -35,6 +35,7 @@ with a refund ID and a 3-5 day timeline.
 | `tool_output_utilization` | Did the agent report its tools' results as returned, add to them, or get them wrong? | turn, agent and tool spans | faithful / embellished / misread | **embellished**, 5 of 5 runs on `openai:gpt-4.1-mini`: a refund ID, "processed" and a timeline no tool returned |
 | `routing_policy_adherence` | Did the supervisor follow the routing rules in its own system prompt? | the default scope (no `evidence_scope` in the file): every agentic and inference span, all roles, so the system message is in view | adhered / deviated | **adhered**: lookup, then eligibility, then refund, as the rules say |
 | `tool_output_utilization_decision` | the first question on a decision model | as the first row | the same, plus a probability per label | **embellished** at probability 0.98 on `typesafe:jev-latest` |
+| `tool_output_utilization` with `model="local"` | the first question on an open model on this machine, no API key | as the first row | as the first row | **embellished**, 3 of 3 runs on Qwen3-4B, 53 s including the server start |
 
 The two questions look at the same run from different sides: the routing was right, and the
 answer still said more than the tools knew. Each test also makes the span assertions that pin
@@ -108,6 +109,14 @@ pytest examples/evals -v
 Each test skips unless the key for its template's provider is set: the part of `llm.model`
 before the colon, upper-cased, plus `_API_KEY`. (`TYPESAFE_API_URL` overrides that provider's
 endpoint when it is not `https://api.typesafe.ai`.)
+
+The local-model test needs no key, only `llama-cpp-python`; it skips with the install command
+when that is missing. The first run downloads Qwen3-4B (about 2.5 GB) into the Hugging Face
+cache and starts llama.cpp's server as a child of the test run.
+
+```bash
+pytest examples/evals -v -k local_model     # no key needed
+```
 
 The labels in the table are what `openai:gpt-4.1-mini` and `jev-1.14.0` returned on the
 first live run (4 Nov 2026). If a judge disagrees on your run, read its `explanation` in the

@@ -394,7 +394,9 @@ def test_agent_reports_only_what_its_tools_returned(monocle_trace_asserter):
 The template is the custom shape `check_eval` already accepts plus `evidence_scope` (which spans the judge sees) and
 `llm` (`"openai:gpt-4.1-mini"`, or `typesafe:<model>` for a decision model). `repeat=5` runs the
 judge five times and asserts the majority label; under 80% agreement fails the test as
-inconclusive. One verdict per trace. The same file runs unchanged with `with_evaluation("okahu")`.
+inconclusive. `model="local"` runs the judge on an open model on this machine instead, with no
+API key (the same `local` models as scenario tests). One verdict per trace. The same file runs
+unchanged with `with_evaluation("okahu")`.
 
 Worked examples on one recorded trace, with a README on writing your own:
 [`examples/evals/`](examples/evals/). The contract and the models:

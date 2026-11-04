@@ -181,7 +181,7 @@ def test_with_evaluation_rejects_repeat_in_eval_options():
     with pytest.raises(ValueError) as raised:
         asserter.with_evaluation("monocle", {"repeat": 5})
 
-    assert str(raised.value) == "pass repeat= to with_evaluation as a keyword, not in eval_options"
+    assert str(raised.value) == "pass repeat= and model= to with_evaluation as keywords, not in eval_options"
 
 
 def test_with_evaluation_rejects_repeat_below_one():
@@ -245,7 +245,52 @@ def test_repeat_with_okahu_evaluator_is_rejected():
     with pytest.raises(ValueError) as raised:
         asserter.with_evaluation("okahu", repeat=3)
 
-    assert str(raised.value) == "repeat is supported by with_evaluation('monocle') only"
+    assert str(raised.value) == "repeat and model are supported by with_evaluation('monocle') only"
+
+
+def test_model_with_okahu_evaluator_is_rejected():
+    asserter = TraceAssertion(filtered_spans=fixture_spans())
+
+    with pytest.raises(ValueError, match="supported by with_evaluation\\('monocle'\\) only"):
+        asserter.with_evaluation("okahu", model="local")
+
+
+def test_model_option_must_be_a_local_spec():
+    with pytest.raises(ValueError) as raised:
+        MonocleEval(eval_options={"model": "openai:gpt-4o"})
+
+    assert str(raised.value) == (
+        'model= takes "local" or "local:<name>", got \'openai:gpt-4o\'; a hosted judge is named by the template\'s llm.model'
+    )
+
+
+def test_model_local_replaces_the_templates_judge(monkeypatch):
+    seen = []
+
+    class Recorder(FakeJudge):
+        def judge_for(self, llm):
+            seen.append(llm)
+            return self
+
+    use_fake_judge(monkeypatch, Recorder("ungrounded"))
+    evaluator = MonocleEval(eval_options={"model": "local:phi-4-mini"})
+
+    evaluator.evaluate(filtered_spans=fixture_spans(), template=template_dict())
+
+    assert seen[0].model == "local:phi-4-mini"
+    assert seen[0].params == template_dict()["llm"]["params"]
+    assert evaluator.last_judge_description == "local:phi-4-mini, 1 run per trace"
+
+
+def test_model_local_cannot_run_a_decision_template(monkeypatch):
+    use_fake_judge(monkeypatch, FakeJudge("ungrounded"))
+    decision_template = {**template_dict(), "llm": {"model": "typesafe:jev-latest", "min_confidence": 0.7}}
+    evaluator = MonocleEval(eval_options={"model": "local"})
+
+    with pytest.raises(ValueError) as raised:
+        evaluator.evaluate(filtered_spans=fixture_spans(), template=decision_template)
+
+    assert str(raised.value) == 'model="local" cannot run a decision-model template; "typesafe:jev-latest" has no local form'
 
 
 def test_okahu_evaluator_accepts_the_default_repeat():

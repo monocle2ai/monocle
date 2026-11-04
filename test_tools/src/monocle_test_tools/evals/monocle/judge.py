@@ -22,8 +22,7 @@ class RunResult(BaseModel):
     total_tokens: int = 0
 
 DEFAULT_TEMPERATURE = 0
-LOCAL_MODEL_PREFIX = "local"
-LOCAL_MODEL_MESSAGE = "local judge models arrive with Monocle PR #831; use a provider:model string for now"
+LOCAL_CONTEXT_TOKENS = 12288
 
 def run(judge, template: EvalTemplate, evidence: Evidence, repeat: int = 1) -> list[RunResult]:
     """Run the judge `repeat` times over the evidence; raise ValueError when a decision model is asked to repeat."""
@@ -48,15 +47,14 @@ class LlmJudge:
     answers_once = False
 
     def __init__(self, llm: LlmConfig):
-        """Build the chat model once with temperature 0 unless llm.params says otherwise.
+        """Build the chat model once: a hosted one through LangChain with temperature 0 unless llm.params
+        says otherwise, or a local one served on this machine with llm.context_tokens of context.
 
-        Raise ValueError for a local model and TemplateError for a min_confidence, which only a decision model takes."""
-        if llm.model.startswith(LOCAL_MODEL_PREFIX):
-            raise ValueError(LOCAL_MODEL_MESSAGE)
+        Raise TemplateError for a min_confidence, which only a decision model takes."""
         if llm.min_confidence is not None:
             raise TemplateError("'llm.min_confidence' only applies to a decision model.")
         self.llm = llm
-        self.chat_model = init_chat_model(llm.model, **self._model_params())
+        self.chat_model = self._build_chat_model()
 
     def judge(self, template: EvalTemplate, evidence: Evidence) -> RunResult:
         """Send the eval prompt and the evidence to the chat model; capture its structured verdict."""
@@ -72,6 +70,13 @@ class LlmJudge:
             judge_output=verdict,
             total_tokens=(getattr(answer["raw"], "usage_metadata", None) or {}).get("total_tokens", 0),
         )
+
+    def _build_chat_model(self):
+        from monocle_test_tools.harness.local_model import is_local_spec, local_chat_model
+
+        if is_local_spec(self.llm.model):
+            return local_chat_model(self.llm.model, context_tokens=self.llm.context_tokens or LOCAL_CONTEXT_TOKENS)
+        return init_chat_model(self.llm.model, **self._model_params())
 
     def _model_params(self) -> dict[str, int | float]:
         return {"temperature": DEFAULT_TEMPERATURE, **self.llm.params}

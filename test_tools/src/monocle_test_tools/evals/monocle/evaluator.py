@@ -7,9 +7,9 @@ from monocle_test_tools.evals.base_eval import BaseEval
 from monocle_test_tools.evals.monocle import judge, preprocess, results, template as template_loader
 from monocle_test_tools.evals.monocle.judge import RunResult
 from monocle_test_tools.evals.monocle.preprocess import Evidence
-from monocle_test_tools.evals.monocle.template import EvalTemplate
+from monocle_test_tools.evals.monocle.template import EvalTemplate, LlmConfig
 
-OPTION_KEYS = ("trace_source", "repeat", "min_agreement")
+OPTION_KEYS = ("trace_source", "repeat", "min_agreement", "model")
 DEFAULT_REPEAT = 1
 DEFAULT_MIN_AGREEMENT = 0.8
 TRACES = "traces"
@@ -25,12 +25,13 @@ class MonocleEval(BaseEval):
     last_judge_description: str = ""
 
     def __init__(self, **data):
-        """Raise ValueError when eval_options holds a key other than trace_source, repeat or min_agreement,
-        or min_agreement is not a number above 0 and at most 1."""
+        """Raise ValueError when eval_options holds a key other than trace_source, repeat, min_agreement or model,
+        min_agreement is not a number above 0 and at most 1, or model is not a local model spec."""
         super().__init__(**data)
         self.eval_options = self.eval_options or {}
         _check_option_keys(self.eval_options)
         _check_min_agreement(self.eval_options.get("min_agreement", DEFAULT_MIN_AGREEMENT))
+        _check_model(self.eval_options.get("model"))
 
     def evaluate(
         self,
@@ -87,7 +88,7 @@ class MonocleEval(BaseEval):
         return evidence_by_trace
 
     def _run_llm_evaluation(self, evidence_by_trace: dict[str, Evidence], eval_template: EvalTemplate) -> dict[str, list[RunResult]]:
-        trace_judge = judge.judge_for(eval_template.llm)
+        trace_judge = judge.judge_for(self._judge_llm(eval_template.llm))
         return {
             trace_id: judge.run(trace_judge, eval_template, evidence, repeat=self._repeat())
             for trace_id, evidence in evidence_by_trace.items()
@@ -106,10 +107,20 @@ class MonocleEval(BaseEval):
         return verdicts[-1].label, verdicts[-1].explanation
 
     def _judge_description(self, eval_template: EvalTemplate) -> str:
-        if judge.is_decision_model(eval_template.llm):
-            return f"{eval_template.llm.model}, min_confidence {eval_template.llm.min_confidence:.2f}"
+        llm = self._judge_llm(eval_template.llm)
+        if judge.is_decision_model(llm):
+            return f"{llm.model}, min_confidence {llm.min_confidence:.2f}"
         runs = self._repeat()
-        return f"{eval_template.llm.model}, {runs} run{'s' if runs != 1 else ''} per trace"
+        return f"{llm.model}, {runs} run{'s' if runs != 1 else ''} per trace"
+
+    def _judge_llm(self, llm: LlmConfig) -> LlmConfig:
+        """The template's llm, or the local model named by the model option in its place."""
+        local_model = self.eval_options.get("model")
+        if not local_model:
+            return llm
+        if judge.is_decision_model(llm):
+            raise ValueError(f'model="{local_model}" cannot run a decision-model template; "{llm.model}" has no local form')
+        return llm.model_copy(update={"model": local_model})
 
     def _repeat(self) -> int:
         return self.eval_options.get("repeat", DEFAULT_REPEAT)
@@ -126,6 +137,15 @@ def _check_option_keys(eval_options: dict) -> None:
     unknown_keys = sorted(set(eval_options) - set(OPTION_KEYS))
     if unknown_keys:
         raise ValueError(f"Unknown eval_options for 'monocle': {unknown_keys}. Accepted: {list(OPTION_KEYS)}")
+
+
+def _check_model(model) -> None:
+    from monocle_test_tools.harness.local_model import is_local_spec
+
+    if model is None:
+        return
+    if not is_local_spec(model):
+        raise ValueError(f'model= takes "local" or "local:<name>", got {model!r}; a hosted judge is named by the template\'s llm.model')
 
 
 def _check_min_agreement(min_agreement) -> None:

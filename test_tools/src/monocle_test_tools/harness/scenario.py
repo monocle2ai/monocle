@@ -5,6 +5,8 @@ from typing import Any, Optional
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
+from monocle_test_tools.schema import MockTool
+
 
 class ScenarioParam(BaseModel):
     """One detail of the request. It becomes a tool on the simulated user, named ``name``."""
@@ -32,6 +34,8 @@ class ScenarioTestCase(BaseModel):
     max_turns: int = Field(10, ge=1)
     min_turns: int = Field(1, ge=1)  # the criteria don't count as met before this turn
     session_id: Optional[str] = None
+    # Applied on every turn of the conversation.
+    mock_tools: list[MockTool] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def _check(self) -> "ScenarioTestCase":

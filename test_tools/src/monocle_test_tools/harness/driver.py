@@ -108,7 +108,8 @@ class ScenarioHarness:
 
                 try:
                     reply = await self.validator.run_agent_async(
-                        target_agent, agent_type, tester_message, session_id=case.session_id, agent_runner=runner)
+                        target_agent, agent_type, tester_message, session_id=case.session_id, agent_runner=runner,
+                        mock_tools=case.mock_tools)
                 except Exception as error:  # pylint: disable=broad-except
                     failure_reason, reason = f"agent raised an error at turn {turn} of {case.max_turns}", str(error)
                     records.append(TurnRecord(turn=turn, tester_message=tester_message, param_tools_called=called))

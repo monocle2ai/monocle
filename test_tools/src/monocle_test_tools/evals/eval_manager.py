@@ -5,6 +5,7 @@ from monocle_test_tools.evals.bert_eval import BertScorerEval
 from monocle_test_tools.evals.exact_match_eval import ExactMatchEval
 from monocle_test_tools.evals.json_validity_eval import JSONValidityEval
 from monocle_test_tools.evals.keyword_presence_eval import KeywordPresenceEval
+from monocle_test_tools.evals.monocle import MonocleEval
 from monocle_test_tools.evals.okahu_eval import OkahuEval
 from monocle_test_tools.evals.regex_match_eval import RegexMatchEval
 
@@ -20,6 +21,8 @@ def get_evaluator(eval: Optional[Union[str, BaseEval]], eval_options: Optional[d
     if isinstance(eval, str):
         if eval == "okahu":
             eval = OkahuEval(eval_options=eval_options)
+        elif eval == "monocle":
+            eval = MonocleEval(eval_options=eval_options)
         elif eval == "bert_score":
             eval = BertScorerEval(eval_options=eval_options)
         elif eval in NON_LLM_EVALS:

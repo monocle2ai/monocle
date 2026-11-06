@@ -4,10 +4,13 @@ See docs/monocle_trace_loading_guide.md for setup and usage.
 import json
 import pytest
 import os
+from pathlib import Path
 from monocle_test_tools import TraceAssertion
 from monocle_test_tools.file_span_loader import JSONSpanLoader
 
 _TEST_DIR = os.path.dirname(os.path.abspath(__file__))
+REFUND_TRACE = "json_loader_traces/642dbd9d0dfcfdbdc8849f67f34c8a19.json"
+GROUNDING_TEMPLATE = str(Path(_TEST_DIR) / "custom_templates" / "refund_confirmation_grounding.json")
 
 
 def load_test_spans(relative_path: str) -> list:
@@ -62,3 +65,26 @@ def test_performance_and_eval(monocle_trace_asserter: TraceAssertion):
 
     # Hallucination eval
     monocle_trace_asserter.with_evaluation("okahu").check_eval("hallucination", "major_hallucination")
+
+
+def test_custom_template_on_okahu(monocle_trace_asserter: TraceAssertion):
+    """A custom template with evidence_scope and llm in the file runs on Okahu unchanged.
+
+    The refund tool only returned {"submitted": true}, yet the agent confirmed an approval,
+    a refund ID and a 3-5 day timeline: the template labels that 'ungrounded'."""
+    monocle_trace_asserter.load_spans(load_test_spans(REFUND_TRACE))
+
+    monocle_trace_asserter.with_evaluation("okahu") \
+        .check_eval(GROUNDING_TEMPLATE, expected="ungrounded")
+
+
+@pytest.mark.skipif(not os.getenv("OPENAI_API_KEY"), reason="the template's llm.model is openai:gpt-4.1-mini")
+def test_custom_template_in_monocle(monocle_trace_asserter: TraceAssertion):
+    """The same template and trace, judged inside Monocle.
+
+    An LLM judge is not deterministic, so repeat=5 asserts the majority label and fails the
+    test as inconclusive when fewer than 80% of the runs agree."""
+    monocle_trace_asserter.load_spans(load_test_spans(REFUND_TRACE))
+
+    monocle_trace_asserter.with_evaluation("monocle", repeat=5) \
+        .check_eval(GROUNDING_TEMPLATE, expected="ungrounded")

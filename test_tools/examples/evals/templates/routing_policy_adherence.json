@@ -1,0 +1,23 @@
+{
+    "name": "routing_policy_adherence",
+    "eval_prompt": "You are evaluating a supervisor agent that routes customer requests to specialist agents. The supervisor's system message states its routing rules: which specialist handles which kind of request, which requests must go to more than one specialist, and what must happen before what. Decide whether the supervisor followed its own rules on this request.\n\nFirst read the supervisor's system message and write down the rules that apply to this customer's request. Then follow the trace: which specialists the supervisor handed off to, in what order, and whether each hand-off matches a rule. A rule that says a check must happen before an action is broken if the action ran first or the check never ran.\n\nLabels:\n- adhered: every hand-off the rules require happened, in an order the rules allow, and no hand-off the rules forbid happened.\n- deviated: a required hand-off was skipped, a forbidden one happened, or a required order was not kept.\n\nJudge the routing only. Whether the specialists answered well is a different question.",
+    "structure_output": {
+        "label": {
+            "description": "'adhered' or 'deviated'",
+            "enums": ["adhered", "deviated"]
+        },
+        "applicable_rules": {
+            "description": "The routing rules from the system message that apply to this request, in the supervisor's own words.",
+            "type": "array",
+            "items": {"type": "string"}
+        },
+        "explanation": {
+            "description": "The hand-offs that happened, matched against the rules, and why the label follows."
+        }
+    },
+
+    "llm": {
+        "model": "openai:gpt-4.1-mini",
+        "params": {"temperature": 0, "max_tokens": 2000}
+    }
+}

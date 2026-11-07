@@ -14,6 +14,8 @@ import time
 
 import requests
 
+from monocle_test_tools.evals.okahu_eval import prepare_template_for_okahu
+
 # Production Okahu endpoints. Users never set these — they default to prod, and
 # only developers override them (to stage/dev) via the env vars below. Mirrors
 # OkahuSpanLoader.OKAHU_BASE_URL and okahu_eval.OKAHU_PROD_EVALUATION_ENDPOINT.
@@ -120,6 +122,17 @@ def labeled_fact_ids(results: list, job_id) -> set:
     }
 
 
+def _request_body(eval_name, template) -> dict:
+    """The job body Okahu accepts: a template name, or a prepared template with its evidence scope beside it."""
+    if not template:
+        return {"template_name": eval_name}
+    prepared_template, evidence_scope = prepare_template_for_okahu(template)
+    body = {"template": prepared_template}
+    if evidence_scope is not None:
+        body["evidence_scope"] = evidence_scope
+    return body
+
+
 class OkahuFilteredEval:
     """Env-bound HTTP client for the Okahu filtered-eval (async job) + query APIs.
 
@@ -175,7 +188,7 @@ class OkahuFilteredEval:
         }  # NOTE: no trace_id -> async filtered mode. shadow_eval is False because
         # filtered jobs grade traces already loaded in Okahu, not test-generated
         # shadow traces (mirrors the interactive path's `_trace_source != "okahu"`).
-        body = {"template": template} if template else {"template_name": eval_name}
+        body = _request_body(eval_name, template)
         resp = requests.post(url, headers=self.headers, params=params, json=body, timeout=120)
         resp.raise_for_status()
         data = resp.json()

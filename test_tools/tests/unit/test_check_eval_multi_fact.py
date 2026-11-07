@@ -59,15 +59,15 @@ class TestCheckEvalMultiFact:
             assert "turn-1" in msg
             assert "turn-2" in msg
             assert "turn-3" in msg
-            assert "failed for 3 of 3 facts" in msg
+            assert "Eval 'hallucination': 3 of 3 did not match" in msg
             # Per-fact explanations survive the aggregation.
             assert "first turn drifted" in msg
             assert "third turn drifted" in msg
         finally:
             TraceAssertion._assertion_errors = []
 
-    def test_passing_facts_are_not_reported(self):
-        """A pass between two failures is graded, not reported."""
+    def test_passing_facts_are_listed_as_matched_without_their_explanation(self):
+        """A pass between two failures is listed with a tick, so the report shows the whole picture."""
         asserter = _make_asserter([
             ("turn-1", "bad", "drifted"),
             ("turn-2", "good", "fine"),
@@ -79,10 +79,11 @@ class TestCheckEvalMultiFact:
 
             assert result.has_assertions()
             msg = result.get_assertion_messages()
-            assert "failed for 2 of 3 facts" in msg
-            assert "turn-1" in msg
-            assert "turn-3" in msg
-            assert "turn-2" not in msg
+            assert "2 of 3 did not match" in msg
+            assert "turn-1  →  bad" in msg
+            assert "turn-3  →  bad" in msg
+            assert "turn-2  →  good  ✓" in msg
+            assert "fine" not in msg
         finally:
             TraceAssertion._assertion_errors = []
 
@@ -99,15 +100,15 @@ class TestCheckEvalMultiFact:
 
             assert result.has_assertions()
             msg = result.get_assertion_messages()
-            assert "failed for 2 of 2 facts" in msg
-            assert "turn-1" in msg
-            assert "turn-2" in msg
-            assert "matched an unexpected result" in msg
+            assert "2 of 2 did not match" in msg
+            assert "expected   not major_hallucination" in msg
+            assert "turn-1  →  major_hallucination" in msg
+            assert "turn-2  →  major_hallucination" in msg
         finally:
             TraceAssertion._assertion_errors = []
 
-    def test_single_failing_fact_keeps_plain_message(self):
-        """One failure reads as before -- no aggregate header wrapped around it."""
+    def test_single_failing_fact_reads_the_same_way(self):
+        """One failure among two gets the same report: the header counts it, the pass is ticked."""
         asserter = _make_asserter([
             ("turn-1", "good", "fine"),
             ("turn-2", "bad", "drifted"),
@@ -118,8 +119,10 @@ class TestCheckEvalMultiFact:
 
             assert result.has_assertions()
             msg = result.get_assertion_messages()
-            assert "facts:" not in msg
-            assert "did not match expected result for fact 'turn-2'" in msg
+            assert "1 of 2 did not match" in msg
+            assert "turn-1  →  good  ✓" in msg
+            assert "turn-2  →  bad" in msg
+            assert "drifted" in msg
         finally:
             TraceAssertion._assertion_errors = []
 

@@ -1,0 +1,29 @@
+{
+    "name": "refund_confirmation_grounding",
+    "eval_prompt": "You are evaluating a customer-care agent that handles refund requests by calling tools: an order lookup, an eligibility check, and a refund processor. Decide whether the confirmation the agent gives the customer is grounded in what those tools actually returned.\n\nThe text you judge is the agent's FINAL response to the customer. The tool outputs in the trace are the only source of truth. The user's message is context, not evidence.\n\nFor every factual claim in the final response about the refund or the order (refund ID, refund status, amount, order details, eligibility, processing timeline, next steps the business has committed to), find the tool output that supports it. A claim is supported only if a tool output states it or it follows directly from one. Restating the user's own request is not support. Wording such as 'submitted' does not support 'approved' or 'processed'.\n\nLabels:\n- grounded: every refund and order claim in the final response is supported by a tool output.\n- partially_grounded: the core outcome is supported, but the response adds minor unsupported details that would not change what the customer does next.\n- ungrounded: the response states something the customer would rely on that no tool output supports, such as an invented refund ID, a status the tools did not report, or a promised timeline no tool gave.\n\nQuote each unsupported claim and say which tool output, if any, it was checked against.",
+    "structure_output": {
+        "label": {
+            "description": "'grounded', 'partially_grounded' or 'ungrounded'",
+            "enums": ["grounded", "partially_grounded", "ungrounded"]
+        },
+        "unsupported_claims": {
+            "description": "Each claim in the final response that no tool output supports, quoted.",
+            "type": "array",
+            "items": {"type": "string"}
+        },
+        "explanation": {
+            "description": "Which claims were checked against which tool outputs, and why the label follows."
+        }
+    },
+
+    "evidence_scope": {
+        "span_types": ["agentic.turn", "agentic.invocation", "agentic.tool.invocation"],
+        "roles": ["user", "assistant", "tool"],
+        "events": ["input", "output"]
+    },
+
+    "llm": {
+        "model": "openai:gpt-4.1-mini",
+        "params": {"temperature": 0, "max_tokens": 2000}
+    }
+}

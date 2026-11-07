@@ -1,6 +1,6 @@
 # Monocle Test Tools
 
-A comprehensive testing and validation framework for monocle AI agent tracing. This package provides tools for validating agent behavior, tool invocations, inference responses, and overall AI system performance.
+A comprehensive testing and validation framework for Monocle AI agent tracing. This package provides tools for validating agent behavior, tool invocations, inference responses, and overall AI system performance.
 
 ## Features
 
@@ -10,7 +10,7 @@ A comprehensive testing and validation framework for monocle AI agent tracing. T
 - **Tool Validation**: Ensure tools are called with expected inputs and produce expected outputs.
 - **Inference Testing**: Test model inference responses against expected content.
 - **Cost/Performance/Quality**: Verify token usage, duration limits, error states, and warnings.
-- **Evaluation**: Integrate with Okahu or custom evaluation tools to validate LLM responses.
+- **Evaluation**: Run LLM-judge evals inside Monocle with only a model key (`with_evaluation("monocle")`), or on Okahu. See [Evals in Monocle](#evals-in-monocle).
 - **Fluent API**: Chain assertions using a readable, expressive builder pattern.
 - **Mock Tools**: Simulate tool behavior without invoking external dependencies.
 - **Offline Testing**: Assert against pre-recorded trace JSON files without running live agents.
@@ -239,6 +239,9 @@ reuse it. A failure prints the reason and the conversation, with each turn's tra
 `-k redteam` runs one kind. Add `--monocle-scenario-results` to also log every result to
 `.monocle/test_results/scenarios_<time>.log`.
 
+No API key, or none you can use? Set `MONOCLE_TEST_AGENT_MODEL=local` (or pass `model="local"`)
+to run a small open model on your machine instead. See [local models](src/monocle_test_tools/harness/README.md#local-models).
+
 **3. Send the conversations to Okahu (optional):** set `MONOCLE_EXPORTER=okahu` and
 `OKAHU_API_KEY`. Each conversation arrives as its own session.
 
@@ -354,7 +357,7 @@ so the usual input/output checks chain onto them.
 
 #### Scope, attribute, and event assertions
 
-Assert on monocle scopes, span attributes, and span events. `has_scope`, `has_attribute`, and `has_event` narrow the context to matching spans:
+Assert on Monocle scopes, span attributes, and span events. `has_scope`, `has_attribute`, and `has_event` narrow the context to matching spans:
 
 ```python
 # Scope carried by the trace (value check, existence check, and substring check)
@@ -373,6 +376,31 @@ monocle_trace_asserter \
 ```
 
 ---
+
+### Evals in Monocle
+
+A custom eval template runs inside Monocle. The spans in the asserter are preprocessed into
+judge evidence and sent to the model the template names; you need that model's key and nothing
+else.
+
+```python
+def test_agent_reports_only_what_its_tools_returned(monocle_trace_asserter):
+    monocle_trace_asserter.with_trace_source(source="file", trace_path="traces/refund.json")
+
+    monocle_trace_asserter.with_evaluation("monocle", repeat=5) \
+        .check_eval("templates/tool_output_utilization.json", expected="embellished")
+```
+
+The template is the custom shape `check_eval` already accepts plus `evidence_scope` (which spans the judge sees) and
+`llm` (`"openai:gpt-4.1-mini"`, or `typesafe:<model>` for a decision model). `repeat=5` runs the
+judge five times and asserts the majority label; under 80% agreement fails the test as
+inconclusive. `model="local"` runs the judge on an open model on this machine instead, with no
+API key (the same `local` models as scenario tests). One verdict per trace. The same file runs
+unchanged with `with_evaluation("okahu")`.
+
+Worked examples on one recorded trace, with a README on writing your own:
+[`examples/evals/`](examples/evals/). The contract and the models:
+[docs/monocle_evaluation_api.md](../docs/monocle_evaluation_api.md#12-running-evals-in-monocle).
 
 ## Framework Examples
 
@@ -1012,6 +1040,18 @@ Pass comparers as strings (`"similarity"`) or class instances (`SentenceComparer
 
 ## Evaluators
 
+### Monocle Evaluation (in-process)
+
+Runs a custom LLM-judge template inside the test process, on the model the template names. Requires only that model's key (`OPENAI_API_KEY` for `openai:gpt-4.1-mini`); no eval service, no upload.
+
+```python
+monocle_trace_asserter.with_evaluation("monocle", repeat=5) \
+    .check_eval("templates/tool_output_utilization.json", expected="embellished")
+```
+
+See [Evals in Monocle](#evals-in-monocle) above, the worked examples in [`examples/evals/`](examples/evals/), and
+[Running evals in Monocle](../docs/monocle_evaluation_api.md#12-running-evals-in-monocle) for the template contract and models.
+
 ### BERTScore (local)
 
 Run directly on span input/output without external services:
@@ -1300,7 +1340,7 @@ Filter the current spans down to those carrying a given span attribute, so subse
 
 ### Scope assertions
 
-Assert on monocle scope values attached to the current spans. `has_*`/`contains_*` narrow the context to matching spans. When the value/values argument is omitted on `has_scope`/`does_not_have_scope`, only presence/absence of the scope is checked.
+Assert on Monocle scope values attached to the current spans. `has_*`/`contains_*` narrow the context to matching spans. When the value/values argument is omitted on `has_scope`/`does_not_have_scope`, only presence/absence of the scope is checked.
 
 | Method | Description |
 |---|---|
@@ -1362,7 +1402,8 @@ validator.check_duration_limits(max_duration=30.0, units="seconds", span_type="w
 | `MONOCLE_EXPORT_FAILED_TESTS_ONLY` | Set to `true` to export traces only for failed tests | `false` |
 | `MONOCLE_TEST_WORKFLOW_NAME` | Workflow name tag applied to all test traces | Git repo name |
 | `MONOCLE_TRACE_OUTPUT_PATH` | Directory for file-based trace output | `.monocle/test_traces` |
-| `OKAHU_API_KEY` | API key for Okahu evaluation and trace export | — |
+| `OKAHU_API_KEY` | API key for Okahu evaluation and trace export; not needed by `with_evaluation("monocle")` | — |
+| `<PROVIDER>_API_KEY` | The model key `with_evaluation("monocle")` uses: the provider before the colon in the template's `llm.model`, upper-cased (`OPENAI_API_KEY`, `TYPESAFE_API_KEY`) | — |
 | `OKAHU_EVALUATION_ENDPOINT` | Override the Okahu evaluation endpoint | `https://eval.okahu.co/api` |
 | `OKAHU_MAX_FACTS` | Runaway guard: fail loudly if a time-window (filtered) eval discovers, or `setup_test_cases` enumerates, more than this many facts (see [Time-window evaluation](#time-window-filtered-evaluation)) | `1000` |
 | `MONOCLE_EVAL_MATRIX` | Set (to any value, optionally a path) to enable the opt-in eval-result-matrix recorder (see [Eval result matrix](#eval-result-matrix)). Off when unset | unset (off) |

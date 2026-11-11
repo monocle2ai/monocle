@@ -1,7 +1,7 @@
 import pytest
 import requests
 from unittest.mock import MagicMock
-from monocle_test_tools.evals.okahu_eval import OkahuEval
+from monocle_test_tools.providers.okahu.okahu_eval import OkahuEval
 
 
 def _make_response(status_code, json_body=None, text=None):

@@ -323,6 +323,13 @@ class TestSendingAModelCall(unittest.TestCase):
             self.assertEqual(self.call_model(), "ok")
         self.assertEqual(self.sent_messages, DEVELOPER_MESSAGES)
 
+    def test_input_reader_that_finds_no_messages_writes_no_input(self):
+        no_messages_found = {"type": SPAN_TYPES.INFERENCE, "events": [{"name": "data.input", "attributes": [
+            {"attribute": "input", "accessor": lambda arguments: []}]}]}
+        wrapper = task_wrapper(self.tracer_provider.get_tracer("test"), SpanHandler(), {**CHAT_METHOD, "output_processor": no_messages_found})
+        wrapper(self.model_method, None, (), {"messages": DEVELOPER_MESSAGES})
+        self.assertNotIn("input", self.inference_span().events[0].attributes)
+
     def test_wrap_site_whose_output_processor_is_not_a_dict_is_sent_as_written(self):
         os.environ.update(START_WITH_123456)
         wrapper = task_wrapper(self.tracer_provider.get_tracer("test"), SpanHandler(), {**CHAT_METHOD, "output_processor": "named.elsewhere"})

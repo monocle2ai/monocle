@@ -270,7 +270,7 @@ class SpanHandler:
                                         event_attributes[attribute_key] = result
                                     else:
                                         event_attributes.update(result)
-                                if event_name == "data.input" and attribute_key == "input" and isinstance(result, list):
+                                if event_name == "data.input" and attribute_key == "input" and result and isinstance(result, list):
                                     event_attributes[attribute_key] = input_with_instruction(result, span, wrapped, kwargs)
                                 elif not detected_error and is_post_exec and event_name == "data.output" and attribute_key == "response" and result:
                                     # capture memory

@@ -154,6 +154,21 @@ def test_get_url_uses_defaults():
     assert _helper.get_url({}) == "http://127.0.0.1:80/"
 
 
+def test_get_url_prefers_the_host_header():
+    scope = {
+        "server": ("::1", 10333),
+        "headers": [(b"host", b"localhost:10333")],
+        "path": "/",
+        "scheme": "http",
+    }
+    assert _helper.get_url(scope) == "http://localhost:10333/"
+
+
+def test_get_url_brackets_an_ipv6_host():
+    scope = {"server": ("::1", 10333), "path": "/", "scheme": "http"}
+    assert _helper.get_url(scope) == "http://[::1]:10333/"
+
+
 def test_get_route_prefers_fastapi_route_template():
     route = type("Route", (), {"path": "/api/v1/items/{item_id}"})()
     scope = {"route": route, "path": "/api/v1/items/123"}

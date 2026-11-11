@@ -1,18 +1,18 @@
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 import os
 import logging, warnings
 from importlib import import_module
 from opentelemetry.sdk.trace.export import SpanExporter, ConsoleSpanExporter
 from monocle_apptrace.exporters.exporter_processor import LambdaExportTaskProcessor, is_aws_lambda_environment
 from monocle_apptrace.exporters.file_exporter import FileSpanExporter
-from monocle_apptrace.exporters.okahu.okahu_exporter import _get_monocle_exporter
+from monocle_apptrace.instrumentation.common.utils import get_monocle_env_value
+from monocle_apptrace.providers import get_provider
 
 logger = logging.getLogger(__name__)
 
 monocle_exporters: Dict[str, Any] = {
     "s3": {"module": "monocle_apptrace.exporters.aws.s3_exporter", "class": "S3SpanExporter"},
     "blob": {"module": "monocle_apptrace.exporters.azure.blob_exporter", "class": "AzureBlobSpanExporter"},
-    "okahu": {"module": "monocle_apptrace.exporters.okahu.okahu_exporter", "class": "OkahuSpanExporter"},
     "file": {"module": "monocle_apptrace.exporters.file_exporter", "class": "FileSpanExporter"},
     "memory": {"module": "monocle_apptrace.exporters.base_exporter", "class": "MonocleInMemorySpanExporter"},
     "console": {"module": "opentelemetry.sdk.trace.export", "class": "ConsoleSpanExporter"},
@@ -26,6 +26,18 @@ monocle_exporters: Dict[str, Any] = {
     "clickhouse": {"module": "monocle_apptrace.exporters.clickhouse.clickhouse_exporter", "class": "ClickHouseSpanExporter"},
     "paygentic": {"module": "monocle_apptrace.exporters.paygentic.paygentic_exporter", "class": "PaygenticSpanExporter"}
 }
+
+
+def _get_monocle_exporter() -> Optional[str]:
+    return get_monocle_env_value("MONOCLE_EXPORTER")
+
+
+def _get_exporter_class_path(exporter_name: str) -> Optional[Dict[str, str]]:
+    """Find an exporter by name: the built-in list first, then the providers."""
+    if exporter_name in monocle_exporters:
+        return monocle_exporters[exporter_name]
+    provider = get_provider(exporter_name)
+    return provider.span_exporter if provider else None
 
 
 def get_monocle_exporter_names(exporters_list: str = None) -> List[str]:
@@ -47,8 +59,11 @@ def get_monocle_exporter(exporters_list:str=None) -> List[SpanExporter]:
     for exporter_name in exporter_names:
         exporter_name = exporter_name.strip()
         try:
-            exporter_class_path = monocle_exporters[exporter_name]
-        except KeyError:
+            exporter_class_path = _get_exporter_class_path(exporter_name)
+        except Exception as ex:
+            warnings.warn(f"Unable to load the provider for Monocle span exporter '{exporter_name}', error: {ex}. Skipping.")
+            continue
+        if exporter_class_path is None:
             warnings.warn(f"Unsupported Monocle span exporter '{exporter_name}', skipping.")
             continue
         try:

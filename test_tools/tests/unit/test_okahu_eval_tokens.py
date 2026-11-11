@@ -1,7 +1,7 @@
 import json
 from unittest.mock import patch, MagicMock
 from monocle_test_tools.evals.okahu_eval import OkahuEval
-from monocle_apptrace.exporters.okahu.okahu_eval_result_exporter import OkahuEvalResultExporter
+from monocle_apptrace.providers.okahu.okahu_eval_result_exporter import OkahuEvalResultExporter
 
 def _resp(judge: dict):
     m = MagicMock()

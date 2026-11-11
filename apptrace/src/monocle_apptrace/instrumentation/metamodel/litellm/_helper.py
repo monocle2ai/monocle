@@ -15,6 +15,7 @@ from monocle_apptrace.instrumentation.common.utils import (
 )
 from monocle_apptrace.instrumentation.metamodel.finish_types import map_litellm_finish_reason_to_finish_type
 from contextlib import suppress
+from monocle_apptrace.instructions.sending import add_system_message, instruction_before
 
 logger = logging.getLogger(__name__)
 
@@ -459,3 +460,26 @@ def responses_inference_type(arguments):
     if extract_responses_finish_reason(arguments) == "tool_calls":
         return INFERENCE_TOOL_CALL
     return INFERENCE_TURN_END
+
+
+def add_instruction(kwargs, text):
+    """The chat call with the instruction as its first system message, or None if it carries no messages."""
+    if kwargs.get("messages"):
+        return add_system_message(kwargs, text)
+    if not isinstance(kwargs.get("data"), dict):
+        return None
+    instructed_data = add_system_message(kwargs["data"], text)
+    if instructed_data is None:
+        return None
+    return {**kwargs, "data": instructed_data}
+
+
+def add_responses_instruction(kwargs, text):
+    """The Responses call with the instruction ahead of ``instructions`` in its request params, or None if it has none."""
+    request_params = kwargs.get("response_api_optional_request_params")
+    if not isinstance(request_params, dict):
+        return None
+    instructions = instruction_before(text, request_params.get("instructions"))
+    if instructions is None:
+        return None
+    return {**kwargs, "response_api_optional_request_params": {**request_params, "instructions": instructions}}

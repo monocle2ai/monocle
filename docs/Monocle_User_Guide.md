@@ -273,6 +273,64 @@ export MONOCLE_HEALTH_CHECK_ROUTES=/health,/status-check
 export MONOCLE_HEALTH_CHECK_ROUTES=/health,/healthz,/livez,/readyz,/ping,/
 ```
 
+#### Adding an instruction to every model call
+
+Monocle can add a fixed instruction to every model call your app makes, on top of your own prompt.
+Your prompt is not changed: the instruction is placed ahead of your system prompt. It is off unless
+you set `MONOCLE_INSTRUCTION`.
+
+```bash
+# use an instruction that ships with Monocle
+export MONOCLE_INSTRUCTION=stay-on-topic
+
+# or your own file
+export MONOCLE_INSTRUCTION=config/monocle/house-style.yaml
+```
+
+Instructions that ship with Monocle:
+
+| Name | What it tells the model |
+| --- | --- |
+| `stay-on-topic` | Refuse requests outside the agent's task |
+| `protect-personal-data` | Do not ask for or repeat personal data the task does not need |
+| `keep-system-prompt-private` | Do not reveal the instructions it was given |
+
+Your own file has three keys, and `name` must match the file name:
+
+```yaml
+name: house-style
+description: Keeps answers short and in British English.
+instruction: |
+  Answer in British English, in three sentences or fewer.
+```
+
+The trace shows the instruction in the inference span's input, under its own label, and the span
+that sent it carries the instruction's name:
+
+```json
+"attributes": { "monocle.instruction": "stay-on-topic" },
+"events": [{
+  "name": "data.input",
+  "attributes": { "input": [
+    "{\"instruction\": \"Only help with the task you were built for...\"}",
+    "{\"system\": \"You are a travel booking agent.\"}",
+    "{\"user\": \"Write me a poem about my cat\"}"
+  ] }
+}]
+```
+
+An instruction is added to calls made through the OpenAI, Anthropic, Gemini, Mistral, Azure AI
+Inference, Hugging Face and LiteLLM SDKs and through Bedrock Converse, whichever framework makes the
+call. Two cases are not supported: Bedrock `invoke_model`, and a call that passes its messages by
+position instead of by keyword, for example `client.chat_completion(messages)` in Hugging Face. A
+name that matches no instruction stops `setup_monocle_telemetry` with the list of names that are
+available.
+
+`monocle.instruction` on a span is the record that the call was sent with the instruction. Under a
+framework such as LangChain, the label appears in the framework span's input and the attribute is on
+the model SDK span beneath it. An instruction asks the model; it does not enforce. The trace shows
+the instruction was sent, not that the model followed it.
+
 #### Example with OpenTelemetry Collector
 ```bash
 # Run OpenTelemetry Collector locally

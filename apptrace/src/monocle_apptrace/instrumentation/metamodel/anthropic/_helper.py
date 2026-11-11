@@ -19,6 +19,7 @@ from monocle_apptrace.instrumentation.metamodel.finish_types import map_anthropi
 from monocle_apptrace.instrumentation.common.constants import AGENT_PREFIX_KEY, INFERENCE_AGENT_DELEGATION, INFERENCE_TURN_END, INFERENCE_TOOL_CALL, TOOL_TYPE
 from contextlib import suppress
 
+from monocle_apptrace.instructions.sending import instruction_before, placed_first
 
 logger = logging.getLogger(__name__)
 
@@ -281,3 +282,16 @@ def extract_tool_type(arguments):
         logger.warning("Warning: Error occurred in extract_tool_type: %s", str(e))
     
     return None
+
+
+def add_instruction(kwargs, text):
+    """The call with the instruction ahead of ``system``, or None if it carries no messages."""
+    if "messages" not in kwargs:
+        return None
+    system = kwargs.get("system")
+    if isinstance(system, (list, tuple)):
+        return {**kwargs, "system": placed_first({"type": "text", "text": text}, list(system))}
+    instructed_system = instruction_before(text, system)
+    if instructed_system is None:
+        return None
+    return {**kwargs, "system": instructed_system}

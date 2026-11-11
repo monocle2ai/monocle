@@ -24,6 +24,7 @@ from monocle_apptrace.exporters.span_obfuscator import (
     set_span_obfuscators,
     install_obfuscation_hooks,
 )
+from monocle_apptrace.instructions import instruction_in_effect
 from monocle_apptrace.instrumentation.common.genai_semantic_conventions import (
     configure_otel_genai_semconv,
 )
@@ -349,6 +350,10 @@ def setup_monocle_telemetry(
         instrumentor_exists=get_monocle_instrumentor() is not None,
     ):
         return get_monocle_instrumentor()
+
+    instruction = instruction_in_effect()
+    if instruction:
+        logger.info("Adding instruction '%s' to model calls", instruction.name)
 
     resource = Resource(attributes={
         SERVICE_NAME: workflow_name

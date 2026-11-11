@@ -10,6 +10,7 @@ from opentelemetry.context import set_value, attach, detach, get_value
 from opentelemetry.trace.span import INVALID_SPAN, Span, SpanContext, TraceFlags, TraceState
 from opentelemetry.trace.status import StatusCode
 
+from monocle_apptrace.instructions.sending import instructed_call, record_sent_instruction
 from monocle_apptrace.instrumentation.common.constants import (
     ADD_NEW_WORKFLOW,
     AGENTIC_SPANS,
@@ -67,6 +68,8 @@ def post_process_span(handler, to_wrap, wrapped, instance, args, kwargs, return_
             return_value = SpanHandler.replace_placeholders_in_response(return_value, span)
         except Exception as e:
             logger.info(f"Warning: Error occurred in hydrate_span: {e}")
+
+        record_sent_instruction(wrapped, span)
         
         try:
             handler.post_task_processing(to_wrap, wrapped, instance, args, kwargs, return_value, ex, span, parent_span)
@@ -346,6 +349,7 @@ def monocle_wrapper(tracer: Tracer, handler: SpanHandler, to_wrap, wrapped, inst
                 to_wrap = alternate_to_wrapp
         except Exception as e:
             logger.info(f"Warning: Error occurred in pre_tracing: {e}")
+        wrapped = instructed_call(to_wrap, wrapped)
         if (get_value(MONOCLE_SUPPRESS_SPANS) is True
                 or to_wrap.get('skip_span', False)
                 or handler.skip_span(to_wrap, wrapped, instance, args, kwargs)):
@@ -380,6 +384,7 @@ def monocle_iter_wrapper(tracer: Tracer, handler: SpanHandler, to_wrap, wrapped,
                 to_wrap = alternate_to_wrapp
         except Exception as e:
             logger.info(f"Warning: Error occurred in pre_tracing: {e}")
+        wrapped = instructed_call(to_wrap, wrapped)
         if (get_value(MONOCLE_SUPPRESS_SPANS) is True
                 or to_wrap.get('skip_span', False)
                 or handler.skip_span(to_wrap, wrapped, instance, args, kwargs)):
@@ -596,6 +601,7 @@ async def amonocle_wrapper(tracer: Tracer, handler: SpanHandler, to_wrap, wrappe
                 to_wrap = alternate_to_wrapp
         except Exception as e:
             logger.info(f"Warning: Error occurred in pre_tracing: {e}")
+        wrapped = instructed_call(to_wrap, wrapped)
         if (get_value(MONOCLE_SUPPRESS_SPANS) is True
                 or to_wrap.get('skip_span', False)
                 or handler.skip_span(to_wrap, wrapped, instance, args, kwargs)):
@@ -630,6 +636,7 @@ async def amonocle_iter_wrapper(tracer: Tracer, handler: SpanHandler, to_wrap, w
                 to_wrap = alternate_to_wrapp
         except Exception as e:
             logger.info(f"Warning: Error occurred in pre_tracing: {e}")
+        wrapped = instructed_call(to_wrap, wrapped)
         if (get_value(MONOCLE_SUPPRESS_SPANS) is True
                 or to_wrap.get('skip_span', False)
                 or handler.skip_span(to_wrap, wrapped, instance, args, kwargs)):

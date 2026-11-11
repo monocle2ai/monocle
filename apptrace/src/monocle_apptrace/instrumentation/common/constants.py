@@ -155,6 +155,11 @@ LAST_AGENT_INVOCATION_ID = "monocle.last.agent.invocation.id"
 MONOCLE_SKIP_EXECUTIONS = "monocle.skip_executions"
 SKIPPED_EXECUTION = "monocle.skipped_execution"
 
+MONOCLE_INSTRUCTION_ENV = "MONOCLE_INSTRUCTION"
+MONOCLE_INSTRUCTION = "monocle.instruction"
+SENT_INSTRUCTION = "monocle.instruction"
+INSTRUCTION_INPUT_LABEL = "instruction"
+
 TOOL_TYPE = "tool.function"
 
 # agentic sub types

@@ -27,6 +27,14 @@ class BaseEval(BaseModel):
         return [], f"eval discovery not supported for evaluator '{type(self).__name__}'"
 
     @classmethod
+    def knows_fact_name(cls, fact_name: str) -> bool:
+        """True if this evaluator can discover evals at this fact level.
+
+        Default: only ``"traces"``. Providers with more fact levels override this.
+        """
+        return fact_name == "traces"
+
+    @classmethod
     def classify_eval_input(cls, name_or_path: str) -> Tuple[str, str]:
         """Classify an eval input as builtin or custom.
 

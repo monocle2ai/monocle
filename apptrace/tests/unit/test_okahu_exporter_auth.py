@@ -7,8 +7,8 @@ from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import SpanExportResult
 
 from monocle_apptrace.instrumentation.common.constants import MONOCLE_SDK_VERSION
-from monocle_apptrace.exporters.okahu import okahu_exporter
-from monocle_apptrace.exporters.okahu.okahu_exporter import OkahuSpanExporter
+from monocle_apptrace.providers.okahu import okahu_exporter
+from monocle_apptrace.providers.okahu.okahu_exporter import OkahuSpanExporter
 
 
 @pytest.fixture(autouse=True)

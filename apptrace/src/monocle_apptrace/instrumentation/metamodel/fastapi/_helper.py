@@ -292,11 +292,20 @@ async def _inject_trace_return_send(scope, send, handler, delimiter: str, trace_
 
 
 def get_url(args) -> str:
-    """Extract full URL from ASGI scope."""
-    server = args.get('server', ('127.0.0.1', 80))
-    host, port = server
+    """Extract full URL from ASGI scope.
+
+    Prefer the Host header, which is the address the client called. Fall back
+    to the socket the server is bound to, bracketing an IPv6 host so the URL
+    stays parseable.
+    """
     path = args.get('path', '/')
     scheme = args.get('scheme', 'http')
+    host_header = _headers_from_scope(args).get('host')
+    if host_header:
+        return f"{scheme}://{host_header}{path}"
+    host, port = args.get('server', ('127.0.0.1', 80))
+    if ':' in host:
+        host = f"[{host}]"
     return f"{scheme}://{host}:{port}{path}"
 
 

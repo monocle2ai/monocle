@@ -150,32 +150,29 @@ Paygentic is a usage-based billing and metering platform for AI applications tha
 
 - **Paygentic Account**: Sign up at [paygentic.io](https://paygentic.io)
 - **API Key**: Generate an API key from your Paygentic dashboard
-- **Subscription/Customer IDs**: Properly configured scope attributes
+- **Customer ID**: A customer scope on every traced call
 
 #### Required Environment Variables
 
 | Variable | Description | Example |
 |----------|-------------|---------|
 | `PAYGENTIC_API_KEY` | Paygentic API key for authentication | `pg_1234567890abcdef` |
-| `PAYGENTIC_ENDPOINT` | (Optional) API endpoint | `https://api.paygentic.io/v0/events` (production) |
+| `PAYGENTIC_EVENT_ENDPOINT` | (Optional) API endpoint | `https://api.paygentic.io/v0/events` (production) |
 
 #### Required Scope Attributes
 
-Paygentic requires subscription and customer identifiers to be set as scope attributes:
+Set one of these scopes: `customerId` or `externalCustomerId`. `customerId` takes precedence if both are provided.
 
 ```python
-from monocle_apptrace.instrumentation.common.scope_wrapper import start_scope, stop_scope
+from monocle_apptrace import monocle_trace_scope
 
-# Set customer and subscription context
-start_scope("subscriptionId", "sub_123456")
-start_scope("customerId", "cust_789012")
+with monocle_trace_scope("customerId", "cus_123456"):
+    # Your instrumented code here
+    ...
 
-# Your instrumented code here
-# ...
-
-# Clean up scopes when done
-stop_scope("subscriptionId")
-stop_scope("customerId")
+# Or, with your own customer ID:
+with monocle_trace_scope("externalCustomerId", "acme-42"):
+    ...
 ```
 
 #### Configuration
@@ -190,7 +187,7 @@ export PAYGENTIC_API_KEY=your-paygentic-api-key
 
 - Automatic token usage tracking from inference spans
 - CloudEvents-based event streaming
-- Subscription and customer-level metering
+- Customer-level metering
 - Multi-provider cost aggregation (OpenAI, Anthropic, Google, AWS, Azure)
 - Real-time usage dashboards
 

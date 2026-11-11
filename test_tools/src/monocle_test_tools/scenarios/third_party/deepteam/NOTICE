@@ -1,0 +1,21 @@
+DeepTeam — https://github.com/confident-ai/deepteam
+Copyright Confident AI. Licensed under the Apache License, Version 2.0.
+Full licence text in ./LICENSE.md.
+
+WHAT IS INCLUDED
+  prompts/*.py
+      Verbatim copies of deepteam/attacks/single_turn/<attack>/template.py from the
+      main branch (fetched 2026-08-28), unmodified:
+        authority_escalation · emotional_manipulation · permission_escalation ·
+        roleplay · prompt_probing
+
+HOW IT IS USED (scenarios/attacks.py)
+  Each template gives enhance(input) -> a prompt that rewrites a baseline attack into
+  that framing, and is_<x>(response) -> a prompt that checks the rewrite still shows
+  the framing. Both are applied as written, with DeepTeam's own discipline: up to
+  three attempts, then the plain baseline rather than a rewrite that failed its check.
+  The baseline is the red-team scenario text from scenarios/redteam.yaml.
+
+NOT INCLUDED
+  Obfuscation framings (base64, rot13, leetspeak, ...): no real user sends them.
+  Multi-turn attacks: they refine against live replies and cannot be prepared offline.

@@ -31,8 +31,8 @@ SUCCESS_STATUS_CODES = {200, 202}
 
 # Monocle sets scopes as span attributes with "scope." prefix
 # (baggage key "monocle.scope.X" -> span attr "scope.X")
-SCOPE_SUBSCRIPTION_ID = "scope.subscriptionId"
 SCOPE_CUSTOMER_ID = "scope.customerId"
+SCOPE_EXTERNAL_CUSTOMER_ID = "scope.externalCustomerId"
 
 # How long (seconds) to suppress a rejected event type before retrying
 REJECTED_TYPE_COOLDOWN = 3600  # 1 hour
@@ -62,7 +62,7 @@ class PaygenticSpanExporter(SpanExporterBase):
                 inference spans with only ``entity.1.type``, ``scope.*``
                 attributes and ``metadata`` events.  Custom configs must
                 keep ``scope.*`` in ``fields_to_include.attributes`` or
-                ``_resolve_subject`` will fail to find a subject for every span.
+                ``_resolve_customer`` will fail to find a customer for every span.
         """
         super().__init__()
         api_key = os.environ.get("PAYGENTIC_API_KEY")
@@ -107,25 +107,29 @@ class PaygenticSpanExporter(SpanExporterBase):
         logger.info("Initializing with endpoint: %s", self._endpoint)
 
     @staticmethod
-    def _resolve_subject(
+    def _resolve_customer(
         attributes: Dict[str, Any], span_name: str, trace_id: str,
-    ) -> Optional[str]:
-        """Resolve the event subject from monocle scopes.
+    ) -> Optional[Dict[str, str]]:
+        """Map the customerId scope to ``subject`` and externalCustomerId to ``externalSubject``.
 
-        Priority: subscriptionId scope > customerId scope.
-        Returns None and logs an error when no subject can be determined.
+        Returns None and logs an error when neither scope is set.
         """
-        subscription_id = attributes.get(SCOPE_SUBSCRIPTION_ID)
-        if subscription_id:
-            return str(subscription_id)
+        fields: Dict[str, str] = {}
 
         customer_id = attributes.get(SCOPE_CUSTOMER_ID)
         if customer_id:
-            return str(customer_id)
+            fields["subject"] = str(customer_id)
+
+        external_customer_id = attributes.get(SCOPE_EXTERNAL_CUSTOMER_ID)
+        if external_customer_id:
+            fields["externalSubject"] = str(external_customer_id)
+
+        if fields:
+            return fields
 
         logger.error(
-            "No subscriptionId or customerId scope set on span %s (trace %s). "
-            "Set a monocle scope for 'subscriptionId' or 'customerId' before "
+            "No customerId or externalCustomerId scope set on span %s (trace %s). "
+            "Set a monocle scope for 'customerId' or 'externalCustomerId' before "
             "the traced call.",
             span_name,
             trace_id,
@@ -194,14 +198,14 @@ class PaygenticSpanExporter(SpanExporterBase):
             if self._is_type_rejected(event_type):
                 continue
 
-            subject = self._resolve_subject(attrs, filtered.get("name", ""), trace_id)
-            if subject is None:
+            customer = self._resolve_customer(attrs, filtered.get("name", ""), trace_id)
+            if customer is None:
                 continue
 
             event: Dict[str, Any] = {
                 "type": event_type,
                 "source": self._source,
-                "subject": subject,
+                **customer,
                 "idempotencyKey": f"{trace_id}_{ctx.get('span_id', '')}",
                 "data": {
                     "span_id": ctx.get("span_id", ""),

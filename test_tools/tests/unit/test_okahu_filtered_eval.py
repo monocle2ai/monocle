@@ -8,8 +8,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from monocle_test_tools.evals import okahu_filtered_eval as feval
-from monocle_test_tools.evals.okahu_filtered_eval import OkahuFilteredEval
+from monocle_test_tools.providers.okahu import okahu_filtered_eval as feval
+from monocle_test_tools.providers.okahu.okahu_filtered_eval import OkahuFilteredEval
 
 
 def _client():
@@ -210,7 +210,7 @@ def test_query_results_accumulates_across_pages():
     c = feval.OkahuFilteredEval(api_key="k", eval_base="http://e", api_base="http://a")
     page1 = [{"fact_id": f"{i:02x}", "eval_name": "hallucination"} for i in range(100)]
     page2 = [{"fact_id": "aa", "eval_name": "hallucination"}]
-    with patch("monocle_test_tools.evals.okahu_filtered_eval.requests.post",
+    with patch("monocle_test_tools.providers.okahu.okahu_filtered_eval.requests.post",
                side_effect=[_page_resp(page1), _page_resp(page2)]) as post:
         rows = c.query_results("wf", [f"{i:02x}" for i in range(101)],
                                eval_name="hallucination", fact_name="traces",
@@ -221,7 +221,7 @@ def test_query_results_accumulates_across_pages():
 
 def test_query_results_single_short_page_stops():
     c = feval.OkahuFilteredEval(api_key="k", eval_base="http://e", api_base="http://a")
-    with patch("monocle_test_tools.evals.okahu_filtered_eval.requests.post",
+    with patch("monocle_test_tools.providers.okahu.okahu_filtered_eval.requests.post",
                side_effect=[_page_resp([{"fact_id": "aa", "eval_name": "hallucination"}])]) as post:
         rows = c.query_results("wf", ["aa"], eval_name="hallucination",
                                fact_name="traces", start_time="s", end_time="e")
@@ -233,7 +233,7 @@ def test_get_job_result_fact_ids_accumulates_across_pages():
     c = feval.OkahuFilteredEval(api_key="k", eval_base="http://e", api_base="http://a")
     page1 = [{"fact_id": f"{i:02x}"} for i in range(100)]
     page2 = [{"fact_id": "ff"}]
-    with patch("monocle_test_tools.evals.okahu_filtered_eval.requests.get",
+    with patch("monocle_test_tools.providers.okahu.okahu_filtered_eval.requests.get",
                side_effect=[_page_resp(page1), _page_resp(page2)]) as get:
         ids = c.get_job_result_fact_ids("job-1")
     assert len(ids) == 101

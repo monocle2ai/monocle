@@ -122,6 +122,7 @@ class TestTypesafeInstrumentation(unittest.TestCase):
         # Resolved model, not the requested "jev-latest" alias.
         self.assertEqual(_attr(span, "entity.2.name"), "jev-1.13.0")
         self.assertEqual(_attr(span, "entity.2.type"), "model.decision.jev-1.13.0")
+        self.assertEqual(_attr(span, "entity.2.model_type"), "decision")
         # Model is the 2nd entity; lock the count so a regression where the model block
         # fails to register as entity.2 (the bug fixed on this branch) is caught.
         self.assertEqual(_attr(span, "entity.count"), 2)
@@ -160,6 +161,7 @@ class TestTypesafeInstrumentation(unittest.TestCase):
         # Resolved model via the async path, not the requested alias.
         self.assertEqual(_attr(span, "entity.2.name"), "jev-1.13.0")
         self.assertEqual(_attr(span, "entity.2.type"), "model.decision.jev-1.13.0")
+        self.assertEqual(_attr(span, "entity.2.model_type"), "decision")
         self.assertEqual(_attr(span, "entity.count"), 2)
         events = {e.name: dict(e.attributes) for e in span.events}
         response = json.loads(events["data.output"]["response"])

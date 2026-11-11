@@ -13,6 +13,7 @@ from monocle_apptrace.instrumentation.common.utils import (
 RESPONSES = {
     "type": SPAN_TYPES.INFERENCE,
     "add_instruction": _helper.add_responses_instruction,
+    "guarded_input": _helper.guarded_responses_input,
     "subtype": lambda arguments: _helper.responses_inference_type(arguments),
     "attributes": [
         [

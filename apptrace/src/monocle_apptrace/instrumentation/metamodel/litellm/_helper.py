@@ -483,3 +483,13 @@ def add_responses_instruction(kwargs, text):
     if instructions is None:
         return None
     return {**kwargs, "response_api_optional_request_params": {**request_params, "instructions": instructions}}
+
+
+def guarded_chat_input(args, kwargs) -> list:
+    """The parts of a chat call that carry the prompt. The rest holds the API key and LiteLLM's own records."""
+    return [kwargs.get("messages"), kwargs.get("data"), kwargs.get("optional_params")]
+
+
+def guarded_responses_input(args, kwargs) -> list:
+    """The parts of a Responses call that carry the prompt. The rest holds the API key and LiteLLM's own records."""
+    return [kwargs.get("input"), kwargs.get("response_api_optional_request_params")]

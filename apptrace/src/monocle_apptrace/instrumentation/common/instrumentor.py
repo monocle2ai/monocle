@@ -24,6 +24,7 @@ from monocle_apptrace.exporters.span_obfuscator import (
     set_span_obfuscators,
     install_obfuscation_hooks,
 )
+from monocle_apptrace.guardrails import guardrails_in_effect
 from monocle_apptrace.instructions import instruction_in_effect
 from monocle_apptrace.instrumentation.common.genai_semantic_conventions import (
     configure_otel_genai_semconv,
@@ -355,6 +356,8 @@ def setup_monocle_telemetry(
     instruction = instruction_in_effect()
     if instruction:
         logger.info("Adding instruction '%s' to model calls", instruction.name)
+    for guardrail in guardrails_in_effect():
+        logger.info("Checking model calls against guardrail '%s'", guardrail.name)
 
     resource = Resource(attributes={
         SERVICE_NAME: workflow_name

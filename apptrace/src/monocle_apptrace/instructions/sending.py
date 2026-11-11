@@ -6,7 +6,7 @@ from monocle_apptrace.instructions.instruction import Instruction, instruction_i
 from monocle_apptrace.instrumentation.common.constants import (
     INSTRUCTION_INPUT_LABEL, SENT_INSTRUCTION, SPAN_TYPE_KEY, SPAN_TYPES,
 )
-from monocle_apptrace.instrumentation.common.utils import get_json_dumps
+from monocle_apptrace.instrumentation.common.utils import get_json_dumps, model_call_inference
 
 logger = logging.getLogger(__name__)
 
@@ -38,8 +38,8 @@ class InstructedCall:
 
 def instructed_call(to_wrap: dict, model_method: Callable) -> Callable:
     """The method to call at this wrap site: one that adds the instruction in effect, or the method itself."""
-    output_processor = to_wrap.get("output_processor")
-    if not isinstance(output_processor, dict) or "add_instruction" not in output_processor:
+    inference = model_call_inference(to_wrap)
+    if inference is None:
         return model_method
     try:
         instruction = instruction_in_effect()
@@ -48,7 +48,7 @@ def instructed_call(to_wrap: dict, model_method: Callable) -> Callable:
         return model_method
     if instruction is None:
         return model_method
-    return InstructedCall(model_method, output_processor["add_instruction"], instruction)
+    return InstructedCall(model_method, inference["add_instruction"], instruction)
 
 
 def record_sent_instruction(model_method: Callable, span) -> None:

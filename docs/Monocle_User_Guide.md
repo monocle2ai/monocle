@@ -319,6 +319,71 @@ framework such as LangChain, the label appears in the framework span's input and
 the model SDK span beneath it. An instruction asks the model; it does not enforce. The trace shows
 the instruction was sent, not that the model followed it.
 
+#### Stopping a model call with a guardrail
+
+Monocle can check every model call your app makes and stop it. A guardrail is a YAML file of
+patterns. When the call's input or the model's response matches one, Monocle raises an error in
+place of the call, and the agent's turn ends there. It is off unless you set `MONOCLE_GUARDRAILS`
+to the paths of your guardrail files, separated by commas.
+
+```bash
+export MONOCLE_GUARDRAILS=config/monocle/no-card-numbers.yaml,config/monocle/no-deletes.yaml
+```
+
+The file has a name, which must match the file name, a description, and its patterns:
+
+```yaml
+name: no-card-numbers
+description: Stops a model call that carries a payment card number.
+sides: [input, output]
+patterns:
+  - '\b(?:\d[ -]?){13,16}\b'
+```
+
+`sides` says which side of the model call is checked: `input`, `output`, or both when it is left
+out. A match on the input means the call is never sent. A match on the output means the response
+is never returned, so a tool call the model asked for does not run.
+
+Patterns are regular expressions. They are matched against every piece of text and every number in
+the call and in the model's response: all the messages, the system prompt, the tool definitions and
+the tool calls the model asks for. That also covers values such as the model name and the response
+id, so write patterns that are specific to what you want stopped.
+
+The error is `GuardrailTriggered`, and the inference span records it:
+
+```json
+"status": { "status_code": "ERROR",
+            "message": "Kill switch triggered by guardrail 'no-card-numbers' on the output of a model call." },
+"attributes": { "monocle.guardrail.name": "no-card-numbers",
+                "monocle.guardrail.side": "output",
+                "monocle.guardrail.reason": "pattern 1" },
+"events": [{ "name": "data.output", "attributes": { "error_code": "guardrail_triggered" } }]
+```
+
+The reason names the pattern by its place in the file. The text that matched is never put in the
+error or the reason.
+
+Once a guardrail stops a model call, Monocle refuses every later model call in the same trace with
+the same error, so an agent that catches the error and tries again does not continue. A library
+between your app and the model, such as LiteLLM, may wrap the error in one of its own; the message
+is kept.
+
+To see what a guardrail would stop before it stops anything, also set
+`MONOCLE_GUARDRAILS_WATCH_ONLY=true`. Calls go through, and a span whose call matched carries the
+same three attributes plus `monocle.guardrail.watched`.
+
+Guardrails check the same model calls an instruction is added to. Three things are not supported:
+
+- The response of a streamed call is not checked. Its input is.
+- The response of Bedrock `invoke_model` is not checked. Its input is.
+- One stop refuses the rest of the trace. An app that keeps many user turns in one trace is refused
+  for all of them.
+
+A guardrail runs inside your app, so it is a control for the app's owner and not a defence against
+code that removes it. A path with no file, a file that is not valid YAML, a key the format does not
+have, or a pattern that is not a valid regular expression or that matches empty text stops
+`setup_monocle_telemetry` with a message that names the file.
+
 #### Example with OpenTelemetry Collector
 ```bash
 # Run OpenTelemetry Collector locally

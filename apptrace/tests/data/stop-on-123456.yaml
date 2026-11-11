@@ -1,0 +1,4 @@
+name: stop-on-123456
+description: Stops a model call that carries the digits 123456, so a test can tell the guardrail stopped it.
+patterns:
+  - '123456'

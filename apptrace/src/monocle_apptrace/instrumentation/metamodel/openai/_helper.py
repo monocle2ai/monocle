@@ -616,3 +616,8 @@ def add_instruction(kwargs, text):
     if instructions is None:
         return None
     return {**kwargs, "instructions": instructions}
+
+
+def guarded_response(response):
+    """The model's response as data, also when the app asked for the raw HTTP response that wraps it."""
+    return _normalize_result_object(response)

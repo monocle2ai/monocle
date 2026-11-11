@@ -3,6 +3,7 @@ import contextvars
 import logging, json
 import os
 import threading
+from pathlib import Path
 import traceback
 from typing import Callable, Generic, Optional, TypeVar, Mapping, Union
 
@@ -854,3 +855,37 @@ def get_monocle_env_value(key: str) -> Optional[str]:
         except OSError:
             continue
     return None
+
+
+def model_call_inference(to_wrap: dict) -> Optional[dict]:
+    """The inference entity of a wrap site whose call a model SDK sends, or None for any other wrap site.
+
+    Such an entity declares ``add_instruction``, because that call is where an instruction can be added.
+    """
+    inference = to_wrap.get("output_processor")
+    if isinstance(inference, dict) and "add_instruction" in inference:
+        return inference
+    return None
+
+
+def fields_of_named_file(path: str, kind: str, text_keys: tuple) -> dict:
+    """The fields of a YAML file that holds these keys as text and is named after its 'name'.
+
+    Raises ValueError, naming the file, if it is missing or not valid.
+    """
+    file = Path(path)
+    if not file.is_file():
+        raise ValueError(f"{kind} file {file} was not found.")
+    import yaml
+    try:
+        fields = yaml.safe_load(file.read_text(encoding="utf-8"))
+    except yaml.YAMLError as e:
+        raise ValueError(f"{kind} file {file} is not valid YAML: {e}")
+    if not isinstance(fields, dict):
+        raise ValueError(f"{kind} file {file} must hold the keys {', '.join(text_keys)}.")
+    for key in text_keys:
+        if not isinstance(fields.get(key), str) or not fields[key].strip():
+            raise ValueError(f"{kind} file {file} has no '{key}'.")
+    if fields["name"] != file.stem:
+        raise ValueError(f"{kind} file {file} is named '{fields['name']}'; the name must match the file name.")
+    return fields

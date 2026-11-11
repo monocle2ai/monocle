@@ -1,5 +1,4 @@
 from monocle_apptrace.instrumentation.common.constants import SPAN_TYPES
-from monocle_apptrace.instructions.placing import add_to_request_instructions
 from monocle_apptrace.instrumentation.metamodel.litellm import (
     _helper,
 )
@@ -13,7 +12,7 @@ from monocle_apptrace.instrumentation.common.utils import (
 # chat-completion INFERENCE entity does not wrap. Non-streaming only.
 RESPONSES = {
     "type": SPAN_TYPES.INFERENCE,
-    "add_instruction": add_to_request_instructions,
+    "add_instruction": _helper.add_responses_instruction,
     "subtype": lambda arguments: _helper.responses_inference_type(arguments),
     "attributes": [
         [

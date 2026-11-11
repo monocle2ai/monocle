@@ -1,5 +1,4 @@
 from monocle_apptrace.instrumentation.common.constants import SPAN_TYPES
-from monocle_apptrace.instructions.placing import add_to_system
 from monocle_apptrace.instrumentation.metamodel.anthropic import (
     _helper,
 )
@@ -14,7 +13,7 @@ def process_stream(to_wrap, response, span_processor):
 
 INFERENCE = {
     "type": SPAN_TYPES.INFERENCE,
-    "add_instruction": add_to_system,
+    "add_instruction": _helper.add_instruction,
     "subtype": lambda arguments: _helper.agent_inference_type(arguments),
     "attributes": [
         [

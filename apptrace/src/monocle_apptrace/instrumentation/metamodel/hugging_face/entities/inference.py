@@ -1,5 +1,5 @@
 from monocle_apptrace.instrumentation.common.constants import SPAN_TYPES
-from monocle_apptrace.instructions.placing import add_system_message
+from monocle_apptrace.instructions.sending import add_system_message
 from monocle_apptrace.instrumentation.common.utils import get_error_message, resolve_from_alias
 from monocle_apptrace.instrumentation.metamodel.hugging_face import _helper
 

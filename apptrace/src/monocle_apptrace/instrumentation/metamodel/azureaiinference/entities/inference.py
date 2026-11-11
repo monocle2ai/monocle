@@ -1,7 +1,7 @@
 import logging
 
 from monocle_apptrace.instrumentation.common.constants import SPAN_TYPES
-from monocle_apptrace.instructions.placing import add_system_message
+from monocle_apptrace.instructions.sending import add_system_message
 from monocle_apptrace.instrumentation.metamodel.azureaiinference.azureai_stream_processor import (
     AzureAIInferenceStreamProcessor,
 )

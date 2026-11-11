@@ -8,16 +8,32 @@ This document explains how to use the Monocle evaluation quality, cost, and perf
 pip install monocle_test_tools
 ```
 
-**Required Environment Variables:**
-- `OKAHU_API_KEY` - Must be set to run evaluations
+## Two ways to run an eval
 
-The evaluation tool will not run without this environment variable configured.
+An eval is an LLM-judge question asked of a trace: *was the answer grounded in what the tools returned? did the turn resolve the request?* The judge answers with one label from a fixed list, and `check_eval` asserts it. Monocle runs the judge in one of two places, chosen per assertion with `with_evaluation`:
 
-**Optional Environment Variables:**
- - `MONOCLE_EXPORTER` - set to `okahu` or `file,okahu` if you want traces to export and evaluation results to persist
-    - Defaults to `file` which maintains local trace and evals only
+**`with_evaluation("okahu")`: Okahu's eval service.** The path for running evals at any scale, and the default. The service brings the built-in templates (`hallucination`, `sentiment`, `toxicity`, ...), models it operates and tunes for judging, and takes your custom templates too. You submit as many evals as you have traces: a time window over a workflow grades every trace in it, and Okahu carries the model traffic, so your own keys and rate limits never enter the picture. Results are stored next to the traces in Okahu, where you can compare them across runs. All it takes is your `OKAHU_API_KEY`.
 
- These are recommended, but not required environment variables
+**`with_evaluation("monocle")`: inside the test process.** The path for a developer's laptop: a few tests, a template you are still writing, a label you want to see now. The judge runs in-process on a model you name in the template, with that model's key and nothing else. Custom templates only, one trace at a time (whole, or per turn, session, agent invocation, tool call or LLM call), results in the test report. Everything else stays as it is: the trace can still come from Okahu with `with_trace_source("okahu", ...)`, and traces still export to Okahu as before. Every judge call goes to your key, so a large suite meets the provider's rate limits and bill; when it does, the same template moves to `"okahu"`.
+
+| | `"okahu"` | `"monocle"` |
+|---|---|---|
+| What you need | `OKAHU_API_KEY` | the key for the model the template names, e.g. `OPENAI_API_KEY`; or nothing, with `model="local"` |
+| Templates | built-in by name, and custom files | custom files only |
+| Model | operated by the service | any chat model LangChain can build (`openai:`, `anthropic:`, ...) or a decision model (`typesafe:`) |
+| Scope | one trace, or every trace of a workflow in a time window | one trace at a time |
+| Model traffic and rate limits | handled by Okahu | on your key |
+| Results | stored in Okahu | in the test report, with the judge's explanation |
+| Repeat and agreement (`repeat=5`) | no | yes |
+
+The same custom template file runs on both: write it on your laptop with `"monocle"`, then run it across every trace with `"okahu"`. Sections 1 to 11 describe the `"okahu"` path; [section 12](#12-running-evals-in-monocle) describes `"monocle"`.
+
+**Environment variables for `"okahu"`:**
+- `OKAHU_API_KEY` - required for `with_evaluation("okahu")`
+- `MONOCLE_EXPORTER` - optional; set to `okahu` or `file,okahu` to export traces and persist evaluation results. Defaults to `file`, which keeps traces and evals local.
+
+**Environment variables for `"monocle"`:**
+- the key for the template's `llm.model`: the provider before the colon, upper-cased, plus `_API_KEY` (`OPENAI_API_KEY` for `openai:gpt-4.1-mini`, `TYPESAFE_API_KEY` for `typesafe:jev-latest`)
 
 ## 1. `monocle_trace_asserter` (Pytest Fixture)
 A pytest fixture for running agents and asserting on evaluation metrics across entire traces or filtered spans.
@@ -274,12 +290,21 @@ Passing tests display `PASSED` in green.
 
 ## 6. Understanding Failures
 
-When an evaluation fails, the assertion error indicates the metric, expected value, and actual value:
+When an evaluation fails, the report names the eval, what was expected, what judged it, and every verdict, with the judge's explanation under each miss. Verdicts that matched are listed with a tick so a partial failure shows the whole picture:
 
 ```
-AssertionError: Evaluation 'sentiment' did not match expected result. 
-Expected positive. Received negative.
+Eval 'sentiment': 1 of 3 did not match
+  expected   positive
+
+  turn-1  →  positive  ✓
+  turn-2  →  negative
+      The assistant's final reply dismisses the customer's complaint ("that's not our problem")
+      and closes without an offer to help.
+  turn-3  →  positive  ✓
+    at tests/test_support.py#41: check_eval('sentiment', expected='positive')
 ```
+
+With `with_evaluation("monocle")` the `judge` line shows the model and how many runs it made per trace, and each verdict carries its numbers: `ungrounded  ✓  (5 of 5 runs)`, or for a decision model `ungrounded  ✓  (p 1.00)   grounded 0.00, partially_grounded 0.00`.
 
 ## 7. Custom Evaluation Templates
 
@@ -613,3 +638,71 @@ check_eval(eval_name=None, expected=None, not_expected=None, fact_name="traces",
 
 
 **Note:** The names that aren't supported will raise a `ValueError` with a helpful message showing the supported fact names.
+
+## 12. Running evals in Monocle
+
+A custom template can run inside Monocle. The judge call goes to the model provider you chose.
+
+```python
+monocle_trace_asserter.with_evaluation("monocle") \
+    .check_eval("path/to/template.json", expected="ungrounded")
+
+# Run the judge five times and assert the majority label
+monocle_trace_asserter.with_evaluation("monocle", repeat=5) \
+    .check_eval("path/to/template.json", expected="ungrounded")
+
+# Judge on an open model on this machine, with no API key
+monocle_trace_asserter.with_evaluation("monocle", repeat=3, model="local") \
+    .check_eval("path/to/template.json", expected="ungrounded")
+```
+
+`"monocle"` runs custom templates only. A built-in name such as `"hallucination"` raises `ValueError("'monocle' runs custom templates only; pass a template file path")`. `repeat` and `model` are keywords of `with_evaluation`. They are not options, and either inside `eval_options` raises. `model` takes `"local"` or `"local:<name>"` and runs the judge on that model in place of the template's; the template still says what the judge asks and sees. Any other value raises: a hosted judge is named by the template.
+
+`"monocle"` judges traces: one verdict per trace in the asserter. `fact_name` is `"traces"` (the default); any other value raises `ValueError('with_evaluation("monocle") judges traces; fact_name="…" is not supported')`.
+
+### What happens
+
+For each trace, Monocle takes its spans, keeps what `evidence_scope` allows, and writes them out as one evidence document behind a short preamble. It sends the document to the judge with your `eval_prompt` and reads back the fields in `structure_output`. `check_eval` compares the `label` with `expected` / `not_expected`, as it does for Okahu.
+
+### The template
+
+| Block | Required | Rules |
+|---|---|---|
+| `name` | yes | Lower-case letters, digits and single underscores. No leading or trailing `_`. At most 50 characters. |
+| `eval_prompt` | yes | A non-empty string. |
+| `structure_output` | yes | Must have `label` (unique `enums`) and `explanation`. Other fields need a `description`. |
+| `evidence_scope` | no | `span_types`, `roles` and `events`, all three when the block is present. Leave it out for the default scope. |
+| `llm` | yes | `model` is required. `params` and `min_confidence` are optional. See Models. |
+
+Unknown fields are rejected. A prompt that asks for evidence the scope leaves out (for example, tool calls with no tool spans) logs a warning, not an error.
+
+**Default evidence scope.** Span types `agentic.turn`, `inference`, `inference.framework`, `agentic.invocation`, `agentic.tool.invocation`, `agentic.mcp.invocation`, `embedding`, `embedding.modelapi`, `retrieval`, `retrieval.embedding`. Roles `system`, `user`, `assistant`, `tool`. Events `input`, `output`.
+
+### Models
+
+`llm.model` is one of:
+
+- `provider:model`, such as `openai:gpt-4.1-mini`. It is loaded through LangChain, so the provider's package and API key (for example `OPENAI_API_KEY`) must be present.
+- `local` or `local:<name>`, an open model served on this machine through llama.cpp, with no API key: `local` is Qwen3-4B-Instruct; `local:llama-3.2-3b` and `local:phi-4-mini` are the others. `llama-cpp-python` is not a dependency; the error says how to install it (a pinned prebuilt wheel). The model is downloaded once into the Hugging Face cache, about 2.5 GB, and the server starts as a child process of the test run. See Local models below.
+- `typesafe:<model>`, a decision model: one that answers once with a probability per label. TypeSafe is the one provider today; another is one class in `judge.py`'s `DECISION_JUDGES`, keyed by its prefix. It needs the `TYPESAFE_API_KEY` environment variable (and `TYPESAFE_API_URL` when the endpoint is not `https://api.typesafe.ai`) and `llm.min_confidence`, a number above 0 and up to 1. It does not take `llm.params`, and it cannot use `repeat`.
+
+`llm.params` are passed to a hosted model when it is built. `temperature` defaults to 0; `top_p` and `max_tokens` are widely supported. `top_k` and `seed` are provider-dependent: OpenAI rejects `top_k`. A local model runs at temperature 0 and ignores `params`. `llm.min_confidence` is only for `typesafe:` models.
+
+### Local models
+
+The judge sees a whole trace, so the server's context window has to hold the evidence plus the prompt. Evals start the server with 12,288 tokens, enough for the default `evidence_scope` on a trace of a few dozen spans; a template can set `"llm": {"model": "local", "context_tokens": 32768}` for more (allowed on local models only). The window costs memory for the key-value cache, about 150 KB per token on Qwen3-4B, and time to read the evidence, not a different model: all three take 128k tokens or more. Narrowing `evidence_scope` to the spans the question needs is the other way to fit.
+
+`model="local"` cannot run a `typesafe:` template: a decision model has no local form. Scenario tests and evals in one run share the server, so they must use the same local model.
+
+Monocle does not count tokens before calling the judge. If a trace's evidence is larger than the model's context, the provider rejects the request before generating anything and the test fails with the provider's own message (TypeSafe answers `400 max_tokens_exceeded`); narrow `evidence_scope` or pick a model with a larger context.
+
+### Inconclusive results
+
+A judge can fail to give a stable answer. Such a trace is reported as `inconclusive`, with the reason, and no expectation matches it, so you can tell it from a wrong label.
+
+- With `repeat=N`, the label is the majority across runs. If the majority is under 80% of the runs (set `min_agreement` in `eval_options` to a number above 0 and at most 1 to change it), the trace reads `→  inconclusive, flipped: ungrounded ×3, grounded ×2 (60% agree, need 80%)`.
+- With a decision model, a probability for the chosen label below `min_confidence` reads `→  inconclusive, low confidence: ungrounded 0.62 (need 0.70)   partially_grounded 0.31, grounded 0.07`.
+
+### The same template on Okahu
+
+`OkahuEval` moves `evidence_scope` out of the template and sends it beside the template in the request body. It drops `llm.model` and `llm.min_confidence`, and removes `llm` entirely when no `profile` is left. So one file with those fields also runs with `with_evaluation("okahu")`. See `test_tools/tests/integration/test_json_trace_assertions.py` for the same template on both backends, and `test_tools/examples/evals/` for the worked examples with a README on writing your own.

@@ -2,6 +2,7 @@ from functools import wraps
 import inspect
 import json
 import os
+import textwrap
 from pathlib import Path
 from typing import Any, Callable, Optional, Sequence, Union
 from monocle_apptrace.instrumentation.common.method_wrappers import monocle_trace_method
@@ -20,6 +21,7 @@ from .comparer.default_comparer import DefaultComparer
 from .comparer.token_match_comparer import TokenMatchComparer
 from .evals.eval_manager import get_evaluator
 from .evals.base_eval import BaseEval
+from .evals.monocle import MonocleEval
 from .validator import MonocleValidator
 from .trace_sources import get_trace_source
 from .trace_utils import get_function_signature, get_caller_file_line
@@ -251,7 +253,8 @@ class TraceAssertion():
         """Compile all assertion error messages into a single string."""
         assertion_message = f"Trace assertions : {len(self._assertion_errors)} failures:"
         for assertion in self._assertion_errors:
-            assertion_message += f"{os.linesep}  " + assertion["message"] + " -> " + ".".join(assertion["fluent_chain"])
+            assertion_message += f"{os.linesep}  " + assertion["message"]
+            assertion_message += f"{os.linesep}    at " + ".".join(assertion["fluent_chain"])
         return assertion_message
 
     def has_assertions(self) -> bool:
@@ -402,11 +405,29 @@ class TraceAssertion():
         self.mock_tools.append(mock_tool)
         return self
 
-    def with_evaluation(self, eval:Union[str, BaseEval], eval_options:Optional[dict] = {}) -> 'TraceAssertion':
-        """Set the evaluation method for input/output comparisons."""
+    def with_evaluation(self, eval:Union[str, BaseEval], eval_options:Optional[dict] = None, repeat:int = 1,
+                        model:Optional[str] = None) -> 'TraceAssertion':
+        """Set the evaluation method for input/output comparisons.
+
+        ``repeat`` is how many times the judge runs per trace. ``model`` runs the judge on a model
+        served on this machine, ``"local"`` or ``"local:<name>"``, in place of the template's, so no
+        API key is needed. Both are for ``"monocle"``.
+
+        Raises ValueError when eval_options holds a ``repeat`` or ``model`` key, ``repeat`` is below 1,
+        or either is given for an evaluator other than ``"monocle"``.
+        """
+        if eval_options and ('repeat' in eval_options or 'model' in eval_options):
+            raise ValueError("pass repeat= and model= to with_evaluation as keywords, not in eval_options")
+        if repeat < 1:
+            raise ValueError(f"repeat must be at least 1, got {repeat}")
         updated_eval_options = eval_options.copy() if eval_options else {}
         updated_eval_options['trace_source'] = self.validator._trace_source
+        updated_eval_options['repeat'] = repeat
+        if model is not None:
+            updated_eval_options['model'] = model
         self._eval = get_evaluator(eval, updated_eval_options)
+        if (repeat > 1 or model is not None) and not isinstance(self._eval, MonocleEval):
+            raise ValueError("repeat and model are supported by with_evaluation('monocle') only")
         return self
 
     def with_comparer(self, comparer:Union[str, BaseComparer]) -> 'TraceAssertion':
@@ -1510,6 +1531,9 @@ class TraceAssertion():
                 not_expected=not_expected, template_path=template_path,
                 template=template, fact_name=fact_name, message=message)
 
+        if filter_scope is not None and isinstance(self._eval, MonocleEval):
+            raise ValueError("time-window evals run on Okahu only; use with_evaluation('okahu') or a single trace source")
+
         if filter_scope is None:
             # Span mode: filter-only params must not be used.
             if min_facts != 1 or fail_threshold != 0 or max_facts is not None:
@@ -1529,7 +1553,7 @@ class TraceAssertion():
             message=message)
         TraceAssertion._eval_report = build_filtered_report(
             expected, not_expected, fact_records, job_id=None)
-        self._raise_eval_failures(eval_name, failures, len(fact_records), message)
+        self._raise_eval_failures(eval_name, failures, message)
         return self
 
     def _check_eval_entry(self, entry, *, fact_name) -> tuple:
@@ -1570,13 +1594,12 @@ class TraceAssertion():
 
         TraceAssertion._eval_report = build_filtered_report(
             [entry.result for entry in testcase.evals], None, fact_records, job_id=None)
-        self._raise_eval_failures(testcase.name, failures, len(fact_records), message)
+        self._raise_eval_failures(testcase.name, failures, message)
         return self
 
     @staticmethod
-    def _raise_eval_failures(eval_name:str, failures:list[str], fact_count:int,
-                             message:Optional[str]) -> None:
-        """Raise one AssertionError covering every failure, or return quietly."""
+    def _raise_eval_failures(eval_name:str, failures:list[str], message:Optional[str]) -> None:
+        """Raise one AssertionError holding every eval's report, or return quietly."""
         if not failures:
             return
         if message:
@@ -1584,8 +1607,8 @@ class TraceAssertion():
         if len(failures) == 1:
             raise AssertionError(failures[0])
         raise AssertionError(
-            f"Evaluation '{eval_name}' failed for {len(failures)} of {fact_count} facts:"
-            + "".join(f"{os.linesep}  - {failure}" for failure in failures))
+            f"'{eval_name}': {len(failures)} evals did not match"
+            + "".join(f"{os.linesep}{os.linesep}{failure}" for failure in failures))
 
     def _check_eval_one(self, *, eval_name, expected, not_expected, fact_name,
                         template_path, template, message=None) -> tuple:
@@ -1687,22 +1710,20 @@ class TraceAssertion():
         # fact. isinstance guards a MagicMock evaluator (truthy, but not a list).
         fact_results = getattr(self._eval, "last_fact_results", None)
         if isinstance(fact_results, list) and fact_results:
-            facts = [(r["fact_id"], r["eval_result"]["label"],
-                      r["eval_result"].get("explanation", "")) for r in fact_results]
+            rows = fact_results
         else:
-            facts = [(trace_id, eval_result, explanation)]
+            rows = [{"fact_id": trace_id, "eval_result": {"label": eval_result, "explanation": explanation}}]
 
+        verdicts = [_graded_verdict(row, positive, negative) for row in rows]
         failures = []
-        for fact_id, eval_result, explanation in facts:
-            if positive and eval_result not in positive:
-                failures.append(f"Evaluation '{eval_name}' did not match expected result for fact '{fact_id}'. Expected one of {positive}. Received '{eval_result}'. \n Explanation: {explanation}")
-            elif negative and eval_result in negative:
-                failures.append(f"Evaluation '{eval_name}' matched an unexpected result for fact '{fact_id}'. Should not be any of {negative}. Received '{eval_result}'. \n Explanation: {explanation}")
+        if any(not verdict["ok"] for verdict in verdicts):
+            judge_description = getattr(self._eval, "last_judge_description", "")
+            failures.append(_render_eval_failures(eval_name, positive, negative, judge_description, verdicts))
 
-        return failures, [{"fact_id": fact_id, "job_id": None, "eval_found": True,
-                           "eval_result": {"label": label, "explanation": explanation},
+        return failures, [{"fact_id": verdict["fact_id"], "job_id": None, "eval_found": True,
+                           "eval_result": {"label": verdict["label"], "explanation": verdict["explanation"]},
                            "workflow": ""}
-                          for fact_id, label, explanation in facts]
+                          for verdict in verdicts]
 
     def _check_eval_filtered(self, scope, *, eval_name, expected, not_expected,
                              template_path, template, min_facts, fail_threshold,
@@ -1934,3 +1955,64 @@ class TraceAssertion():
                 if expected_outputs:
                     assertion_message += f" with unexpected outputs: {expected_outputs}."
                 raise AssertionError(assertion_message)
+
+
+def _graded_verdict(row: dict, positive: list, negative: list) -> dict:
+    """One row's verdict with its pass/fail against the expectation; an inconclusive verdict never passes."""
+    label = row["eval_result"]["label"]
+    judge = row.get("judge") or {}
+    if judge.get("inconclusive"):
+        ok = False
+    elif positive and label not in positive:
+        ok = False
+    elif negative and label in negative:
+        ok = False
+    else:
+        ok = True
+    return {"fact_id": row["fact_id"], "label": label, "explanation": row["eval_result"].get("explanation", ""),
+            "judge": judge, "ok": ok}
+
+
+def _render_eval_failures(eval_name, positive, negative, judge_description, verdicts) -> str:
+    """The report for one eval: what was expected, what judged it, and every verdict, misses explained."""
+    misses = sum(1 for verdict in verdicts if not verdict["ok"])
+    lines = [f"Eval '{eval_name}': {misses} of {len(verdicts)} did not match"]
+    lines.append(f"  expected   {_expectation_text(positive, negative)}")
+    if judge_description:
+        lines.append(f"  judge      {judge_description}")
+    lines.append("")
+    for verdict in verdicts:
+        lines.append(f"  {verdict['fact_id']}  →  {_verdict_text(verdict)}")
+        if not verdict["ok"] and verdict["explanation"]:
+            lines.append(textwrap.fill(verdict["explanation"], width=100, initial_indent="      ", subsequent_indent="      "))
+    return os.linesep.join(lines)
+
+
+
+def _expectation_text(positive: list, negative: list) -> str:
+    parts = []
+    if positive:
+        parts.append(" or ".join(positive))
+    if negative:
+        parts.append("not " + " or ".join(negative))
+    return ", ".join(parts)
+
+
+def _verdict_text(verdict: dict) -> str:
+    judge = verdict["judge"]
+    if judge.get("inconclusive"):
+        text = f"inconclusive, {judge['inconclusive']}"
+    elif not verdict["ok"]:
+        text = verdict["label"]
+    else:
+        text = f"{verdict['label']}  ✓"
+    if judge.get("probabilities") is not None:
+        if not judge.get("inconclusive"):
+            text += f"  (p {judge['confidence']:.2f})"
+        others = ", ".join(f"{label} {probability:.2f}" for label, probability in judge["probabilities"].items()
+                           if label != judge["label"])
+        return f"{text}   {others}"
+    if judge.get("runs", 1) > 1 and not judge.get("inconclusive"):
+        agreed = round(judge["agreement"] * judge["runs"])
+        text += f"  ({agreed} of {judge['runs']} runs)"
+    return text

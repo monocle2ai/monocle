@@ -32,6 +32,32 @@ def _eval_base_url() -> str:
 # OKAHU_EVAL_TIME_PAD_SECONDS if a deployment needs a tighter or wider window.
 DEFAULT_EVAL_TIME_PAD_SECONDS = 8 * 60 * 60      # 8 hours
 
+OKAHU_REJECTED_LLM_KEYS = ("model", "min_confidence")
+
+
+def prepare_template_for_okahu(template: dict) -> Tuple[dict, Optional[dict]]:
+    """Return the template Okahu accepts and the evidence scope to send beside it.
+
+    The caller's template is never modified.
+    """
+    prepared = dict(template)
+    evidence_scope = prepared.pop("evidence_scope", None)
+    llm_block = _llm_block_okahu_accepts(prepared.pop("llm", None))
+    if llm_block is not None:
+        prepared["llm"] = llm_block
+    return prepared, evidence_scope
+
+
+def _llm_block_okahu_accepts(llm: Optional[dict]) -> Optional[dict]:
+    """The llm block without the keys Okahu rejects, or None when no profile is left to send."""
+    if llm is None:
+        return None
+    llm_block = {key: value for key, value in llm.items() if key not in OKAHU_REJECTED_LLM_KEYS}
+    if "profile" not in llm_block:
+        return None
+    return llm_block
+
+
 class OkahuEval(BaseEval):
     last_judge_output: dict = {}
     last_total_tokens: Optional[int] = None
@@ -565,7 +591,10 @@ class OkahuEval(BaseEval):
         W3CBaggagePropagator().inject(headers)
 
         if template:
-            payload = {"template": template}
+            prepared_template, evidence_scope = prepare_template_for_okahu(template)
+            payload = {"template": prepared_template}
+            if evidence_scope is not None:
+                payload["evidence_scope"] = evidence_scope
         else:
             payload = {"template_name": eval_name}
         label = None
@@ -652,13 +681,14 @@ class OkahuEval(BaseEval):
             # replay (shadow_eval False) the submit already stored the result, so
             # exporting again would create a duplicate row.
             if shadow_eval and "okahu" in os.getenv("MONOCLE_EXPORTER", ""):
+                template_okahu_accepts = prepare_template_for_okahu(template)[0] if template else None
                 with OkahuEvalResultExporter(api_key=api_key, endpoint=base) as result_exporter:
                     result_exporter.export_results(
                         job_id=job_id,
                         eval_result=eval_result,
                         template_name=eval_name,
                         fact_name=fact_name,
-                        template=template
+                        template=template_okahu_accepts
                     )
 
         return label, explanation

@@ -14,7 +14,6 @@ from monocle_apptrace.instrumentation.metamodel.finish_types import (
     map_gemini_finish_reason_to_finish_type,
     GEMINI_FINISH_REASON_MAPPING
 )
-from monocle_apptrace.instructions.sending import instruction_before, placed_first
 
 logger = logging.getLogger(__name__)
 
@@ -233,52 +232,3 @@ def extract_tool_type(arguments):
         logger.warning("Warning: Error occurred in extract_tool_type: %s", str(e))
 
     return None
-
-
-def add_instruction(kwargs, text):
-    """The call with the instruction ahead of ``system_instruction`` in its config.
-
-    Returns None if the call carries no contents, if it uses cached content, which cannot be combined with a
-    system instruction, or if its system instruction is not text, parts or a Content.
-    """
-    if "contents" not in kwargs:
-        return None
-    config = kwargs.get("config")
-    if config_value(config, "cached_content", "cachedContent"):
-        return None
-    system_instruction = system_instruction_with(text, system_instruction_of(config))
-    if system_instruction is None:
-        return None
-    return {**kwargs, "config": config_with_system_instruction(config, system_instruction)}
-
-
-def system_instruction_of(config):
-    return config_value(config, "system_instruction", "systemInstruction")
-
-
-def config_value(config, name, camel_case_name):
-    if isinstance(config, dict):
-        return config.get(name) or config.get(camel_case_name)
-    return getattr(config, name, None)
-
-
-def system_instruction_key(config: dict) -> str:
-    if "systemInstruction" in config:
-        return "systemInstruction"
-    return "system_instruction"
-
-
-def system_instruction_with(text, system_instruction):
-    if isinstance(system_instruction, list):
-        return placed_first(text, system_instruction)
-    if hasattr(system_instruction, "parts"):
-        return placed_first(text, list(system_instruction.parts or []))
-    return instruction_before(text, system_instruction)
-
-
-def config_with_system_instruction(config, system_instruction):
-    if config is None:
-        return {"system_instruction": system_instruction}
-    if isinstance(config, dict):
-        return {**config, system_instruction_key(config): system_instruction}
-    return config.model_copy(update={"system_instruction": system_instruction})

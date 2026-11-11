@@ -14,17 +14,15 @@ from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanE
 from opentelemetry.sdk.trace.sampling import ALWAYS_OFF
 
 from monocle_apptrace.instructions import instruction_in_effect, load_instruction
-from monocle_apptrace.instructions.sending import add_system_message, instruction_before
+from monocle_apptrace.instructions.placing import (
+    add_system_block, add_system_message, add_to_messages_or_instructions,
+    add_to_request_instructions, add_to_system, add_to_system_instruction, instruction_before,
+)
 from monocle_apptrace.instrumentation.common.constants import (
     MONOCLE_INSTRUCTION, MONOCLE_INSTRUCTION_ENV, MONOCLE_SUPPRESS_SPANS, SENT_INSTRUCTION, SPAN_TYPES,
 )
 from monocle_apptrace.instrumentation.common.span_handler import SpanHandler
 from monocle_apptrace.instrumentation.common.wrapper import atask_wrapper, task_wrapper
-from monocle_apptrace.instrumentation.metamodel.anthropic import _helper as anthropic
-from monocle_apptrace.instrumentation.metamodel.botocore import _helper as bedrock
-from monocle_apptrace.instrumentation.metamodel.gemini import _helper as gemini
-from monocle_apptrace.instrumentation.metamodel.litellm import _helper as litellm
-from monocle_apptrace.instrumentation.metamodel.openai import _helper as openai
 
 TEXT = "Only help with bookings."
 START_WITH_123456_FILE = str(Path(__file__).parents[1] / "data" / "start-with-123456.yaml")
@@ -115,49 +113,49 @@ class TestPlacingAnInstruction(unittest.TestCase):
         self.assertEqual(instruction_before("Be brief.", "Be brief. And polite."), "Be brief.\n\nBe brief. And polite.")
 
     def test_system_prompt_that_is_not_text_is_never_replaced(self):
-        self.assertIsNone(openai.add_instruction({"input": "A poem, please", "instructions": object()}, TEXT))
+        self.assertIsNone(add_to_messages_or_instructions({"input": "A poem, please", "instructions": object()}, TEXT))
 
     def test_openai_responses_gets_it_ahead_of_instructions(self):
-        instructed = openai.add_instruction({"input": "A poem, please", "instructions": "You book travel."}, TEXT)
+        instructed = add_to_messages_or_instructions({"input": "A poem, please", "instructions": "You book travel."}, TEXT)
         self.assertEqual(instructed["instructions"], f"{TEXT}\n\nYou book travel.")
 
     def test_openai_responses_without_instructions_gets_it_alone(self):
-        self.assertEqual(openai.add_instruction({"input": "A poem, please"}, TEXT)["instructions"], TEXT)
+        self.assertEqual(add_to_messages_or_instructions({"input": "A poem, please"}, TEXT)["instructions"], TEXT)
 
     def test_openai_call_without_a_prompt_is_not_instructed(self):
-        self.assertIsNone(openai.add_instruction({"model": "m"}, TEXT))
+        self.assertIsNone(add_to_messages_or_instructions({"model": "m"}, TEXT))
 
     def test_anthropic_gets_it_ahead_of_system_text(self):
-        instructed = anthropic.add_instruction({"messages": DEVELOPER_MESSAGES[1:], "system": "You book travel."}, TEXT)
+        instructed = add_to_system({"messages": DEVELOPER_MESSAGES[1:], "system": "You book travel."}, TEXT)
         self.assertEqual(instructed["system"], f"{TEXT}\n\nYou book travel.")
 
     def test_anthropic_gets_it_ahead_of_system_blocks(self):
         developer_block = {"type": "text", "text": "You book travel."}
-        instructed = anthropic.add_instruction({"messages": DEVELOPER_MESSAGES[1:], "system": [developer_block]}, TEXT)
+        instructed = add_to_system({"messages": DEVELOPER_MESSAGES[1:], "system": [developer_block]}, TEXT)
         self.assertEqual(instructed["system"], [{"type": "text", "text": TEXT}, developer_block])
 
     def test_anthropic_system_blocks_given_as_a_tuple_are_kept(self):
         developer_block = {"type": "text", "text": "You book travel."}
-        instructed = anthropic.add_instruction({"messages": DEVELOPER_MESSAGES[1:], "system": (developer_block,)}, TEXT)
+        instructed = add_to_system({"messages": DEVELOPER_MESSAGES[1:], "system": (developer_block,)}, TEXT)
         self.assertEqual(instructed["system"], [{"type": "text", "text": TEXT}, developer_block])
 
     def test_gemini_gets_it_in_a_new_config(self):
-        self.assertEqual(gemini.add_instruction({"contents": "A poem, please"}, TEXT)["config"], {"system_instruction": TEXT})
+        self.assertEqual(add_to_system_instruction({"contents": "A poem, please"}, TEXT)["config"], {"system_instruction": TEXT})
 
     def test_gemini_gets_it_ahead_of_system_instruction_in_a_dict_config(self):
         config = {"system_instruction": "You book travel.", "temperature": 0}
-        instructed = gemini.add_instruction({"contents": "A poem, please", "config": config}, TEXT)
+        instructed = add_to_system_instruction({"contents": "A poem, please", "config": config}, TEXT)
         self.assertEqual(instructed["config"], {"system_instruction": f"{TEXT}\n\nYou book travel.", "temperature": 0})
         self.assertEqual(config["system_instruction"], "You book travel.")
 
     def test_gemini_dict_config_keeps_the_key_spelling_the_developer_used(self):
-        instructed = gemini.add_instruction({"contents": "A poem, please", "config": {"systemInstruction": "You book travel."}}, TEXT)
+        instructed = add_to_system_instruction({"contents": "A poem, please", "config": {"systemInstruction": "You book travel."}}, TEXT)
         self.assertEqual(instructed["config"], {"systemInstruction": f"{TEXT}\n\nYou book travel."})
 
     def test_gemini_config_object_is_copied_not_changed(self):
         from google.genai import types
         config = types.GenerateContentConfig(system_instruction="You book travel.")
-        instructed = gemini.add_instruction({"contents": "A poem, please", "config": config}, TEXT)
+        instructed = add_to_system_instruction({"contents": "A poem, please", "config": config}, TEXT)
         self.assertEqual(instructed["config"].system_instruction, f"{TEXT}\n\nYou book travel.")
         self.assertEqual(config.system_instruction, "You book travel.")
 
@@ -165,11 +163,11 @@ class TestPlacingAnInstruction(unittest.TestCase):
         from google.genai import types
         developer_part = types.Part(text="You book travel.")
         config = types.GenerateContentConfig(system_instruction=types.Content(parts=[developer_part]))
-        instructed = gemini.add_instruction({"contents": "A poem, please", "config": config}, TEXT)
+        instructed = add_to_system_instruction({"contents": "A poem, please", "config": config}, TEXT)
         self.assertEqual(instructed["config"].system_instruction, [TEXT, developer_part])
 
     def test_gemini_call_that_uses_cached_content_is_not_instructed(self):
-        self.assertIsNone(gemini.add_instruction({"contents": "A poem, please", "config": {"cached_content": "cachedContents/abc"}}, TEXT))
+        self.assertIsNone(add_to_system_instruction({"contents": "A poem, please", "config": {"cached_content": "cachedContents/abc"}}, TEXT))
 
     def test_openai_agents_model_leaves_the_instruction_to_the_responses_call_beneath_it(self):
         from monocle_apptrace.instrumentation.metamodel.openai.methods import OPENAI_METHODS
@@ -179,19 +177,19 @@ class TestPlacingAnInstruction(unittest.TestCase):
             self.assertNotIn("add_instruction", method["output_processor"])
 
     def test_bedrock_converse_gets_it_as_the_first_system_block(self):
-        instructed = bedrock.add_instruction({"messages": [], "system": [{"text": "You book travel."}]}, TEXT)
+        instructed = add_system_block({"messages": [], "system": [{"text": "You book travel."}]}, TEXT)
         self.assertEqual(instructed["system"], [{"text": TEXT}, {"text": "You book travel."}])
 
     def test_bedrock_invoke_model_is_not_instructed(self):
-        self.assertIsNone(bedrock.add_instruction({"modelId": "m", "body": "{}"}, TEXT))
+        self.assertIsNone(add_system_block({"modelId": "m", "body": "{}"}, TEXT))
 
     def test_litellm_azure_async_gets_it_under_data(self):
-        instructed = litellm.add_instruction({"data": {"messages": DEVELOPER_MESSAGES}}, TEXT)
+        instructed = add_system_message({"data": {"messages": DEVELOPER_MESSAGES}}, TEXT)
         self.assertEqual(instructed["data"]["messages"][0], {"role": "system", "content": TEXT})
 
     def test_litellm_responses_gets_it_in_request_params(self):
         kwargs = {"input": "A poem, please", "response_api_optional_request_params": {"instructions": "You book travel."}}
-        instructed = litellm.add_responses_instruction(kwargs, TEXT)
+        instructed = add_to_request_instructions(kwargs, TEXT)
         self.assertEqual(instructed["response_api_optional_request_params"]["instructions"], f"{TEXT}\n\nYou book travel.")
 
 

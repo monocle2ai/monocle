@@ -21,7 +21,6 @@ from monocle_apptrace.instrumentation.metamodel.finish_types import (
 )
 from monocle_apptrace.instrumentation.common.constants import AGENT_PREFIX_KEY, INFERENCE_AGENT_DELEGATION, INFERENCE_TURN_END, INFERENCE_TOOL_CALL, TOOL_TYPE
 from contextlib import suppress
-from monocle_apptrace.instructions.sending import add_system_message, instruction_before
 
 logger = logging.getLogger(__name__)
 
@@ -603,16 +602,3 @@ def extract_session_id_from_agents(kwargs):
     return None
 
 
-def add_instruction(kwargs, text):
-    """The call with the instruction ahead of the developer's system prompt, or None if it carries no prompt.
-
-    Chat completions take it as the first system message; Responses take it in ``instructions``.
-    """
-    if "messages" in kwargs:
-        return add_system_message(kwargs, text)
-    if "input" not in kwargs:
-        return None
-    instructions = instruction_before(text, kwargs.get("instructions"))
-    if instructions is None:
-        return None
-    return {**kwargs, "instructions": instructions}

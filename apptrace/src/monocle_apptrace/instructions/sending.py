@@ -79,35 +79,3 @@ def instruction_carried_by(span, model_method: Callable, kwargs: dict) -> Option
     if span.attributes.get(SPAN_TYPE_KEY) != SPAN_TYPES.INFERENCE_FRAMEWORK:
         return None
     return instruction_in_effect()
-
-
-def add_system_message(kwargs: dict, text: str) -> Optional[dict]:
-    """For a chat call that takes ``messages``: the call with the instruction as its first system message.
-
-    Returns None if the call has no ``messages`` keyword to add to.
-    """
-    messages = kwargs.get("messages")
-    if not messages:
-        return None
-    return {**kwargs, "messages": placed_first({"role": "system", "content": text}, list(messages))}
-
-
-def placed_first(item, items: list) -> list:
-    """The items with this one first, unless it already is first."""
-    if items[:1] == [item]:
-        return items
-    return [item, *items]
-
-
-def instruction_before(text: str, system_prompt) -> Optional[str]:
-    """The instruction followed by the developer's system prompt.
-
-    Returns None if there is a system prompt and it is not text, so it is never replaced.
-    """
-    if not system_prompt:
-        return text
-    if not isinstance(system_prompt, str):
-        return None
-    if system_prompt == text or system_prompt.startswith(f"{text}\n\n"):
-        return system_prompt
-    return f"{text}\n\n{system_prompt}"

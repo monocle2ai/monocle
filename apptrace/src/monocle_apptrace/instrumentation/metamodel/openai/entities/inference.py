@@ -1,6 +1,7 @@
 import logging
 
 from monocle_apptrace.instrumentation.common.constants import SPAN_TYPES
+from monocle_apptrace.instructions.placing import add_to_messages_or_instructions
 from monocle_apptrace.instrumentation.metamodel.openai.openai_stream_processor import (
     OpenAIStreamProcessor,
 )
@@ -41,7 +42,7 @@ def process_stream(to_wrap, response, span_processor):
 
 INFERENCE = {
     "type": SPAN_TYPES.INFERENCE,
-    "add_instruction": _helper.add_instruction,
+    "add_instruction": add_to_messages_or_instructions,
     "subtype": lambda arguments: _helper.agent_inference_type(arguments),
     # truthiness, not `is False`: the Omit()/NotGiven stream sentinel is falsy but not False
     "is_auto_close": lambda kwargs: not kwargs.get("stream", False),

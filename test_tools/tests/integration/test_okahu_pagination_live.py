@@ -16,7 +16,7 @@ import os
 
 import pytest
 
-from monocle_test_tools.okahu_span_loader import OkahuSpanLoader
+from monocle_test_tools.providers.okahu.okahu_span_loader import OkahuSpanLoader
 
 # A workflow, not an app: Monocle addresses Okahu by workflow name throughout --
 # the span loader, the eval report and the pytest plugin all do. The window is

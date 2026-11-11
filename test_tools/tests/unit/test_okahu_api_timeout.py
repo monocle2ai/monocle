@@ -7,7 +7,7 @@ override the environment.
 """
 import pytest
 
-from monocle_test_tools.okahu_span_loader import OkahuSpanLoader
+from monocle_test_tools.providers.okahu.okahu_span_loader import OkahuSpanLoader
 
 DEFAULT_TIMEOUT = 120
 
@@ -38,7 +38,7 @@ def get_fixture(monkeypatch):
         seen["timeout"] = timeout
         return _Response()
 
-    monkeypatch.setattr("monocle_test_tools.okahu_span_loader.requests.get", fake_get)
+    monkeypatch.setattr("monocle_test_tools.providers.okahu.okahu_span_loader.requests.get", fake_get)
     return seen
 
 

@@ -60,8 +60,8 @@
         "workflow.name": "teams-ai-bot",
         "span.type": "inference.framework",
         "entity.1.type": "inference.azure_openai",
-        "entity.1.provider_name": "okahu-openai-dev.openai.azure.com",
-        "entity.1.inference_endpoint": "https://okahu-openai-dev.openai.azure.com/openai/deployments/gpt-4o-mini/",
+        "entity.1.provider_name": "my-resource.openai.azure.com",
+        "entity.1.inference_endpoint": "https://my-resource.openai.azure.com/openai/deployments/gpt-4o-mini/",
         "entity.2.name": "gpt-4o-mini",
         "entity.2.type": "model.llm.gpt-4o-mini",
         "scope.teams.channel.channel_id": "msteams",
@@ -91,7 +91,7 @@
             "timestamp": "2025-06-06T09:00:00.682278Z",
             "attributes": {
                 "input": [
-                    "{'system': '# Profile\\n- Your name is Monocle Bot\\n- You are funny.\\n- You work for Okahu.ai and know everything about OpenTelemetry and Monocle Apptrace\\n- You are coffee chatbot for teamsAI.'}",
+                    "{'system': '# Profile\\n- Your name is Monocle Bot\\n- You are funny.\\n- You work for Example Corp and know everything about OpenTelemetry and Monocle Apptrace\\n- You are coffee chatbot for teamsAI.'}",
                     "{'user': \"What's the best way to use a French press?\"}"
                 ]
             }
@@ -155,7 +155,7 @@
             "timestamp": "2025-06-06T09:00:00.683278Z",
             "attributes": {
                 "prompt_template_name": "chat",
-                "prompt_template": "# Profile\n- Your name is Monocle Bot\n- You are funny.\n- You work for Okahu.ai and know everything about OpenTelemetry and Monocle Apptrace\n- You are coffee chatbot for teamsAI.",
+                "prompt_template": "# Profile\n- Your name is Monocle Bot\n- You are funny.\n- You work for Example Corp and know everything about OpenTelemetry and Monocle Apptrace\n- You are coffee chatbot for teamsAI.",
                 "prompt_template_description": "Chat with Teams AI Bot",
                 "prompt_template_type": "completion",
                 "validator": "DefaultAugmentation",
@@ -282,8 +282,8 @@
         "workflow.name": "teams-ai-bot",
         "span.type": "inference.framework",
         "entity.1.type": "inference.azure_openai",
-        "entity.1.provider_name": "okahu-openai-dev.openai.azure.com",
-        "entity.1.inference_endpoint": "https://okahu-openai-dev.openai.azure.com/openai/deployments/gpt-4o-mini/",
+        "entity.1.provider_name": "my-resource.openai.azure.com",
+        "entity.1.inference_endpoint": "https://my-resource.openai.azure.com/openai/deployments/gpt-4o-mini/",
         "entity.2.name": "gpt-4o-mini",
         "entity.2.type": "model.llm.gpt-4o-mini",
         "scope.teams.channel.channel_id": "msteams",

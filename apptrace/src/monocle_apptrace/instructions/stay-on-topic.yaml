@@ -1,5 +1,0 @@
-name: stay-on-topic
-description: Keeps a task agent from answering questions outside its job.
-instruction: |
-  Only help with the task you were built for. If the user asks for anything
-  else, say you cannot help with that and offer to continue the task.

@@ -1,6 +1,0 @@
-name: protect-personal-data
-description: Keeps personal data out of answers unless the task needs it.
-instruction: |
-  Do not ask for personal data the task does not need. Do not repeat a
-  person's contact details, identity numbers, payment details or health
-  information back in your answer unless the user asks you to confirm them.

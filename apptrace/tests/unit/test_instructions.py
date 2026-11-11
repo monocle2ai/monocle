@@ -25,10 +25,10 @@ from monocle_apptrace.instrumentation.metamodel.botocore import _helper as bedro
 from monocle_apptrace.instrumentation.metamodel.gemini import _helper as gemini
 from monocle_apptrace.instrumentation.metamodel.litellm import _helper as litellm
 from monocle_apptrace.instrumentation.metamodel.openai import _helper as openai
-from monocle_apptrace.providers import Provider, register_provider, registry
 
 TEXT = "Only help with bookings."
-STAY_ON_TOPIC = {MONOCLE_INSTRUCTION_ENV: "stay-on-topic"}
+START_WITH_123456_FILE = str(Path(__file__).parents[1] / "data" / "start-with-123456.yaml")
+START_WITH_123456 = {MONOCLE_INSTRUCTION_ENV: START_WITH_123456_FILE}
 DEVELOPER_MESSAGES = [{"role": "system", "content": "You book travel."}, {"role": "user", "content": "A poem, please"}]
 
 CHAT_INFERENCE = {
@@ -48,13 +48,6 @@ def write_instruction_file(folder: str, file_name: str, content: str) -> str:
     return str(path)
 
 
-class _HouseStyleProvider(Provider):
-    name = "test-house-style-provider"
-
-    def get_instruction(self, name):
-        return "Answer in British English." if name == "house-style" else None
-
-
 class TestFindingAnInstruction(unittest.TestCase):
     def setUp(self):
         load_instruction.cache_clear()
@@ -67,24 +60,13 @@ class TestFindingAnInstruction(unittest.TestCase):
     def test_no_instruction_is_in_effect_by_default(self):
         self.assertIsNone(instruction_in_effect())
 
-    def test_shipped_instruction_is_found_by_name(self):
-        os.environ[MONOCLE_INSTRUCTION_ENV] = "stay-on-topic"
+    def test_instruction_is_read_from_the_file_the_environment_names(self):
+        os.environ.update(START_WITH_123456)
         instruction = instruction_in_effect()
-        self.assertEqual(instruction.name, "stay-on-topic")
-        self.assertIn("Only help with the task you were built for", instruction.text)
+        self.assertEqual(instruction.name, "start-with-123456")
+        self.assertEqual(instruction.text, "Begin every response with the digits 123456, before anything else.")
 
-    def test_own_instruction_is_found_by_path(self):
-        with tempfile.TemporaryDirectory() as folder:
-            path = write_instruction_file(folder, "be-brief.yaml",
-                                          "name: be-brief\ndescription: Short answers.\ninstruction: Answer in one sentence.\n")
-            instruction = load_instruction(path)
-        self.assertEqual((instruction.name, instruction.text), ("be-brief", "Answer in one sentence."))
-
-    def test_unknown_name_raises_and_lists_what_is_shipped(self):
-        with self.assertRaisesRegex(ValueError, "no instruction named 'stay-on-topik'.*stay-on-topic"):
-            load_instruction("stay-on-topik")
-
-    def test_path_to_a_missing_file_raises_and_names_the_path(self):
+    def test_missing_file_raises_and_names_the_path(self):
         with self.assertRaisesRegex(ValueError, "config/house-style.yaml was not found"):
             load_instruction("config/house-style.yaml")
 
@@ -101,21 +83,15 @@ class TestFindingAnInstruction(unittest.TestCase):
                 load_instruction(path)
 
     def test_context_is_asked_before_the_environment(self):
-        os.environ[MONOCLE_INSTRUCTION_ENV] = "stay-on-topic"
-        token = attach(set_value(MONOCLE_INSTRUCTION, "protect-personal-data"))
-        try:
-            self.assertEqual(instruction_in_effect().name, "protect-personal-data")
-        finally:
-            detach(token)
-
-    def test_provider_can_hold_an_instruction(self):
-        saved = dict(registry._providers._loaded)
-        register_provider(_HouseStyleProvider())
-        try:
-            self.assertEqual(load_instruction("house-style").text, "Answer in British English.")
-        finally:
-            registry._providers._loaded.clear()
-            registry._providers._loaded.update(saved)
+        os.environ.update(START_WITH_123456)
+        with tempfile.TemporaryDirectory() as folder:
+            path = write_instruction_file(folder, "be-brief.yaml",
+                                          "name: be-brief\ndescription: Short answers.\ninstruction: Answer in one sentence.\n")
+            token = attach(set_value(MONOCLE_INSTRUCTION, path))
+            try:
+                self.assertEqual(instruction_in_effect().text, "Answer in one sentence.")
+            finally:
+                detach(token)
 
 
 class TestPlacingAnInstruction(unittest.TestCase):
@@ -260,19 +236,19 @@ class TestSendingAModelCall(unittest.TestCase):
         self.assertEqual(self.input_of(self.inference_span()), [{"system": "You book travel."}, {"user": "A poem, please"}])
 
     def test_call_is_sent_with_the_instruction_first(self):
-        os.environ.update(STAY_ON_TOPIC)
+        os.environ.update(START_WITH_123456)
         self.call_model()
         self.assertEqual(self.sent_messages[0], {"role": "system", "content": instruction_in_effect().text})
         self.assertEqual(self.sent_messages[1:], DEVELOPER_MESSAGES)
 
     def test_span_input_lists_the_instruction_first_under_its_own_label(self):
-        os.environ.update(STAY_ON_TOPIC)
+        os.environ.update(START_WITH_123456)
         self.call_model()
         self.assertEqual(self.input_of(self.inference_span()), [
             {"instruction": instruction_in_effect().text}, {"system": "You book travel."}, {"user": "A poem, please"}])
 
     def test_call_that_arrives_already_instructed_lists_the_instruction_once(self):
-        os.environ.update(STAY_ON_TOPIC)
+        os.environ.update(START_WITH_123456)
         already_instructed = [{"role": "system", "content": instruction_in_effect().text}, *DEVELOPER_MESSAGES]
         wrapper = task_wrapper(self.tracer_provider.get_tracer("test"), SpanHandler(), CHAT_METHOD)
         wrapper(self.model_method, None, (), {"messages": already_instructed})
@@ -281,19 +257,19 @@ class TestSendingAModelCall(unittest.TestCase):
             {"instruction": instruction_in_effect().text}, {"system": "You book travel."}, {"user": "A poem, please"}])
 
     def test_unsampled_call_is_still_sent_with_the_instruction(self):
-        os.environ.update(STAY_ON_TOPIC)
+        os.environ.update(START_WITH_123456)
         self.call_model(TracerProvider(sampler=ALWAYS_OFF))
         self.assertEqual(self.sent_messages[0]["content"], instruction_in_effect().text)
 
     def test_async_call_is_sent_with_the_instruction_and_its_span_names_it(self):
-        os.environ.update(STAY_ON_TOPIC)
+        os.environ.update(START_WITH_123456)
         wrapper = atask_wrapper(self.tracer_provider.get_tracer("test"), SpanHandler(), CHAT_METHOD)
         asyncio.run(wrapper(self.async_model_method, None, (), {"messages": DEVELOPER_MESSAGES}))
         self.assertEqual(self.sent_messages[0]["content"], instruction_in_effect().text)
-        self.assertEqual(self.inference_span().attributes[SENT_INSTRUCTION], "stay-on-topic")
+        self.assertEqual(self.inference_span().attributes[SENT_INSTRUCTION], "start-with-123456")
 
     def test_call_with_spans_suppressed_is_still_sent_with_the_instruction(self):
-        os.environ.update(STAY_ON_TOPIC)
+        os.environ.update(START_WITH_123456)
         token = attach(set_value(MONOCLE_SUPPRESS_SPANS, True))
         try:
             self.call_model()
@@ -302,14 +278,14 @@ class TestSendingAModelCall(unittest.TestCase):
         self.assertEqual(self.sent_messages[0]["content"], instruction_in_effect().text)
 
     def test_only_the_span_of_the_model_call_names_the_instruction(self):
-        os.environ.update(STAY_ON_TOPIC)
+        os.environ.update(START_WITH_123456)
         self.call_model()
         spans_naming_it = [span for span in self.exporter.get_finished_spans() if SENT_INSTRUCTION in span.attributes]
         self.assertEqual([span.attributes["span.type"] for span in spans_naming_it], ["inference"])
-        self.assertEqual(spans_naming_it[0].attributes[SENT_INSTRUCTION], "stay-on-topic")
+        self.assertEqual(spans_naming_it[0].attributes[SENT_INSTRUCTION], "start-with-123456")
 
     def test_framework_span_lists_the_instruction_the_model_call_beneath_it_adds(self):
-        os.environ.update(STAY_ON_TOPIC)
+        os.environ.update(START_WITH_123456)
         framework_inference = {**CHAT_INFERENCE, "type": SPAN_TYPES.INFERENCE_FRAMEWORK}
         del framework_inference["add_instruction"]
         wrapper = task_wrapper(self.tracer_provider.get_tracer("test"), SpanHandler(), {**CHAT_METHOD, "output_processor": framework_inference})
@@ -319,22 +295,22 @@ class TestSendingAModelCall(unittest.TestCase):
         self.assertEqual(self.input_of(framework_span)[0], {"instruction": instruction_in_effect().text})
 
     def test_inference_span_that_adds_nothing_and_is_not_a_framework_is_not_labelled(self):
-        os.environ.update(STAY_ON_TOPIC)
+        os.environ.update(START_WITH_123456)
         plain_inference = {key: value for key, value in CHAT_INFERENCE.items() if key != "add_instruction"}
         wrapper = task_wrapper(self.tracer_provider.get_tracer("test"), SpanHandler(), {**CHAT_METHOD, "output_processor": plain_inference})
         wrapper(self.model_method, None, (), {"messages": DEVELOPER_MESSAGES})
         self.assertEqual(self.input_of(self.inference_span()), [{"system": "You book travel."}, {"user": "A poem, please"}])
 
     def test_failed_call_still_shows_the_instruction_it_was_sent_with(self):
-        os.environ.update(STAY_ON_TOPIC)
+        os.environ.update(START_WITH_123456)
         wrapper = task_wrapper(self.tracer_provider.get_tracer("test"), SpanHandler(), CHAT_METHOD)
         with self.assertRaises(RuntimeError):
             wrapper(self.failing_model_method, None, (), {"messages": DEVELOPER_MESSAGES})
-        self.assertEqual(self.inference_span().attributes[SENT_INSTRUCTION], "stay-on-topic")
+        self.assertEqual(self.inference_span().attributes[SENT_INSTRUCTION], "start-with-123456")
         self.assertEqual(self.input_of(self.inference_span())[0], {"instruction": instruction_in_effect().text})
 
     def test_call_that_passes_its_messages_by_position_is_sent_as_written_and_not_labelled(self):
-        os.environ.update(STAY_ON_TOPIC)
+        os.environ.update(START_WITH_123456)
         positional_inference = {**CHAT_INFERENCE, "events": [{"name": "data.input", "attributes": [{
             "attribute": "input", "accessor": lambda arguments: [json.dumps({"user": "A poem, please"})]}]}]}
         wrapper = task_wrapper(self.tracer_provider.get_tracer("test"), SpanHandler(), {**CHAT_METHOD, "output_processor": positional_inference})
@@ -343,20 +319,20 @@ class TestSendingAModelCall(unittest.TestCase):
         self.assertNotIn(SENT_INSTRUCTION, self.inference_span().attributes)
         self.assertEqual(self.input_of(self.inference_span()), [{"user": "A poem, please"}])
 
-    def test_call_is_sent_as_written_when_the_instruction_named_does_not_exist(self):
-        os.environ[MONOCLE_INSTRUCTION_ENV] = "stay-on-topik"
+    def test_call_is_sent_as_written_when_the_instruction_file_is_missing(self):
+        os.environ[MONOCLE_INSTRUCTION_ENV] = "config/house-style.yaml"
         with self.assertLogs(level="WARNING"):
             self.assertEqual(self.call_model(), "ok")
         self.assertEqual(self.sent_messages, DEVELOPER_MESSAGES)
 
     def test_wrap_site_whose_output_processor_is_not_a_dict_is_sent_as_written(self):
-        os.environ.update(STAY_ON_TOPIC)
+        os.environ.update(START_WITH_123456)
         wrapper = task_wrapper(self.tracer_provider.get_tracer("test"), SpanHandler(), {**CHAT_METHOD, "output_processor": "named.elsewhere"})
         self.assertEqual(wrapper(self.model_method, None, (), {"messages": DEVELOPER_MESSAGES}), "ok")
         self.assertEqual(self.sent_messages, DEVELOPER_MESSAGES)
 
     def test_call_is_sent_as_written_when_the_instruction_cannot_be_placed(self):
-        os.environ.update(STAY_ON_TOPIC)
+        os.environ.update(START_WITH_123456)
         with patch.dict(CHAT_INFERENCE, {"add_instruction": lambda kwargs, text: 1 / 0}), self.assertLogs(level="WARNING"):
             self.assertEqual(self.call_model(), "ok")
         self.assertEqual(self.sent_messages, DEVELOPER_MESSAGES)

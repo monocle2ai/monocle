@@ -12,7 +12,3 @@ class Provider:
     # Span exporter as {"module": ..., "class": ...}, same shape as the
     # entries in monocle_exporters. None if the provider has no exporter.
     span_exporter: Optional[Dict[str, str]] = None
-
-    def get_instruction(self, name: str) -> Optional[str]:
-        """The text of the instruction this provider holds under that name, or None."""
-        return None

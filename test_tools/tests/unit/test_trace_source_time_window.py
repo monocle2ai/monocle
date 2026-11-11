@@ -16,7 +16,7 @@ import pytest
 from monocle_test_tools import MonocleValidator
 from monocle_test_tools.fluent_api import TraceAssertion
 from monocle_test_tools.file_span_loader import JSONSpanLoader
-from monocle_test_tools.okahu_span_loader import OkahuSpanLoader
+from monocle_test_tools.providers.okahu.okahu_span_loader import OkahuSpanLoader
 
 START = "2026-07-23T19:29:22.846181Z"
 END = "2026-07-23T20:29:22.846181Z"

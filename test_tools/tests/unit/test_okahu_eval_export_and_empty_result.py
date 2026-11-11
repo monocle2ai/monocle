@@ -9,9 +9,9 @@ from unittest.mock import MagicMock, patch
 import pytest
 from opentelemetry.sdk.trace.export import SpanExportResult
 
-from monocle_apptrace.exporters.okahu.okahu_eval_result_exporter import OkahuEvalResultExporter
-from monocle_test_tools.evals import okahu_eval as okahu_eval_module
-from monocle_test_tools.evals.okahu_eval import OkahuEval
+from monocle_apptrace.providers.okahu.okahu_eval_result_exporter import OkahuEvalResultExporter
+from monocle_test_tools.providers.okahu import okahu_eval as okahu_eval_module
+from monocle_test_tools.providers.okahu.okahu_eval import OkahuEval
 
 
 def _eval() -> OkahuEval:
@@ -85,7 +85,7 @@ class TestExportTrace:
 def _run_evaluate(ev, body):
     with patch.object(OkahuEval, "export_trace", return_value="traceid"), \
          patch.object(OkahuEval, "enumerate_fact_ids", return_value=["traceid"]), \
-         patch("monocle_test_tools.evals.okahu_eval.requests.post", return_value=_resp(body)), \
+         patch("monocle_test_tools.providers.okahu.okahu_eval.requests.post", return_value=_resp(body)), \
          patch.object(OkahuEvalResultExporter, "export_results", return_value=None):
         return ev.evaluate(filtered_spans=[_span()], template={"name": "t"}, fact_name="traces")
 

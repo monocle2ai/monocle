@@ -26,7 +26,7 @@ def test_from_json_file_basic():
 def test_from_okahu_uses_span_loader_get_spans():
     """from_okahu should fetch spans via OkahuSpanLoader.get_spans."""
     fake_spans = []
-    with patch("monocle_test_tools.span_loader.OkahuSpanLoader.get_spans", return_value=fake_spans) as mock_get_spans:
+    with patch("monocle_test_tools.providers.okahu.okahu_span_loader.OkahuSpanLoader.get_spans", return_value=fake_spans) as mock_get_spans:
         generator = TestGenerator.from_okahu(trace_id="abc123", workflow_name="my_app")
 
     mock_get_spans.assert_called_once_with(trace_id="abc123", workflow_name="my_app")
@@ -358,7 +358,7 @@ def test_injected_evals_deduplicated():
 def test_from_okahu_passes_injected_evals():
     """from_okahu forwards injected evals through to the generator."""
     evals = [{"criteria": "sentiment", "expected": "positive"}]
-    with patch("monocle_test_tools.span_loader.OkahuSpanLoader.get_spans", return_value=[]):
+    with patch("monocle_test_tools.providers.okahu.okahu_span_loader.OkahuSpanLoader.get_spans", return_value=[]):
         gen = TestGenerator.from_okahu(trace_id="abc", workflow_name="wf", injected_evals=evals)
     code = gen.generate_test_code()
     assert 'check_eval("sentiment", expected="positive"' in code
@@ -454,7 +454,7 @@ def _session_spans():
 def test_from_okahu_uses_get_spans():
     """from_okahu must call the loader's get_spans (regression: it used a
     non-existent load_by_trace_id)."""
-    with patch("monocle_test_tools.okahu_span_loader.OkahuSpanLoader.get_spans",
+    with patch("monocle_test_tools.providers.okahu.okahu_span_loader.OkahuSpanLoader.get_spans",
                return_value=[]) as mock_get:
         gen = TestGenerator.from_okahu(trace_id="abc123", workflow_name="wf")
     mock_get.assert_called_once_with(workflow_name="wf", trace_id="abc123")
@@ -465,7 +465,7 @@ def test_from_okahu_session_loads_all_session_spans():
     """from_okahu_session delegates to from_okahu_scope with the agent_sessions scope
     and records the session id (idiomatic fact_name=session)."""
     session_spans = _session_spans()
-    with patch("monocle_test_tools.okahu_span_loader.OkahuSpanLoader.load_by_scope",
+    with patch("monocle_test_tools.providers.okahu.okahu_span_loader.OkahuSpanLoader.load_by_scope",
                return_value=session_spans) as mock_load:
         gen = TestGenerator.from_okahu_session(session_id="sess_1", workflow_name="travel")
     mock_load.assert_called_once_with(
@@ -478,7 +478,7 @@ def test_from_okahu_session_loads_all_session_spans():
 def test_from_okahu_scope_generic_fact():
     """from_okahu_scope fetches any fact via load_by_scope and records scope_name/id."""
     scope_spans = _session_spans()
-    with patch("monocle_test_tools.okahu_span_loader.OkahuSpanLoader.load_by_scope",
+    with patch("monocle_test_tools.providers.okahu.okahu_span_loader.OkahuSpanLoader.load_by_scope",
                return_value=scope_spans) as mock_load:
         gen = TestGenerator.from_okahu_scope(scope_name="test_id", scope_id="run_9",
                                              workflow_name="travel")
@@ -548,7 +548,7 @@ def test_discovery_fact_name_override_wins():
 
 
 def test_factories_forward_discover_flag():
-    with patch("monocle_test_tools.span_loader.OkahuSpanLoader.get_spans", return_value=[]):
+    with patch("monocle_test_tools.providers.okahu.okahu_span_loader.OkahuSpanLoader.get_spans", return_value=[]):
         gen = TestGenerator.from_okahu(trace_id="abc", workflow_name="wf",
                                        discover_evals=False)
     assert gen.discover_evals is False
@@ -563,7 +563,7 @@ def _disc_spec(name, label, fact_id="abc123", fact_name="traces"):
 
 def test_discovered_eval_emitted_with_baseline_comment():
     spans = [_span({"span.type": "workflow", "workflow.name": "wf"})]
-    with patch("monocle_test_tools.evals.okahu_eval.OkahuEval.discover_fact_evals",
+    with patch("monocle_test_tools.providers.okahu.okahu_eval.OkahuEval.discover_fact_evals",
                return_value=([_disc_spec("correctness", "correct")], None)):
         code = TestGenerator(spans, trace_file="t.json").generate_test_code()
     assert 'check_eval("correctness", expected="correct", fact_name="traces")' in code
@@ -578,7 +578,7 @@ def _disc_custom_spec(name, label, fact_id="abc123", fact_name="traces"):
 
 def test_discovered_custom_eval_is_commented_out_with_path_request():
     spans = [_span({"span.type": "workflow", "workflow.name": "wf"})]
-    with patch("monocle_test_tools.evals.okahu_eval.OkahuEval.discover_fact_evals",
+    with patch("monocle_test_tools.providers.okahu.okahu_eval.OkahuEval.discover_fact_evals",
                return_value=([_disc_custom_spec("hallucination", "major_hallucination")], None)):
         code = TestGenerator(spans, trace_file="t.json").generate_test_code()
     # No ACTIVE check_eval for the custom eval — the assertion line is commented out.
@@ -595,7 +595,7 @@ def test_discovered_builtin_and_custom_same_name_both_emitted():
         _disc_spec("hallucination", "major_hallucination"),          # builtin (active)
         _disc_custom_spec("hallucination", "major_hallucination"),   # custom (commented)
     ]
-    with patch("monocle_test_tools.evals.okahu_eval.OkahuEval.discover_fact_evals",
+    with patch("monocle_test_tools.providers.okahu.okahu_eval.OkahuEval.discover_fact_evals",
                return_value=(discovered, None)):
         gen = TestGenerator(spans, trace_file="t.json")
         code = gen.generate_test_code()
@@ -606,7 +606,7 @@ def test_discovered_builtin_and_custom_same_name_both_emitted():
 
 def test_no_evals_found_emits_comment():
     spans = [_span({"span.type": "workflow", "workflow.name": "wf"})]
-    with patch("monocle_test_tools.evals.okahu_eval.OkahuEval.discover_fact_evals",
+    with patch("monocle_test_tools.providers.okahu.okahu_eval.OkahuEval.discover_fact_evals",
                return_value=([], "No existing evals found on this fact")):
         code = TestGenerator(spans, trace_file="t.json").generate_test_code()
     assert "# No existing evals found on this fact" in code
@@ -614,7 +614,7 @@ def test_no_evals_found_emits_comment():
 
 def test_discovery_skipped_emits_comment():
     spans = [_span({"span.type": "workflow", "workflow.name": "wf"})]
-    with patch("monocle_test_tools.evals.okahu_eval.OkahuEval.discover_fact_evals",
+    with patch("monocle_test_tools.providers.okahu.okahu_eval.OkahuEval.discover_fact_evals",
                return_value=([], "eval discovery skipped: OKAHU_API_KEY not configured")):
         code = TestGenerator(spans, trace_file="t.json").generate_test_code()
     assert "# eval discovery skipped: OKAHU_API_KEY not configured" in code
@@ -623,7 +623,7 @@ def test_discovery_skipped_emits_comment():
 def test_injected_eval_wins_over_discovered_conflict():
     spans = [_span({"span.type": "workflow", "workflow.name": "wf"})]
     injected = [{"criteria": "correctness", "expected": "perfect", "eval_type": "builtin"}]
-    with patch("monocle_test_tools.evals.okahu_eval.OkahuEval.discover_fact_evals",
+    with patch("monocle_test_tools.providers.okahu.okahu_eval.OkahuEval.discover_fact_evals",
                return_value=([_disc_spec("correctness", "correct")], None)):
         gen = TestGenerator(spans, trace_file="t.json", injected_evals=injected)
         gen.analyze()
@@ -635,7 +635,7 @@ def test_injected_eval_wins_over_discovered_conflict():
 
 def test_discovery_disabled_makes_no_call():
     spans = [_span({"span.type": "workflow", "workflow.name": "wf"})]
-    with patch("monocle_test_tools.evals.okahu_eval.OkahuEval.discover_fact_evals") as disc:
+    with patch("monocle_test_tools.providers.okahu.okahu_eval.OkahuEval.discover_fact_evals") as disc:
         TestGenerator(spans, trace_file="t.json", discover_evals=False).generate_test_code()
     disc.assert_not_called()
 
@@ -677,6 +677,37 @@ def test_cli_discover_evals_default_on(monkeypatch):
     assert rc == 0
     assert mock_ff.call_args.kwargs.get("discover_evals") is True
 
+
+
+def test_from_source_loads_from_any_trace_source():
+    """from_source asks the named trace source and shows its loader in the code."""
+    from monocle_test_tools.trace_sources import TraceSource, _trace_sources
+
+    class _FakeSource(TraceSource):
+        name = "fake"
+        calls = []
+
+        def load_spans(self, **kwargs):
+            _FakeSource.calls.append(kwargs)
+            return _session_spans(), "sessions"
+
+    _trace_sources.register("fake", _FakeSource)
+    try:
+        gen = TestGenerator.from_source("fake", "wf", session_id="s1", discover_evals=False)
+        code = gen.generate_test_code()
+    finally:
+        _trace_sources._loaded.pop("fake", None)
+    assert _FakeSource.calls[0]["fact_name"] == "session" and _FakeSource.calls[0]["id"] == "s1"
+    assert '# monocle_trace_asserter.with_trace_source("fake", id="s1", fact_name="session"' in code
+
+
+def test_eval_source_defaults_to_okahu():
+    with patch("monocle_test_tools.providers.okahu.okahu_eval.OkahuEval.discover_fact_evals",
+               return_value=([], None)) as discover:
+        gen = TestGenerator([_span({"span.type": "workflow", "workflow.name": "wf"})], trace_file="t.json")
+        gen.generate_test_code()
+    assert gen.eval_source == "okahu"
+    discover.assert_called_once()
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

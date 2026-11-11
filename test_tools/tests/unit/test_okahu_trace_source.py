@@ -10,11 +10,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from monocle_test_tools.trace_sources import (
-    OkahuTraceSource,
-    TraceSource,
-    get_trace_source,
-)
+from monocle_test_tools.providers.okahu.okahu_trace_source import OkahuTraceSource
+from monocle_test_tools.trace_sources import TraceSource, get_trace_source
 
 
 class _FakeOkahuSpanExporter:
@@ -48,7 +45,7 @@ def _record(source, monkeypatch, **overrides):
         exporters=[_FakeOkahuSpanExporter()],
     )
     kwargs.update(overrides)
-    with patch("monocle_test_tools.trace_sources.okahu_trace_source.requests.post") as mock_post:
+    with patch("monocle_test_tools.providers.okahu.okahu_trace_source.requests.post") as mock_post:
         mock_post.return_value = _ok_response()
         result = source.record_test_result(**kwargs)
     return result, mock_post
@@ -122,7 +119,7 @@ class TestOkahuRecordTestResult:
     def test_noop_without_api_key(self, monkeypatch):
         monkeypatch.delenv("OKAHU_API_KEY", raising=False)
         source = OkahuTraceSource()
-        with patch("monocle_test_tools.trace_sources.okahu_trace_source.requests.post") as mock_post:
+        with patch("monocle_test_tools.providers.okahu.okahu_trace_source.requests.post") as mock_post:
             result = source.record_test_result(
                 fact_id="abc123", fact_name="traces", workflow_name="my_app",
                 test_name="t", test_failed=False, exporters=[_FakeOkahuSpanExporter()],
@@ -140,7 +137,7 @@ class TestOkahuRecordTestResult:
     def test_best_effort_on_network_error(self, monkeypatch):
         monkeypatch.setenv("OKAHU_API_KEY", "test-key")
         source = OkahuTraceSource()
-        with patch("monocle_test_tools.trace_sources.okahu_trace_source.requests.post") as mock_post:
+        with patch("monocle_test_tools.providers.okahu.okahu_trace_source.requests.post") as mock_post:
             mock_post.side_effect = requests.ConnectionError("boom")
             result = source.record_test_result(
                 fact_id="abc123", fact_name="traces", workflow_name="my_app",
@@ -153,7 +150,7 @@ class TestOkahuRecordTestResult:
         source = OkahuTraceSource()
         response = MagicMock(spec=requests.Response)
         response.raise_for_status.side_effect = requests.HTTPError("500")
-        with patch("monocle_test_tools.trace_sources.okahu_trace_source.requests.post") as mock_post:
+        with patch("monocle_test_tools.providers.okahu.okahu_trace_source.requests.post") as mock_post:
             mock_post.return_value = response
             result = source.record_test_result(
                 fact_id="abc123", fact_name="traces", workflow_name="my_app",

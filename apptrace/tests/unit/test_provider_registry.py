@@ -28,6 +28,9 @@ class TestProviderRegistry(unittest.TestCase):
     def test_unknown_name_has_no_provider(self):
         self.assertIsNone(get_provider("no-such-provider"))
 
+    def test_provider_without_setup_step_saves_nothing(self):
+        self.assertEqual(_MemoryProvider().get_setup_env(args=None), (None, False))
+
     def test_builtin_provider_loads_only_when_asked_for(self):
         target = f"{__name__}:_MemoryProvider"
         with patch.dict(registry._providers.builtins, {"builtin-test": target}), \

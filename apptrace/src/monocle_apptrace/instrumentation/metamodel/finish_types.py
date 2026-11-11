@@ -535,3 +535,19 @@ def map_litellm_finish_reason_to_finish_type(finish_reason):
     if not finish_reason:
         return None
     return LITELLM_FINISH_REASON_MAPPING.get(finish_reason, None)
+
+# Decision / classification models (e.g. TypeSafe jev). These are non-generative:
+# a response has no natural finish_reason, so the metamodel synthesizes "success"
+# on a normal return and "error" on an exception.
+DECISION_FINISH_REASON_MAPPING = {
+    "success": FinishType.SUCCESS.value,
+    "stop": FinishType.SUCCESS.value,
+    "error": FinishType.ERROR.value,
+}
+
+
+def map_decision_finish_reason_to_finish_type(finish_reason):
+    """Map a decision-model finish_reason to a standardized finish_type."""
+    if not finish_reason:
+        return None
+    return DECISION_FINISH_REASON_MAPPING.get(finish_reason, None)

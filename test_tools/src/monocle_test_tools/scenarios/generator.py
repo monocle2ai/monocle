@@ -11,7 +11,7 @@ import yaml
 from monocle_test_tools.harness.scenario import ScenarioParam
 from monocle_test_tools.scenarios.attacks import dress
 from monocle_test_tools.scenarios.scenario import Scenario
-from monocle_test_tools.scenarios.seed import Seed, SeedFile, identifier, unique
+from monocle_test_tools.scenarios.seed import DescriptionSeed, Seed, SeedFile, identifier, unique
 
 CONFIG_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -94,3 +94,12 @@ def _params(seed: Seed, held: frozenset = frozenset(), optional: frozenset = fro
     return [ScenarioParam(name=name, value=p.value, description=p.description,
                           is_initial=name not in held, required=name not in optional)
             for name, p in seed.params.items()]
+
+
+def from_description(seed: DescriptionSeed, requests: list[str]) -> list[Scenario]:
+    """One unjudged conversation per request, each played by the next persona."""
+    personas = config("personas.yaml")["personas"]
+    return [Scenario(test_name=f"request_{i + 1:02d}.{personas[i % len(personas)]['name']}", family="request",
+                     scenario=request, persona=personas[i % len(personas)]["persona"],
+                     max_turns=seed.max_turns, target_description=seed.agent)
+            for i, request in enumerate(requests)]

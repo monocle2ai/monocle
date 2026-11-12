@@ -19,6 +19,14 @@ class MinimalSeedFile(BaseModel):
     max_turns: int = 8
 
 
+class DescriptionSeed(BaseModel):
+    """A seed with no goals: the model writes the requests, and nothing is judged."""
+
+    agent: str
+    count: int = Field(50, ge=1)
+    max_turns: int = 8
+
+
 class SeedParam(BaseModel):
     value: Any
     description: str
@@ -111,3 +119,22 @@ def unique(name: str, used: set[str]) -> str:
         name, n = f"{base}_{n}", n + 1
     used.add(name)
     return name
+
+
+class Requests(BaseModel):
+    requests: list[str] = Field(..., description="what each user asks, one sentence each, with concrete details")
+
+
+REQUESTS_PROMPT = """Here is a description of an AI agent:
+
+{agent}
+
+Write {count} different requests that real users would bring to this agent, one sentence each, \
+with concrete, plausible details (names, places, dates, amounts) instead of placeholders. Cover \
+everything the description says the agent does, and the ordinary variety of real users: simple \
+requests, ones with several parts, vague ones, ones with a detail missing."""
+
+
+def write_requests(seed: DescriptionSeed, model: Any) -> list[str]:
+    prompt = REQUESTS_PROMPT.format(agent=seed.agent, count=seed.count)
+    return model.with_structured_output(Requests).invoke(prompt).requests[:seed.count]

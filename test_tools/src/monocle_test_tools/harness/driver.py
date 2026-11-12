@@ -89,8 +89,10 @@ class ScenarioHarness:
 
         case = self.case
         model = resolve_model(self._model_spec, TEST_AGENT_MODEL_ENV)
-        judge = resolve_model(self._judge_model_spec, TEST_JUDGE_MODEL_ENV, fallback=model)
-        evaluator = ResponseEvaluator(judge, case.success_criteria)
+        evaluator = None
+        if case.success_criteria is not None:
+            judge = resolve_model(self._judge_model_spec, TEST_JUDGE_MODEL_ENV, fallback=model)
+            evaluator = ResponseEvaluator(judge, case.success_criteria)
         tester, param_calls = build_test_agent(case, target_description, model)
         runner = get_agent_runner(agent_type)   # one for the whole conversation: ADK keeps session state on it
 
@@ -117,16 +119,18 @@ class ScenarioHarness:
 
                 spans = self.validator.spans
                 per_turn_spans.append(spans)
-                with self._suppress_spans():
-                    verdict = await evaluator.judge(reply, self._transcript(records, turn, tester_message), spans=spans)
+                verdict = None
+                if evaluator:
+                    with self._suppress_spans():
+                        verdict = await evaluator.judge(reply, self._transcript(records, turn, tester_message), spans=spans)
                 records.append(TurnRecord(turn=turn, tester_message=tester_message, target_response=reply,
                                           verdict=verdict, param_tools_called=called, trace_id=trace_id_of(spans)))
 
-                if verdict.violated:
+                if verdict and verdict.violated:
                     failure_reason = f"criteria violated at turn {turn} of {case.max_turns}"
                     reason = verdict.reason
                     break
-                if verdict.met and turn >= case.min_turns:
+                if verdict and verdict.met and turn >= case.min_turns:
                     passed = True
                     break
                 # The tester's tool calls stay in its history, or it starts inventing values
@@ -134,8 +138,11 @@ class ScenarioHarness:
                 # marked as the target's so the tester doesn't answer it in the target's role.
                 messages = list(state["messages"]) + [HumanMessage(content=from_target(reply))]
             else:
-                failure_reason = f"criteria not met in {case.max_turns} turns"
-                reason = records[-1].verdict.reason if records else None
+                if evaluator:
+                    failure_reason = f"criteria not met in {case.max_turns} turns"
+                    reason = records[-1].verdict.reason if records else None
+                else:
+                    passed = True       # nothing to judge: a conversation that ran all its turns passes
         finally:
             try:
                 await runner.end_session(case.session_id)

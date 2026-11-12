@@ -37,6 +37,12 @@ The simulated user and the judge aren't traced, so the traces hold only your age
 | `goals` | What people use it for, typed as a user would, with real values. |
 | `out_of_scope` | Things it should decline. Optional. |
 | `max_turns` | Turn limit per scenario. Default 8. |
+| `count` | Without `goals`: how many requests to write. Default 50. |
+
+**Without goals.** A seed with only `agent` makes the model write `count` realistic requests from
+the description, each played by the next persona. Each runs for `max_turns` turns and nothing is
+judged, so it passes unless your agent errors. It's for collecting realistic conversations and
+traces before you know what to test.
 
 **Writing the scenarios yourself.** The seed can instead be a list of scenarios, run as written:
 

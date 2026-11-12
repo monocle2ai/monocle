@@ -11,7 +11,7 @@ class TurnRecord(BaseModel):
     turn: int
     tester_message: str
     target_response: Any = None
-    verdict: Optional[Verdict] = None                       # None when the agent errored
+    verdict: Optional[Verdict] = None                       # None when the agent errored or nothing is judged
     param_tools_called: list[ParamCall] = Field(default_factory=list)
     trace_id: Optional[str] = None                          # the agent's trace for this turn
 
@@ -46,10 +46,12 @@ class ScenarioResult(BaseModel):
             for call in record.param_tools_called:
                 lines.append(_field("    param  ", f"{call.name} = {call.value}"))
             lines.append(_field("    user   ", record.tester_message))
-            if record.verdict is None:
+            if record.verdict is None and record.target_response is None:
                 lines.append("    agent  (error, see reason)")
                 continue
             lines.append(_field("    agent  ", record.target_response))
+            if record.verdict is None:      # an unjudged conversation
+                continue
             outcome = "violated" if record.verdict.violated else "met" if record.verdict.met else "not met"
             lines.append(_field("    judge  ", f"[{outcome}] {record.verdict.reason}"))
         return "\n".join(lines)

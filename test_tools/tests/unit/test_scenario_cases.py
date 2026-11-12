@@ -66,7 +66,7 @@ def test_a_seed_without_a_model_says_how_to_configure_one(tmp_path, monkeypatch)
 
 
 @pytest.mark.parametrize("bad, needle", [
-    ({"agent": "x"}, "expected a seed"),
+    ({"name": "x"}, "expected a seed"),
     ([], "non-empty"),
     ([ENTRY, ENTRY], "duplicate test_name"),
     ([{**ENTRY, "max_turns": 0}], "scenario #0 is invalid"),

@@ -1,7 +1,8 @@
 """A scenario, and turning a seed into a list of them.
 
-The seed is a dict with ``agent`` and ``goals``, or a list of scenarios to run as written,
-or a .yaml/.json file holding either. Scenarios generated from a seed are cached beside
+The seed is a dict with ``agent`` and ``goals`` (or just ``agent``: the model writes the
+requests and nothing is judged), or a list of scenarios to run as written, or a .yaml/.json
+file holding either. Scenarios generated from a seed are cached beside
 the test, keyed on a hash of the seed, so later runs make no model call.
 """
 import hashlib
@@ -21,7 +22,7 @@ class ScenarioError(ValueError):
 
 
 class Scenario(ScenarioTestCase):
-    family: str = Field("manual", description="persona | withhold | false_premise | redteam | scope_escape | manual")
+    family: str = Field("manual", description="persona | withhold | false_premise | redteam | scope_escape | request | manual")
     target_description: str = Field(..., description="What the target agent does, for the simulated user.")
 
 
@@ -30,15 +31,15 @@ def scenarios_from(seed: Union[dict, list, str], base_dir: str, cache: Optional[
     data = _read(os.path.join(base_dir, seed)) if isinstance(seed, str) else seed
     if isinstance(data, list) or (isinstance(data, dict) and "scenarios" in data):
         return _validate(data, str(seed))
-    if not isinstance(data, dict) or "goals" not in data:
-        raise ScenarioError(f"{seed}: expected a seed (agent + goals) or a list of scenarios")
+    if not isinstance(data, dict) or "agent" not in data:
+        raise ScenarioError(f"{seed}: expected a seed (agent, and goals if you have them) or a list of scenarios")
     return _generate(data, os.path.join(base_dir, cache or DEFAULT_CACHE), model)
 
 
 def _generate(seed: dict, cache_path: str, model: Any) -> list[Scenario]:
     from monocle_test_tools.harness.driver import resolve_model
-    from monocle_test_tools.scenarios.generator import generate
-    from monocle_test_tools.scenarios.seed import MinimalSeedFile, expand
+    from monocle_test_tools.scenarios.generator import from_description, generate
+    from monocle_test_tools.scenarios.seed import DescriptionSeed, MinimalSeedFile, expand, write_requests
 
     digest = hashlib.sha256(json.dumps(seed, sort_keys=True).encode()).hexdigest()[:16]
     if os.path.isfile(cache_path):
@@ -47,8 +48,12 @@ def _generate(seed: dict, cache_path: str, model: Any) -> list[Scenario]:
             return _validate(cached, cache_path)
 
     model = resolve_model(model)
-    split = expand(MinimalSeedFile.model_validate(seed), model)
-    scenarios = generate(split, model=model)
+    if seed.get("goals"):
+        split = expand(MinimalSeedFile.model_validate(seed), model)
+        scenarios = generate(split, model=model)
+    else:
+        split = DescriptionSeed.model_validate(seed)
+        scenarios = from_description(split, write_requests(split, model))
     with open(cache_path, "w", encoding="utf-8") as handle:
         json.dump({"seed_hash": digest, "split_seed": split.model_dump(),
                    "scenarios": [s.model_dump(mode="json", exclude_none=True, exclude={"session_id"})

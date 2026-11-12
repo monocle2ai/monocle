@@ -155,6 +155,19 @@ LAST_AGENT_INVOCATION_ID = "monocle.last.agent.invocation.id"
 MONOCLE_SKIP_EXECUTIONS = "monocle.skip_executions"
 SKIPPED_EXECUTION = "monocle.skipped_execution"
 
+MONOCLE_INSTRUCTION_ENV = "MONOCLE_INSTRUCTION"
+MONOCLE_INSTRUCTION = "monocle.instruction"
+SENT_INSTRUCTION = "monocle.instruction"
+INSTRUCTION_INPUT_LABEL = "instruction"
+
+MONOCLE_GUARDRAILS_ENV = "MONOCLE_GUARDRAILS"
+MONOCLE_GUARDRAILS_WATCH_ONLY_ENV = "MONOCLE_GUARDRAILS_WATCH_ONLY"
+GUARDRAIL_NAME = "monocle.guardrail.name"
+GUARDRAIL_SIDE = "monocle.guardrail.side"
+GUARDRAIL_REASON = "monocle.guardrail.reason"
+GUARDRAIL_WATCHED = "monocle.guardrail.watched"
+GUARDRAIL_ERROR_CODE = "guardrail_triggered"
+
 TOOL_TYPE = "tool.function"
 
 # agentic sub types

@@ -1,0 +1,5 @@
+name: stop-answers-with-123456
+description: Stops a model call whose response carries the digits 123456, so a test can tell the response was withheld.
+sides: [output]
+patterns:
+  - '123456'

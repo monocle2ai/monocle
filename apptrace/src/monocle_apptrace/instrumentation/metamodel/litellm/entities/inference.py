@@ -14,6 +14,8 @@ def process_response(to_wrap, response, span_processor):
     return processor.process_stream(to_wrap, response, span_processor)
 INFERENCE = {
     "type": SPAN_TYPES.INFERENCE,
+    "add_instruction": _helper.add_instruction,
+    "guarded_input": _helper.guarded_chat_input,
     "subtype": lambda arguments: _helper.agent_inference_type(arguments),
     "is_auto_close": lambda kwargs: not _helper.is_streaming_request(kwargs),
     "response_processor": process_response,

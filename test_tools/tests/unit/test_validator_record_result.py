@@ -30,7 +30,7 @@ class TestImportTracesCaptures:
         ],
     )
     def test_captures_okahu_fact_details(self, validator, kwargs, expected_fact_name):
-        with patch("monocle_test_tools.validator.OkahuSpanLoader") as loader:
+        with patch("monocle_test_tools.providers.okahu.okahu_trace_source.OkahuSpanLoader") as loader:
             loader.AGENT_SESSIONS_SCOPE = "agent_sessions"
             loader.get_spans.return_value = []
             loader.load_by_scope.return_value = []

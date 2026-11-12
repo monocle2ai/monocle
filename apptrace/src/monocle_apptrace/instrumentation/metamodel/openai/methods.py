@@ -1,5 +1,6 @@
 from monocle_apptrace.instrumentation.common.wrapper import atask_wrapper, task_wrapper
 from monocle_apptrace.instrumentation.metamodel.openai.entities.inference import (
+    AGENTS_INFERENCE,
     INFERENCE,
 )
 from monocle_apptrace.instrumentation.metamodel.openai.entities.retrieval import (
@@ -61,7 +62,7 @@ OPENAI_METHODS = [
         "method": "_fetch_response",
         "wrapper_method": atask_wrapper,
         "span_handler": "openai_handler",
-        "output_processor": INFERENCE
+        "output_processor": AGENTS_INFERENCE
     },
     {
         "package": "agents.models.openai_responses",
@@ -69,7 +70,7 @@ OPENAI_METHODS = [
         "method": "_fetch_response",
         "wrapper_method": atask_wrapper,
         "span_handler": "openai_handler",
-        "output_processor": INFERENCE
+        "output_processor": AGENTS_INFERENCE
     }
 
 ]

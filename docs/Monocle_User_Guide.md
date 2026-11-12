@@ -273,6 +273,52 @@ export MONOCLE_HEALTH_CHECK_ROUTES=/health,/status-check
 export MONOCLE_HEALTH_CHECK_ROUTES=/health,/healthz,/livez,/readyz,/ping,/
 ```
 
+#### Adding an instruction to every model call
+
+Monocle can add a fixed instruction to every model call your app makes, on top of your own prompt.
+Your prompt is not changed: the instruction is placed ahead of your system prompt. It is off unless
+you set `MONOCLE_INSTRUCTION` to the path of a YAML file that holds the instruction.
+
+```bash
+export MONOCLE_INSTRUCTION=config/monocle/house-style.yaml
+```
+
+The file has three keys, and `name` must match the file name:
+
+```yaml
+name: house-style
+description: Keeps answers short and in British English.
+instruction: |
+  Answer in British English, in three sentences or fewer.
+```
+
+The trace shows the instruction in the inference span's input, under its own label, and the span
+that sent it carries the instruction's name:
+
+```json
+"attributes": { "monocle.instruction": "house-style" },
+"events": [{
+  "name": "data.input",
+  "attributes": { "input": [
+    "{\"instruction\": \"Answer in British English, in three sentences or fewer.\"}",
+    "{\"system\": \"You are a travel booking agent.\"}",
+    "{\"user\": \"Book a flight from SFO to JFK\"}"
+  ] }
+}]
+```
+
+An instruction is added to calls made through the OpenAI, Anthropic, Gemini, Mistral, Azure AI
+Inference, Hugging Face and LiteLLM SDKs and through Bedrock Converse, whichever framework makes the
+call. Two cases are not supported: Bedrock `invoke_model`, and a call that passes its messages by
+position instead of by keyword, for example `client.chat_completion(messages)` in Hugging Face. A
+path with no file, or a file missing a key, stops `setup_monocle_telemetry` with a message that
+names the file.
+
+`monocle.instruction` on a span is the record that the call was sent with the instruction. Under a
+framework such as LangChain, the label appears in the framework span's input and the attribute is on
+the model SDK span beneath it. An instruction asks the model; it does not enforce. The trace shows
+the instruction was sent, not that the model followed it.
+
 #### Example with OpenTelemetry Collector
 ```bash
 # Run OpenTelemetry Collector locally

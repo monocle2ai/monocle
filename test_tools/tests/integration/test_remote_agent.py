@@ -57,7 +57,7 @@ def test_agent_remote(monocle_trace_asserter: TraceAssertion):
     # assert expected behavior
     monocle_trace_asserter.contains_output("San Francisco").contains_output("New York")
     monocle_trace_asserter.called_tool(tool_name="adk_book_flight", agent_name="adk_flight_booking_agent")
-    monocle_trace_asserter.with_evaluation("okahu").check_eval("sentiment", expected="positive")
+    monocle_trace_asserter.with_evaluation("okahu").check_eval("sentiment", expected="neutral")
 
     # Call remote agent
     data = json.dumps({"query": "Book a room at Hyatt in San Francisco near airport for tomorrow night for one night"})

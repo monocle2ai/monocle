@@ -105,7 +105,7 @@ def test_openai_invalid_api_key(setup):
     try:
         client = OpenAI(api_key="invalid_key_123")
         response = client.chat.completions.create(
-            model="gpt-4", messages=[{"role": "user", "content": "test"}]
+            model="gpt-4o-mini", messages=[{"role": "user", "content": "test"}]
         )
     except OpenAIError as e:
         logger.info("Authentication error: %s", str(e))
@@ -251,8 +251,8 @@ if __name__ == "__main__":
 #         "entity.1.type": "inference.openai",
 #         "entity.1.provider_name": "api.openai.com",
 #         "entity.1.inference_endpoint": "https://api.openai.com/v1/",
-#         "entity.2.name": "gpt-4",
-#         "entity.2.type": "model.llm.gpt-4",
+#         "entity.2.name": "gpt-4o-mini",
+#         "entity.2.type": "model.llm.gpt-4o-mini",
 #         "entity.count": 2
 #     },
 #     "events": [

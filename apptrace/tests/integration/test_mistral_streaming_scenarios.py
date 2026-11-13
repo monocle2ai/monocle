@@ -23,6 +23,7 @@ All scenarios reuse ``common.stream_helpers`` for Okahu+in-memory wiring and
 import asyncio
 import json
 import logging
+import os
 
 import pytest
 from common.helpers import find_spans_by_type, verify_inference_span
@@ -161,7 +162,7 @@ def _assert_has_stream_inference(exporter, min_count=1):
 @pytest.mark.asyncio
 async def test_stream_long_answer(setup):
     """Unique: a very long streamed response (many chunks), producing a long-output trace."""
-    client = Mistral()
+    client = Mistral(api_key=os.getenv("MISTRAL_API_KEY"))
     
     stream = await client.chat.stream_async(
         model=MODEL,
@@ -185,7 +186,7 @@ async def test_stream_long_answer(setup):
 @pytest.mark.asyncio
 async def test_stream_multi_turn(setup):
     """Unique: multi-turn conversation (N inference spans), each turn streamed."""
-    client = Mistral()
+    client = Mistral(api_key=os.getenv("MISTRAL_API_KEY"))
     
     # Turn 1
     stream1 = await client.chat.stream_async(
@@ -216,7 +217,7 @@ async def test_stream_multi_turn(setup):
 @pytest.mark.asyncio
 async def test_stream_with_history(setup):
     """Unique: single streamed call primed with prior conversation history."""
-    client = Mistral()
+    client = Mistral(api_key=os.getenv("MISTRAL_API_KEY"))
     
     stream = await client.chat.stream_async(
         model=MODEL,
@@ -243,7 +244,7 @@ async def test_stream_with_history(setup):
 @pytest.mark.asyncio
 async def test_stream_single_tool_call(setup):
     """Unique: stream -> one tool call -> stream final answer (2 inference spans)."""
-    client = Mistral()
+    client = Mistral(api_key=os.getenv("MISTRAL_API_KEY"))
     
     # Initial stream with tool call
     stream1 = await client.chat.stream_async(
@@ -316,7 +317,7 @@ async def test_stream_single_tool_call(setup):
 @pytest.mark.asyncio
 async def test_stream_sequential_tool_calls(setup):
     """Unique: stream -> tool A (details) -> tool B (price, depends on A) -> answer (3 inference spans)."""
-    client = Mistral()
+    client = Mistral(api_key=os.getenv("MISTRAL_API_KEY"))
     
     # Turn 1: Get details
     stream1 = await client.chat.stream_async(
@@ -424,7 +425,7 @@ async def test_stream_sequential_tool_calls(setup):
 @pytest.mark.asyncio
 async def test_stream_parallel_tool_calls(setup):
     """Unique: one assistant turn requesting several tools at once."""
-    client = Mistral()
+    client = Mistral(api_key=os.getenv("MISTRAL_API_KEY"))
     
     stream = await client.chat.stream_async(
         model=MODEL,
@@ -459,7 +460,7 @@ async def test_stream_parallel_tool_calls(setup):
 @pytest.mark.asyncio
 async def test_stream_json_output(setup):
     """Unique: response_format=json_object mode, streamed."""
-    client = Mistral()
+    client = Mistral(api_key=os.getenv("MISTRAL_API_KEY"))
     
     stream = await client.chat.stream_async(
         model=MODEL,
@@ -492,7 +493,7 @@ async def test_stream_json_output(setup):
 @pytest.mark.asyncio
 async def test_stream_mixed_with_non_stream(setup):
     """Unique: a non-streamed call followed by a streamed call in one trace (2 inference spans)."""
-    client = Mistral()
+    client = Mistral(api_key=os.getenv("MISTRAL_API_KEY"))
     
     # Non-streaming call
     response1 = await client.chat.complete_async(
@@ -519,7 +520,7 @@ async def test_stream_mixed_with_non_stream(setup):
 @pytest.mark.asyncio
 async def test_stream_cancellation(setup):
     """Unique: consumer cancels/interrupts the stream mid-flight."""
-    client = Mistral()
+    client = Mistral(api_key=os.getenv("MISTRAL_API_KEY"))
     
     stream = await client.chat.stream_async(
         model=MODEL,

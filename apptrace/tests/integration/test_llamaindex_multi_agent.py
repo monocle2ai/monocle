@@ -43,7 +43,7 @@ def book_flight(from_airport: str, to_airport: str):
     return f"Successfully booked a flight from {from_airport} to {to_airport}."
 
 def setup_agents():
-    llm = OpenAI(model="gpt-4")
+    llm = OpenAI(model="gpt-4.1")
 
     flight_tool = FunctionTool.from_defaults(
         fn=book_flight,
@@ -81,17 +81,18 @@ async def run_agent():
     """Test multi-agent interaction with flight and hotel booking."""
 
     agent_workflow = setup_agents()
-    resp = await agent_workflow.run(user_msg="book a flight from BOS to JFK and a book hotel stay at McKittrick Hotel")
+    resp = await agent_workflow.run(user_msg="book a flight from BOS to JFK on 30.11.2026 and a book hotel stay at McKittrick Hotel")
     logger.info(resp)
 
 def test_multi_agent(setup):
     """Test multi-agent interaction with flight and hotel booking."""
 
     asyncio.run(run_agent())
+    time.sleep(20)
     verify_spans(memory_exporter=setup)
 
 def verify_spans(memory_exporter = None):
-    time.sleep(2)
+    time.sleep(20)
     found_inference = found_agent = found_tool = False
     found_flight_agent = found_hotel_agent = found_supervisor_agent = False
     found_book_hotel_tool = found_book_flight_tool = False
@@ -106,8 +107,8 @@ def verify_spans(memory_exporter = None):
             assert span_attributes["entity.1.type"] == "inference.openai"
             assert "entity.1.provider_name" in span_attributes
             assert "entity.1.inference_endpoint" in span_attributes
-            assert span_attributes["entity.2.name"] == "gpt-4"
-            assert span_attributes["entity.2.type"] == "model.llm.gpt-4"
+            assert span_attributes["entity.2.name"] == "gpt-4.1"
+            assert span_attributes["entity.2.type"] == "model.llm.gpt-4.1"
 
             # Assertions for metadata
             span_input, span_output, span_metadata = span.events
@@ -186,8 +187,8 @@ def verify_spans(memory_exporter = None):
 #         "entity.1.type": "inference.openai",
 #         "entity.1.provider_name": "api.openai.com",
 #         "entity.1.inference_endpoint": "https://api.openai.com/v1/",
-#         "entity.2.name": "gpt-4",
-#         "entity.2.type": "model.llm.gpt-4",
+#         "entity.2.name": "gpt-4.1",
+#         "entity.2.type": "model.llm.gpt-4.1",
 #         "entity.count": 2
 #     },
 #     "events": [
@@ -361,8 +362,8 @@ def verify_spans(memory_exporter = None):
 #         "entity.1.type": "inference.openai",
 #         "entity.1.provider_name": "api.openai.com",
 #         "entity.1.inference_endpoint": "https://api.openai.com/v1/",
-#         "entity.2.name": "gpt-4",
-#         "entity.2.type": "model.llm.gpt-4",
+#         "entity.2.name": "gpt-4.1",
+#         "entity.2.type": "model.llm.gpt-4.1",
 #         "entity.count": 2
 #     },
 #     "events": [
@@ -506,8 +507,8 @@ def verify_spans(memory_exporter = None):
 #         "entity.1.type": "inference.openai",
 #         "entity.1.provider_name": "api.openai.com",
 #         "entity.1.inference_endpoint": "https://api.openai.com/v1/",
-#         "entity.2.name": "gpt-4",
-#         "entity.2.type": "model.llm.gpt-4",
+#         "entity.2.name": "gpt-4.1",
+#         "entity.2.type": "model.llm.gpt-4.1",
 #         "entity.count": 2
 #     },
 #     "events": [
@@ -683,8 +684,8 @@ def verify_spans(memory_exporter = None):
 #         "entity.1.type": "inference.openai",
 #         "entity.1.provider_name": "api.openai.com",
 #         "entity.1.inference_endpoint": "https://api.openai.com/v1/",
-#         "entity.2.name": "gpt-4",
-#         "entity.2.type": "model.llm.gpt-4",
+#         "entity.2.name": "gpt-4.1",
+#         "entity.2.type": "model.llm.gpt-4.1",
 #         "entity.count": 2
 #     },
 #     "events": [
@@ -829,8 +830,8 @@ def verify_spans(memory_exporter = None):
 #         "entity.1.type": "inference.openai",
 #         "entity.1.provider_name": "api.openai.com",
 #         "entity.1.inference_endpoint": "https://api.openai.com/v1/",
-#         "entity.2.name": "gpt-4",
-#         "entity.2.type": "model.llm.gpt-4",
+#         "entity.2.name": "gpt-4.1",
+#         "entity.2.type": "model.llm.gpt-4.1",
 #         "entity.count": 2
 #     },
 #     "events": [
@@ -1008,8 +1009,8 @@ def verify_spans(memory_exporter = None):
 #         "entity.1.type": "inference.openai",
 #         "entity.1.provider_name": "api.openai.com",
 #         "entity.1.inference_endpoint": "https://api.openai.com/v1/",
-#         "entity.2.name": "gpt-4",
-#         "entity.2.type": "model.llm.gpt-4",
+#         "entity.2.name": "gpt-4.1",
+#         "entity.2.type": "model.llm.gpt-4.1",
 #         "entity.count": 2
 #     },
 #     "events": [

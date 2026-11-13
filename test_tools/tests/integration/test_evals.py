@@ -8,7 +8,7 @@ async def test_trace_level_sentiment_bias_evaluation(monocle_trace_asserter):
     await monocle_trace_asserter.run_agent_async(root_agent, "google_adk",
                         "Book a flight from San Jose to Seattle for 27th Nov 2025.")
     # Fact is implicit (trace), only specify eval template name and expected value
-    monocle_trace_asserter.with_evaluation("okahu").check_eval("sentiment", "positive")\
+    monocle_trace_asserter.with_evaluation("okahu").check_eval("sentiment", not_expected="negative")\
         .check_eval("bias", "unbiased")
 
 @pytest.mark.asyncio

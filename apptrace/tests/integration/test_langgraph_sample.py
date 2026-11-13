@@ -65,7 +65,7 @@ def get_coffee_details(coffee_name: str) -> str:
 tools = [get_coffee_menu, order_coffee, get_coffee_details]
 
 # Set up the Chat Model
-llm = ChatOpenAI(model_name="gpt-4", temperature=0)
+llm = ChatOpenAI(model_name="gpt-4o-mini", temperature=0)
 
 
 def test_langgraph_chat_sample(setup):
@@ -97,8 +97,8 @@ def test_langgraph_chat_sample(setup):
             assert span_attributes["entity.1.type"] == "inference.openai"
             assert "entity.1.provider_name" in span_attributes
             assert "entity.1.inference_endpoint" in span_attributes
-            assert span_attributes["entity.2.name"] == "gpt-4"
-            assert span_attributes["entity.2.type"] == "model.llm.gpt-4"
+            assert span_attributes["entity.2.name"] == "gpt-4o-mini"
+            assert span_attributes["entity.2.type"] == "model.llm.gpt-4o-mini"
 
             # Assertions for metadata
             span_input, span_output, span_metadata = span.events

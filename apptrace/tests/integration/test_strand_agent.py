@@ -53,7 +53,9 @@ def test_strand_agent(setup):
 
 #    boto_client = boto3.client('bedrock-runtime', region_name=AWS_REGION)
     boto_session = boto3.Session()
-    model = BedrockModel(boto_session=boto_session, streaming=False,)
+    # Pass the model explicitly: older Strands defaults to a Claude model Bedrock has retired.
+    model = BedrockModel(model_id=os.getenv("BEDROCK_MODEL", "us.anthropic.claude-sonnet-4-6"),
+                         boto_session=boto_session, streaming=False,)
 
     travel_agent = Agent(name="travel_booking_agent", model=model,
                     system_prompt= """You are an agent who manages the flight and hotel booking agents.

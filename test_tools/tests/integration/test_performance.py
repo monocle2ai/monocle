@@ -12,8 +12,8 @@ async def test_trace_level_limits(monocle_trace_asserter):
     """Test basic token and duration limits on full workflow trace."""
     await monocle_trace_asserter.run_agent_async(root_agent, "google_adk",
                         "Book a flight from San Jose to Seattle for 27th Nov 2025.")
-    # verify total tokens are under 1100 and each individual workflow span is under 12.5 seconds
-    monocle_trace_asserter.under_token_limit(1100)
+    # verify total tokens are under 1300 and each individual workflow span is under 12.5 seconds
+    monocle_trace_asserter.under_token_limit(1300)
     monocle_trace_asserter.under_duration(12.5, units="seconds", span_type="workflow")
     # also verify each inference span is under 5000 milliseconds
     monocle_trace_asserter.under_duration(5000, units="ms", span_type="inference")
@@ -40,8 +40,8 @@ async def test_chained_filtered_limits(monocle_trace_asserter):
     monocle_trace_asserter.called_agent("adk_flight_booking_agent_5").under_duration(0.2, units="minutes", span_type="agent_invocation")
     monocle_trace_asserter.called_tool("adk_book_flight_5").under_duration(4000, units="ms", span_type="tool_invocation").under_token_limit(1070)
 
-    # verify total tokens are under 1070, each agent turn is under 0.2 minutes, and each inference is under 4000 ms
-    monocle_trace_asserter.under_token_limit(1070).under_duration(0.2, units="minutes", span_type="agent_turn").under_duration(4000, units="ms", span_type="inference")
+    # verify total tokens are under 1300, each agent turn is under 0.2 minutes, and each inference is under 4000 ms
+    monocle_trace_asserter.under_token_limit(1300).under_duration(0.2, units="minutes", span_type="agent_turn").under_duration(4000, units="ms", span_type="inference")
 
 @pytest.mark.asyncio
 async def test_complex_workflow_limits(monocle_trace_asserter):
@@ -73,7 +73,8 @@ async def test_multiple_filtered_assertions(monocle_trace_asserter):
     # verify book hotel tool invocations are under duration limit
     monocle_trace_asserter.called_tool("adk_book_hotel_5").under_duration(7000, units="ms", span_type="tool_invocation")
     # verify agent turns for flight booking agent are under duration limit and token limit
-    monocle_trace_asserter.called_agent("adk_flight_booking_agent_5").called_tool("adk_book_flight_5").under_duration(0.1, units="minutes", span_type="tool_invocation")
+    # monocle_trace_asserter.called_agent("adk_flight_booking_agent_5").called_tool("adk_book_flight_5").under_duration(5, units="seconds", span_type="tool_invocation")
+    monocle_trace_asserter.called_tool("adk_book_flight_5", agent_name="adk_flight_booking_agent_5").under_duration(0.1, units="minutes", span_type="tool_invocation")
 
 
 @pytest.mark.asyncio

@@ -28,8 +28,8 @@ from opentelemetry.sdk.trace.export import BatchSpanProcessor
 logger = logging.getLogger(__name__)
 
 exporter_s3 = OpenDALS3Exporter(
-    region_name=os.getenv("MONOCLE_S3_REGION_NAME"),
-    bucket_name=os.getenv("MONOCLE_S3_BUCKET_NAME")
+    region_name=os.getenv("MONOCLE_S3_REGION_NAME", "us-east-1"),
+    bucket_name=os.getenv("MONOCLE_S3_BUCKET_NAME", "monocle-integration-test")
 )
 
 @pytest.fixture(scope="module")
@@ -52,7 +52,7 @@ def setup():
 
 def test_langchain_sample_s3(setup):
 
-    llm = ChatOpenAI(model="gpt-3.5-turbo-0125")
+    llm = ChatOpenAI(model="gpt-4o-mini")
 
     # Load, chunk and index the contents of the blog.
     loader = WebBaseLoader(
@@ -151,8 +151,8 @@ def test_langchain_sample_s3(setup):
             assert span_attributes["entity.1.type"] == "inference.azure_openai" or "inference.openai"
             assert "entity.1.provider_name" in span_attributes
             assert "entity.1.inference_endpoint" in span_attributes
-            assert span_attributes["entity.2.name"] == "gpt-3.5-turbo-0125"
-            assert span_attributes["entity.2.type"] == "model.llm.gpt-3.5-turbo-0125"
+            assert span_attributes["entity.2.name"] == "gpt-4o-mini"
+            assert span_attributes["entity.2.type"] == "model.llm.gpt-4o-mini"
 
             # Assertions for metadata
             span_input, span_output, span_metadata = span.events

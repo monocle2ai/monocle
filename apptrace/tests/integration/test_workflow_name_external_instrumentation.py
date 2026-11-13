@@ -57,7 +57,7 @@ def test_workflow_name_with_external_instrumentation(in_memory_exporter):
         
         try:
             response = client.chat.completions.create(
-                model="gpt-4",
+                model="gpt-4o-mini",
                 messages=[
                     {"role": "user", "content": "Say hello in one word"}
                 ],

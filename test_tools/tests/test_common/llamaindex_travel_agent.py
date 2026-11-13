@@ -203,7 +203,8 @@ def run_query_engine(user_msg: str):
     ]
     
     index = VectorStoreIndex.from_documents(documents)
-    query_engine = index.as_query_engine()
+    # Pass the LLM explicitly: LlamaIndex defaults to gpt-3.5-turbo, which OpenAI has deprecated.
+    query_engine = index.as_query_engine(llm=OpenAI(model="gpt-4o"))
     
     response = query_engine.query(user_msg)
     
@@ -223,7 +224,8 @@ async def run_query_engine_async(user_msg: str):
     ]
     
     index = VectorStoreIndex.from_documents(documents)
-    query_engine = index.as_query_engine()
+    # Pass the LLM explicitly: LlamaIndex defaults to gpt-3.5-turbo, which OpenAI has deprecated.
+    query_engine = index.as_query_engine(llm=OpenAI(model="gpt-4o"))
     
     response = await query_engine.aquery(user_msg)
     

@@ -21,7 +21,7 @@ from opentelemetry.sdk.trace.export import BatchSpanProcessor, SimpleSpanProcess
 logger = logging.getLogger(__name__)
 
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY")
-MODEL = os.environ.get("ANTHROPIC_MODEL", "claude-3-5-haiku-latest")
+MODEL = os.environ.get("ANTHROPIC_MODEL", "claude-haiku-4-5")
 
 @pytest.fixture(scope="function")
 def setup():

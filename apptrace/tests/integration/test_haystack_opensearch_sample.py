@@ -22,6 +22,9 @@ from opensearchpy.helpers import bulk
 
 logger = logging.getLogger(__name__)
 
+# gpt-4 has been deprecated by OpenAI.
+MODEL_NAME = "gpt-4o-mini"
+
 
 def write_documents_serverless(document_store, documents):
     """Ingest documents into an AWS OpenSearch Serverless (aoss) collection.
@@ -103,7 +106,7 @@ def test_haystack_opensearch_sample(setup):
                         aws_region_name=Secret.from_token(os.environ["AWS_DEFAULT_REGION"]),
                         aws_service='aoss')
     generator = OpenAIChatGenerator(
-        api_key=Secret.from_token(api_key), model="gpt-4"
+        api_key=Secret.from_token(api_key), model=MODEL_NAME
     )
     document_store = OpenSearchDocumentStore(hosts=os.getenv("OPEN_SEARCH_DOCSTORE_ENDPOINT"), use_ssl=True,
                         verify_certs=True, http_auth=aws_auth)
@@ -177,8 +180,8 @@ def test_haystack_opensearch_sample(setup):
             # Assertions for all inference attributes
             assert span_attributes["entity.1.type"] == "inference.azure_openai"
             assert "entity.1.inference_endpoint" in span_attributes
-            assert span_attributes["entity.2.name"] == "gpt-4"
-            assert span_attributes["entity.2.type"] == "model.llm.gpt-4"
+            assert span_attributes["entity.2.name"] == MODEL_NAME
+            assert span_attributes["entity.2.type"] == f"model.llm.{MODEL_NAME}"
 
         if not span.parent and 'haystack' in span.name:  # Root span
             assert span_attributes["entity.1.name"] == "haystack_app_1"

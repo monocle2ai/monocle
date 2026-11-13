@@ -67,6 +67,9 @@ session_id="monocle_test_session"
 
 @MonocleValidator().monocle_testcase(agent_test_cases)
 async def test_run_agents(test_case: TestCase):
+    # root_agent is shared and keeps its conversation; start each independent case fresh
+    # so the model doesn't skip bookings it already made in an earlier case.
+    root_agent.messages.clear()
     await MonocleValidator().test_agent_async(root_agent, "strands", test_case,session_id=session_id)
     await sleep(2)  # To avoid rate limiting
 

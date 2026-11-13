@@ -63,7 +63,7 @@ order_tool = FunctionTool.from_defaults(
 )
 
 # Initialize LlamaIndex ReAct agent
-llm = OpenAI(model="gpt-4")
+llm = OpenAI(model="gpt-4.1")
 agent = ReActAgent(name="ReActAgent",tools=[coffee_menu_tool, order_tool], llm=llm)
 
 def test_llamaindex_agent(setup):
@@ -89,8 +89,8 @@ def test_llamaindex_agent(setup):
             assert span_attributes["entity.1.type"] == "inference.openai"
             assert "entity.1.provider_name" in span_attributes
             assert "entity.1.inference_endpoint" in span_attributes
-            assert span_attributes["entity.2.name"] == "gpt-4"
-            assert span_attributes["entity.2.type"] == "model.llm.gpt-4"
+            assert span_attributes["entity.2.name"] == "gpt-4.1"
+            assert span_attributes["entity.2.type"] == "model.llm.gpt-4.1"
             found_inference_span = True
 
             # Assertions for metadata
@@ -170,8 +170,8 @@ if __name__ == "__main__":
 #         "entity.1.type": "inference.openai",
 #         "entity.1.provider_name": "api.openai.com",
 #         "entity.1.inference_endpoint": "https://api.openai.com/v1",
-#         "entity.2.name": "gpt-4",
-#         "entity.2.type": "model.llm.gpt-4",
+#         "entity.2.name": "gpt-4.1",
+#         "entity.2.type": "model.llm.gpt-4.1",
 #         "entity.count": 2
 #     },
 #     "events": [
@@ -320,8 +320,8 @@ if __name__ == "__main__":
 #         "entity.1.type": "inference.openai",
 #         "entity.1.provider_name": "api.openai.com",
 #         "entity.1.inference_endpoint": "https://api.openai.com/v1",
-#         "entity.2.name": "gpt-4",
-#         "entity.2.type": "model.llm.gpt-4",
+#         "entity.2.name": "gpt-4.1",
+#         "entity.2.type": "model.llm.gpt-4.1",
 #         "entity.count": 2
 #     },
 #     "events": [

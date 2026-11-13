@@ -23,6 +23,7 @@ import asyncio
 import json
 import logging
 import os
+from urllib.parse import urlparse
 
 import pytest
 from azure.ai.inference import ChatCompletionsClient
@@ -123,7 +124,11 @@ def _assert_has_stream_inference(exporter, min_count=1):
         verify_inference_span(
             span=span,
             # Monocle names the provider from the endpoint host, as _helper.get_inference_type does.
-            entity_type="inference.azure_openai" if "openai.azure.com" in ENDPOINT else "inference.azure_ai_inference",
+            entity_type=(
+                "inference.azure_openai"
+                if (urlparse(ENDPOINT).hostname or "").endswith(".openai.azure.com")
+                else "inference.azure_ai_inference"
+            ),
             model_name=MODEL,
             model_type=f"model.llm.{MODEL}",
             check_metadata=False,

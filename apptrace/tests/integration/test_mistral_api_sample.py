@@ -114,8 +114,8 @@ def test_mistral_invalid_api_key(setup):
         except models.SDKError as e:
             # e.status_code is correct
             assert e.status_code == 401
-            # The response body contains the actual "Unauthorized" text
-            assert '"Unauthorized"' in e.body
+            # Mistral's 401 body was {"message":"Unauthorized"}; it is now {"detail":"Invalid API Key"}
+            assert '"Unauthorized"' in e.body or "Invalid API Key" in e.body
 
         # Wait for spans to be flushed
         time.sleep(5)

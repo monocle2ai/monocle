@@ -57,7 +57,7 @@ def setup():
 def test_langchain_sample_postgres(setup):
     pg_exporter, custom_exporter = setup
 
-    llm = ChatOpenAI(model="gpt-3.5-turbo-0125")
+    llm = ChatOpenAI(model="gpt-4o-mini")
 
     # Load, chunk and index the contents of the blog.
     loader = WebBaseLoader(
@@ -147,8 +147,8 @@ def test_langchain_sample_postgres(setup):
                    span_attributes["entity.1.type"] == "inference.openai"
             assert "entity.1.provider_name" in span_attributes
             assert "entity.1.inference_endpoint" in span_attributes
-            assert span_attributes["entity.2.name"] == "gpt-3.5-turbo-0125"
-            assert span_attributes["entity.2.type"] == "model.llm.gpt-3.5-turbo-0125"
+            assert span_attributes["entity.2.name"] == "gpt-4o-mini"
+            assert span_attributes["entity.2.type"] == "model.llm.gpt-4o-mini"
 
             span_input, span_output, span_metadata = span.events
             assert "completion_tokens" in span_metadata.attributes

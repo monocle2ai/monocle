@@ -103,7 +103,7 @@ query_engine_async_test_cases: list[TestCase] = [
 async def test_query_engine_async(my_test_case: TestCase):
     """Test QueryEngine using aquery method (async query)."""
     await MonocleValidator().test_agent_async(run_query_engine_async, "llamaindex", my_test_case)
-    await sleep(5)
+    await sleep(10)
 
 
 # Test cases for QueryEngine with aquery method

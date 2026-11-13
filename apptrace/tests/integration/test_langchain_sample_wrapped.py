@@ -12,7 +12,7 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 # the method contains the untouched RAG application code
 def test_langchain_sample_wrapped():
 
-    llm = ChatOpenAI(model="gpt-3.5-turbo-0125")
+    llm = ChatOpenAI(model="gpt-4o-mini")
 
     # Load, chunk and index the contents of the blog.
     loader = WebBaseLoader(
@@ -95,7 +95,7 @@ def test_langchain_sample_wrapped():
 #     "trace_id": "0x4d297d14b25c3891eb4dd8b28453e91a",
 #     "parent_id": "0x0c44185b267d8652",
 #     "attributes": {
-#         "model_name": "gpt-3.5-turbo-0125"
+#         "model_name": "gpt-4o-mini"
 #     },
 #     "events": []
 # },

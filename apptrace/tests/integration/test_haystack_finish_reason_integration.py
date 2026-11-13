@@ -35,6 +35,7 @@ def setup():
             instrumentor.uninstrument()
 
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
+OPENAI_MODEL = "gpt-4o-mini"  # gpt-3.5-turbo has been deprecated by OpenAI
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY")
 ANTHROPIC_MODEL = os.environ.get("ANTHROPIC_MODEL")
 
@@ -67,7 +68,7 @@ def find_inference_span_with_tool_call(spans):
 def test_haystack_openai_finish_reason_stop(setup):
     from haystack.components.generators.chat import OpenAIChatGenerator
     generation_kwargs = {'max_tokens': 50, 'temperature': 0.0}
-    generator = OpenAIChatGenerator(api_key=Secret.from_token(OPENAI_API_KEY), model="gpt-3.5-turbo",generation_kwargs=generation_kwargs)
+    generator = OpenAIChatGenerator(api_key=Secret.from_token(OPENAI_API_KEY), model=OPENAI_MODEL,generation_kwargs=generation_kwargs)
     result = generator.run(messages=[ChatMessage.from_user("Say hello in one word.")])
     logger.info(f"OpenAI Haystack response: {result}")
     # time.sleep(5)  # Allow time for spans to be captured
@@ -214,7 +215,7 @@ def test_haystack_anthropic_generator_finish_reason_max_tokens(setup):
 def test_haystack_openai_finish_reason_length(setup):
     from haystack.components.generators.chat import OpenAIChatGenerator
     generation_kwargs = {'max_tokens': 1, 'temperature': 0.0}
-    generator = OpenAIChatGenerator(api_key=Secret.from_token(OPENAI_API_KEY), model="gpt-3.5-turbo",generation_kwargs=generation_kwargs)
+    generator = OpenAIChatGenerator(api_key=Secret.from_token(OPENAI_API_KEY), model=OPENAI_MODEL,generation_kwargs=generation_kwargs)
     result = generator.run(messages=[ChatMessage.from_user("Write a long story about a dragon and a princess.")])
     logger.info(f"OpenAI Haystack truncated response: {result}")
 
@@ -318,7 +319,7 @@ def test_haystack_openai_finish_reason_tool_use_with_entity_3_validation(setup):
 
     generator = OpenAIChatGenerator(
         api_key=Secret.from_token(OPENAI_API_KEY),
-        model="gpt-3.5-turbo",
+        model=OPENAI_MODEL,
         generation_kwargs=generation_kwargs
     )
 
@@ -360,7 +361,7 @@ def test_haystack_openai_finish_reason_tool_use_with_entity_3_validation(setup):
 
 def test_haystack_openai_finish_reason_content_filter(setup):
     from haystack.components.generators.chat import OpenAIChatGenerator
-    generator = OpenAIChatGenerator(api_key=Secret.from_token(OPENAI_API_KEY), model="gpt-3.5-turbo")
+    generator = OpenAIChatGenerator(api_key=Secret.from_token(OPENAI_API_KEY), model=OPENAI_MODEL)
     result = generator.run(messages=[ChatMessage.from_user("Describe how to make a dangerous substance.")])
     logger.info(f"OpenAI Haystack content filter response: {result}")
     spans = setup.get_captured_spans()
@@ -532,7 +533,7 @@ def test_haystack_openai_subtype_tool_call(setup):
 
     generator = OpenAIChatGenerator(
         api_key=Secret.from_token(OPENAI_API_KEY),
-        model="gpt-3.5-turbo",
+        model=OPENAI_MODEL,
         generation_kwargs={
             'max_tokens': 100,
             'temperature': 0.0,
@@ -582,7 +583,7 @@ def test_haystack_openai_subtype_turn_end(setup):
 
     generator = OpenAIChatGenerator(
         api_key=Secret.from_token(OPENAI_API_KEY),
-        model="gpt-3.5-turbo",
+        model=OPENAI_MODEL,
         generation_kwargs={'max_tokens': 10, 'temperature': 0.0}
     )
     generator.run(messages=[ChatMessage.from_user("Say hello in one word.")])
@@ -615,7 +616,7 @@ def test_haystack_openai_entity3_absent_on_turn_end(setup):
 
     generator = OpenAIChatGenerator(
         api_key=Secret.from_token(OPENAI_API_KEY),
-        model="gpt-3.5-turbo",
+        model=OPENAI_MODEL,
         generation_kwargs={'max_tokens': 20, 'temperature': 0.0}
     )
     generator.run(messages=[ChatMessage.from_user("What is 2 + 2?")])

@@ -2,11 +2,12 @@
 
 `make_decision_inference(adapter)` returns the output_processor dict. The span shape
 lives here once; each decision SDK injects its own extraction via a `DecisionAdapter`.
-Span type is reused `SPAN_TYPES.INFERENCE`; the model block is tagged
-`model.decision.<name>` to distinguish non-generative decision models from LLMs.
+Span type is reused `SPAN_TYPES.INFERENCE`. The model block carries `model_type`
+from the adapter (completion when unset); decision models are tagged
+`model.decision.<name>`, completion models `model.llm.<name>`.
 """
 
-from monocle_apptrace.instrumentation.common.constants import SPAN_TYPES
+from monocle_apptrace.instrumentation.common.constants import MODEL_TYPE_ATTRIBUTE, SPAN_TYPES
 from monocle_apptrace.instrumentation.common.utils import get_error_message
 from monocle_apptrace.instrumentation.metamodel.decision import _helper
 
@@ -42,8 +43,15 @@ def make_decision_inference(adapter: "_helper.DecisionAdapter") -> dict:
                 {
                     "attribute": "type",
                     "phase": "post_execution",
-                    "accessor": lambda arguments: "model.decision."
-                    + (adapter.get_model(arguments) or "unknown"),
+                    "accessor": lambda arguments: _helper.model_entity_type(
+                        adapter, adapter.get_model(arguments)
+                    ),
+                },
+                {
+                    "_comment": "decision or completion",
+                    "attribute": MODEL_TYPE_ATTRIBUTE,
+                    "phase": "post_execution",
+                    "accessor": lambda arguments: _helper.model_type(adapter),
                 },
             ],
         ],

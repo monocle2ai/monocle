@@ -303,6 +303,20 @@ class TraceAssertion():
             if actual_count == 0:
                 raise AssertionError(message or f"No {entity_type} invocations found")
 
+    def _find_tool_spans(self, find_tools:Callable[[list[Span]], list[Span]]) -> list[Span]:
+        """Run a tool lookup on the current context.
+
+        After called_agent() the context holds only agent spans, so no tool span
+        can match. Then look for tools called by those agents instead, the same
+        as called_tool(T, agent_name=A).
+        """
+        scope = self._filtered_spans
+        if not scope or any(span.attributes.get("span.type") != "agentic.invocation" for span in scope):
+            return find_tools(scope)
+        agents = {span.attributes.get("entity.1.name") for span in scope}
+        return [span for span in find_tools(self.validator.spans)
+                if span.attributes.get("entity.2.name") in agents]
+
     @staticmethod
     def _any_of_names(names:tuple, kind:str) -> list[str]:
         """The names an any-of selector was given, flattened and de-duplicated.
@@ -548,7 +562,8 @@ class TraceAssertion():
         if tool_name is None:
             raise ValueError("tool_name is required")
         TraceAssertion._validate_count_params(count, min_count, max_count)
-        self._filtered_spans = self.validator._get_tool_invocation_spans(tool_name, agent_name, filtered_spans=self._filtered_spans)
+        self._filtered_spans = self._find_tool_spans(
+            lambda spans: self.validator._get_tool_invocation_spans(tool_name, agent_name, filtered_spans=spans))
         actual_count = len(self._filtered_spans)
         
         if count is not None or min_count is not None or max_count is not None:
@@ -595,8 +610,8 @@ class TraceAssertion():
                 "Use called_tool(testcase=...) for that.")
         names = TraceAssertion._any_of_names(tool_names, "tool")
         TraceAssertion._validate_count_params(count, min_count, max_count)
-        self._filtered_spans = self.validator._get_any_tool_invocation_spans(
-            names, agent_name, filtered_spans=self._filtered_spans)
+        self._filtered_spans = self._find_tool_spans(
+            lambda spans: self.validator._get_any_tool_invocation_spans(names, agent_name, filtered_spans=spans))
         actual_count = len(self._filtered_spans)
         listed = ", ".join(f"'{name}'" for name in names)
         by_agent = f" by agent '{agent_name}'" if agent_name else ""

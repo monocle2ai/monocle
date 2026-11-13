@@ -23,11 +23,12 @@ import asyncio
 import json
 import logging
 import os
+from urllib.parse import urlparse
 
 import pytest
 from azure.ai.inference import ChatCompletionsClient
 from azure.ai.inference.aio import ChatCompletionsClient as AsyncChatCompletionsClient
-from azure.ai.inference.models import SystemMessage, UserMessage, AssistantMessage
+from azure.ai.inference.models import SystemMessage, UserMessage, AssistantMessage, ToolMessage
 from azure.core.credentials import AzureKeyCredential
 from common.helpers import find_spans_by_type, verify_inference_span
 from common.stream_helpers import build_stream_span_processors
@@ -122,7 +123,12 @@ def _assert_has_stream_inference(exporter, min_count=1):
     for span in inference_spans:
         verify_inference_span(
             span=span,
-            entity_type="inference",  # Azure AI may vary
+            # Monocle names the provider from the endpoint host, as _helper.get_inference_type does.
+            entity_type=(
+                "inference.azure_openai"
+                if (urlparse(ENDPOINT).hostname or "").endswith(".openai.azure.com")
+                else "inference.azure_ai_inference"
+            ),
             model_name=MODEL,
             model_type=f"model.llm.{MODEL}",
             check_metadata=False,
@@ -317,18 +323,25 @@ async def test_stream_single_tool_call(setup):
         max_tokens=300,
     )
     
-    # Consume stream and extract tool calls
-    tool_calls = []
+    # Consume stream and extract tool calls. A streamed tool call arrives in pieces: the
+    # first delta carries the id and name, later ones only argument fragments, keyed by index.
+    calls_by_index = {}
     async for chunk in response1:
         if chunk.choices and chunk.choices[0].delta.tool_calls:
             for tc in chunk.choices[0].delta.tool_calls:
+                call = calls_by_index.setdefault(getattr(tc, "index", 0) or 0,
+                                                 {"id": None, "name": None, "arguments": ""})
+                if tc.id:
+                    call["id"] = tc.id
                 if tc.function:
-                    tool_calls.append({
-                        "id": tc.id or f"call_{len(tool_calls)}",
-                        "name": tc.function.name,
-                        "arguments": tc.function.arguments or "{}",
-                    })
-    
+                    if tc.function.name:
+                        call["name"] = tc.function.name
+                    call["arguments"] += tc.function.arguments or ""
+    tool_calls = [c for _, c in sorted(calls_by_index.items()) if c["name"]]
+    for i, call in enumerate(tool_calls):
+        call["id"] = call["id"] or f"call_{i}"
+        call["arguments"] = call["arguments"] or "{}"
+
     if not tool_calls:
         # Model didn't call tool, just verify we have one span
         await client.close()
@@ -348,6 +361,7 @@ async def test_stream_single_tool_call(setup):
                 tool_calls=[
                     {
                         "id": tool_calls[0]["id"],
+                        "type": "function",
                         "function": {
                             "name": tool_name,
                             "arguments": tool_calls[0]["arguments"],
@@ -355,7 +369,8 @@ async def test_stream_single_tool_call(setup):
                     }
                 ]
             ),
-            UserMessage(content=tool_result, role="tool"),
+            # UserMessage fixes role="user"; a tool result is a ToolMessage tied to the call id.
+            ToolMessage(content=tool_result, tool_call_id=tool_calls[0]["id"]),
         ],
         tools=COFFEE_TOOLS,
         stream=True,

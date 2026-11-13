@@ -49,7 +49,7 @@ def get_coffee_details(coffee_name: str) -> str:
 
 def test_sync_stream_chat_sample(setup):
     """Test synchronous streaming with stream() stream_mode='values'."""
-    llm = ChatOpenAI(model_name="gpt-4", temperature=0)
+    llm = ChatOpenAI(model_name="gpt-4o-mini", temperature=0)
     tools = [get_coffee_details]
     agent_executor = create_agent(llm, tools)
 
@@ -69,7 +69,7 @@ def test_sync_stream_chat_sample(setup):
 @pytest.mark.asyncio(loop_scope="function")
 async def test_async_stream_chat_sample(setup):
     """Test asynchronous streaming with astream stream_mode='values'."""
-    llm = ChatOpenAI(model_name="gpt-4", temperature=0)
+    llm = ChatOpenAI(model_name="gpt-4o-mini", temperature=0)
     tools = [get_coffee_details]
     agent_executor = create_agent(llm, tools)
 
@@ -89,7 +89,7 @@ async def test_async_stream_chat_sample(setup):
 @pytest.mark.asyncio(loop_scope="function")
 async def test_async_stream_updates_mode(setup):
     """Test async streaming with astream stream_mode='updates' (node-keyed chunks)."""
-    llm = ChatOpenAI(model_name="gpt-4", temperature=0)
+    llm = ChatOpenAI(model_name="gpt-4o-mini", temperature=0)
     tools = [get_coffee_details]
     agent_executor = create_agent(llm, tools)
 
@@ -109,7 +109,7 @@ async def test_async_stream_updates_mode(setup):
 @pytest.mark.asyncio(loop_scope="function")
 async def test_async_stream_messages_mode(setup):
     """Test async streaming with astream stream_mode='messages' (v2 dict StreamParts)."""
-    llm = ChatOpenAI(model_name="gpt-4", temperature=0)
+    llm = ChatOpenAI(model_name="gpt-4o-mini", temperature=0)
     tools = [get_coffee_details]
     agent_executor = create_agent(llm, tools)
 
@@ -157,8 +157,8 @@ def verify_stream_spans(memory_exporter=None, test_name=""):
             )
             assert "entity.1.provider_name" in span_attributes
             assert "entity.1.inference_endpoint" in span_attributes
-            assert span_attributes.get("entity.2.name") == "gpt-4"
-            assert span_attributes.get("entity.2.type") == "model.llm.gpt-4"
+            assert span_attributes.get("entity.2.name") == "gpt-4o-mini"
+            assert span_attributes.get("entity.2.type") == "model.llm.gpt-4o-mini"
 
             if len(span.events) >= 3:
                 _span_input, _span_output, span_metadata = span.events[:3]

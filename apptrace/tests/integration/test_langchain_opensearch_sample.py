@@ -15,7 +15,7 @@ from langchain_community.vectorstores import (
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.runnables import RunnablePassthrough
-from langchain_openai import OpenAI, OpenAIEmbeddings
+from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain_text_splitters import CharacterTextSplitter
 from monocle_apptrace.instrumentation.common.instrumentor import (
     set_context_properties,
@@ -24,6 +24,10 @@ from monocle_apptrace.instrumentation.common.instrumentor import (
 from opensearchpy import OpenSearch, RequestsHttpConnection
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from requests_aws4auth import AWS4Auth
+
+# gpt-3.5-turbo-instruct, the OpenAI() completions default, has been deprecated, and
+# OpenAI no longer serves any completions-endpoint model, so the test uses a chat model.
+MODEL_NAME = "gpt-4o-mini"
 
 # Set up OpenTelemetry tracing
 
@@ -83,7 +87,7 @@ def test_langchain_opensearch_sample(setup):
     # Convert to retriever
 
     # Initialize the LLM
-    llm = OpenAI(temperature=0)
+    llm = ChatOpenAI(model=MODEL_NAME, temperature=0)
     query = "What did the author do growing up?"
 
     retriever = docsearch.as_retriever()
@@ -160,8 +164,8 @@ def test_langchain_opensearch_sample(setup):
             assert span_attributes["entity.1.type"] == "inference.openai"
             assert "entity.1.provider_name" in span_attributes
             assert "entity.1.inference_endpoint" in span_attributes
-            assert span_attributes["entity.2.name"] == "gpt-3.5-turbo-instruct"
-            assert span_attributes["entity.2.type"] == "model.llm.gpt-3.5-turbo-instruct"
+            assert span_attributes["entity.2.name"] == MODEL_NAME
+            assert span_attributes["entity.2.type"] == f"model.llm.{MODEL_NAME}"
 
         if not span.parent and 'langchain' in span.name:  # Root span
             assert span_attributes["entity.1.name"] == "langchain_opensearch"

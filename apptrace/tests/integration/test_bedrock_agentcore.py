@@ -13,6 +13,8 @@ from langchain_core.tools import tool
 from langchain_core.messages import HumanMessage
 from langchain_openai import ChatOpenAI
 
+# gpt-4 has been deprecated by OpenAI.
+MODEL_NAME = "gpt-4o-mini"
 
 
 @tool
@@ -39,7 +41,7 @@ def calculate(expression: str) -> str:
 
 def create_langgraph_agent():
     """Create LangGraph agent"""
-    llm = ChatOpenAI(model_name="gpt-4", temperature=0)
+    llm = ChatOpenAI(model_name=MODEL_NAME, temperature=0)
     
     react_agent = create_react_agent(
         model=llm,
@@ -182,7 +184,7 @@ def verify_spans(memory_exporter):
         if "span.type" in span_attributes and span_attributes["span.type"] == "inference.framework":
             found_inference_span = True
             assert "entity.2.name" in span_attributes
-            assert span_attributes["entity.2.name"] == "gpt-4"
+            assert span_attributes["entity.2.name"] == MODEL_NAME
     
     # Final assertions
     assert found_agentcore_span, "BedrockAgentCore span not found"

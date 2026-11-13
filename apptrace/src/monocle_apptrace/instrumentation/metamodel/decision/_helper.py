@@ -8,6 +8,12 @@ SDK-agnostic; each SDK supplies a `DecisionAdapter` with the extraction function
 from dataclasses import dataclass
 from typing import Any, Callable, Optional
 
+from monocle_apptrace.instrumentation.common.constants import (
+    DECISION_MODEL_PREFIX,
+    LLM_MODEL_PREFIX,
+    MODEL_TYPE_COMPLETION,
+    MODEL_TYPE_DECISION,
+)
 from monocle_apptrace.instrumentation.metamodel.finish_types import (
     map_decision_finish_reason_to_finish_type,
 )
@@ -22,6 +28,17 @@ class DecisionAdapter:
     extract_input: Callable[[dict], Any]
     extract_answers: Callable[[dict], Any]
     get_usage: Callable[[dict], dict]
+    model_type: Optional[str] = None
+
+
+def model_type(adapter: DecisionAdapter) -> str:
+    """The adapter's model type; completion when not set."""
+    return adapter.model_type or MODEL_TYPE_COMPLETION
+
+
+def model_entity_type(adapter: DecisionAdapter, model_name: Optional[str]) -> str:
+    prefix = DECISION_MODEL_PREFIX if model_type(adapter) == MODEL_TYPE_DECISION else LLM_MODEL_PREFIX
+    return prefix + (model_name or "unknown")
 
 
 def decision_finish_reason(arguments: dict) -> str:

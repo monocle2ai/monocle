@@ -18,7 +18,8 @@ from monocle_apptrace.instrumentation.common.constants import (
     service_type_map,
     GCP_AGENT_ENGINE_SERVICE_NAME, GCP_AGENT_ENGINE_LOCATION_ENV_NAME, GCP_PROJECT_ENV_NAME,
     MONOCLE_SDK_VERSION, MONOCLE_SDK_LANGUAGE, MONOCLE_DETECTED_SPAN_ERROR,
-    HTTP_SUCCESS_CODES, HEALTH_RESET_COUNTER
+    HTTP_SUCCESS_CODES, HEALTH_RESET_COUNTER,
+    MODEL_TYPE_ATTRIBUTE, MODEL_TYPE_COMPLETION, LLM_MODEL_PREFIX
 )
 
 from monocle_apptrace.instrumentation.common.utils import CyclicCounter, set_attribute, get_scopes, MonocleSpanException, get_monocle_version, replace_placeholders, propogate_inference_info_to_parent_span, get_workflow_name
@@ -212,7 +213,18 @@ class SpanHandler:
 
         if span_index > 0:
             span.set_attribute("entity.count", span_index)
+            SpanHandler.set_default_model_type(span, span_index)
         return detected_error
+
+    @staticmethod
+    def set_default_model_type(span: Span, entity_count: int):
+        """LLM model entities default to the completion model type."""
+        for index in range(1, entity_count + 1):
+            entity_type = span.attributes.get(f"entity.{index}.type")
+            model_type_key = f"entity.{index}.{MODEL_TYPE_ATTRIBUTE}"
+            if isinstance(entity_type, str) and entity_type.startswith(LLM_MODEL_PREFIX) \
+                    and span.attributes.get(model_type_key) is None:
+                span.set_attribute(model_type_key, MODEL_TYPE_COMPLETION)
 
     def hydrate_events(self, to_wrap, wrapped, instance, args, kwargs, ret_result, span: Span, parent_span=None, ex:Exception=None,
                        is_post_exec: bool = False) -> bool:

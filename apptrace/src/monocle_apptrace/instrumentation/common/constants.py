@@ -157,6 +157,13 @@ SKIPPED_EXECUTION = "monocle.skipped_execution"
 
 TOOL_TYPE = "tool.function"
 
+# model_type values on inference model entities
+MODEL_TYPE_ATTRIBUTE = "model_type"
+MODEL_TYPE_COMPLETION = "completion"
+MODEL_TYPE_DECISION = "decision"
+LLM_MODEL_PREFIX = "model.llm."
+DECISION_MODEL_PREFIX = "model.decision."
+
 # agentic sub types
 INFERENCE_AGENT_DELEGATION = "delegation"
 INFERENCE_TOOL_CALL = "tool_call"

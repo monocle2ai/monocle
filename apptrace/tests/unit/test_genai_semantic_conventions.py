@@ -64,6 +64,22 @@ def test_tool_span_gets_execute_tool_operation_and_name():
     assert span.attributes["gen_ai.tool.name"] == "get_weather"
 
 
+def test_decision_model_span_gets_request_model():
+    configure_otel_genai_semconv(True, ())
+    span = FakeSpan(
+        "typesafe_sdk._core.client.sync.client.TypeSafeClient.system_one",
+        {
+            "span.type": "inference",
+            "entity.2.name": "jev-1.14.0",
+            "entity.2.type": "model.decision.jev-1.14.0",
+        },
+    )
+
+    enrich_genai_attributes(span)
+
+    assert span.attributes["gen_ai.request.model"] == "jev-1.14.0"
+
+
 def test_embedding_span_uses_embeddings_operation_and_model():
     configure_otel_genai_semconv(True)
     span = FakeSpan(

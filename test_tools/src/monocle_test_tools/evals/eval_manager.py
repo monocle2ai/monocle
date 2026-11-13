@@ -6,6 +6,7 @@ from monocle_test_tools.evals.bert_eval import BertScorerEval
 from monocle_test_tools.evals.exact_match_eval import ExactMatchEval
 from monocle_test_tools.evals.json_validity_eval import JSONValidityEval
 from monocle_test_tools.evals.keyword_presence_eval import KeywordPresenceEval
+from monocle_test_tools.evals.monocle import MonocleEval
 from monocle_test_tools.evals.regex_match_eval import RegexMatchEval
 
 # String keys for the built-in, non-LLM evaluators.
@@ -23,7 +24,9 @@ _eval_sources = NamedRegistry("monocle.evals", {
 
 def get_evaluator(eval: Optional[Union[str, BaseEval]], eval_options: Optional[dict] = None) -> BaseEval:
     if isinstance(eval, str):
-        if eval == "bert_score":
+        if eval == "monocle":
+            eval = MonocleEval(eval_options=eval_options)
+        elif eval == "bert_score":
             eval = BertScorerEval(eval_options=eval_options)
         elif eval in NON_LLM_EVALS:
             eval = NON_LLM_EVALS[eval](eval_options=eval_options)

@@ -5,6 +5,7 @@ Base streaming processor using Template Method pattern for generic framework sup
 import inspect
 import logging
 import time
+import weakref
 import types as _builtin_types
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
@@ -298,24 +299,24 @@ class BaseStreamProcessor(ABC):
                     stream_start_time: int, span_processor: Optional[Callable]) -> None:
         """Emit the span when a consumer closes the stream instead of draining it.
 
-        An explicit close()/aclose() is the deterministic signal; Python defers
-        closing an abandoned generator to the garbage collector.
+        An explicit close()/aclose() or leaving a `with` block is the deterministic
+        signal; Python defers closing an abandoned generator to the garbage collector.
         """
-        for name in ("close", "aclose"):
+        for name in ("close", "aclose", "__exit__", "__aexit__"):
             original = getattr(response, name, None)
             if not callable(original):
                 continue
             if inspect.iscoroutinefunction(original):
-                async def new_aclose(self_stream, _original=original):
+                async def new_aclose(self_stream, *args, _original=original):
                     try:
-                        return await _original()
+                        return await _original(*args)
                     finally:
                         self._emit_span_once(state, stream_start_time, span_processor)
                 patch_instance_method(response, name, new_aclose)
             else:
-                def new_close(self_stream, _original=original):
+                def new_close(self_stream, *args, _original=original):
                     try:
-                        return _original()
+                        return _original(*args)
                     finally:
                         self._emit_span_once(state, stream_start_time, span_processor)
                 patch_instance_method(response, name, new_close)
@@ -340,6 +341,10 @@ class BaseStreamProcessor(ABC):
                     if span_processor:
                         self._emit_span_once(state, stream_start_time, span_processor)
                     break
+                except GeneratorExit:
+                    # Consumer stopped early; runs at once for sync loops.
+                    self._emit_span_once(state, stream_start_time, span_processor)
+                    raise
 
         if not patch_instance_method(response, "__iter__", new_iter):
             # Native C-level generator — return a wrapper object instead
@@ -366,6 +371,10 @@ class BaseStreamProcessor(ABC):
                     if span_processor:
                         self._emit_span_once(state, stream_start_time, span_processor)
                     break
+                except GeneratorExit:
+                    # Consumer stopped early; asyncio closes the generator a few ticks later.
+                    self._emit_span_once(state, stream_start_time, span_processor)
+                    raise
 
         if not patch_instance_method(response, "__aiter__", new_aiter):
             # Native C-level async_generator — return a wrapper object instead
@@ -416,6 +425,8 @@ class BaseStreamProcessor(ABC):
 
             def __init__(self):
                 self._gen = response
+                # Emit if the wrapper is dropped without being drained or closed.
+                weakref.finalize(self, processor._emit_span_once, state, stream_start_time, span_processor)
 
             def __iter__(self):
                 return self
@@ -458,6 +469,8 @@ class BaseStreamProcessor(ABC):
 
             def __init__(self):
                 self._gen = response
+                # Emit if the wrapper is dropped without being drained or closed.
+                weakref.finalize(self, processor._emit_span_once, state, stream_start_time, span_processor)
 
             def __aiter__(self):
                 return self

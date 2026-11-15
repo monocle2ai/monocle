@@ -6,6 +6,7 @@ import pytest
 from common.custom_exporter import CustomConsoleSpanExporter
 from common.helpers import find_span_by_type, find_spans_by_type, verify_inference_span
 from mistralai import Mistral
+from monocle_apptrace.instrumentation.metamodel.mistral._helper import split_content
 from monocle_apptrace.exporters.file_exporter import FileSpanExporter
 from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, SimpleSpanProcessor
@@ -60,7 +61,7 @@ def test_mistral_stream_sync(setup):
     for chunk in stream_response:
         chunks.append(chunk)
         if chunk.data.choices[0].delta.content is not None:
-            texts.append(chunk.data.choices[0].delta.content)
+            texts.append(split_content(chunk.data.choices[0].delta.content)[0])
 
     full_response = "".join(texts).strip()
     assert len(chunks) > 0, "Expected streaming chunks"

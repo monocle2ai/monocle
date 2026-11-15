@@ -454,7 +454,8 @@ async def test_stream_cancellation(setup):
                 break  # Cancel early
     
     assert count >= 3, "Expected to consume at least 3 chunks before cancellation"
-    
+
+    await response.aclose()  # close the stream so monocle emits the span
     await client.close()
     
     # We should still have an inference span (may be incomplete)

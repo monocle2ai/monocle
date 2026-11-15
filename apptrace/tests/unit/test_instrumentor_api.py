@@ -1077,3 +1077,126 @@ class TestMonocleTraceMethodInputOutput(unittest.IsolatedAsyncioTestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class TestMonocleTraceMethodAttributes(unittest.IsolatedAsyncioTestCase):
+    """Custom attributes and events on @monocle_trace_method spans (issue #634)."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.exporter = CustomConsoleSpanExporter()
+        cls.instrumentor = setup_monocle_telemetry(
+            workflow_name="trace_method_attributes_test",
+            span_processors=[SimpleSpanProcessor(cls.exporter)]
+        )
+
+    @classmethod
+    def tearDownClass(cls):
+        if cls.instrumentor is not None:
+            cls.instrumentor.uninstrument()
+
+    def setUp(self):
+        self.exporter.reset()
+
+    def tearDown(self):
+        self.exporter.reset()
+
+    def _span_named(self, name):
+        self.exporter.force_flush()
+        for span in self.exporter.captured_spans:
+            if span.name == name:
+                return span
+        self.fail(f"no span named {name!r}; got {[s.name for s in self.exporter.captured_spans]}")
+
+    def test_sync_attributes_are_set_on_the_method_span(self):
+        @monocle_trace_method(attributes={"service.tier": "premium", "team": "search"})
+        def rank_documents(query):
+            return len(query)
+
+        self.assertEqual(rank_documents("hello"), 5)
+
+        span = self._span_named("rank_documents")
+        self.assertEqual(span.attributes.get("service.tier"), "premium")
+        self.assertEqual(span.attributes.get("team"), "search")
+
+    async def test_async_attributes_are_set_on_the_method_span(self):
+        @monocle_trace_method(attributes={"pipeline.stage": "retrieval"})
+        async def fetch_async(x):
+            return x * 2
+
+        self.assertEqual(await fetch_async(21), 42)
+
+        span = self._span_named("fetch_async")
+        self.assertEqual(span.attributes.get("pipeline.stage"), "retrieval")
+
+    def test_none_values_are_skipped_like_monocle_trace(self):
+        @monocle_trace_method(attributes={"keep": "yes", "drop": None})
+        def maybe(x):
+            return x
+
+        maybe(1)
+
+        span = self._span_named("maybe")
+        self.assertEqual(span.attributes.get("keep"), "yes")
+        self.assertIsNone(span.attributes.get("drop"))
+
+    def test_events_are_added_to_the_method_span(self):
+        @monocle_trace_method(events=[{"name": "cache.miss", "attributes": {"key": "q1"}}])
+        def lookup(x):
+            return x
+
+        lookup(1)
+
+        span = self._span_named("lookup")
+        event_names = [e.name for e in span.events]
+        self.assertIn("cache.miss", event_names)
+        missed = next(e for e in span.events if e.name == "cache.miss")
+        self.assertEqual(missed.attributes.get("key"), "q1")
+
+    def test_attributes_compose_with_exclude(self):
+        @monocle_trace_method(
+            exclude="inputs",
+            attributes={"audit": "true"},
+        )
+        def charge(amount):
+            return {"ok": True}
+
+        charge(10)
+
+        span = self._span_named("charge")
+        self.assertEqual(span.attributes.get("audit"), "true")
+        self.assertNotIn("data.input", [e.name for e in span.events])
+        self.assertIn("data.output", [e.name for e in span.events])
+
+    def test_attributes_are_recorded_even_when_the_call_raises(self):
+        @monocle_trace_method(attributes={"retryable": "true"})
+        def boom():
+            raise ValueError("kaboom")
+
+        with self.assertRaises(ValueError):
+            boom()
+
+        span = self._span_named("boom")
+        self.assertEqual(span.attributes.get("retryable"), "true")
+        self.assertEqual(span.status.status_code, StatusCode.ERROR)
+
+    def test_tracing_options_never_break_the_traced_call(self):
+        class Unserializable:
+            pass
+
+        @monocle_trace_method(attributes={"bad": Unserializable()})
+        def still_works():
+            return "ok"
+
+        self.assertEqual(still_works(), "ok")
+        self._span_named("still_works")
+
+    def test_without_attributes_behaviour_is_unchanged(self):
+        @monocle_trace_method()
+        def plain(x):
+            return x + 1
+
+        self.assertEqual(plain(1), 2)
+        span = self._span_named("plain")
+        self.assertIn("data.input", [e.name for e in span.events])
+        self.assertIn("data.output", [e.name for e in span.events])

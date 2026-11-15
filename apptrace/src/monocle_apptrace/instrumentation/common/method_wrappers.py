@@ -168,9 +168,46 @@ async def amonocle_trace(
         logger.warning(f"Failed in amonocle_trace: {e}")
         yield  # Still yield to not break the context manager
 
+def _wrapped_with_span_attributes(func, attributes: Optional[Dict[str, Any]], events: Optional[List[Dict[str, Any]]]):
+    """Wrap a callable so it decorates the surrounding Monocle span before running.
+
+    By the time the wrapped callable runs, the decorator has already opened its
+    own span, so the current Monocle span is exactly the one to annotate.
+    Doing it here keeps the change inside this module: no changes to the
+    wrapper or span handler are needed, and the attributes land on the same
+    span that carries the captured input/output events.
+    """
+
+    def _annotate() -> None:
+        if not attributes and not events:
+            return
+        span = get_current_monocle_span()
+        if span is None or span == INVALID_SPAN or not span.is_recording():
+            return
+        try:
+            _setup_span_attributes_and_events(span, attributes, events)
+        except Exception as e:  # A tracing option must never break the traced call.
+            logger.warning(f"Failed to set custom span attributes: {e}")
+
+    if inspect.iscoroutinefunction(func):
+        @wraps(func)
+        async def async_inner(*args, **kwargs):
+            _annotate()
+            return await func(*args, **kwargs)
+        return async_inner
+
+    @wraps(func)
+    def inner(*args, **kwargs):
+        _annotate()
+        return func(*args, **kwargs)
+    return inner
+
+
 def monocle_trace_method(
     span_name: Optional[str] = None,
-    exclude = None
+    exclude = None,
+    attributes: Optional[Dict[str, Any]] = None,
+    events: Optional[List[Dict[str, Any]]] = None
 ):
     """
     Decorator to start and stop a trace for a method. All the spans created in the method will be part of the same trace.
@@ -183,10 +220,17 @@ def monocle_trace_method(
             process. Accepts a single name or an iterable of names. Excluded
             data is never captured; the span is still recorded, and an
             excluded-output span still carries error_code.
+        attributes: Optional dictionary of custom attributes to set on the span.
+            Values that are None are skipped, matching ``monocle_trace``.
+        events: Optional list of events to add to the span. Each event should be
+            a dict with 'name' and optionally 'attributes' keys.
 
     Example:
         @monocle_trace_method(exclude="inputs")
         def charge_card(card_number: str) -> Receipt: ...
+
+        @monocle_trace_method(attributes={"service.tier": "premium", "team": "search"})
+        def rank_documents(query: str) -> list: ...
     """
     span_processor = build_custom_span_processor(exclude)
 
@@ -196,6 +240,7 @@ def monocle_trace_method(
         source_path= func.__code__.co_filename + ":" + str(func.__code__.co_firstlineno)
         # Use function name as span name if not provided
         effective_span_name = span_name or func.__name__ or "custom_span"
+        wrapped = _wrapped_with_span_attributes(func, attributes, events)
 
         if inspect.iscoroutinefunction(func):
             @wraps(func)
@@ -207,7 +252,7 @@ def monocle_trace_method(
                         "span_name": effective_span_name,
                         "output_processor": span_processor
                     }
-                )(  wrapped=func,                        
+                )(  wrapped=wrapped,                     
                     instance=None,
                     source_path=source_path,
                     args=args,
@@ -223,7 +268,7 @@ def monocle_trace_method(
                         "span_name": effective_span_name,
                         "output_processor": span_processor
                     }
-                )(  wrapped=func,                        
+                )(  wrapped=wrapped,                     
                     instance=None,
                     source_path=source_path,
                     args=args,

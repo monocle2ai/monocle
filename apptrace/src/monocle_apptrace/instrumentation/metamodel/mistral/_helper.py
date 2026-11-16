@@ -396,3 +396,17 @@ def extract_tool_type(arguments):
         logger.warning("Warning: Error occurred in extract_tool_type: %s", str(e))
     
     return None
+
+
+def reply_text(response) -> str:
+    """The text the model's reply starts with, or "" if it starts with none.
+
+    Mistral gives a reply as text or as a list of chunks. Thinking and reference chunks are not text chunks.
+    """
+    if not getattr(response, "choices", None):
+        return ""
+    content = response.choices[0].message.content
+    if isinstance(content, str):
+        return content
+    texts = [chunk.text for chunk in content or [] if chunk.type == "text"]
+    return texts[0] if texts else ""

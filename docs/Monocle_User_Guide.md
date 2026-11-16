@@ -283,7 +283,7 @@ you set `MONOCLE_INSTRUCTION` to the path of a YAML file that holds the instruct
 export MONOCLE_INSTRUCTION=config/monocle/house-style.yaml
 ```
 
-The file has three keys, and `name` must match the file name:
+The file holds a `name`, which must match the file name, a `description` and the `instruction`:
 
 ```yaml
 name: house-style
@@ -311,13 +311,75 @@ An instruction is added to calls made through the OpenAI, Anthropic, Gemini, Mis
 Inference, Hugging Face and LiteLLM SDKs and through Bedrock Converse, whichever framework makes the
 call. Two cases are not supported: Bedrock `invoke_model`, and a call that passes its messages by
 position instead of by keyword, for example `client.chat_completion(messages)` in Hugging Face. A
-path with no file, or a file missing a key, stops `setup_monocle_telemetry` with a message that
-names the file.
+path with no file, or a file that is not valid, stops `setup_monocle_telemetry` with a message that
+names the file. A file is not valid when it is not YAML, has no `name` or `description`, or holds
+neither an `instruction` nor the `stop_when` described next.
 
 `monocle.instruction` on a span is the record that the call was sent with the instruction. Under a
 framework such as LangChain, the label appears in the framework span's input and the attribute is on
 the model SDK span beneath it. An instruction asks the model; it does not enforce. The trace shows
 the instruction was sent, not that the model followed it.
+
+#### Stopping the agent when a condition is met
+
+The same file can hold a stop condition. Add `stop_when`, the condition in plain words. It can stand
+beside `instruction` or in place of it.
+
+```yaml
+name: no-wire-transfers
+description: Stops the agent when the user asks to move money.
+stop_when: the user asks for a wire transfer or any other movement of money
+```
+
+Write the condition as one sentence, phrased any way you like: `the user asks for a wire transfer`
+and `Stop when the user asks for a wire transfer.` both work. The model is sent it as you wrote it,
+after the words "Stop condition:". Put the sentence in quotes if it holds a colon.
+
+Monocle makes no extra model call. It words a stop rule around the condition and adds it to the
+calls your app already makes, after the instruction if there is one and ahead of your system prompt.
+The rule tells the model to reply with one line that starts with `KILL_SWITCH:` and gives its reason
+when the condition is met. Monocle reads where each reply's text starts. A reply that starts with
+`KILL_SWITCH:` is not handed to the agent. The model call raises `KillSwitchTriggered` instead, so
+no tool runs and no further turn happens:
+
+```
+monocle_apptrace.instructions.kill_switch.KillSwitchTriggered: Kill switch triggered by instruction 'no-wire-transfers': The user asked to wire $5,000 to an account.
+```
+
+A library between your app and the model SDK may wrap the error in its own. LiteLLM raises its
+`InternalServerError` or `APIConnectionError` and puts its own words before the message, so match on
+`Kill switch triggered by instruction`. A library set to retry failed calls sends the call again for
+each retry, and each one is stopped the same way.
+
+In the trace, the stopped inference span and every span above it are errors. Each inference span the
+error passed through carries the reason the model gave, and its `data.input` event lists the stop
+rule under the `instruction` label:
+
+```json
+"status": { "status_code": "ERROR", "description": "Kill switch triggered by instruction 'no-wire-transfers': The user asked to wire $5,000 to an account." },
+"attributes": {
+  "monocle.instruction": "no-wire-transfers",
+  "monocle.kill_switch.instruction": "no-wire-transfers",
+  "monocle.kill_switch.check": "stop_when",
+  "monocle.kill_switch.reason": "The user asked to wire $5,000 to an account."
+},
+"events": [{
+  "name": "data.output",
+  "attributes": { "error_code": "kill_switch_triggered" }
+}]
+```
+
+A stop is a judgement by the model, not a guarantee. The model can miss the condition, be talked out
+of stopping, or stop work it should not. The reason in the trace shows why a call was stopped.
+
+The stop rule goes with the calls an instruction is added to, except these, which are not stopped:
+
+- Streamed calls. A stream reaches the app in pieces, so the stop rule is left off a call that asks
+  for a stream. The instruction is still added, and Monocle logs a warning the first time. A
+  framework that streams underneath, for example LangChain with `streaming=True`, is not stopped
+  either.
+- Calls that force the format of the reply, such as a strict JSON schema or a forced tool choice.
+  The stop rule is still sent, but the model cannot reply with the `KILL_SWITCH:` line.
 
 #### Example with OpenTelemetry Collector
 ```bash

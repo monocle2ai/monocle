@@ -10,6 +10,7 @@ from opentelemetry.context import set_value, attach, detach, get_value
 from opentelemetry.trace.span import INVALID_SPAN, Span, SpanContext, TraceFlags, TraceState
 from opentelemetry.trace.status import StatusCode
 
+from monocle_apptrace.instructions.kill_switch import record_triggered_kill_switch
 from monocle_apptrace.instructions.sending import instructed_call, record_sent_instruction
 from monocle_apptrace.instrumentation.common.constants import (
     ADD_NEW_WORKFLOW,
@@ -70,6 +71,7 @@ def post_process_span(handler, to_wrap, wrapped, instance, args, kwargs, return_
             logger.info(f"Warning: Error occurred in hydrate_span: {e}")
 
         record_sent_instruction(wrapped, span)
+        record_triggered_kill_switch(span, ex)
         
         try:
             handler.post_task_processing(to_wrap, wrapped, instance, args, kwargs, return_value, ex, span, parent_span)

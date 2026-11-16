@@ -282,3 +282,12 @@ def config_with_system_instruction(config, system_instruction):
     if isinstance(config, dict):
         return {**config, system_instruction_key(config): system_instruction}
     return config.model_copy(update={"system_instruction": system_instruction})
+
+
+def reply_text(response) -> str:
+    """The first text part of the model's reply, or "" if it has none. Thoughts and function calls are not text parts."""
+    candidates = getattr(response, "candidates", None)
+    if not candidates or candidates[0].content is None:
+        return ""
+    texts = [part.text for part in candidates[0].content.parts or [] if part.text and not part.thought]
+    return texts[0] if texts else ""

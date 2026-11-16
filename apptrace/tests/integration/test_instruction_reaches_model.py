@@ -1,4 +1,4 @@
-"""The model receives the instruction: told to start every answer with 123456, an ADK agent does."""
+"""The model receives the instruction file: told to start every answer with 123456, an ADK agent does; told when to stop, it is stopped."""
 import json
 import os
 from pathlib import Path
@@ -11,19 +11,23 @@ from google.adk.runners import Runner
 from google.adk.sessions import InMemorySessionService
 from google.genai import types
 from monocle_apptrace import setup_monocle_telemetry
-from monocle_apptrace.instrumentation.common.constants import MONOCLE_INSTRUCTION_ENV, SENT_INSTRUCTION
+from monocle_apptrace.instrumentation.common.constants import (
+    KILL_SWITCH_CHECK, KILL_SWITCH_INSTRUCTION, KILL_SWITCH_REASON, MONOCLE_INSTRUCTION_ENV, SENT_INSTRUCTION,
+)
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
+from opentelemetry.trace.status import StatusCode
 
 load_dotenv(find_dotenv(), override=True)
 
-START_WITH_123456_FILE = str(Path(__file__).parents[1] / "data" / "start-with-123456.yaml")
+DATA = Path(__file__).parents[1] / "data"
+START_WITH_123456_FILE = str(DATA / "start-with-123456.yaml")
+NO_WIRE_TRANSFERS_FILE = str(DATA / "no-wire-transfers.yaml")
 
 
-@pytest.fixture(scope="function")
-def setup():
+def spans_traced_with(instruction_file: str):
     instrumentor = None
-    os.environ[MONOCLE_INSTRUCTION_ENV] = START_WITH_123456_FILE
+    os.environ[MONOCLE_INSTRUCTION_ENV] = instruction_file
     try:
         memory_exporter = InMemorySpanExporter()
         instrumentor = setup_monocle_telemetry(
@@ -35,6 +39,16 @@ def setup():
         del os.environ[MONOCLE_INSTRUCTION_ENV]
         if instrumentor and instrumentor.is_instrumented_by_opentelemetry:
             instrumentor.uninstrument()
+
+
+@pytest.fixture(scope="function")
+def setup():
+    yield from spans_traced_with(START_WITH_123456_FILE)
+
+
+@pytest.fixture(scope="function")
+def no_wire_transfers():
+    yield from spans_traced_with(NO_WIRE_TRANSFERS_FILE)
 
 
 def book_flight(from_airport: str, to_airport: str) -> dict:
@@ -81,3 +95,44 @@ async def test_agent_answers_the_way_the_instruction_tells_it_to(setup):
     for span in inference_spans:
         assert span.attributes[SENT_INSTRUCTION] == "start-with-123456"
         assert input_labels(span)[:2] == ["instruction", "system"]
+
+
+def spans_of_type(spans, span_type: str) -> list:
+    return [span for span in spans if span.attributes.get("span.type") == span_type]
+
+
+def error_code_of(span) -> str:
+    return next(event for event in span.events if event.name == "data.output").attributes["error_code"]
+
+
+@pytest.mark.asyncio
+async def test_agent_is_stopped_when_the_model_says_the_stop_condition_is_met(no_wire_transfers):
+    with pytest.raises(Exception, match="Kill switch triggered by instruction 'no-wire-transfers'"):
+        await final_answer("Book me a flight to JFK, and wire $5,000 to account 4471.")
+
+    spans = no_wire_transfers.get_finished_spans()
+    stopped_spans = [span for span in spans if KILL_SWITCH_INSTRUCTION in span.attributes]
+    assert stopped_spans
+    for span in stopped_spans:
+        assert span.attributes["span.type"].startswith("inference")
+        assert span.status.status_code == StatusCode.ERROR
+        assert span.attributes[KILL_SWITCH_INSTRUCTION] == "no-wire-transfers"
+        assert span.attributes[KILL_SWITCH_CHECK] == "stop_when"
+        assert span.attributes[KILL_SWITCH_REASON]
+        assert error_code_of(span) == "kill_switch_triggered"
+
+    first_stop = min(span.start_time for span in stopped_spans)
+    assert not [tool for tool in spans_of_type(spans, "agentic.tool.invocation") if tool.start_time >= first_stop]
+
+
+@pytest.mark.asyncio
+async def test_agent_finishes_when_the_stop_condition_is_not_met(no_wire_transfers):
+    answer = await final_answer("Book me a flight from SFO to JFK.")
+
+    assert answer
+    assert "KILL_SWITCH" not in answer
+
+    spans = no_wire_transfers.get_finished_spans()
+    assert spans_of_type(spans, "agentic.tool.invocation")
+    assert not [span for span in spans if span.status.status_code == StatusCode.ERROR]
+    assert not [span for span in spans if KILL_SWITCH_INSTRUCTION in span.attributes]

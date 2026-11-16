@@ -295,3 +295,20 @@ def add_instruction(kwargs, text):
     if instructed_system is None:
         return None
     return {**kwargs, "system": instructed_system}
+
+
+def asks_for_a_stream(kwargs) -> bool:
+    """Whether the reply reaches the app in pieces: the call asks for a stream, or for a raw HTTP response to read as it arrives."""
+    if kwargs.get("stream"):
+        return True
+    return (kwargs.get("extra_headers") or {}).get("X-Stainless-Raw-Response") == "stream"
+
+
+def reply_text(response) -> str:
+    """The first text block of the model's reply, or "" if it has none. Thinking and tool use are not text blocks.
+
+    Also reads the reply inside the raw HTTP response an app can ask for.
+    """
+    message = response.parse() if type(response).__name__ == "LegacyAPIResponse" else response
+    texts = [block.text for block in getattr(message, "content", None) or [] if block.type == "text"]
+    return texts[0] if texts else ""

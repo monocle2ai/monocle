@@ -159,6 +159,10 @@ MONOCLE_INSTRUCTION_ENV = "MONOCLE_INSTRUCTION"
 MONOCLE_INSTRUCTION = "monocle.instruction"
 SENT_INSTRUCTION = "monocle.instruction"
 INSTRUCTION_INPUT_LABEL = "instruction"
+KILL_SWITCH_INSTRUCTION = "monocle.kill_switch.instruction"
+KILL_SWITCH_CHECK = "monocle.kill_switch.check"
+KILL_SWITCH_REASON = "monocle.kill_switch.reason"
+KILL_SWITCH_ERROR_CODE = "kill_switch_triggered"
 
 TOOL_TYPE = "tool.function"
 

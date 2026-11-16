@@ -483,3 +483,16 @@ def add_responses_instruction(kwargs, text):
     if instructions is None:
         return None
     return {**kwargs, "response_api_optional_request_params": {**request_params, "instructions": instructions}}
+
+
+def responses_ask_for_a_stream(kwargs) -> bool:
+    request_params = kwargs.get("response_api_optional_request_params")
+    return isinstance(request_params, dict) and bool(request_params.get("stream"))
+
+
+def responses_reply_text(response) -> str:
+    """The first text in the messages of a Responses reply, or "". Reasoning, tool calls and tool output are not messages."""
+    messages = [item for item in getattr(response, "output", None) or [] if _item_attr(item, "type") == "message"]
+    parts = [part for message in messages for part in _item_attr(message, "content") or []]
+    texts = [_item_attr(part, "text") for part in parts if _item_attr(part, "type") == "output_text"]
+    return texts[0] if texts else ""

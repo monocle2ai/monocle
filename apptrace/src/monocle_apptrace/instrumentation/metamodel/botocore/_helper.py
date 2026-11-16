@@ -474,3 +474,10 @@ def add_instruction(kwargs, text):
     if "messages" not in kwargs:
         return None
     return {**kwargs, "system": placed_first({"text": text}, list(kwargs.get("system") or []))}
+
+
+def reply_text(response) -> str:
+    """The first text block of a Converse reply, or "" if it has none. Reasoning and tool use are not text blocks."""
+    blocks = response.get("output", {}).get("message", {}).get("content", [])
+    texts = [block["text"] for block in blocks if "text" in block]
+    return texts[0] if texts else ""

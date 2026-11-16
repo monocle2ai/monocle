@@ -22,6 +22,7 @@ from monocle_apptrace.instrumentation.metamodel.finish_types import (
 from monocle_apptrace.instrumentation.common.constants import AGENT_PREFIX_KEY, INFERENCE_AGENT_DELEGATION, INFERENCE_TURN_END, INFERENCE_TOOL_CALL, TOOL_TYPE
 from contextlib import suppress
 from monocle_apptrace.instructions.sending import add_system_message, instruction_before
+from monocle_apptrace.instructions.stop_when import first_choice_text
 
 logger = logging.getLogger(__name__)
 
@@ -616,3 +617,28 @@ def add_instruction(kwargs, text):
     if instructions is None:
         return None
     return {**kwargs, "instructions": instructions}
+
+
+def asks_for_a_stream(kwargs) -> bool:
+    """Whether the reply reaches the app in pieces: the call asks for a stream, or for a raw HTTP response to read as it arrives."""
+    if kwargs.get("stream"):
+        return True
+    return (kwargs.get("extra_headers") or {}).get("X-Stainless-Raw-Response") == "stream"
+
+
+def reply_text(response) -> str:
+    """The text the model's reply starts with, or "" if it starts with none.
+
+    Reads a chat completion and a Responses reply, also inside the raw HTTP response an app can ask for.
+    """
+    reply = _normalize_result_object(response)
+    if hasattr(reply, "choices"):
+        return first_choice_text(reply)
+    return first_output_text(reply)
+
+
+def first_output_text(reply) -> str:
+    """The first text in the messages of a Responses reply, or "". Reasoning, tool calls and tool output are not messages."""
+    messages = [item for item in getattr(reply, "output", None) or [] if item.type == "message"]
+    texts = [part.text for message in messages for part in message.content if part.type == "output_text"]
+    return texts[0] if texts else ""

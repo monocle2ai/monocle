@@ -54,20 +54,11 @@ class TestSelectorRule:
             scope.called_tool(testcase=TESTCASE)
 
     def test_plain_agent_then_tool_is_not_blocked(self, asserter):
-        """The rule must not fire for a chain that passes no testcase.
-
-        Asserts only that no ValueError escapes -- not that the chain finds
-        anything. Narrowing is a flat filter over the span list
-        (validator._filter_spans_by_type), so called_agent leaves only
-        agentic.invocation spans and a following called_tool can never match a
-        agentic.tool.invocation one. That is a pre-existing gap between
-        CLAUDE.md's "tool T inside agent A" and the implementation; the working
-        form is called_tool(T, agent_name=A). Not this rule's business either
-        way -- what matters is that the rule stays out of plain chains.
-        """
+        """The rule must not fire for a chain that passes no testcase, and the
+        chain finds the tool the agent called."""
         asserter.called_agent(TOOL_AGENT).called_tool(TOOL)
 
-        _drain()
+        assert _drain() == []
 
     def test_plain_tool_scoped_by_agent_still_works(self, asserter):
         """The form that does work is untouched."""

@@ -59,6 +59,17 @@ class TestMistralStreamProcessor:
         assert result.tools[0]["arguments"] == '{"city":"Paris"}'
         assert result.finish_reason == "tool_calls"
 
+    def test_reasoning_model_chunks(self):
+        think = SimpleNamespace(type="thinking", thinking=[SimpleNamespace(type="text", text="Let me think.")])
+        text = SimpleNamespace(type="text", text="Hello!")
+        processor = MistralStreamProcessor()
+        state = processor.initialize_state(0)
+        for chunk in [_chunk(content=[think], role="assistant"), _chunk(content=[text]),
+                      _chunk(finish_reason="stop")]:
+            processor.process_fragment(chunk, state)
+        assert processor.create_span_result(state, 0).output_text == "Hello!"
+        assert state.reasoning_content == "Let me think."
+
     def test_captures_usage_from_final_chunk(self):
         result = _run_stream([
             _chunk(content="hi", role="assistant"),

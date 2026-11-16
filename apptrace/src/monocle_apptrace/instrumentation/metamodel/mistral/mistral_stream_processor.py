@@ -6,6 +6,7 @@ from monocle_apptrace.instrumentation.common.stream_processor import (
     BaseStreamProcessor,
     StreamState,
 )
+from monocle_apptrace.instrumentation.metamodel.mistral._helper import split_content
 
 
 class MistralStreamProcessor(BaseStreamProcessor):
@@ -30,9 +31,12 @@ class MistralStreamProcessor(BaseStreamProcessor):
             if role:
                 state.role = role
 
-            content = getattr(delta, "content", None)
-            if content:
-                state.add_content(content)
+            text, thinking = split_content(getattr(delta, "content", None))
+            if thinking:
+                state.reasoning_content += thinking
+                found = True
+            if text:
+                state.add_content(text)
                 found = True
 
             tool_calls = getattr(delta, "tool_calls", None)

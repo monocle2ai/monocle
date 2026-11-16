@@ -30,6 +30,7 @@ from common.helpers import find_spans_by_type, verify_inference_span
 from common.stream_helpers import build_stream_span_processors
 from mistralai import Mistral
 from monocle_apptrace.instrumentation.common.instrumentor import setup_monocle_telemetry
+from monocle_apptrace.instrumentation.metamodel.mistral._helper import split_content
 
 logger = logging.getLogger(__name__)
 
@@ -124,7 +125,7 @@ def _collect_mistral_stream(stream):
     text_parts = []
     for chunk in stream:
         if chunk.data.choices and chunk.data.choices[0].delta.content:
-            text_parts.append(chunk.data.choices[0].delta.content)
+            text_parts.append(split_content(chunk.data.choices[0].delta.content)[0])
     return "".join(text_parts)
 
 
@@ -133,7 +134,7 @@ async def _acollect_mistral_stream(stream):
     text_parts = []
     async for chunk in stream:
         if chunk.data.choices and chunk.data.choices[0].delta.content:
-            text_parts.append(chunk.data.choices[0].delta.content)
+            text_parts.append(split_content(chunk.data.choices[0].delta.content)[0])
     return "".join(text_parts)
 
 
@@ -500,7 +501,7 @@ async def test_stream_mixed_with_non_stream(setup):
         model=MODEL,
         messages=[{"role": "user", "content": "Say 'coffee' once."}],
     )
-    text1 = response1.choices[0].message.content
+    text1 = split_content(response1.choices[0].message.content)[0]
     assert "coffee" in text1.lower()
     
     # Streaming call
@@ -532,14 +533,16 @@ async def test_stream_cancellation(setup):
         ],
     )
     
-    # Consume only a few chunks then break
+    # Consume only a few chunks then break; Mistral streams have no aclose(),
+    # so leaving `async with` is what closes the stream and emits the span.
     count = 0
-    async for chunk in stream:
-        if chunk.data.choices and chunk.data.choices[0].delta.content:
-            count += 1
-            if count >= 3:
-                break  # Cancel early
-    
+    async with stream:
+        async for chunk in stream:
+            if chunk.data.choices and chunk.data.choices[0].delta.content:
+                count += 1
+                if count >= 3:
+                    break  # Cancel early
+
     assert count >= 3, "Expected to consume at least 3 chunks before cancellation"
     
     # We should still have an inference span (may be incomplete)

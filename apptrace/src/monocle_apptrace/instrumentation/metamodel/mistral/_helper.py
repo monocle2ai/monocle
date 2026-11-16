@@ -22,6 +22,26 @@ from contextlib import suppress
 logger = logging.getLogger(__name__)
 
 
+def split_content(content):
+    """Split Mistral message content into (text, thinking).
+
+    Reasoning models send a list of TextChunk/ThinkChunk instead of a string.
+    """
+    if not content:
+        return "", ""
+    if isinstance(content, str):
+        return content, ""
+    text, thinking = [], []
+    for chunk in content:
+        chunk_type = getattr(chunk, "type", None)
+        if chunk_type == "text":
+            text.append(getattr(chunk, "text", "") or "")
+        elif chunk_type == "thinking":
+            for part in getattr(chunk, "thinking", None) or []:
+                thinking.append(getattr(part, "text", "") or "")
+    return "".join(text), "".join(thinking)
+
+
 def extract_provider_name(instance):
     provider_url: Option[str] = try_option(getattr, instance._client.base_url, 'host')
     return provider_url.unwrap_or(None)
@@ -124,7 +144,7 @@ def extract_assistant_message(arguments):
         # Handle full response
         if hasattr(result, "choices") and result.choices:
             msg_obj = result.choices[0].message
-            return get_json_dumps({msg_obj.role: msg_obj.content})
+            return get_json_dumps({msg_obj.role: split_content(msg_obj.content)[0]})
 
         # Handle streaming: result might be a list of CompletionEvent chunks
         if isinstance(result, list):
@@ -133,7 +153,7 @@ def extract_assistant_message(arguments):
                 if hasattr(chunk, "data") and hasattr(chunk.data, "choices") and chunk.data.choices:
                     choice = chunk.data.choices[0]
                     if hasattr(choice, "delta") and hasattr(choice.delta, "content"):
-                        content.append(choice.delta.content or "")
+                        content.append(split_content(choice.delta.content)[0])
             return "".join(content)
 
         return ""
@@ -158,7 +178,7 @@ def extract_output_text(arguments):
         if hasattr(result, "choices") and result.choices:
             msg_obj = getattr(result.choices[0], "message", None)
             if msg_obj is not None:
-                return getattr(msg_obj, "content", "") or ""
+                return split_content(getattr(msg_obj, "content", None))[0]
 
         # Raw list of streaming chunks
         if isinstance(result, list):
@@ -167,7 +187,7 @@ def extract_output_text(arguments):
                 if hasattr(chunk, "data") and hasattr(chunk.data, "choices") and chunk.data.choices:
                     choice = chunk.data.choices[0]
                     if hasattr(choice, "delta") and hasattr(choice.delta, "content"):
-                        content.append(choice.delta.content or "")
+                        content.append(split_content(choice.delta.content)[0])
             return "".join(content)
 
     except Exception as e:

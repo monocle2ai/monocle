@@ -1,0 +1,3 @@
+name: stop-on-prompt-injection
+description: Stops a model call whose new input a local classifier labels a prompt injection.
+stop_on_prompt_injection: true

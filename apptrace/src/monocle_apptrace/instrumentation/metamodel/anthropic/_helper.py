@@ -19,6 +19,7 @@ from monocle_apptrace.instrumentation.metamodel.finish_types import map_anthropi
 from monocle_apptrace.instrumentation.common.constants import AGENT_PREFIX_KEY, INFERENCE_AGENT_DELEGATION, INFERENCE_TURN_END, INFERENCE_TOOL_CALL, TOOL_TYPE
 from contextlib import suppress
 
+from monocle_apptrace.instructions.prompt_injection import fields_of
 from monocle_apptrace.instructions.sending import instruction_before, placed_first
 
 logger = logging.getLogger(__name__)
@@ -312,3 +313,20 @@ def reply_text(response) -> str:
     message = response.parse() if type(response).__name__ == "LegacyAPIResponse" else response
     texts = [block.text for block in getattr(message, "content", None) or [] if block.type == "text"]
     return texts[0] if texts else ""
+
+
+def conversation(kwargs) -> list:
+    """The call's conversation in the chat shape. A tool result, which Anthropic holds inside a user message, is a tool message."""
+    messages = [fields_of(message) for message in kwargs.get("messages") or []]
+    return [chat_message for message in messages for chat_message in as_chat_messages(message)]
+
+
+def as_chat_messages(message) -> list:
+    """An Anthropic message as chat messages: one tool message for each tool result it holds, then its other blocks."""
+    if not isinstance(message.get("content"), (list, tuple)):
+        return [message]
+    blocks = [fields_of(block) for block in message["content"]]
+    tool_results = [block for block in blocks if block.get("type") == "tool_result"]
+    other_blocks = [block for block in blocks if block.get("type") != "tool_result"]
+    tool_messages = [{"role": "tool", "content": tool_result.get("content")} for tool_result in tool_results]
+    return [*tool_messages, {**message, "content": other_blocks}]

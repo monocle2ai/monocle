@@ -16,6 +16,7 @@ INFERENCE = {
     "add_instruction": _helper.add_instruction,
     "asks_for_a_stream": _helper.asks_for_a_stream,
     "reply_text": _helper.reply_text,
+    "conversation": _helper.conversation,
     "subtype": lambda arguments: _helper.agent_inference_type(arguments),
     "attributes": [
         [

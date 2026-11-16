@@ -3,6 +3,7 @@ LiteLLM Async Span Handler for setting async context flags.
 """
 
 from monocle_apptrace.instrumentation.common.span_handler import SpanHandler
+from monocle_apptrace.instrumentation.metamodel.litellm._helper import hands_over_to_async
 from opentelemetry.context import attach, get_current, get_value, set_value, Context
 
 class LiteLLMSyncSpanHandler(SpanHandler):
@@ -28,5 +29,5 @@ class LiteLLMSyncSpanHandler(SpanHandler):
         # response_api_handler signals its async variant via _is_async: the
         # sync call then returns an unawaited coroutine, so a span here would
         # never see the real result (the async wrap owns the span).
-        return kwargs.get('acompletion') is True or kwargs.get('_is_async') is True
+        return hands_over_to_async(kwargs)
 

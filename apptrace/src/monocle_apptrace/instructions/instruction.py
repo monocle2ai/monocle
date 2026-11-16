@@ -18,6 +18,8 @@ class Instruction:
     name: str
     text: str
     stop_when: str = ""
+    stop_on_prompt_injection: bool = False
+    classifier_model: str = ""
 
     def text_with_stop_rule(self) -> str:
         """The instruction text, then the stop rule. Either one is left out when the file does not hold it."""
@@ -45,9 +47,11 @@ def load_instruction(path: str) -> Instruction:
     file = Path(path)
     fields = fields_read_from(file)
     require_name_and_description(fields, file)
-    require_instruction_or_stop_condition(fields, file)
+    require_instruction_or_stop(fields, file)
+    require_valid_prompt_injection_keys(fields, file)
     require_name_to_match_file_name(fields, file)
-    return Instruction(fields["name"], fields.get("instruction", "").strip(), fields.get("stop_when", "").strip())
+    return Instruction(fields["name"], fields.get("instruction", "").strip(), fields.get("stop_when", "").strip(),
+                       fields.get("stop_on_prompt_injection", False), fields.get("classifier_model", "").strip())
 
 
 def fields_read_from(file: Path) -> dict:
@@ -69,12 +73,20 @@ def require_name_and_description(fields: dict, file: Path) -> None:
             raise ValueError(f"Instruction file {file} has no '{key}'.")
 
 
-def require_instruction_or_stop_condition(fields: dict, file: Path) -> None:
-    if not any(key in fields for key in KEYS_SENT_TO_THE_MODEL):
-        raise ValueError(f"Instruction file {file} has no 'instruction' and no 'stop_when'. It must hold one or both.")
+def require_instruction_or_stop(fields: dict, file: Path) -> None:
+    if not any(key in fields for key in KEYS_SENT_TO_THE_MODEL) and not fields.get("stop_on_prompt_injection"):
+        raise ValueError(f"Instruction file {file} has no 'instruction', no 'stop_when' and no "
+                         "'stop_on_prompt_injection: true'. It must hold at least one.")
     for key in KEYS_SENT_TO_THE_MODEL:
         if key in fields and not is_text(fields[key]):
             raise ValueError(f"Instruction file {file}: '{key}' is empty or not text.")
+
+
+def require_valid_prompt_injection_keys(fields: dict, file: Path) -> None:
+    if not isinstance(fields.get("stop_on_prompt_injection", False), bool):
+        raise ValueError(f"Instruction file {file}: 'stop_on_prompt_injection' is not true or false.")
+    if "classifier_model" in fields and not is_text(fields["classifier_model"]):
+        raise ValueError(f"Instruction file {file}: 'classifier_model' is empty or not text.")
 
 
 def require_name_to_match_file_name(fields: dict, file: Path) -> None:

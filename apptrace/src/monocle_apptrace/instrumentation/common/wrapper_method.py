@@ -1,5 +1,7 @@
 # pylint: disable=too-few-public-methods
-from typing import Any, Dict
+import logging
+from difflib import get_close_matches
+from typing import Any, Dict, List, Optional, Union
 from monocle_apptrace.instrumentation.common.wrapper import task_wrapper, scope_wrapper
 from monocle_apptrace.instrumentation.common.span_handler import SpanHandler, NonFrameworkSpanHandler
 from monocle_apptrace.instrumentation.metamodel.azureaiinference.methods import AZURE_AI_INFERENCE_METHODS
@@ -108,41 +110,86 @@ class WrapperMethod:
     def get_span_handler(self) -> SpanHandler:
         return self.span_handler()
 
-DEFAULT_METHODS_LIST = (
-    LANGCHAIN_METHODS + 
-    LLAMAINDEX_METHODS + 
-    HAYSTACK_METHODS + 
-    BOTOCORE_METHODS + 
-    FLASK_METHODS + 
-    REQUESTS_METHODS +
-    HTTPX_METHODS + 
-    LANGGRAPH_METHODS + 
-    CREW_AI_METHODS +
-    MSAGENT_METHODS +
-    AGENTS_METHODS +
-    OPENAI_METHODS + 
-    TEAMAI_METHODS +
-    ANTHROPIC_METHODS + 
-    AIOHTTP_METHODS + 
-    AZURE_AI_INFERENCE_METHODS + 
-    AZFUNC_HTTP_METHODS + 
-    GEMINI_METHODS + 
-    FASTAPI_METHODS + 
-    FASTMCP_METHODS +
-    LAMBDA_HTTP_METHODS +
-    MCP_METHODS + 
-    A2A_CLIENT_METHODS +
-    LITELLM_METHODS +
-    ADK_METHODS +
-    MISTRAL_METHODS +
-    HUGGING_FACE_METHODS +
-    TYPESAFE_METHODS +
-    STRAND_METHODS +
-    AGENTCORE_METHODS +
-    CLAUDE_CLI_PROXY_METHODS +
-    CODEX_CLI_PROXY_METHODS +
-    GITHUB_COPILOT_PROXY_METHODS
-)
+# Keyed by metamodel folder name, so users can pick a subset.
+METAMODEL_METHODS: Dict[str, list] = {
+    "langchain": LANGCHAIN_METHODS,
+    "llamaindex": LLAMAINDEX_METHODS,
+    "haystack": HAYSTACK_METHODS,
+    "botocore": BOTOCORE_METHODS,
+    "flask": FLASK_METHODS,
+    "requests": REQUESTS_METHODS,
+    "httpx": HTTPX_METHODS,
+    "langgraph": LANGGRAPH_METHODS,
+    "crew_ai": CREW_AI_METHODS,
+    "msagent": MSAGENT_METHODS,
+    "agents": AGENTS_METHODS,
+    "openai": OPENAI_METHODS,
+    "teamsai": TEAMAI_METHODS,
+    "anthropic": ANTHROPIC_METHODS,
+    "aiohttp": AIOHTTP_METHODS,
+    "azureaiinference": AZURE_AI_INFERENCE_METHODS,
+    "azfunc": AZFUNC_HTTP_METHODS,
+    "gemini": GEMINI_METHODS,
+    "fastapi": FASTAPI_METHODS,
+    "fastmcp": FASTMCP_METHODS,
+    "lambdafunc": LAMBDA_HTTP_METHODS,
+    "mcp": MCP_METHODS,
+    "a2a": A2A_CLIENT_METHODS,
+    "litellm": LITELLM_METHODS,
+    "adk": ADK_METHODS,
+    "mistral": MISTRAL_METHODS,
+    "hugging_face": HUGGING_FACE_METHODS,
+    "typesafe": TYPESAFE_METHODS,
+    "strands": STRAND_METHODS,
+    "agentcore": AGENTCORE_METHODS,
+    "claude_cli": CLAUDE_CLI_PROXY_METHODS,
+    "codex_cli": CODEX_CLI_PROXY_METHODS,
+    "github_copilot": GITHUB_COPILOT_PROXY_METHODS,
+}
+
+DEFAULT_METHODS_LIST = [m for methods in METAMODEL_METHODS.values() for m in methods]
+
+
+logger = logging.getLogger(__name__)
+
+
+def get_supported_metamodels() -> List[str]:
+    """Return the names accepted by ``setup_monocle_telemetry(metamodels=...)``."""
+    return sorted(METAMODEL_METHODS)
+
+
+def parse_metamodels(metamodels: Union[str, List[str], None]) -> Optional[List[str]]:
+    """Split a comma-separated string into names. A list or None is returned as is."""
+    if isinstance(metamodels, str):
+        return [name.strip() for name in metamodels.split(",") if name.strip()]
+    return metamodels
+
+
+def validate_metamodels(metamodels: Union[str, List[str], None]) -> Optional[List[str]]:
+    """Drop unknown names with a warning. Falls back to all metamodels (None) if no name is valid."""
+    metamodels = parse_metamodels(metamodels)
+    if metamodels is None:
+        return None
+    valid = []
+    for name in dict.fromkeys(metamodels):
+        if name in METAMODEL_METHODS:
+            valid.append(name)
+            continue
+        suggestion = get_close_matches(name, METAMODEL_METHODS, n=1)
+        hint = f" Did you mean '{suggestion[0]}'?" if suggestion else ""
+        logger.warning(f"Unknown metamodel '{name}' is ignored.{hint} Valid names: {get_supported_metamodels()}")
+    if metamodels and not valid:
+        logger.warning("None of the given metamodels are valid, so all metamodels are loaded.")
+        return None
+    return valid
+
+
+def get_metamodel_methods(metamodels: Union[str, List[str], None] = None) -> list:
+    """Return wrapper methods for the given metamodel names, or all of them when None."""
+    metamodels = parse_metamodels(metamodels)
+    if metamodels is None:
+        return DEFAULT_METHODS_LIST
+    return [m for name in dict.fromkeys(metamodels) for m in METAMODEL_METHODS.get(name, [])]
 
 MONOCLE_SPAN_HANDLERS: Dict[str, SpanHandler] = {
     "default": SpanHandler(),

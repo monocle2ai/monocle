@@ -18,3 +18,4 @@ from .scope_wrapper import (
     monocle_trace_scope_method
 )
 from .utils import MonocleSpanException
+from .wrapper_method import get_supported_metamodels

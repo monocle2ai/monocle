@@ -241,6 +241,7 @@ def build_setup_signature(
         monocle_exporters_list: str = None,
         otel_genai_semconv: object = None,
         span_obfuscators: Optional[list] = None,
+        metamodels: Optional[list] = None,
 ) -> dict:
     return {
         "workflow_name": workflow_name,
@@ -256,6 +257,7 @@ def build_setup_signature(
         "union_with_default_methods": _normalize_bool(union_with_default_methods),
         "monocle_exporters_list": _normalize_exporters_list(monocle_exporters_list),
         "otel_genai_semconv": otel_genai_semconv,
+        "metamodels": None if metamodels is None else tuple(sorted(set(metamodels))),
     }
 
 def changed_setup_fields(previous: dict, current: dict) -> list[str]:

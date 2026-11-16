@@ -4,6 +4,7 @@ from os import getenv
 
 import pytest
 from llama_index.core import SimpleDirectoryReader, StorageContext, VectorStoreIndex
+from llama_index.llms.openai import OpenAI
 from llama_index.vector_stores.opensearch import (
     OpensearchVectorClient,
     OpensearchVectorStore
@@ -60,7 +61,8 @@ def test_llamaindex_opensearch_sample(setup):
     )
 
     # run query
-    query_engine = index.as_query_engine()
+    # Pass the LLM explicitly: LlamaIndex defaults to gpt-3.5-turbo, which OpenAI has deprecated.
+    query_engine = index.as_query_engine(llm=OpenAI(model="gpt-4o-mini"))
     res = query_engine.query("What did the author do growing up?")
     logger.info(res)
 

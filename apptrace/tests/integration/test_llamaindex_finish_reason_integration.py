@@ -124,7 +124,7 @@ def test_llamaindex_openai_tool_call_with_entity_3_validation(setup):
     ]
     
     llm = OpenAI(
-        model="gpt-3.5-turbo",
+        model="gpt-4o-mini",
         api_key=OPENAI_API_KEY,
         max_tokens=100
     )
@@ -185,7 +185,7 @@ def test_llamaindex_openai_finish_reason_stop(setup):
         pytest.skip("llama-index-llms-openai not available")
     
     llm = OpenAI(
-        model="gpt-3.5-turbo",
+        model="gpt-4o-mini",
         api_key=OPENAI_API_KEY,
         max_tokens=50
     )
@@ -226,7 +226,7 @@ def test_llamaindex_openai_finish_reason_length(setup):
         pytest.skip("llama-index-llms-openai not available")
     
     llm = OpenAI(
-        model="gpt-3.5-turbo",
+        model="gpt-4o-mini",
         api_key=OPENAI_API_KEY,
         max_tokens=1  # Very low limit to trigger length finish
     )
@@ -347,7 +347,7 @@ def test_llamaindex_simple_llm_complete(setup):
         pytest.skip("llama-index-llms-openai not available")
     
     llm = OpenAI(
-        model="gpt-3.5-turbo",
+        model="gpt-4o-mini",
         api_key=OPENAI_API_KEY,
         max_tokens=50
     )
@@ -387,7 +387,7 @@ def test_llamaindex_query_engine(setup):
     
     # Set up LLM
     Settings.llm = OpenAI(
-        model="gpt-3.5-turbo",
+        model="gpt-4o-mini",
         api_key=OPENAI_API_KEY,
         max_tokens=50
     )
@@ -494,7 +494,7 @@ def test_llamaindex_openai_finish_reason_content_filter(setup):
         pytest.skip("llama-index-llms-openai not available")
     
     llm = OpenAI(
-        model="gpt-3.5-turbo",
+        model="gpt-4o-mini",
         api_key=OPENAI_API_KEY,
         max_tokens=100
     )
@@ -570,7 +570,7 @@ def test_subtype_tool_call_on_inference_span(setup):
     from llama_index.core.llms import ChatMessage
     from llama_index.llms.openai import OpenAI
 
-    llm = OpenAI(model="gpt-3.5-turbo", api_key=OPENAI_API_KEY, max_tokens=100)
+    llm = OpenAI(model="gpt-4o-mini", api_key=OPENAI_API_KEY, max_tokens=100)
     messages = [ChatMessage(role="user", content="What's the weather in Paris?")]
     llm.chat(messages, tools=[WEATHER_TOOL_SPEC])
 
@@ -591,7 +591,7 @@ def test_subtype_turn_end_on_plain_response(setup):
     from llama_index.core.llms import ChatMessage
     from llama_index.llms.openai import OpenAI
 
-    llm = OpenAI(model="gpt-3.5-turbo", api_key=OPENAI_API_KEY, max_tokens=10)
+    llm = OpenAI(model="gpt-4o-mini", api_key=OPENAI_API_KEY, max_tokens=10)
     messages = [ChatMessage(role="user", content="Say hello in one word.")]
     llm.chat(messages)
 
@@ -613,7 +613,7 @@ def test_entity3_name_on_tool_call_inference_span(setup):
     from llama_index.core.llms import ChatMessage
     from llama_index.llms.openai import OpenAI
 
-    llm = OpenAI(model="gpt-3.5-turbo", api_key=OPENAI_API_KEY, max_tokens=100)
+    llm = OpenAI(model="gpt-4o-mini", api_key=OPENAI_API_KEY, max_tokens=100)
     messages = [ChatMessage(role="user", content="What's the weather in Tokyo?")]
     llm.chat(messages, tools=[WEATHER_TOOL_SPEC])
 
@@ -640,7 +640,7 @@ def test_entity3_absent_on_turn_end_inference_span(setup):
     from llama_index.core.llms import ChatMessage
     from llama_index.llms.openai import OpenAI
 
-    llm = OpenAI(model="gpt-3.5-turbo", api_key=OPENAI_API_KEY, max_tokens=15)
+    llm = OpenAI(model="gpt-4o-mini", api_key=OPENAI_API_KEY, max_tokens=15)
     messages = [ChatMessage(role="user", content="What is the capital of France?")]
     llm.chat(messages)
 
@@ -680,7 +680,7 @@ def test_inference_decision_span_id_via_react_agent(setup):
 
     tool = FunctionTool.from_defaults(fn=get_weather, name="get_weather",
                                       description="Get the current weather for a city.")
-    llm = OpenAI(model="gpt-4", api_key=OPENAI_API_KEY)
+    llm = OpenAI(model="gpt-4o-mini", api_key=OPENAI_API_KEY)
     agent = ReActAgent(name="WeatherAgent", tools=[tool], llm=llm)
 
     async def run():
@@ -721,7 +721,7 @@ def test_inference_decision_span_id_not_set_on_plain_inference(setup):
     from llama_index.core.llms import ChatMessage
     from llama_index.llms.openai import OpenAI
 
-    llm = OpenAI(model="gpt-3.5-turbo", api_key=OPENAI_API_KEY, max_tokens=15)
+    llm = OpenAI(model="gpt-4o-mini", api_key=OPENAI_API_KEY, max_tokens=15)
     messages = [ChatMessage(role="user", content="Tell me a short joke.")]
     llm.chat(messages)
 

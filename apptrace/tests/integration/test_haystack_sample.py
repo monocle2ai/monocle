@@ -52,7 +52,7 @@ def test_haystack_sample(setup):
     )
     api_key = os.getenv("OPENAI_API_KEY")
     generator = OpenAIChatGenerator(
-        api_key=Secret.from_token(api_key), model="gpt-4"
+        api_key=Secret.from_token(api_key), model="gpt-4o-mini"
     )
     # api_key = os.getenv("MISTRAL_API_KEY")
     # generator = MistralChatGenerator(api_key=Secret.from_token(api_key), model="mistral-small")
@@ -129,8 +129,8 @@ def test_haystack_sample(setup):
             # Assertions for all inference attributes
             assert span_attributes["entity.1.type"] == "inference.openai"
             assert span_attributes["entity.1.inference_endpoint"] == "https://api.openai.com/v1/"
-            assert span_attributes["entity.2.name"] == "gpt-4"
-            assert span_attributes["entity.2.type"] == "model.llm.gpt-4"
+            assert span_attributes["entity.2.name"] == "gpt-4o-mini"
+            assert span_attributes["entity.2.type"] == "model.llm.gpt-4o-mini"
 
             # Assertions for metadata
             span_input, span_output, span_metadata = span.events
@@ -208,8 +208,8 @@ def test_haystack_sample(setup):
 #         "entity.count": 2,
 #         "entity.1.type": "inference.azure_openai",
 #         "entity.1.inference_endpoint": "https://api.openai.com/v1/",
-#         "entity.2.name": "gpt-3.5-turbo",
-#         "entity.2.type": "model.llm.gpt-3.5-turbo"
+#         "entity.2.name": "gpt-4o-mini",
+#         "entity.2.type": "model.llm.gpt-4o-mini"
 #     },
 #     "events": [
 #         {

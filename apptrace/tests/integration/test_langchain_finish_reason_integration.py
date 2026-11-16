@@ -69,7 +69,7 @@ def find_inference_span_with_tool_call(spans):
 def test_langchain_openai_finish_reason_stop(setup):
     """Test finish_reason == 'stop' for normal completion with LangChain OpenAI."""
     chat = LangChainOpenAI(
-        model="gpt-3.5-turbo",
+        model="gpt-4o-mini",
         api_key=OPENAI_API_KEY,
         max_tokens=50
     )
@@ -103,7 +103,7 @@ def test_langchain_openai_finish_reason_stop(setup):
 def test_langchain_openai_finish_reason_length(setup):
     """Test finish_reason == 'length' when hitting token limit with LangChain OpenAI."""
     chat = LangChainOpenAI(
-        model="gpt-3.5-turbo",
+        model="gpt-4o-mini",
         api_key=OPENAI_API_KEY,
         max_tokens=1  # Very low limit to trigger length finish
     )
@@ -202,7 +202,7 @@ def test_langchain_anthropic_finish_reason_max_tokens(setup):
 def test_langchain_chat_with_system_message(setup):
     """Test finish_reason with system message in LangChain."""
     chat = LangChainOpenAI(
-        model="gpt-3.5-turbo",
+        model="gpt-4o-mini",
         api_key=OPENAI_API_KEY,
         max_tokens=50
     )
@@ -300,7 +300,7 @@ def test_langchain_anthropic_tool_calls_with_entity_3_validation(setup):
 
     # Create LangChain Anthropic instance with tools
     chat = ChatAnthropic(
-        model="claude-3-5-haiku-latest",
+        model="claude-haiku-4-5",
         api_key=ANTHROPIC_API_KEY,
         max_tokens=200
     )
@@ -447,7 +447,7 @@ def test_langchain_openai_tool_calls_with_entity_3_validation(setup):
 def test_langchain_openai_finish_reason_content_filter(setup):
     """Test finish_reason == 'content_filter' with LangChain OpenAI (may not always trigger)."""
     chat = LangChainOpenAI(
-        model="gpt-3.5-turbo",
+        model="gpt-4o-mini",
         api_key=OPENAI_API_KEY,
         max_tokens=100
     )

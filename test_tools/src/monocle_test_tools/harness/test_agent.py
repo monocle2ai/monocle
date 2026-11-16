@@ -46,7 +46,12 @@ class ParamCall(BaseModel):
 
 def build_system_prompt(case: ScenarioTestCase, target_description: str) -> str:
     lines = [PREAMBLE, "", "[TARGET AGENT]", target_description, "", "[SCENARIO]", case.scenario, "",
-             "[YOUR PERSONA]", case.persona, "", "[SUCCESS CRITERIA]", case.success_criteria]
+             "[YOUR PERSONA]", case.persona, ""]
+    if case.success_criteria:
+        lines += ["[SUCCESS CRITERIA]", case.success_criteria]
+    else:
+        lines += ["[HOW TO CONTINUE]", "There is no checklist. Keep the conversation going the way this user "
+                  "naturally would: follow up on what the agent says, ask related things, change your mind."]
     if case.initial_params:
         lines += ["", "[WHAT YOU KNOW UP FRONT]"]
         lines += [f"  {p.name}: {p.value}   ({p.description})" for p in case.initial_params]

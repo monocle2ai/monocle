@@ -155,7 +155,7 @@ def test_file_exporter_trace_id_without_0x_prefix(setup_file_exporter):
     # Create a simple LangChain workflow to generate traces
     try:
         llm = ChatOpenAI(
-            model_name="gpt-3.5-turbo",
+            model_name="gpt-4o-mini",
             temperature=0.7,
         )
         
@@ -264,7 +264,7 @@ def test_inmemory_exporter_trace_id_without_0x_prefix(setup_inmemory_exporter):
     # Create a simple LangChain workflow to generate traces
     try:
         llm = ChatOpenAI(
-            model_name="gpt-3.5-turbo",
+            model_name="gpt-4o-mini",
             temperature=0.7,
         )
         

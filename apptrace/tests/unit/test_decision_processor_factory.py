@@ -1,7 +1,11 @@
 """Unit tests for the shared decision-model processor factory and helpers."""
 import unittest
+from dataclasses import replace
+
+from opentelemetry.sdk.trace import TracerProvider
 
 from monocle_apptrace.instrumentation.common.constants import SPAN_TYPES
+from monocle_apptrace.instrumentation.common.span_handler import SpanHandler
 from monocle_apptrace.instrumentation.metamodel.decision._helper import (
     DecisionAdapter,
     decision_finish_reason,
@@ -52,6 +56,7 @@ class TestDecisionProcessorFactory(unittest.TestCase):
             extract_input=lambda arguments: ["in"],
             extract_answers=lambda arguments: "out",
             get_usage=lambda arguments: {"input_tokens": 1, "output_tokens": 2},
+            model_type="decision",
         )
         self.processor = make_decision_inference(self.adapter)
         self.arguments = {"instance": object(), "args": (), "kwargs": {},
@@ -76,12 +81,20 @@ class TestDecisionProcessorFactory(unittest.TestCase):
         model = self.processor["attributes"][1]
         self.assertEqual(_find_attr(model, "name")["accessor"](self.arguments), "demo-1.0.0")
         self.assertEqual(_find_attr(model, "type")["accessor"](self.arguments), "model.decision.demo-1.0.0")
+        self.assertEqual(_find_attr(model, "model_type")["accessor"](self.arguments), "decision")
+
+    def test_model_type_falls_back_to_completion(self):
+        adapter = replace(self.adapter, model_type=None)
+        model = make_decision_inference(adapter)["attributes"][1]
+        self.assertEqual(_find_attr(model, "model_type")["accessor"](self.arguments), "completion")
+        self.assertEqual(_find_attr(model, "type")["accessor"](self.arguments), "model.llm.demo-1.0.0")
 
     def test_model_block_is_post_execution(self):
         # entity.2 (model) reads result.model, so it MUST run in the post-execution pass.
         model = self.processor["attributes"][1]
         self.assertEqual(_find_attr(model, "name").get("phase"), "post_execution")
         self.assertEqual(_find_attr(model, "type").get("phase"), "post_execution")
+        self.assertEqual(_find_attr(model, "model_type").get("phase"), "post_execution")
 
     def test_input_output_events(self):
         data_input = _find_event(self.processor, "data.input")
@@ -99,6 +112,31 @@ class TestDecisionProcessorFactory(unittest.TestCase):
         )
         self.assertEqual(_find_attr(metadata["attributes"], "finish_reason")["accessor"](self.arguments), "success")
         self.assertEqual(_find_attr(metadata["attributes"], "finish_type")["accessor"](self.arguments), "success")
+
+
+class TestDefaultModelType(unittest.TestCase):
+    """LLM model entities get model_type=completion unless the processor sets one."""
+
+    def _apply(self, attributes):
+        tracer = TracerProvider().get_tracer(__name__)
+        with tracer.start_as_current_span("test") as span:
+            for key, value in attributes.items():
+                span.set_attribute(key, value)
+            SpanHandler.set_default_model_type(span, 2)
+            return dict(span.attributes)
+
+    def test_llm_model_defaults_to_completion(self):
+        attrs = self._apply({"entity.1.type": "inference.openai", "entity.2.type": "model.llm.gpt-4o"})
+        self.assertEqual(attrs["entity.2.model_type"], "completion")
+        self.assertNotIn("entity.1.model_type", attrs)
+
+    def test_existing_model_type_is_kept(self):
+        attrs = self._apply({"entity.2.type": "model.llm.demo", "entity.2.model_type": "decision"})
+        self.assertEqual(attrs["entity.2.model_type"], "decision")
+
+    def test_non_llm_entities_are_skipped(self):
+        attrs = self._apply({"entity.2.type": "model.embedding.text-embedding-3"})
+        self.assertNotIn("entity.2.model_type", attrs)
 
 
 if __name__ == "__main__":

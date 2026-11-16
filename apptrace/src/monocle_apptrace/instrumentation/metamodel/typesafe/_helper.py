@@ -7,6 +7,7 @@ Reads a `typesafe_sdk` `SystemOneResponse` for the shared decision-model process
 import logging
 from typing import Any, Dict, Optional
 
+from monocle_apptrace.instrumentation.common.constants import MODEL_TYPE_DECISION
 from monocle_apptrace.instrumentation.common.utils import get_json_dumps
 from monocle_apptrace.instrumentation.metamodel.decision._helper import DecisionAdapter
 
@@ -133,4 +134,5 @@ TYPESAFE_ADAPTER = DecisionAdapter(
     extract_input=extract_input,
     extract_answers=extract_answers,
     get_usage=get_usage,
+    model_type=MODEL_TYPE_DECISION,
 )

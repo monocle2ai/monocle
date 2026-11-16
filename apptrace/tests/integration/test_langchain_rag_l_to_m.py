@@ -72,7 +72,7 @@ def test_langchain_rag_l_to_m(setup):
     query_generation_chain = (
             {"question": RunnablePassthrough()}
             | decompostion_prompt
-            | ChatOpenAI(model="gpt-3.5-turbo-0125", temperature=0.7)
+            | ChatOpenAI(model="gpt-4o-mini", temperature=0.7)
             | StrOutputParser()
             | (lambda x: x.split("\n"))
     )
@@ -98,7 +98,7 @@ def test_langchain_rag_l_to_m(setup):
     """
 
     least_to_most_prompt = ChatPromptTemplate.from_template(template)
-    llm = ChatOpenAI(model='gpt-3.5-turbo-0125', temperature=0)
+    llm = ChatOpenAI(model='gpt-4o-mini', temperature=0)
 
     least_to_most_chain = (
             {'context': itemgetter('question') | retriever,
@@ -135,8 +135,8 @@ def test_langchain_rag_l_to_m(setup):
             assert span_attributes["entity.1.type"] == "inference.openai"
             assert "entity.1.provider_name" in span_attributes
             assert "entity.1.inference_endpoint" in span_attributes
-            assert span_attributes["entity.2.name"] == "gpt-3.5-turbo-0125"
-            assert span_attributes["entity.2.type"] == "model.llm.gpt-3.5-turbo-0125"
+            assert span_attributes["entity.2.name"] == "gpt-4o-mini"
+            assert span_attributes["entity.2.type"] == "model.llm.gpt-4o-mini"
 
             # Assertions for metadata
             span_input, span_output, span_metadata = span.events
@@ -201,5 +201,5 @@ def test_langchain_rag_l_to_m(setup):
 #   q_a_pairs: RunnableLambda(itemgetter('q_a_pairs')),
 #   question: RunnableLambda(itemgetter('question'))
 # }
-# middle=[ChatPromptTemplate(input_variables=['context', 'q_a_pairs', 'question'], messages=[HumanMessagePromptTemplate(prompt=PromptTemplate(input_variables=['context', 'q_a_pairs', 'question'], template='Here is the question you need to answer:\n\n\n --- \n {question} \n --- \n\n\nHere is any available background question + answer pairs:\n\n\n --- \n {q_a_pairs} \n --- \n\n\nHere is additional context relevant to the question: \n\n\n --- \n {context} \n --- \n\n\nUse the above context and any background question + answer pairs to answer the question: \n {question}\n'))]), ChatOpenAI(client=<openai.resources.chat.completions.Completions object at 0x71864a9d51b0>, async_client=<openai.resources.chat.completions.AsyncCompletions object at 0x71864a9d69b0>, model_name='gpt-4', temperature=0.0, openai_api_key=SecretStr('**********'), openai_proxy='')]
+# middle=[ChatPromptTemplate(input_variables=['context', 'q_a_pairs', 'question'], messages=[HumanMessagePromptTemplate(prompt=PromptTemplate(input_variables=['context', 'q_a_pairs', 'question'], template='Here is the question you need to answer:\n\n\n --- \n {question} \n --- \n\n\nHere is any available background question + answer pairs:\n\n\n --- \n {q_a_pairs} \n --- \n\n\nHere is additional context relevant to the question: \n\n\n --- \n {context} \n --- \n\n\nUse the above context and any background question + answer pairs to answer the question: \n {question}\n'))]), ChatOpenAI(client=<openai.resources.chat.completions.Completions object at 0x71864a9d51b0>, async_client=<openai.resources.chat.completions.AsyncCompletions object at 0x71864a9d69b0>, model_name='gpt-4o-mini', temperature=0.0, openai_api_key=SecretStr('**********'), openai_proxy='')]
 # last=StrOutputParser()

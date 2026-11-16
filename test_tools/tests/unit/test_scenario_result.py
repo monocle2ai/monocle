@@ -41,6 +41,16 @@ def test_the_report_shows_each_turns_trace_and_lines_up_multiline_replies():
     assert lines[-3:] == ["    agent  Sure.", "           Which date?", "    judge  [violated] booked anyway"]
 
 
+def test_an_unjudged_conversation_shows_each_reply_and_only_the_failed_turn_as_an_error():
+    turns = [TurnRecord(turn=1, tester_message="Hi", target_response="Hello."),
+             TurnRecord(turn=2, tester_message="Book it.")]
+    lines = failed(turns=turns, success_criteria=None, failure_reason="agent raised an error at turn 2 of 8",
+                   reason="boom").report().splitlines()
+    assert lines[lines.index("  turn 1") + 1:lines.index("  turn 2")] == ["    user   Hi", "    agent  Hello.", ""]
+    assert lines[-1] == "    agent  (error, see reason)"
+    assert not any("judge" in line for line in lines)
+
+
 def test_results_are_logged_only_when_enabled(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     monkeypatch.delenv(scenario_results.RESULTS_ENV, raising=False)

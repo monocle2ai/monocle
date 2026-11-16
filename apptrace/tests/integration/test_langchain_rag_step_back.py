@@ -20,6 +20,9 @@ from opentelemetry.sdk.trace.export import BatchSpanProcessor
 
 logger = logging.getLogger(__name__)
 
+# gpt-3.5-turbo-0125 has been deprecated by OpenAI.
+MODEL_NAME = "gpt-4o-mini"
+
 
 @pytest.fixture(scope="module")
 def setup():
@@ -73,7 +76,7 @@ def test_langchain_rag_step_back(setup):
     
     # Original question
     original_question = "What happens to the pressure P, of an ideal gas if the temperature T is increased by a factor of 2 and the volume V is increased by a factor of 8?"
-    llm = ChatOpenAI(model="gpt-3.5-turbo-0125", temperature=0.7)
+    llm = ChatOpenAI(model=MODEL_NAME, temperature=0.7)
 
     step_back_chain = step_back_prompt | llm | StrOutputParser()
     step_back_question = step_back_chain.invoke({"question": original_question})
@@ -150,8 +153,8 @@ def test_langchain_rag_step_back(setup):
             assert span_attributes["entity.1.type"] == "inference.openai"
             assert "entity.1.provider_name" in span_attributes
             assert "entity.1.inference_endpoint" in span_attributes
-            assert span_attributes["entity.2.name"] == "gpt-3.5-turbo-0125"
-            assert span_attributes["entity.2.type"] == "model.llm.gpt-3.5-turbo-0125"
+            assert span_attributes["entity.2.name"] == MODEL_NAME
+            assert span_attributes["entity.2.type"] == f"model.llm.{MODEL_NAME}"
 
             # Assertions for metadata
             span_input, span_output, span_metadata = span.events

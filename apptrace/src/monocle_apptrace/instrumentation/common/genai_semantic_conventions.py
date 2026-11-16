@@ -131,7 +131,7 @@ def enrich_genai_attributes(span: Any) -> None:
         None,
     )
     _set_if_missing(span, "gen_ai.provider.name", provider)
-    model_prefixes = ("model.embedding",) if operation == "embeddings" else ("model.llm",)
+    model_prefixes = ("model.embedding",) if operation == "embeddings" else ("model.llm", "model.decision")
     _set_if_missing(span, "gen_ai.request.model", _find_entity(attributes, model_prefixes))
 
     input_tokens = _metadata_value(span, "prompt_tokens", "input_tokens")

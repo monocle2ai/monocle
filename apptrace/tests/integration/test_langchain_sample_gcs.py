@@ -50,7 +50,7 @@ def setup():
 
 def test_langchain_sample_gcs(setup):
 
-    llm = ChatOpenAI(model="gpt-3.5-turbo-0125")
+    llm = ChatOpenAI(model="gpt-4o-mini")
 
     loader = WebBaseLoader(
         web_paths=("https://lilianweng.github.io/posts/2023-06-23-agent/",),
@@ -155,9 +155,9 @@ def test_langchain_sample_gcs(setup):
                 "Missing entity.1.provider_name attribute"
             assert "entity.1.inference_endpoint" in span_attributes, \
                 "Missing entity.1.inference_endpoint attribute"
-            assert span_attributes["entity.2.name"] == "gpt-3.5-turbo-0125", \
-                f"Expected gpt-3.5-turbo-0125 model, got {span_attributes.get('entity.2.name')}"
-            assert span_attributes["entity.2.type"] == "model.llm.gpt-3.5-turbo-0125", \
+            assert span_attributes["entity.2.name"] == "gpt-4o-mini", \
+                f"Expected gpt-4o-mini model, got {span_attributes.get('entity.2.name')}"
+            assert span_attributes["entity.2.type"] == "model.llm.gpt-4o-mini", \
                 f"Expected LLM model type, got {span_attributes.get('entity.2.type')}"
 
             span_input, span_output, span_metadata = span.events

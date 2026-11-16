@@ -40,7 +40,7 @@ def setup():
             instrumentor.uninstrument()
 
 def test_langchain_chat_sample(setup):
-    # llm = ChatOpenAI(model="gpt-3.5-turbo-0125")
+    # llm = ChatOpenAI(model="gpt-4o-mini")
     # llm = OpenAI(model="gpt-3.5-turbo-instruct")
     llm = AzureChatOpenAI(
         # engine=os.environ.get("AZURE_OPENAI_API_DEPLOYMENT"),
@@ -49,8 +49,8 @@ def test_langchain_chat_sample(setup):
         api_version=os.environ.get("AZURE_OPENAI_API_VERSION"),
         azure_endpoint=os.environ.get("AZURE_OPENAI_ENDPOINT"),
         temperature=0.7,
-        # model="gpt-4",
-        model="gpt-3.5-turbo-0125"
+        # model="gpt-4o-mini",
+        model="gpt-4o-mini"
         )
 
     # llm = ChatMistralAI(
@@ -182,8 +182,8 @@ def check_span(spans, exception):
             assert span_attributes["entity.1.type"] == "inference.azure_openai"
             assert "entity.1.provider_name" in span_attributes
             assert "entity.1.inference_endpoint" in span_attributes
-            assert span_attributes["entity.2.name"] == "gpt-3.5-turbo-0125"
-            assert span_attributes["entity.2.type"] == "model.llm.gpt-3.5-turbo-0125"
+            assert span_attributes["entity.2.name"] == "gpt-4o-mini"
+            assert span_attributes["entity.2.type"] == "model.llm.gpt-4o-mini"
             assert not span.name.lower().startswith("openai")
 
             # Assertions for metadata
@@ -377,8 +377,8 @@ if __name__ == "__main__":
 #         "entity.count": 2,
 #         "entity.1.type": "inference.azure_openai",
 #         "entity.1.inference_endpoint": "https://api.openai.com/v1/",
-#         "entity.2.name": "gpt-3.5-turbo-0125",
-#         "entity.2.type": "model.llm.gpt-3.5-turbo-0125"
+#         "entity.2.name": "gpt-4o-mini",
+#         "entity.2.type": "model.llm.gpt-4o-mini"
 #     },
 #     "events": [
 #          {
@@ -585,8 +585,8 @@ if __name__ == "__main__":
 #         "entity.1.type": "inference.azure_openai",
 #         "entity.1.provider_name": "api.openai.com",
 #         "entity.1.inference_endpoint": "https://api.openai.com/v1/",
-#         "entity.2.name": "gpt-3.5-turbo-0125",
-#         "entity.2.type": "model.llm.gpt-3.5-turbo-0125"
+#         "entity.2.name": "gpt-4o-mini",
+#         "entity.2.type": "model.llm.gpt-4o-mini"
 #     },
 #     "events": [
 #         {
@@ -820,8 +820,8 @@ if __name__ == "__main__":
 #         "entity.count": 2,
 #         "entity.1.type": "inference.azure_openai",
 #         "entity.1.inference_endpoint": "https://api.openai.com/v1/",
-#         "entity.2.name": "gpt-3.5-turbo-0125",
-#         "entity.2.type": "model.llm.gpt-3.5-turbo-0125"
+#         "entity.2.name": "gpt-4o-mini",
+#         "entity.2.type": "model.llm.gpt-4o-mini"
 #     },
 #     "events": [
 #         "events": [

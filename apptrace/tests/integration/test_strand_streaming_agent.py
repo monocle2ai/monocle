@@ -65,7 +65,9 @@ async def test_strand_streaming_agent(setup):
         return f"Successfully booked a flight from {from_airport} to {to_airport}."
 
     boto_session = boto3.Session()
-    model = BedrockModel(boto_session=boto_session, streaming=True)
+    # Pass the model explicitly: older Strands defaults to a Claude model Bedrock has retired.
+    model = BedrockModel(model_id=os.getenv("BEDROCK_MODEL", "us.anthropic.claude-sonnet-4-6"),
+                         boto_session=boto_session, streaming=True)
 
     travel_agent = Agent(
         name="travel_booking_agent",

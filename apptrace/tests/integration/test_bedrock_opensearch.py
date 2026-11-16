@@ -22,6 +22,9 @@ from requests_aws4auth import AWS4Auth
 
 logger = logging.getLogger(__name__)
 
+# claude-3-haiku-20240307 has reached end of life on Bedrock.
+MODEL_ID = "us.anthropic.claude-haiku-5-5"
+
 
 @pytest.fixture(scope="module")
 def setup():
@@ -64,8 +67,8 @@ def test_bedrock_opensearch(setup):
             assert span_attributes["entity.1.type"] == "inference.aws_bedrock"
             if "entity.1.inference_endpoint" in span_attributes.keys():
                 assert "entity.1.inference_endpoint" in span_attributes
-                assert span_attributes["entity.2.name"] == "anthropic.claude-3-haiku-20240307-v1:0"
-                assert span_attributes["entity.2.type"] == "model.llm.anthropic.claude-3-haiku-20240307-v1:0"
+                assert span_attributes["entity.2.name"] == MODEL_ID
+                assert span_attributes["entity.2.type"] == f"model.llm.{MODEL_ID}"
 
 
                 # Assertions for metadata
@@ -81,7 +84,7 @@ def produce_llm_response(query,similar_documents):
 
     # Set the model ID, e.g., Jurassic-2 Mid.
     #model_id = "ai21.j2-mid-v1"
-    model_id = "anthropic.claude-3-haiku-20240307-v1:0"
+    model_id = MODEL_ID
 
     context = build_context(similar_documents)
     user_message = f'Context - {context}\nBased on the above context, answer this Query: {query}'
@@ -97,10 +100,11 @@ def produce_llm_response(query,similar_documents):
         response = client.converse(
             modelId=model_id,
             messages=conversation,
-            inferenceConfig={"maxTokens": 512, "temperature": 0.5, "topP": 0.9},
+            inferenceConfig={"maxTokens": 512},
         )
 
-        response_text = response["output"]["message"]["content"][0]["text"]
+        # Newer models can put a reasoningContent block before the text.
+        response_text = "".join(block["text"] for block in response["output"]["message"]["content"] if "text" in block)
         logger.info(f"The response provided by the endpoint: {response_text}")
         return response_text
 
@@ -174,7 +178,7 @@ def test_invalid_credentials(setup):
             }
         ]
         response = client.converse(
-            modelId="anthropic.claude-3-haiku-20240307-v1:0",
+            modelId=MODEL_ID,
             messages=conversation,
             inferenceConfig={"maxTokens": 512}
         )

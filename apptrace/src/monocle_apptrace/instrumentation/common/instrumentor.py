@@ -29,7 +29,8 @@ from monocle_apptrace.instrumentation.common.genai_semantic_conventions import (
 )
 from monocle_apptrace.instrumentation.common.span_handler import SpanHandler, NonFrameworkSpanHandler
 from monocle_apptrace.instrumentation.common.wrapper_method import (
-    DEFAULT_METHODS_LIST,
+    get_metamodel_methods,
+    validate_metamodels,
     WrapperMethod,
     MONOCLE_SPAN_HANDLERS
 )
@@ -43,7 +44,7 @@ from monocle_apptrace.instrumentation.common.utils import (
 )
 from monocle_apptrace.instrumentation.common.constants import ( 
     MONOCLE_INSTRUMENTOR, MONOCLE_WORKFLOW_NAME_KEY, CUSTOM_INSTRUMENTATION_FILE_NAME,
-    CUSTOM_INSTRUMENTATION_FILE_PATH_ENV, WORKFLOW_NAME_ENV
+    CUSTOM_INSTRUMENTATION_FILE_PATH_ENV, WORKFLOW_NAME_ENV, METAMODELS_ENV
 )
 from monocle_apptrace.instrumentation.common.custom_span_processor import build_custom_span_processor
 from functools import wraps
@@ -117,7 +118,8 @@ class MonocleInstrumentor(BaseInstrumentor):
             handlers,
             user_wrapper_methods: list[Union[dict,WrapperMethod]] = None,
             exporters: list[SpanExporter] = None,
-            union_with_default_methods: bool = True
+            union_with_default_methods: bool = True,
+            metamodels: Optional[List[str]] = None
             ) -> None:
         self.user_wrapper_methods = user_wrapper_methods or []
         self.handlers = handlers
@@ -129,6 +131,7 @@ class MonocleInstrumentor(BaseInstrumentor):
         else:
             self.handlers = MONOCLE_SPAN_HANDLERS
         self.union_with_default_methods = union_with_default_methods
+        self.metamodels = metamodels
         super().__init__()
 
     def get_instrumentor(self, tracer):
@@ -163,7 +166,7 @@ class MonocleInstrumentor(BaseInstrumentor):
 
         final_method_list = []
         if self.union_with_default_methods is True:
-            final_method_list= final_method_list + DEFAULT_METHODS_LIST
+            final_method_list= final_method_list + get_metamodel_methods(self.metamodels)
 
         for method in self.user_wrapper_methods:
             if isinstance(method, dict):
@@ -285,7 +288,8 @@ def setup_monocle_telemetry(
         union_with_default_methods: bool = True,
         monocle_exporters_list:str = None,
         otel_genai_semconv: Optional[Union[str, bool]] = None,
-        span_obfuscators: Optional[List["SpanObfuscator"]] = None) -> MonocleInstrumentor:
+        span_obfuscators: Optional[List["SpanObfuscator"]] = None,
+        metamodels: Optional[Union[str, List[str]]] = None) -> MonocleInstrumentor:
     """
     Set up Monocle telemetry for the application.
 
@@ -320,6 +324,10 @@ def setup_monocle_telemetry(
         If None, the environment decides: obfuscation is **on by default** and redacts credentials,
         widened with MONOCLE_SPAN_OBFUSCATORS and turned off with MONOCLE_DISABLE_SPAN_OBFUSCATION.
         Pass an empty list to disable obfuscation regardless of the environment.
+    metamodels : str or List[str], optional
+        Frameworks to trace, as a list or a comma-separated string, for example ``"langgraph,openai"``.
+        ``get_supported_metamodels()`` returns the valid names. If None, MONOCLE_METAMODELS is used,
+        and if that is unset, all frameworks are traced. Ignored when ``union_with_default_methods`` is False.
     """
     # workflow_name is determined in the following order of precedence:
     # 1. Argument passed to this function
@@ -332,6 +340,9 @@ def setup_monocle_telemetry(
             workflow_name = os.path.basename(inspect.stack()[-1].filename).split(".")[0]
         except Exception:
             workflow_name = "monocle_workflow"
+    if metamodels is None:
+        metamodels = os.getenv(METAMODELS_ENV) or None
+    metamodels = validate_metamodels(metamodels)
     current_signature = build_setup_signature(
         workflow_name=workflow_name,
         span_processors=span_processors,
@@ -341,6 +352,7 @@ def setup_monocle_telemetry(
         monocle_exporters_list=monocle_exporters_list,
         otel_genai_semconv=otel_genai_semconv,
         span_obfuscators=span_obfuscators,
+        metamodels=metamodels,
     )
 
     if check_duplicate_setup(
@@ -396,7 +408,8 @@ def setup_monocle_telemetry(
         if isinstance(active_processor, SynchronousMultiSpanProcessor):
             set_monocle_span_processor(active_processor)
     instrumentor = MonocleInstrumentor(user_wrapper_methods=wrapper_methods or [], exporters=exporters,
-                                       handlers=span_handlers, union_with_default_methods = union_with_default_methods)
+                                       handlers=span_handlers, union_with_default_methods = union_with_default_methods,
+                                       metamodels=metamodels)
     # instrumentor.app_name = workflow_name
     if not instrumentor.is_instrumented_by_opentelemetry:
         instrumentor.instrument(tracer_provider=get_tracer_provider())

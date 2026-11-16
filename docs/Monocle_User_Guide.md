@@ -41,6 +41,52 @@ You need to import monocle package and invoke the API ``setup_monocle_telemetry(
 ### Using Monocle's out of box support of genAI technology components
 Monocle community has done the hard work of figuring out what to trace and how to extract relevant details from multiple genAI technology components. For example, if you have a python app coded using LlamaIndex and using models hostsed in OpenAI, Monocle can seamlessly trace your app. All you need to do enable Monocle tracing.
 
+### Choosing which frameworks to trace
+By default Monocle traces every framework it supports. To trace only some of them, pass their names to `setup_monocle_telemetry()` or set `MONOCLE_METAMODELS`. Calls into frameworks you leave out still run, but produce no spans.
+
+```python
+setup_monocle_telemetry(workflow_name="my_app", metamodels=["langgraph", "langchain", "openai"])
+setup_monocle_telemetry(workflow_name="my_app", metamodels="openai")
+```
+
+```bash
+export MONOCLE_METAMODELS=langgraph,langchain,openai
+```
+
+`get_supported_metamodels()` returns the valid names. A misspelled name is skipped with a warning that suggests the closest one. If no name is valid, every framework is traced.
+
+Some frameworks need others to be traced fully, as the last column shows. Leaving those out does not fail; the trace just has gaps.
+
+| Name | Instruments | Also add |
+|---|---|---|
+| `langchain` | LangChain | |
+| `langgraph` | LangGraph | `langchain` (model and tool calls) |
+| `llamaindex` | LlamaIndex | |
+| `haystack` | Haystack | |
+| `crew_ai` | CrewAI | |
+| `agents` | OpenAI Agents SDK | |
+| `msagent` | Microsoft Agent Framework | |
+| `adk` | Google ADK | |
+| `strands` | Strands Agents | |
+| `teamsai` | Teams AI | |
+| `agentcore` | AWS Bedrock AgentCore runtime | |
+| `openai` | OpenAI client | |
+| `anthropic` | Anthropic client | |
+| `gemini` | Google Gen AI client | |
+| `mistral` | Mistral client | |
+| `litellm` | LiteLLM | |
+| `azureaiinference` | Azure AI Inference client | |
+| `botocore` | AWS SDK (Bedrock, SageMaker) | |
+| `hugging_face` | Hugging Face Inference client | |
+| `typesafe` | Typesafe SDK | |
+| `mcp` | MCP client, LangChain MCP adapters | an HTTP client below |
+| `fastmcp` | FastMCP server | |
+| `a2a` | A2A client | an HTTP client below |
+| `requests`, `httpx`, `aiohttp` | HTTP clients (carry trace context out) | |
+| `flask`, `fastapi` | HTTP servers (continue an incoming trace) | |
+| `azfunc`, `lambdafunc` | Azure Functions, AWS Lambda handlers | |
+| `claude_cli`, `codex_cli`, `github_copilot` | Claude Code, Codex and GitHub Copilot CLI proxies | |
+
 ### Using Monocle's Support for Adding Custom Attributes
 Monocle provides users with the ability to add custom attributes to various spans, such as inference and retrieval spans, by utilizing the output processor within its metamodel. This feature allows for dynamic attribute assignment through lambda functions, which operate on an arguments dictionary.
 The arguments dictionary contains key-value pairs that can be used to compute custom attributes. The dictionary includes the following components: 

@@ -127,6 +127,18 @@ Each file contains an array of OpenTelemetry spans capturing agent runs, tool ca
 </details>
 
 <details>
+  <summary><b>Example: instrument only the frameworks you use</b></summary>
+
+  By default every supported framework is traced. Pass `metamodels`, as a list or a comma-separated string, to trace only the ones you name:
+
+  ```python
+  setup_monocle_telemetry(workflow_name="my_app", metamodels=["langgraph", "langchain", "openai"])
+  ```
+
+  Or set `MONOCLE_METAMODELS=langgraph,langchain,openai`. The valid names, and which ones need each other, are in [Choosing which frameworks to trace](docs/Monocle_User_Guide.md#choosing-which-frameworks-to-trace).
+</details>
+
+<details>
   <summary><b>Example: scrub secrets from traces (obfuscation)</b></summary>
 
   Span payloads are scrubbed inside your process before export, **on by default** — API keys, passwords, tokens and private keys are redacted, and an inline image becomes `<IMAGE:image/png,1.4MB>` instead of megabytes of base64.

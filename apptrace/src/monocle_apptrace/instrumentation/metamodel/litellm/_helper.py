@@ -15,6 +15,8 @@ from monocle_apptrace.instrumentation.common.utils import (
 )
 from monocle_apptrace.instrumentation.metamodel.finish_types import map_litellm_finish_reason_to_finish_type
 from contextlib import suppress
+from monocle_apptrace.instructions.prompt_injection import chat_messages
+from monocle_apptrace.instructions.sending import add_system_message, instruction_before
 
 logger = logging.getLogger(__name__)
 
@@ -459,3 +461,65 @@ def responses_inference_type(arguments):
     if extract_responses_finish_reason(arguments) == "tool_calls":
         return INFERENCE_TOOL_CALL
     return INFERENCE_TURN_END
+
+
+def add_instruction(kwargs, text):
+    """The chat call with the instruction as its first system message, or None if it carries no messages."""
+    if kwargs.get("messages"):
+        return add_system_message(kwargs, text)
+    if not isinstance(kwargs.get("data"), dict):
+        return None
+    instructed_data = add_system_message(kwargs["data"], text)
+    if instructed_data is None:
+        return None
+    return {**kwargs, "data": instructed_data}
+
+
+def add_responses_instruction(kwargs, text):
+    """The Responses call with the instruction ahead of ``instructions`` in its request params, or None if it has none."""
+    request_params = kwargs.get("response_api_optional_request_params")
+    if not isinstance(request_params, dict):
+        return None
+    instructions = instruction_before(text, request_params.get("instructions"))
+    if instructions is None:
+        return None
+    return {**kwargs, "response_api_optional_request_params": {**request_params, "instructions": instructions}}
+
+
+def responses_ask_for_a_stream(kwargs) -> bool:
+    request_params = kwargs.get("response_api_optional_request_params")
+    return isinstance(request_params, dict) and bool(request_params.get("stream"))
+
+
+def responses_reply_text(response) -> str:
+    """The first text in the messages of a Responses reply, or "". Reasoning, tool calls and tool output are not messages."""
+    messages = [item for item in getattr(response, "output", None) or [] if _item_attr(item, "type") == "message"]
+    parts = [part for message in messages for part in _item_attr(message, "content") or []]
+    texts = [_item_attr(part, "text") for part in parts if _item_attr(part, "type") == "output_text"]
+    return texts[0] if texts else ""
+
+
+def conversation(kwargs) -> list:
+    """The chat call's conversation. Azure's async call holds its messages under ``data``."""
+    if kwargs.get("messages"):
+        return chat_messages(kwargs)
+    if not isinstance(kwargs.get("data"), dict):
+        return []
+    return chat_messages(kwargs["data"])
+
+
+def hands_over_to_async(kwargs) -> bool:
+    """Whether a sync provider method does not make the call itself: it returns the coroutine of LiteLLM's async method."""
+    return kwargs.get("acompletion") is True or kwargs.get("_is_async") is True
+
+
+def hands_over_to_a_wrapped_async_method(kwargs) -> bool:
+    """Whether a sync chat method hands the call over to the async method Monocle wraps.
+
+    A call that asks for a stream goes to an async streaming method Monocle does not wrap.
+    """
+    if not hands_over_to_async(kwargs):
+        return False
+    optional_params = kwargs.get("optional_params")
+    asks_for_a_stream = kwargs.get("stream") or (isinstance(optional_params, dict) and optional_params.get("stream"))
+    return not asks_for_a_stream

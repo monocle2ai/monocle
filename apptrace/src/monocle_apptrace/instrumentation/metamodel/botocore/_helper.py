@@ -15,6 +15,7 @@ from monocle_apptrace.instrumentation.common.span_handler import SpanHandler
 from monocle_apptrace.instrumentation.common.utils import ( get_exception_message, get_json_dumps, get_status_code,)
 from monocle_apptrace.instrumentation.metamodel.finish_types import map_bedrock_finish_reason_to_finish_type
 from contextlib import suppress
+from monocle_apptrace.instructions.sending import placed_first
 
 logger = logging.getLogger(__name__)
 
@@ -463,3 +464,20 @@ def update_span_from_invoke_model_response(response, instance):
         if 'usage' in body_data:
             usage = body_data['usage']
             return usage
+
+
+def add_instruction(kwargs, text):
+    """The Converse call with the instruction as the first ``system`` block.
+
+    Returns None for other Bedrock calls: ``invoke_model`` is not supported, its body differs per model family.
+    """
+    if "messages" not in kwargs:
+        return None
+    return {**kwargs, "system": placed_first({"text": text}, list(kwargs.get("system") or []))}
+
+
+def reply_text(response) -> str:
+    """The first text block of a Converse reply, or "" if it has none. Reasoning and tool use are not text blocks."""
+    blocks = response.get("output", {}).get("message", {}).get("content", [])
+    texts = [block["text"] for block in blocks if "text" in block]
+    return texts[0] if texts else ""

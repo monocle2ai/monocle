@@ -21,6 +21,9 @@ from monocle_apptrace.instrumentation.metamodel.finish_types import (
 )
 from monocle_apptrace.instrumentation.common.constants import AGENT_PREFIX_KEY, INFERENCE_AGENT_DELEGATION, INFERENCE_TURN_END, INFERENCE_TOOL_CALL, TOOL_TYPE
 from contextlib import suppress
+from monocle_apptrace.instructions.prompt_injection import chat_messages, fields_of
+from monocle_apptrace.instructions.sending import add_system_message, instruction_before
+from monocle_apptrace.instructions.stop_when import first_choice_text
 
 logger = logging.getLogger(__name__)
 
@@ -602,3 +605,78 @@ def extract_session_id_from_agents(kwargs):
     return None
 
 
+def add_instruction(kwargs, text):
+    """The call with the instruction ahead of the developer's system prompt, or None if it carries no prompt.
+
+    Chat completions take it as the first system message; Responses take it in ``instructions``.
+    """
+    if "messages" in kwargs:
+        return add_system_message(kwargs, text)
+    if "input" not in kwargs:
+        return None
+    instructions = instruction_before(text, kwargs.get("instructions"))
+    if instructions is None:
+        return None
+    return {**kwargs, "instructions": instructions}
+
+
+def asks_for_a_stream(kwargs) -> bool:
+    """Whether the reply reaches the app in pieces: the call asks for a stream, or for a raw HTTP response to read as it arrives."""
+    if kwargs.get("stream"):
+        return True
+    return (kwargs.get("extra_headers") or {}).get("X-Stainless-Raw-Response") == "stream"
+
+
+def reply_text(response) -> str:
+    """The text the model's reply starts with, or "" if it starts with none.
+
+    Reads a chat completion and a Responses reply, also inside the raw HTTP response an app can ask for.
+    """
+    reply = _normalize_result_object(response)
+    if hasattr(reply, "choices"):
+        return first_choice_text(reply)
+    return first_output_text(reply)
+
+
+def first_output_text(reply) -> str:
+    """The first text in the messages of a Responses reply, or "". Reasoning, tool calls and tool output are not messages."""
+    messages = [item for item in getattr(reply, "output", None) or [] if item.type == "message"]
+    texts = [part.text for message in messages for part in message.content if part.type == "output_text"]
+    return texts[0] if texts else ""
+
+
+def conversation(kwargs) -> list:
+    """The call's conversation in the chat shape.
+
+    Chat completions hold it in ``messages``. Responses hold it in ``input``, as text or as a list of items.
+    """
+    if "messages" in kwargs:
+        return chat_messages(kwargs)
+    prompt = kwargs.get("input")
+    if isinstance(prompt, str):
+        return [{"role": "user", "content": prompt}]
+    return [as_chat_message(fields_of(item)) for item in prompt or []]
+
+
+def as_chat_message(item) -> dict:
+    """A Responses input item as a chat message.
+
+    A tool's output is a tool message and an item the model wrote is an assistant message. Any other item
+    without a role, such as a reference to an earlier item, is a message that holds nothing.
+    """
+    if "role" in item:
+        return item
+    if is_tool_output(item):
+        return {"role": "tool", "content": item.get("output")}
+    if is_written_by_the_model(item):
+        return {"role": "assistant"}
+    return {}
+
+
+def is_tool_output(item) -> bool:
+    return str(item.get("type", "")).endswith("_output")
+
+
+def is_written_by_the_model(item) -> bool:
+    item_type = str(item.get("type", ""))
+    return item_type == "reasoning" or item_type.endswith("_call")

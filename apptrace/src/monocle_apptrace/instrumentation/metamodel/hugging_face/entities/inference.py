@@ -1,4 +1,7 @@
 from monocle_apptrace.instrumentation.common.constants import SPAN_TYPES
+from monocle_apptrace.instructions.prompt_injection import chat_messages
+from monocle_apptrace.instructions.sending import add_system_message
+from monocle_apptrace.instructions.stop_when import first_choice_text
 from monocle_apptrace.instrumentation.common.utils import get_error_message, resolve_from_alias
 from monocle_apptrace.instrumentation.metamodel.hugging_face import _helper
 
@@ -11,6 +14,10 @@ def process_stream(to_wrap, response, span_processor):
 
 INFERENCE = {
     "type": SPAN_TYPES.INFERENCE,
+    "add_instruction": add_system_message,
+    "asks_for_a_stream": lambda kwargs: bool(kwargs.get("stream")),
+    "reply_text": first_choice_text,
+    "conversation": chat_messages,
     "subtype": lambda arguments: _helper.agent_inference_type(arguments),
     "attributes": [
         [

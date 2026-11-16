@@ -1,5 +1,6 @@
 import json
 import logging
+import time
 from typing import Callable, Optional, Sequence
 import requests
 from opentelemetry.sdk.trace import ReadableSpan
@@ -10,6 +11,8 @@ from monocle_apptrace.exporters.exporter_processor import ExportTaskProcessor
 from monocle_apptrace.instrumentation.common.utils import get_monocle_env_value
 
 REQUESTS_SUCCESS_STATUS_CODES = (200, 202, 204)
+HTTP_UNAUTHORIZED = 401
+REJECTED_KEY_RETRY_SECONDS = 300
 OKAHU_PROD_INGEST_ENDPOINT = "https://ingest.okahu.co/api/v1/trace/ingest"
 
 logger = logging.getLogger(__name__)
@@ -20,6 +23,10 @@ def _get_okahu_api_key() -> Optional[str]:
 
 
 class OkahuSpanExporter(SpanExporterBase):
+    # (api key, endpoint) -> when Okahu returned 401. Uploads for that pair are
+    # skipped for a while, so a bad key logs one error instead of one per span.
+    _rejected_api_keys: dict = {}
+
     def __init__(
             self,
             endpoint: Optional[str] = None,
@@ -41,6 +48,7 @@ class OkahuSpanExporter(SpanExporterBase):
         self.last_status_code: Optional[int] = None
         if not api_key:
             raise ValueError("OKAHU_API_KEY not set.")
+        self._api_key = api_key
         self.timeout = timeout or 15
         self.session = session or requests.Session()
         self.session.headers.update(
@@ -79,6 +87,10 @@ class OkahuSpanExporter(SpanExporterBase):
         is_root_span = any(OkahuSpanExporter._is_root_span(span) for span in spans)
 
         def send_spans_to_okahu(span_list_local=None, is_root=False):
+            rejected_at = OkahuSpanExporter._rejected_api_keys.get((self._api_key, self.endpoint))
+            if rejected_at is not None and time.monotonic() - rejected_at < REJECTED_KEY_RETRY_SECONDS:
+                self.last_status_code = HTTP_UNAUTHORIZED
+                return SpanExportResult.FAILURE
             try:
                 self.last_status_code = None
                 result = self.session.post(
@@ -87,6 +99,16 @@ class OkahuSpanExporter(SpanExporterBase):
                     timeout=self.timeout,
                 )
                 self.last_status_code = result.status_code
+                if result.status_code == HTTP_UNAUTHORIZED:
+                    OkahuSpanExporter._rejected_api_keys[(self._api_key, self.endpoint)] = time.monotonic()
+                    logger.error(
+                        "Okahu rejected the API key (HTTP 401); skipping uploads to %s for %s seconds. "
+                        "Check OKAHU_API_KEY. Response: %s",
+                        self.endpoint,
+                        REJECTED_KEY_RETRY_SECONDS,
+                        result.text,
+                    )
+                    return SpanExportResult.FAILURE
                 if result.status_code not in REQUESTS_SUCCESS_STATUS_CODES:
                     logger.error(
                         "Traces cannot be uploaded; status code: %s, message %s",

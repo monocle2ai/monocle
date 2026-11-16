@@ -155,6 +155,15 @@ LAST_AGENT_INVOCATION_ID = "monocle.last.agent.invocation.id"
 MONOCLE_SKIP_EXECUTIONS = "monocle.skip_executions"
 SKIPPED_EXECUTION = "monocle.skipped_execution"
 
+MONOCLE_INSTRUCTION_ENV = "MONOCLE_INSTRUCTION"
+MONOCLE_INSTRUCTION = "monocle.instruction"
+SENT_INSTRUCTION = "monocle.instruction"
+INSTRUCTION_INPUT_LABEL = "instruction"
+KILL_SWITCH_INSTRUCTION = "monocle.kill_switch.instruction"
+KILL_SWITCH_CHECK = "monocle.kill_switch.check"
+KILL_SWITCH_REASON = "monocle.kill_switch.reason"
+KILL_SWITCH_ERROR_CODE = "kill_switch_triggered"
+
 TOOL_TYPE = "tool.function"
 
 # model_type values on inference model entities

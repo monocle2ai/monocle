@@ -1,4 +1,5 @@
 from monocle_apptrace.instrumentation.common.constants import SPAN_TYPES
+from monocle_apptrace.instructions.sending import add_system_message
 from monocle_apptrace.instrumentation.metamodel.mistral import _helper
 from monocle_apptrace.instrumentation.common.utils import get_error_message, resolve_from_alias
 
@@ -11,6 +12,9 @@ def process_stream(to_wrap, response, span_processor):
 
 MISTRAL_INFERENCE = {
     "type": SPAN_TYPES.INFERENCE,
+    "add_instruction": add_system_message,
+    "asks_for_a_stream": lambda kwargs: False,
+    "reply_text": _helper.reply_text,
     "subtype": lambda arguments: _helper.agent_inference_type(arguments),
     "attributes": [
         [
@@ -114,6 +118,7 @@ MISTRAL_INFERENCE = {
 
 MISTRAL_STREAM_INFERENCE = {
     **MISTRAL_INFERENCE,
+    "asks_for_a_stream": lambda kwargs: True,
     "is_auto_close": lambda kwargs: False,
     "response_processor": process_stream,
 }

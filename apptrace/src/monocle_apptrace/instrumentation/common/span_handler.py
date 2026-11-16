@@ -22,6 +22,7 @@ from monocle_apptrace.instrumentation.common.constants import (
     MODEL_TYPE_ATTRIBUTE, MODEL_TYPE_COMPLETION, LLM_MODEL_PREFIX
 )
 
+from monocle_apptrace.instructions.sending import input_with_instruction
 from monocle_apptrace.instrumentation.common.utils import CyclicCounter, set_attribute, get_scopes, MonocleSpanException, get_monocle_version, replace_placeholders, propogate_inference_info_to_parent_span, get_workflow_name
 from monocle_apptrace.instrumentation.common.constants import \
     (WORKFLOW_TYPE_KEY, WORKFLOW_TYPE_GENERIC, CHILD_ERROR_CODE, MONOCLE_SKIP_EXECUTIONS, SKIPPED_EXECUTION, MONOCLE_WORKFLOW_NAME_KEY)
@@ -281,10 +282,8 @@ class SpanHandler:
                                         event_attributes[attribute_key] = result
                                     else:
                                         event_attributes.update(result)
-                                if not is_post_exec and event_name == "data.input" and attribute_key == "input" and result:
-                                    # append memory to input if available
-                                    # update the result with new input
-                                    pass
+                                if event_name == "data.input" and attribute_key == "input" and result and isinstance(result, list):
+                                    event_attributes[attribute_key] = input_with_instruction(result, span, wrapped, kwargs)
                                 elif not detected_error and is_post_exec and event_name == "data.output" and attribute_key == "response" and result:
                                     # capture memory
                                     pass

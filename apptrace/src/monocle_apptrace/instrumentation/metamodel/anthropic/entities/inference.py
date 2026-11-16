@@ -13,6 +13,9 @@ def process_stream(to_wrap, response, span_processor):
 
 INFERENCE = {
     "type": SPAN_TYPES.INFERENCE,
+    "add_instruction": _helper.add_instruction,
+    "asks_for_a_stream": _helper.asks_for_a_stream,
+    "reply_text": _helper.reply_text,
     "subtype": lambda arguments: _helper.agent_inference_type(arguments),
     "attributes": [
         [
@@ -116,6 +119,7 @@ INFERENCE = {
 
 STREAM_INFERENCE = {
     **INFERENCE,
+    "asks_for_a_stream": lambda kwargs: True,
     "is_auto_close": lambda kwargs: False,
     "response_processor": process_stream,
 }

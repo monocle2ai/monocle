@@ -1,4 +1,5 @@
 from monocle_apptrace.instrumentation.common.constants import SPAN_TYPES
+from monocle_apptrace.instructions.stop_when import first_choice_text
 from monocle_apptrace.instrumentation.metamodel.litellm import (
     _helper,
 )
@@ -14,6 +15,9 @@ def process_response(to_wrap, response, span_processor):
     return processor.process_stream(to_wrap, response, span_processor)
 INFERENCE = {
     "type": SPAN_TYPES.INFERENCE,
+    "add_instruction": _helper.add_instruction,
+    "asks_for_a_stream": _helper.is_streaming_request,
+    "reply_text": first_choice_text,
     "subtype": lambda arguments: _helper.agent_inference_type(arguments),
     "is_auto_close": lambda kwargs: not _helper.is_streaming_request(kwargs),
     "response_processor": process_response,

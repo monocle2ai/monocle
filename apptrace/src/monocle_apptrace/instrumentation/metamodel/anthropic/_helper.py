@@ -19,6 +19,7 @@ from monocle_apptrace.instrumentation.metamodel.finish_types import map_anthropi
 from monocle_apptrace.instrumentation.common.constants import AGENT_PREFIX_KEY, INFERENCE_AGENT_DELEGATION, INFERENCE_TURN_END, INFERENCE_TOOL_CALL, TOOL_TYPE
 from contextlib import suppress
 
+from monocle_apptrace.instructions.sending import instruction_before, placed_first
 
 logger = logging.getLogger(__name__)
 
@@ -281,3 +282,33 @@ def extract_tool_type(arguments):
         logger.warning("Warning: Error occurred in extract_tool_type: %s", str(e))
     
     return None
+
+
+def add_instruction(kwargs, text):
+    """The call with the instruction ahead of ``system``, or None if it carries no messages."""
+    if "messages" not in kwargs:
+        return None
+    system = kwargs.get("system")
+    if isinstance(system, (list, tuple)):
+        return {**kwargs, "system": placed_first({"type": "text", "text": text}, list(system))}
+    instructed_system = instruction_before(text, system)
+    if instructed_system is None:
+        return None
+    return {**kwargs, "system": instructed_system}
+
+
+def asks_for_a_stream(kwargs) -> bool:
+    """Whether the reply reaches the app in pieces: the call asks for a stream, or for a raw HTTP response to read as it arrives."""
+    if kwargs.get("stream"):
+        return True
+    return (kwargs.get("extra_headers") or {}).get("X-Stainless-Raw-Response") == "stream"
+
+
+def reply_text(response) -> str:
+    """The first text block of the model's reply, or "" if it has none. Thinking and tool use are not text blocks.
+
+    Also reads the reply inside the raw HTTP response an app can ask for.
+    """
+    message = response.parse() if type(response).__name__ == "LegacyAPIResponse" else response
+    texts = [block.text for block in getattr(message, "content", None) or [] if block.type == "text"]
+    return texts[0] if texts else ""

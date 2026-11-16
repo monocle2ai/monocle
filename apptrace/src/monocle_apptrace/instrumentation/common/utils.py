@@ -14,8 +14,10 @@ from opentelemetry.propagate import extract
 from opentelemetry import baggage
 from monocle_apptrace.instrumentation.common.constants import (
     ANY_AGENT, LAST_INFERENCE, MONOCLE_SCOPE_NAME_PREFIX, SCOPE_METHOD_FILE, SCOPE_CONFIG_PATH, SPAN_TYPES, llm_type_map, MONOCLE_SDK_VERSION, ADD_NEW_WORKFLOW, AGENT_NAME_KEY,
-    AGENT_INVOCATION_SPAN_NAME, LAST_AGENT_INVOCATION_ID, LAST_AGENT_NAME, INFERENCE_DECISION, INFERENCE_AGENT_DELEGATION, INFERENCE_TOOL_CALL, INFERENCE_TURN_END, SPAN_SUBTYPES
+    AGENT_INVOCATION_SPAN_NAME, LAST_AGENT_INVOCATION_ID, LAST_AGENT_NAME, INFERENCE_DECISION, INFERENCE_AGENT_DELEGATION, INFERENCE_TOOL_CALL, INFERENCE_TURN_END, SPAN_SUBTYPES,
+    KILL_SWITCH_ERROR_CODE
 )
+from monocle_apptrace.instructions.kill_switch import trigger_that_caused
 from importlib.metadata import version
 from opentelemetry.trace.span import INVALID_SPAN
 _MONOCLE_SPAN_KEY = "monocle" + _SPAN_KEY
@@ -550,6 +552,8 @@ def get_status(arguments):
         return 'success'
 
 def get_exception_status_code(arguments):
+    if trigger_that_caused(arguments['exception']) is not None:
+        return KILL_SWITCH_ERROR_CODE
     if arguments['exception'] is not None and hasattr(arguments['exception'], 'code') and arguments['exception'].code is not None:
         return arguments['exception'].code
     elif arguments['exception'] is not None:

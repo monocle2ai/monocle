@@ -41,6 +41,9 @@ def process_stream(to_wrap, response, span_processor):
 
 INFERENCE = {
     "type": SPAN_TYPES.INFERENCE,
+    "add_instruction": _helper.add_instruction,
+    "asks_for_a_stream": _helper.asks_for_a_stream,
+    "reply_text": _helper.reply_text,
     "subtype": lambda arguments: _helper.agent_inference_type(arguments),
     # truthiness, not `is False`: the Omit()/NotGiven stream sentinel is falsy but not False
     "is_auto_close": lambda kwargs: not kwargs.get("stream", False),
@@ -164,3 +167,6 @@ INFERENCE = {
         },
     ],
 }
+
+# The Agents SDK's _fetch_response hands its call to Responses.create, which is the one that adds the instruction.
+AGENTS_INFERENCE = {key: value for key, value in INFERENCE.items() if key != "add_instruction"}

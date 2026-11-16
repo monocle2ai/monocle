@@ -1,0 +1,3 @@
+name: no-wire-transfers
+description: Stops the agent when the user asks to move money.
+stop_when: the user asks for a wire transfer or any other movement of money

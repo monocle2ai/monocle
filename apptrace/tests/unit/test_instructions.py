@@ -550,7 +550,7 @@ def openai_chat_reply(message: dict):
 def responses_reply(reply_type, output: list, **fields):
     return reply_type.model_validate({
         "id": "r", "object": "response", "created_at": 1, "model": "m", "parallel_tool_calls": True,
-        "tool_choice": "auto", "tools": [], "status": "completed", "output": output, **fields})
+        "tool_choice": "auto", "tools": [], "top_p": 1.0, "status": "completed", "output": output, **fields})
 
 
 def responses_message(text: str) -> dict:
